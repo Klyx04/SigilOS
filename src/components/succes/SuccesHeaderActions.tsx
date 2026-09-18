@@ -1,7 +1,6 @@
 "use client";
 
-import Link from "next/link";
-import { BookOpen, CircleHelp, Database, ExternalLink, PictureInPicture2 } from "lucide-react";
+import { BookOpen, CircleHelp, PictureInPicture2 } from "lucide-react";
 import { useBossOverlay } from "@/hooks/use-boss-overlay";
 import { useDocDrawer } from "@/components/doc/doc-drawer-context";
 import { useTour } from "@/components/tour/tour-provider";
@@ -24,46 +23,7 @@ export function SuccesHeaderActions({ guildId }: SuccesHeaderActionsProps) {
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      {/* 1. SOURCES COMMUNAUTAIRES */}
-      <div className="inline-flex items-center h-8 px-2 rounded-xl border border-border bg-surface/60 backdrop-blur-xs gap-1">
-        {/* DofusDB */}
-        <Link
-          href="https://dofusdb.fr"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg hover:bg-elevated text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
-          title="DofusDB — Encyclopédie, quêtes & succès"
-        >
-          <img
-            src="/assets/icons/dofusdb.png"
-            alt="DofusDB"
-            className="w-3.5 h-3.5 rounded-xs object-contain shrink-0"
-          />
-          <span className="text-[11px]">DofusDB</span>
-          <ExternalLink className="w-2.5 h-2.5 opacity-60" />
-        </Link>
-
-        <div className="h-3.5 w-px bg-border/80 mx-0.5" />
-
-        {/* Dofensive */}
-        <Link
-          href="https://dofensive.com"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg hover:bg-elevated text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
-          title="Dofensive — Fiches tactiques & sorts de boss"
-        >
-          <img
-            src="/assets/icons/dofensive.ico"
-            alt="Dofensive"
-            className="w-3.5 h-3.5 rounded-xs object-contain shrink-0"
-          />
-          <span className="text-[11px]">Dofensive</span>
-          <ExternalLink className="w-2.5 h-2.5 opacity-60" />
-        </Link>
-      </div>
-
-      {/* 2. BOUTON DOCUMENTATION */}
+      {/* 1. BOUTON DOCUMENTATION */}
       <button
         type="button"
         onClick={() => openDoc("succes", "Succès & Donjons")}
@@ -74,7 +34,7 @@ export function SuccesHeaderActions({ guildId }: SuccesHeaderActionsProps) {
         <span>Documentation</span>
       </button>
 
-      {/* 3. BOUTON TUTORIEL */}
+      {/* 2. BOUTON TUTORIEL */}
       {tourContext && (
         <button
           type="button"
@@ -87,7 +47,7 @@ export function SuccesHeaderActions({ guildId }: SuccesHeaderActionsProps) {
         </button>
       )}
 
-      {/* 4. ⭐ BOUTON ENCYCLOPÉDIE OVERLAY */}
+      {/* 3. BOUTON ENCYCLOPÉDIE OVERLAY */}
       <button
         type="button"
         onClick={() => openBossOverlay()}

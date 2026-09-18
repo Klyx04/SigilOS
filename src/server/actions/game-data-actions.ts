@@ -1049,7 +1049,8 @@ export async function getMonsterStats(
     monsterName: string,
     dungeonName?: string,
     forceRefresh = false,
-    monsterId?: number
+    monsterId?: number,
+    locale: "fr" | "en" = "fr"
 ): Promise<ActionResponse<any>> {
     // 🎯 Résolution **par ID** (chantier « Avis de recherche ») : les homonymes existent en jeu
     // (3 × « Ronce » 3530/3555/3531, plusieurs « Mouchâme »). La recherche se fait sinon par
@@ -1059,9 +1060,10 @@ export async function getMonsterStats(
         ? Math.floor(Number(monsterId))
         : 0;
     // #138 — évite de re-frapper dofusdb à chaque sélection de donjon (la fiche est statique).
-    const cacheKey = safeId > 0
+    // Le locale est inclus dans la clé uniquement pour EN car FR est le cas par défaut.
+    const cacheKey = (safeId > 0
         ? `id:${safeId}`
-        : `${monsterName.trim().toLowerCase()}::${(dungeonName ?? "").toLowerCase()}`;
+        : `${monsterName.trim().toLowerCase()}::${(dungeonName ?? "").toLowerCase()}`) + (locale === "en" ? "::en" : "");
     const cached = monsterStatsCache.get(cacheKey);
     if (cached && cached.expiresAt > Date.now()) {
         return { success: true, data: cached.data };
@@ -1113,6 +1115,39 @@ export async function getMonsterStats(
             if (hit) {
                 const local = { ...hit.data, stale: hit.stale, syncedAt: hit.lastSyncedAt };
                 if (!local.coordinates && coordinates) local.coordinates = coordinates;
+
+                // 🇬🇧 Enrichissement EN des drops : si la DB locale n'a pas de `nameEn` sur les drops
+                // (lignes persistées avant l'ajout du champ), on fait un fetch rapide DofusDB
+                // items?id[$in][]=...&lang=en pour obtenir les noms anglais, sans bloquer la FR.
+                if (locale === "en" && Array.isArray(local.drops) && local.drops.length > 0) {
+                    const missingEnIds = (local.drops as any[])
+                        .filter((d: any) => !d.nameEn && (d.objectId || d.id))
+                        .map((d: any) => d.objectId || d.id);
+                    if (missingEnIds.length > 0) {
+                        try {
+                            const chunks: number[][] = [];
+                            for (let i = 0; i < missingEnIds.length; i += 40) chunks.push(missingEnIds.slice(i, i + 40));
+                            const enItemsMap: Record<number, string> = {};
+                            await Promise.all(chunks.map(async (chunk) => {
+                                const q = chunk.map((id: number) => `id[$in][]=${id}`).join("&");
+                                const res = await fetch(`https://api.dofusdb.fr/items?${q}&$limit=50&lang=en`, dofusdbFicheInit());
+                                if (res.ok) {
+                                    const data = await res.json();
+                                    if (Array.isArray(data?.data)) {
+                                        data.data.forEach((it: any) => { if (it.name?.en) enItemsMap[it.id] = it.name.en; });
+                                    }
+                                }
+                            }));
+                            if (Object.keys(enItemsMap).length > 0) {
+                                local.drops = (local.drops as any[]).map((d: any) => ({
+                                    ...d,
+                                    nameEn: d.nameEn || enItemsMap[d.objectId] || enItemsMap[d.id] || null,
+                                }));
+                            }
+                        } catch { /* enrichissement EN optionnel — jamais bloquant */ }
+                    }
+                }
+
                 const ttl = hit.stale ? STALE_STATS_TTL : MONSTER_STATS_TTL;
                 monsterStatsCache.set(cacheKey, { data: local, expiresAt: Date.now() + ttl });
                 return { success: true, data: local };
@@ -1497,97 +1532,101 @@ export async function getMonsterStats(
 
         const resultData = {
             id: monster.id,
-                name: monster.name.fr,
-                imageUrl: monster.img || `https://static.ankama.com/dofus/www/game/monsters/${monster.id}.png`,
-                familyId: monster.race ?? null,
-                coordinates,
-                grades: monster.grades.map((g: any, idx: number) => ({
-                    level: g.level,
-                    lifePoints: g.lifePoints,
-                    actionPoints: g.pa || g.actionPoints,
-                    movementPoints: g.pm || g.movementPoints,
-                    resists: {
-                        neutral: g.neutralResistance,
-                        earth: g.earthResistance,
-                        fire: g.fireResistance,
-                        water: g.waterResistance,
-                        air: g.airResistance
-                    }
-                })),
-                drops: monster.drops?.map((d: any) => {
-                    const item = itemsMap[d.objectId];
-                    const iconId = item?.iconId || d.objectId;
+            name: monster.name?.fr || (typeof monster.name === "string" ? monster.name : ""),
+            nameEn: monster.name?.en || null,
+            imageUrl: monster.img || `https://static.ankama.com/dofus/www/game/monsters/${monster.id}.png`,
+            familyId: monster.race ?? null,
+            coordinates,
+            grades: monster.grades.map((g: any, idx: number) => ({
+                level: g.level,
+                lifePoints: g.lifePoints,
+                actionPoints: g.pa || g.actionPoints,
+                movementPoints: g.pm || g.movementPoints,
+                resists: {
+                    neutral: g.neutralResistance,
+                    earth: g.earthResistance,
+                    fire: g.fireResistance,
+                    water: g.waterResistance,
+                    air: g.airResistance
+                }
+            })),
+            drops: monster.drops?.map((d: any) => {
+                const item = itemsMap[d.objectId];
+                const iconId = item?.iconId || d.objectId;
 
-                    // Fallback de taux (conditionnels, globaux ou sans grade explicite)
-                    const fallbackDrop = (d.minPercentDrop > 0 ? d.minPercentDrop : null)
-                        ?? (d.maxPercentDrop > 0 ? d.maxPercentDrop : null)
-                        ?? (d.percent > 0 ? d.percent : null);
+                // Fallback de taux (conditionnels, globaux ou sans grade explicite)
+                const fallbackDrop = (d.minPercentDrop > 0 ? d.minPercentDrop : null)
+                    ?? (d.maxPercentDrop > 0 ? d.maxPercentDrop : null)
+                    ?? (d.percent > 0 ? d.percent : null);
 
-                    const rawGrades = [
-                        d.percentDropForGrade1,
-                        d.percentDropForGrade2,
-                        d.percentDropForGrade3,
-                        d.percentDropForGrade4,
-                        d.percentDropForGrade5
-                    ];
+                const rawGrades = [
+                    d.percentDropForGrade1,
+                    d.percentDropForGrade2,
+                    d.percentDropForGrade3,
+                    d.percentDropForGrade4,
+                    d.percentDropForGrade5
+                ];
 
-                    const gradePercents = rawGrades.map((pg) => {
-                        if (typeof pg === 'number' && pg > 0) return pg;
-                        if (fallbackDrop !== null && fallbackDrop !== undefined) return fallbackDrop;
-                        return typeof pg === 'number' ? pg : 0;
-                    });
+                const gradePercents = rawGrades.map((pg) => {
+                    if (typeof pg === 'number' && pg > 0) return pg;
+                    if (fallbackDrop !== null && fallbackDrop !== undefined) return fallbackDrop;
+                    return typeof pg === 'number' ? pg : 0;
+                });
 
-                    // Choix du taux représentatif (premier grade non-nul, ou fallback)
-                    const firstNonZero = gradePercents.find((p) => p > 0);
-                    const rawPercent = firstNonZero ?? fallbackDrop ?? d.percentDropForGrade5 ?? d.percentDropForGrade1 ?? 0;
+                // Choix du taux représentatif (premier grade non-nul, ou fallback)
+                const firstNonZero = gradePercents.find((p) => p > 0);
+                const rawPercent = firstNonZero ?? fallbackDrop ?? d.percentDropForGrade5 ?? d.percentDropForGrade1 ?? 0;
 
-                    // Formateur intelligent : DofusDB arrondit à 2 décimales si >= 0.01 (ex: 0.045% -> 0.05%), 3 décimales si < 0.01
-                    const formatRate = (val: number): number => {
-                        if (!val || val <= 0) return 0;
-                        if (val < 0.01) return parseFloat(val.toFixed(3));
-                        return parseFloat(val.toFixed(2));
-                    };
+                // Formateur intelligent : DofusDB arrondit à 2 décimales si >= 0.01 (ex: 0.045% -> 0.05%), 3 décimales si < 0.01
+                const formatRate = (val: number): number => {
+                    if (!val || val <= 0) return 0;
+                    if (val < 0.01) return parseFloat(val.toFixed(3));
+                    return parseFloat(val.toFixed(2));
+                };
 
-                    const formattedPercent = formatRate(rawPercent);
+                const formattedPercent = formatRate(rawPercent);
 
-                    return {
-                        objectId: d.objectId,
-                        name: item?.name?.fr || "Objet",
-                        imageUrl: item?.img || `https://static.dofusdb.fr/items/illustr/${iconId}.png`,
-                        percent: formattedPercent,
-                        percentByGrade: gradePercents.map(formatRate)
-                    };
-                }) || [],
-                spells: spellsArr.map(s => {
-                    const levelId = s.spellLevels?.length > 0 ? s.spellLevels[s.spellLevels.length - 1] : s.spellLevels?.[0];
-                    const level = spellLevelsMap[levelId] || {};
-                    const effectDesc = parseEffects(level.effects);
+                return {
+                    objectId: d.objectId,
+                    name: item?.name?.fr || (typeof item?.name === "string" ? item.name : "Objet"),
+                    nameEn: item?.name?.en || null,
+                    imageUrl: item?.img || `https://static.dofusdb.fr/items/illustr/${iconId}.png`,
+                    percent: formattedPercent,
+                    percentByGrade: gradePercents.map(formatRate)
+                };
+            }) || [],
+            spells: spellsArr.map(s => {
+                const levelId = s.spellLevels?.length > 0 ? s.spellLevels[s.spellLevels.length - 1] : s.spellLevels?.[0];
+                const level = spellLevelsMap[levelId] || {};
+                const effectDesc = parseEffects(level.effects);
 
-                    // Priority for images: 
-                    // 1. s.img (sometimes relative)
-                    // 2. static.ankama.com
-                    // 3. dofusdb.fr/img/spells/sort_{iconId}.png (last resort usually works)
-                    let spellImg = s.img;
-                    if (!spellImg && s.iconId) {
-                        spellImg = `https://api.dofusdb.fr/img/spells/sort_${s.iconId}.png`;
-                    }
-                    if (spellImg && spellImg.startsWith('/')) {
-                        spellImg = `https://api.dofusdb.fr${spellImg}`;
-                    }
+                // Priority for images: 
+                // 1. s.img (sometimes relative)
+                // 2. static.ankama.com
+                // 3. dofusdb.fr/img/spells/sort_{iconId}.png (last resort usually works)
+                let spellImg = s.img;
+                if (!spellImg && s.iconId) {
+                    spellImg = `https://api.dofusdb.fr/img/spells/sort_${s.iconId}.png`;
+                }
+                if (spellImg && spellImg.startsWith('/')) {
+                    spellImg = `https://api.dofusdb.fr${spellImg}`;
+                }
 
-                    return {
-                        id: s.id,
-                        name: s.name?.fr || "Sort",
-                        imageUrl: spellImg,
-                        description: s.description?.fr || effectDesc || "",
-                        apCost: level.apCost || level.paCost || 0,
-                        minRange: level.minRange || 0,
-                        range: level.range || level.maxRange || 0,
-                        castTestLos: level.castTestLos ?? true,
-                        castInLine: level.castInLine ?? false,
-                        castInDiagonal: level.castInDiagonal ?? false
-                    };
-                })
+                return {
+                    id: s.id,
+                    name: s.name?.fr || (typeof s.name === "string" ? s.name : "Sort"),
+                    nameEn: s.name?.en || null,
+                    imageUrl: spellImg,
+                    description: s.description?.fr || effectDesc || "",
+                    descriptionEn: s.description?.en || null,
+                    apCost: level.apCost || level.paCost || 0,
+                    minRange: level.minRange || 0,
+                    range: level.range || level.maxRange || 0,
+                    castTestLos: level.castTestLos ?? true,
+                    castInLine: level.castInLine ?? false,
+                    castInDiagonal: level.castInDiagonal ?? false
+                };
+            })
         };
         monsterStatsCache.set(cacheKey, { data: resultData, expiresAt: Date.now() + MONSTER_STATS_TTL });
         // Self-healing (sync intelligente) : copie locale de la fiche pour le

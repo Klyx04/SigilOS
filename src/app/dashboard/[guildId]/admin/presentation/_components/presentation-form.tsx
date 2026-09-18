@@ -8,9 +8,6 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Progress } from "@/components/ui/progress";
 import {
     getAdminPresentationData,
     updateGuildPresentation,
@@ -23,19 +20,19 @@ import {
 import {
     DOFUS_UNITY_SERVERS,
     AVAILABLE_ACTIVITIES,
+    ACTIVITY_ASSETS,
+    FOUNDER_CROWN_ASSET,
+    MANIFESTO_ASSET,
+    GUILD_BLASON_ASSET,
 } from "@/lib/presentation-constants";
 import { getDofusServerImage } from "@/lib/dofus-assets";
 import {
-    Save,
-    Eye,
-    EyeOff,
     Upload,
     X,
     ExternalLink,
     Loader2,
     Crown,
     Shield,
-    Server,
     Gamepad2,
     MessageCircle,
     Check,
@@ -44,15 +41,12 @@ import {
     Users,
     Image as ImageIcon,
     AlertCircle,
-    Sparkles,
-    Trophy,
-    Castle,
-    Calendar // Added
+    ArrowLeft,
+    ArrowRight,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
-import { motion, AnimatePresence } from "framer-motion";
 import { MemberSelector } from "./member-selector";
 
 type Props = {
@@ -98,55 +92,28 @@ const calculateCompleteness = (
     );
 };
 
-const getCompletenessColor = (score: number) => {
-    if (score < 50) return "bg-danger";
-    if (score < 80) return "bg-warning";
-    return "bg-success";
-};
-
-
-
 // Sanitize history text (remove URLs)
 const sanitizeHistoryText = (text: string): string => {
     // Remove URLs
     return text.replace(/https?:\/\/[^\s]+/gi, "[lien supprimé]");
 };
 
-// Section header with save button
-interface SectionHeaderProps {
-    title: string;
-    icon: React.ElementType;
-    section: string;
-    color?: string;
-    onSave: (section: string) => void;
-    isPending: boolean;
-}
+// ── Rédaction en étapes : un cap à la fois, pas cinq onglets interchangeables ──
+const STEPS = [
+    { id: "roots", label: "Fondations", hint: "Serveur, fondation, porte Discord" },
+    { id: "staff", label: "État-major", hint: "Meneur, co-leaders, bras droits" },
+    { id: "tale", label: "Récit", hint: "Manifeste et chasses de la guilde" },
+    { id: "images", label: "Étendards", hint: "Bannière et photo de guilde" },
+    { id: "recruit", label: "Recrutement", hint: "Statut, seuils, pré-requis" },
+] as const;
 
-const SectionHeader = ({ title, icon: Icon, section, color = "text-info", onSave, isPending }: SectionHeaderProps) => (
-    <div className="flex items-center justify-between group">
-        <h2 className={cn("text-lg font-semibold text-foreground flex items-center gap-2")}>
-            <Icon className={cn("w-5 h-5", color)} />
-            {title}
-        </h2>
-        <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => onSave(section)}
-            disabled={isPending}
-            className="opacity-0 group-hover:opacity-100 transition-opacity h-8 gap-1.5 text-xs text-muted-foreground hover:text-foreground"
-        >
-            <Save className="w-3.5 h-3.5" />
-            Sauvegarder
-        </Button>
-    </div>
-);
+type StepId = (typeof STEPS)[number]["id"];
 
 // Bouton de choix de serveur avec sa vignette officielle (assets du jeu).
-// Un seul composant pour les 5 catégories (la couleur "sélectionné" varie).
-const ServerPickButton = ({ name, selected, selectedClass, onPick }: {
+// Sélection = trait net + check, jamais de fond teinté.
+const ServerPickButton = ({ name, selected, onPick }: {
     name: string;
     selected: boolean;
-    selectedClass: string;
     onPick: () => void;
 }) => {
     const img = getDofusServerImage(name);
@@ -154,11 +121,12 @@ const ServerPickButton = ({ name, selected, selectedClass, onPick }: {
         <button
             type="button"
             onClick={onPick}
+            aria-pressed={selected}
             className={cn(
-                "relative px-3 py-2 rounded-xl text-sm font-medium transition-all duration-200 border flex items-center gap-2.5 text-left min-w-0",
+                "flex min-w-0 items-center gap-3 rounded-md border px-3 py-2.5 text-left text-sm font-medium transition-colors",
                 selected
-                    ? selectedClass
-                    : "bg-surface/40 border-border text-muted-foreground hover:border-border hover:bg-surface"
+                    ? "border-border-strong bg-surface text-foreground"
+                    : "border-border bg-transparent text-muted-foreground hover:border-border-strong hover:text-foreground"
             )}
         >
             {img && (
@@ -169,18 +137,43 @@ const ServerPickButton = ({ name, selected, selectedClass, onPick }: {
                     loading="lazy"
                     decoding="async"
                     draggable={false}
-                    className="w-9 h-9 rounded-lg object-cover shrink-0 relative z-10 border border-black/30"
+                    className="h-12 w-12 shrink-0 rounded-md border border-black/30 object-cover"
                 />
             )}
-            <span className="relative z-10 truncate">{name}</span>
+            <span className="min-w-0 flex-1 truncate">{name}</span>
+            {selected && <Check className="h-4 w-4 shrink-0 text-foreground" aria-hidden="true" />}
         </button>
     );
 };
+
+function StepHeading({ eyebrow, title, desc, asset }: { eyebrow: string; title: string; desc: string; asset?: string }) {
+    return (
+        <div className="flex items-start gap-4">
+            {asset && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                    src={asset}
+                    alt=""
+                    loading="lazy"
+                    decoding="async"
+                    draggable={false}
+                    className="h-11 w-11 shrink-0 rounded-md border border-border bg-surface object-contain p-1"
+                />
+            )}
+            <div className="min-w-0">
+                <p className="reg-eyebrow">{eyebrow}</p>
+                <h3 className="mt-1 text-lg font-bold tracking-tight">{title}</h3>
+                <p className="mt-1 text-sm text-muted-foreground">{desc}</p>
+            </div>
+        </div>
+    );
+}
 
 export function PresentationForm({ guildId }: Props) {
     const [isPending, startTransition] = useTransition();
     const [isLoading, setIsLoading] = useState(true);
     const [members, setMembers] = useState<DiscordMemberOption[]>([]);
+    const [stepIndex, setStepIndex] = useState(0);
 
     // Form state
     const [enabled, setEnabled] = useState(false);
@@ -346,13 +339,6 @@ export function PresentationForm({ guildId }: Props) {
         });
     };
 
-    // Section-specific save
-    const handleSaveSection = (section: string) => {
-        // For now, save everything (we can optimize later)
-        handleSubmit();
-        toast.success(`Section "${section}" sauvegardée`);
-    };
-
     // Handle image upload
     const handleImageUpload = async (
         e: React.ChangeEvent<HTMLInputElement>,
@@ -485,7 +471,7 @@ export function PresentationForm({ guildId }: Props) {
     if (isLoading) {
         return (
             <div className="flex items-center justify-center py-20">
-                <Loader2 className="w-8 h-8 text-info animate-spin" />
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
             </div>
         );
     }
@@ -493,223 +479,137 @@ export function PresentationForm({ guildId }: Props) {
     const completeness = calculateCompleteness(
         bannerUrl, photoUrl, history, founder, coLeaders, brasDroits, activities, recruiting, recruitmentRequirements, discord
     );
+    const step: StepId = STEPS[stepIndex].id;
+    const isLast = stepIndex === STEPS.length - 1;
+
+    const goNext = () => setStepIndex((i) => Math.min(i + 1, STEPS.length - 1));
+    const goPrev = () => setStepIndex((i) => Math.max(i - 1, 0));
+
+    const serverGroups: { label: string; icon: React.ElementType; names: readonly { name: string }[] }[] = [
+        { label: "Serveurs Épiques", icon: Shield, names: DOFUS_UNITY_SERVERS.epique },
+        { label: "Serveurs Monocompte", icon: Crown, names: DOFUS_UNITY_SERVERS.monocompte },
+        { label: "Serveurs Classiques", icon: Gamepad2, names: DOFUS_UNITY_SERVERS.classique },
+        { label: "Serveurs Pionniers Monocompte", icon: Star, names: DOFUS_UNITY_SERVERS.pionnierMono },
+        { label: "Serveurs Pionniers", icon: Users, names: DOFUS_UNITY_SERVERS.pionnier },
+    ];
 
     return (
-        <div className="space-y-6">
-            {/* Completeness & Public Link Header */}
-            <div className="flex flex-col md:flex-row gap-6 md:items-start justify-between bg-surface/50 p-6 rounded-xl border border-border">
-                <div className="flex-1 space-y-4">
-                    <div className="flex items-center justify-between">
-                        <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
-                            <Sparkles className="w-5 h-5 text-warning" />
-                            Qualité de la page
-                        </h2>
-                        <span className={`text-sm font-bold ${completeness === 100 ? "text-success" : "text-muted-foreground"
-                            }`}>{completeness}%</span>
-                    </div>
-                    <Progress value={completeness} className="h-2 bg-elevated" indicatorClassName={getCompletenessColor(completeness)} />
-                    {completeness < 100 && (
-                        <p className="text-xs text-muted-foreground">
-                            Astuce : Ajoutez {
-                                !bannerUrl ? "une bannière" :
-                                    !photoUrl ? "un logo" :
-                                        !history ? "une histoire" :
-                                            "plus de détails"
-                            } pour améliorer votre score.
-                        </p>
-                    )}
+        <div className="registre space-y-6">
+            {/* Chapeau : avancement + visibilité, une seule ligne chacun. */}
+            <div className="reg-panel p-6">
+                <div className="flex items-center justify-between gap-4">
+                    <p className="reg-eyebrow">Rédaction de la page</p>
+                    <p className="reg-mono text-sm font-semibold">{completeness} %</p>
                 </div>
-
-                <Link href={`/guilds/${guildId}`} target="_blank" className="w-full md:w-auto block">
-                    <Button variant="outline" className="gap-2 border-dashed border-border hover:bg-elevated w-full h-full py-4 md:py-2">
-                        <ExternalLink className="w-4 h-4" />
-                        Voir page publique
-                    </Button>
-                </Link>
-            </div>
-            {/* Visibility Toggle - Always visible */}
-            <div className="bg-surface/50 rounded-xl border border-border p-6">
-                <div className="flex items-center justify-between">
-                    <div>
-                        <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
-                            {enabled ? (
-                                <Eye className="w-5 h-5 text-success" />
-                            ) : (
-                                <EyeOff className="w-5 h-5 text-muted-foreground" />
-                            )}
-                            Visibilité dans l&apos;annuaire
-                        </h2>
-                        <p className="text-sm text-muted-foreground mt-1">
-                            Rendre votre guilde visible publiquement
-                        </p>
-                    </div>
-                    <Switch
-                        checked={enabled}
-                        onCheckedChange={setEnabled}
-                    />
+                <div className="reg-progress mt-3" role="progressbar" aria-valuenow={completeness} aria-valuemin={0} aria-valuemax={100}>
+                    <span style={{ width: `${completeness}%` }} />
                 </div>
-
-                {enabled && (
-                    <a
-                        href={`/guilds/${guildId}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 mt-4 text-sm text-info hover:text-info"
-                    >
-                        Voir la page publique
-                        <ExternalLink className="w-3.5 h-3.5" />
-                    </a>
+                {completeness < 100 && (
+                    <p className="mt-2 text-xs text-muted-foreground">
+                        Il manque {
+                            !bannerUrl ? "un étendard" :
+                                !photoUrl ? "une photo de guilde" :
+                                    history.length <= 50 ? "un récit plus fourni" :
+                                        "quelques détails"
+                        } avant une page complète.
+                    </p>
                 )}
+                <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-5">
+                    <div>
+                        <p className="text-sm font-semibold">Visible dans l&apos;annuaire</p>
+                        <p className="text-xs text-muted-foreground">La page publique suit exactement cette rédaction.</p>
+                    </div>
+                    <div className="flex items-center gap-4">
+                        <Link
+                            href={`/guilds/${guildId}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="reg-link-quiet inline-flex items-center gap-1.5 text-sm"
+                        >
+                            Voir la page publique
+                            <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
+                        </Link>
+                        <Switch checked={enabled} onCheckedChange={setEnabled} aria-label="Visible dans l'annuaire" />
+                    </div>
+                </div>
             </div>
 
-            {/* Tabs Navigation */}
-            <Tabs defaultValue="general" className="w-full">
-                <div className="flex items-center justify-center mb-6">
-                    <TabsList className="bg-black/40 backdrop-blur-md border border-border p-1 h-auto min-h-[44px] rounded-2xl md:rounded-full flex-wrap w-full md:w-auto justify-center gap-1">
-                        <TabsTrigger
-                            value="general"
-                            className="flex-1 md:flex-none rounded-full px-3 py-1.5 md:px-5 data-[state=active]:bg-info/20 data-[state=active]:text-info data-[state=active]:border-info/30 border border-transparent transition-all whitespace-nowrap"
-                        >
-                            <Server className="w-4 h-4 mr-2" />
-                            Général
-                        </TabsTrigger>
-                        <TabsTrigger
-                            value="team"
-                            className="flex-1 md:flex-none rounded-full px-3 py-1.5 md:px-5 data-[state=active]:bg-warning/20 data-[state=active]:text-warning data-[state=active]:border-warning/30 border border-transparent transition-all whitespace-nowrap"
-                        >
-                            <Crown className="w-4 h-4 mr-2" />
-                            Direction
-                        </TabsTrigger>
-                        <TabsTrigger
-                            value="content"
-                            className="flex-1 md:flex-none rounded-full px-3 py-1.5 md:px-5 data-[state=active]:bg-success/20 data-[state=active]:text-success data-[state=active]:border-success/30 border border-transparent transition-all whitespace-nowrap"
-                        >
-                            <Gamepad2 className="w-4 h-4 mr-2" />
-                            Contenu
-                        </TabsTrigger>
-                        <TabsTrigger
-                            value="images"
-                            className="flex-1 md:flex-none rounded-full px-3 py-1.5 md:px-5 data-[state=active]:bg-info/20 data-[state=active]:text-info data-[state=active]:border-info/30 border border-transparent transition-all whitespace-nowrap"
-                        >
-                            <ImageIcon className="w-4 h-4 mr-2" />
-                            Images
-                        </TabsTrigger>
-                        <TabsTrigger
-                            value="recruitment"
-                            className="flex-1 md:flex-none rounded-full px-3 py-1.5 md:px-5 data-[state=active]:bg-pink-500/20 data-[state=active]:text-pink-300 data-[state=active]:border-pink-500/30 border border-transparent transition-all whitespace-nowrap"
-                        >
-                            <UserPlus className="w-4 h-4 mr-2" />
-                            Recrutement
-                        </TabsTrigger>
-                    </TabsList>
-                </div>
+            {/* Étapes : où on est, ce qui reste. */}
+            <nav aria-label="Étapes de rédaction">
+                <ol className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+                    {STEPS.map((s, i) => {
+                        const active = i === stepIndex;
+                        const done = i < stepIndex;
+                        return (
+                            <li key={s.id}>
+                                <button
+                                    type="button"
+                                    onClick={() => setStepIndex(i)}
+                                    aria-current={active ? "step" : undefined}
+                                    className={cn(
+                                        "w-full rounded-md border px-3 py-2.5 text-left transition-colors",
+                                        active
+                                            ? "border-border-strong bg-surface"
+                                            : "border-border bg-transparent hover:border-border-strong"
+                                    )}
+                                >
+                                    <span className="flex items-center gap-2">
+                                        <span className={cn(
+                                            "reg-mono text-xs font-bold",
+                                            active || done ? "text-foreground" : "text-muted-foreground"
+                                        )}>
+                                            {done ? <Check className="h-3.5 w-3.5" aria-hidden="true" /> : `0${i + 1}`}
+                                        </span>
+                                        <span className={cn(
+                                            "text-sm font-bold",
+                                            active || done ? "text-foreground" : "text-muted-foreground"
+                                        )}>
+                                            {s.label}
+                                        </span>
+                                    </span>
+                                    <span className="mt-0.5 block truncate text-xs text-muted-foreground">{s.hint}</span>
+                                </button>
+                            </li>
+                        );
+                    })}
+                </ol>
+            </nav>
 
-                {/* GENERAL TAB */}
-                <TabsContent value="general" className="animate-in fade-in slide-in-from-bottom-4 duration-300 space-y-6">
-                    {/* Server Selection - Grid Style */}
-                    <div className="bg-surface/50 rounded-xl border border-border p-6 space-y-4">
-                        <SectionHeader title="Serveur Dofus Unity" icon={Server} section="server" onSave={handleSaveSection} isPending={isPending} />
+            {/* Contenu de l'étape courante. */}
+            <div className="reg-panel p-6 md:p-8">
+                {step === "roots" && (
+                    <div className="space-y-8">
+                        <StepHeading
+                            eyebrow="Étape 1 sur 5 · Fondations"
+                            title="D'où parle la guilde"
+                            desc="Le serveur et la date ancrent la page dans le monde ; le lien Discord est la porte d'entrée des recrues."
+                            asset="/assets/dofus/icons/zaap.png"
+                        />
 
                         <div className="space-y-4">
-                            {/* Épiques */}
-                            <div>
-                                <div className="flex items-center gap-2 mb-3">
-                                    <Shield className="w-4 h-4 text-success" />
-                                    <p className="text-sm font-medium text-success">Serveurs Épiques</p>
+                            <p className="text-sm font-semibold">Serveur Dofus Unity</p>
+                            {serverGroups.map((group) => (
+                                <div key={group.label}>
+                                    <p className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                                        <group.icon className="h-3.5 w-3.5" aria-hidden="true" />
+                                        {group.label}
+                                    </p>
+                                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+                                        {group.names.map((s) => (
+                                            <ServerPickButton
+                                                key={s.name}
+                                                name={s.name}
+                                                selected={server === s.name}
+                                                onPick={() => { setServer(s.name); setServerInherited(false); }}
+                                            />
+                                        ))}
+                                    </div>
                                 </div>
-                                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
-                                    {DOFUS_UNITY_SERVERS.epique.map((s) => (
-                                        <ServerPickButton
-                                            key={s.name}
-                                            name={s.name}
-                                            selected={server === s.name}
-                                            selectedClass="bg-success/10 border-success text-success"
-                                            onPick={() => { setServer(s.name); setServerInherited(false); }}
-                                        />
-                                    ))}
-                                </div>
-                            </div>
-
-                            {/* Monocompte */}
-                            <div>
-                                <div className="flex items-center gap-2 mb-3">
-                                    <Trophy className="w-4 h-4 text-warning" />
-                                    <p className="text-sm font-medium text-warning">Serveurs Monocompte</p>
-                                </div>
-                                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
-                                    {DOFUS_UNITY_SERVERS.monocompte.map((s) => (
-                                        <ServerPickButton
-                                            key={s.name}
-                                            name={s.name}
-                                            selected={server === s.name}
-                                            selectedClass="bg-warning/10 border-warning text-warning"
-                                            onPick={() => { setServer(s.name); setServerInherited(false); }}
-                                        />
-                                    ))}
-                                </div>
-                            </div>
-
-                            {/* Classiques */}
-                            <div>
-                                <div className="flex items-center gap-2 mb-3">
-                                    <Gamepad2 className="w-4 h-4 text-muted-foreground" />
-                                    <p className="text-sm font-medium text-muted-foreground">Serveurs Classiques</p>
-                                </div>
-                                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
-                                    {DOFUS_UNITY_SERVERS.classique.map((s) => (
-                                        <ServerPickButton
-                                            key={s.name}
-                                            name={s.name}
-                                            selected={server === s.name}
-                                            selectedClass="bg-surface border-border text-foreground"
-                                            onPick={() => { setServer(s.name); setServerInherited(false); }}
-                                        />
-                                    ))}
-                                </div>
-                            </div>
-
-                            {/* Pionniers Mono */}
-                            <div>
-                                <div className="flex items-center gap-2 mb-3">
-                                    <Sparkles className="w-4 h-4 text-info" />
-                                    <p className="text-sm font-medium text-info">Serveurs Pionniers Monocompte</p>
-                                </div>
-                                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
-                                    {DOFUS_UNITY_SERVERS.pionnierMono.map((s) => (
-                                        <ServerPickButton
-                                            key={s.name}
-                                            name={s.name}
-                                            selected={server === s.name}
-                                            selectedClass="bg-info/10 border-info text-info"
-                                            onPick={() => { setServer(s.name); setServerInherited(false); }}
-                                        />
-                                    ))}
-                                </div>
-                            </div>
-
-                            {/* Pionniers Multi */}
-                            <div>
-                                <div className="flex items-center gap-2 mb-3">
-                                    <Users className="w-4 h-4 text-info" />
-                                    <p className="text-sm font-medium text-info">Serveurs Pionniers</p>
-                                </div>
-                                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
-                                    {DOFUS_UNITY_SERVERS.pionnier.map((s) => (
-                                        <ServerPickButton
-                                            key={s.name}
-                                            name={s.name}
-                                            selected={server === s.name}
-                                            selectedClass="bg-info/10 border-info text-info"
-                                            onPick={() => { setServer(s.name); setServerInherited(false); }}
-                                        />
-                                    ))}
-                                </div>
-                            </div>
-
+                            ))}
                             {server && (
-                                <div className="flex items-center justify-between pt-2">
-                                    <p className="text-sm text-muted-foreground flex items-center gap-2.5">
-                                        Serveur sélectionné :
+                                <div className="flex items-center justify-between pt-1">
+                                    <p className="flex items-center gap-2 text-sm text-muted-foreground">
+                                        Serveur retenu :
                                         {getDofusServerImage(server) && (
                                             // eslint-disable-next-line @next/next/no-img-element
                                             <img
@@ -718,14 +618,12 @@ export function PresentationForm({ guildId }: Props) {
                                                 loading="lazy"
                                                 decoding="async"
                                                 draggable={false}
-                                                className="w-7 h-7 rounded-lg object-cover border border-black/30"
+                                                className="h-10 w-10 rounded-md border border-black/30 object-cover"
                                             />
                                         )}
-                                        <span className="text-foreground font-medium">{server}</span>
+                                        <span className="font-medium text-foreground">{server}</span>
                                         {serverInherited && (
-                                            <span className="text-caption font-bold uppercase tracking-wider text-muted-foreground">
-                                                · hérité de la config guilde
-                                            </span>
+                                            <span className="text-xs text-muted-foreground">· hérité de la config guilde</span>
                                         )}
                                     </p>
                                     <Button
@@ -734,80 +632,77 @@ export function PresentationForm({ guildId }: Props) {
                                         onClick={() => { setServer(""); setServerInherited(false); }}
                                         className="text-muted-foreground hover:text-foreground"
                                     >
-                                        <X className="w-4 h-4 mr-1" />
+                                        <X className="mr-1 h-4 w-4" />
                                         Effacer
                                     </Button>
                                 </div>
                             )}
                         </div>
-                    </div>
 
-                    {/* Founded Date */}
-                    <div className="bg-surface/50 rounded-xl border border-border p-6 space-y-4">
-                        <SectionHeader title="Date de fondation" icon={Calendar} section="foundedDate" color="text-warning" onSave={handleSaveSection} isPending={isPending} />
-                        <div className="space-y-2">
-                            <p className="text-sm text-muted-foreground">Cette date servira à calculer l'ancienneté de votre guilde.</p>
-                            <Input
-                                type="date"
-                                value={foundedDate ? foundedDate.toISOString().split('T')[0] : ""}
-                                onChange={(e) => setFoundedDate(e.target.value ? new Date(e.target.value) : null)}
-                                className="bg-elevated/50 border-border w-full md:w-auto"
-                            />
-                        </div>
-                    </div>
-
-                    {/* Discord Link */}
-                    <div className="bg-surface/50 rounded-xl border border-border p-6 space-y-4">
-                        <SectionHeader title="Lien Discord" icon={MessageCircle} section="discord" color="text-[#5865F2]" onSave={handleSaveSection} isPending={isPending} />
-                        <div className="space-y-2">
-                            <Input
-                                value={discord}
-                                onChange={(e) => {
-                                    // Only allow valid Discord URL characters
-                                    const val = e.target.value;
-                                    if (val === "" || /^https?:\/\/[a-zA-Z0-9./-]*$/.test(val)) {
-                                        setDiscord(val);
-                                        if (errors.discord) {
-                                            setErrors(prev => {
-                                                const n = { ...prev };
-                                                delete n.discord;
-                                                return n;
-                                            });
+                        <div className="grid grid-cols-1 gap-6 border-t border-border pt-6 md:grid-cols-2">
+                            <div className="space-y-2">
+                                <Label>Date de fondation</Label>
+                                <p className="text-xs text-muted-foreground">Sert à calculer l&apos;ancienneté affichée.</p>
+                                <Input
+                                    type="date"
+                                    value={foundedDate ? foundedDate.toISOString().split('T')[0] : ""}
+                                    onChange={(e) => setFoundedDate(e.target.value ? new Date(e.target.value) : null)}
+                                    className="bg-transparent"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Lien Discord</Label>
+                                <Input
+                                    value={discord}
+                                    onChange={(e) => {
+                                        const val = e.target.value;
+                                        if (val === "" || /^https?:\/\/[a-zA-Z0-9./-]*$/.test(val)) {
+                                            setDiscord(val);
+                                            if (errors.discord) {
+                                                setErrors(prev => {
+                                                    const n = { ...prev };
+                                                    delete n.discord;
+                                                    return n;
+                                                });
+                                            }
                                         }
-                                    }
-                                }}
-                                onBlur={() => {
-                                    if (discord && !validateDiscordUrl(discord)) {
-                                        setErrors(prev => ({ ...prev, discord: "Lien invalide" }));
-                                    }
-                                }}
-                                placeholder="https://discord.gg/votre-invite"
-                                className={cn(
-                                    "bg-elevated/50 border-border",
-                                    errors.discord && "border-danger/50"
+                                    }}
+                                    onBlur={() => {
+                                        if (discord && !validateDiscordUrl(discord)) {
+                                            setErrors(prev => ({ ...prev, discord: "Lien invalide" }));
+                                        }
+                                    }}
+                                    placeholder="https://discord.gg/votre-invite"
+                                    className={cn(errors.discord && "border-danger/50")}
+                                />
+                                {errors.discord ? (
+                                    <p className="flex items-center gap-1 text-xs text-danger">
+                                        <AlertCircle className="h-3 w-3" />
+                                        {errors.discord}
+                                    </p>
+                                ) : (
+                                    <p className="text-xs text-muted-foreground">Format : discord.gg/xxx ou discord.com/invite/xxx</p>
                                 )}
-                            />
-                            {errors.discord ? (
-                                <p className="text-xs text-danger flex items-center gap-1">
-                                    <AlertCircle className="w-3 h-3" />
-                                    {errors.discord}
-                                </p>
-                            ) : (
-                                <p className="text-xs text-muted-foreground">
-                                    Format : discord.gg/xxx ou discord.com/invite/xxx
-                                </p>
-                            )}
+                            </div>
                         </div>
                     </div>
-                </TabsContent>
+                )}
 
-                {/* TEAM TAB */}
-                <TabsContent value="team" className="animate-in fade-in slide-in-from-bottom-4 duration-300 space-y-6">
-                    {/* Founder Section */}
-                    <div className="bg-surface/50 rounded-xl border border-border p-4 space-y-3">
-                        <SectionHeader title="Fondateur" icon={Crown} section="founder" color="text-warning" onSave={handleSaveSection} isPending={isPending} />
-                        <div className="bg-warning/5 rounded-xl border border-warning/10 p-3">
-                            <Label className="text-warning mb-2 block">Chef de guilde</Label>
+                {step === "staff" && (
+                    <div className="space-y-8">
+                        <StepHeading
+                            eyebrow="Étape 2 sur 5 · État-major"
+                            title="Qui tient la barre"
+                            desc="Un meneur nommé rassure ; le reste de l'équipage se complète au fil des nominations."
+                            asset={GUILD_BLASON_ASSET}
+                        />
+
+                        <div className="space-y-2">
+                            <Label className="flex items-center gap-2">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img src={FOUNDER_CROWN_ASSET} alt="" loading="lazy" decoding="async" draggable={false} className="h-5 w-5 object-contain" />
+                                Meneur de guilde
+                            </Label>
                             <MemberSelector
                                 value={founder}
                                 onChange={(val) => {
@@ -821,213 +716,225 @@ export function PresentationForm({ guildId }: Props) {
                                     }
                                 }}
                                 members={members}
-                                placeholder="Rechercher le chef de guilde..."
+                                placeholder="Rechercher le meneur..."
                                 error={!!errors.founder}
-                                className="bg-surface/50 border-warning/20 focus:border-warning"
                             />
                             {errors.founder && (
-                                <p className="text-xs text-danger mt-2 flex items-center gap-1">
-                                    <AlertCircle className="w-3 h-3" />
+                                <p className="mt-2 flex items-center gap-1 text-xs text-danger">
+                                    <AlertCircle className="h-3 w-3" />
                                     {errors.founder}
                                 </p>
                             )}
                         </div>
-                    </div>
 
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        {/* Co-Leaders Section */}
-                        <div className="bg-surface/50 rounded-xl border border-border p-4 space-y-4">
-                            <div className="flex items-center justify-between">
-                                <SectionHeader title="Co-leaders" icon={Star} section="coleaders" color="text-warning" onSave={handleSaveSection} isPending={isPending} />
-                                <span className="bg-warning/10 text-warning text-xs px-2 py-1 rounded-full font-mono">
-                                    {coLeaders.filter(c => c.trim()).length}/3
-                                </span>
-                            </div>
-
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                                {coLeaders.map((cl, i) => (
-                                    <div key={i} className="flex gap-2 items-center bg-surface/50 p-1.5 rounded-lg border border-border group hover:border-border transition-colors">
-                                        <div className="flex-1 min-w-0">
-                                            <MemberSelector
-                                                value={cl}
-                                                onChange={(val) => updateCoLeader(i, val)}
-                                                members={members}
-                                                placeholder={`Co-leader ${i + 1}`}
-                                                error={!!errors[`coLeader${i}`]}
-                                                className="border-0 bg-transparent h-8 focus:ring-0 px-2"
-                                            />
-                                        </div>
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            className="h-7 w-7 text-muted-foreground hover:text-danger hover:bg-danger/10 opacity-0 group-hover:opacity-100 transition-opacity"
-                                            onClick={() => {
-                                                const newCoLeaders = coLeaders.filter((_, index) => index !== i);
-                                                setCoLeaders(newCoLeaders);
-                                            }}
-                                        >
-                                            <X className="w-3.5 h-3.5" />
-                                        </Button>
-                                    </div>
-                                ))}
-
-                                {coLeaders.length < 3 && (
-                                    <Button
-                                        variant="outline"
-                                        onClick={() => setCoLeaders([...coLeaders, ""])}
-                                        className="h-full min-h-[44px] border-dashed border-border text-muted-foreground hover:text-foreground hover:bg-elevated bg-transparent"
-                                    >
-                                        <UserPlus className="w-4 h-4 mr-2" />
-                                        Ajouter
-                                    </Button>
-                                )}
-                            </div>
-                        </div>
-
-                        {/* Bras Droits Section */}
-                        <div className="bg-surface/50 rounded-xl border border-border p-4 space-y-4">
-                            <div className="flex items-center justify-between">
-                                <SectionHeader title="Bras Droits" icon={Shield} section="brasdroits" color="text-info" onSave={handleSaveSection} isPending={isPending} />
-                                <span className="bg-info/10 text-info text-xs px-2 py-1 rounded-full font-mono">
-                                    {brasDroits.filter(b => b.trim()).length}/10
-                                </span>
-                            </div>
-
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                                {brasDroits.map((bd, i) => (
-                                    <div key={i} className="flex gap-2 items-center bg-surface/50 p-1.5 rounded-lg border border-border group hover:border-border transition-colors">
-                                        <div className="flex-1 min-w-0">
-                                            <MemberSelector
-                                                value={bd}
-                                                onChange={(val) => updateBrasDroit(i, val)}
-                                                members={members}
-                                                placeholder={`Bras droit ${i + 1}`}
-                                                error={!!errors[`brasDroit${i}`]}
-                                                className="border-0 bg-transparent h-8 focus:ring-0 px-2"
-                                            />
-                                        </div>
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            className="h-7 w-7 text-muted-foreground hover:text-danger hover:bg-danger/10 opacity-0 group-hover:opacity-100 transition-opacity"
-                                            onClick={() => {
-                                                const newBras = brasDroits.filter((_, index) => index !== i);
-                                                setBrasDroits(newBras);
-                                            }}
-                                        >
-                                            <X className="w-3.5 h-3.5" />
-                                        </Button>
-                                    </div>
-                                ))}
-
-                                {brasDroits.length < 10 && (
-                                    <Button
-                                        variant="outline"
-                                        onClick={() => setBrasDroits([...brasDroits, ""])}
-                                        className="h-full min-h-[44px] border-dashed border-border text-muted-foreground hover:text-foreground hover:bg-elevated bg-transparent"
-                                    >
-                                        <UserPlus className="w-4 h-4 mr-2" />
-                                        Ajouter
-                                    </Button>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-                </TabsContent>
-
-                {/* CONTENT TAB */}
-                <TabsContent value="content" className="animate-in fade-in slide-in-from-bottom-4 duration-300 space-y-6">
-                    {/* History */}
-                    <div className="bg-surface/50 rounded-xl border border-border p-6 space-y-4">
-                        <SectionHeader title="Notre Histoire 📜" icon={Gamepad2} section="history" color="text-success" onSave={handleSaveSection} isPending={isPending} />
-                        <p className="text-xs text-muted-foreground">Emojis autorisés ✨ | Les liens seront supprimés automatiquement</p>
-                        <Textarea
-                            value={history}
-                            onChange={(e) => setHistory(e.target.value)}
-                            onBlur={() => setHistory(sanitizeHistoryText(history))}
-                            placeholder="Racontez l'histoire de votre guilde... 🎮"
-                            rows={8}
-                            maxLength={5000}
-                            className="bg-elevated/50 border-border"
-                        />
-                        <p className="text-xs text-muted-foreground">{history.length}/5000 caractères</p>
-                    </div>
-
-                    {/* Activities */}
-                    <div className="bg-surface/50 rounded-xl border border-border p-6 space-y-4">
-                        <SectionHeader title="Nos Activités" icon={Gamepad2} section="activities" color="text-success" onSave={handleSaveSection} isPending={isPending} />
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                            {AVAILABLE_ACTIVITIES.map((activity) => (
-                                <button
-                                    key={activity.id}
-                                    type="button"
-                                    onClick={() => toggleActivity(activity.id)}
-                                    className={cn(
-                                        "p-4 rounded-xl border transition-all text-left",
-                                        activities.includes(activity.id)
-                                            ? "bg-success/20 border-success/50"
-                                            : "bg-elevated/50 border-border hover:border-border-strong"
-                                    )}
-                                >
-                                    <div className="flex items-center justify-between">
-                                        <span className={cn(
-                                            "font-semibold",
-                                            activities.includes(activity.id) ? "text-success" : "text-foreground"
-                                        )}>
-                                            {activity.label}
-                                        </span>
-                                        {activities.includes(activity.id) && (
-                                            <Check className="w-4 h-4 text-success" />
-                                        )}
-                                    </div>
-                                    {activity.subtitle && (
-                                        <p className="text-xs text-muted-foreground mt-1">{activity.subtitle}</p>
-                                    )}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-                </TabsContent>
-
-                {/* IMAGES TAB */}
-                <TabsContent value="images" className="animate-in fade-in slide-in-from-bottom-4 duration-300">
-                    <div className="bg-surface/50 rounded-xl border border-border p-6 space-y-6">
-                        <SectionHeader title="Images" icon={ImageIcon} section="images" color="text-info" onSave={handleSaveSection} isPending={isPending} />
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            {/* Banner */}
+                        <div className="grid grid-cols-1 gap-6 border-t border-border pt-6 lg:grid-cols-2">
                             <div className="space-y-3">
-                                <Label>Bannière</Label>
-                                <div className="flex gap-4 mb-3">
-                                    <label className="flex items-center gap-2 cursor-pointer">
+                                <div className="flex items-center justify-between">
+                                    <p className="flex items-center gap-2 text-sm font-semibold">
+                                        <Star className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                                        Co-leaders
+                                    </p>
+                                    <span className="reg-mono text-xs text-muted-foreground">
+                                        {coLeaders.filter(c => c.trim()).length}/3
+                                    </span>
+                                </div>
+                                <div className="space-y-2">
+                                    {coLeaders.map((cl, i) => (
+                                        <div key={i} className="group flex items-center gap-2 rounded-md border border-border p-1.5">
+                                            <div className="min-w-0 flex-1">
+                                                <MemberSelector
+                                                    value={cl}
+                                                    onChange={(val) => updateCoLeader(i, val)}
+                                                    members={members}
+                                                    placeholder={`Co-leader ${i + 1}`}
+                                                    error={!!errors[`coLeader${i}`]}
+                                                    className="border-0 bg-transparent px-2 focus:ring-0"
+                                                />
+                                            </div>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-7 w-7 text-muted-foreground opacity-0 transition-opacity hover:text-danger group-hover:opacity-100"
+                                                onClick={() => setCoLeaders(coLeaders.filter((_, index) => index !== i))}
+                                                aria-label="Retirer ce co-leader"
+                                            >
+                                                <X className="h-3.5 w-3.5" />
+                                            </Button>
+                                        </div>
+                                    ))}
+                                    {coLeaders.length < 3 && (
+                                        <Button
+                                            variant="outline"
+                                            onClick={() => setCoLeaders([...coLeaders, ""])}
+                                            className="min-h-[44px] w-full border-dashed bg-transparent text-muted-foreground hover:text-foreground"
+                                        >
+                                            <UserPlus className="mr-2 h-4 w-4" />
+                                            Ajouter un co-leader
+                                        </Button>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="space-y-3">
+                                <div className="flex items-center justify-between">
+                                    <p className="flex items-center gap-2 text-sm font-semibold">
+                                        <Shield className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                                        Bras droits
+                                    </p>
+                                    <span className="reg-mono text-xs text-muted-foreground">
+                                        {brasDroits.filter(b => b.trim()).length}/10
+                                    </span>
+                                </div>
+                                <div className="space-y-2">
+                                    {brasDroits.map((bd, i) => (
+                                        <div key={i} className="group flex items-center gap-2 rounded-md border border-border p-1.5">
+                                            <div className="min-w-0 flex-1">
+                                                <MemberSelector
+                                                    value={bd}
+                                                    onChange={(val) => updateBrasDroit(i, val)}
+                                                    members={members}
+                                                    placeholder={`Bras droit ${i + 1}`}
+                                                    error={!!errors[`brasDroit${i}`]}
+                                                    className="border-0 bg-transparent px-2 focus:ring-0"
+                                                />
+                                            </div>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-7 w-7 text-muted-foreground opacity-0 transition-opacity hover:text-danger group-hover:opacity-100"
+                                                onClick={() => setBrasDroits(brasDroits.filter((_, index) => index !== i))}
+                                                aria-label="Retirer ce bras droit"
+                                            >
+                                                <X className="h-3.5 w-3.5" />
+                                            </Button>
+                                        </div>
+                                    ))}
+                                    {brasDroits.length < 10 && (
+                                        <Button
+                                            variant="outline"
+                                            onClick={() => setBrasDroits([...brasDroits, ""])}
+                                            className="min-h-[44px] w-full border-dashed bg-transparent text-muted-foreground hover:text-foreground"
+                                        >
+                                            <UserPlus className="mr-2 h-4 w-4" />
+                                            Ajouter un bras droit
+                                        </Button>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {step === "tale" && (
+                    <div className="space-y-8">
+                        <StepHeading
+                            eyebrow="Étape 3 sur 5 · Récit"
+                            title="Ce que la guilde raconte"
+                            desc="Trois phrases d'origine valent mieux qu'une page vide. Les liens sont retirés à l'enregistrement."
+                            asset={MANIFESTO_ASSET}
+                        />
+                        <div className="space-y-2">
+                            <Label>Manifeste</Label>
+                            <Textarea
+                                value={history}
+                                onChange={(e) => setHistory(e.target.value)}
+                                onBlur={() => setHistory(sanitizeHistoryText(history))}
+                                placeholder="D'où vient la guilde, ce qu'elle cherche, ce qu'elle refuse..."
+                                rows={8}
+                                maxLength={5000}
+                                className="bg-transparent"
+                            />
+                            <p className="reg-mono text-xs text-muted-foreground">{history.length}/5000</p>
+                        </div>
+                        <div className="space-y-3 border-t border-border pt-6">
+                            <p className="text-sm font-semibold">Chasses de la guilde</p>
+                            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                                {AVAILABLE_ACTIVITIES.map((activity) => {
+                                    const selected = activities.includes(activity.id);
+                                    return (
+                                        <button
+                                            key={activity.id}
+                                            type="button"
+                                            onClick={() => toggleActivity(activity.id)}
+                                            aria-pressed={selected}
+                                            className={cn(
+                                                "rounded-md border p-4 text-left transition-colors",
+                                                selected
+                                                    ? "border-border-strong bg-surface"
+                                                    : "border-border bg-transparent hover:border-border-strong"
+                                            )}
+                                        >
+                                            <span className="flex items-center gap-3">
+                                                {ACTIVITY_ASSETS[activity.id] && (
+                                                    // eslint-disable-next-line @next/next/no-img-element
+                                                    <img
+                                                        src={ACTIVITY_ASSETS[activity.id]}
+                                                        alt=""
+                                                        loading="lazy"
+                                                        decoding="async"
+                                                        draggable={false}
+                                                        className="h-10 w-10 shrink-0 rounded-md border border-border bg-surface object-contain p-1"
+                                                    />
+                                                )}
+                                                <span className="min-w-0 flex-1">
+                                                    <span className="block truncate font-semibold text-foreground">
+                                                        {activity.label}
+                                                    </span>
+                                                    {activity.subtitle && (
+                                                        <span className="mt-0.5 block text-xs text-muted-foreground">{activity.subtitle}</span>
+                                                    )}
+                                                </span>
+                                                {selected && <Check className="h-4 w-4 shrink-0 text-foreground" aria-hidden="true" />}
+                                            </span>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {step === "images" && (
+                    <div className="space-y-8">
+                        <StepHeading
+                            eyebrow="Étape 4 sur 5 · Étendards"
+                            title="À quoi ressemble la guilde"
+                            desc="Un étendard net fait la moitié de l'accueil. Les deux visuels sont facultatifs."
+                            asset="/assets/dofus/modules/bannerBlason.png"
+                        />
+                        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                            <div className="space-y-3">
+                                <div className="flex items-center justify-between">
+                                    <Label>Étendard</Label>
+                                    <span className="text-xs text-muted-foreground">16:9 recommandé</span>
+                                </div>
+                                <div className="flex gap-4">
+                                    <label className="flex cursor-pointer items-center gap-2">
                                         <input
                                             type="radio"
                                             name="bannerType"
                                             checked={bannerType === "discord"}
                                             onChange={() => setBannerType("discord")}
-                                            className="text-info"
                                         />
-                                        <span className="text-sm text-foreground">Sans bannière</span>
+                                        <span className="text-sm">Sans étendard</span>
                                     </label>
-                                    <label className="flex items-center gap-2 cursor-pointer">
+                                    <label className="flex cursor-pointer items-center gap-2">
                                         <input
                                             type="radio"
                                             name="bannerType"
                                             checked={bannerType === "custom"}
                                             onChange={() => setBannerType("custom")}
-                                            className="text-info"
                                         />
-                                        <span className="text-sm text-foreground">Bannière personnalisée</span>
+                                        <span className="text-sm">Image envoyée</span>
                                     </label>
                                 </div>
-
                                 {bannerType === "custom" && (
                                     <div className="space-y-3">
                                         {bannerUrl && (
-                                            <div className="relative h-48 rounded-lg overflow-hidden group">
+                                            <div className="group relative h-48 overflow-hidden rounded-md border border-border">
                                                 <Image
                                                     src={bannerUrl}
-                                                    alt="Banner preview"
+                                                    alt="Aperçu de l'étendard"
                                                     fill
                                                     className="object-cover"
                                                     unoptimized={true}
@@ -1035,16 +942,17 @@ export function PresentationForm({ guildId }: Props) {
                                                 <button
                                                     type="button"
                                                     onClick={() => handleDeleteImage("banner")}
-                                                    className="absolute top-2 right-2 p-2 bg-danger/80 hover:bg-danger rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                                                    aria-label="Supprimer l'étendard"
+                                                    className="absolute right-2 top-2 rounded-full bg-background/80 p-2 opacity-0 transition-opacity hover:bg-background group-hover:opacity-100"
                                                 >
-                                                    <X className="w-4 h-4 text-foreground" />
+                                                    <X className="h-4 w-4" />
                                                 </button>
                                             </div>
                                         )}
-                                        <label className="flex items-center justify-center gap-2 px-4 py-6 border-2 border-dashed border-border rounded-lg cursor-pointer hover:border-info/50 transition-colors">
-                                            <Upload className="w-4 h-4 text-muted-foreground" />
+                                        <label className="flex cursor-pointer items-center justify-center gap-2 rounded-md border border-dashed border-border px-4 py-6 transition-colors hover:border-border-strong">
+                                            <Upload className="h-4 w-4 text-muted-foreground" />
                                             <span className="text-sm text-muted-foreground">
-                                                {bannerUrl ? "Changer" : "Uploader"} une bannière
+                                                {bannerUrl ? "Changer" : "Envoyer"} un étendard
                                             </span>
                                             <input
                                                 type="file"
@@ -1053,24 +961,21 @@ export function PresentationForm({ guildId }: Props) {
                                                 className="hidden"
                                             />
                                         </label>
-                                        <p className="text-xs text-muted-foreground">
-                                            📐 Format Discord : 960×540px (16:9) | Max 2MB | Optionnel
-                                        </p>
+                                        <p className="text-xs text-muted-foreground">960×540 px, 2 Mo max.</p>
                                     </div>
                                 )}
                             </div>
 
-                            {/* Photo */}
                             <div className="space-y-3">
                                 <div className="flex items-center justify-between">
                                     <Label>Photo de guilde</Label>
-                                    <span className="text-xs text-muted-foreground">Optionnel</span>
+                                    <span className="text-xs text-muted-foreground">Facultatif</span>
                                 </div>
                                 {photoUrl && (
-                                    <div className="relative h-52 rounded-lg overflow-hidden group">
+                                    <div className="group relative h-52 overflow-hidden rounded-md border border-border">
                                         <Image
                                             src={photoUrl}
-                                            alt="Photo preview"
+                                            alt="Aperçu de la photo"
                                             fill
                                             className="object-cover"
                                             unoptimized={true}
@@ -1078,16 +983,17 @@ export function PresentationForm({ guildId }: Props) {
                                         <button
                                             type="button"
                                             onClick={() => handleDeleteImage("photo")}
-                                            className="absolute top-2 right-2 p-2 bg-danger/80 hover:bg-danger rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                                            aria-label="Supprimer la photo"
+                                            className="absolute right-2 top-2 rounded-full bg-background/80 p-2 opacity-0 transition-opacity hover:bg-background group-hover:opacity-100"
                                         >
-                                            <X className="w-4 h-4 text-foreground" />
+                                            <X className="h-4 w-4" />
                                         </button>
                                     </div>
                                 )}
-                                <label className="flex items-center justify-center gap-2 px-4 py-6 border-2 border-dashed border-border rounded-lg cursor-pointer hover:border-info/50 transition-colors">
-                                    <Upload className="w-4 h-4 text-muted-foreground" />
+                                <label className="flex cursor-pointer items-center justify-center gap-2 rounded-md border border-dashed border-border px-4 py-6 transition-colors hover:border-border-strong">
+                                    <Upload className="h-4 w-4 text-muted-foreground" />
                                     <span className="text-sm text-muted-foreground">
-                                        {photoUrl ? "Changer" : "Uploader"} une photo
+                                        {photoUrl ? "Changer" : "Envoyer"} une photo
                                     </span>
                                     <input
                                         type="file"
@@ -1096,50 +1002,45 @@ export function PresentationForm({ guildId }: Props) {
                                         className="hidden"
                                     />
                                 </label>
-                                <p className="text-xs text-muted-foreground">
-                                    📐 Recommandé : 800×600px | Max 2MB
-                                </p>
+                                <p className="text-xs text-muted-foreground">800×600 px, 2 Mo max.</p>
                             </div>
                         </div>
                     </div>
-                </TabsContent>
+                )}
 
-                {/* RECRUITMENT TAB */}
-                <TabsContent value="recruitment" className="animate-in fade-in slide-in-from-bottom-4 duration-300">
-                    <div className="bg-surface/50 rounded-xl border border-border p-6 space-y-6">
-                        <div className="flex items-center justify-between">
-                            <SectionHeader title="Recrutement" icon={UserPlus} section="recruitment" color="text-pink-400" onSave={handleSaveSection} isPending={isPending} />
-                            <Switch
-                                checked={recruiting}
-                                onCheckedChange={setRecruiting}
-                            />
+                {step === "recruit" && (
+                    <div className="space-y-8">
+                        <StepHeading
+                            eyebrow="Étape 5 sur 5 · Recrutement"
+                            title="Qui peut frapper à la porte"
+                            desc="Des seuils lisibles évitent les candidatures perdues. Tout est facultatif."
+                            asset="/assets/dofus/modules/quest.png"
+                        />
+                        <div className="flex items-center justify-between rounded-md border border-border p-4">
+                            <div>
+                                <p className="flex items-center gap-2 text-sm font-semibold">
+                                    <UserPlus className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                                    Recrutement ouvert
+                                </p>
+                                <p className="mt-0.5 text-xs text-muted-foreground">Fermé = la page le dit franchement.</p>
+                            </div>
+                            <Switch checked={recruiting} onCheckedChange={setRecruiting} aria-label="Recrutement ouvert" />
                         </div>
 
                         {recruiting && (
                             <div className="space-y-6">
-                                <p className="text-sm text-muted-foreground p-3 bg-pink-500/10 border border-pink-500/20 rounded-lg">
-                                    ℹ️ Ces informations seront affichées sur la page publique de votre guilde.
-                                </p>
-
-                                {/* Requirements Grid */}
-                                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                                    {/* Discord Required */}
-                                    <div className="p-4 bg-elevated/50 rounded-xl border border-border">
-                                        <div className="flex items-center justify-between mb-2">
-                                            <Label className="text-foreground flex items-center gap-2">
-                                                <MessageCircle className="w-4 h-4 text-[#5865F2]" />
-                                                Discord obligatoire
+                                <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+                                    <div className="rounded-md border border-border p-4">
+                                        <div className="mb-2 flex items-center justify-between">
+                                            <Label className="flex items-center gap-2">
+                                                <MessageCircle className="h-4 w-4 text-muted-foreground" />
+                                                Discord requis
                                             </Label>
-                                            <Switch
-                                                checked={discordRequired}
-                                                onCheckedChange={setDiscordRequired}
-                                            />
+                                            <Switch checked={discordRequired} onCheckedChange={setDiscordRequired} aria-label="Discord requis" />
                                         </div>
                                     </div>
-
-                                    {/* Min Level */}
-                                    <div className="p-4 bg-elevated/50 rounded-xl border border-border">
-                                        <Label className="text-foreground text-sm mb-2 block">Niveau minimum</Label>
+                                    <div className="rounded-md border border-border p-4">
+                                        <Label className="mb-2 block text-sm">Niveau minimum</Label>
                                         <Input
                                             type="number"
                                             value={minLevel}
@@ -1160,21 +1061,16 @@ export function PresentationForm({ guildId }: Props) {
                                             placeholder="0-200"
                                             min={0}
                                             max={200}
-                                            className={cn(
-                                                "bg-surface/50 border-border",
-                                                errors.minLevel && "border-danger/50"
-                                            )}
+                                            className={cn("bg-transparent", errors.minLevel && "border-danger/50")}
                                         />
                                         {errors.minLevel ? (
-                                            <p className="text-xs text-danger mt-1">{errors.minLevel}</p>
+                                            <p className="mt-1 text-xs text-danger">{errors.minLevel}</p>
                                         ) : (
-                                            <p className="text-xs text-muted-foreground mt-1">Optionnel</p>
+                                            <p className="mt-1 text-xs text-muted-foreground">Facultatif</p>
                                         )}
                                     </div>
-
-                                    {/* Min Successes */}
-                                    <div className="p-4 bg-elevated/50 rounded-xl border border-border">
-                                        <Label className="text-foreground text-sm mb-2 block">Succès minimum</Label>
+                                    <div className="rounded-md border border-border p-4">
+                                        <Label className="mb-2 block text-sm">Succès minimum</Label>
                                         <Input
                                             type="number"
                                             value={minSuccesses}
@@ -1195,22 +1091,17 @@ export function PresentationForm({ guildId }: Props) {
                                             placeholder="0-25000"
                                             min={0}
                                             max={25000}
-                                            className={cn(
-                                                "bg-surface/50 border-border",
-                                                errors.minSuccesses && "border-danger/50"
-                                            )}
+                                            className={cn("bg-transparent", errors.minSuccesses && "border-danger/50")}
                                         />
                                         {errors.minSuccesses ? (
-                                            <p className="text-xs text-danger mt-1">{errors.minSuccesses}</p>
+                                            <p className="mt-1 text-xs text-danger">{errors.minSuccesses}</p>
                                         ) : (
-                                            <p className="text-xs text-muted-foreground mt-1">Optionnel</p>
+                                            <p className="mt-1 text-xs text-muted-foreground">Facultatif</p>
                                         )}
                                     </div>
-
-                                    {/* Member Count */}
-                                    <div className="p-4 bg-elevated/50 rounded-xl border border-border">
-                                        <Label className="text-foreground text-sm mb-2 flex items-center gap-2">
-                                            <Users className="w-4 h-4 text-info" />
+                                    <div className="rounded-md border border-border p-4">
+                                        <Label className="mb-2 flex items-center gap-2 text-sm">
+                                            <Users className="h-4 w-4 text-muted-foreground" />
                                             Membres actuels
                                         </Label>
                                         <Input
@@ -1226,51 +1117,77 @@ export function PresentationForm({ guildId }: Props) {
                                             placeholder="0-350"
                                             min={0}
                                             max={350}
-                                            className="bg-surface/50 border-border"
+                                            className="bg-transparent"
                                         />
-                                        <p className="text-xs text-muted-foreground mt-1">
-                                            {memberCount ? `Places disponibles : ${350 - parseInt(memberCount)}` : "Optionnel"}
+                                        <p className="mt-1 text-xs text-muted-foreground">
+                                            {memberCount ? `Places libres : ${350 - parseInt(memberCount)}` : "Facultatif"}
                                         </p>
                                     </div>
                                 </div>
 
-                                {/* Additional Requirements */}
                                 <div className="space-y-2">
                                     <Label htmlFor="recruitReq">Autres pré-requis</Label>
                                     <Textarea
                                         id="recruitReq"
                                         value={recruitmentRequirements}
                                         onChange={(e) => setRecruitmentRequirements(e.target.value)}
-                                        placeholder="Décrivez vos attentes..."
+                                        placeholder="Ce que la guilde attend vraiment..."
                                         rows={4}
                                         maxLength={1000}
-                                        className="bg-elevated/50 border-border"
+                                        className="bg-transparent"
                                     />
-                                    <p className="text-xs text-muted-foreground">
-                                        {recruitmentRequirements.length}/1000 caractères
+                                    <p className="reg-mono text-xs text-muted-foreground">
+                                        {recruitmentRequirements.length}/1000
                                     </p>
                                 </div>
                             </div>
                         )}
                     </div>
-                </TabsContent>
-            </Tabs>
+                )}
 
-            {/* Global Save Button */}
-            <div className="flex justify-end sticky bottom-4">
-                <Button
-                    onClick={handleSubmit}
-                    disabled={isPending}
-                    size="lg"
-                    className="bg-info hover:bg-info gap-2 shadow-lg shadow-indigo-500/20"
-                >
-                    {isPending ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                        <Save className="w-4 h-4" />
-                    )}
-                    Tout sauvegarder
-                </Button>
+                {/* Pied d'étape : retour, suite, enregistrement final. */}
+                <div className="mt-8 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-6">
+                    <div className="flex items-center gap-3">
+                        {stepIndex > 0 ? (
+                            <button type="button" onClick={goPrev} className="reg-btn reg-btn-secondary">
+                                <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+                                Retour
+                            </button>
+                        ) : (
+                            <span className="reg-mono text-xs text-muted-foreground">Étape 1 sur {STEPS.length}</span>
+                        )}
+                    </div>
+                    <div className="flex items-center gap-3">
+                        {dirty && (
+                            <span className="text-xs text-muted-foreground">Modifications non enregistrées</span>
+                        )}
+                        {!isLast ? (
+                            <button type="button" onClick={goNext} className="reg-btn reg-btn-primary">
+                                Continuer
+                                <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                            </button>
+                        ) : (
+                            <button
+                                type="button"
+                                onClick={handleSubmit}
+                                disabled={isPending}
+                                className="reg-btn reg-btn-primary"
+                            >
+                                {isPending ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                                ) : (
+                                    <Check className="h-4 w-4" aria-hidden="true" />
+                                )}
+                                Enregistrer la page
+                            </button>
+                        )}
+                    </div>
+                </div>
+                <p className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
+                    <ImageIcon className="h-3.5 w-3.5" aria-hidden="true" />
+                    L&apos;enregistrement s&apos;applique à toutes les étapes d&apos;un coup — la garde
+                    anti-oubli surveille la sortie.
+                </p>
             </div>
 
             {/* #228 — Garde anti-navigation : alerte si des modifications ne sont pas sauvegardées. */}

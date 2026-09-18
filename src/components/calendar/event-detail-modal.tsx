@@ -554,8 +554,13 @@ export function EventDetailModal({
                                         </Button>
                                     )}
 
-                                    {/* Complete button — raids get a special flow */}
-                                    {effectiveStatus === "PUBLISHED" && onComplete && (
+                                    {/* Complete button — raids get a special flow.
+                                        ⚠️ Events **Kralamoure** : la clôture vit sur
+                                        Metamob (l'event n'est pas « à nous ») ⇒ aucun
+                                        bouton « Terminer l'event » ici (décision user
+                                        18/09/2026). Les events Discord classiques et
+                                        les Raids gardent leur flux habituel. */}
+                                    {effectiveStatus === "PUBLISHED" && onComplete && !isKrala && (
                                         isRaid ? (
                                             <Button
                                                 size="sm"
@@ -871,6 +876,10 @@ export function EventDetailModal({
                                                 .filter(p => p.status === "REGISTERED")
                                                 .sort((a, b) => a.position - b.position)
                                                 .map((participant) => (
+                                                        /* 🚫 Events Kralamoure : les inscrits viennent de Metamob (aucun
+                                                           `UserProfile` en base) ⇒ `kickParticipant` ne peut qu'échouer
+                                                           (« PARTICIPANT INTROUVABLE »). On ne propose donc plus l'action
+                                                           (décision user du 18/09/2026) : le désistement se fait sur Metamob. */
                                                         <ParticipantRow
                                                         key={participant.id}
                                                         participant={participant}
@@ -878,7 +887,7 @@ export function EventDetailModal({
                                                         isCurrentUser={participant.user.id === currentUserId}
                                                         isRaid={isRaid}
                                                         onUnregister={!isExternal && onUnregister ? () => handleAction(onUnregister) : undefined}
-                                                        onKick={(isRaid ? event.creator.id === currentUserId : (canManage || event.creator.id === currentUserId)) && participant.user.id !== event.creator.id
+                                                        onKick={!isKrala && (isRaid ? event.creator.id === currentUserId : (canManage || event.creator.id === currentUserId)) && participant.user.id !== event.creator.id
                                                              ? () => handleAction(async () => {
                                                                  const res = await kickParticipant(guildId, event.id, participant.user.id);
                                                                  if (res.success) {
@@ -946,6 +955,8 @@ export function EventDetailModal({
                                                         .filter(p => p.status === "RESERVE")
                                                         .sort((a, b) => a.position - b.position)
                                                         .map((participant) => (
+                                                            /* 🚫 Même règle MetaMob que la liste principale : pas
+                                                               d'expulsion possible sur un event Kralamoure. */
                                                             <ParticipantRow
                                                                 key={participant.id}
                                                                 participant={participant}
@@ -953,7 +964,7 @@ export function EventDetailModal({
                                                                 isCurrentUser={participant.user.id === currentUserId}
                                                                 isRaid={isRaid}
                                                                 onUnregister={onUnregister ? () => handleAction(onUnregister) : undefined}
-                                                            onKick={(isRaid ? event.creator.id === currentUserId : (canManage || event.creator.id === currentUserId)) && participant.user.id !== event.creator.id
+                                                            onKick={!isKrala && (isRaid ? event.creator.id === currentUserId : (canManage || event.creator.id === currentUserId)) && participant.user.id !== event.creator.id
                                                                  ? () => handleAction(async () => {
                                                                      const res = await kickParticipant(guildId, event.id, participant.user.id);
                                                                      if (res.success) {

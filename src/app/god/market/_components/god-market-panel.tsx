@@ -3,15 +3,21 @@
 /**
  * God « Marché » — panneau de supervision (S8.18 / §18.2).
  *
- * L'écran **ne décide rien** : il lit (`getGodMarketOverview`,
- * `listGodMarketAuditLogs`) et délègue chaque action aux server actions
- * `god-market-actions` (toutes gardées par `isSuperAdmin()` **côté serveur**).
+ * L'écran **ne décide rien** : il lit (`getGodMarketOverview`) et délègue
+ * chaque action aux server actions `god-market-actions` (toutes gardées par
+ * `isSuperAdmin()` **côté serveur**).
  * Aucun identifiant externe ici : seuls des **ids internes** renvoyés par le serveur.
+ *
+ * 🧭 Décisions user (18/09/2026) : les « rôles notifiables » sont un réglage
+ * **local par nature** ⇒ ils vivent **uniquement** dans *Réglages → Marché* de la
+ * guilde ; le journal d'audit du marché a migré vers **God → Audit Logs → onglet
+ * « Marché »** (`listGodMarketAuditLogs`). Cette page ne garde que la supervision :
+ * indicateurs, santé Discord, preuves & médias, réglages globaux.
  */
 
-import { useState, useTransition, useEffect } from "react";
+import { useState, useTransition } from "react";
 import { toast } from "sonner";
-import { RefreshCw, Trash2, Save, ExternalLink, CheckCircle2, History } from "lucide-react";
+import { RefreshCw, Trash2, Save, ExternalLink, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -21,16 +27,13 @@ import { Switch } from "@/components/ui/switch";
 import { EmptyState } from "@/components/ui/empty-state";
 import { MARKET_SETTINGS_BOUNDS, MARKET_SETTINGS_DEFAULTS } from "@/server/actions/market-constants";
 import { parseReminderDays } from "@/lib/market/reminder-days";
+import { formatMarketDateTime } from "@/lib/market/format-date";
 import {
     getGodMarketOverview,
-    getGodMarketPingRoles,
-    listGodMarketAuditLogs,
     purgeGodMarketMedia,
     regenerateGodMarketImage,
     resyncGodMarketDiscord,
-    saveGodMarketPingRoles,
     saveGodMarketSettings,
-    type GodMarketLogRow,
     type GodMarketOverview,
 } from "@/server/actions/god-market-actions";
 
@@ -45,178 +48,6 @@ function formatBytes(bytes: number): string {
         unit += 1;
     }
     return `${value.toFixed(1)} ${units[unit]}`;
-}
-
-function formatDate(iso: string): string {
-    return new Date(iso).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" });
-}
-
-/**
- * 🧺 **§A3 — « Rôles notifiables »** (réglage réellement manquant dans l'UI).
- *
- * Constat user (15/09/2026) : « Aucun rôle autorisé par l'admin » — la colonne
- * `GuildConfig.marketAllowedPingRoleIds` n'était alimentée nulle part depuis la
- * suppression des sélecteurs d'admin, donc le ping de publication restait **vide
- * à jamais**. Ce bloc est le **seul** endroit qui la remplit : le staff choisit
- * une guilde, coche les rôles réellement mentionnables (lus depuis Discord, jamais
- * saisis à la main) et enregistre. `@everyone` est écarté côté serveur.
- */
-function MarketPingRolesCard({
-    guilds,
-    disabled,
-}: {
-    guilds: GodMarketOverview["guilds"];
-    disabled: boolean;
-}) {
-    const [guildConfigId, setGuildConfigId] = useState(guilds[0]?.id ?? "");
-    const [roles, setRoles] = useState<{ id: string; name: string }[]>([]);
-    const [selected, setSelected] = useState<string[]>([]);
-    const [loading, setLoading] = useState(false);
-    const [saving, setSaving] = useState(false);
-
-    useEffect(() => {
-        if (!guildConfigId) return;
-        let cancelled = false;
-        setLoading(true);
-        getGodMarketPingRoles({ guildConfigId })
-            .then((result) => {
-                if (cancelled) return;
-                if (!result.success) {
-                    toast.error(result.error);
-                    return;
-                }
-                setRoles(result.data.roles);
-                setSelected(result.data.selected);
-            })
-            .finally(() => {
-                if (!cancelled) setLoading(false);
-            });
-        return () => {
-            cancelled = true;
-        };
-    }, [guildConfigId]);
-
-    async function save() {
-        if (!guildConfigId) return;
-        setSaving(true);
-        const result = await saveGodMarketPingRoles({ guildConfigId, roleIds: selected });
-        setSaving(false);
-        if (!result.success) {
-            toast.error(result.error);
-            return;
-        }
-        toast.success(
-            result.data.count > 0
-                ? `${result.data.count} rôle(s) notifiable(s) enregistré(s)`
-                : "Aucun rôle notifiable : le ping de publication restera vide"
-        );
-    }
-
-    /** Coche/décoche un rôle (jamais `@everyone` : il n'est pas proposé). */
-    function toggle(roleId: string) {
-        setSelected((current) =>
-            current.includes(roleId) ? current.filter((id) => id !== roleId) : [...current, roleId]
-        );
-    }
-
-    return (
-        <Card className="border-border">
-            <CardContent className="p-4 space-y-4">
-                <div className="flex flex-wrap items-end justify-between gap-3">
-                    <div className="space-y-1">
-                        <Label className="font-semibold">Rôles mentionnables à la publication</Label>
-                        <p className="text-caption text-muted-foreground">
-                            Le créateur ne peut mentionner que ces rôles. Aucun rôle coché ⇒ le ping reste vide.
-                        </p>
-                    </div>
-                    <select
-                        className="h-9 min-w-[220px] rounded-xl border border-border bg-surface px-3 text-body-sm text-foreground"
-                        value={guildConfigId}
-                        onChange={(event) => setGuildConfigId(event.target.value)}
-                        disabled={disabled || saving || loading}
-                        aria-label="Choisir la guilde à configurer"
-                    >
-                        {guilds.length === 0 && <option value="">Aucune guilde</option>}
-                        {guilds.map((guild) => (
-                            <option key={guild.id} value={guild.id}>
-                                {guild.name}
-                            </option>
-                        ))}
-                    </select>
-                </div>
-
-                <MarketPingRoleList
-                    roles={roles}
-                    selected={selected}
-                    loading={loading}
-                    disabled={disabled || saving}
-                    onToggle={toggle}
-                />
-
-                <div className="flex items-center justify-between gap-3">
-                    <span className="text-caption text-muted-foreground">
-                        {selected.length} rôle(s) sélectionné(s) — 25 maximum.
-                    </span>
-                    <Button onClick={save} disabled={disabled || saving || loading || !guildConfigId} className="gap-2">
-                        <Save className="w-4 h-4" />
-                        {saving ? "Enregistrement…" : "Enregistrer les rôles"}
-                    </Button>
-                </div>
-            </CardContent>
-        </Card>
-    );
-}
-
-/** Liste cochable des rôles réellement présents sur le serveur Discord. */
-function MarketPingRoleList({
-    roles,
-    selected,
-    loading,
-    disabled,
-    onToggle,
-}: {
-    roles: { id: string; name: string }[];
-    selected: string[];
-    loading: boolean;
-    disabled: boolean;
-    onToggle: (roleId: string) => void;
-}) {
-    if (loading) {
-        return <p className="text-caption text-muted-foreground">Chargement des rôles Discord…</p>;
-    }
-    if (roles.length === 0) {
-        return (
-            <p className="text-caption text-muted-foreground">
-                Aucun rôle récupéré (Discord injoignable ou serveur sans rôle) — réessaie plus tard.
-            </p>
-        );
-    }
-    return (
-        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            {roles.map((role) => {
-                const checked = selected.includes(role.id);
-                return (
-                    <label
-                        key={role.id}
-                        className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-body-sm cursor-pointer transition-colors ${
-                            checked
-                                ? "border-primary/40 bg-primary/10 text-foreground"
-                                : "border-border bg-surface/60 text-muted-foreground hover:text-foreground"
-                        }`}
-                    >
-                        <input
-                            type="checkbox"
-                            className="h-4 w-4 accent-current"
-                            checked={checked}
-                            onChange={() => onToggle(role.id)}
-                            disabled={disabled}
-                        />
-                        <span className="truncate">@{role.name}</span>
-                    </label>
-                );
-            })}
-        </div>
-    );
 }
 
 export function GodMarketPanel({ initialOverview }: { initialOverview: GodMarketOverview }) {
@@ -263,9 +94,6 @@ export function GodMarketPanel({ initialOverview }: { initialOverview: GodMarket
             : MARKET_SETTINGS_DEFAULTS.marketNegotiationsEnabled
     );
 
-    const [logs, setLogs] = useState<GodMarketLogRow[]>(initialOverview.logs);
-    const [logGuildId, setLogGuildId] = useState<string>("");
-
     /** Recharge la vue complète (mêmes garanties serveur). */
     async function refresh() {
         const result = await getGodMarketOverview();
@@ -274,7 +102,6 @@ export function GodMarketPanel({ initialOverview }: { initialOverview: GodMarket
             return;
         }
         setOverview(result.data);
-        setLogs(result.data.logs);
     }
 
     /** Rejoue la synchronisation Discord (une annonce ou un lot de 25). */
@@ -382,20 +209,7 @@ export function GodMarketPanel({ initialOverview }: { initialOverview: GodMarket
         });
     }
 
-    /** Filtre le journal sur une guilde (**id interne** uniquement). */
-    function filterLogs(guildId: string) {
-        setLogGuildId(guildId);
-        startTransition(async () => {
-            const result = await listGodMarketAuditLogs(guildId ? { guildConfigId: guildId, limit: 50 } : { limit: 50 });
-            if (!result.success) {
-                toast.error(result.error);
-                return;
-            }
-            setLogs(result.data);
-        });
-    }
-
-    const { totals, settings, guilds, health } = overview;
+    const { totals, settings, health } = overview;
     const disabled = isPending || busy !== null;
 
     /**
@@ -533,7 +347,7 @@ export function GodMarketPanel({ initialOverview }: { initialOverview: GodMarket
                                         </span>
                                     </div>
                                     <p className="text-caption text-muted-foreground font-mono truncate">
-                                        dernière synchro : {formatDate(row.lastSyncedAt)}
+                                        dernière synchro : {formatMarketDateTime(row.lastSyncedAt)}
                                         {row.lastError ? ` · erreur : ${row.lastError}` : ""}
                                     </p>
                                 </div>
@@ -727,60 +541,6 @@ export function GodMarketPanel({ initialOverview }: { initialOverview: GodMarket
                         </div>
                     </CardContent>
                 </Card>
-            </section>
-
-            {/* ── 🧺 §A3 — Rôles notifiables (par guilde) ─────────────────── */}
-            <section className="space-y-4">
-                <h2 className="text-sm font-black uppercase tracking-wider text-muted-foreground">
-                    Rôles notifiables (publication)
-                </h2>
-                <MarketPingRolesCard guilds={guilds} disabled={disabled} />
-            </section>
-
-            {/* ── Journal (§18.2) ─────────────────────────────────────────── */}
-            <section className="space-y-4">
-                <div className="flex flex-wrap items-center justify-between gap-4">
-                    <h2 className="text-sm font-black uppercase tracking-wider text-muted-foreground">
-                        Journal du Marché ({logs.length})
-                    </h2>
-                    <select
-                        className="h-9 rounded-xl border border-border bg-surface px-3 text-body-sm text-foreground"
-                        value={logGuildId}
-                        onChange={(event) => filterLogs(event.target.value)}
-                        disabled={disabled}
-                        aria-label="Filtrer le journal par guilde"
-                    >
-                        <option value="">Toutes les guildes</option>
-                        {guilds.map((guild) => (
-                            <option key={guild.id} value={guild.id}>
-                                {guild.name}
-                            </option>
-                        ))}
-                    </select>
-                </div>
-
-                {logs.length === 0 ? (
-                    <EmptyState
-                        icon={History}
-                        title="Aucune action journalisée"
-                        description="Le marché n'a pas encore d'activité."
-                    />
-                ) : (
-                    <div className="rounded-2xl border border-border overflow-hidden divide-y divide-border">
-                        {logs.map((log) => (
-                            <div key={log.id} className="p-3 flex items-center gap-3">
-                                <span className="text-caption text-muted-foreground font-mono w-32 shrink-0">
-                                    {formatDate(log.createdAt)}
-                                </span>
-                                <span className="font-medium text-foreground">{log.actionLabel}</span>
-                                <span className="text-caption text-muted-foreground truncate">
-                                    {log.guildName ?? "Guilde inconnue"}
-                                    {log.reason ? ` · ${log.reason}` : ""}
-                                </span>
-                            </div>
-                        ))}
-                    </div>
-                )}
             </section>
         </div>
     );

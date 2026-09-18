@@ -91,7 +91,6 @@ export const CONSOLE_PAGES: GodNavItem[] = [
     { id: "reaction-roles", name: "Packs Reaction Roles", icon: Sparkles, color: "text-purple-400", group: "tools", sub: "reaction-roles", scope: "all", scopeLabel: "Toutes", brickId: "overview" },
     { id: "ticket-bot", name: "Bot Tickets Flotte", icon: Ticket, color: "text-amber-400", group: "tools", sub: "ticket-bot", scope: "all", scopeLabel: "Toutes", brickId: "overview" },
     { id: "onboarding", name: "Onboarding B2B", icon: UserPlus, color: "text-success", group: "tools", sub: "onboarding", scope: "all", scopeLabel: "Toutes", brickId: "onboarding" },
-    { id: "landing", name: "Landing Screens", icon: Sparkles, color: "text-purple-400", group: "tools", sub: "landing", scope: "all", scopeLabel: "Toutes", brickId: "overview" },
     { id: "module-icons", name: "Icônes Modules", icon: ImageIcon, color: "text-warning", group: "tools", scope: "all", scopeLabel: "Toutes", brickId: "overview" },
     { id: "badges", name: "Studio Badges", icon: Award, color: "text-amber-400", group: "tools", sub: "badges", scope: "all", scopeLabel: "Toutes", brickId: "overview" },
 ];

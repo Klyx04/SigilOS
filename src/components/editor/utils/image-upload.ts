@@ -6,13 +6,13 @@ import { toast } from "sonner";
  * Shows a toast on error and returns null.
  *
  * @param scope Destination sous `private_uploads/`. `docs` (défaut) reste privé
- *              (session requise) ; `guides`, `assets` et `landing` sont servis
- *              PUBLICQUEMENT — à utiliser pour tout visuel affiché sur une page
- *              publique (guide indexé, landing…).
+ *              (session requise) ; `guides` et `assets` sont servis
+ *              PUBLIQUEMENT — à utiliser pour tout visuel affiché sur une page
+ *              publique (guide indexé, bandeau…).
  */
 export async function uploadImageFile(
     file: File,
-    scope: "docs" | "guides" | "assets" | "landing" = "docs"
+    scope: "docs" | "guides" | "assets" = "docs"
 ): Promise<string | null> {
     try {
         const formData = new FormData();

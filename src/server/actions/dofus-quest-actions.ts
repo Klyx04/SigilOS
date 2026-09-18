@@ -9,6 +9,7 @@ import { logger } from "@/lib/logger";
 import { publishDofusEvent } from "@/lib/dofus-realtime";
 import { rateLimit } from "@/lib/ratelimit";
 import { resolveDofusImageUrl } from "@/lib/dofus-image-url";
+import { ACHIEVEMENT_KIND, QUEST_KIND } from "@/lib/dofus-quest-tree";
 import { ALL_KROKILLE_MONSTERS } from "@/components/dofus-quests/DofusDokilleTracker";
 
 export type ActionResponse<T = void> = {
@@ -74,6 +75,10 @@ export type DofusEntryWithProgress = {
     stepOrder: number;
     isOptional: boolean;
     isLast: boolean;
+    /** QUEST (quête jouable) | ACHIEVEMENT (succès conteneur d'objectifs). */
+    entryKind: string;
+    /** Id du succès parent (succès imbriqué) — null si l'entrée est à la racine. */
+    parentEntryId: string | null;
     notes: string | null;
     requirements: any;
     coords: any;
@@ -190,7 +195,9 @@ export async function getDofusListWithProgress(guildId: string, characterName: s
                 questChains: {
                     include: {
                         entries: {
-                            where: { isOptional: false },
+                            // Succès imbriqués : seules les quêtes jouables comptent
+                            // dans la progression (un succès conteneur n'est pas une étape).
+                            where: { isOptional: false, entryKind: QUEST_KIND },
                             select: { id: true, weight: true },
                         },
                     },
@@ -397,6 +404,8 @@ export async function getDofusDetailWithChains(
                     stepOrder: entry.stepOrder,
                     isOptional: entry.isOptional,
                     isLast: entry.isLast,
+                    entryKind: entry.entryKind ?? QUEST_KIND,
+                    parentEntryId: entry.parentEntryId ?? null,
                     notes: entry.notes,
                     requirements: entry.requirements,
                     coords: entry.coords,
@@ -453,12 +462,10 @@ export async function getDofusDetailWithChains(
             });
         }
 
-        const totalQuests = chains
-            .flatMap((c) => c.entries)
-            .filter((e) => !e.isOptional).length;
-        const completedQuests = chains
-            .flatMap((c) => c.entries)
-            .filter((e) => !e.isOptional && e.status === "COMPLETED").length;
+        // Succès imbriqués : les compteurs ne portent que sur les quêtes jouables.
+        const playableEntries = chains.flatMap((c) => c.entries).filter((e) => e.entryKind !== ACHIEVEMENT_KIND);
+        const totalQuests = playableEntries.filter((e) => !e.isOptional).length;
+        const completedQuests = playableEntries.filter((e) => !e.isOptional && e.status === "COMPLETED").length;
 
         let progressPercent = totalQuests > 0 ? Math.round((completedQuests / totalQuests) * 100) : 0;
 
@@ -515,8 +522,8 @@ export async function getDofusDetailWithChains(
             obtainedAt: progress?.obtainedAt ?? null,
             completedQuests,
             totalQuests,
-            totalWeight: chains.flatMap(c => c.entries).filter(e => !e.isOptional).reduce((s, e) => s + (e.weight ?? 1), 0),
-            doneWeight: chains.flatMap(c => c.entries).filter(e => !e.isOptional && e.status === "COMPLETED").reduce((s, e) => s + (e.weight ?? 1), 0),
+            totalWeight: playableEntries.filter(e => !e.isOptional).reduce((s, e) => s + (e.weight ?? 1), 0),
+            doneWeight: playableEntries.filter(e => !e.isOptional && e.status === "COMPLETED").reduce((s, e) => s + (e.weight ?? 1), 0),
             progressPercent,
             notes: progress?.notes ?? null,
         };
@@ -993,7 +1000,7 @@ async function refreshDofusCompletionPercent(
     characterName: string
 ) {
     const allEntries = await (db as any).dofusQuestEntry.findMany({
-        where: { chain: { dofusId }, isOptional: false },
+        where: { chain: { dofusId }, isOptional: false, entryKind: QUEST_KIND },
         select: { id: true, weight: true },
     });
     const entryIds = allEntries.map((e: any) => e.id);
@@ -1682,6 +1689,9 @@ export async function seedDofusData(guildId: string): Promise<{
             // Delete existing chains before re-seeding
             await (db as any).dofusQuestChain.deleteMany({ where: { dofusId } });
 
+            // Entrées créées pour CE Dofus (liens succès imbriqués résolus en 2ᵉ passe).
+            const seededEntries: { id: string; name: string; parentName: string | null }[] = [];
+
             for (const section of chainData.chains ?? []) {
                 const chainRecord = await (db as any).dofusQuestChain.create({
                     data: {
@@ -1695,7 +1705,8 @@ export async function seedDofusData(guildId: string): Promise<{
                 chainCount++;
 
                 for (const entry of section.entries ?? []) {
-                    await (db as any).dofusQuestEntry.create({
+                    const entryKind = entry.entryKind === ACHIEVEMENT_KIND ? ACHIEVEMENT_KIND : QUEST_KIND;
+                    const createdEntry = await (db as any).dofusQuestEntry.create({
                         data: {
                             chainId: chainRecord.id,
                             name: typeof entry.name === "string" ? entry.name : (entry.name?.name || String(entry.name)),
@@ -1716,12 +1727,27 @@ export async function seedDofusData(guildId: string): Promise<{
                             coords: entry.coords ?? null,                      // V3
                             level: entry.level ?? null,                        // V3
                             isSynergyCandidate: entry.isSynergyCandidate ?? false,
-                            weight: entry.weight ?? 1,           // V3
+                            // Succès imbriqués : un conteneur ne pèse pas dans la progression.
+                            entryKind,
+                            weight: entryKind === ACHIEVEMENT_KIND ? 0 : (entry.weight ?? 1),   // V3
                             externalRef: entry.externalRef ?? null, // V3
                         },
                     });
+                    seededEntries.push({ id: createdEntry.id, name: createdEntry.name, parentName: entry.parentName ?? null });
                     entryCount++;
                 }
+            }
+
+            // 2ᵉ passe : les succès imbriqués se lient par NOM dans le JSON compilé
+            // (l'id n'existe pas encore au moment de la compilation/édition).
+            for (const { id, name, parentName } of seededEntries) {
+                if (!parentName) continue;
+                const parent = seededEntries.find((e) => e.name === parentName && e.id !== id);
+                if (!parent) continue;
+                await (db as any).dofusQuestEntry.update({
+                    where: { id },
+                    data: { parentEntryId: parent.id },
+                });
             }
         }
 

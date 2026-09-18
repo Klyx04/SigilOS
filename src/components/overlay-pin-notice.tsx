@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { PinOff, X } from "lucide-react";
 
+import { useI18n } from "@/lib/i18n/client";
+
 /**
  * Bandeau affiché en haut d'un overlay (guide Rush / fiche Boss) quand la fenêtre
  * N'EST PAS épinglée toujours-au-dessus — i.e. le navigateur ne supporte pas
@@ -12,6 +14,8 @@ import { PinOff, X } from "lucide-react";
  * Couleurs explicites (pas de tokens alpha) : lisible en mode sombre comme en mode clair.
  */
 export function OverlayPinNotice() {
+  const { locale } = useI18n();
+  const isEn = locale === "en";
   const [dismissed, setDismissed] = useState(false);
   if (dismissed) return null;
 
@@ -22,14 +26,17 @@ export function OverlayPinNotice() {
     >
       <PinOff className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#b45309]" />
       <p className="min-w-0 flex-1 text-[10px] leading-snug text-[#78350d]">
-        <span className="font-bold text-[#92400e]">Fenêtre non épinglée.</span> Ce navigateur
-        (ex. Opera GX) ne supporte pas l&apos;overlay toujours-au-dessus. Astuce : PowerToys
-        « Always on Top » (Win + Ctrl + T) pour la garder au-dessus du jeu.
+        <span className="font-bold text-[#92400e]">
+          {isEn ? "Window not pinned." : "Fenêtre non épinglée."}
+        </span>{" "}
+        {isEn
+          ? "This browser does not support always-on-top overlays. Tip: Use PowerToys 'Always on Top' (Win + Ctrl + T) to keep it over your game."
+          : "Ce navigateur (ex. Opera GX) ne supporte pas l'overlay toujours-au-dessus. Astuce : PowerToys « Always on Top » (Win + Ctrl + T) pour la garder au-dessus du jeu."}
       </p>
       <button
         type="button"
         onClick={() => setDismissed(true)}
-        aria-label="Masquer cet avertissement"
+        aria-label={isEn ? "Dismiss this notice" : "Masquer cet avertissement"}
         className="rounded-md p-0.5 text-[#92400e]/70 transition-colors hover:bg-[#b45309]/15 hover:text-[#92400e]"
       >
         <X className="h-3.5 w-3.5" />

@@ -1,11 +1,17 @@
 import { describe, it, expect } from "vitest";
 import {
     computeSpellDamage,
+    castsPerTarget,
+    castsPerTurn,
     elementFromDofusdb,
     elementStatFor,
     fixedDamageForElement,
     percentDamageFor,
     spellDamageFromEffect,
+    spellZoneFromDamages,
+    spellZoneShapeFromLetter,
+    pickGradeForLevel,
+    applyCharLevelToSpells,
     statsFromDofusdb,
     applyBuild,
     type BuildStatsForSpells,
@@ -151,6 +157,79 @@ describe("computeSpellDamage", () => {
     });
 });
 
+describe("castsPerTarget / castsPerTurn (limites de lancer Dofusbook)", () => {
+    it("plafonne la cible au tour (min des deux quand les deux sont bornés)", () => {
+        expect(castsPerTarget(2, 3)).toBe(2);
+        expect(castsPerTarget(3, 2)).toBe(2);
+        expect(castsPerTurn(3)).toBe(3);
+    });
+
+    it("retombe sur la seule borne définie", () => {
+        expect(castsPerTarget(2, 0)).toBe(2);
+        expect(castsPerTarget(0, 0)).toBeNull();
+        expect(castsPerTurn(0)).toBeNull();
+    });
+
+    it("vaut 1 par cible quand seul le tour est plafonné (référence par lancer)", () => {
+        expect(castsPerTarget(0, 3)).toBe(1);
+    });
+});
+
+describe("spellZoneShapeFromLetter / spellZoneFromDamages (zones AoE DofusDB)", () => {
+    it("mappe les gabarits Ankama (même convention que toAnomalyZone)", () => {
+        expect(spellZoneShapeFromLetter("P")).toBe("Point");
+        expect(spellZoneShapeFromLetter("+")).toBe("Point");
+        expect(spellZoneShapeFromLetter("C")).toBe("Cercle");
+        expect(spellZoneShapeFromLetter("X")).toBe("Croix");
+        expect(spellZoneShapeFromLetter("L")).toBe("Ligne");
+        expect(spellZoneShapeFromLetter("V")).toBe("Cône");
+        expect(spellZoneShapeFromLetter("O")).toBe("Inconnue");
+        expect(spellZoneShapeFromLetter("")).toBe("Inconnue");
+    });
+
+    it("retient la première vraie AoE (ex. Torrent Arcanique = 4× Cercle 2)", () => {
+        const lines = [
+            { zone: { shape: "C", size: 2 } },
+            { zone: { shape: "C", size: 2 } },
+        ];
+        expect(spellZoneFromDamages(lines)).toEqual({ shape: "Cercle", size: 2 });
+    });
+
+    it("vaut Point quand toutes les lignes sont monocibles", () => {
+        expect(spellZoneFromDamages([{ zone: { shape: "P", size: 1 } }])).toEqual({ shape: "Point", size: 0 });
+        expect(spellZoneFromDamages([{ zone: null }])).toEqual({ shape: "Point", size: 0 });
+    });
+
+    it("vaut null sans ligne de dégâts (sort utilitaire)", () => {
+        expect(spellZoneFromDamages([])).toBeNull();
+    });
+});
+
+describe("pickGradeForLevel / applyCharLevelToSpells (grimoire persisté)", () => {
+    const grades = [
+        { grade: 1, minPlayerLevel: 1, apCost: 3, minRange: 1, maxRange: 4, criticalChance: 5, maxCastPerTurn: 2, maxCastPerTarget: 0, minCastInterval: 0, zone: null, damages: [] },
+        { grade: 2, minPlayerLevel: 100, apCost: 3, minRange: 1, maxRange: 5, criticalChance: 5, maxCastPerTurn: 2, maxCastPerTarget: 0, minCastInterval: 0, zone: null, damages: [] },
+        { grade: 3, minPlayerLevel: 150, apCost: 2, minRange: 1, maxRange: 6, criticalChance: 10, maxCastPerTurn: 3, maxCastPerTarget: 0, minCastInterval: 0, zone: null, damages: [] },
+    ];
+
+    it("sélectionne le grade accessible le plus élevé (sinon le 1er)", () => {
+        expect(pickGradeForLevel(grades, 200)?.grade).toBe(3);
+        expect(pickGradeForLevel(grades, 110)?.grade).toBe(2);
+        expect(pickGradeForLevel(grades, 1)?.grade).toBe(1);
+        expect(pickGradeForLevel([], 200)).toBeNull();
+    });
+
+    it("re-dérive les champs de tête sans muter le stocké", () => {
+        const stored = [{ id: 1, name: "X", grade: 3, apCost: 2, maxRange: 6, grades }];
+        const at110 = applyCharLevelToSpells(stored as any, 110);
+        expect(at110[0].grade).toBe(2);
+        expect(at110[0].maxRange).toBe(5);
+        expect(at110[0].apCost).toBe(3);
+        // Stocké intact (canonique niv. 200).
+        expect(stored[0].grade).toBe(3);
+    });
+});
+
 describe("spellDamageFromEffect", () => {
     it("extrait min/max depuis diceNum/diceSide (effect DofusDB dégât)", () => {
         const dmg = spellDamageFromEffect({
@@ -164,6 +243,23 @@ describe("spellDamageFromEffect", () => {
         expect(dmg?.min).toBe(8);
         expect(dmg?.max).toBe(12);
         expect(dmg?.element).toBe("feu");
+    });
+
+    it("capture la zone de la ligne depuis zoneDescr (ex. Torrent Arcanique Cercle 2)", () => {
+        const dmg = spellDamageFromEffect({
+            effectId: 99, // dégât Feu
+            effectElement: 2,
+            diceNum: 2,
+            diceSide: 2,
+            grade: 1,
+            zoneDescr: { shape: 67, param1: 2, param2: 0 }, // 'C' = Cercle, taille 2
+        });
+        expect(dmg?.zone).toEqual({ shape: "C", size: 2 });
+    });
+
+    it("vaut zone null sans zoneDescr (rétro-compatibilité)", () => {
+        const dmg = spellDamageFromEffect({ effectId: 92, effectElement: 2, diceNum: 8, diceSide: 12 });
+        expect(dmg?.zone).toBeNull();
     });
 
     it("ignore un effect qui n'est pas un dégât direct", () => {

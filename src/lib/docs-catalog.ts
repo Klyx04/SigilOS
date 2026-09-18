@@ -124,6 +124,21 @@ export const OFFICIAL_DOCS: OfficialDoc[] = [
 <strong>💡 Astuce pour les Sorties de Groupe</strong>
 Utilisez le module <em>Donjons & Quêtes</em> en parallèle pour créer un appel à l'aide en 1 clic lorsque vous arrivez sur une étape de donjon obligatoire.
 </div>
+
+<h2>3. Succès et succès imbriqués</h2>
+<p>Dans Dofus, un succès ne contient pas toujours directement des quêtes : il peut aussi demander d&apos;obtenir d&apos;autres succès, qui contiennent eux-mêmes les quêtes. Le tracker reproduit cette hiérarchie :</p>
+<ul>
+    <li><strong>Bloc « Succès » :</strong> une carte dépliable avec son compteur d&apos;objectifs (<em>4/7 objectifs</em>). Les objectifs sont les quêtes à réaliser, listées juste en dessous.</li>
+    <li><strong>Succès dans un succès :</strong> un objectif peut être un autre succès — l&apos;imbrication est affichée telle quelle, jusqu&apos;au niveau où se trouvent les quêtes.</li>
+    <li><strong>Tout valider / Tout reset :</strong> ces boutons, sur un succès, agissent sur les quêtes de son sous-arbre uniquement. Aucun succès ne possède d&apos;état propre : c&apos;est la validation de ses quêtes qui le complète.</li>
+    <li><strong>Compteurs du Dofus :</strong> seules les quêtes comptent comme étapes. Un succès conteneur ne gonfle ni le total, ni le pourcentage d&apos;avancement.</li>
+</ul>
+<p>La recherche et le filtre « Masquer » conservent toujours le succès parent d&apos;une quête trouvée, pour ne jamais afficher un objectif orphelin.</p>
+
+<div class="callout">
+<strong>Réservé aux administrateurs</strong>
+La structure des succès (nature « Quête » ou « Succès », rattachement à un succès parent) se règle depuis l&apos;éditeur de quêtes, section par section. Le module refuse les rattachements impossibles : parent d&apos;une autre section, parent qui n&apos;est pas un succès, ou lien circulaire.
+</div>
         `
     },
     {
@@ -280,6 +295,16 @@ La revente d'archimonstres capturés en guilde à l'hôtel des ventes est viveme
     <li>Vous visualisez les classes disponibles pour composer un groupe équilibré (Passeur, Placeur, Soin, Érosion).</li>
     <li>Un bouton vous permet d'ouvrir une discussion privée Discord pour fixer l'heure du combat.</li>
 </ol>
+
+<h2>3. Les vues du module</h2>
+<ul>
+    <li><strong>Mes Succès :</strong> ta checklist par donjon — recherche, filtre « à faire / finis », tranche de niveau, et une bascule unique pour valider ou décocher toute la tranche.</li>
+    <li><strong>Succès Commun :</strong> l'annuaire « qui a quoi », donjon par donjon.</li>
+    <li><strong>Fiches :</strong> boss, anomalies, avis de recherche et titans — quatre sous-vues derrière un seul onglet (sorts, statistiques, cartes et butin).</li>
+    <li><strong>Quêtes &amp; Succès :</strong> les quêtes de donjons rattachées aux fiches.</li>
+    <li><strong>Défi :</strong> les événements et défis one-shot.</li>
+</ul>
+<p>Les coches groupées — un donjon entier ou une tranche de niveau — tiennent dans un seul bouton : il valide ce qui reste à faire, puis propose de décocher une fois que tout est validé.</p>
         `
     },
     {
@@ -891,6 +916,22 @@ Seuls les rôles listés dans « Rôles pinguables » peuvent être mentionnés 
     </tbody>
 </table>
 
+<h3>Quand un changement de seuil s'applique</h3>
+<p>Les valeurs sont écrites <strong>immédiatement</strong> pour <strong>toutes</strong> les guildes (une seule écriture, aucun redémarrage, aucune attente de tâche planifiée), et chaque consommateur les relit en base <strong>au moment où il agit</strong> : la tâche automatique n'a jamais la main sur un seuil.</p>
+<table>
+    <thead><tr><th>Réglage</th><th>Quand le changement se voit</th></tr></thead>
+    <tbody>
+        <tr><td>Durée de vie maximale</td><td>Sur les annonces publiées <strong>après</strong> le changement : l'échéance est fixée au moment de la publication, une annonce déjà en ligne garde celle qu'elle a reçue.</td></tr>
+        <tr><td>Durée par défaut</td><td>Proposée à la création suivante (aucun effet rétroactif).</td></tr>
+        <tr><td>Durée d'une réservation / d'une offre</td><td>Sur les réservations et les offres créées <strong>après</strong> le changement (même logique : l'échéance est calculée à la création).</td></tr>
+        <tr><td>Paliers de rappel</td><td>Relus à <strong>chaque passe</strong> (toutes les 10 minutes) — y compris pour les annonces déjà en ligne : un palier raccourci peut envoyer un rappel dès la passe suivante, un palier allongé le reporte.</td></tr>
+        <tr><td>Annonces actives / membre</td><td>Contrôlé à chaque publication et à chaque modification : le nouveau plafond s'applique au prochain enregistrement.</td></tr>
+        <tr><td>Rétention des médias</td><td>À la passe de purge suivante (quotidienne).</td></tr>
+        <tr><td>Rétention du journal</td><td>À la passe de nettoyage des journaux suivante.</td></tr>
+        <tr><td>Verrou plateforme</td><td>Tout de suite : le module est désactivé (ou rendu) dans <strong>toutes</strong> les guildes, et chaque bascule de guilde est conservée pour le déverrouillage.</td></tr>
+    </tbody>
+</table>
+
 <h2>5. Bouton « Tester la configuration »</h2>
 <p>Le test vérifie que le salon est joignable, en détecte le type (texte / forum) et liste les points à corriger (salon absent, aucun rôle pinguable…). Aucun test n'est bloquant : le marché reste utilisable depuis le dashboard.</p>
 
@@ -908,7 +949,8 @@ Seuls les rôles listés dans « Rôles pinguables » peuvent être mentionnés 
 <p>Ces deux permissions sont indépendantes de la bascule du module : pense à activer <strong>les deux</strong> interrupteurs (module + permission) pour un membre qui doit publier.</p>
 
 <h2>8. Supervision plateforme (staff SigilOS)</h2>
-<p>Le staff dispose d'une vue <strong>inter-guilde</strong> de supervision : indicateurs d'annonces, réservations et offres, signalements ouverts, volume des preuves, santé de la synchronisation Discord, purge des médias, verrou plateforme et rétention globale, ainsi que le journal du marché. Cette vue est réservée au staff : aucune donnée n'en sort côté guilde.</p>
+<p>Le staff dispose d'une vue <strong>inter-guilde</strong> de supervision : indicateurs d'annonces, réservations et offres, signalements ouverts, volume des preuves, santé de la synchronisation Discord, purge des médias, verrou plateforme, rétention et durées globales. Cette vue est réservée au staff : aucune donnée n'en sort côté guilde.</p>
+<p>Le <strong>journal d'audit du Marché</strong> est regroupé avec les autres journaux de la plateforme : <em>God → Audit Logs → onglet « Marché »</em> (filtre par guilde, dates en UTC, conservation pilotée par « Rétention du journal »). Les <strong>rôles pinguables</strong> restent un réglage <strong>de guilde</strong> (<em>Réglages → Marché</em>) : la console plateforme ne les modifie pas, un réglage local par nature n'a qu'une seule maison.</p>
 `,
     },
     {

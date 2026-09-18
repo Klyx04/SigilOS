@@ -807,10 +807,12 @@ export async function siphonDungeonMonstersDatasetAction(): Promise<ActionRespon
     totalMonsters: number;
     totalBossFamilies: number;
 }>> {
-    const userId = await requireSuperAdmin();
-    if (!userId) return { success: false, error: "Accès refusé" };
-
+    // Garde DANS le try : une exception du guard (session, DB) hors try remonte
+    // en "An unexpected response was received from the server" côté client.
     try {
+        const userId = await requireSuperAdmin();
+        if (!userId) return { success: false, error: "Accès refusé" };
+
         const { siphonDungeonMonstersDataset } = await import("@/lib/dungeon-monsters-siphon");
         const result = await siphonDungeonMonstersDataset();
         revalidatePath('/god/game-data');
@@ -851,10 +853,11 @@ export async function siphonBountiesAction(): Promise<ActionResponse<{
     errors: number;
     perRace: Record<string, number>;
 }>> {
-    const userId = await requireGameDataBounties();
-    if (!userId) return { success: false, error: "Accès refusé" };
-
+    // Garde DANS le try (voir siphonDungeonMonstersDatasetAction).
     try {
+        const userId = await requireGameDataBounties();
+        if (!userId) return { success: false, error: "Accès refusé" };
+
         const { syncBounties } = await import("@/lib/bounty-siphon");
         const result = await syncBounties();
         await logGameDataWrite("siphon-bounties", `synced-${result.synced}`, {
@@ -882,11 +885,69 @@ export async function siphonBountiesAction(): Promise<ActionResponse<{
     }
 }
 
+/**
+ * Siphon d'UNE race d'avis (journal temps réel côté God : 5 appels courts au
+ * lieu d'un seul appel de 60 s+ sujet aux coupures/timeout). Même garde et
+ * même idempotence que la passe complète.
+ */
+export async function siphonBountiesRaceAction(raceId: number): Promise<ActionResponse<{
+    raceId: number;
+    raceName: string;
+    synced: number;
+    unchanged: number;
+    total: number;
+    unproven: number;
+    images: number;
+    errors: string[];
+}>> {
+    try {
+        const userId = await requireGameDataBounties();
+        if (!userId) return { success: false, error: "Accès refusé" };
+
+        const id = Math.floor(Number(raceId) || 0);
+        const { BOUNTY_RACE_IDS, BOUNTY_RACE_NAMES } = await import("@/lib/bounty");
+        if (!(BOUNTY_RACE_IDS as readonly number[]).includes(id)) {
+            return { success: false, error: `Race inconnue : ${raceId}` };
+        }
+
+        const { syncBounties } = await import("@/lib/bounty-siphon");
+        const result = await syncBounties([id]);
+        await logGameDataWrite("siphon-bounties-race", `race-${id}-synced-${result.synced}`, {
+            total: result.entries.length,
+            unproven: result.unproven,
+            errors: result.errors.length,
+        });
+        revalidatePath('/god/game-data');
+        revalidatePath('/god/game-data/bounties');
+        return {
+            success: true,
+            data: {
+                raceId: id,
+                raceName: BOUNTY_RACE_NAMES[id] ?? `Race ${id}`,
+                synced: result.synced,
+                unchanged: result.unchanged,
+                total: result.entries.length,
+                unproven: result.unproven,
+                images: result.imagesSiphoned,
+                errors: result.errors,
+            },
+        };
+    } catch (error: any) {
+        logger.error('[siphonBountiesRaceAction] Error:', error);
+        return { success: false, error: error?.message || 'Erreur lors du siphon de la race' };
+    }
+}
+
 /** Avis de recherche **supprimés** (exclus du siphon) — lecture God. */
 export async function getIgnoredBountiesAction(): Promise<ActionResponse<{ entries: IgnoredBountyEntry[] }>> {
-    const userId = await requireGameDataBounties();
-    if (!userId) return { success: false, error: "Accès refusé" };
-    return { success: true, data: { entries: getIgnoredBounties() } };
+    try {
+        const userId = await requireGameDataBounties();
+        if (!userId) return { success: false, error: "Accès refusé" };
+        return { success: true, data: { entries: getIgnoredBounties() } };
+    } catch (error: any) {
+        logger.error('[getIgnoredBountiesAction] Error:', error);
+        return { success: false, error: error?.message || 'Erreur de lecture des exclusions' };
+    }
 }
 
 /**
@@ -899,9 +960,10 @@ export async function deleteBountyAction(bountyId: string): Promise<ActionRespon
     dofusdbId: number | null;
     entries: IgnoredBountyEntry[];
 }>> {
-    const userId = await requireGameDataBounties();
-    if (!userId) return { success: false, error: "Accès refusé" };
+    // Garde DANS le try (voir siphonDungeonMonstersDatasetAction).
     try {
+        const userId = await requireGameDataBounties();
+        if (!userId) return { success: false, error: "Accès refusé" };
         const bounty = await db.bounty.findUnique({
             where: { id: String(bountyId) },
             select: { id: true, name: true, dofusdbId: true, isBountyMonster: true },
@@ -934,15 +996,20 @@ export async function deleteBountyAction(bountyId: string): Promise<ActionRespon
 
 /** Réintègre un avis supprimé (le prochain siphon le recrée). */
 export async function restoreBountyAction(dofusdbId: number): Promise<ActionResponse<{ entries: IgnoredBountyEntry[] }>> {
-    const userId = await requireGameDataBounties();
-    if (!userId) return { success: false, error: "Accès refusé" };
-    const id = Math.floor(Number(dofusdbId) || 0);
-    if (id <= 0) return { success: false, error: "Identifiant invalide" };
+    try {
+        const userId = await requireGameDataBounties();
+        if (!userId) return { success: false, error: "Accès refusé" };
+        const id = Math.floor(Number(dofusdbId) || 0);
+        if (id <= 0) return { success: false, error: "Identifiant invalide" };
 
-    const entries = removeIgnoredBounty(id);
-    await logGameDataWrite("restore-bounty", `dofusdbId-${id}`);
-    revalidatePath('/god/game-data/bounties');
-    return { success: true, data: { entries } };
+        const entries = removeIgnoredBounty(id);
+        await logGameDataWrite("restore-bounty", `dofusdbId-${id}`);
+        revalidatePath('/god/game-data/bounties');
+        return { success: true, data: { entries } };
+    } catch (error: any) {
+        logger.error('[restoreBountyAction] Error:', error);
+        return { success: false, error: error?.message || 'Erreur lors de la réintégration' };
+    }
 }
 
 

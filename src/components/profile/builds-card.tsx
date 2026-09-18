@@ -16,6 +16,7 @@ import { DofusbookPreview } from "@/components/dofus/dofusbook-preview";
 import { AddBuildModal } from "@/components/profile/add-build-modal";
 import { DO_TAGS } from "@/lib/dofus-tags";
 import type { BUILD_TAG_TYPE } from "@/lib/dofus-tags";
+import { TagWithIcons } from "@/components/gallery/gallery-filters";
 
 export type DofusBookLink = {
     id: string;
@@ -274,7 +275,7 @@ export function BuildsCard({ links = [], onSave, readOnly = false, guildId, targ
                                             selectedTagFilter === id ? `${tag.className} shadow-lg ring-1 ring-white/20` : "text-muted-foreground hover:text-foreground hover:bg-surface"
                                         )}
                                     >
-                                        {tag.label}
+                                        <TagWithIcons tag={tag} size={13} />
                                     </button>
                                 );
                             })}
@@ -298,7 +299,7 @@ export function BuildsCard({ links = [], onSave, readOnly = false, guildId, targ
                                                     selectedTagFilter === tag.id ? `${tag.className} shadow-lg ring-1 ring-white/20` : "text-muted-foreground hover:text-foreground hover:bg-surface"
                                                 )}
                                             >
-                                                {tag.label}
+                                                <TagWithIcons tag={tag} size={13} />
                                             </button>
                                         );
                                     })}
@@ -511,7 +512,7 @@ export function BuildsCard({ links = [], onSave, readOnly = false, guildId, targ
                                                         : "bg-surface border-border text-muted-foreground hover:border-border-strong hover:text-foreground opacity-60 hover:opacity-100"
                                                 )}
                                             >
-                                                {tag.label}
+                                                <TagWithIcons tag={tag} size={13} />
                                             </button>
                                         );
                                     })}

@@ -163,11 +163,15 @@ export default async function DashboardPage({
             
             
 
-            {/* Modals */}
-            {user.isAdmin && profile && !profile.hasSeenWelcome && (
+            {/* Modals — séquence première arrivée : le wizard personnage passe
+                TOUJOURS en premier (profil incomplet). La bienvenue n'apparaît
+                qu'en finale, profil complet, sinon les deux modales bloquantes
+                s'empilent (z-120). Le tour auto des modules attend lui aussi la
+                fin de la bienvenue (hasSeenWelcome, cf. tour-provider). */}
+            {user.isAdmin && profile && !profile.hasSeenWelcome && !user.hasPseudoIssue && !!user.classe && !!user.hasPreferredActivities && (
                 <WelcomeModal guildId={guildId} show={true} />
             )}
-            {!user.isAdmin && profile && !profile.hasSeenWelcome && (
+            {!user.isAdmin && profile && !profile.hasSeenWelcome && !user.hasPseudoIssue && !!user.classe && !!user.hasPreferredActivities && (
                 <MemberWelcomeModal
                     guildId={guildId}
                     guildName={user.guildName || "ta guilde"}

@@ -7,13 +7,15 @@ vi.mock("@/lib/dofusdb-fetch", () => ({
     dofusdbFetch: vi.fn(),
 }));
 
-// Mock du cache Redis (I/O externe) : passthrough strict vers le fetcher.
-// Sinon un Redis local "ready" fait communiquer les tests entre eux via la
-// clé de cache getClassSpells (vécu 09/09 : test 2 remplit, test 3 lit).
-vi.mock("@/lib/cache", () => ({
-    withCache: (_key: string, _ttlSeconds: number, fetcher: () => Promise<unknown>) => fetcher(),
-    invalidateCache: vi.fn(),
-    clearCachePattern: vi.fn(),
+// Mock Prisma : la persistance `ClassSpellbook` ne doit JAMAIS toucher la vraie
+// base en test (le write-through écrirait sinon dans la BDD de dev).
+vi.mock("@/lib/prisma", () => ({
+    db: {
+        classSpellbook: {
+            findUnique: vi.fn().mockResolvedValue(null),
+            upsert: vi.fn((args: unknown) => Promise.resolve(args)),
+        },
+    },
 }));
 
 const mockedDofusdbFetch = dofusdbFetchModule.dofusdbFetch as unknown as ReturnType<typeof vi.fn>;
@@ -35,7 +37,8 @@ const CRA_BREED = {
 };
 
 // Le niveau résolu du grade max : dégâts 8-12 Feu (effectId 92 = dégât Feu).
-// Champs réels DofusDB (`range`, `criticalHitProbability`, `grade`, `previewZones`).
+// Champs réels DofusDB (`range`, `criticalHitProbability`, `grade`, `previewZones`,
+// `castInLine`/`castInDiagonal`/`castTestLos`, `zoneDescr` sur les effets).
 const CRA_LEVEL = {
     id: 100001,
     grade: 6,
@@ -43,9 +46,12 @@ const CRA_LEVEL = {
     minRange: 8,
     range: 24,
     criticalHitProbability: 5,
+    castInLine: false,
+    castInDiagonal: false,
+    castTestLos: true,
     previewZones: [{ size: 1, range: 24 }],
     effects: [
-        { effectId: 92, effectElement: 2, diceNum: 8, diceSide: 12 },
+        { effectId: 92, effectElement: 2, diceNum: 8, diceSide: 12, zoneDescr: { shape: 80, param1: 1, param2: 0 } },
     ],
 };
 
@@ -91,6 +97,13 @@ describe("getClassSpells — onglet Sorts (dofusbook)", () => {
         // Dégât direct extrait (effectId 92, diceNum 8, diceSide 12, élement Feu).
         expect(spell?.damages).toHaveLength(1);
         expect(spell?.damages[0]).toMatchObject({ min: 8, max: 12, element: "feu", grade: 6 });
+        expect(spell?.damages[0].zone).toEqual({ shape: "P", size: 1 });
+
+        // Contraintes de lancer du grade suivies (LdV / ligne / diagonale).
+        expect(spell?.castTestLos).toBe(true);
+        expect(spell?.castInLine).toBe(false);
+        expect(spell?.castInDiagonal).toBe(false);
+        expect(spell?.grades?.[0].castTestLos).toBe(true);
 
         // Les variantes (grades) accessibles sont exposées pour le sélecteur « 1 2 3 ».
         expect(spell?.grades).toHaveLength(1);

@@ -247,7 +247,7 @@ Chaque tâche CRON enregistre automatiquement son état, sa durée et son résum
 
 > Tout le code est sur `feat/chantier-2026-09-04` (PR #505) — merger sur `dev` puis déployer.
 
-1. **Migration Prisma** (beta **et** prod) : `npx prisma migrate deploy` → `20260905000000_add_landing_screen` (table `LandingScreen`).
+1. **Migration Prisma** (beta **et** prod) : `npx prisma migrate deploy` (toutes les migrations en attente — ⚠️ `20261217000000_drop_landing_screen` **supprime** la table `LandingScreen` de #140, décommissionné le 17/09/2026).
 2. **Crontab VPS** : ajouter le cron `account-retention` (`0 6 * * *`) et **synchroniser `CRON_SECRET`** en haut du crontab avec la valeur des `.env` :
    - `source` la valeur : `NEW=$(grep '^CRON_SECRET=' .env.beta | sed "s/^CRON_SECRET=//; s/^'//; s/'$//")`
    - `(crontab -l | sed "s|^CRON_SECRET=.*|CRON_SECRET='${NEW}'|") | crontab -`
@@ -258,7 +258,7 @@ Chaque tâche CRON enregistre automatiquement son état, sa durée et son résum
    - `curl ... /api/cron/cleanup-logs` → **200** (le gate `isSuperAdmin` a été retiré — bug cron 500 « Unauthorized » corrigé).
    - `curl ... /api/cron/daily-summary` → `{"success":true,...}` (ou `skipped:true` si déjà envoyé le jour même).
    - `curl ... /api/cron/account-retention` → `{"success":true,"summary":{...}}`.
-   - `/god/landing` : upload d'un screen OK · `/uploads/landing/<fichier>.webp` → **200 `image/webp`** (segment public) · landing : onglets + galerie/carrousel OK.
+   - `/god/landing` : **point de vérification supprimé** — l'interface (#140) a été retirée le 17/09/2026, la landing sert des visuels statiques.
 5. **Rappel règle d'écriture d'images** : `processAndSaveImage` refuse tout chemin hors `process.cwd()` (CodeQL js/path-injection #75/#76, fail-closed).
 
 ---
@@ -560,6 +560,38 @@ git pull origin main
   ```
 - **Faux positif `/assets/icons/favicon.svg`** : `maintenance.html` ne le référence pas (favicon réel =
   `/assets/ui/logo-v2.png`) ; le chemin n'existe pas → le `404` est **sans impact**.
+- ⚠️ **Remplacer un visuel de la landing se fait sous un NOUVEAU nom de fichier** (piège mesuré le 17/09) :
+  `next/image` sert `/_next/image?url=…&w=…&q=…`, une URL **indépendante du contenu du fichier** → écraser
+  une image au même nom laisse le **navigateur** afficher l'ancienne, **même après `Ctrl+Shift+R` et alors
+  que le serveur sert bien la nouvelle** (fait constaté : `screenshot1.png` remplacé, landing inchangée —
+  `GET /assets/screenshots/<nom>.png` renvoyait un `sha256` **identique au fichier local**, et
+  `GET /_next/image?url=…&w=640&q=75` les dimensions du nouveau fichier ; l'ancienne image venait du cache
+  du client). Marche à suivre : déposer le visuel sous un **nom neuf** (+ `git checkout` de l'ancien s'il
+  sert ailleurs, ex. `docs-catalog.ts`), puis mettre à jour `src/lib/landing-figures.ts` — `imageUrl`, et
+  `width`/`height` sur les **dimensions réelles** (le garde-fou `tests/unit/landing-figures.test.ts` lit
+  l'en-tête PNG et échoue sinon). Cas réel : `screenshot1.png` (3280×1740) → `tableau-de-bord.png` (1913×704).
+- ⚠️ **Une figure de la landing doit faire AU MOINS 2× la largeur de son slot** (mesuré le 17/09/2026) :
+  les 4 figures s'affichent sur **619-718 px CSS** (`src/temp/refonte_landing/probe-figure-slots.mjs`),
+  donc sur un écran 2× le navigateur a besoin de **1238-1436 px**. Or `next/image` **ne remonte jamais**
+  une image — `GET /_next/image?url=…dashboard-guilde.png&w=1920` renvoie **1080×540**, la taille du
+  fichier — donc c'est le **navigateur** qui agrandit : hero **×1,15**, guide **×1,39** → rendu mou même
+  sur un fichier impeccable. Et **recadrer une capture 4K ne répare rien** : ça zoome sur un fragment
+  (texte coupé en plein mot, bouton amputé, curseur figé dans l'image — constaté les 17/09 sur
+  `guide-sylvestre.png` et `calendrier-sorties.png`). Producteur correct :
+  `scripts/capture-landing-visuels.mjs` — viewport = largeur du slot, `deviceScaleFactor: 2`, cadrage sur
+  une ancre `data-tour` (`tour-provider.tsx` pour la liste), chrome `fixed`/`sticky` masqué — puis recopier
+  les dimensions imprimées dans `landing-figures.ts`. Garde :
+  `node src/temp/refonte_landing/probe-figure-slots.mjs` doit afficher « OK (aucun agrandissement) » pour
+  les 4 figures en DPR 2. ⚠️ Une capture par **outil système** (clic droit → « Capturer la page ») embarque
+  en plus le **curseur** et la **pastille de dev Next** (`nextjs-portal`) : Playwright ne les capture pas.
+  ⚠️ **Et un visuel de la landing se cadre sur un SUJET, pas sur un écran entier** (mesuré le 17/09) : les
+  figures s'affichent sur **640-707 px** de large (`hero.tsx`, `guide.tsx`), donc une capture **3280 px**
+  subit une réduction **×5** et un texte de 13 px dans l'interface tombe à **2,5 px** à l'écran →
+  vignette illisible et perçue comme floue (« ça fait amateur »), sans que la qualité du fichier soit en
+  cause. Cible : **≈ 2× la largeur d'affichage** (1100-1300 px) et **un seul sujet lisible** par visuel
+  (un panneau, une semaine, une carte) — jamais la colonne de navigation + l'en-tête de page + les
+  marges. Recadrage reproductible et borné : `node src/temp/refonte_landing/crop-landing-visuels.mjs`
+  (les captures d'origine restent en place : elles servent `docs-catalog.ts`).
 - ⏳ **Repo VPS non migré** : toujours sur `dev` (arbre sale : stashes + `public/game-data` modifié).
   Le passage à `main` et le nettoyage restent **à planifier** — avant tout switch de branche, faire
   backup + nettoyage de `public/game-data` et des stashes.

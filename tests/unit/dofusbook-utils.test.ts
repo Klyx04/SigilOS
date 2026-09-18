@@ -30,6 +30,37 @@ describe("processDofusbookRawData — résolution de classe (#galerie Inconnu)",
         expect(res.className).toBe("");
     });
 
+    it("tamponne la version de forme v:2 (détection des caches sans effets d'items)", () => {
+        expect(processDofusbookRawData("123", buildRaw()).v).toBe(2);
+    });
+
+    it("conserve les effets/niveau/type des items pour la modale interne", () => {
+        const item = {
+            id: 1957,
+            name: "Anneau Poli",
+            picture: 1,
+            official: 1,
+            level: 109,
+            type: "Anneau",
+            effects: [
+                { name: "ch", min: 20, max: 30 },
+                { name: "pa", min: 1, max: 1 },
+            ],
+        };
+        const res = processDofusbookRawData("123", buildRaw({
+            stuff: { stuffItem: { a1: 1957 } },
+            items: [item],
+        }));
+        const kept = res.items?.["a1"];
+        expect(kept?.name).toBe("Anneau Poli");
+        expect(kept?.level).toBe(109);
+        expect(kept?.typeName).toBe("Anneau");
+        expect(kept?.effects).toEqual([
+            { code: "ch", min: 20, max: 30, value: 30 },
+            { code: "pa", min: 1, max: 1, value: 1 },
+        ]);
+    });
+
     it("détecte les stats secondaires (retrait PA/PM, tacle, fuite) issues des effets d'items", () => {
         const item = {
             id: 1000,

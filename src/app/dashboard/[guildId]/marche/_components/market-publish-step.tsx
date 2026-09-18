@@ -4,18 +4,19 @@
  * Module « Marché » — **étape 4 « Publication Discord »** (S3.14).
  *
  * Aperçu **fidèle** via `DiscordEmbedPreview` (D29) construit par le **même
- * payload pur** que la publication réelle (`buildMarketDiscordPayload`), bandeau
- * de destination (salon texte **ou** forum), et choix des rôles à ping **limité
- * aux rôles autorisés** (`marketAllowedPingRoleIds`) + option « Ne mentionner
- * personne ». Le ping est revalidé côté serveur (S3.15).
+ * payload pur** que la publication réelle (`buildMarketDiscordPayload`) et
+ * bandeau de destination (salon texte **ou** forum).
+ *
+ * ⚠️ Décision user du 18/09/2026 : le **choix des rôles à mentionner** (et
+ * l'estimation « 👥 X membres seront notifiés ») ne vit plus ici mais sur une
+ * **étape dédiée** — `market-notify-step.tsx` (étape 5), pour que la
+ * notification soit lisible et vérifiable avant de publier.
  */
 
 import { DiscordEmbedPreview, type DiscordPreviewComponentRow } from "@/components/discord/DiscordEmbedPreview";
 import { buildMarketDiscordPayload, type MarketDiscordStatLine } from "@/lib/market/discord-payload";
 import { cn } from "@/lib/utils";
-import { useEffect, useState } from "react";
-import { Hash, Hammer, Loader2, MessageSquare, Users } from "lucide-react";
-import { estimateMarketPingAudience } from "@/server/actions/market-actions";
+import { Hash, Hammer, MessageSquare } from "lucide-react";
 
 export type MarketPublishContext = {
     channelConfigured: boolean;
@@ -82,15 +83,13 @@ export interface MarketPublishStepProps {
      */
     bundleItems?: { name: string; quantity: number; priceKamas: number; iconUrl?: string | null }[];
     context: MarketPublishContext | null;
-    roles: { id: string; name: string }[];
-    selectedPingIds: string[];
-    onTogglePing: (roleId: string) => void;
     /**
-     * 🧺 **§A2** — guilde courante : sert **uniquement** à interroger l'estimation
-     * de l'audience notifiée (`estimateMarketPingAudience`, lecture seule et
-     * gated par le module). Absente ⇒ l'estimation est simplement masquée.
+     * Rôles cochés à l'**étape 5 « Notification »** (`market-notify-step.tsx`) :
+     * servent uniquement ici à afficher la mention dans l'aperçu Discord (revenu
+     * en arrière après avoir coché des rôles). La sélection elle-même vit sur
+     * l'étape dédiée — décision user du 18/09/2026.
      */
-    guildId?: string;
+    selectedPingIds?: string[];
 }
 
 export function MarketPublishStep({
@@ -116,53 +115,9 @@ export function MarketPublishStep({
     components,
     bundleItems = [],
     context,
-    roles,
-    selectedPingIds,
-    onTogglePing,
-    guildId,
+    selectedPingIds = [],
 }: MarketPublishStepProps) {
     const isForum = context?.channelKind === "FORUM";
-    const pingableRoles = roles.filter((role) => (context?.allowedPingRoleIds ?? []).includes(role.id));
-
-    /**
-     * 🧺 **§A2 — « 👥 X membres seront notifiés »** : compteur dédupliqué servi par
-     * le serveur (`estimateMarketPingAudience`). Recalculé à chaque changement de
-     * sélection ; Discord injoignable ⇒ la ligne disparaît (jamais d'erreur
-     * bloquante sur une étape de publication).
-     */
-    const [audience, setAudience] = useState<{ count: number; approximate: boolean; available: boolean } | null>(null);
-    const [audienceLoading, setAudienceLoading] = useState(false);
-    const pingKey = selectedPingIds.join(",");
-
-    useEffect(() => {
-        if (!guildId || selectedPingIds.length === 0) {
-            setAudience(null);
-            return;
-        }
-        let cancelled = false;
-        setAudienceLoading(true);
-        estimateMarketPingAudience(guildId, selectedPingIds)
-            .then((result) => {
-                if (cancelled) return;
-                setAudience(
-                    result.success && result.data
-                        ? {
-                              count: result.data.count,
-                              approximate: result.data.approximate,
-                              available: result.data.available,
-                          }
-                        : null
-                );
-            })
-            .finally(() => {
-                if (!cancelled) setAudienceLoading(false);
-            });
-        return () => {
-            cancelled = true;
-        };
-        // `pingKey` résume la sélection (identité stable entre deux rendus).
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [guildId, pingKey]);
 
     const payload = buildMarketDiscordPayload({
         listingId: "preview",
@@ -231,81 +186,6 @@ export function MarketPublishStep({
                 </div>
             </div>
 
-            {/* ── ÉTAPE 4 « PUBLICATION » — NOTIFIER (§A2) ────────────────────
-                Section **dédiée** (elle était noyée dans l'étape) : destination
-                rappelée, choix des rôles autorisés, et **estimation** des membres
-                réellement notifiés (compteur serveur, jamais une liste). */}
-            {context?.channelConfigured && (
-                <div className="rounded-2xl border border-border bg-surface/60 p-4" data-tour="marche-notify">
-                    <p className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground">
-                        <Users className="h-3.5 w-3.5" /> Étape 4 — Publication &amp; notification
-                    </p>
-                    <p className="mb-3 mt-1 text-[11px] text-muted-foreground">
-                        Qui veux-tu prévenir ? Seuls les rôles autorisés par un administrateur
-                        (console God → Marché → « Rôles notifiables ») peuvent être mentionnés.
-                    </p>
-                    {pingableRoles.length === 0 ? (
-                        <p className="text-[11px] text-warning">
-                            Aucun rôle notifiable configuré — la publication ne notifiera personne. Demande à un
-                            administrateur de définir les rôles notifiables (console God → Marché).
-                        </p>
-                    ) : (
-                        <div className="flex flex-wrap gap-2">
-                            <button
-                                type="button"
-                                onClick={() => selectedPingIds.forEach((id) => onTogglePing(id))}
-                                className={cn(
-                                    "rounded-xl border px-3 py-1.5 text-xs font-bold transition-colors",
-                                    selectedPingIds.length === 0
-                                        ? "border-gold/40 bg-gold/10 text-gold"
-                                        : "border-border text-muted-foreground hover:border-border-strong"
-                                )}
-                            >
-                                Ne mentionner personne
-                            </button>
-                            {pingableRoles.map((role) => (
-                                <button
-                                    key={role.id}
-                                    type="button"
-                                    onClick={() => onTogglePing(role.id)}
-                                    className={cn(
-                                        "rounded-xl border px-3 py-1.5 text-xs font-bold transition-colors",
-                                        selectedPingIds.includes(role.id)
-                                            ? "border-gold/40 bg-gold/10 text-gold"
-                                            : "border-border text-muted-foreground hover:border-border-strong"
-                                    )}
-                                >
-                                    @{role.name}
-                                </button>
-                            ))}
-                        </div>
-                    )}
-
-                    {/* 🧺 §A2 — estimation **serveur** de l'audience (« 👥 X membres »).
-                        Jamais une liste de membres (§13.7) ; Discord injoignable ⇒
-                        message d'information, la publication reste possible. */}
-                    {selectedPingIds.length > 0 && (
-                        <p className="mt-3 flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                            {audienceLoading ? (
-                                <>
-                                    <Loader2 className="h-3 w-3 animate-spin" /> Estimation de l&apos;audience…
-                                </>
-                            ) : audience && audience.available ? (
-                                <>
-                                    <Users className="h-3 w-3" />
-                                    <span>
-                                        <strong className="text-foreground">{audience.count}</strong>
-                                        {audience.approximate ? "+" : ""} membre(s) seront notifiés
-                                        {selectedPingIds.length > 1 ? " (rôles cumulés, sans doublon)" : ""}.
-                                    </span>
-                                </>
-                            ) : audience ? (
-                                <>Estimation indisponible (Discord injoignable) — la publication reste possible.</>
-                            ) : null}
-                        </p>
-                    )}
-                </div>
-            )}
 
             {/* S8.9 — récapitulatif de la forge déclarée (D40/D41) */}
             {forgeRecap.length > 0 && (

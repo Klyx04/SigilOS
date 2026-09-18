@@ -16,6 +16,7 @@ import { isSuperAdmin, isGuildAllowed } from "@/server/actions/super-admin-actio
 import { buildDiscordAvatarUrl, buildGuildAvatarUrl, isDiscordAvatarUrl } from "@/lib/discord-avatars";
 
 import { redis } from "@/lib/redis";
+import { isCompleteCachedGuildConfig } from "@/lib/guild-config-cache";
 
 // In-memory cache for configs and user context
 const configCache = new Map<string, { data: any, expiresAt: number }>();
@@ -250,6 +251,8 @@ export type UserContext = {
     hasPseudoIssue: boolean;
     /** true si le membre a déjà sélectionné ≥1 activité (bloc « Activités & Contenu préféré »). */
     hasPreferredActivities: boolean;
+    /** true si la modale de bienvenue a déjà été vue/fermée (séquence onboarding). */
+    hasSeenWelcome: boolean;
     pseudoDofus?: string | null;
     ankamaId?: string | null;
     profileId?: string;
@@ -364,6 +367,114 @@ async function getPendingOnboardingContext(
     }
 }
 
+/**
+ * Select COMPLET de la config guilde, mis en cache sous `config:{guildId}`.
+ *
+ * ⚠️ SOURCE UNIQUE : `getUserContext` (dashboard) ET `internalCheckPermission`
+ * (interactions du bot) lisent cet objet. Toute clé ajoutée au select doit aussi
+ * figurer dans `CACHED_GUILD_CONFIG_KEYS` (`src/lib/guild-config-cache.ts`),
+ * sinon le cache est considéré comme incomplet et relu en BDD à chaque appel.
+ */
+const GUILD_CONFIG_CACHE_SELECT = {
+    id: true,
+    discordGuildId: true,
+    rolesMapping: true,
+    usersMapping: true,
+    name: true,
+    isActive: true,
+    deletedAt: true,
+    dofusServerId: true,
+    welcomeEnabled: true,
+    welcomeDashboardEnabled: true,
+    welcomeDiscordEnabled: true,
+    welcomeNotifyChannelId: true,
+    welcomeMentionRoleId: true,
+    welcomeMessageTemplate: true,
+    welcomeDiscordMessageTemplate: true,
+    welcomeBadgeName: true,
+    newsBroadcastEnabled: true,
+    missionVitrineMode: true,
+    modules: {
+        select: {
+            missions: true,
+            songes: true,
+            ocre: true,
+            ladder: true,
+            calendar: true,
+            services: true,
+            donjons: true,
+            docs: true,
+            profile: true,
+            roster: true,
+            stats: true,
+            presentation: true,
+            polls: true,
+            logs: true,
+            quests: true,
+            worldmap: true,
+            resources: true,
+            gallery: true,
+            ladderSync: true,
+            manualLadderSync: true,
+            minigames: true,
+            availability: true,
+            succes: true,
+            // 🐛 FIX (13/09) — `marche` (et `reactionRoles`/`tickets`/`commandes`/`admin`)
+            // manquaient ici : `mod.marche` valait donc `undefined` ⇒
+            // `applyModule(false, perm)` = false pour TOUT LE MONDE sauf le God
+            // (seul `bypassModules`), quel que soit l'état réel du module en base.
+            // Le toggle guilde était bien enregistré, mais jamais lu.
+            marche: true,
+            reactionRoles: true,
+            tickets: true,
+            commandes: true,
+            admin: true,
+        }
+    }
+} satisfies Prisma.GuildConfigSelect;
+
+/** Payload garanti par `GUILD_CONFIG_CACHE_SELECT`. */
+type CachedGuildConfig = Prisma.GuildConfigGetPayload<{ select: typeof GUILD_CONFIG_CACHE_SELECT }>;
+
+/**
+ * SOURCE UNIQUE de lecture (avec cache mémoire borné 60 s) de la config guilde
+ * sous la clé `config:{guildId}`.
+ *
+ * ⚠️ Toute lecture/écriture de ce cache DOIT passer par ici. Historiquement
+ * `internalCheckPermission` (appelé à CHAQUE interaction du bot `/dj`,
+ * `/songes`, `/missions`) y écrivait sa propre version tronquée du select
+ * (`{ id, discordGuildId, rolesMapping, usersMapping }`) ⇒ le membre qui
+ * chargeait le dashboard dans les 60 s recevait « Configuration en cours — Le
+ * tableau de bord de **Serveur Inconnu** … » alors que sa guilde était
+ * parfaitement configurée (`name` absent → « Serveur Inconnu »,
+ * `dofusServerId` absent → `isOnboardingComplete: false`, `modules` absent →
+ * navbar grisée). Voir chantier #184.
+ *
+ * Garde-fou : une entrée de forme incomplète (cache écrit par une version
+ * antérieure du code, déploiement progressif, futur appelant distrait) est
+ * jetée et relue en BDD plutôt que servie.
+ */
+async function getCachedGuildConfig(effectiveGuildId: string): Promise<CachedGuildConfig | null> {
+    const cacheKey = `config:${effectiveGuildId}`;
+    const cached = configCache.get(cacheKey);
+    if (cached?.expiresAt && cached.expiresAt > Date.now() && isCompleteCachedGuildConfig(cached.data)) {
+        return cached.data as CachedGuildConfig;
+    }
+    if (cached) configCache.delete(cacheKey); // entrée de forme incomplète → relecture BDD
+
+    const guildConfig = await db.guildConfig.findFirst({
+        where: {
+            OR: [
+                { id: effectiveGuildId },
+                { discordGuildId: effectiveGuildId }
+            ]
+        },
+        select: GUILD_CONFIG_CACHE_SELECT
+    });
+    if (guildConfig) setBoundedCache(configCache, cacheKey, { data: guildConfig, expiresAt: Date.now() + MEMORY_CACHE_TTL_MS });
+    return guildConfig;
+}
+
 async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
     const session = await auth();
     if (!session?.user?.id) return { isAuthenticated: false } as any;
@@ -441,6 +552,7 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         canViewAuditLogs: false,
         hasPseudoIssue: false,
         hasPreferredActivities: false,
+        hasSeenWelcome: true,
         roles: [],
         roleNames: [],
         newsBroadcastEnabled: true,
@@ -464,80 +576,12 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
     // --- SECURITY: SUPER ADMIN BYPASS ---
     const isGod = await isSuperAdmin();
 
-    // 1. Get Guild Config for Mappings (with cache)
-    const cacheKey = `config:${effectiveGuildId}`;
-    let guildConfig = configCache.get(cacheKey)?.expiresAt && configCache.get(cacheKey)!.expiresAt > Date.now()
-        ? configCache.get(cacheKey)!.data
-        : null;
-
-    if (!guildConfig) {
-        guildConfig = await db.guildConfig.findFirst({
-            where: {
-                OR: [
-                    { id: effectiveGuildId },
-                    { discordGuildId: effectiveGuildId }
-                ]
-            },
-            select: {
-                id: true,
-                discordGuildId: true,
-                rolesMapping: true,
-                usersMapping: true,
-                name: true,
-                isActive: true,
-                deletedAt: true,
-                dofusServerId: true,
-                welcomeEnabled: true,
-                welcomeDashboardEnabled: true,
-                welcomeDiscordEnabled: true,
-                welcomeNotifyChannelId: true,
-                welcomeMentionRoleId: true,
-                welcomeMessageTemplate: true,
-                welcomeDiscordMessageTemplate: true,
-                welcomeBadgeName: true,
-                newsBroadcastEnabled: true,
-                missionVitrineMode: true,
-                modules: {
-                    select: {
-                        missions: true,
-                        songes: true,
-                        ocre: true,
-                        ladder: true,
-                        calendar: true,
-                        services: true,
-                        donjons: true,
-                        docs: true,
-                        profile: true,
-                        roster: true,
-                        stats: true,
-                        presentation: true,
-                        polls: true,
-                        logs: true,
-                        quests: true,
-                        worldmap: true,
-                        resources: true,
-                        gallery: true,
-                        ladderSync: true,
-                        manualLadderSync: true,
-                        minigames: true,
-                        availability: true,
-                        succes: true,
-                        // 🐛 FIX (13/09) — `marche` (et `reactionRoles`/`tickets`/`commandes`/`admin`)
-                        // manquaient ici : `mod.marche` valait donc `undefined` ⇒
-                        // `applyModule(false, perm)` = false pour TOUT LE MONDE sauf le God
-                        // (seul `bypassModules`), quel que soit l'état réel du module en base.
-                        // Le toggle guilde était bien enregistré, mais jamais lu.
-                        marche: true,
-                        reactionRoles: true,
-                        tickets: true,
-                        commandes: true,
-                        admin: true,
-                    }
-                }
-            }
-        });
-        if (guildConfig) setBoundedCache(configCache, cacheKey, { data: guildConfig, expiresAt: Date.now() + MEMORY_CACHE_TTL_MS });
-    }
+    // 1. Get Guild Config for Mappings — lecture via la SOURCE UNIQUE
+    //    (`getCachedGuildConfig`), seul écrivain légitime du cache
+    //    `config:{guildId}`. Voir le commentaire du helper : un select partiel
+    //    écrit par un autre appelant faisait apparaître « Configuration en cours
+    //    — Serveur Inconnu » (#184).
+    const guildConfig = await getCachedGuildConfig(effectiveGuildId);
 
     if (!guildConfig) {
         // Pas de config MAIS whitelist active (bot détecté via Gateway, jamais
@@ -1215,6 +1259,7 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         timedOutUntil,
         hasPseudoIssue: !profile?.pseudoDofus || profile.pseudoDofus.startsWith("Voyageur"),
         hasPreferredActivities: !!((profile?.preferredActivities as string[])?.length),
+        hasSeenWelcome: !!profile?.hasSeenWelcome,
         pseudoDofus: profile?.pseudoDofus,
         ankamaId: profile?.ankamaId,
         profileId: profile?.id,
@@ -1652,18 +1697,14 @@ export async function internalCheckPermission(
         const { isDiscordSuperAdmin } = await import("./super-admin-actions");
         if (await isDiscordSuperAdmin(discordUserId)) return true;
 
-        // 1. Get cached config
-        const cacheKey = `config:${guildId}`;
-        const cached = configCache.get(cacheKey);
-        let guildConfig = cached?.expiresAt && cached.expiresAt > Date.now() ? cached.data : null;
-
-        if (!guildConfig) {
-            guildConfig = await (db.guildConfig as any).findFirst({
-                where: { OR: [{ id: guildId }, { discordGuildId: guildId }] },
-                select: { id: true, discordGuildId: true, rolesMapping: true, usersMapping: true }
-            });
-            if (guildConfig) setBoundedCache(configCache, cacheKey, { data: guildConfig, expiresAt: Date.now() + MEMORY_CACHE_TTL_MS });
-        }
+        // 1. Get cached config — SOURCE UNIQUE (`getCachedGuildConfig`), qui
+        //    garantit un select COMPLET. ⚠️ NE JAMAIS revenir à un select
+        //    partiel ici : cette fonction est appelée à chaque interaction du
+        //    bot (/dj, /songes, /missions) et son ancien select tronqué (sans
+        //    `name`, `dofusServerId`, `modules`) empoisonnait pendant 60 s le
+        //    contexte du dashboard des membres (« Configuration en cours — Le
+        //    tableau de bord de Serveur Inconnu… », chantier #184).
+        const guildConfig = await getCachedGuildConfig(guildId);
         if (!guildConfig) return false;
 
         const actualGuildId = guildConfig.discordGuildId || guildId;

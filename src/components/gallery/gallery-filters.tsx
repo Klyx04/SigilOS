@@ -7,12 +7,32 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Input } from "@/components/ui/input";
 import NextImage from "next/image";
 import { DOFUS_CLASSES } from "@/lib/dofus-assets";
-import { DO_TAGS } from "@/lib/dofus-tags";
+import { DO_TAGS, type DoTag } from "@/lib/dofus-tags";
 
 // Extract numeric icon ID from icon path (e.g. "/assets/dofus/classes/9.png" → 9)
 export function getNumericClassId(cls: typeof DOFUS_CLASSES[number]): number | null {
     const match = cls.icon.match(/classes\/(\d+)\.png/);
     return match ? parseInt(match[1]) : null;
+}
+
+/**
+ * Libellé d'un tag avec ses vrais assets du jeu (aucun emoji).
+ * `size` = taille d'une icône ; les bi/multi-éléments enchaînent 2-4 icônes.
+ */
+export function TagWithIcons({ tag, size = 14 }: { tag: DoTag; size?: number }) {
+    return (
+        <span className="inline-flex items-center gap-1.5 min-w-0">
+            {tag.icons && tag.icons.length > 0 && (
+                <span className="inline-flex items-center gap-0.5 shrink-0" aria-hidden="true">
+                    {tag.icons.map((src) => (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img key={src} src={src} alt="" className="object-contain" style={{ width: size, height: size }} loading="lazy" />
+                    ))}
+                </span>
+            )}
+            <span className="truncate">{tag.label}</span>
+        </span>
+    );
 }
 
 export function AdvancedTagFilter({
@@ -112,7 +132,7 @@ export function AdvancedTagFilter({
                                             )}
                                         >
                                             {isSelected && <Check className="w-3 h-3 shrink-0" />}
-                                            {tag.text}
+                                            <TagWithIcons tag={tag} />
                                         </button>
                                     );
                                 })}

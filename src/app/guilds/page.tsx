@@ -9,19 +9,10 @@ import { auth } from "@/auth";
 
 import { getAppBaseUrl } from "@/lib/utils";
 import { Metadata } from "next";
+import { getServerI18n } from "@/lib/i18n/server";
 
 /**
  * Annuaire public des guildes — registre (refonte anti-slop).
- *
- * Ce qui a été retiré : l'en-tête centré et son badge pilule, la grille de
- * cartes `rounded-2xl` avec bannière assombrie par un dégradé, la vignette
- * d'icône en `border-4 shadow-lg`, les pastilles en capitales espacées et les
- * flèches animées au survol.
- *
- * Un annuaire est une liste : il se lit maintenant comme un tableau (guilde,
- * serveur, recrutement, profil), et chaque guilde porte son emblème. L'emblème
- * passe par `GuildEmblem`, qui affiche les initiales quand l'icône Discord
- * manque — l'ancien rendu laissait un carré noir sans explication.
  */
 export const metadata: Metadata = {
     title: "Annuaire des Guildes Dofus 2026 | SigilOS",
@@ -41,16 +32,17 @@ export default async function GuildsDirectoryPage() {
 
     const { getUserContext, getUserGuilds } = await import("@/server/actions/user-actions");
     const userContext = await getUserContext();
+    const { t } = await getServerI18n();
 
     // #59 — guildes dont le visiteur est membre (badge « Votre guilde » + CTA Dashboard).
     const myGuilds = await getUserGuilds();
     const myGuildIds = new Set(myGuilds.map(g => g.id));
 
     const guildCountLabel = guilds.length > 1
-        ? `${guilds.length} guildes publiques`
+        ? `${guilds.length} ${t.guildsPage.countMany}`
         : guilds.length === 1
-            ? "1 guilde publique"
-            : "Aucune guilde publique";
+            ? t.guildsPage.countOne
+            : t.guildsPage.countZero;
 
     return (
         <div className="registre relative min-h-screen bg-background text-foreground font-sans flex flex-col">
@@ -59,7 +51,7 @@ export default async function GuildsDirectoryPage() {
                 user={session?.user}
                 activePage="annuaire"
                 backHref="/"
-                backLabel="Retour à l'accueil"
+                backLabel={t.guildsPage.backHome}
                 isMember={userContext.isMember}
             />
 
@@ -70,18 +62,18 @@ export default async function GuildsDirectoryPage() {
                             id="annuaire-titre"
                             className="max-w-[36ch] text-[clamp(1.75rem,3.2vw,2.5rem)] font-bold leading-[1.12] tracking-tight text-foreground"
                         >
-                            Annuaire des guildes Dofus
+                            {t.guildsPage.title}
                         </h1>
                         <p className="mt-4 max-w-[62ch] text-base text-muted-foreground leading-relaxed">
-                            Trouvez votre prochaine guilde : serveurs, recrutement ouvert et statistiques réelles.
+                            {t.guildsPage.subtitle}
                         </p>
                         <p className="reg-mono mt-6 text-xs text-muted-foreground">{guildCountLabel}</p>
 
                         {guilds.length === 0 ? (
                             <div className="reg-callout mt-8">
-                                <h2 className="text-base font-semibold text-foreground">Annuaire vide</h2>
+                                <h2 className="text-base font-semibold text-foreground">{t.guildsPage.emptyTitle}</h2>
                                 <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
-                                    Les protocoles de présentation n'ont pas encore été initialisés par les commandants de guilde.
+                                    {t.guildsPage.emptyDesc}
                                 </p>
                             </div>
                         ) : (
@@ -92,10 +84,10 @@ export default async function GuildsDirectoryPage() {
                                     </caption>
                                     <thead>
                                         <tr>
-                                            <th scope="col">Guilde</th>
-                                            <th scope="col" className="hidden w-[9rem] sm:table-cell">Serveur</th>
-                                            <th scope="col" className="hidden w-[9rem] sm:table-cell">Recrutement</th>
-                                            <th scope="col" className="w-[12rem] text-right">Profil</th>
+                                            <th scope="col">{t.guildsPage.tableGuild}</th>
+                                            <th scope="col" className="hidden w-[9rem] sm:table-cell">{t.guildsPage.tableServer}</th>
+                                            <th scope="col" className="hidden w-[9rem] sm:table-cell">{t.guildsPage.tableRecruitment}</th>
+                                            <th scope="col" className="w-[12rem] text-right">{t.guildsPage.tableProfile}</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -120,7 +112,7 @@ export default async function GuildsDirectoryPage() {
                                                                 {guild.name}
                                                             </Link>
                                                             {isMine && (
-                                                                <span className="reg-tag reg-tag-accent shrink-0">Votre guilde</span>
+                                                                <span className="reg-tag reg-tag-accent shrink-0">{t.guildsPage.myGuildBadge}</span>
                                                             )}
                                                         </span>
                                                     </th>
@@ -152,12 +144,12 @@ export default async function GuildsDirectoryPage() {
                                                                     : "reg-tag text-muted-foreground"
                                                             }
                                                         >
-                                                            {guild.isRecruiting ? "Ouvert" : "Fermé"}
+                                                            {guild.isRecruiting ? t.guildsPage.recruitmentOpen : t.guildsPage.recruitmentClosed}
                                                         </span>
                                                     </td>
                                                     <td className="align-middle text-right">
                                                         <Link href={href} className="reg-link text-sm">
-                                                            {isMine ? "Ouvrir le tableau de bord" : "Voir le profil"}
+                                                            {isMine ? t.guildsPage.dashboardCta : t.guildsPage.viewProfile}
                                                         </Link>
                                                     </td>
                                                 </tr>

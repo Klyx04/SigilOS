@@ -6,6 +6,7 @@ import { db } from "@/lib/prisma";
 import { auth } from "@/auth";
 import { isSuperAdmin, canAccessBrick } from "@/server/actions/super-admin-actions";
 import { createGodAuditLog } from "@/server/actions/audit-actions";
+import { ACHIEVEMENT_KIND, QUEST_KIND, buildQuestTree, collectSubtreeIds, wouldCreateCycle } from "@/lib/dofus-quest-tree";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { exec } from "child_process";
@@ -87,6 +88,10 @@ const EntrySchema = z.object({
     stepOrder: z.number().int().default(0),
     isOptional: z.boolean().default(false),
     isLast: z.boolean().default(false),
+    /** Succès imbriqués : QUEST (quête jouable) | ACHIEVEMENT (succès conteneur d'objectifs). */
+    entryKind: z.enum([QUEST_KIND, ACHIEVEMENT_KIND]).default(QUEST_KIND),
+    /** Id du succès parent (doit être un ACHIEVEMENT de la même section, sans cycle). */
+    parentEntryId: z.string().optional().nullable(),
     dofusdbId: z.number().int().optional().nullable(),
     mapId: z.number().int().optional().nullable(),
     coords: z.object({
@@ -297,6 +302,9 @@ async function syncEntryToLocalJson(
         dungeonsRequired?: any[] | null;
         positions?: any[] | null;
         level?: number | null;
+        /** Succès imbriqués : nature de l'étape + nom du succès parent (résolu en id au seed). */
+        entryKind?: string | null;
+        parentName?: string | null;
     }
 ) {
     const filePath = path.join(process.cwd(), "prisma", "seed-data", "dofus-quests", `${dofusSlug}-compiled.json`);
@@ -332,6 +340,14 @@ async function syncEntryToLocalJson(
                         if (updatedFields.level !== undefined) {
                             entry.level = updatedFields.level;
                         }
+                        // Succès imbriqués : conservés dans le JSON compilé pour survivre à un re-seed.
+                        if (updatedFields.entryKind !== undefined) {
+                            entry.entryKind = updatedFields.entryKind;
+                        }
+                        if (updatedFields.parentName !== undefined) {
+                            if (updatedFields.parentName) entry.parentName = updatedFields.parentName;
+                            else delete entry.parentName;
+                        }
                         modified = true;
                     }
                 }
@@ -350,9 +366,52 @@ export async function upsertQuestEntry(id: string | null, data: z.infer<typeof E
 
     try {
         const validated = EntrySchema.parse(data);
+
+        // ── Succès imbriqués ────────────────────────────────────────────────
+        // Un conteneur (`ACHIEVEMENT`) porte des objectifs : il ne compte pas comme
+        // étape (poids 0) et son parent éventuel doit être un succès de la même
+        // section, sans créer de cycle (God = seul écrivain, garde-fous ici).
+        const entryKind = validated.entryKind ?? QUEST_KIND;
+        let parentEntryId: string | null = null;
+        let parentName: string | null = null;
+
+        if (validated.parentEntryId) {
+            const parent = await (db as any).dofusQuestEntry.findUnique({
+                where: { id: validated.parentEntryId },
+                select: { id: true, name: true, chainId: true, entryKind: true },
+            });
+            if (!parent) return { success: false, error: "Succès parent introuvable" };
+            if (parent.chainId !== validated.chainId) {
+                return { success: false, error: "Le succès parent doit appartenir à la même section" };
+            }
+            if (parent.entryKind !== ACHIEVEMENT_KIND) {
+                return { success: false, error: "Le parent doit être un succès (nature « Succès »)" };
+            }
+            if (id) {
+                const chainEntries = await (db as any).dofusQuestEntry.findMany({
+                    where: { chainId: validated.chainId },
+                    select: { id: true, parentEntryId: true },
+                });
+                if (wouldCreateCycle(chainEntries, id, parent.id)) {
+                    return { success: false, error: "Lien impossible : ce succès est déjà un objectif descendant" };
+                }
+            }
+            parentEntryId = parent.id;
+            parentName = parent.name;
+        }
+
+        const payload: any = {
+            ...validated,
+            entryKind,
+            parentEntryId,
+        };
+        // Un succès conteneur ne pèse pas dans la progression ; une quête garde son
+        // poids pondéré (V3) quand elle est ré-enregistrée.
+        if (entryKind === ACHIEVEMENT_KIND) payload.weight = 0;
+
         const record = id 
-            ? await (db as any).dofusQuestEntry.update({ where: { id }, data: validated })
-            : await (db as any).dofusQuestEntry.create({ data: validated });
+            ? await (db as any).dofusQuestEntry.update({ where: { id }, data: payload })
+            : await (db as any).dofusQuestEntry.create({ data: payload });
         
         const chain = await (db as any).dofusQuestChain.findUnique({
             where: { id: validated.chainId },
@@ -367,10 +426,16 @@ export async function upsertQuestEntry(id: string | null, data: z.infer<typeof E
                 localImageUrl: validated.localImageUrl,
                 dungeonsRequired: (validated as any).dungeonsRequired,
                 positions: (validated as any).positions,
-                level: validated.level
+                level: validated.level,
+                entryKind,
+                parentName,
             });
         }
-        await logQuestWrite(id ? "update-quest-entry" : "create-quest-entry", id ?? (record as any)?.id, { name: validated.name });
+        await logQuestWrite(id ? "update-quest-entry" : "create-quest-entry", id ?? (record as any)?.id, {
+            name: validated.name,
+            entryKind,
+            parentName,
+        });
 
         revalidatePath("/god/game-data");
         return { success: true, data: record };
@@ -385,8 +450,26 @@ export async function deleteQuestEntry(id: string): Promise<ActionResponse> {
     if (!userId) return { success: false, error: "Accès refusé" };
 
     try {
-        await (db as any).dofusQuestEntry.delete({ where: { id } });
-        await logQuestWrite("delete-quest-entry", id);
+        // Succès imbriqués : supprimer un succès conteneur supprime ses objectifs
+        // (la colonne `parentEntryId` n'a pas de FK — cf. schema.prisma).
+        const entry = await (db as any).dofusQuestEntry.findUnique({
+            where: { id },
+            select: { id: true, chainId: true, entryKind: true },
+        });
+        if (!entry) return { success: false, error: "Étape introuvable" };
+
+        let idsToDelete = [id];
+        if (entry.entryKind === ACHIEVEMENT_KIND) {
+            const chainEntries = await (db as any).dofusQuestEntry.findMany({
+                where: { chainId: entry.chainId },
+                select: { id: true, parentEntryId: true },
+            });
+            const tree = buildQuestTree(chainEntries);
+            idsToDelete = collectSubtreeIds(tree, id);
+        }
+
+        await (db as any).dofusQuestEntry.deleteMany({ where: { id: { in: idsToDelete } } });
+        await logQuestWrite("delete-quest-entry", id, { cascaded: idsToDelete.length - 1 });
         revalidatePath("/god/game-data");
         return { success: true };
     } catch (error) {
@@ -465,13 +548,15 @@ export async function reorderQuestEntry(entryId: string, direction: "up" | "down
     try {
         const entry = await (db as any).dofusQuestEntry.findUnique({
             where: { id: entryId },
-            select: { id: true, chainId: true }
+            select: { id: true, chainId: true, parentEntryId: true }
         });
 
         if (!entry) return { success: false, error: "Étape introuvable" };
 
+        // Fratrie = même section ET même parent (un objectif se réordonne parmi
+        // les objectifs de son succès, pas parmi les quêtes racines).
         const siblings = await (db as any).dofusQuestEntry.findMany({
-            where: { chainId: entry.chainId },
+            where: { chainId: entry.chainId, parentEntryId: entry.parentEntryId ?? null },
             select: { id: true },
             orderBy: [{ stepOrder: "asc" }, { id: "asc" }]
         });
@@ -548,8 +633,11 @@ export async function getSiblingQuestEntries(chainId: string, excludeQuestId?: s
 
         // #146 : exclusion optionnelle — en mode création (pas encore d'entrée) on liste
         // toutes les quêtes du même Dofus pour préparer les prérequis.
+        // Prérequis : uniquement des quêtes jouables (un succès conteneur n'est
+        // jamais un prérequis — il n'a pas d'état propre).
         const where: any = {
-            chain: { dofusId: chain.dofusId }
+            chain: { dofusId: chain.dofusId },
+            entryKind: QUEST_KIND,
         };
         if (excludeQuestId) where.id = { not: excludeQuestId };
 
@@ -561,6 +649,7 @@ export async function getSiblingQuestEntries(chainId: string, excludeQuestId?: s
                 stepOrder: true,
                 questType: true,
                 zone: true,
+                entryKind: true,
                 chain: { select: { sectionName: true } }
             },
             orderBy: [{ stepOrder: "asc" }]

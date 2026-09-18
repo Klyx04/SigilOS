@@ -7,16 +7,10 @@ import {
     Calendar,
     Server,
     MessageCircle,
-    Swords,
     Sparkles,
-    Coins,
-    Theater,
-    Target,
-    Shield,
-    Crown,
     Star,
 } from "lucide-react";
-import { AVAILABLE_ACTIVITIES } from "@/lib/presentation-constants";
+import { AVAILABLE_ACTIVITIES, ACTIVITY_ASSETS, FOUNDER_CROWN_ASSET } from "@/lib/presentation-constants";
 import { getDofusServerImage } from "@/lib/dofus-assets";
 import type { GuildPresentation } from "@/server/actions/presentation-actions";
 import { PublicHeader } from "@/components/layout/public-header";
@@ -41,14 +35,21 @@ import type { User } from "next-auth";
  * en capitales espacées.
  */
 
-const ACTIVITY_ICONS: Record<string, React.ReactNode> = {
-    "economie": <Coins className="h-3.5 w-3.5" aria-hidden="true" />,
-    "pvm": <Swords className="h-3.5 w-3.5" aria-hidden="true" />,
-    "roleplay": <Theater className="h-3.5 w-3.5" aria-hidden="true" />,
-    "kolizeum": <Target className="h-3.5 w-3.5" aria-hidden="true" />,
-    "percepteur": <Shield className="h-3.5 w-3.5" aria-hidden="true" />,
-    "raids": <Swords className="h-3.5 w-3.5" aria-hidden="true" />,
-};
+function ActivityThumb({ id }: { id: string }) {
+    const src = ACTIVITY_ASSETS[id];
+    if (!src) return <Sparkles className="h-5 w-5 text-muted-foreground" aria-hidden="true" />;
+    return (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+            src={src}
+            alt=""
+            loading="lazy"
+            decoding="async"
+            draggable={false}
+            className="h-5 w-5 shrink-0 object-contain"
+        />
+    );
+}
 
 const getActivityLabel = (id: string) => {
     const activity = AVAILABLE_ACTIVITIES.find(a => a.id === id);
@@ -138,7 +139,7 @@ export function GuildPublicView({ guild, foundedYear, isMember, user }: Props) {
                                                 loading="lazy"
                                                 decoding="async"
                                                 draggable={false}
-                                                className="h-6 w-6 rounded-md object-cover border border-black/30"
+                                                className="h-8 w-8 rounded-md object-cover border border-black/30"
                                             />
                                         ) : (
                                             <Server className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
@@ -165,10 +166,8 @@ export function GuildPublicView({ guild, foundedYear, isMember, user }: Props) {
                         {(guild.activities?.length ?? 0) > 0 && (
                             <ul className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2">
                                 {guild.activities?.map((activity) => (
-                                    <li key={activity} className="inline-flex items-center gap-1.5 text-sm text-foreground">
-                                        <span className="text-muted-foreground">
-                                            {ACTIVITY_ICONS[activity] || <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />}
-                                        </span>
+                                    <li key={activity} className="inline-flex items-center gap-2 text-sm text-foreground">
+                                        <ActivityThumb id={activity} />
                                         {getActivityLabel(activity)}
                                     </li>
                                 ))}
@@ -195,7 +194,8 @@ export function GuildPublicView({ guild, foundedYear, isMember, user }: Props) {
                                         >
                                             <span className="inline-flex min-w-0 items-center gap-2">
                                                 {member.lead
-                                                    ? <Crown className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                                                    // eslint-disable-next-line @next/next/no-img-element
+                                                    ? <img src={FOUNDER_CROWN_ASSET} alt="" loading="lazy" decoding="async" draggable={false} className="h-5 w-5 shrink-0 object-contain" />
                                                     : <Star className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />}
                                                 <span className="truncate font-semibold text-foreground">{member.pseudo}</span>
                                             </span>
@@ -245,7 +245,7 @@ export function GuildPublicView({ guild, foundedYear, isMember, user }: Props) {
                                 <div className="flex items-center justify-between gap-4 border-b border-border py-3 last:border-b-0">
                                     <dt className="text-sm text-muted-foreground">Statut</dt>
                                     <dd>
-                                        <span className={guild.isRecruiting ? "reg-tag reg-tag-accent" : "reg-tag text-muted-foreground"}>
+                                        <span className="reg-tag">
                                             {guild.isRecruiting ? "Ouvert" : "Fermé"}
                                         </span>
                                     </dd>

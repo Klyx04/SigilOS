@@ -5,7 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
-import { Save, Loader2, Info, MessageSquare, Sparkles, Target, Compass, MessageCircle, Check, Pencil, Users } from "lucide-react";
+import { Save, Loader2, Check, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { updateUserProfile } from "@/server/actions/profile-actions";
 import { EmojiPicker } from "../editor/emoji-picker";
@@ -41,7 +41,6 @@ export function PresentationCard({
     const [objectifsText, setObjectifsText] = useState(objectifs || "");
     const [selectedActivities, setSelectedActivities] = useState<string[]>(preferredActivities || []);
     const [contactText, setContactText] = useState(discordContact || "");
-
     const [isEditing, setIsEditing] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const MAX_CHARS = 2000;
@@ -98,20 +97,27 @@ export function PresentationCard({
 
     if (!isEditing && !readOnly && !hasAnyContent) {
         return (
-            <Card className="p-10 bg-background/60 border border-success/20 backdrop-blur-md rounded-3xl flex flex-col items-center justify-center text-center space-y-6 relative overflow-hidden group">
-                <div className="w-16 h-16 rounded-2xl bg-success/10 border border-success/30 flex items-center justify-center group- transition-transform duration-300 shadow-lg shadow-emerald-500/10">
-                    <Sparkles className="w-8 h-8 text-success" />
-                </div>
-                <div className="space-y-2 max-w-md">
-                    <h3 className="text-xl font-black text-foreground uppercase tracking-wide">Complétez votre présentation</h3>
-                    <p className="text-xs text-muted-foreground leading-relaxed font-medium">
-                        Renseignez vos activités préférées (*PvM, Succès, Songes...*), vos objectifs et votre contact Discord pour que vos camarades de guilde vous connaissent.
-                    </p>
+            <Card className="p-8 border-border rounded-xl flex flex-col items-center text-center space-y-4">
+                <div className="flex items-center gap-4 w-full text-left">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                        src="/assets/dofus/modules/character.png"
+                        alt=""
+                        width={48}
+                        height={48}
+                        draggable={false}
+                        className="w-12 h-12 shrink-0 object-contain"
+                    />
+                    <div className="space-y-1">
+                        <h3 className="text-base font-semibold text-foreground">Complétez votre présentation</h3>
+                        <p className="text-xs text-muted-foreground leading-relaxed">
+                            Activités préférées, objectifs et contact Discord pour que vos camarades de guilde vous connaissent.
+                        </p>
+                    </div>
                 </div>
                 <Button
                     onClick={() => setIsEditing(true)}
-                    variant="sigil-emerald"
-                    className="h-11 px-6 text-sm font-semibold"
+                    className="h-10 px-5 text-sm font-medium rounded-lg"
                 >
                     Remplir ma fiche de présentation
                 </Button>
@@ -120,16 +126,23 @@ export function PresentationCard({
     }
 
     return (
-        <Card className="bg-background/60 backdrop-blur-md border border-border space-y-6 relative overflow-hidden rounded-3xl p-6 shadow-2xl">
+        <Card className="border-border rounded-xl p-6 space-y-6">
             {/* Header section */}
             <div className="flex items-center justify-between border-b border-border pb-4">
                 <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-2xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center">
-                        <MessageSquare className="w-5 h-5 text-sky-400" />
-                    </div>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                        src="/assets/dofus/modules/character.png"
+                        alt=""
+                        width={32}
+                        height={32}
+                        loading="lazy"
+                        draggable={false}
+                        className="w-8 h-8 shrink-0 object-contain"
+                    />
                     <div>
-                        <h3 className="text-base font-black text-foreground uppercase tracking-wider">Présentation & Profil Membre</h3>
-                        <p className="text-caption text-muted-foreground uppercase tracking-widest font-bold">Fiche de {displayName}</p>
+                        <h3 className="text-sm font-semibold text-foreground">Présentation et profil membre</h3>
+                        <p className="text-xs text-muted-foreground">Fiche de {displayName}</p>
                     </div>
                 </div>
                 {!readOnly && !isEditing && (
@@ -137,9 +150,9 @@ export function PresentationCard({
                         variant="ghost"
                         size="sm"
                         onClick={() => setIsEditing(true)}
-                        className="text-caption font-black uppercase tracking-widest text-muted-foreground hover:text-foreground bg-surface border border-border hover:border-border-strong h-8 px-3 rounded-xl transition-all"
+                        className="text-xs text-muted-foreground hover:text-foreground h-8 px-3 rounded-lg"
                     >
-                        <Pencil className="w-3 h-3 mr-1.5 text-sky-400" />
+                        <Pencil className="w-3 h-3 mr-1.5" />
                         Modifier
                     </Button>
                 )}
@@ -147,14 +160,13 @@ export function PresentationCard({
 
             {/* Content Body */}
             {isEditing ? (
-                <div className="space-y-6 animate-in fade-in duration-300">
+                <div className="space-y-6 animate-in fade-in duration-200">
                     {/* Badges d'activités préférées */}
                     <div className="space-y-2">
-                        <label className="text-xs font-black uppercase tracking-wider text-sky-400 flex items-center gap-2">
-                            <Compass className="w-4 h-4" />
-                            Activités & Contenu préféré
+                        <label className="text-xs font-medium text-muted-foreground">
+                            Activités et contenu préféré
                         </label>
-                        <p className="text-caption text-muted-foreground">Cochez ce que vous aimez faire pour indiquer vos préférences à la guilde :</p>
+                        <p className="text-xs text-muted-foreground">Cochez ce que vous aimez faire pour indiquer vos préférences à la guilde :</p>
                         <div className="flex flex-wrap gap-2 pt-1">
                             {PREFERRED_ACTIVITIES.map(act => {
                                 const active = selectedActivities.includes(act.id);
@@ -163,16 +175,26 @@ export function PresentationCard({
                                         key={act.id}
                                         type="button"
                                         onClick={() => toggleActivity(act.id)}
+                                        aria-pressed={active}
                                         className={cn(
-                                            "flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer select-none",
+                                            "flex items-center gap-2.5 pl-1.5 pr-3 py-1.5 rounded-lg border text-xs font-medium transition-colors cursor-pointer select-none",
                                             active
-                                                ? `${act.color} ring-1 ring-white/20 shadow-md`
-                                                : "bg-surface/60 border-border text-muted-foreground hover:border-border hover:text-foreground"
+                                                ? "border-success bg-success/5 text-foreground"
+                                                : "border-border text-muted-foreground hover:border-border-strong hover:text-foreground"
                                         )}
                                     >
-                                        <span>{act.icon}</span>
+                                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                                        <img
+                                            src={act.image}
+                                            alt=""
+                                            width={28}
+                                            height={28}
+                                            loading="lazy"
+                                            draggable={false}
+                                            className="w-7 h-7 shrink-0 object-contain"
+                                        />
                                         <span>{act.label}</span>
-                                        {active && <Check className="w-3.5 h-3.5 ml-1 shrink-0" />}
+                                        {active && <Check className="w-3.5 h-3.5 text-success shrink-0" />}
                                     </button>
                                 );
                             })}
@@ -181,42 +203,39 @@ export function PresentationCard({
 
                     {/* Objectifs recherchés */}
                     <div className="space-y-2">
-                        <label className="text-xs font-black uppercase tracking-wider text-warning flex items-center gap-2">
-                            <Target className="w-4 h-4" />
+                        <label className="text-xs font-medium text-muted-foreground">
                             Objectifs recherchés
                         </label>
                         <Input
                             value={objectifsText}
                             onChange={(e) => setObjectifsText(e.target.value)}
                             placeholder="Ex : Monter un groupe Songes 400, rush le Dofus Sylvestre, optimiser mon stuff..."
-                            className="bg-muted/40 border-border text-xs text-foreground placeholder:text-muted-foreground h-10 rounded-xl focus-visible:ring-success/30"
+                            className="bg-elevated border-border text-xs text-foreground placeholder:text-muted-foreground h-10 rounded-lg focus-visible:ring-0 focus-visible:border-border-strong"
                         />
                     </div>
 
                     {/* Contact Discord / MP */}
                     <div className="space-y-2">
-                        <label className="text-xs font-black uppercase tracking-wider text-success flex items-center gap-2">
-                            <MessageCircle className="w-4 h-4" />
+                        <label className="text-xs font-medium text-muted-foreground">
                             Contact Discord / Disponibilité MP
                         </label>
                         <Input
                             value={contactText}
                             onChange={(e) => setContactText(e.target.value)}
                             placeholder="Ex : Dispo en MP le soir à partir de 20h / @MonPseudoDiscord"
-                            className="bg-muted/40 border-border text-xs text-foreground placeholder:text-muted-foreground h-10 rounded-xl focus-visible:ring-success/30"
+                            className="bg-elevated border-border text-xs text-foreground placeholder:text-muted-foreground h-10 rounded-lg focus-visible:ring-0 focus-visible:border-border-strong"
                         />
                     </div>
 
                     {/* Bio / Présentation générale */}
                     <div className="space-y-2">
                         <div className="flex items-center justify-between">
-                            <label className="text-xs font-black uppercase tracking-wider text-foreground flex items-center gap-2">
-                                <MessageSquare className="w-4 h-4 text-sky-400" />
-                                Note de Présentation
+                            <label className="text-xs font-medium text-muted-foreground">
+                                Note de présentation
                             </label>
                             <EmojiPicker onSelect={handleEmojiSelect} />
                         </div>
-                        <div className="relative rounded-2xl border border-border bg-black/40 overflow-hidden focus-within:border-sky-500/30 transition-all">
+                        <div className="rounded-lg border border-border bg-elevated overflow-hidden focus-within:border-border-strong transition-colors">
                             <Textarea
                                 value={introText}
                                 onChange={(e) => setIntroText(e.target.value)}
@@ -228,8 +247,8 @@ export function PresentationCard({
 
                     {/* Actions */}
                     <div className="flex items-center justify-between pt-2">
-                        <p className="text-caption text-muted-foreground italic opacity-60">
-                            Sauvegarde instantanée. Ces informations seront visibles par les membres de la guilde.
+                        <p className="text-xs text-muted-foreground">
+                            Ces informations seront visibles par les membres de la guilde.
                         </p>
                         <div className="flex items-center gap-2">
                             <Button
@@ -243,15 +262,14 @@ export function PresentationCard({
                                     setIsEditing(false);
                                 }}
                                 disabled={isSaving}
-                                className="text-xs font-bold text-muted-foreground hover:text-foreground"
+                                className="text-xs text-muted-foreground hover:text-foreground rounded-lg"
                             >
                                 Annuler
                             </Button>
                             <Button
                                 onClick={handleSave}
                                 disabled={isSaving || introText.length > MAX_CHARS}
-                                variant="sigil-emerald"
-                                className="h-9 px-5 text-sm font-semibold"
+                                className="h-9 px-5 text-sm font-medium rounded-lg"
                             >
                                 {isSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5 mr-1" />}
                                 Enregistrer
@@ -260,12 +278,12 @@ export function PresentationCard({
                     </div>
                 </div>
             ) : (
-                <div className="space-y-6">
+                <div className="space-y-5">
                     {/* Preferred activity badges */}
                     {selectedActivities.length > 0 && (
                         <div className="space-y-2">
-                            <h4 className="text-caption font-black uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
-                                <Compass className="w-3.5 h-3.5 text-sky-400" /> Activités appréciées
+                            <h4 className="text-xs font-medium text-muted-foreground">
+                                Activités appréciées
                             </h4>
                             <div className="flex flex-wrap gap-2">
                                 {selectedActivities.map(actId => {
@@ -274,12 +292,18 @@ export function PresentationCard({
                                     return (
                                         <span
                                             key={actId}
-                                            className={cn(
-                                                "flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border shadow-sm",
-                                                act.color
-                                            )}
+                                            className="flex items-center gap-2 pl-1.5 pr-3 py-1.5 rounded-lg text-xs text-foreground border border-border"
                                         >
-                                            <span>{act.icon}</span>
+                                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                                            <img
+                                                src={act.image}
+                                                alt=""
+                                                width={24}
+                                                height={24}
+                                                loading="lazy"
+                                                draggable={false}
+                                                className="w-6 h-6 shrink-0 object-contain"
+                                            />
                                             <span>{act.label}</span>
                                         </span>
                                     );
@@ -290,11 +314,11 @@ export function PresentationCard({
 
                     {/* Objectifs recherchés */}
                     {objectifsText && (
-                        <div className="p-4 rounded-2xl bg-warning/[0.06] border border-warning/20 space-y-1">
-                            <h4 className="text-caption font-black uppercase tracking-widest text-warning flex items-center gap-1.5">
-                                <Target className="w-3.5 h-3.5" /> Objectifs actuels
+                        <div className="rounded-lg border border-border p-4 space-y-1">
+                            <h4 className="text-xs font-medium text-muted-foreground">
+                                Objectifs actuels
                             </h4>
-                            <p className="text-xs text-warning/90 font-medium leading-relaxed">
+                            <p className="text-xs text-foreground leading-relaxed">
                                 {objectifsText}
                             </p>
                         </div>
@@ -302,11 +326,11 @@ export function PresentationCard({
 
                     {/* Discord / MP Contact */}
                     {contactText && (
-                        <div className="p-4 rounded-2xl bg-success/[0.06] border border-success/20 space-y-1">
-                            <h4 className="text-caption font-black uppercase tracking-widest text-success flex items-center gap-1.5">
-                                <MessageCircle className="w-3.5 h-3.5" /> Contact MP & Discord
+                        <div className="rounded-lg border border-border p-4 space-y-1">
+                            <h4 className="text-xs font-medium text-muted-foreground">
+                                Contact MP et Discord
                             </h4>
-                            <p className="text-xs text-success/90 font-medium leading-relaxed">
+                            <p className="text-xs text-foreground leading-relaxed">
                                 {contactText}
                             </p>
                         </div>
@@ -314,16 +338,16 @@ export function PresentationCard({
 
                     {/* Note de Présentation */}
                     {introText ? (
-                        <div className="p-5 rounded-2xl bg-black/40 border border-border space-y-2">
-                            <h4 className="text-caption font-black uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
-                                <MessageSquare className="w-3.5 h-3.5 text-sky-400" /> Bio / À propos
+                        <div className="rounded-lg border border-border p-4 space-y-1">
+                            <h4 className="text-xs font-medium text-muted-foreground">
+                                Bio / À propos
                             </h4>
-                            <p className="text-xs text-foreground leading-relaxed font-medium italic whitespace-pre-wrap">
+                            <p className="text-xs text-foreground leading-relaxed whitespace-pre-wrap">
                                 &ldquo;{introText}&rdquo;
                             </p>
                         </div>
                     ) : !selectedActivities.length && !objectifsText && !contactText && (
-                        <p className="text-xs text-muted-foreground italic">Aucune présentation enregistrée.</p>
+                        <p className="text-xs text-muted-foreground">Aucune présentation enregistrée.</p>
                     )}
                 </div>
             )}

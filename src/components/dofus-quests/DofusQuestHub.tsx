@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
-import { Gem, Users, Search, Sparkles, RefreshCw, CheckCircle2, BookOpen, ChevronLeft, ArrowRight, X, Navigation, Trophy, Construction, Zap, TreePine, ExternalLink } from "lucide-react";
+import { Gem, Users, Search, RefreshCw, CheckCircle2, BookOpen, ChevronLeft, ArrowRight, X, Navigation, Trophy, Construction, Zap, TreePine, ExternalLink } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { DofusGemCard } from "./DofusGemCard";
@@ -211,16 +211,9 @@ export function DofusQuestHub({
                                 {/* CARD 1 : Rush Sylvestre — toujours visible, hard-codé */}
                                 <Link
                                     href={`/dashboard/${guildId}/quetes-dofus/guide/rush-sylvestre`}
-                                    className="group relative flex flex-col justify-between p-6 min-h-[320px] rounded-2xl border border-border bg-surface hover:bg-elevated hover:border-success/40 hover:-translate-y-1 hover:shadow-xl hover:shadow-black/30 transition-all duration-200 no-underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-success/50"
+                                    className="group relative flex flex-col justify-between p-6 min-h-[240px] rounded-2xl border border-border bg-surface hover:bg-elevated hover:border-success/40 transition-colors duration-200 no-underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-success/50"
                                     style={{ textDecoration: 'none' }}
                                 >
-                                    {/* Accent haut */}
-                                    <div className="absolute top-0 left-8 right-8 h-[2px] rounded-full bg-gradient-to-r from-transparent via-success/60 to-transparent pointer-events-none" />
-                                    {/* Dofus Sylvestre watermark */}
-                                    <div className="absolute bottom-0 right-0 w-32 h-32 pointer-events-none opacity-10 group-hover:opacity-[0.16] transition-opacity">
-                                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                                        <img src="/module-dofus/Dofus_Sylvestre.png" alt="" className="w-full h-full object-contain" />
-                                    </div>
                                     {rushSylvestreGuide?.isUnderConstruction && (
                                         <div className="absolute top-3 right-3 flex items-center gap-1 px-2 py-1 rounded-full bg-warning/15 border border-warning/25 text-caption font-semibold text-warning z-10">
                                             <Construction className="w-2.5 h-2.5" /> En construction
@@ -232,20 +225,17 @@ export function DofusQuestHub({
                                             <img src="/module-dofus/Dofus_Sylvestre.png" alt="Dofus Sylvestre" className="w-12 h-12 object-contain" />
                                         </div>
                                         <div>
-                                            <div className="flex items-center gap-2 mb-1">
-                                                <h3 className="text-title font-bold text-foreground">
-                                                    Rush Sylvestre
-                                                </h3>
-                                                <span className="text-caption font-semibold px-1.5 py-0.5 rounded-full bg-success/15 text-success border border-success/25">NEW</span>
-                                            </div>
+                                            <h3 className="text-title font-bold text-foreground mb-1">
+                                                Rush Sylvestre
+                                            </h3>
                                             <p className="text-body-sm text-muted-foreground leading-relaxed">
-                                                Rush Sylvestre communautaire — suis ta progression étape par étape et coordonne-toi avec ta guilde.
+                                                Le rush guilde vers le Sylvestre : étapes, positions et repères partagés.
                                             </p>
                                         </div>
                                     </div>
                                     <div className="space-y-3 pt-6 border-t border-border">
-                                        <div className="mt-1 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-success/30 bg-success/10 text-caption font-bold text-success group-hover:bg-success/20 transition-colors">
-                                            Démarrer le Rush <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+                                        <div className="mt-1 inline-flex items-center gap-1.5 whitespace-nowrap px-3 py-1.5 rounded-lg border border-success/30 bg-success/10 text-caption font-bold text-success group-hover:bg-success/20 transition-colors">
+                                            Démarrer le rush <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
                                         </div>
                                     </div>
                                 </Link>
@@ -256,15 +246,8 @@ export function DofusQuestHub({
                                     tabIndex={0}
                                     onClick={() => handleTabChange("guide")}
                                     onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleTabChange("guide"); } }}
-                                    className="group relative flex flex-col justify-between p-6 min-h-[320px] rounded-2xl border border-border bg-surface hover:bg-elevated hover:border-info/40 hover:-translate-y-1 hover:shadow-xl hover:shadow-black/30 transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-info/50"
+                                    className="group relative flex flex-col justify-between p-6 min-h-[240px] rounded-2xl border border-border bg-surface hover:bg-elevated hover:border-info/40 transition-colors duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-info/50"
                                 >
-                                    {/* Accent haut */}
-                                    <div className="absolute top-0 left-8 right-8 h-[2px] rounded-full bg-gradient-to-r from-transparent via-info/60 to-transparent pointer-events-none" />
-                                    {/* Ganymède watermark */}
-                                    <div className="absolute bottom-4 right-4 w-24 h-24 pointer-events-none opacity-10 group-hover:opacity-[0.16] transition-opacity">
-                                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                                        <img src="/assets/icons/ganymede.webp" alt="" className="w-full h-full object-contain" />
-                                    </div>
                                     <div className="space-y-4">
                                         <div className="p-2.5 rounded-xl bg-info/10 border border-info/25 w-fit">
                                             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -272,16 +255,16 @@ export function DofusQuestHub({
                                         </div>
                                         <div>
                                             <h3 className="text-title font-bold text-foreground mb-1">
-                                                Guides Optimisés
+                                                Guides optimisés
                                             </h3>
                                             <p className="text-body-sm text-muted-foreground leading-relaxed">
-                                                Suis le chemin le plus rapide rédigé par ganymède pour obtenir tes Dofus.
+                                                Les itinéraires rédigés par Ganymède, du premier PNJ au Dofus.
                                             </p>
                                         </div>
                                     </div>
                                     <div className="space-y-3 pt-6 border-t border-border">
-                                        <div className="mt-1 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-info/30 bg-info/10 text-caption font-bold text-info group-hover:bg-info/20 transition-colors">
-                                            Consulter les Guides <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+                                        <div className="mt-1 inline-flex items-center gap-1.5 whitespace-nowrap px-3 py-1.5 rounded-lg border border-info/30 bg-info/10 text-caption font-bold text-info group-hover:bg-info/20 transition-colors">
+                                            Consulter les guides <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
                                         </div>
                                     </div>
                                 </div>
@@ -291,7 +274,7 @@ export function DofusQuestHub({
                                     tabIndex={0}
                                     onClick={() => handleTabChange("dofus")}
                                     onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleTabChange("dofus"); } }}
-                                    className="group relative flex flex-col justify-between p-6 min-h-[320px] rounded-2xl border border-border bg-surface hover:bg-surface hover:border-success/40 transition-colors duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-success/50"
+                                    className="group relative flex flex-col justify-between p-6 min-h-[240px] rounded-2xl border border-border bg-surface hover:border-success/40 transition-colors duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-success/50"
                                 >
                                     <div className="space-y-4">
                                         {/* Dofus icon cluster */}
@@ -307,7 +290,7 @@ export function DofusQuestHub({
                                                 Suivi des Dofus
                                             </h3>
                                             <p className="text-body-sm text-muted-foreground leading-relaxed">
-                                                Suis ta progression sur chaque Dofus primordial et majeur, quête par quête.
+                                                Chaque Dofus, ses succès et ses quêtes.
                                             </p>
                                         </div>
                                     </div>
@@ -319,8 +302,8 @@ export function DofusQuestHub({
                                         <div className="w-full bg-elevated h-2 rounded-full overflow-hidden border border-border">
                                             <div className="bg-success h-full rounded-full transition-colors duration-200" style={{ width: `${Math.min(100, (obtainedNormalDofus / Math.max(1, totalNormalDofus)) * 100)}%` }} />
                                         </div>
-                                        <div className="mt-1 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-warning/30 bg-warning/10 text-caption font-bold text-warning group-hover:bg-warning/20 transition-colors">
-                                            Accéder au Suivi <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+                                        <div className="mt-1 inline-flex items-center gap-1.5 whitespace-nowrap px-3 py-1.5 rounded-lg border border-warning/30 bg-warning/10 text-caption font-bold text-warning group-hover:bg-warning/20 transition-colors">
+                                            Ouvrir le suivi <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
                                         </div>
                                     </div>
                                 </div>
@@ -331,43 +314,30 @@ export function DofusQuestHub({
                                     tabIndex={0}
                                     onClick={() => handleTabChange("guilde")}
                                     onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleTabChange("guilde"); } }}
-                                    className="group relative flex flex-col justify-between p-6 min-h-[320px] rounded-2xl border border-border bg-surface hover:bg-elevated hover:border-success/40 hover:-translate-y-1 hover:shadow-xl hover:shadow-black/30 transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-success/50"
+                                    className="group relative flex flex-col justify-between p-6 min-h-[240px] rounded-2xl border border-border bg-surface hover:bg-elevated hover:border-success/40 transition-colors duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-success/50"
                                 >
-                                    {/* Accent haut */}
-                                    <div className="absolute top-0 left-8 right-8 h-[2px] rounded-full bg-gradient-to-r from-transparent via-success/60 to-transparent pointer-events-none" />
                                     <div className="space-y-4">
                                         {/* Member avatars cluster */}
                                         {guildStats && guildStats.topMembers.length > 0 ? (
-                                            <div className="flex flex-col gap-2">
-                                                <div className="flex -space-x-2">
-                                                    {guildStats.topMembers.slice(0, 6).map((m: any, i: number) => (
-                                                        <div
-                                                            key={m.profileId || i}
-                                                            className="w-9 h-9 rounded-full border-2 border-border bg-elevated flex items-center justify-center overflow-hidden ring-1 ring-success/20"
-                                                            style={{ zIndex: 10 - i }}
-                                                            title={m.pseudo || m.userName}
-                                                        >
-                                                            {m.avatarUrl ? (
-                                                                // eslint-disable-next-line @next/next/no-img-element
-                                                                <img src={m.avatarUrl} alt={m.pseudo} className="w-full h-full object-cover" />
-                                                            ) : (
-                                                                <span className="text-caption font-semibold text-success">{(m.pseudo || m.userName || "?")[0]?.toUpperCase()}</span>
-                                                            )}
-                                                        </div>
-                                                    ))}
-                                                    {guildStats.totalMembers > 6 && (
-                                                        <div className="w-9 h-9 rounded-full border-2 border-border bg-elevated flex items-center justify-center ring-1 ring-border">
-                                                            <span className="text-caption font-semibold text-muted-foreground">+{guildStats.totalMembers - 6}</span>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                                {/* Mini progress bar for top member */}
-                                                {guildStats.topMembers[0] && (
-                                                    <div className="flex items-center gap-2">
-                                                        <div className="flex-1 h-1 bg-surface rounded-full overflow-hidden">
-                                                            <div className="h-full bg-success rounded-full" style={{ width: `${Math.min(100, ((guildStats.topMembers[0] as any).dofusObtained || 0) / Math.max(1, totalNormalDofus) * 100)}%` }} />
-                                                        </div>
-                                                        <span className="text-caption font-semibold text-success/80">{(guildStats.topMembers[0] as any).pseudo || "Leader"}</span>
+                                            <div className="flex -space-x-2">
+                                                {guildStats.topMembers.slice(0, 6).map((m: any, i: number) => (
+                                                    <div
+                                                        key={m.profileId || i}
+                                                        className="w-9 h-9 rounded-full border-2 border-border bg-elevated flex items-center justify-center overflow-hidden ring-1 ring-success/20"
+                                                        style={{ zIndex: 10 - i }}
+                                                        title={m.pseudo || m.userName}
+                                                    >
+                                                        {m.avatarUrl ? (
+                                                            // eslint-disable-next-line @next/next/no-img-element
+                                                            <img src={m.avatarUrl} alt={m.pseudo} className="w-full h-full object-cover" />
+                                                        ) : (
+                                                            <span className="text-caption font-semibold text-success">{(m.pseudo || m.userName || "?")[0]?.toUpperCase()}</span>
+                                                        )}
+                                                    </div>
+                                                ))}
+                                                {guildStats.totalMembers > 6 && (
+                                                    <div className="w-9 h-9 rounded-full border-2 border-border bg-elevated flex items-center justify-center ring-1 ring-border">
+                                                        <span className="text-caption font-semibold text-muted-foreground">+{guildStats.totalMembers - 6}</span>
                                                     </div>
                                                 )}
                                             </div>
@@ -378,16 +348,16 @@ export function DofusQuestHub({
                                         )}
                                         <div>
                                             <h3 className="text-title font-bold text-foreground mb-1">
-                                                Progression Guilde
+                                                Avancement de la guilde
                                             </h3>
                                             <p className="text-body-sm text-muted-foreground leading-relaxed">
-                                                Visualise la progression globale de ta guilde et compare avec tes alliés.
+                                                L&apos;avancement des membres, Dofus par Dofus.
                                             </p>
                                         </div>
                                     </div>
                                     <div className="space-y-3 pt-6 border-t border-border">
-                                        <div className="mt-1 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-success/30 bg-success/10 text-caption font-bold text-success group-hover:bg-success/20 transition-colors">
-                                            Voir la Guilde <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+                                        <div className="mt-1 inline-flex items-center gap-1.5 whitespace-nowrap px-3 py-1.5 rounded-lg border border-success/30 bg-success/10 text-caption font-bold text-success group-hover:bg-success/20 transition-colors">
+                                            Voir la guilde <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
                                         </div>
                                     </div>
                                 </div>
@@ -398,16 +368,6 @@ export function DofusQuestHub({
                         {/* ══ VUE DOFUS — grille + filtres ══ */}
                         {activeTab === "dofus" && (
                             <div className="flex flex-col gap-6">
-                                {/* Banner explicatif */}
-                                <div className="flex items-center gap-3 p-4 rounded-2xl bg-info/10 border border-info/20 text-info backdrop-blur-md shadow-sm">
-                                    <div className="w-8 h-8 rounded-xl bg-info/20 border border-info/30 flex items-center justify-center shrink-0">
-                                        <Sparkles className="w-4 h-4 text-info" />
-                                    </div>
-                                    <div className="text-xs leading-relaxed">
-                                        <strong className="text-foreground font-bold">💡 Suivi individuel des Dofus :</strong> Suivez l&apos;avancement quête par quête de chaque Dofus. Votre progression est enregistrée automatiquement et alimente la vue synthétique sur votre profil.
-                                    </div>
-                                </div>
-
                                 {/* Filtres */}
                                 <div className="flex flex-wrap items-center gap-4">
                                     <div className="relative group">
@@ -524,9 +484,9 @@ export function DofusQuestHub({
                                 <div>
                                     <div className="flex items-center gap-2 mb-1">
                                         <Gem className="w-4 h-4 text-success" />
-                                        <span className="text-caption font-black uppercase tracking-[0.2em] text-muted-foreground">Progression personnelle des Dofus</span>
+                                        <span className="text-caption font-black uppercase tracking-[0.2em] text-muted-foreground">Dofus du membre</span>
                                     </div>
-                                    <p className="text-caption text-muted-foreground mb-3">Progression de <span className="text-foreground font-bold">{selectedMember?.pseudo}</span> — obtenus en premier, puis par avancement.</p>
+                                    <p className="text-caption text-muted-foreground mb-3"><span className="text-foreground font-bold">{selectedMember?.pseudo}</span> — obtenus d&apos;abord, puis par avancement.</p>
                                     <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
                                         {ficheDofusList.map(({ dofus, isObtained, percent }) => {
                                             const color = dofus.color || "#6366f1";
@@ -570,7 +530,7 @@ export function DofusQuestHub({
                                 <div>
                                     <div className="flex items-center gap-2 mb-3">
                                         <BookOpen className="w-4 h-4 text-info" />
-                                        <span className="text-caption font-black uppercase tracking-[0.2em] text-muted-foreground">Progression personnelle des guides</span>
+                                        <span className="text-caption font-black uppercase tracking-[0.2em] text-muted-foreground">Guides suivis</span>
                                     </div>
                                     {isMemberLoading ? (
                                         <div className="flex items-center justify-center py-8">
@@ -578,7 +538,7 @@ export function DofusQuestHub({
                                         </div>
                                     ) : memberGuideProgress.length === 0 ? (
                                         <div className="py-8 text-center">
-                                            <p className="text-muted-foreground font-black uppercase text-caption tracking-widest">Aucune progression de guide enregistrée</p>
+                                            <p className="text-muted-foreground font-black uppercase text-caption tracking-widest">Aucun guide entamé</p>
                                         </div>
                                     ) : (
                                         <div className="flex flex-col gap-3">

@@ -111,7 +111,7 @@ function buildSections(guildId: string): AdminSection[] {
                     modules: "reactionRoles",
                     permission: (u) => u.canManageReactionRoles,
                     tourId: "admin-overview-card-reaction-roles",
-                    dofusAsset: "/assets/dofus/modules/ornamentCard.png",
+                    dofusAsset: "/assets/dofus/modules/starShield.png",
                 },
                 {
                     href: `/dashboard/${guildId}/tickets`,
@@ -122,7 +122,7 @@ function buildSections(guildId: string): AdminSection[] {
                     modules: "tickets",
                     permission: (u) => u.canManageTickets,
                     tourId: "admin-overview-card-tickets",
-                    dofusAsset: "/assets/dofus/modules/party.png",
+                    dofusAsset: "/assets/dofus/modules/ticket.png",
                 },
                 {
                     href: `/dashboard/${guildId}/admin/commandes`,
@@ -132,6 +132,7 @@ function buildSections(guildId: string): AdminSection[] {
                     accent: "emerald",
                     permission: (u) => u.canManageRBAC || u.isAdmin,
                     tourId: "admin-overview-card-slash-commands",
+                    dofusAsset: "/assets/dofus/modules/chat.png",
                 },
                 {
                     href: `/dashboard/${guildId}/admin/presentation`,
@@ -159,7 +160,7 @@ function buildSections(guildId: string): AdminSection[] {
                     modules: "missions",
                     permission: (u) => u.canManageMissions,
                     tourId: "admin-overview-card-missions",
-                    dofusAsset: "/assets/dofus/modules/quest.png",
+                    dofusAsset: "/assets/dofus/modules/guildatons.png",
                 },
                 {
                     href: `/dashboard/${guildId}/admin/validation`,
@@ -170,6 +171,7 @@ function buildSections(guildId: string): AdminSection[] {
                     modules: "missions",
                     permission: (u) => u.canValidateMissions,
                     tourId: "admin-overview-card-validation",
+                    dofusAsset: "/assets/dofus/modules/success.png",
                 },
                 {
                     href: `/dashboard/${guildId}/admin/members`,
@@ -191,6 +193,7 @@ function buildSections(guildId: string): AdminSection[] {
                     modules: "roster",
                     permission: (u) => u.canManageMembers,
                     tourId: "admin-overview-card-recruitment",
+                    dofusAsset: "/assets/dofus/modules/character.png",
                 },
                 {
                     href: `/dashboard/${guildId}/admin/points`,
@@ -201,6 +204,7 @@ function buildSections(guildId: string): AdminSection[] {
                     modules: ["missions", "donjons"],
                     permission: (u) => u.canManagePoints,
                     tourId: "admin-overview-card-points",
+                    dofusAsset: "/assets/dofus/modules/kama.png",
                 },
             ],
         },
@@ -216,6 +220,7 @@ function buildSections(guildId: string): AdminSection[] {
                     accent: "slate",
                     permission: (u) => u.canViewAuditLogs,
                     tourId: "admin-overview-card-logs",
+                    dofusAsset: "/assets/dofus/modules/hourglass.png",
                 },
                 {
                     href: `/dashboard/${guildId}/admin/api-keys`,
@@ -225,6 +230,7 @@ function buildSections(guildId: string): AdminSection[] {
                     accent: "amber",
                     permission: (u) => u.isAdmin,
                     tourId: "admin-overview-card-api-keys",
+                    dofusAsset: "/assets/dofus/modules/key.png",
                 },
             ],
         },

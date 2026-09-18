@@ -43,7 +43,7 @@ export function AdminConsoleNav({
             : []),
         {
             href: `/dashboard/${guildId}/admin/getting-started`,
-            label: "Mise en route",
+            label: "Configuration",
             icon: Rocket,
             active: pathname.startsWith(`/dashboard/${guildId}/admin/getting-started`),
             visible: showOnboarding,

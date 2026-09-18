@@ -57,6 +57,7 @@ import { purgeMarketListingMediaCore } from "@/server/market/retention";
 import {
     getGodMarketOverview,
     listGodMarketAuditLogs,
+    listGodMarketGuilds,
     purgeGodMarketMedia,
     regenerateGodMarketImage,
     resyncGodMarketDiscord,
@@ -71,6 +72,7 @@ const LISTING_ID = "cm5marketlisting0001";
 const ALL_ACTIONS: { name: string; run: () => Promise<unknown> }[] = [
     { name: "getGodMarketOverview", run: () => getGodMarketOverview() },
     { name: "listGodMarketAuditLogs", run: () => listGodMarketAuditLogs({ limit: 10 }) },
+    { name: "listGodMarketGuilds", run: () => listGodMarketGuilds() },
     { name: "resyncGodMarketDiscord", run: () => resyncGodMarketDiscord({ listingId: LISTING_ID }) },
     { name: "regenerateGodMarketImage", run: () => regenerateGodMarketImage({ listingId: LISTING_ID }) },
     { name: "purgeGodMarketMedia", run: () => purgeGodMarketMedia({ limit: 10 }) },
@@ -289,7 +291,26 @@ describe("god marché — lecture bornée, agrégats et masquage", () => {
         // Lecture bornée : jamais la totalité des guildes.
         expect((db.guildConfig.findMany as ReturnType<typeof vi.fn>).mock.calls[0][0].take).toBe(200);
         expect((db.marketDiscordMessage.findMany as ReturnType<typeof vi.fn>).mock.calls[0][0].take).toBe(50);
-        expect((db.marketAuditLog.findMany as ReturnType<typeof vi.fn>).mock.calls[0][0].take).toBe(50);
+        // 🧭 Décision user (18/09/2026) — le journal du marché **n'est plus** dans
+        // la vue d'ensemble : il est servi par `listGodMarketAuditLogs` (onglet
+        // « Marché » de God → Audit Logs). Aucune requête de journal ici.
+        expect(db.marketAuditLog.findMany).not.toHaveBeenCalled();
+    });
+
+    it("expose les guildes (id interne + nom) sans jamais lire le journal", async () => {
+        (db.guildConfig.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([
+            { id: GUILD_CONFIG_ID, name: "Guilde A" },
+        ]);
+
+        const result = await listGodMarketGuilds();
+
+        expect(result).toEqual({ success: true, data: [{ id: GUILD_CONFIG_ID, name: "Guilde A" }] });
+        const call = (db.guildConfig.findMany as ReturnType<typeof vi.fn>).mock.calls[0][0];
+        // Uniquement l'id **interne** et le nom : jamais un snowflake, jamais une
+        // colonne métier, et toujours borné.
+        expect(call.select).toEqual({ id: true, name: true });
+        expect(call.take).toBe(200);
+        expect(db.marketAuditLog.findMany).not.toHaveBeenCalled();
     });
 
     it("masque et tronque l'erreur Discord, et versionne l'URL de la carte", async () => {

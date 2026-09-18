@@ -171,7 +171,7 @@ export default async function PilotagePage({ params, searchParams }: Props) {
                 </ul>
                 {progress && !progress.isFinished && (
                     <p className="text-xs text-muted-foreground">
-                        Mise en route : {progress.totalPoints}/{progress.maxPoints} pts —{" "}
+                        Configuration : {progress.totalPoints}/{progress.maxPoints} pts —{" "}
                         <Link href={`/dashboard/${guildId}/admin/getting-started`} className="text-success font-bold hover:underline">
                             Reprendre
                         </Link>

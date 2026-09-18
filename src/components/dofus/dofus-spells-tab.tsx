@@ -4,7 +4,7 @@ import { useEffect, useState, useMemo } from "react";
 import { Loader2, Zap, Sword, Target, Info, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getClassSpells, type ClassSpellDamage } from "@/server/actions/dofus-spells-actions";
-import { computeSpellDamage, type BuildStatsForSpells, type SpellElementKey } from "@/lib/dofus-spells";
+import { computeSpellDamage, castsPerTarget, castsPerTurn, spellZoneFromDamages, type BuildStatsForSpells, type SpellElementKey } from "@/lib/dofus-spells";
 import { getClassName } from "@/lib/dofusbook-utils";
 
 const frNumber = new Intl.NumberFormat("fr-FR");
@@ -95,6 +95,18 @@ export function DofusSpellsTab({ classId, level, build }: SpellsTabProps) {
             const minRange = active ? active.minRange : sp.minRange;
             const apCost = active ? active.apCost : sp.apCost;
             const critChance = active ? active.criticalChance : sp.criticalChance;
+            // Limites de lancer SUIVENT LE GRADE (DofusDB : chaque niveau a ses
+            // propres maxCastPerTurn / maxCastPerTarget / intervalle / zone).
+            const gMaxPerTurn = active ? active.maxCastPerTurn : sp.maxCastPerTurn;
+            const gMaxPerTarget = active ? active.maxCastPerTarget : sp.maxCastPerTarget;
+            const gInterval = active ? active.minCastInterval : sp.minCastInterval;
+            const gZone = active ? active.zone : sp.zone;
+            // Contraintes de lancer du grade (champs réels DofusDB, défaut = LdV).
+            const gLos = active ? active.castTestLos !== false : sp.castTestLos !== false;
+            const gLine = active ? !!active.castInLine : !!sp.castInLine;
+            const gDiag = active ? !!active.castInDiagonal : !!sp.castInDiagonal;
+            // Zone d'effet réelle (lignes de dégâts `zoneDescr`, pas le champ `zone` quasi vide).
+            const gZoneSummary = spellZoneFromDamages(dmgLines);
 
             const kind: "sorts" | "melee" | "distance" = maxRange <= 1 ? "melee" : "distance";
 
@@ -124,6 +136,10 @@ export function DofusSpellsTab({ classId, level, build }: SpellsTabProps) {
             const primaryElement: SpellElementKey = (dmgLines[0]?.element) ?? "neutre";
             const isUtility = !result;
 
+            // Multiplicateurs de lancer : 0 = illimité → pas de total dérivé.
+            const nPerTarget = castsPerTarget(gMaxPerTarget ?? 0, gMaxPerTurn ?? 0);
+            const nPerTurn = castsPerTurn(gMaxPerTurn ?? 0);
+
             return {
                 ...sp,
                 gradesList,
@@ -133,10 +149,20 @@ export function DofusSpellsTab({ classId, level, build }: SpellsTabProps) {
                 gMin: minRange,
                 gMax: maxRange,
                 gCrit: critChance,
+                gMaxPerTurn,
+                gMaxPerTarget,
+                gInterval,
+                gZone,
+                gLos,
+                gLine,
+                gDiag,
+                gZoneSummary,
                 gLabel,
                 gMinPlayerLevel,
                 elements: parts,
                 result,
+                nPerTarget,
+                nPerTurn,
                 primaryElement,
                 isUtility,
                 kind,
@@ -333,7 +359,7 @@ export function DofusSpellsTab({ classId, level, build }: SpellsTabProps) {
                             <div
                                 key={sp.id}
                                 className={cn(
-                                    "flex flex-col gap-2.5 bg-surface p-4 rounded-2xl border transition-colors",
+                                    "flex flex-col gap-2.5 bg-surface p-4 rounded-[4px] border transition-colors",
                                     sp.isVariant ? "border-border/80 hover:border-info/30" : "border-border hover:border-success/30",
                                     sp.isUtility && "opacity-90"
                                 )}
@@ -411,13 +437,13 @@ export function DofusSpellsTab({ classId, level, build }: SpellsTabProps) {
 
                                 {/* Caractéristiques : PA / Portée / Crit */}
                                 <div className="grid grid-cols-3 gap-1.5 text-center my-0.5">
-                                    <div className="bg-surface rounded-xl py-1.5 border border-border/50">
+                                    <div className="bg-surface rounded-[4px] py-1.5 border border-border/50">
                                         <div className="flex items-center justify-center gap-1 text-[10px] text-muted-foreground font-bold uppercase">
                                             <Zap className="w-3 h-3 text-info" /> AP
                                         </div>
                                         <p className="text-label font-bold text-foreground tabular-nums">{sp.gAp}</p>
                                     </div>
-                                    <div className="bg-surface rounded-xl py-1.5 border border-border/50">
+                                    <div className="bg-surface rounded-[4px] py-1.5 border border-border/50">
                                         <div className="flex items-center justify-center gap-1 text-[10px] text-muted-foreground font-bold uppercase">
                                             <Target className="w-3 h-3 text-success" /> Portée
                                         </div>
@@ -425,12 +451,42 @@ export function DofusSpellsTab({ classId, level, build }: SpellsTabProps) {
                                             {sp.gMax <= 1 ? (sp.gMax === 0 ? "0" : "1 (mêlée)") : `${sp.gMin > 1 ? `${sp.gMin}–` : ""}${sp.gMax}`}
                                         </p>
                                     </div>
-                                    <div className="bg-surface rounded-xl py-1.5 border border-border/50">
+                                    <div className="bg-surface rounded-[4px] py-1.5 border border-border/50">
                                         <div className="flex items-center justify-center gap-1 text-[10px] text-muted-foreground font-bold uppercase">
                                             <Sword className="w-3 h-3 text-danger" /> Crit
                                         </div>
                                         <p className="text-label font-bold text-foreground tabular-nums">{sp.gCrit}%</p>
                                     </div>
+                                </div>
+                                {/* Limites de lancer du grade (Dofusbook : par tour / par cible / intervalle / zone / LdV) */}
+                                <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-muted-foreground">
+                                    <span className="tabular-nums">
+                                        {(sp.gMaxPerTurn ?? 0) > 0 ? `${sp.gMaxPerTurn} / tour` : "Lancers illimités"}
+                                    </span>
+                                    <span aria-hidden="true">·</span>
+                                    <span className="tabular-nums">
+                                        {(sp.gMaxPerTarget ?? 0) > 0 ? `${sp.gMaxPerTarget} / cible` : "sans plafond par cible"}
+                                    </span>
+                                    {(sp.gInterval ?? 0) > 0 && (
+                                        <>
+                                            <span aria-hidden="true">·</span>
+                                            <span className="tabular-nums">relance {sp.gInterval}</span>
+                                        </>
+                                    )}
+                                    {sp.gZoneSummary && (
+                                        <>
+                                            <span aria-hidden="true">·</span>
+                                            <span className="font-bold text-foreground/80">
+                                                {sp.gZoneSummary.shape === "Point"
+                                                    ? "Monocible"
+                                                    : sp.gZoneSummary.shape === "Inconnue"
+                                                        ? "Zone spéciale"
+                                                        : `${sp.gZoneSummary.shape}${sp.gZoneSummary.size > 0 ? ` ${sp.gZoneSummary.size}` : ""}`}
+                                            </span>
+                                        </>
+                                    )}
+                                    <span aria-hidden="true">·</span>
+                                    <span>{sp.gLos ? "LdV" : "Sans LdV"}{sp.gLine ? " · Ligne" : ""}{sp.gDiag ? " · Diagonale" : ""}</span>
                                 </div>
 
                                 {/* Section Dégâts */}
@@ -469,6 +525,26 @@ export function DofusSpellsTab({ classId, level, build }: SpellsTabProps) {
                                                         {frNumber.format(sp.result.critMin)}–{frNumber.format(sp.result.critMax)}
                                                     </span>
                                                 </div>
+                                                {(sp.nPerTarget != null && sp.nPerTarget > 1) && (
+                                                    <div className="flex items-baseline justify-between">
+                                                        <span className="text-caption font-bold text-muted-foreground uppercase">
+                                                            Par cible (×{sp.nPerTarget})
+                                                        </span>
+                                                        <span className={cn("font-bold text-body-sm tabular-nums", meta?.text ?? "text-foreground")}>
+                                                            {frNumber.format(sp.result.theoMin * sp.nPerTarget)}–{frNumber.format(sp.result.theoMax * sp.nPerTarget)}
+                                                        </span>
+                                                    </div>
+                                                )}
+                                                {(sp.nPerTurn != null && sp.nPerTurn > 1) && (
+                                                    <div className="flex items-baseline justify-between">
+                                                        <span className="text-caption font-bold text-muted-foreground uppercase">
+                                                            Par tour (×{sp.nPerTurn})
+                                                        </span>
+                                                        <span className="font-bold text-body-sm tabular-nums text-foreground">
+                                                            {frNumber.format(sp.result.theoMin * sp.nPerTurn)}–{frNumber.format(sp.result.theoMax * sp.nPerTurn)}
+                                                        </span>
+                                                    </div>
+                                                )}
                                             </>
                                         ) : (
                                             <>
@@ -490,6 +566,26 @@ export function DofusSpellsTab({ classId, level, build }: SpellsTabProps) {
                                                         {frNumber.format(sp.result.critMin)}–{frNumber.format(sp.result.critMax)}
                                                     </span>
                                                 </div>
+                                                {(sp.nPerTarget != null && sp.nPerTarget > 1) && (
+                                                    <div className="flex items-baseline justify-between">
+                                                        <span className="text-caption font-bold text-muted-foreground uppercase">
+                                                            Par cible (×{sp.nPerTarget})
+                                                        </span>
+                                                        <span className={cn("font-bold text-body-sm tabular-nums", meta?.text ?? "text-foreground")}>
+                                                            {frNumber.format(sp.result.theoMin * sp.nPerTarget)}–{frNumber.format(sp.result.theoMax * sp.nPerTarget)}
+                                                        </span>
+                                                    </div>
+                                                )}
+                                                {(sp.nPerTurn != null && sp.nPerTurn > 1) && (
+                                                    <div className="flex items-baseline justify-between">
+                                                        <span className="text-caption font-bold text-muted-foreground uppercase">
+                                                            Par tour (×{sp.nPerTurn})
+                                                        </span>
+                                                        <span className="font-bold text-body-sm tabular-nums text-foreground">
+                                                            {frNumber.format(sp.result.theoMin * sp.nPerTurn)}–{frNumber.format(sp.result.theoMax * sp.nPerTurn)}
+                                                        </span>
+                                                    </div>
+                                                )}
                                             </>
                                         )}
                                     </div>
@@ -516,9 +612,9 @@ export function DofusSpellsTab({ classId, level, build }: SpellsTabProps) {
                 </div>
             )}
 
-            <p className="text-caption text-muted-foreground italic mt-2">
+            <p className="text-caption text-muted-foreground mt-2">
                 Dégâts théoriques (formule Dofus 2 : base × (1 + (stat + puissance)/100) + dommages fixes, majorés par les % sorts/distance/mêlée).
-                Le total cumule les lignes du sort par lancer — comparez les lignes unitaires avec Dofusbook / DofusDB.
+                Le total cumule les lignes du sort par lancer ; « Par cible » multiplie par le nombre de lancers sur la même cible (plafonné au tour), « Par tour » par le nombre de lancers par tour (grade affiché).
             </p>
         </div>
     );

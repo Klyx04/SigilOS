@@ -47,6 +47,7 @@ const PANEL_FILES = [
     "src/app/dashboard/[guildId]/marche/_components/market-publish-step.tsx",
     "src/app/dashboard/[guildId]/admin/_components/market-settings-client.tsx",
     "src/app/god/market/_components/god-market-panel.tsx",
+    "src/app/god/logs/market-log-view.tsx",
 ];
 
 /** Clés présentes dans **tous** les contrats (`ActionResponse`). */

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Check, ChevronDown, Eye, EyeOff, Grid, HelpCircle, Loader2, Map as MapIcon, Move, RotateCcw, Sparkles, Swords, Users, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n/client";
 import { getDofensiveMap, type DofensiveMapData, type DofensiveMapLite } from "@/server/actions/dofensive-actions";
 import {
     CellState,
@@ -28,6 +29,7 @@ export interface SpellZone {
 export interface SpellData {
     id: number;
     name: string;
+    nameEn?: string;
     imageUrl?: string;
     description?: string;
     apCost?: number;
@@ -92,6 +94,12 @@ interface SpellRangeGridProps {
     freeCasterMove?: boolean;
     /** Notification d'un changement de bascule (clic interne ou parent). */
     onFreeCasterMoveChange?: (value: boolean) => void;
+    /** Masque la pose d'alliés (Fécas) : toolbar, jetons et sélection (simulation de build). */
+    hideAllies?: boolean;
+    /** Quand défini, active la pose d'ennemis (jusqu'à `maxEnemies`) avec cette icône (ex. poutch). */
+    enemyIconUrl?: string;
+    /** Plafond d'ennemis posables (défaut 4). */
+    maxEnemies?: number;
 }
 
 // Ligne de Bresenham entre deux cellules (grille orthogonale) — pour la ligne de vue.
@@ -137,7 +145,13 @@ export function SpellRangeGrid({
     allowFreeCasterMove = false,
     freeCasterMove: controlledFreeCasterMove,
     onFreeCasterMoveChange,
+    hideAllies = false,
+    enemyIconUrl,
+    maxEnemies = 4,
 }: SpellRangeGridProps) {
+    const { t, locale } = useI18n();
+    const simT = t.tacticalSim;
+
     // Sort actif — le parent peut contrôler la sélection (activeSpellId/onSelectSpell) ;
     // sinon l'état interne prend le relais (cas de la démo /demo/boss-sim).
     const [internalSpellId, setInternalSpellId] = useState<number | undefined>(activeSpellId);
@@ -173,6 +187,14 @@ export function SpellRangeGrid({
     const [allies, setAllies] = useState<AllyToken[]>([]);
     const [selectedAlly, setSelectedAlly] = useState<number | null>(null);
     const [placingAlly, setPlacingAlly] = useState<boolean>(false);
+
+    // Ennemis (ex. poutchs) posés sur la grille pour tester portées et zones.
+    // Opt-in via `enemyIconUrl` (simulation de build) ; `hideAllies` retire les Fécas.
+    const enemiesEnabled = !!enemyIconUrl;
+    const MAX_ENEMIES = Math.min(8, Math.max(1, Math.floor(maxEnemies)));
+    const [enemies, setEnemies] = useState<DofusPos[]>([]);
+    const [selectedEnemy, setSelectedEnemy] = useState<number | null>(null);
+    const [placingEnemy, setPlacingEnemy] = useState<boolean>(false);
 
     // Cases de départ réelles (map Dofensive).
     const [showStartCells, setShowStartCells] = useState<boolean>(false);
@@ -239,7 +261,7 @@ export function SpellRangeGrid({
     // y compris landing publique). Essayée seulement en contexte titan.
     const slugifyTitan = (name: string): string =>
         name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
-    const bossScale = Math.min(5, Math.max(1, entityScale));
+    const bossScale = Math.min(5, Math.max(0.5, entityScale));
     const titanCandidate = bossScale > 1 && bossName ? `/game-data/titans/${slugifyTitan(bossName)}.webp` : null;
     const [artSrc, setArtSrc] = useState<string | null>(null);
     useEffect(() => {
@@ -428,10 +450,10 @@ export function SpellRangeGrid({
     }, [dungeonMaps, bossName]);
 
     const currentMapName = useMemo(() => {
-        if (selectedMapId === "empty") return "Map vide";
+        if (selectedMapId === "empty") return simT.emptyMap;
         const found = shownMaps.find((m) => m.id === selectedMapId);
-        return found ? (found.isBoss ? `⚔ ${found.name}` : found.name) : "Map vide";
-    }, [selectedMapId, shownMaps]);
+        return found ? (found.isBoss ? `⚔ ${found.name}` : found.name) : simT.emptyMap;
+    }, [selectedMapId, shownMaps, simT.emptyMap]);
 
     // Reset / garde de cohérence quand le boss (et donc ses maps) change.
     // Sélection automatique de la première map de combat du boss (si présente).
@@ -579,7 +601,7 @@ export function SpellRangeGrid({
         if (isDraggingRef.current || justDraggedRef.current) return;
         if (isObstacle(x, y)) return;
 
-        if (placingAlly) {
+        if (!hideAllies && placingAlly) {
             if (x === casterPos.x && y === casterPos.y) return;
             setAllies((prev) => {
                 const idx = prev.findIndex((a) => a.x === x && a.y === y);
@@ -590,8 +612,20 @@ export function SpellRangeGrid({
             return;
         }
 
+        if (enemiesEnabled && placingEnemy) {
+            if (x === casterPos.x && y === casterPos.y) return;
+            if (!hideAllies && allies.some((a) => a.x === x && a.y === y)) return;
+            setEnemies((prev) => {
+                const idx = prev.findIndex((e) => e.x === x && e.y === y);
+                if (idx >= 0) return prev.filter((_, i) => i !== idx);
+                if (prev.length >= MAX_ENEMIES) return prev;
+                return [...prev, { x, y }];
+            });
+            return;
+        }
+
         // Un Féca est sélectionné : on le déplace ou on le fait pivoter.
-        if (selectedAlly !== null) {
+        if (!hideAllies && selectedAlly !== null) {
             const ally = allies[selectedAlly];
             if (ally && x === ally.x && y === ally.y) {
                 setAllies((prev) => prev.map((a, i) => (i === selectedAlly ? { ...a, facing: (a.facing + 45) % 360 } : a)));
@@ -607,14 +641,40 @@ export function SpellRangeGrid({
             return;
         }
 
+        // Un ennemi est sélectionné : on le déplace (re-clic = désélection).
+        if (enemiesEnabled && selectedEnemy !== null) {
+            const enemy = enemies[selectedEnemy];
+            if (enemy && x === enemy.x && y === enemy.y) {
+                setSelectedEnemy(null);
+                return;
+            }
+            const hitIdx = enemies.findIndex((e) => e.x === x && e.y === y);
+            if (hitIdx >= 0) {
+                setSelectedEnemy(hitIdx);
+            } else {
+                setEnemies((prev) => prev.map((e, i) => (i === selectedEnemy ? { x, y } : e)));
+                setSelectedEnemy(null);
+            }
+            return;
+        }
+
         // Aucun Féca sélectionné : on sélectionne un Féca.
         // Par défaut le Boss est ÉPINGLÉ sur sa case de placement (non déplaçable).
         // Bypass public (`allowFreeCasterMove` + toggle actif) : un clic sur une case
         // marchable déplace le boss librement pour jouer avec la préview des sorts.
-        const allyIdx = allies.findIndex((a) => a.x === x && a.y === y);
-        if (allyIdx >= 0) {
-            setSelectedAlly(allyIdx);
-            return;
+        if (!hideAllies) {
+            const allyIdx = allies.findIndex((a) => a.x === x && a.y === y);
+            if (allyIdx >= 0) {
+                setSelectedAlly(allyIdx);
+                return;
+            }
+        }
+        if (enemiesEnabled) {
+            const enemyIdx = enemies.findIndex((e) => e.x === x && e.y === y);
+            if (enemyIdx >= 0) {
+                setSelectedEnemy(enemyIdx);
+                return;
+            }
         }
         if (freeCasterMove) {
             const st = cellState(x, y);
@@ -723,6 +783,9 @@ export function SpellRangeGrid({
                 if (Array.isArray(parsed.allies)) {
                     setAllies(parsed.allies);
                 }
+                if (Array.isArray(parsed.enemies)) {
+                    setEnemies(parsed.enemies.filter((e: unknown) => !!e && typeof (e as DofusPos).x === "number"));
+                }
                 if (parsed.casterPos && typeof parsed.casterPos.x === "number") {
                     setCasterPos(parsed.casterPos);
                 }
@@ -747,6 +810,7 @@ export function SpellRangeGrid({
                 JSON.stringify({
                     mapId: selectedMapId,
                     allies,
+                    enemies,
                     casterPos,
                     showStartCells,
                 })
@@ -754,7 +818,7 @@ export function SpellRangeGrid({
         } catch {
             // Ignorer
         }
-    }, [storageKey, selectedMapId, allies, casterPos, showStartCells]);
+    }, [storageKey, selectedMapId, allies, enemies, casterPos, showStartCells]);
 
     // Prévisu de zone d'effet (AoE) : quand on survole une case en portée (ou autour du lanceur si sort 0 PO)
     const zonePreview = useMemo(() => {
@@ -791,6 +855,18 @@ export function SpellRangeGrid({
         });
         return hits;
     }, [zonePreview, allies]);
+
+    // Ennemis touchés dans la zone d'impact actuelle (poutchs = mannequins de test).
+    const hitEnemies = useMemo(() => {
+        if (!zonePreview) return new Set<number>();
+        const hits = new Set<number>();
+        enemies.forEach((e, idx) => {
+            if (zonePreview.has(`${e.x},${e.y}`)) {
+                hits.add(idx);
+            }
+        });
+        return hits;
+    }, [zonePreview, enemies]);
 
     // Recentre sur la case de départ du boss (map) ou le centre (grille libre).
     const recenter = () => {
@@ -841,17 +917,19 @@ export function SpellRangeGrid({
                 const key = `${c},${r}`;
                 const isC = c === casterPos.x && r === casterPos.y;
                 const isA = allies.some((a) => a.x === c && a.y === r);
+                const isE = enemies.some((e) => e.x === c && e.y === r);
                 let fill = "#1a1a18";
                 if (state === CellState.OBSTACLE) fill = "#6b6548";
                 else if (state === CellState.GROUND) fill = "#8D8A66";
                 else if (state === CellState.HOLE) fill = "#050505";
                 if (isC) fill = "#c53030";
                 else if (isA) fill = "#3b82f6";
+                else if (isE) fill = "#ef4444";
                 cellsEls.push(<rect key={key} x={c * px} y={r * px} width={px - 0.5} height={px - 0.5} rx={0.6} fill={fill} />);
             }
         }
         return { rows, cols, px, w, h, cellsEls };
-    }, [mapData, mapStates, casterPos, allies]);
+    }, [mapData, mapStates, casterPos, allies, enemies]);
 
     // ── Dimensions de rendu ──
     // Maps réelles : grille brick Dofus (losanges 64×32, quinconce). Grille libre : 17×17 isométrique.
@@ -906,7 +984,7 @@ export function SpellRangeGrid({
                 <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-background border border-border rounded-xl">
                     <div className="flex flex-wrap items-center gap-2.5">
                         <span className="text-xs font-bold text-muted-foreground flex items-center gap-1.5 shrink-0">
-                            <Zap className="w-3.5 h-3.5 text-warning" /> Sort simulé :
+                            <Zap className="w-3.5 h-3.5 text-warning" /> {simT.simulatedSpell}
                         </span>
                         <select
                             value={currentSpell?.id ?? ""}
@@ -916,11 +994,14 @@ export function SpellRangeGrid({
                             }}
                             className="bg-surface border border-border text-foreground text-xs font-bold rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-warning/40 max-w-[280px]"
                         >
-                            {spells.map((s) => (
-                                <option key={s.id} value={s.id}>
-                                    {s.name} ({s.apCost ? `${s.apCost} PA · ` : ""}{s.minRange === s.range ? `${s.range} PO` : `${s.minRange ?? 0}-${s.range ?? 0} PO`})
-                                </option>
-                            ))}
+                            {spells.map((s) => {
+                                const displayName = locale === "en" ? (s.nameEn || s.name) : s.name;
+                                return (
+                                    <option key={s.id} value={s.id}>
+                                        {displayName} ({s.apCost ? `${s.apCost} PA · ` : ""}{s.minRange === s.range ? `${s.range} PO` : `${s.minRange ?? 0}-${s.range ?? 0} PO`})
+                                    </option>
+                                );
+                            })}
                         </select>
 
                         {/* Badges résumés du sort */}
@@ -936,11 +1017,11 @@ export function SpellRangeGrid({
                                     "text-[10px] font-bold px-2 py-0.5 rounded-md border",
                                     castTestLos ? "bg-muted/15 text-muted-foreground border-border" : "bg-success/15 text-success border-success/30 font-black"
                                 )}>
-                                    {castTestLos ? "Ligne de vue" : "Sans Ligne de Vue"}
+                                    {castTestLos ? simT.los : simT.noLos}
                                 </span>
                                 {currentSpell.zone && currentSpell.zone.shape !== "Inconnue" && (
                                     <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-warning/10 text-warning border border-warning/20">
-                                        Zone {currentSpell.zone.shape}
+                                        {simT.zoneShape.replace("{shape}", currentSpell.zone.shape)}
                                     </span>
                                 )}
                             </div>
@@ -950,9 +1031,9 @@ export function SpellRangeGrid({
                     <button
                         type="button"
                         onClick={recenter}
-                        className="inline-flex items-center gap-1 text-xs font-bold text-muted-foreground hover:text-foreground bg-surface border border-border px-2.5 py-1.5 rounded-lg transition-colors shadow-2xs shrink-0"
+                        className="inline-flex items-center gap-1 text-xs font-bold text-muted-foreground hover:text-foreground bg-surface border border-border px-2.5 py-1.5 rounded-lg transition-colors shadow-2xs shrink-0 cursor-pointer"
                     >
-                        <RotateCcw className="w-3.5 h-3.5" /> Recentrer
+                        <RotateCcw className="w-3.5 h-3.5" /> {simT.recenter}
                     </button>
                 </div>
             )}
@@ -987,20 +1068,28 @@ export function SpellRangeGrid({
                                             ? "border-white/20 bg-white/[0.08] text-white"
                                             : "border-white/10 hover:border-white/20 text-zinc-200 hover:bg-zinc-800"
                                     )}
-                                    title={currentSpell ? `${currentSpell.name} (${currentSpell.apCost ?? 0} PA · ${currentSpell.minRange === currentSpell.range ? `${currentSpell.range} PO` : `${currentSpell.minRange ?? 0}-${currentSpell.range ?? 0} PO`})` : "Sélectionner un sort"}
+                                    title={currentSpell ? `${locale === "en" ? (currentSpell.nameEn || currentSpell.name) : currentSpell.name} (${currentSpell.apCost ?? 0} PA · ${currentSpell.minRange === currentSpell.range ? `${currentSpell.range} PO` : `${currentSpell.minRange ?? 0}-${currentSpell.range ?? 0} PO`})` : simT.selectSpell}
                                 >
                                     <div className="flex items-center gap-1.5 min-w-0 truncate">
                                         {currentSpell?.imageUrl ? (
                                             <img
-                                                src={`/api/assets-dofus/spells/${currentSpell.id}?url=${encodeURIComponent(currentSpell.imageUrl)}`}
+                                                src={currentSpell.imageUrl}
                                                 alt=""
                                                 className="w-3.5 h-3.5 object-contain rounded shrink-0"
-                                                onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                                                onError={(e) => {
+                                                    const el = e.target as HTMLImageElement;
+                                                    if (!el.dataset.fb && currentSpell.imageUrl) {
+                                                        el.dataset.fb = "1";
+                                                        el.src = `/api/assets-dofus/spells/${currentSpell.id}?url=${encodeURIComponent(currentSpell.imageUrl)}`;
+                                                    } else {
+                                                        el.style.display = "none";
+                                                    }
+                                                }}
                                             />
                                         ) : (
                                             <Zap className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
                                         )}
-                                        <span className="truncate">{currentSpell?.name ?? "Sort"}</span>
+                                        <span className="truncate">{currentSpell ? (locale === "en" ? (currentSpell.nameEn || currentSpell.name) : currentSpell.name) : (locale === "en" ? "Spell" : "Sort")}</span>
                                         {currentSpell && (
                                             <span className="text-[9px] font-semibold text-white/50 shrink-0">
                                                 ({currentSpell.apCost ?? 0} PA · {currentSpell.minRange === currentSpell.range ? `${currentSpell.range} PO` : `${currentSpell.minRange ?? 0}-${currentSpell.range ?? 0} PO`})
@@ -1018,10 +1107,11 @@ export function SpellRangeGrid({
                                 {isSpellMenuOpen && (
                                     <div className="absolute left-0 top-full mt-1 w-64 sm:w-72 max-h-56 overflow-y-auto rounded-xl bg-[#121218]/95 backdrop-blur-md border border-white/15 shadow-2xl p-1 z-50 animate-in fade-in zoom-in-95 duration-100 [scrollbar-width:thin] [scrollbar-color:rgba(255,255,255,0.2)_transparent]">
                                         <div className="px-2 py-1 text-[9px] font-bold text-white/40 uppercase tracking-wider">
-                                            Sorts de combat ({spells.length})
+                                            {simT.combatSpells.replace("{count}", String(spells.length))}
                                         </div>
                                         {spells.map((s) => {
                                             const isSelected = currentSpell?.id === s.id;
+                                            const displayName = locale === "en" ? (s.nameEn || s.name) : s.name;
                                             return (
                                                 <button
                                                     key={s.id}
@@ -1040,15 +1130,23 @@ export function SpellRangeGrid({
                                                     <div className="flex items-center gap-2 min-w-0 flex-1">
                                                         {s.imageUrl ? (
                                                             <img
-                                                                src={`/api/assets-dofus/spells/${s.id}?url=${encodeURIComponent(s.imageUrl)}`}
+                                                                src={s.imageUrl}
                                                                 alt=""
                                                                 className="w-4 h-4 object-contain rounded shrink-0"
-                                                                onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                                                                onError={(e) => {
+                                                                    const el = e.target as HTMLImageElement;
+                                                                    if (!el.dataset.fb && s.imageUrl) {
+                                                                        el.dataset.fb = "1";
+                                                                        el.src = `/api/assets-dofus/spells/${s.id}?url=${encodeURIComponent(s.imageUrl)}`;
+                                                                    } else {
+                                                                        el.style.display = "none";
+                                                                    }
+                                                                }}
                                                             />
                                                         ) : (
                                                             <Zap className="w-4 h-4 text-zinc-400 shrink-0" />
                                                         )}
-                                                        <span className="truncate font-medium">{s.name}</span>
+                                                        <span className="truncate font-medium">{displayName}</span>
                                                     </div>
                                                     <div className="flex items-center gap-1 shrink-0 text-[10px]">
                                                         <span className="text-white/70">{s.apCost ?? 0} PA</span>
@@ -1117,7 +1215,7 @@ export function SpellRangeGrid({
                                             >
                                                 <div className="flex items-center gap-2 min-w-0">
                                                     <Grid className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
-                                                    <span className="truncate">Map vide (Grille 17×17)</span>
+                                                    <span className="truncate">{simT.emptyMapGrid}</span>
                                                 </div>
                                                 {selectedMapId === "empty" && <Check className="w-3 h-3 text-zinc-400 shrink-0" />}
                                             </button>
@@ -1212,18 +1310,35 @@ export function SpellRangeGrid({
 
                             {/* Actions rapides icônes */}
                             <div className="inline-flex items-center gap-1">
-                                <button
-                                    type="button"
-                                    onClick={() => { setPlacingAlly((v) => !v); setSelectedAlly(null); }}
-                                    className={cn(
-                                        "px-1.5 py-0.5 rounded-md border text-[10px] font-semibold transition-colors flex items-center gap-1",
-                                        placingAlly ? "bg-sky-500/20 border-sky-400 text-sky-300" : "bg-zinc-900 border-white/10 text-zinc-400 hover:text-white"
-                                    )}
-                                    title="Placer des alliés"
-                                >
-                                    <Users className="w-3 h-3" />
-                                    <span>{allies.length}</span>
-                                </button>
+                                {!hideAllies && (
+                                    <button
+                                        type="button"
+                                        onClick={() => { setPlacingAlly((v) => !v); setSelectedAlly(null); }}
+                                        className={cn(
+                                            "px-1.5 py-0.5 rounded-md border text-[10px] font-semibold transition-colors flex items-center gap-1",
+                                            placingAlly ? "bg-sky-500/20 border-sky-400 text-sky-300" : "bg-zinc-900 border-white/10 text-zinc-400 hover:text-white"
+                                        )}
+                                        title="Placer des alliés"
+                                    >
+                                        <Users className="w-3 h-3" />
+                                        <span>{allies.length}</span>
+                                    </button>
+                                )}
+                                {enemiesEnabled && (
+                                    <button
+                                        type="button"
+                                        onClick={() => { setPlacingEnemy((v) => !v); setSelectedEnemy(null); }}
+                                        className={cn(
+                                            "px-1.5 py-0.5 rounded-md border text-[10px] font-semibold transition-colors flex items-center gap-1",
+                                            placingEnemy ? "bg-red-500/20 border-red-400 text-red-300" : "bg-zinc-900 border-white/10 text-zinc-400 hover:text-white"
+                                        )}
+                                        title={`Placer des ennemis (max ${MAX_ENEMIES})`}
+                                    >
+                                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                                        <img src={enemyIconUrl} alt="" className="w-3 h-3 object-contain" loading="lazy" />
+                                        <span>{enemies.length}</span>
+                                    </button>
+                                )}
 
                                 {mapData && (
                                     <button
@@ -1269,11 +1384,11 @@ export function SpellRangeGrid({
                     <>
                         <div className="w-full flex items-center justify-between text-xs text-zinc-400 mb-2 px-2">
                             <span className="font-bold text-zinc-300">
-                                Entité : <strong className="text-zinc-300">{bossName}</strong>
+                                {simT.entity} <strong className="text-zinc-300">{bossName}</strong>
                             </span>
                             <span className="text-zinc-500">
-                                Carte : <strong className="text-zinc-400">{mapData ? mapData.name : "Map Tactique Isométrique"}</strong>
-                                {mapData?.coordinates ? ` · ${mapData.coordinates.x}, ${mapData.coordinates.y}` : ""} · {reachableCount} cases couvertes
+                                {simT.map} <strong className="text-zinc-400">{mapData ? mapData.name : simT.tacticalMapName}</strong>
+                                {mapData?.coordinates ? ` · ${mapData.coordinates.x}, ${mapData.coordinates.y}` : ""} · {simT.cellsCovered.replace("{count}", String(reachableCount))}
                             </span>
                         </div>
 
@@ -1283,14 +1398,14 @@ export function SpellRangeGrid({
                         {shownMaps.length > 0 && (
                             <div className="w-full flex flex-wrap items-center gap-2 mb-2 px-2 relative z-40">
                                 <span className="inline-flex items-center gap-1.5 text-xs font-bold text-zinc-400">
-                                    <MapIcon className="w-3.5 h-3.5 text-zinc-300" /> Salle :
+                                    <MapIcon className="w-3.5 h-3.5 text-zinc-300" /> {simT.room}
                                 </span>
                                 <div ref={mapMenuRef} className="relative min-w-[240px] max-w-[360px]">
                                     <button
                                         type="button"
                                         onClick={() => setIsMapMenuOpen((prev) => !prev)}
                                         className={cn(
-                                            "w-full flex items-center justify-between gap-2 bg-zinc-900/90 border rounded-lg px-2.5 py-1.5 text-xs font-bold transition-all",
+                                            "w-full flex items-center justify-between gap-2 bg-zinc-900/90 border rounded-lg px-2.5 py-1.5 text-xs font-bold transition-all cursor-pointer",
                                             isMapMenuOpen
                                                 ? "border-white/20 bg-white/[0.08] text-white"
                                                 : "border-white/10 hover:border-white/20 text-zinc-200 hover:bg-zinc-800"
@@ -1303,7 +1418,7 @@ export function SpellRangeGrid({
                                             ) : (
                                                 <MapIcon className="w-3.5 h-3.5 text-zinc-300 shrink-0" />
                                             )}
-                                            <span className="truncate">{currentMapName}</span>
+                                            <span className="truncate">{selectedMapId === "empty" ? simT.emptyMap : currentMapName}</span>
                                         </div>
                                         <ChevronDown className={cn("w-3.5 h-3.5 text-zinc-400 transition-transform duration-200 shrink-0", isMapMenuOpen && "rotate-180 text-zinc-300")} />
                                     </button>
@@ -1317,7 +1432,7 @@ export function SpellRangeGrid({
                                                     setIsMapMenuOpen(false);
                                                 }}
                                                 className={cn(
-                                                    "w-full flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg text-xs text-left transition-colors",
+                                                    "w-full flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg text-xs text-left transition-colors cursor-pointer",
                                                     selectedMapId === "empty"
                                                         ? "bg-white/[0.10] text-white"
                                                         : "text-zinc-300 hover:text-white hover:bg-white/[0.06]"
@@ -1325,7 +1440,7 @@ export function SpellRangeGrid({
                                             >
                                                 <div className="flex items-center gap-2 min-w-0">
                                                     <Grid className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
-                                                    <span>Map vide</span>
+                                                    <span>{simT.emptyMap}</span>
                                                 </div>
                                                 {selectedMapId === "empty" && <Check className="w-3.5 h-3.5 text-zinc-300 shrink-0" />}
                                             </button>
@@ -1340,7 +1455,7 @@ export function SpellRangeGrid({
                                                             setIsMapMenuOpen(false);
                                                         }}
                                                         className={cn(
-                                                            "w-full flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg text-xs text-left transition-colors mt-0.5",
+                                                            "w-full flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg text-xs text-left transition-colors mt-0.5 cursor-pointer",
                                                             isSelected
                                                                 ? "bg-white/[0.10] text-white"
                                                                 : "text-zinc-300 hover:text-white hover:bg-white/[0.06]"
@@ -1365,37 +1480,55 @@ export function SpellRangeGrid({
 
                         <div className="w-full flex flex-wrap items-center gap-2 mb-2 px-2 relative z-10">
                             <div className="inline-flex items-center gap-1 bg-surface border border-border rounded-lg p-0.5">
-                                <button type="button" onClick={() => setZoom((z) => Math.max(ZOOM_MIN, Number((z - 0.2).toFixed(2))))} className="px-2 py-1 rounded-md text-xs font-black text-muted-foreground hover:text-foreground hover:bg-elevated transition-all" title="Zoom arrière">−</button>
+                                <button type="button" onClick={() => setZoom((z) => Math.max(ZOOM_MIN, Number((z - 0.2).toFixed(2))))} className="px-2 py-1 rounded-md text-xs font-black text-muted-foreground hover:text-foreground hover:bg-elevated transition-all cursor-pointer" title={locale === "en" ? "Zoom out" : "Zoom arrière"}>−</button>
                                 <span className="text-[10px] font-bold text-muted-foreground px-1 tabular-nums w-9 text-center">{Math.round(zoom * 100)}%</span>
-                                <button type="button" onClick={() => setZoom((z) => Math.min(ZOOM_MAX, Number((z + 0.2).toFixed(2))))} className="px-2 py-1 rounded-md text-xs font-black text-muted-foreground hover:text-foreground hover:bg-elevated transition-all" title="Zoom avant">+</button>
-                                <button type="button" onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }); }} className="px-1.5 py-1 rounded-md text-[10px] font-bold text-muted-foreground hover:text-foreground hover:bg-elevated transition-all" title="1:1 (recentrer)">1:1</button>
+                                <button type="button" onClick={() => setZoom((z) => Math.min(ZOOM_MAX, Number((z + 0.2).toFixed(2))))} className="px-2 py-1 rounded-md text-xs font-black text-muted-foreground hover:text-foreground hover:bg-elevated transition-all cursor-pointer" title={locale === "en" ? "Zoom in" : "Zoom avant"}>+</button>
+                                <button type="button" onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }); }} className="px-1.5 py-1 rounded-md text-[10px] font-bold text-muted-foreground hover:text-foreground hover:bg-elevated transition-all cursor-pointer" title={locale === "en" ? "1:1 (recenter)" : "1:1 (recentrer)"}>1:1</button>
                             </div>
-                            <button
-                                type="button"
-                                onClick={() => { setPlacingAlly((v) => !v); setSelectedAlly(null); }}
-                                className={cn(
-                                    "inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1.5 rounded-lg border transition-all",
-                                    placingAlly
-                                        ? "bg-sky-500/20 border-sky-400 text-sky-500 dark:text-sky-300"
-                                        : "bg-surface border-border text-muted-foreground hover:text-foreground hover:bg-elevated"
-                                )}
-                            >
-                                <Users className="w-3.5 h-3.5" />
-                                {placingAlly ? "Clique sur une case pour poser/retirer un allié" : `Alliés ${allies.length}/${MAX_ALLIES}`}
-                            </button>
+                            {!hideAllies && (
+                                <button
+                                    type="button"
+                                    onClick={() => { setPlacingAlly((v) => !v); setSelectedAlly(null); }}
+                                    className={cn(
+                                        "inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1.5 rounded-lg border transition-all cursor-pointer",
+                                        placingAlly
+                                            ? "bg-sky-500/20 border-sky-400 text-sky-500 dark:text-sky-300"
+                                            : "bg-surface border-border text-muted-foreground hover:text-foreground hover:bg-elevated"
+                                    )}
+                                >
+                                    <Users className="w-3.5 h-3.5" />
+                                    {placingAlly ? simT.alliesPlacementHint : `${simT.allies} ${allies.length}/${MAX_ALLIES}`}
+                                </button>
+                            )}
+                            {enemiesEnabled && (
+                                <button
+                                    type="button"
+                                    onClick={() => { setPlacingEnemy((v) => !v); setSelectedEnemy(null); }}
+                                    className={cn(
+                                        "inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1.5 rounded-lg border transition-all cursor-pointer",
+                                        placingEnemy
+                                            ? "bg-red-500/20 border-red-400 text-red-500 dark:text-red-300"
+                                            : "bg-surface border-border text-muted-foreground hover:text-foreground hover:bg-elevated"
+                                    )}
+                                >
+                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                    <img src={enemyIconUrl} alt="" className="w-3.5 h-3.5 object-contain" loading="lazy" />
+                                    {placingEnemy ? simT.enemiesPlacementHint : `${simT.enemies} ${enemies.length}/${MAX_ENEMIES}`}
+                                </button>
+                            )}
                             {mapData && (
                                 <button
                                     type="button"
                                     onClick={toggleStartCells}
                                     className={cn(
-                                        "inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1.5 rounded-lg border transition-all",
+                                        "inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1.5 rounded-lg border transition-all cursor-pointer",
                                         showStartCells
                                             ? "bg-white/[0.12] border-white/25 text-white"
                                             : "bg-surface border-border text-muted-foreground hover:text-foreground hover:bg-elevated"
                                     )}
-                                    title="Placements de départ : pose le boss, les monstres et les alliés sur leurs cases réelles"
+                                    title={simT.startCellsTitle}
                                 >
-                                    <MapIcon className="w-3.5 h-3.5" /> Placements de départ
+                                    <MapIcon className="w-3.5 h-3.5" /> {simT.startCells}
                                 </button>
                             )}
                             {allowFreeCasterMove && (
@@ -1403,19 +1536,19 @@ export function SpellRangeGrid({
                                     type="button"
                                     onClick={() => setFreeCasterMove((v) => !v)}
                                     className={cn(
-                                        "inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1.5 rounded-lg border transition-all",
+                                        "inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1.5 rounded-lg border transition-all cursor-pointer",
                                         freeCasterMove
                                             ? "bg-white/[0.12] border-white/25 text-white"
                                             : "bg-surface border-border text-muted-foreground hover:text-foreground hover:bg-elevated"
                                     )}
-                                    title="Bypass : déplacez le boss sur n'importe quelle case marchable pour tester les portées"
+                                    title={simT.freeBossTitle}
                                 >
-                                    <Move className="w-3.5 h-3.5" /> {freeCasterMove ? "Boss libre : ON" : "Boss libre"}
+                                    <Move className="w-3.5 h-3.5" /> {freeCasterMove ? simT.freeBossOn : simT.freeBoss}
                                 </button>
                             )}
                             {mapData && totalPlacements > 1 && (
                                 <div className="inline-flex items-center gap-1 bg-surface border border-border rounded-lg p-0.5">
-                                    <span className="text-[11px] font-bold text-zinc-400 pl-2">Placement :</span>
+                                    <span className="text-[11px] font-bold text-zinc-400 pl-2">{simT.placement}</span>
                                     <select
                                         value={placementIndex}
                                         onChange={(e) => {
@@ -1437,8 +1570,8 @@ export function SpellRangeGrid({
                                     <button
                                         type="button"
                                         onClick={() => setShowRulesModal(true)}
-                                        className="p-1 text-zinc-400 hover:text-zinc-300 transition-colors pr-1.5"
-                                        title="Comment fonctionnent les règles de placement sur Dofus ?"
+                                        className="p-1 text-zinc-400 hover:text-zinc-300 transition-colors pr-1.5 cursor-pointer"
+                                        title={simT.rulesModalTooltip}
                                     >
                                         <HelpCircle className="w-3.5 h-3.5" />
                                     </button>
@@ -1446,7 +1579,7 @@ export function SpellRangeGrid({
                             )}
                             {mapData && (
                                 <div className="inline-flex items-center gap-1 bg-zinc-900 border border-white/10 rounded-lg p-0.5">
-                                    <span className="text-[11px] font-bold text-zinc-400 pl-2">Butin :</span>
+                                    <span className="text-[11px] font-bold text-zinc-400 pl-2">{simT.loot}</span>
                                     <select
                                         value={lootCount}
                                         onChange={(e) => {
@@ -1461,19 +1594,19 @@ export function SpellRangeGrid({
                                     >
                                         {[4, 5, 6, 7, 8].map((b) => (
                                             <option key={b} value={b}>
-                                                Butin {b} ({b} monstres)
+                                                {simT.lootOption.replace(/\{count\}/g, String(b))}
                                             </option>
                                         ))}
                                     </select>
                                 </div>
                             )}
-                            {allies.length > 0 && (
+                            {(allies.length > 0 || enemies.length > 0) && (
                                 <button
                                     type="button"
-                                    onClick={() => setAllies([])}
-                                    className="inline-flex items-center gap-1 text-xs font-bold text-zinc-400 hover:text-white bg-zinc-800 border border-white/10 px-2.5 py-1.5 rounded-lg transition-all"
+                                    onClick={() => { setAllies([]); setEnemies([]); setSelectedAlly(null); setSelectedEnemy(null); }}
+                                    className="inline-flex items-center gap-1 text-xs font-bold text-zinc-400 hover:text-white bg-zinc-800 border border-white/10 px-2.5 py-1.5 rounded-lg transition-all cursor-pointer"
                                 >
-                                    <RotateCcw className="w-3 h-3" /> Vider
+                                    <RotateCcw className="w-3 h-3" /> {simT.clear}
                                 </button>
                             )}
                         </div>
@@ -1484,7 +1617,7 @@ export function SpellRangeGrid({
                 {mapData && showStartCells && monsterPlacements.length > 0 && (
                     <div className="w-full flex flex-wrap items-center gap-1.5 mb-2 px-2 py-1.5 bg-zinc-900/90 border border-white/10 rounded-xl text-[11px] relative z-10 shrink-0">
                         <span className="font-bold text-zinc-300 flex items-center gap-1 shrink-0">
-                            <Users className="w-3.5 h-3.5" /> Ordre d'apparition (Butin {lootCount}) :
+                            <Users className="w-3.5 h-3.5" /> {simT.appearanceOrder.replace("{count}", String(lootCount))}
                         </span>
                         <div className="flex flex-wrap items-center gap-1.5">
                             {monsterPlacements.map((mp) => (
@@ -1574,7 +1707,9 @@ export function SpellRangeGrid({
                                 const isStartEnemy = monsterOrder !== undefined;
                                 const { sx, sy } = cellToScreen(c, r, tileW, tileH);
                                 const isCaster = !obs && c === casterPos.x && r === casterPos.y;
-                                const isAllyCell = !obs && allies.some((a) => a.x === c && a.y === r);
+                                const isAllyCell = !obs && !hideAllies && allies.some((a) => a.x === c && a.y === r);
+                                const isEnemyCell = !obs && enemiesEnabled && enemies.some((e) => e.x === c && e.y === r);
+                                const isTokenCell = isAllyCell || isEnemyCell;
                                 const inRange = !obs && isCellInRange(c, r);
                                 const isHovered = hoveredCell?.x === c && hoveredCell?.y === r;
 
@@ -1615,18 +1750,18 @@ export function SpellRangeGrid({
                                     fillColor = "#6b1d1d";
                                     strokeColor = "#c53030";
                                     strokeWidth = 1.4;
-                                } else if (isAllyCell) {
+                                } else if (isTokenCell) {
                                     fillColor = inRange ? "#a11c1c" : "#1e3a5f";
                                     strokeColor = inRange ? "#ef4444" : "#3b82f6";
                                     strokeWidth = 1.4;
                                 }
 
-                                if (isHovered && !isCaster && !isAllyCell && !obs) {
+                                if (isHovered && !isCaster && !isTokenCell && !obs) {
                                     fillColor = inRange ? "#9ae44c" : "#a39e90";
                                 }
 
                                 // Prévisu de zone d'effet (AoE) : ambre, prioritaire sur la portée.
-                                if (isInZone(c, r) && !obs && !isCaster && !isAllyCell) {
+                                if (isInZone(c, r) && !obs && !isCaster && !isTokenCell) {
                                     fillColor = "#e0a320";
                                     strokeColor = "#ffcf5e";
                                     strokeWidth = 1.1;
@@ -1737,26 +1872,51 @@ export function SpellRangeGrid({
                                         );
                                     }
                                 }
-                                const ai = allies.findIndex((a) => a.x === c && a.y === r);
-                                if (ai >= 0) {
-                                    const isSel = selectedAlly === ai;
-                                    const isHit = hitAllies.has(ai);
-                                    return (
-                                        <g key={`ally-${ai}`} pointerEvents="none">
-                                            {isSel && (<circle cx={sx} cy={sy + 10} r="22" fill="none" stroke="#fbbf24" strokeWidth="2" strokeDasharray="4 3" opacity="0.9" />)}
-                                            {isHit && (
-                                                <circle cx={sx} cy={sy + 10} r="20" fill="rgba(239, 68, 68, 0.4)" stroke="#ef4444" strokeWidth="2.5">
-                                                    <animate attributeName="opacity" values="0.4;0.9;0.4" dur="1s" repeatCount="indefinite" />
-                                                </circle>
-                                            )}
-                                            <g transform={`translate(${sx - 22}, ${sy - 32})`}>
-                                                <image href="/assets/module-succes/feca.webp" x="0" y="0" width="44" height="44" className="drop-shadow-2xl" />
+                                if (!hideAllies) {
+                                    const ai = allies.findIndex((a) => a.x === c && a.y === r);
+                                    if (ai >= 0) {
+                                        const isSel = selectedAlly === ai;
+                                        const isHit = hitAllies.has(ai);
+                                        return (
+                                            <g key={`ally-${ai}`} pointerEvents="none">
+                                                {isSel && (<circle cx={sx} cy={sy + 10} r="22" fill="none" stroke="#fbbf24" strokeWidth="2" strokeDasharray="4 3" opacity="0.9" />)}
+                                                {isHit && (
+                                                    <circle cx={sx} cy={sy + 10} r="20" fill="rgba(239, 68, 68, 0.4)" stroke="#ef4444" strokeWidth="2.5">
+                                                        <animate attributeName="opacity" values="0.4;0.9;0.4" dur="1s" repeatCount="indefinite" />
+                                                    </circle>
+                                                )}
+                                                <g transform={`translate(${sx - 22}, ${sy - 32})`}>
+                                                    <image href="/assets/module-succes/feca.webp" x="0" y="0" width="44" height="44" className="drop-shadow-2xl" />
+                                                </g>
+                                                {isHit && (
+                                                    <text x={sx} y={sy - 36} textAnchor="middle" fill="#ef4444" fontSize="11" fontWeight="900" className="select-none">⚠️ ZONE</text>
+                                                )}
                                             </g>
-                                            {isHit && (
-                                                <text x={sx} y={sy - 36} textAnchor="middle" fill="#ef4444" fontSize="11" fontWeight="900" className="select-none">⚠️ ZONE</text>
-                                            )}
-                                        </g>
-                                    );
+                                        );
+                                    }
+                                }
+                                if (enemiesEnabled) {
+                                    const ei = enemies.findIndex((e) => e.x === c && e.y === r);
+                                    if (ei >= 0) {
+                                        const isSel = selectedEnemy === ei;
+                                        const isHit = hitEnemies.has(ei);
+                                        return (
+                                            <g key={`enemy-${ei}`} pointerEvents="none">
+                                                {isSel && (<circle cx={sx} cy={sy + 10} r="22" fill="none" stroke="#fbbf24" strokeWidth="2" strokeDasharray="4 3" opacity="0.9" />)}
+                                                {isHit && (
+                                                    <circle cx={sx} cy={sy + 10} r="20" fill="rgba(239, 68, 68, 0.4)" stroke="#ef4444" strokeWidth="2.5">
+                                                        <animate attributeName="opacity" values="0.4;0.9;0.4" dur="1s" repeatCount="indefinite" />
+                                                    </circle>
+                                                )}
+                                                <g transform={`translate(${sx - 22}, ${sy - 32})`}>
+                                                    <image href={enemyIconUrl} x="0" y="0" width="44" height="44" className="drop-shadow-2xl" />
+                                                </g>
+                                                {isHit && (
+                                                    <text x={sx} y={sy - 36} textAnchor="middle" fill="#ef4444" fontSize="11" fontWeight="900" className="select-none">ZONE</text>
+                                                )}
+                                            </g>
+                                        );
+                                    }
                                 }
                                 return null;
                             }),
@@ -1771,7 +1931,9 @@ export function SpellRangeGrid({
                                 const sx = freeOriginX + (x - y) * tileHalfW;
                                 const sy = freeOriginY + (x + y) * tileHalfH;
                                 const isCaster = x === casterPos.x && y === casterPos.y;
-                                const isAllyCell = allies.some((a) => a.x === x && a.y === y);
+                                const isAllyCell = !hideAllies && allies.some((a) => a.x === x && a.y === y);
+                                const isEnemyCell = enemiesEnabled && enemies.some((e) => e.x === x && e.y === y);
+                                const isTokenCell = isAllyCell || isEnemyCell;
                                 const inRange = isCellInRange(x, y);
                                 const isHovered = hoveredCell?.x === x && hoveredCell?.y === y;
                                 const isEven = (x + y) % 2 === 0;
@@ -1797,24 +1959,24 @@ export function SpellRangeGrid({
                                     fillColor = "#6b1d1d";
                                     strokeColor = "#c53030";
                                     strokeWidth = 1.5;
-                                } else if (isAllyCell) {
+                                } else if (isTokenCell) {
                                     fillColor = inRange ? "#a11c1c" : "#1e3a5f";
                                     strokeColor = inRange ? "#ef4444" : "#3b82f6";
                                     strokeWidth = 1.5;
                                 }
 
-                                if (isHovered && !isCaster && !isAllyCell) {
+                                if (isHovered && !isCaster && !isTokenCell) {
                                     fillColor = inRange ? "#9ae44c" : "#7c7767";
                                 }
 
                                 // Prévisu de zone d'effet (AoE) : ambre, prioritaire sur la portée.
-                                if (isInZone(x, y) && !isCaster && !isAllyCell) {
+                                if (isInZone(x, y) && !isCaster && !isTokenCell) {
                                     fillColor = "#e0a320";
                                     strokeColor = "#ffcf5e";
                                     strokeWidth = 1.2;
                                 }
 
-                                const sideColor = inRange ? "#4c7a1f" : isCaster ? "#4a1212" : isAllyCell ? (inRange ? "#6f1010" : "#122a4a") : "#3a372e";
+                                const sideColor = inRange ? "#4c7a1f" : isCaster ? "#4a1212" : isTokenCell ? (inRange ? "#6f1010" : "#122a4a") : "#3a372e";
 
                                 return (
                                     <g key={`${x}-${y}`} className="cursor-pointer">
@@ -1858,7 +2020,7 @@ export function SpellRangeGrid({
                                                 )}
                                             </g>
                                         )}
-                                        {allies.map((ally, ai) => {
+                                        {!hideAllies && allies.map((ally, ai) => {
                                             if (ally.x !== x || ally.y !== y) return null;
                                             const isSel = selectedAlly === ai;
                                             return (
@@ -1866,6 +2028,24 @@ export function SpellRangeGrid({
                                                     {isSel && (<circle cx={sx} cy={sy + 10} r="21" fill="none" stroke="#fbbf24" strokeWidth="2" strokeDasharray="4 3" opacity="0.9" />)}
                                                     <g transform={`translate(${sx - 21}, ${sy - 30})`}>
                                                         <image href="/assets/module-succes/feca.webp" x="0" y="0" width="42" height="42" className="drop-shadow-2xl" />
+                                                    </g>
+                                                </g>
+                                            );
+                                        })}
+                                        {enemiesEnabled && enemies.map((enemy, ei) => {
+                                            if (enemy.x !== x || enemy.y !== y) return null;
+                                            const isSel = selectedEnemy === ei;
+                                            const isHit = hitEnemies.has(ei);
+                                            return (
+                                                <g key={`enemy-${ei}`} pointerEvents="none">
+                                                    {isSel && (<circle cx={sx} cy={sy + 10} r="21" fill="none" stroke="#fbbf24" strokeWidth="2" strokeDasharray="4 3" opacity="0.9" />)}
+                                                    {isHit && (
+                                                        <circle cx={sx} cy={sy + 10} r="19" fill="rgba(239, 68, 68, 0.4)" stroke="#ef4444" strokeWidth="2.5">
+                                                            <animate attributeName="opacity" values="0.4;0.9;0.4" dur="1s" repeatCount="indefinite" />
+                                                        </circle>
+                                                    )}
+                                                    <g transform={`translate(${sx - 21}, ${sy - 30})`}>
+                                                        <image href={enemyIconUrl} x="0" y="0" width="42" height="42" className="drop-shadow-2xl" />
                                                     </g>
                                                 </g>
                                             );
@@ -1898,7 +2078,12 @@ export function SpellRangeGrid({
                             <div className="mt-2 space-y-2 px-1">
                                 <div className="w-full flex flex-wrap items-center gap-x-2.5 gap-y-1.5 text-[9px] text-zinc-400">
                                     <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-[2px] inline-block" style={{ background: "#6b1d1d", border: "1px solid #c53030" }} /> Boss (lanceur)</span>
-                                    <span className="inline-flex items-center gap-1"><img src="/assets/module-succes/feca.webp" alt="" className="w-3.5 h-3.5 object-contain rounded-[2px]" /> Joueur (allié)</span>
+                                    {!hideAllies && (
+                                        <span className="inline-flex items-center gap-1"><img src="/assets/module-succes/feca.webp" alt="" className="w-3.5 h-3.5 object-contain rounded-[2px]" /> Joueur (allié)</span>
+                                    )}
+                                    {enemiesEnabled && (
+                                        <span className="inline-flex items-center gap-1"><img src={enemyIconUrl} alt="" className="w-3.5 h-3.5 object-contain rounded-[2px]" /> Ennemi</span>
+                                    )}
                                     <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-[2px] inline-block" style={{ background: "#79b638" }} /> Portée du sort</span>
                                     <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-[2px] inline-block" style={{ background: "#e0a320", border: "1px solid #ffcf5e" }} /> Zone d'effet / AoE</span>
                                     <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-[2px] inline-block" style={{ background: "#8a3a30", border: "1px solid #c65a4a" }} /> Départ Joueurs (Rouge)</span>
@@ -1919,7 +2104,7 @@ export function SpellRangeGrid({
                                             ? "Boss libre : clique une case marchable pour le déplacer (prévisualisation)."
                                             : "Boss épinglé sur son placement — active « Boss libre » pour le déplacer."
                                         : "Boss épinglé sur sa case de placement."}{" "}
-                                    Molette = zoom · clic-glisser = déplacer. Féca : clic pour sélectionner, clic ailleurs pour déplacer, re-clic pour orienter.
+                                    Molette = zoom · clic-glisser = déplacer.{!hideAllies && " Féca : clic pour sélectionner, clic ailleurs pour déplacer, re-clic pour orienter."}{enemiesEnabled && " Ennemi : clic pour sélectionner, clic ailleurs pour déplacer."}
                                 </p>
                             </div>
                         )}
@@ -1927,27 +2112,39 @@ export function SpellRangeGrid({
                 ) : (
                     <>
                         <div className="w-full flex flex-wrap items-center gap-x-3 gap-y-1.5 mt-3 px-2 text-[10px] font-bold text-zinc-400">
-                            <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-[3px] inline-block" style={{ background: "#6b1d1d", border: "1px solid #c53030" }} /> Boss (lanceur)</span>
-                            <span className="inline-flex items-center gap-1.5"><img src="/assets/module-succes/feca.webp" alt="" className="w-4 h-4 object-contain rounded-[3px]" /> Joueur (allié)</span>
-                            <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-[3px] inline-block" style={{ background: "#79b638" }} /> Portée du sort (cibles)</span>
-                            <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-[3px] inline-block" style={{ background: "#e0a320", border: "1px solid #ffcf5e" }} /> Zone d'effet / AoE (cercle, croix...)</span>
-                            <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-[3px] inline-block" style={{ background: "#8a3a30", border: "1px solid #c65a4a" }} /> Départ Joueurs (Rouge)</span>
-                            <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-[3px] inline-block" style={{ background: "#2e5a8a", border: "1px solid #4a86c4" }} /> Départ Monstres (Bleu)</span>
-                            <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-[3px] inline-block" style={{ background: "#1e3a5f", border: "1px solid #3b82f6" }} /> Allié hors de portée</span>
-                            <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-[3px] inline-block" style={{ background: "#a11c1c", border: "1px solid #ef4444" }} /> Allié touché par la zone</span>
-                            {mapData && (
-                                <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-[3px] inline-block" style={{ background: "#8D8A66" }} /> Sol</span>
+                            <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-[3px] inline-block" style={{ background: "#6b1d1d", border: "1px solid #c53030" }} /> {simT.legend.boss}</span>
+                            {!hideAllies && (
+                                <span className="inline-flex items-center gap-1.5"><img src="/assets/module-succes/feca.webp" alt="" className="w-4 h-4 object-contain rounded-[3px]" /> {simT.legend.player}</span>
+                            )}
+                            {enemiesEnabled && (
+                                <span className="inline-flex items-center gap-1.5"><img src={enemyIconUrl} alt="" className="w-4 h-4 object-contain rounded-[3px]" /> {simT.legend.enemy}</span>
+                            )}
+                            <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-[3px] inline-block" style={{ background: "#79b638" }} /> {simT.legend.spellRange}</span>
+                            <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-[3px] inline-block" style={{ background: "#e0a320", border: "1px solid #ffcf5e" }} /> {simT.legend.aoe}</span>
+                            <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-[3px] inline-block" style={{ background: "#8a3a30", border: "1px solid #c65a4a" }} /> {simT.legend.startPlayers}</span>
+                            <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-[3px] inline-block" style={{ background: "#2e5a8a", border: "1px solid #4a86c4" }} /> {simT.legend.startMonsters}</span>
+                            {!hideAllies && (
+                                <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-[3px] inline-block" style={{ background: "#1e3a5f", border: "1px solid #3b82f6" }} /> {simT.legend.outOfRange}</span>
+                            )}
+                            {!hideAllies && (
+                                <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-[3px] inline-block" style={{ background: "#a11c1c", border: "1px solid #ef4444" }} /> {simT.legend.hitByZone}</span>
+                            )}
+                            {enemiesEnabled && (
+                                <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-[3px] inline-block" style={{ background: "#a11c1c", border: "1px solid #ef4444" }} /> {simT.legend.enemyHitByZone}</span>
                             )}
                             {mapData && (
-                                <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-[3px] inline-block" style={{ background: "#777358", border: "1px solid #5C5945" }} /> Obstacle</span>
+                                <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-[3px] inline-block" style={{ background: "#8D8A66" }} /> {simT.legend.walkable}</span>
                             )}
                             {mapData && (
-                                <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-[3px] inline-block" style={{ background: "#050505", border: "1px solid #3a3a3a" }} /> Trou / case impossible</span>
+                                <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-[3px] inline-block" style={{ background: "#777358", border: "1px solid #5C5945" }} /> {simT.legend.obstacle}</span>
+                            )}
+                            {mapData && (
+                                <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-[3px] inline-block" style={{ background: "#050505", border: "1px solid #3a3a3a" }} /> {simT.legend.hole}</span>
                             )}
                         </div>
 
                         <p className="text-[11px] text-zinc-400 mt-2 text-center">
-                            💡 {allowFreeCasterMove ? "Boss libre : cliquez n'importe quelle case marchable pour déplacer le boss et tester les portées. " : "Le Boss est épinglé sur sa case de placement (non déplaçable). "}Molette = zoom · clic-glisser = déplacer la carte. Cliquez un Féca pour le sélectionner, une case pour le déplacer, re-cliquez pour l'orienter. « Placements de départ » pose boss + alliés sur leurs cases réelles.
+                            💡 {allowFreeCasterMove ? (freeCasterMove ? simT.helpers.freeBossTip : simT.helpers.pinnedBossTip) : simT.helpers.pinnedBossTip}{simT.helpers.mouseControls}
                         </p>
                     </>
                 )}
@@ -1967,12 +2164,12 @@ export function SpellRangeGrid({
                     >
                         <div className="flex items-center justify-between border-b border-border pb-3">
                             <h3 className="text-base font-black text-foreground flex items-center gap-2">
-                                <Sparkles className="w-4 h-4 text-warning" /> Règles des Placements en Combat Dofus
+                                <Sparkles className="w-4 h-4 text-warning" /> {simT.rulesModalTitle}
                             </h3>
                             <button
                                 type="button"
                                 onClick={() => setShowRulesModal(false)}
-                                className="text-muted-foreground hover:text-foreground font-black text-lg p-1"
+                                className="text-muted-foreground hover:text-foreground font-black text-lg p-1 cursor-pointer"
                             >
                                 ✕
                             </button>
@@ -1980,21 +2177,21 @@ export function SpellRangeGrid({
 
                         <div className="space-y-3 text-xs text-muted-foreground leading-relaxed">
                             <div className="p-3 rounded-xl bg-warning/10 border border-warning/20 text-warning-foreground">
-                                <p className="font-bold text-foreground mb-1">🎯 Comment le jeu choisit le placement de la team ?</p>
+                                <p className="font-bold text-foreground mb-1">🎯 {simT.rulesTeamTitle}</p>
                                 <ul className="space-y-1 list-disc pl-4 text-muted-foreground">
-                                    <li><strong className="text-foreground">Règle 1 (Majorité) :</strong> Le placement possédé par le plus grand nombre de membres du groupe est choisi.</li>
-                                    <li><strong className="text-foreground">Règle 2 (Incrémentation) :</strong> À la fin d'un combat réussi sur votre placement, votre numéro de placement s'incrémente de +1.</li>
-                                    <li><strong className="text-foreground">Règle 3 (Points de Priorité) :</strong> Jouer sur un placement qui n'est pas le vôtre vous accorde 1 point de priorité (écrase la règle de majorité).</li>
-                                    <li><strong className="text-foreground">Règle 4 (Égalité) :</strong> En cas d'égalité de points de priorité, le placement le plus éloigné du placement 1 est retenu.</li>
+                                    <li><strong className="text-foreground">{simT.rulesTeamRule1Label}</strong> {simT.rulesTeamRule1}</li>
+                                    <li><strong className="text-foreground">{simT.rulesTeamRule2Label}</strong> {simT.rulesTeamRule2}</li>
+                                    <li><strong className="text-foreground">{simT.rulesTeamRule3Label}</strong> {simT.rulesTeamRule3}</li>
+                                    <li><strong className="text-foreground">{simT.rulesTeamRule4Label}</strong> {simT.rulesTeamRule4}</li>
                                 </ul>
                             </div>
 
                             <div className="p-3 rounded-xl bg-surface-raised border border-border">
-                                <p className="font-bold text-foreground mb-1">👾 Positionnement géométrique des Monstres :</p>
+                                <p className="font-bold text-foreground mb-1">👾 {simT.rulesMonsterTitle}</p>
                                 <ol className="space-y-1 list-decimal pl-4">
-                                    <li>Il y a autant de placements disponibles que de cases bleues de départ monstres (ex. 8 placements).</li>
-                                    <li>Pour le <strong>Placement N</strong>, le Boss commence sur la <strong>N-ième case bleue</strong> (triées du plus petit au plus grand ID de cellule).</li>
-                                    <li>Les autres monstres se placent ensuite 1 par 1 : le jeu cherche la case libre située à exactement <strong>3 PO</strong> d'un monstre déjà placé (puis 4 PO, 5 PO... ou 2 PO/1 PO), avec départage par plus petit ID de case.</li>
+                                    <li>{simT.rulesMonsterStep1}</li>
+                                    <li>{simT.rulesMonsterStep2}</li>
+                                    <li>{simT.rulesMonsterStep3}</li>
                                 </ol>
                             </div>
                         </div>
@@ -2003,9 +2200,9 @@ export function SpellRangeGrid({
                             <button
                                 type="button"
                                 onClick={() => setShowRulesModal(false)}
-                                className="px-4 py-2 rounded-xl bg-warning text-warning-foreground font-black text-xs hover:brightness-110 transition-all"
+                                className="px-4 py-2 rounded-xl bg-warning text-warning-foreground font-black text-xs hover:brightness-110 transition-all cursor-pointer"
                             >
-                                J'ai compris
+                                {simT.rulesModalGotIt}
                             </button>
                         </div>
                     </div>

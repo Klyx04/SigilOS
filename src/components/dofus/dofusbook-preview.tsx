@@ -1,19 +1,31 @@
 "use client";
 
 import { useState, useEffect, useMemo, memo } from "react";
-import { getClassName, processDofusbookRawData, type DofusbookPreviewData, type DofusbookItem } from "@/lib/dofusbook-utils";
-import { ExternalLink, Users, Loader2, Zap, Move, Eye, Heart, Shield, Sparkles, RefreshCw, Copy, ShieldAlert, Check } from "lucide-react";
+import { getClassName, processDofusbookRawData, dofusbookItemIconUrl, type DofusbookPreviewData, type DofusbookItem } from "@/lib/dofusbook-utils";
+import { ExternalLink, Users, Loader2, Zap, Move, Shield, Sparkles, RefreshCw, Copy, X } from "lucide-react";
 import NextImage from "next/image";
 import { cn } from "@/lib/utils";
 import { DO_TAGS } from "@/lib/dofus-tags";
+import { TagWithIcons } from "@/components/gallery/gallery-filters";
 import { getClassColor } from "@/components/shared/class-icon";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { resolveDofusStatTheme, dofusStatAssetUrl } from "@/lib/dofus-stats-theme";
+import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { DofusSpellsTab } from "@/components/dofus/dofus-spells-tab";
+import { DofusbookSimulationTab } from "@/components/dofus/dofusbook-simulation-tab";
 import type { BuildStatsForSpells } from "@/lib/dofus-spells";
+
+/** Icônes des onglets : vrais assets du jeu (aucune illustration IA). */
+const BUILD_TABS = [
+    { id: "build", label: "Build", icon: "/assets/dofus/game-icons/crossed-swords.png" },
+    { id: "sorts", label: "Sorts", icon: "/assets/dofus-ui/pictos/sort.png" },
+    { id: "equipement", label: "Équipement", icon: "/assets/dofus/game-icons/chest.png" },
+    { id: "simulation", label: "Simulation", icon: "/assets/dofus-ui/pictos/combat-tactique.png" },
+] as const;
+
+type BuildTabId = (typeof BUILD_TABS)[number]["id"];
 
 type ClothData = { name: string; count: number; total: number; clothItems?: DofusbookItem[]; bonuses?: Record<string, number> };
 
@@ -70,7 +82,7 @@ const parseDofusbookSmithmagic = (smithmagic: any, items: any) => {
                 value: numVal,
                 slotKey: resolvedSlot,
                 itemName: item.name || "Équipement",
-                itemImage: item.picture ? `https://www.dofusbook.net/static/dist/items/${item.picture}-70.webp` : ""
+                itemImage: item.id ? dofusbookItemIconUrl(Number(item.id)) : ""
             });
         }
     }
@@ -114,16 +126,124 @@ const SLOT_LABELS: Record<string, string> = {
     br: "Bouclier", d1: "Dofus 1", d2: "Dofus 2", d3: "Dofus 3", d4: "Dofus 4", d5: "Dofus 5", d6: "Dofus 6",
 };
 
-/** Grille d'équipement détaillée pour l'onglet « Équipement ». */
-function EquipmentGrid({ items }: { items?: Record<string, DofusbookItem | null> }) {
+/** Icône d'item 100 % interne : proxy auto-siphon (aucun hotlink Dofusbook/DofusDB). */
+function ItemIcon({ item, size = 44, className }: { item: DofusbookItem; size?: number; className?: string }) {
+    return (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+            src={dofusbookItemIconUrl(Number(item.id))}
+            alt={item.name}
+            width={size}
+            height={size}
+            loading="lazy"
+            className={cn("object-contain", className)}
+        />
+    );
+}
+
+export type SelectedBuildItem = { item: DofusbookItem; slotLabel: string };
+
+/** Modale interne d'item : infos + effets du build + forgemagie, assets du jeu, aucun lien externe. */
+function ItemDetailModal({
+    selection,
+    clothName,
+    fmLines,
+    onClose,
+}: {
+    selection: SelectedBuildItem;
+    clothName?: string | null;
+    fmLines?: Array<{ stat: string; value: number }>;
+    onClose: () => void;
+}) {
+    const { item, slotLabel } = selection;
+    return (
+        <div
+            role="dialog"
+            aria-modal="true"
+            aria-label={item.name}
+            className="fixed inset-0 z-[80] flex items-center justify-center bg-black/60 p-4"
+            onClick={onClose}
+        >
+            <div
+                className="w-full max-w-md bg-background border border-border rounded-[4px] p-5 flex flex-col gap-4"
+                onClick={(e) => e.stopPropagation()}
+            >
+                <div className="flex items-start gap-3">
+                    <div className="w-14 h-14 rounded-[4px] bg-elevated border border-border flex items-center justify-center overflow-hidden shrink-0">
+                        <ItemIcon item={item} size={48} />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                        <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">{slotLabel}</p>
+                        <h4 className="text-base font-bold text-foreground leading-tight">{item.name}</h4>
+                        <p className="text-caption text-muted-foreground mt-0.5">
+                            {[item.typeName, typeof item.level === "number" ? `Niv. ${item.level}` : null, clothName].filter(Boolean).join(" · ") || "Équipement du build"}
+                        </p>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        aria-label="Fermer"
+                        className="p-1.5 rounded-[4px] text-muted-foreground hover:text-foreground hover:bg-elevated transition-colors cursor-pointer"
+                    >
+                        <X className="w-4 h-4" />
+                    </button>
+                </div>
+
+                {item.effects && item.effects.length > 0 ? (
+                    <div className="flex flex-col gap-1 border-t border-border pt-3">
+                        {item.effects.map((fx) => {
+                            const theme = resolveDofusStatTheme(null, null, fx.code, null);
+                            const label = statLabelMapping[fx.code] || fx.code;
+                            const range = fx.min !== fx.max ? `${fx.min}–${fx.max}` : `${fx.value}`;
+                            return (
+                                <div key={fx.code} className="flex items-center justify-between py-1 border-b border-border/40 last:border-0">
+                                    <span className="inline-flex items-center gap-1.5 text-caption text-muted-foreground min-w-0">
+                                        {theme && (
+                                            // eslint-disable-next-line @next/next/no-img-element
+                                            <img src={dofusStatAssetUrl(theme.asset)} alt="" aria-hidden="true" className="w-3.5 h-3.5 object-contain shrink-0" loading="lazy" />
+                                        )}
+                                        <span className="truncate">{label}</span>
+                                    </span>
+                                    <span className="font-bold tabular-nums text-caption text-foreground whitespace-nowrap ml-2">
+                                        {fx.value > 0 && fx.min === fx.max ? `+${range}` : range}
+                                    </span>
+                                </div>
+                            );
+                        })}
+                    </div>
+                ) : (
+                    <p className="text-caption text-muted-foreground border-t border-border pt-3">
+                        Caractéristiques détaillées non exposées par ce build.
+                    </p>
+                )}
+
+                {fmLines && fmLines.length > 0 && (
+                    <div className="flex flex-col gap-1.5 border-t border-border pt-3">
+                        <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Forgemagie sur cet objet</p>
+                        <div className="flex flex-wrap gap-1.5">
+                            {fmLines.map((fm, i) => (
+                                <span key={i} className="px-2 py-0.5 bg-elevated border border-border rounded-[4px] text-[11px] font-bold tabular-nums text-foreground">
+                                    {fm.value > 0 ? `+${fm.value}` : fm.value} {fm.stat}
+                                </span>
+                            ))}
+                        </div>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}
+
+/** Grille d'équipement détaillée pour l'onglet « Équipement » (clic = modale interne). */
+function EquipmentGrid({ items, onSelect }: { items?: Record<string, DofusbookItem | null>; onSelect: (sel: SelectedBuildItem) => void }) {
     if (!items || Object.keys(items).length === 0) {
         return (
-            <div className="flex-1 flex flex-col items-center justify-center p-12 bg-surface rounded-[2.5rem] border border-border text-center gap-5">
-                <div className="w-16 h-16 rounded-2xl bg-surface border border-border flex items-center justify-center">
+            <div className="flex-1 flex flex-col items-center justify-center p-12 bg-surface rounded-[4px] border border-border text-center gap-5">
+                <div className="w-16 h-16 rounded-[4px] bg-surface border border-border flex items-center justify-center">
                     <Users className="w-8 h-8 text-muted-foreground" />
                 </div>
                 <div className="max-w-xs">
-                    <h4 className="text-lg font-black text-foreground uppercase mb-2">Aucun équipement</h4>
+                    <h4 className="text-lg font-bold text-foreground uppercase mb-2">Aucun équipement</h4>
                     <p className="text-sm text-muted-foreground leading-relaxed">
                         Les données d'équipement n'ont pas encore été chargées pour ce build.
                     </p>
@@ -134,74 +254,57 @@ function EquipmentGrid({ items }: { items?: Record<string, DofusbookItem | null>
 
     const entries = Object.entries(items).filter(([, it]) => !!it) as [string, DofusbookItem][];
     return (
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2">
             {entries.map(([slot, item]) => (
-                <a
+                <button
                     key={slot}
-                    href={`https://dofusdb.fr/fr/database/items?q=${encodeURIComponent(item.name)}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-3 bg-surface/40 backdrop-blur-md p-3 rounded-2xl border border-border hover:border-success/40 hover:bg-elevated/50 transition-all group"
+                    type="button"
+                    onClick={() => onSelect({ item, slotLabel: SLOT_LABELS[slot] || slot })}
+                    className="flex items-center gap-3 bg-surface p-3 rounded-[4px] border border-border hover:border-border-strong hover:bg-elevated transition-colors group text-left cursor-pointer"
                 >
-                    <div className="w-12 h-12 bg-elevated border border-border rounded-xl flex items-center justify-center overflow-hidden shrink-0">
-                        <NextImage
-                            src={`https://www.dofusbook.net/static/dist/items/${item.picture}-70.webp`}
-                            alt={item.name}
-                            width={44}
-                            height={44}
-                            className="object-contain"
-                            unoptimized
-                        />
+                    <div className="w-12 h-12 bg-elevated border border-border rounded-[4px] flex items-center justify-center overflow-hidden shrink-0">
+                        <ItemIcon item={item} size={44} />
                     </div>
                     <div className="min-w-0 flex-1">
                         <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">{SLOT_LABELS[slot] || slot}</p>
-                        <p className="text-label font-bold text-foreground truncate group-hover:text-success transition-colors">{item.name}</p>
+                        <p className="text-label font-bold text-foreground truncate">{item.name}</p>
                     </div>
-                    <ExternalLink className="w-3.5 h-3.5 text-muted-foreground group-hover:text-success transition-colors shrink-0" />
-                </a>
+                </button>
             ))}
         </div>
     );
 }
 
-/** Composant Slot d'équipement interactif */
-function GearSlotItem({ slot, item, label }: { slot: string; item: DofusbookItem | null | undefined; label: string }) {
+/** Slot d'équipement : clic = modale interne (plus aucun lien DofusDB). */
+function GearSlotItem({ slot, item, label, onSelect }: { slot: string; item: DofusbookItem | null | undefined; label: string; onSelect?: (sel: SelectedBuildItem) => void }) {
     return (
         <Tooltip>
             <TooltipTrigger asChild>
-                <a
-                    href={item ? `https://dofusdb.fr/fr/database/items?q=${encodeURIComponent(item.name)}` : "#"}
-                    target={item ? "_blank" : undefined}
-                    rel="noopener noreferrer"
+                <button
+                    type="button"
+                    disabled={!item}
+                    onClick={() => item && onSelect?.({ item, slotLabel: label })}
+                    aria-label={item ? `${label} : ${item.name}` : `${label} vide`}
                     className={cn(
-                        "w-12 h-12 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center p-1.5 relative transition-all duration-200 group/slot",
+                        "w-12 h-12 sm:w-14 sm:h-14 rounded-[4px] flex items-center justify-center p-1.5 relative transition-colors group/slot",
                         item
-                            ? "bg-surface/90 border border-border/80 shadow-lg hover:border-success/50 hover:bg-elevated hover:scale-105"
+                            ? "bg-surface border border-border hover:border-border-strong hover:bg-elevated cursor-pointer"
                             : "bg-surface/30 border border-border/30 opacity-30 cursor-default"
                     )}
-                    onClick={(e) => !item && e.preventDefault()}
                 >
                     {item ? (
-                        <NextImage
-                            src={`https://www.dofusbook.net/static/dist/items/${item.picture}-70.webp`}
-                            alt={item.name}
-                            width={48}
-                            height={48}
-                            className="object-contain drop-shadow-md"
-                            unoptimized
-                        />
+                        <ItemIcon item={item} size={48} />
                     ) : (
                         <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-tighter opacity-50">
                             {slot}
                         </span>
                     )}
-                </a>
+                </button>
             </TooltipTrigger>
             {item && (
-                <TooltipContent className="bg-background border border-border text-foreground p-2.5 rounded-xl shadow-2xl max-w-[220px] text-center" side="top">
+                <TooltipContent className="bg-background border border-border text-foreground p-2 rounded-[4px] max-w-[220px] text-center" side="top">
                     <p className="text-[10px] font-bold uppercase text-muted-foreground">{label}</p>
-                    <p className="font-black text-body-sm text-foreground">{item.name}</p>
-                    <span className="text-[10px] text-success font-semibold block mt-1">→ Ouvrir sur DofusDB</span>
+                    <p className="font-bold text-body-sm text-foreground">{item.name}</p>
                 </TooltipContent>
             )}
         </Tooltip>
@@ -212,12 +315,14 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
     const [data, setData] = useState<DofusbookPreviewData | null>(initialData || null);
     const [loading, setLoading] = useState(!initialData);
     const [lastRefresh, setLastRefresh] = useState(0);
-    const [activeTab, setActiveTab] = useState<"build" | "sorts" | "equipement">("build");
+    const [activeTab, setActiveTab] = useState<BuildTabId>("build");
+    // Item sélectionné pour la modale interne (aucun appel réseau : données du build).
+    const [selected, setSelected] = useState<SelectedBuildItem | null>(null);
 
     const idMatch = url.match(/(?:equipement\/(?:[a-z]+\/)?([\d]+)|d-bk\.net\/(?:fr\/)?d\/([a-zA-Z0-9]+))/i);
     const buildId = idMatch ? (idMatch[1] || idMatch[2]) : null;
 
-    const fetchBuild = async (force: boolean = false) => {
+    const fetchBuild = async (force: boolean = false, silent: boolean = false) => {
         if (!buildId) return;
 
         if (force) {
@@ -231,7 +336,7 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
             setLastRefresh(now);
         }
 
-        setLoading(true);
+        if (!silent) setLoading(true);
         try {
             const response = await fetch(`/api/dofusbook/proxy/${buildId}`, {
                 headers: force ? { "Cache-Control": "no-cache" } : {}
@@ -260,13 +365,23 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
     };
 
     useEffect(() => {
-        if (initialData || !buildId) { setLoading(false); return; }
-        fetchBuild(false);
+        if (!buildId) { setLoading(false); return; }
+        if (!initialData) {
+            fetchBuild(false);
+            return;
+        }
+        // Données au vieux format (sans effets d'items pour la modale) :
+        // refresh silencieux via le cache brut (aucun appel Dofusbook).
+        if ((initialData as { v?: number }).v !== 2) {
+            fetchBuild(false, true);
+        } else {
+            setLoading(false);
+        }
     }, [buildId, initialData]);
 
     const hasData = !!data;
 
-    const { guessedClassId, glowColor } = useMemo(() => {
+    const { guessedClassId } = useMemo(() => {
         const searchString = `${title} ${url.split('/').pop()} ${tags.join(' ')}`.toLowerCase();
         const classesMap: Record<string, number> = {
             "feca": 1, "osamodas": 2, "osa": 2, "enutrof": 3, "enu": 3, "sram": 4, "xelor": 5, "xel": 5,
@@ -286,13 +401,7 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
             }
         }
 
-        const tagColors: Record<string, string> = {
-            "feu": "#ef4444", "eau": "#3b82f6", "terre": "#16a34a", "air": "#34d399", "multi": "#d946ef"
-        };
-        const firstElementTag = tags.find(t => tagColors[t]);
-        const gColor = firstElementTag ? tagColors[firstElementTag] : "#10b981";
-
-        return { guessedClassId: gId, glowColor: gColor };
+        return { guessedClassId: gId };
     }, [title, url, tags, classId, data?.classId]);
 
     const resolvedClassName = data?.className && data.className !== "Inconnu"
@@ -313,26 +422,19 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
     }
 
     const cardContent = (
-        <div className={cn("group w-full max-w-[320px] mx-auto relative overflow-hidden bg-surface/90 backdrop-blur-2xl border border-border/90 rounded-[2.5rem] p-5 sm:p-6 transition-all duration-300 hover:border-success/60 hover:shadow-2xl hover:shadow-success/10 cursor-pointer shadow-lg", className)}>
-            {/* Ambient Background Aura */}
-            <div className="absolute top-0 right-0 -mr-12 -mt-12 w-48 h-48 rounded-full blur-[80px] opacity-30 pointer-events-none transition-colors duration-300" style={{ backgroundColor: `${glowColor}44` }} />
-            <div className="absolute bottom-0 left-0 -ml-12 -mb-12 w-40 h-40 rounded-full blur-[80px] opacity-20 pointer-events-none transition-colors duration-300" style={{ backgroundColor: `${classArtColor}33` }} />
+        <div className={cn("group w-full max-w-[320px] mx-auto relative overflow-hidden bg-surface border border-border rounded-[4px] p-5 sm:p-6 transition-colors hover:border-border-strong cursor-pointer", className)}>
 
             <div className="flex flex-col gap-4 relative z-10 h-full">
                 {/* Header */}
                 <div className="flex items-center gap-3">
-                    <div className="relative w-11 h-11 shrink-0 bg-background/80 rounded-2xl border border-border/80 flex items-center justify-center overflow-hidden shadow-sm ring-1 ring-white/5">
-                        <div
-                            className="absolute inset-0 opacity-30 blur-md"
-                            style={{ backgroundColor: classArtColor }}
-                        />
+                    <div className="relative w-11 h-11 shrink-0 bg-background rounded-[4px] border border-border flex items-center justify-center overflow-hidden">
                         {(data?.classId || guessedClassId) > 0 ? (
                             <NextImage
                                 src={`/assets/dofus/classes/${getIconId(data?.classId || guessedClassId)}.png`}
                                 alt={data?.className || "Class"}
                                 width={38}
                                 height={38}
-                                className="object-contain p-0.5 relative z-10 drop-shadow-sm group-hover:scale-105 transition-transform"
+                                className="object-contain p-0.5 relative z-10"
                             />
                         ) : (
                             <Users className="w-5 h-5 text-muted-foreground relative z-10" />
@@ -349,27 +451,22 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
                     </div>
                 </div>
 
-                {/* Mini Equipment Grid Preview avec icône rehaussée sur piédestal */}
-                <div className="relative aspect-square w-full bg-background/60 p-2.5 rounded-[2.2rem] border border-border/80 flex items-center justify-center shadow-inner group-hover:border-border transition-colors">
-                    <div className="absolute inset-0 overflow-hidden rounded-[2.2rem] flex items-center justify-center pointer-events-none z-0">
-                        {(data?.classId || guessedClassId) > 0 && (
-                            <div className="absolute w-32 h-32 rounded-full blur-[45px] opacity-35" style={{ backgroundColor: classArtColor }} />
-                        )}
-                    </div>
+                {/* Mini Equipment Grid Preview */}
+                <div className="relative aspect-square w-full bg-background p-2.5 rounded-[4px] border border-border flex items-center justify-center group-hover:border-border-strong transition-colors">
 
                     <TooltipProvider>
                         {hasData && data ? (
                             <div className="grid grid-cols-6 grid-rows-5 gap-1.5 relative z-10 w-full h-full p-1">
-                                {/* Icône de classe centrale rehaussée sur piédestal (comme Duffus) */}
+                                {/* Icône de classe centrale */}
                                 {(data?.classId || guessedClassId) > 0 && (
                                     <div className="absolute top-1 inset-x-0 bottom-11 flex items-center justify-center pointer-events-none z-0">
-                                        <div className="w-20 h-20 rounded-full bg-elevated/40 border border-border/50 flex items-center justify-center relative shadow-inner">
+                                        <div className="w-20 h-20 rounded-[4px] bg-elevated border border-border flex items-center justify-center relative">
                                             <NextImage
                                                 src={`/assets/dofus/classes/${getIconId(data?.classId || guessedClassId)}.png`}
                                                 alt={data?.className || "Class"}
                                                 width={58}
                                                 height={58}
-                                                className="object-contain drop-shadow-[0_0_15px_rgba(255,255,255,0.25)] opacity-90 group-hover:scale-105 transition-transform duration-300"
+                                                className="object-contain opacity-90"
                                             />
                                         </div>
                                     </div>
@@ -387,19 +484,20 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
                                             <TooltipTrigger asChild>
                                                 <div
                                                     className={cn(
-                                                        "w-[33px] h-[33px] rounded-lg flex items-center justify-center p-1 relative group/mini-slot",
-                                                        item ? "bg-elevated border border-border hover:bg-muted hover:border-success/30 transition-colors cursor-pointer" : "bg-surface border border-border opacity-40"
+                                                        "w-[33px] h-[33px] rounded-[4px] flex items-center justify-center p-1 relative group/mini-slot",
+                                                        item ? "bg-elevated border border-border" : "bg-surface border border-border opacity-40"
                                                     )}
                                                     style={{ gridColumnStart: slot.c, gridRowStart: slot.r }}
                                                 >
                                                     {item && (
-                                                        <NextImage
-                                                            src={`https://www.dofusbook.net/static/dist/items/${item.picture}-70.webp`}
+                                                        // eslint-disable-next-line @next/next/no-img-element
+                                                        <img
+                                                            src={dofusbookItemIconUrl(Number(item.id))}
                                                             alt={item.name}
                                                             width={30}
                                                             height={30}
                                                             className="object-contain"
-                                                            unoptimized
+                                                            loading="lazy"
                                                         />
                                                     )}
                                                 </div>
@@ -421,25 +519,29 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
                     </TooltipProvider>
                 </div>
 
-                {/* Bandeau Stats Clés (⭐ PA · 🛹 PM · 👁️ PO) sous la grille */}
+                {/* Bandeau Stats Clés (assets du jeu) sous la grille */}
                 {hasData && data && (
-                    <div className="flex items-center justify-center gap-2.5 py-1 px-3 bg-surface/70 border border-border rounded-xl text-caption font-black tabular-nums shadow-sm">
-                        <span className="flex items-center gap-1 text-[#008cfc]">
-                            <span className="text-xs">⭐</span> {data.stats?.pa ?? 0}
+                    <div className="flex items-center justify-center gap-2.5 py-1 px-3 bg-surface border border-border rounded-[4px] text-caption font-bold tabular-nums">
+                        <span className="flex items-center gap-1 text-foreground">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src="/assets/dofus/stats/pa.png" alt="PA" className="w-3.5 h-3.5 object-contain" loading="lazy" /> {data.stats?.pa ?? 0}
                         </span>
                         <span className="text-muted-foreground/30">•</span>
-                        <span className="flex items-center gap-1 text-[#2cb14b]">
-                            <span className="text-xs">🛹</span> {data.stats?.pm ?? 0}
+                        <span className="flex items-center gap-1 text-foreground">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src="/assets/dofus/stats/pm.png" alt="PM" className="w-3.5 h-3.5 object-contain" loading="lazy" /> {data.stats?.pm ?? 0}
                         </span>
                         <span className="text-muted-foreground/30">•</span>
-                        <span className="flex items-center gap-1 text-[#389f81]">
-                            <span className="text-xs">👁️</span> {data.stats?.po ?? 0}
+                        <span className="flex items-center gap-1 text-foreground">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src="/assets/dofus/stats/po.png" alt="PO" className="w-3.5 h-3.5 object-contain" loading="lazy" /> {data.stats?.po ?? 0}
                         </span>
                         {(data.stats?.cc ?? 0) > 0 && (
                             <>
                                 <span className="text-muted-foreground/30">•</span>
-                                <span className="flex items-center gap-1 text-[#f24254]">
-                                    <span className="text-xs">🎯</span> {data.stats?.cc}%
+                                <span className="flex items-center gap-1 text-foreground">
+                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                    <img src="/assets/dofus/stats/critique.png" alt="Critique" className="w-3.5 h-3.5 object-contain" loading="lazy" /> {data.stats?.cc}%
                                 </span>
                             </>
                         )}
@@ -452,8 +554,8 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
                         {tags.slice(0, 4).map(tagId => {
                             const tagDef = DO_TAGS.find(t => t.id === tagId);
                             return tagDef ? (
-                                <span key={tagId} className={cn("px-1.5 py-0.5 text-caption rounded font-black uppercase tracking-tighter", tagDef.className)}>
-                                    {tagDef.label}
+                                <span key={tagId} className={cn("px-1.5 py-0.5 text-caption rounded font-black uppercase tracking-tighter inline-flex", tagDef.className)}>
+                                    <TagWithIcons tag={tagDef} size={12} />
                                 </span>
                             ) : null;
                         })}
@@ -473,34 +575,25 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
             <DialogTrigger asChild>
                 {cardContent}
             </DialogTrigger>
-            <DialogContent className="max-w-[1600px] w-[96vw] max-h-[96vh] bg-background/95 backdrop-blur-2xl border-border p-0 overflow-y-auto custom-scrollbar rounded-[2rem] md:rounded-[2.5rem] shadow-2xl">
+            <DialogContent className="max-w-[1600px] w-[96vw] max-h-[96vh] bg-background border-border p-0 overflow-y-auto custom-scrollbar rounded-[4px]">
                 <TooltipProvider>
                     <div className="relative p-5 sm:p-6 lg:p-8 flex flex-col gap-6">
-                        {/* Background Class Ambient Glow */}
-                        <div
-                            className="absolute inset-x-0 top-0 h-[400px] opacity-15 blur-[120px] pointer-events-none transition-all duration-300"
-                            style={{ backgroundColor: classArtColor }}
-                        />
-
                         {/* Navigation des Onglets : Build / Sorts / Équipement */}
-                        <div className="relative z-10 w-full flex items-center justify-between gap-3 bg-surface/60 backdrop-blur-md p-1.5 rounded-2xl border border-border">
-                            <div className="flex items-center gap-1.5 flex-1 max-w-xl">
-                                {([
-                                    { id: "build", label: "Build", icon: "⚔️" },
-                                    { id: "sorts", label: "Sorts", icon: "✨" },
-                                    { id: "equipement", label: "Équipement", icon: "🎒" },
-                                ] as const).map((tab) => (
+                        <div className="relative z-10 w-full flex items-center justify-between gap-3 bg-surface p-1.5 rounded-[4px] border border-border">
+                            <div className="flex items-center gap-1.5 flex-1 max-w-2xl">
+                                {BUILD_TABS.map((tab) => (
                                     <button
                                         key={tab.id}
                                         onClick={() => setActiveTab(tab.id)}
                                         className={cn(
-                                            "flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-label font-bold uppercase tracking-wider transition-all cursor-pointer",
+                                            "flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-[4px] text-label font-bold uppercase tracking-wider transition-colors cursor-pointer",
                                             activeTab === tab.id
-                                                ? "bg-elevated text-foreground border border-border shadow-sm font-black"
-                                                : "text-muted-foreground hover:text-foreground hover:bg-elevated/40"
+                                                ? "bg-elevated text-foreground border border-border"
+                                                : "text-muted-foreground hover:text-foreground hover:bg-elevated"
                                         )}
                                     >
-                                        <span className="text-base leading-none">{tab.icon}</span>
+                                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                                        <img src={tab.icon} alt="" aria-hidden="true" className="w-4 h-4 object-contain" loading="lazy" />
                                         {tab.label}
                                     </button>
                                 ))}
@@ -542,7 +635,7 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
                                                 { label: "Chance", val: data.elements?.ch ?? 0, img: "/assets/module-succes/eau.png", text: "text-info", bg: "bg-info/10", border: "border-info/20" },
                                                 { label: "Agilité", val: data.elements?.ag ?? 0, img: "/assets/module-succes/Agility.png", text: "text-success", bg: "bg-success/10", border: "border-success/20" },
                                             ] as { label: string; val: number; img: string; text: string; bg: string; border: string }[]).map((el) => (
-                                                <div key={el.label} className={cn("flex flex-col p-2.5 rounded-2xl border", el.bg, el.border)}>
+                                                <div key={el.label} className={cn("flex flex-col p-2.5 rounded-[4px] border", el.bg, el.border)}>
                                                     <div className="flex items-center justify-between text-[11px] font-bold text-muted-foreground uppercase">
                                                         <span>{el.label}</span>
                                                         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -556,7 +649,7 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
                                         </div>
 
                                         {/* 2. Tableau des Caractéristiques de Combat */}
-                                        <div className="bg-surface p-4 sm:p-5 rounded-[2rem] border border-border flex flex-col gap-3">
+                                        <div className="bg-surface p-4 sm:p-5 rounded-[4px] border border-border flex flex-col gap-3">
                                             <div className="flex items-center justify-between border-b border-border pb-2">
                                                 <h4 className="text-caption font-bold text-foreground/80 uppercase flex items-center gap-1.5">
                                                     <Move className="w-3.5 h-3.5 text-success" /> Statistiques Générales
@@ -596,7 +689,7 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
                                         </div>
 
                                         {/* 3. Dommages Fixes & % Dommages */}
-                                        <div className="bg-surface p-4 sm:p-5 rounded-[2rem] border border-border flex flex-col gap-3">
+                                        <div className="bg-surface p-4 sm:p-5 rounded-[4px] border border-border flex flex-col gap-3">
                                             <h4 className="text-caption font-bold text-foreground/80 uppercase flex items-center gap-1.5 border-b border-border pb-2">
                                                 <Zap className="w-3.5 h-3.5 text-warning" /> Dommages Fixes & %
                                             </h4>
@@ -709,25 +802,25 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
                                             <div className="w-full h-full flex justify-between items-center relative z-10 px-2">
                                                 {/* Colonne Gauche (4 slots) */}
                                                 <div className="flex flex-col gap-2.5">
-                                                    <GearSlotItem slot="ch" item={data.items?.['ch']} label="Coiffe" />
-                                                    <GearSlotItem slot="ca" item={data.items?.['ca']} label="Cape" />
-                                                    <GearSlotItem slot="ce" item={data.items?.['ce']} label="Ceinture" />
-                                                    <GearSlotItem slot="bo" item={data.items?.['bo']} label="Bottes" />
+                                                    <GearSlotItem slot="ch" item={data.items?.['ch']} label="Coiffe" onSelect={setSelected} />
+                                                    <GearSlotItem slot="ca" item={data.items?.['ca']} label="Cape" onSelect={setSelected} />
+                                                    <GearSlotItem slot="ce" item={data.items?.['ce']} label="Ceinture" onSelect={setSelected} />
+                                                    <GearSlotItem slot="bo" item={data.items?.['bo']} label="Bottes" onSelect={setSelected} />
                                                 </div>
 
                                                 {/* Colonne Droite (4 slots) */}
                                                 <div className="flex flex-col gap-2.5">
-                                                    <GearSlotItem slot="am" item={data.items?.['am']} label="Amulette" />
-                                                    <GearSlotItem slot="a1" item={data.items?.['a1']} label="Anneau 1" />
-                                                    <GearSlotItem slot="a2" item={data.items?.['a2']} label="Anneau 2" />
-                                                    <GearSlotItem slot="br" item={data.items?.['br']} label="Bouclier" />
+                                                    <GearSlotItem slot="am" item={data.items?.['am']} label="Amulette" onSelect={setSelected} />
+                                                    <GearSlotItem slot="a1" item={data.items?.['a1']} label="Anneau 1" onSelect={setSelected} />
+                                                    <GearSlotItem slot="a2" item={data.items?.['a2']} label="Anneau 2" onSelect={setSelected} />
+                                                    <GearSlotItem slot="br" item={data.items?.['br']} label="Bouclier" onSelect={setSelected} />
                                                 </div>
                                             </div>
 
                                             {/* Slots Arme & Familier (Au centre, sous le personnage) */}
                                             <div className="absolute bottom-1 flex items-center gap-3 z-10">
-                                                <GearSlotItem slot="ar" item={data.items?.['ar']} label="Arme" />
-                                                <GearSlotItem slot="fa" item={data.items?.['fa'] || data.items?.['mo']} label="Familier / Monture" />
+                                                <GearSlotItem slot="ar" item={data.items?.['ar']} label="Arme" onSelect={setSelected} />
+                                                <GearSlotItem slot="fa" item={data.items?.['fa'] || data.items?.['mo']} label="Familier / Monture" onSelect={setSelected} />
                                             </div>
                                         </div>
 
@@ -768,6 +861,7 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
                                                     slot={slot}
                                                     item={data.items?.[slot]}
                                                     label={`Dofus / Trophée ${idx + 1}`}
+                                                    onSelect={setSelected}
                                                 />
                                             ))}
                                         </div>
@@ -778,36 +872,36 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
                                     <div className="lg:col-span-4 flex flex-col gap-4">
                                         
                                         {/* 1. Carte Panoplies & Bonus de sets */}
-                                        <div className="bg-surface/40 backdrop-blur-md p-5 rounded-[2rem] border border-border flex flex-col gap-3 shadow-lg">
-                                            <h4 className="text-caption font-black text-foreground/80 uppercase tracking-widest flex items-center gap-1.5 border-b border-border pb-2">
+                                        <div className="bg-surface p-5 rounded-[4px] border border-border flex flex-col gap-3">
+                                            <h4 className="text-caption font-bold text-foreground/80 uppercase tracking-wider flex items-center gap-1.5 border-b border-border pb-2">
                                                 <Shield className="w-3.5 h-3.5 text-success" /> Bonus de Panoplie(s)
                                             </h4>
 
                                             {data.cloths && data.cloths.length > 0 ? (
-                                                <div className="flex flex-col gap-3.5">
+                                                <div className="flex flex-col gap-3">
                                                     {data.cloths.map((cloth, idx) => (
-                                                        <div key={idx} className="flex flex-col gap-2 p-3 bg-surface/60 rounded-2xl border border-border">
+                                                        <div key={idx} className="flex flex-col gap-2 p-3 bg-surface rounded-[4px] border border-border">
                                                             <div className="flex items-center justify-between">
                                                                 <span className="text-label font-bold text-foreground truncate">{cloth.name}</span>
-                                                                <span className="px-2 py-0.5 rounded-md bg-elevated text-caption font-black text-success tabular-nums">
+                                                                <span className="px-2 py-0.5 rounded-[4px] bg-elevated text-caption font-bold text-success tabular-nums">
                                                                     {cloth.count}/{cloth.total}
                                                                 </span>
                                                             </div>
 
-                                                            {/* Miniatures des items portés */}
+                                                            {/* Miniatures des items portés (clic = modale interne) */}
                                                             {cloth.clothItems && cloth.clothItems.length > 0 && (
                                                                 <div className="flex items-center gap-1.5">
                                                                     {cloth.clothItems.map((item) => (
-                                                                        <div key={item.id} className="w-8 h-8 rounded-lg bg-elevated border border-border flex items-center justify-center overflow-hidden" title={item.name}>
-                                                                            <NextImage
-                                                                                src={`https://www.dofusbook.net/static/dist/items/${item.picture}-70.webp`}
-                                                                                alt={item.name}
-                                                                                width={28}
-                                                                                height={28}
-                                                                                className="object-contain"
-                                                                                unoptimized
-                                                                            />
-                                                                        </div>
+                                                                        <button
+                                                                            key={item.id}
+                                                                            type="button"
+                                                                            onClick={() => setSelected({ item, slotLabel: cloth.name })}
+                                                                            title={item.name}
+                                                                            aria-label={`${item.name} (${cloth.name})`}
+                                                                            className="w-8 h-8 rounded-[4px] bg-elevated border border-border flex items-center justify-center overflow-hidden hover:border-border-strong transition-colors cursor-pointer"
+                                                                        >
+                                                                            <ItemIcon item={item} size={28} />
+                                                                        </button>
                                                                     ))}
                                                                 </div>
                                                             )}
@@ -832,9 +926,9 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
                                             )}
                                         </div>
 
-                                        {/* 2. Carte Forgemagie (Exo / Over) */}
-                                        <div className="bg-surface/40 backdrop-blur-md p-5 rounded-[2rem] border border-border flex flex-col gap-3 shadow-lg">
-                                            <h4 className="text-caption font-black text-foreground/80 uppercase tracking-widest flex items-center gap-1.5 border-b border-border pb-2">
+                                        {/* 2. Carte Forgemagie (Exo / Over, clic = modale interne) */}
+                                        <div className="bg-surface p-5 rounded-[4px] border border-border flex flex-col gap-3">
+                                            <h4 className="text-caption font-bold text-foreground/80 uppercase tracking-wider flex items-center gap-1.5 border-b border-border pb-2">
                                                 <Sparkles className="w-3.5 h-3.5 text-warning" /> Forgemagie (Exo / Over)
                                             </h4>
 
@@ -842,7 +936,7 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
                                                 const fmEntries = parseDofusbookSmithmagic(data.smithmagic, data.items);
                                                 if (fmEntries.length === 0) {
                                                     return (
-                                                        <p className="text-caption text-muted-foreground italic py-2 text-center">
+                                                        <p className="text-caption text-muted-foreground py-2 text-center">
                                                             Aucune forgemagie (Exo/Over) détectée.
                                                         </p>
                                                     );
@@ -852,31 +946,33 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
                                                     <div className="flex flex-col gap-2">
                                                         {fmEntries.map((fm, idx) => {
                                                             const isExo = ["PA", "PM", "PO"].includes(fm.stat);
+                                                            const target = data.items ? Object.values(data.items).find((it) => it?.name === fm.itemName) ?? null : null;
                                                             return (
-                                                                <div key={idx} className={cn(
-                                                                    "flex items-center gap-2.5 p-2 rounded-xl border transition-all",
-                                                                    isExo ? "bg-warning/10 border-warning/30" : "bg-surface/60 border-border"
-                                                                )}>
+                                                                <button
+                                                                    key={idx}
+                                                                    type="button"
+                                                                    disabled={!target}
+                                                                    onClick={() => target && setSelected({ item: target, slotLabel: fm.slotKey })}
+                                                                    className={cn(
+                                                                        "flex items-center gap-2.5 p-2 rounded-[4px] border transition-colors text-left",
+                                                                        target ? "cursor-pointer hover:border-border-strong" : "cursor-default",
+                                                                        isExo ? "bg-warning/10 border-warning/30" : "bg-surface border-border"
+                                                                    )}
+                                                                >
                                                                     {fm.itemImage && (
-                                                                        <div className="w-7 h-7 rounded-lg bg-background border border-border flex items-center justify-center overflow-hidden shrink-0">
-                                                                            <NextImage
-                                                                                src={fm.itemImage}
-                                                                                alt={fm.itemName}
-                                                                                width={24}
-                                                                                height={24}
-                                                                                className="object-contain"
-                                                                                unoptimized
-                                                                            />
+                                                                        <div className="w-7 h-7 rounded-[4px] bg-background border border-border flex items-center justify-center overflow-hidden shrink-0">
+                                                                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                                            <img src={fm.itemImage} alt={fm.itemName} width={24} height={24} className="object-contain" loading="lazy" />
                                                                         </div>
                                                                     )}
-                                                                    <div className="min-w-0 flex-1">
-                                                                        <p className="text-caption font-bold text-foreground truncate">{fm.itemName}</p>
-                                                                        <p className="text-[10px] text-muted-foreground uppercase">{fm.slotKey}</p>
-                                                                    </div>
-                                                                    <span className={cn("px-2 py-0.5 text-caption rounded-md font-black tabular-nums shrink-0", isExo ? "text-warning bg-warning/20" : "text-success bg-success/15")}>
+                                                                    <span className="min-w-0 flex-1">
+                                                                        <span className="text-caption font-bold text-foreground truncate block">{fm.itemName}</span>
+                                                                        <span className="text-[10px] text-muted-foreground uppercase block">{fm.slotKey}</span>
+                                                                    </span>
+                                                                    <span className={cn("px-2 py-0.5 text-caption rounded-[4px] font-bold tabular-nums shrink-0", isExo ? "text-warning bg-warning/20" : "text-success bg-success/15")}>
                                                                         {fm.value > 0 ? `+${fm.value}` : fm.value} {fm.stat}
                                                                     </span>
-                                                                </div>
+                                                                </button>
                                                             );
                                                         })}
                                                     </div>
@@ -924,22 +1020,42 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
                                         build={spellsBuild(data!)}
                                     />
                                 </div>
+                            ) : activeTab === "simulation" ? (
+                                <DofusbookSimulationTab
+                                    classId={data?.classId || guessedClassId}
+                                    level={data?.level || 200}
+                                    casterName={title || data?.name}
+                                    casterIcon={(data?.classId || guessedClassId) > 0 ? `/assets/dofus/classes/${getIconId(data?.classId || guessedClassId)}.png` : undefined}
+                                />
                             ) : (
                                 <div className="flex flex-col gap-4">
                                     <div className="flex items-center justify-between border-b border-border pb-4">
                                         <div>
-                                            <h3 className="text-xl font-black text-foreground uppercase tracking-tight">Inventaire d'équipement</h3>
+                                            <h3 className="text-xl font-bold text-foreground uppercase tracking-tight">Inventaire d'équipement</h3>
                                             <p className="text-caption text-muted-foreground">
-                                                Détail de tous les équipements et liens directs vers l'encyclopédie DofusDB.
+                                                Détail de tous les équipements — cliquez sur un objet pour voir sa fiche.
                                             </p>
                                         </div>
                                     </div>
-                                    <EquipmentGrid items={data?.items} />
+                                    <EquipmentGrid items={data?.items} onSelect={setSelected} />
                                 </div>
                             )}
                         </div>
 
                     </div>
+                    {selected && data && (() => {
+                        const fmEntries = parseDofusbookSmithmagic(data.smithmagic, data.items);
+                        const fmLines = fmEntries.filter((fm) => fm.itemName === selected.item.name).map((fm) => ({ stat: fm.stat, value: fm.value }));
+                        const clothName = data.cloths?.find((c) => c.clothItems?.some((ci) => ci.id === selected.item.id))?.name ?? null;
+                        return (
+                            <ItemDetailModal
+                                selection={selected}
+                                clothName={clothName}
+                                fmLines={fmLines}
+                                onClose={() => setSelected(null)}
+                            />
+                        );
+                    })()}
                 </TooltipProvider>
             </DialogContent>
         </Dialog>

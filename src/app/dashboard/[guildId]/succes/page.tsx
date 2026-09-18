@@ -33,7 +33,7 @@ export default async function SuccesPage({
         <div className="space-y-6 pb-12">
             <UnifiedModuleHeader
                 title="Mes Succès"
-                description="Coche, trouve, enchaîne. Tes donjons. Ta guilde."
+                description="Tes succès de donjons, boss par boss — et ce que la guilde a déjà validé."
                 imageSrc="/assets/dofus/game-icons/trophy-1.png"
                 backHref={`/dashboard/${guildId}`}
                 actions={<SuccesHeaderActions guildId={guildId} />}

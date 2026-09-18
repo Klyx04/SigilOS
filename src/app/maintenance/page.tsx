@@ -7,8 +7,10 @@ export const metadata = {
 };
 
 export default async function MaintenancePage() {
+    const { getServerI18n } = await import("@/lib/i18n/server");
+    const { t } = await getServerI18n();
     const { config } = await getPlatformConfig();
-    const message = config?.maintenanceMessage || "Nous effectuons une mise à jour pour améliorer votre expérience. Nous revenons très vite !";
+    const message = config?.maintenanceMessage || t.maintenance.defaultMessage;
 
     return (
         <div className="min-h-screen bg-zinc-950 flex items-center justify-center relative overflow-hidden">
@@ -34,7 +36,7 @@ export default async function MaintenancePage() {
                 {/* Badge */}
                 <div className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-black uppercase tracking-widest">
                     <Clock className="w-3.5 h-3.5" />
-                    Maintenance en cours
+                    {t.maintenance.title}
                 </div>
 
                 {/* Title */}
@@ -43,7 +45,7 @@ export default async function MaintenancePage() {
                         Sigil<span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-violet-400">OS</span>
                     </h1>
                     <p className="text-xl font-bold text-zinc-400">
-                        En cours de mise à jour
+                        {t.maintenance.subtitle}
                     </p>
                 </div>
 
@@ -57,7 +59,7 @@ export default async function MaintenancePage() {
                 {/* Footer */}
                 <div className="flex items-center gap-2 text-zinc-600 text-xs font-bold uppercase tracking-widest">
                     <Shield className="w-3.5 h-3.5" />
-                    <span>Géré par l&apos;équipe SigilOS</span>
+                    <span>{t.maintenance.managedBy}</span>
                 </div>
             </div>
         </div>

@@ -1,15 +1,15 @@
 export const guide = {
     slug: "guide-elevage-enclos-guilde-dofus",
-    title: "Guide de l'Éleveur Dofus — Édition 2026 (Unity)",
+    title: "Guide de l'Éleveur Dofus — Édition 2026 (Unity 3.7)",
     description:
-        "Le guide complet de l'élevage Dofus 2026 : capturer, rendre fécondes, accoupler, XP ses montures via la jauge Mangeoire, généalogie, Makinas et clonage.",
+        "Le guide complet de l'élevage Dofus 2026 : capturer, rendre fécondes, accoupler, XP ses montures via la jauge Mangeoire, généalogie, Makinas, clonage et nouveautés 3.7 (étable 500 places, carburants x2).",
     publishedAt: "2026-08-17",
-    updatedAt: "2026-08-17",
+    updatedAt: "2026-09-18",
     draft: false,
     body: `
         <div class="callout callout-tip">
-            <strong>Édition 2026 — Dofus Unity 3.5+</strong>
-            <p>Ce guide couvre l'intégralité de l'élevage après la refonte Unity : capture, jauges, reproduction, XP via la Mangeoire, généalogie, Makinas et clonage.</p>
+            <strong>Édition 2026 — Dofus Unity 3.7+ (MàJ de rentrée)</strong>
+            <p>Ce guide couvre l'intégralité de l'élevage après les ajustements majeurs de la <strong>MàJ 3.7</strong> : étable étendue à 500 places, jauges d'enclos et efficacité des carburants doublées, transfert rapide de masse, filtres de reproduction et indicateurs trophées pour les succès.</p>
         </div>
 
         <div class="my-8 rounded-2xl overflow-hidden border border-white/10 shadow-2xl bg-zinc-900/60 p-2 text-center">
@@ -56,16 +56,31 @@ export const guide = {
             </div>
         </div>
 
-        <h2>III. Les Enclos — Comment ça marche</h2>
+        <h2>III. Les Enclos & L'Étable (Nouveautés 3.7)</h2>
         <p>
-            L'XP et le conditionnement des montures se font dans des <strong>enclos</strong>.
+            L'XP et le conditionnement des montures se font dans des <strong>enclos</strong> (publics ou de guilde).
             Même au <strong>niveau 1 du métier d'éleveur</strong>, vous accédez à l'<strong>Enclos du Débutant</strong> en <strong>[-18, 0]</strong>.
-            En montant le métier, vous débloquez des enclos plus grands, avec des jauges plus efficaces.
+            En montant le métier, vous débloquez des enclos plus spacieux et des carburants plus performants.
         </p>
 
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 my-6">
+            <div class="p-4 rounded-xl bg-zinc-900/70 border border-cyan-500/20">
+                <strong class="text-cyan-300 text-sm block mb-1">🏠 Étable étendue à 500 places</strong>
+                <p class="text-xs text-zinc-300 leading-relaxed">
+                    Depuis la <strong>MàJ 3.7</strong>, la limite maximale de stockage en étable passe de 250 à <strong>500 montures</strong>, facilitant considérablement le stockage de masse et les arbres généalogiques complexes sans encombrement.
+                </p>
+            </div>
+            <div class="p-4 rounded-xl bg-zinc-900/70 border border-emerald-500/20">
+                <strong class="text-emerald-300 text-sm block mb-1">⚡ Transfert groupé & Drag-and-Drop</strong>
+                <p class="text-xs text-zinc-300 leading-relaxed">
+                    Fini les transferts un par un : vous pouvez déplacer <strong>l'intégralité d'un enclos</strong> vers un autre ou vers l'étable d'un simple glisser-déposer ou via l'option de transfert rapide.
+                </p>
+            </div>
+        </div>
+
         <div class="callout callout-info">
-            <strong>Note importante</strong>
-            <p>La jauge se vide à la même vitesse qu'il y ait 1 ou 10 montures dans l'enclos. Placez-en le maximum pour XP plusieurs montures en même temps avec le même carburant !</p>
+            <strong>Règle de consommation des jauges</strong>
+            <p>La jauge se vide au même rythme qu'il y ait 1 ou plusieurs montures dans l'enclos. Placez-en toujours le maximum autorisé pour rentabiliser vos carburants !</p>
         </div>
 
         <h2>IV. Les Jauges — Rendre une Monture Féconde</h2>
@@ -82,17 +97,17 @@ export const guide = {
             <tbody>
                 <tr>
                     <td><strong>Endurance</strong></td>
-                    <td><span class="text-amber-400 font-bold">Négative</span></td>
+                    <td><span class="text-amber-400 font-bold">Négative</span> (&lt; 0)</td>
                     <td>Foudroyeurs</td>
                 </tr>
                 <tr>
                     <td><strong>Maturité</strong></td>
-                    <td><span class="text-zinc-400">Neutre</span></td>
+                    <td><span class="text-zinc-400 font-bold">Neutre</span> (-2000 à +2000)</td>
                     <td>Abreuvoirs</td>
                 </tr>
                 <tr>
                     <td><strong>Amour</strong></td>
-                    <td><span class="text-rose-400 font-bold">Positive</span></td>
+                    <td><span class="text-rose-400 font-bold">Positive</span> (&gt; 0)</td>
                     <td>Dragofesses</td>
                 </tr>
                 <tr>
@@ -108,7 +123,15 @@ export const guide = {
             </tbody>
         </table>
 
-        <h2>V. XP — La Jauge Mangeoire en 4 Tiers</h2>
+        <h2>V. XP & Carburants — Refonte 3.7 (Efficacité Doublée)</h2>
+        <p>
+            La <strong>MàJ 3.7</strong> apporte un boost colossal au confort de ravitaillement :
+        </p>
+        <ul class="text-sm text-zinc-300 space-y-2 mb-4">
+            <li>• <strong>Rendement doublé :</strong> Chaque carburant qui remplissait auparavant 3 000 points en remplit désormais <strong>6 000 points</strong> !</li>
+            <li>• <strong>Plafond des jauges à 200 000 pts :</strong> La capacité totale des enclos est portée jusqu'à <strong>200 000 points</strong> (segmentée à 20k, 40k, 60k ou 80k selon l'enclos). Vous rechargez deux fois moins souvent.</li>
+            <li>• <em>Note économique :</em> Les anciennes cautions de dragodindes ne sont plus fabricables et sont vouées à disparaître définitivement.</li>
+        </ul>
 
         <table>
             <thead>
@@ -127,14 +150,21 @@ export const guide = {
             <p>Il faut <strong>867 582 XP</strong> pour atteindre le niveau 200. Avec Tier 4 en permanence : <strong>~60 heures</strong>. En entretien Tier 2 régulier : <strong>~120 à 150 heures</strong>. Une monture avec la capacité <em>Sage</em> gagne l'XP 2× plus vite !</p>
         </div>
 
-        <h2>VI. Reproduction — Une Seule Fois, Puis Stérilité</h2>
+        <h2>VI. Reproduction & Arbre Génétique</h2>
         <p>Après un accouplement, les deux parents deviennent <strong>stériles</strong>. Vous avez alors plusieurs options :</p>
         <ul>
             <li><strong>Vendre en HDV</strong> (après XP pour augmenter leur valeur).</li>
             <li><strong>Équiper</strong> sur votre personnage pour leurs statistiques.</li>
-            <li><strong>Extraire les ressources</strong> — la monture est supprimée mais vous obtenez des matériaux d'équipement.</li>
+            <li><strong>Extraire les ressources</strong> — la monture est consommée pour obtenir des matériaux de craft.</li>
             <li><strong>Cloner</strong> pour récupérer une monture fertile de même généalogie.</li>
         </ul>
+
+        <div class="p-4 rounded-xl bg-purple-950/30 border border-purple-500/20 my-4">
+            <strong class="text-purple-300 text-sm block mb-1">🏆 Suivi des Succès dans le Tableau Génétique (Nouveau 3.7)</strong>
+            <p class="text-xs text-zinc-300 leading-relaxed">
+                Une icône en forme de <strong>trophée</strong> apparaît désormais à côté des montures et robes que vous n'avez pas encore obtenues ou possédées dans votre arbre généalogique. C'est l'outil parfait pour cibler vos croisements manquants et boucler vos succès d'élevage sans feuille Excel externe.
+            </p>
+        </div>
 
         <div class="callout callout-info">
             <strong>Le Clonage</strong>
@@ -156,8 +186,11 @@ export const guide = {
             <p>Deux parents <strong>niveau 200</strong> + <strong>Optimakina</strong> = 30% + 60% + 10% = <strong>100%</strong> de chance d'obtenir la génération cible !</p>
         </div>
 
-        <h2>VIII. Les Makinas</h2>
-        <p>Consommables craftables par les éleveurs, utilisés <strong>lors d'un accouplement</strong> (une seule par accouplement, optionnelle) :</p>
+        <h2>VIII. Les Makinas & Interface de Reproduction (3.7)</h2>
+        <p>
+            Consommables craftables par les éleveurs, utilisés <strong>lors d'un accouplement</strong> (une seule par accouplement, optionnelle).
+            <em>Nouveauté 3.7 :</em> L'interface de sélection intègre désormais des <strong>filtres par type et génération</strong> ainsi qu'un <strong>code couleur</strong> identifiant la génération de l'accouplement en cours.
+        </p>
 
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 my-6">
             <div class="p-4 rounded-xl bg-zinc-900/70 border border-white/10 text-center">
@@ -183,4 +216,5 @@ export const guide = {
         </div>
     `,
 };
+
 

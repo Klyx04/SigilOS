@@ -347,7 +347,7 @@ export function AnomalieForm({ payload, onPayloadChange, onTitleChange, onRankCh
         const newPayload: AnomaliePayload = {
             type,
             levelRange,
-            elixir: type === 'STABILISATION' ? elixir : undefined
+            elixir: (type === 'STABILISATION' || type === 'BOSS') ? elixir : undefined
         };
         onPayloadChange(newPayload);
         updateTitle(type, levelRange);
@@ -357,7 +357,7 @@ export function AnomalieForm({ payload, onPayloadChange, onTitleChange, onRankCh
         const newPayload: AnomaliePayload = {
             type: anomalieType,
             levelRange: range as AnomaliePayload['levelRange'],
-            elixir: anomalieType === 'STABILISATION' ? elixir : undefined
+            elixir: (anomalieType === 'STABILISATION' || anomalieType === 'BOSS') ? elixir : undefined
         };
         onPayloadChange(newPayload);
         updateTitle(anomalieType, range);
@@ -437,7 +437,7 @@ export function AnomalieForm({ payload, onPayloadChange, onTitleChange, onRankCh
                 </div>
             )}
 
-            {anomalieType === 'STABILISATION' && (
+            {(anomalieType === 'STABILISATION' || anomalieType === 'BOSS') && (
                 <div className="space-y-2 animate-in fade-in duration-300">
                     <Label className="text-xs text-muted-foreground">Choix de l'élixir</Label>
                     <Select value={elixir} onValueChange={handleElixirChange}>
@@ -467,7 +467,7 @@ export function AnomalieForm({ payload, onPayloadChange, onTitleChange, onRankCh
                         <>Vaincre 50 monstres dans un territoire de niveau <span className="text-foreground font-black">{levelRange}</span> sous anomalie avec un <span className="text-fuchsia-300 font-bold">[Elixir uchronique]</span></>
                     )}
                     {anomalieType === 'BOSS' && (
-                        <>Vaincre un <span className="text-foreground font-black text-xs">Gardien d'anomalie</span> de niveau <span className="text-foreground font-black">{levelRange}</span> avec un <span className="text-fuchsia-300 font-bold">[Elixir uchronique]</span></>
+                        <>Vaincre un <span className="text-foreground font-black text-xs">Gardien d'anomalie</span> de niveau <span className="text-foreground font-black">{levelRange}</span>{elixir !== 'aucun' && (<> avec un <span className="text-fuchsia-300 font-bold">{elixir === 'uchronique' ? "[Elixir uchronique]" : elixir === 'mineur' ? "[Élixir uchronique mineur]" : elixir === 'ameliore' ? "[Élixir uchronique amélioré]" : "[Élixir uchronique majeur]"}</span></>)}</>
                     )}
                     {anomalieType === 'FRAGMENTS' && (
                         <>Obtenir <span className="text-foreground font-black">20 Fragments d'anomalie</span> dans une anomalie</>

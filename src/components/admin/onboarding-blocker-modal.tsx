@@ -1,10 +1,18 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Server, ShieldCheck, Loader2, CheckCircle2, ArrowRight, Rocket, Puzzle, BookOpen, Swords } from "lucide-react";
-import { getDofusServerImage } from "@/lib/dofus-assets";
+import { Server, ShieldCheck, Loader2, CheckCircle2, ArrowRight, Rocket, Puzzle, BookOpen, Swords, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { completeMandatoryOnboarding } from "@/server/actions/admin-actions";
+import { updateMissionNotifySettings } from "@/server/actions/admin-actions";
+import { updateGuildModules } from "@/server/actions/module-actions";
+import { getAdminPresentationData, updateGuildPresentation } from "@/server/actions/presentation-actions";
+import { DiscordChannelPicker } from "@/components/shared/DiscordChannelPicker";
+import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
+import { getDofusServerImage } from "@/lib/dofus-assets";
+import { MODULE_GROUPS, MODULE_DOFUS_ASSETS } from "@/lib/module-catalog";
+import { DEFAULT_MODULES, type ModuleKey } from "@/lib/module-types";
 
 export interface OnboardingServerOption {
     id: string;
@@ -17,13 +25,37 @@ export interface OnboardingRoleOption {
     name: string;
 }
 
+type Step = 1 | 2 | 3 | 4 | 5;
+
+const STEP_META: Record<Step, { title: string; description: string }> = {
+    1: {
+        title: "Votre serveur de jeu",
+        description: "Sélectionnez le serveur Dofus de votre guilde. Requis pour débloquer l'accès au dashboard.",
+    },
+    2: {
+        title: "Qui peut se connecter ?",
+        description: "Choisissez au moins un rôle Discord autorisé à se connecter (jamais @everyone). Sans cela, personne ne peut entrer.",
+    },
+    3: {
+        title: "Salons de notifications",
+        description: "Choisissez où SigilOS parle sur Discord. Un seul salon suffit pour démarrer — les autres salons (validations, kamas, bienvenue…) se règlent plus tard dans Paramètres.",
+    },
+    4: {
+        title: "Modules de la guilde",
+        description: "Cochez ce dont votre guilde a besoin. Rien n'est définitif : tout s'active et se désactive à la volée plus tard dans Pilotage.",
+    },
+    5: {
+        title: "Présentation express",
+        description: "Deux lignes pour donner envie sur la page publique. Facultatif — la page complète se remplit plus tard dans Présentation.",
+    },
+};
+
 /**
- * Modale BLOQUANTE des 2 étapes obligatoires (serveur de jeu + rôle
- * `dashboard:login`, jamais @everyone). Non-fermable : pas de croix, pas de
- * clic extérieur, pas d'Escape — rendue par le layout tant que
- * `!isOnboardingComplete` (God exempté). À la validation, l'écran de succès
- * présente les étapes optionnelles (2e modale demandée, sans machinerie :
- * juste des liens).
+ * Wizard de mise en route (5 étapes) :
+ * 1-2 OBLIGATOIRES (serveur de jeu + rôle `dashboard:login`), puis 3 salons,
+ * 4 modules et 5 présentation — skippables. Non-fermable tant que 1-2 ne sont
+ * pas validées. À la validation, l'écran de succès présente les étapes
+ * optionnelles (liens) puis ouvre le dashboard en navigation dure.
  */
 export function OnboardingBlockerModal({
     guildId,
@@ -34,12 +66,20 @@ export function OnboardingBlockerModal({
     servers: OnboardingServerOption[];
     roles: OnboardingRoleOption[];
 }) {
-    const [step, setStep] = useState<1 | 2>(1);
+    const [step, setStep] = useState<Step>(1);
     const [serverId, setServerId] = useState("");
     const [roleId, setRoleId] = useState("");
     const [error, setError] = useState<string | null>(null);
     const [done, setDone] = useState(false);
     const [isPending, startTransition] = useTransition();
+    // Étape 3 — salons (vide = skippé)
+    const [lifecycleChannel, setLifecycleChannel] = useState("");
+    const [missionChannel, setMissionChannel] = useState("");
+    // Étape 4 — modules (tout décoché par défaut, sauf `admin` forcé à l'envoi)
+    const [selectedModules, setSelectedModules] = useState<Record<string, boolean>>({});
+    // Étape 5 — présentation express (vide = skippée)
+    const [presHistory, setPresHistory] = useState("");
+    const [presRecruiting, setPresRecruiting] = useState(false);
 
     const submit = () => {
         // Garde anti-double-clic : sans elle, deux `completeMandatoryOnboarding`
@@ -53,9 +93,87 @@ export function OnboardingBlockerModal({
         startTransition(async () => {
             const res = await completeMandatoryOnboarding(guildId, serverId, roleId);
             if (res.success) {
-                setDone(true);
+                setStep(3);
             } else {
                 setError(res.error || "Échec de l'enregistrement.");
+            }
+        });
+    };
+
+    const saveChannels = () => {
+        if (isPending) return;
+        setError(null);
+        // Rien choisi = étape skippée, aucun appel serveur.
+        if (!lifecycleChannel && !missionChannel) {
+            setStep(4);
+            return;
+        }
+        startTransition(async () => {
+            const res = await updateMissionNotifySettings(guildId, {
+                channelId: missionChannel || null,
+                roleId: null,
+                lifecycleNotifyChannelId: lifecycleChannel || null,
+            });
+            if (res.success) {
+                setStep(4);
+            } else {
+                setError(res.error || "Échec de l'enregistrement des salons.");
+            }
+        });
+    };
+
+    const toggleModule = (key: string) => {
+        setSelectedModules((prev) => ({ ...prev, [key]: !prev[key] }));
+    };
+
+    const selectedCount = Object.values(selectedModules).filter(Boolean).length;
+
+    const saveModules = () => {
+        if (isPending) return;
+        setError(null);
+        startTransition(async () => {
+            // État complet exigé par le schéma (tout OFF sauf `admin`,
+            // jamais désactivable, + les choix de l'admin).
+            const fullState = {} as Record<ModuleKey, boolean>;
+            for (const key of Object.keys(DEFAULT_MODULES) as ModuleKey[]) {
+                fullState[key] = false;
+            }
+            fullState.admin = true;
+            for (const [key, value] of Object.entries(selectedModules)) {
+                if (value) fullState[key as ModuleKey] = true;
+            }
+            const res = await updateGuildModules(guildId, fullState);
+            if (res.success) {
+                setStep(5);
+            } else {
+                setError(res.error || "Échec de l'enregistrement des modules.");
+            }
+        });
+    };
+
+    const savePresentation = () => {
+        if (isPending) return;
+        setError(null);
+        // Rien rempli = étape skippée, aucun appel serveur.
+        if (!presHistory.trim() && !presRecruiting) {
+            setDone(true);
+            return;
+        }
+        startTransition(async () => {
+            const current = await getAdminPresentationData(guildId);
+            if (!current.success || !current.data) {
+                setError(current.error || "Présentation injoignable.");
+                return;
+            }
+            const res = await updateGuildPresentation(guildId, {
+                ...current.data,
+                history: presHistory.trim() || current.data.history,
+                recruiting: presRecruiting,
+            });
+            if (res.success) {
+                setDone(true);
+            } else {
+                setError(res.error || "Échec de l'enregistrement de la présentation.");
             }
         });
     };
@@ -80,33 +198,31 @@ export function OnboardingBlockerModal({
                 {!done ? (
                     <>
                         <div className="space-y-2 text-center">
-                            <p className="text-xs font-black uppercase tracking-widest text-warning">
-                                Configuration obligatoire — étape {step} / 2
+                            <p className="text-xs font-medium text-muted-foreground">
+                                Configuration — étape {step} / 5{step > 2 ? " (optionnel)" : ""}
                             </p>
-                            <h2 className="text-2xl font-black text-foreground tracking-tight">
-                                {step === 1 ? "Votre serveur de jeu" : "Qui peut se connecter ?"}
+                            <h2 className="text-2xl font-bold text-foreground tracking-tight">
+                                {STEP_META[step].title}
                             </h2>
                             <p className="text-sm text-muted-foreground leading-relaxed">
-                                {step === 1
-                                    ? "Sélectionnez le serveur Dofus de votre guilde. Requis pour débloquer l'accès au dashboard."
-                                    : "Choisissez au moins un rôle Discord autorisé à se connecter (jamais @everyone). Sans cela, personne ne peut entrer."}
+                                {STEP_META[step].description}
                             </p>
                         </div>
 
                         {/* Indicateur d'étapes */}
-                        <div className="flex items-center gap-2">
-                            {[1, 2].map((s) => (
+                        <div className="flex items-center gap-2" aria-hidden="true">
+                            {([1, 2, 3, 4, 5] as Step[]).map((s) => (
                                 <div
                                     key={s}
                                     className={cn(
                                         "h-1.5 flex-1 rounded-full transition-colors",
-                                        s < step || (s === 2 && step === 2) ? "bg-success" : s === step ? "bg-warning" : "bg-muted"
+                                        s < step ? "bg-success" : s === step ? "bg-warning" : "bg-muted"
                                     )}
                                 />
                             ))}
                         </div>
 
-                        {step === 1 ? (
+                        {step === 1 && (
                             <div className="space-y-2 max-h-[300px] overflow-y-auto custom-scrollbar pr-1">
                                 {servers.map((s) => (
                                     <button
@@ -144,7 +260,9 @@ export function OnboardingBlockerModal({
                                     </button>
                                 ))}
                             </div>
-                        ) : (
+                        )}
+
+                        {step === 2 && (
                             <div className="space-y-2 max-h-[300px] overflow-y-auto custom-scrollbar pr-1">
                                 {roles.length === 0 && (
                                     <p className="text-sm text-warning font-medium p-3 rounded-xl border border-warning/30 bg-warning/10">
@@ -171,6 +289,128 @@ export function OnboardingBlockerModal({
                             </div>
                         )}
 
+                        {step === 3 && (
+                            <div className="space-y-4">
+                                <div className="space-y-2">
+                                    <label className="text-xs font-medium text-muted-foreground">
+                                        Cycle de vie (arrivées, départs, bans)
+                                    </label>
+                                    <DiscordChannelPicker
+                                        guildId={guildId}
+                                        value={lifecycleChannel}
+                                        onChange={setLifecycleChannel}
+                                        placeholder="Choisir un salon…"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-xs font-medium text-muted-foreground">
+                                        Missions (publications, validations)
+                                    </label>
+                                    <DiscordChannelPicker
+                                        guildId={guildId}
+                                        value={missionChannel}
+                                        onChange={setMissionChannel}
+                                        placeholder="Choisir un salon…"
+                                    />
+                                </div>
+                            </div>
+                        )}
+
+                        {step === 4 && (
+                            <div className="space-y-3">
+                                <p className="text-xs text-muted-foreground">
+                                    {selectedCount === 0
+                                        ? "Aucun module coché — vous pourrez tout activer plus tard dans Pilotage."
+                                        : `${selectedCount} module${selectedCount > 1 ? "s" : ""} coché${selectedCount > 1 ? "s" : ""}.`}
+                                </p>
+                                <div className="space-y-4 max-h-[300px] overflow-y-auto custom-scrollbar pr-1">
+                                    {MODULE_GROUPS.map((group) => (
+                                        <div key={group.label} className="space-y-1.5">
+                                            <p className="text-[11px] font-medium text-muted-foreground px-1">
+                                                {group.label}
+                                            </p>
+                                            {group.modules
+                                                .filter((mod) => mod.key !== "admin")
+                                                .map((mod) => {
+                                                    const selected = !!selectedModules[mod.key];
+                                                    const asset = MODULE_DOFUS_ASSETS[mod.key];
+                                                    const ModIcon = mod.icon;
+                                                    return (
+                                                        <button
+                                                            key={mod.key}
+                                                            type="button"
+                                                            onClick={() => toggleModule(mod.key)}
+                                                            aria-pressed={selected}
+                                                            className={cn(
+                                                                "w-full flex items-center gap-3 p-2.5 rounded-xl border text-left transition-colors",
+                                                                selected
+                                                                    ? "border-success/50 bg-success/5"
+                                                                    : "border-border bg-black/20 hover:border-border-strong"
+                                                            )}
+                                                        >
+                                                            {asset ? (
+                                                                // eslint-disable-next-line @next/next/no-img-element
+                                                                <img
+                                                                    src={`/assets/dofus/modules/${asset}`}
+                                                                    alt=""
+                                                                    loading="lazy"
+                                                                    draggable={false}
+                                                                    className="w-8 h-8 shrink-0 object-contain"
+                                                                />
+                                                            ) : (
+                                                                <ModIcon className="w-5 h-5 shrink-0 text-muted-foreground" />
+                                                            )}
+                                                            <span className="flex-1 min-w-0">
+                                                                <span className={cn(
+                                                                    "block text-sm font-semibold truncate",
+                                                                    selected ? "text-foreground" : "text-muted-foreground"
+                                                                )}>
+                                                                    {mod.label}
+                                                                </span>
+                                                                <span className="block text-[11px] text-muted-foreground leading-snug">
+                                                                    {mod.description}
+                                                                </span>
+                                                            </span>
+                                                            <span className={cn(
+                                                                "w-5 h-5 rounded-full border flex items-center justify-center shrink-0 transition-colors",
+                                                                selected ? "bg-success border-success" : "border-border"
+                                                            )}>
+                                                                {selected && <Check className="w-3 h-3 text-success-foreground" />}
+                                                            </span>
+                                                        </button>
+                                                    );
+                                                })}
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {step === 5 && (
+                            <div className="space-y-4">
+                                <div className="space-y-2">
+                                    <label className="text-xs font-medium text-muted-foreground">
+                                        Histoire de la guilde (quelques lignes suffisent)
+                                    </label>
+                                    <Textarea
+                                        value={presHistory}
+                                        onChange={(e) => setPresHistory(e.target.value)}
+                                        placeholder="Ex : Guilde PvM fondée en 2021 sur Draconiros, on farm les Songes le mercredi…"
+                                        rows={4}
+                                        maxLength={2000}
+                                        className="bg-black/20 border-border rounded-xl text-sm resize-none focus-visible:ring-0 focus-visible:border-border-strong"
+                                    />
+                                </div>
+                                <div className="flex items-center justify-between gap-4 p-3.5 rounded-xl border border-border bg-black/20">
+                                    <div>
+                                        <p className="text-sm font-semibold text-foreground">Recrutement ouvert</p>
+                                        <p className="text-[11px] text-muted-foreground">La guilde apparaît comme recruteuse sur sa page publique.</p>
+                                    </div>
+                                    <Switch checked={presRecruiting} onCheckedChange={setPresRecruiting} />
+                                </div>
+                            </div>
+                        )}
+
                         {error && (
                             <p className="text-sm font-bold text-danger bg-danger/10 border border-danger/30 rounded-xl px-4 py-2.5">
                                 {error}
@@ -183,29 +423,103 @@ export function OnboardingBlockerModal({
                                     type="button"
                                     onClick={() => { setStep(1); setError(null); }}
                                     disabled={isPending}
-                                    className="px-5 h-12 rounded-xl border border-border text-muted-foreground hover:text-foreground font-bold text-sm transition-colors disabled:opacity-50"
+                                    className="px-5 h-12 rounded-xl border border-border text-muted-foreground hover:text-foreground text-sm transition-colors disabled:opacity-50"
                                 >
                                     Retour
                                 </button>
                             )}
-                            {step === 1 ? (
+                            {step === 4 && (
+                                <button
+                                    type="button"
+                                    onClick={() => { setStep(3); setError(null); }}
+                                    disabled={isPending}
+                                    className="px-5 h-12 rounded-xl border border-border text-muted-foreground hover:text-foreground text-sm transition-colors disabled:opacity-50"
+                                >
+                                    Retour
+                                </button>
+                            )}
+                            {step === 5 && (
+                                <button
+                                    type="button"
+                                    onClick={() => { setStep(4); setError(null); }}
+                                    disabled={isPending}
+                                    className="px-5 h-12 rounded-xl border border-border text-muted-foreground hover:text-foreground text-sm transition-colors disabled:opacity-50"
+                                >
+                                    Retour
+                                </button>
+                            )}
+                            {step === 1 && (
                                 <button
                                     type="button"
                                     onClick={() => { if (serverId) { setStep(2); setError(null); } else setError("Choisissez un serveur pour continuer."); }}
-                                    className="flex-1 h-12 rounded-xl bg-success hover:bg-success text-success-foreground font-black text-sm uppercase tracking-wider transition-colors flex items-center justify-center gap-2"
+                                    className="flex-1 h-12 rounded-xl bg-success hover:bg-success/90 text-success-foreground font-semibold text-sm transition-colors flex items-center justify-center gap-2"
                                 >
                                     Continuer <ArrowRight className="w-4 h-4" />
                                 </button>
-                            ) : (
+                            )}
+                            {step === 2 && (
                                 <button
                                     type="button"
                                     onClick={submit}
                                     disabled={isPending || !roleId}
-                                    className="flex-1 h-12 rounded-xl bg-success hover:bg-success text-success-foreground font-black text-sm uppercase tracking-wider transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                                    className="flex-1 h-12 rounded-xl bg-success hover:bg-success/90 text-success-foreground font-semibold text-sm transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
                                 >
                                     {isPending && <Loader2 className="w-4 h-4 animate-spin" />}
                                     Activer ma guilde
                                 </button>
+                            )}
+                            {step === 3 && (
+                                <>
+                                    <button
+                                        type="button"
+                                        onClick={() => { setStep(4); setError(null); }}
+                                        disabled={isPending}
+                                        className="px-5 h-12 rounded-xl border border-border text-muted-foreground hover:text-foreground text-sm transition-colors disabled:opacity-50"
+                                    >
+                                        Passer
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={saveChannels}
+                                        disabled={isPending}
+                                        className="flex-1 h-12 rounded-xl bg-success hover:bg-success/90 text-success-foreground font-semibold text-sm transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                                    >
+                                        {isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+                                        Enregistrer et continuer
+                                    </button>
+                                </>
+                            )}
+                            {step === 4 && (
+                                <button
+                                    type="button"
+                                    onClick={saveModules}
+                                    disabled={isPending}
+                                    className="flex-1 h-12 rounded-xl bg-success hover:bg-success/90 text-success-foreground font-semibold text-sm transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                                >
+                                    {isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+                                    Enregistrer et continuer
+                                </button>
+                            )}
+                            {step === 5 && (
+                                <>
+                                    <button
+                                        type="button"
+                                        onClick={() => { setDone(true); setError(null); }}
+                                        disabled={isPending}
+                                        className="px-5 h-12 rounded-xl border border-border text-muted-foreground hover:text-foreground text-sm transition-colors disabled:opacity-50"
+                                    >
+                                        Passer
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={savePresentation}
+                                        disabled={isPending}
+                                        className="flex-1 h-12 rounded-xl bg-success hover:bg-success/90 text-success-foreground font-semibold text-sm transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                                    >
+                                        {isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+                                        Enregistrer et terminer
+                                    </button>
+                                </>
                             )}
                         </div>
                     </>
@@ -213,7 +527,7 @@ export function OnboardingBlockerModal({
                     <>
                         <div className="space-y-2 text-center">
                             <CheckCircle2 className="w-12 h-12 text-success mx-auto" />
-                            <h2 className="text-2xl font-black text-foreground tracking-tight">
+                            <h2 className="text-2xl font-bold text-foreground tracking-tight">
                                 Guilde activée !
                             </h2>
                             <p className="text-sm text-muted-foreground leading-relaxed">
@@ -227,7 +541,7 @@ export function OnboardingBlockerModal({
                                 { icon: Puzzle, label: "Activer des modules", href: `/dashboard/${guildId}/admin/modules` },
                                 { icon: BookOpen, label: "Page de présentation", href: `/dashboard/${guildId}/admin/presentation` },
                                 { icon: Swords, label: "Premières missions", href: `/dashboard/${guildId}/missions/manage` },
-                                { icon: Rocket, label: "Revoir la mise en route", href: `/dashboard/${guildId}/admin/getting-started` },
+                                { icon: Rocket, label: "Revoir la configuration", href: `/dashboard/${guildId}/admin/getting-started` },
                             ].map((item) => (
                                 <a
                                     key={item.href + item.label}
@@ -245,7 +559,7 @@ export function OnboardingBlockerModal({
                         <button
                             type="button"
                             onClick={finish}
-                            className="w-full h-12 rounded-xl bg-success hover:bg-success text-success-foreground font-black text-sm uppercase tracking-wider transition-colors"
+                            className="w-full h-12 rounded-xl bg-success hover:bg-success/90 text-success-foreground font-semibold text-sm transition-colors"
                         >
                             Ouvrir le dashboard
                         </button>

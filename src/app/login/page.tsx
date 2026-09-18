@@ -54,6 +54,8 @@ export default async function LoginPage({
     }
 
     const { callbackUrl, info } = await searchParams;
+    const { getServerI18n } = await import("@/lib/i18n/server");
+    const { t } = await getServerI18n();
 
     // SECURITY: Only allow relative callbackUrls to prevent Open Redirect
     const safeCallbackUrl =
@@ -63,26 +65,25 @@ export default async function LoginPage({
 
     return (
         <div className="registre min-h-screen flex flex-col bg-background text-foreground">
-            <PublicHeader variant="standard" backHref="/" backLabel="Accueil" />
+            <PublicHeader variant="standard" backHref="/" backLabel={t.nav.backToHome} />
 
             <main className="flex-1">
                 <div className="reg-shell py-10 lg:py-16">
                     <div className="max-w-[34rem]">
-                        <p className="reg-eyebrow">Connexion</p>
+                        <p className="reg-eyebrow">{t.auth.loginRequiredEyebrow}</p>
                         <h1 className="mt-3 text-[clamp(1.6rem,2.8vw,2rem)] font-bold tracking-tight text-foreground">
-                            Connexion requise
+                            {t.auth.loginRequiredTitle}
                         </h1>
                         <p className="mt-3 text-sm text-muted-foreground leading-relaxed">
-                            SigilOS s&apos;ouvre avec ton compte Discord&nbsp;: il n&apos;existe ni compte ni mot de
-                            passe SigilOS, et aucun accès au compte Ankama n&apos;est demandé.
+                            {t.auth.loginDescription}
                         </p>
 
                         {isSessionExpired && (
                             <div className="reg-callout mt-6 border-warning/40">
                                 <div>
-                                    <p className="font-semibold text-foreground">Session expirée</p>
+                                    <p className="font-semibold text-foreground">{t.auth.sessionExpiredTitle}</p>
                                     <p className="mt-1 text-sm text-muted-foreground leading-relaxed">
-                                        Ta session Discord a expiré. Reconnecte-toi pour continuer.
+                                        {t.auth.sessionExpiredDesc}
                                     </p>
                                 </div>
                             </div>
@@ -97,13 +98,12 @@ export default async function LoginPage({
                         >
                             <button type="submit" className="reg-btn reg-btn-primary">
                                 <DiscordIcon className="w-4 h-4" aria-hidden="true" />
-                                Se connecter avec Discord
+                                {t.auth.connectWithDiscord}
                             </button>
                         </form>
 
                         <p className="mt-5 max-w-[54ch] text-xs text-muted-foreground leading-relaxed">
-                            Le tableau de bord est réservé aux membres des guildes présentes sur SigilOS. Les outils de
-                            jeu — Rush Sylvestre, fiches de boss, Almanax — restent consultables sans compte.
+                            {t.auth.safeAccessNotice}
                         </p>
                     </div>
                 </div>

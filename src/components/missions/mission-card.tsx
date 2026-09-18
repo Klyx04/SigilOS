@@ -711,8 +711,21 @@ function generateDescription(category: MissionCategory, payload: any): React.Rea
         case "ANOMALIE":
             const range = payload.levelRange || "200";
             if (payload.type === 'BOSS') {
+                const bossElixir = payload.elixir || 'uchronique';
+                const bossLabelMap: Record<string, string> = {
+                    uchronique: "Élixir uchronique",
+                    mineur: "Élixir uchronique mineur",
+                    ameliore: "Élixir uchronique amélioré",
+                    majeur: "Élixir uchronique majeur"
+                };
+                if (bossElixir === 'aucun') {
+                    return (
+                        <>Vaincre un <span className="text-fuchsia-400 font-bold">gardien d'anomalie</span> de niveau <span className="text-fuchsia-400 font-bold">{range}</span></>
+                    );
+                }
+                const bossElixirLabel = bossLabelMap[bossElixir as keyof typeof bossLabelMap] || bossLabelMap.uchronique;
                 return (
-                    <>Vaincre un <span className="text-fuchsia-400 font-bold">gardien d'anomalie</span> de niveau <span className="text-fuchsia-400 font-bold">{range}</span> sous l'effet d'un <span className="text-fuchsia-400 font-bold">Elixir uchronique</span></>
+                    <>Vaincre un <span className="text-fuchsia-400 font-bold">gardien d'anomalie</span> de niveau <span className="text-fuchsia-400 font-bold">{range}</span> sous l'effet d'un <span className="text-fuchsia-400 font-bold">{bossElixirLabel}</span></>
                 );
             }
             if (payload.type === 'GARDIENS') {

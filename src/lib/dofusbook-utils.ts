@@ -1,11 +1,69 @@
-﻿export type DofusbookItem = {
+﻿export type DofusbookItemEffect = {
+    code: string;
+    min: number;
+    max: number;
+    /** Meilleur jet (max des bornes, comme pour les stats). */
+    value: number;
+};
+
+export type DofusbookItem = {
     id: number;
     name: string;
     picture: number;
     official: number;
+    /** Niveau et type quand Dofusbook les expose (repli : 0 / ""). */
+    level?: number;
+    typeName?: string;
+    /** Effets au meilleur jet (pour la modale interne, sans appel réseau). */
+    effects?: DofusbookItemEffect[];
 };
 
+/** Icône d'item 100 % interne : proxy auto-siphon (jamais de hotlink Dofusbook/DofusDB côté client). */
+export function dofusbookItemIconUrl(id: number): string {
+    return `/api/assets-dofus/items/${id}`;
+}
+
+/** Meilleur jet d'un effet Dofusbook (`min`/`max`/`value`), comme `sumEffect`. */
+export function dofusbookBestRoll(e: any): number {
+    const minVal = e?.min !== undefined && e?.min !== null ? Number(e.min) : undefined;
+    const maxVal = e?.max !== undefined && e?.max !== null ? Number(e.max) : undefined;
+    let val = Number(e?.value) || 0;
+    if (minVal !== undefined && maxVal !== undefined) val = Math.max(minVal, maxVal);
+    else if (maxVal !== undefined) val = maxVal;
+    else if (minVal !== undefined) val = minVal;
+    return val;
+}
+
+function toDofusbookItemEffects(raw: any): DofusbookItemEffect[] | undefined {
+    const list = raw?.effects || raw?.stats;
+    if (!Array.isArray(list) || list.length === 0) return undefined;
+    const out: DofusbookItemEffect[] = [];
+    for (const e of list) {
+        const code = String(e?.name || "").toLowerCase();
+        if (!code) continue;
+        const min = Number(e?.min ?? e?.value ?? 0) || 0;
+        const max = Number(e?.max ?? e?.value ?? min) || 0;
+        out.push({ code, min, max, value: dofusbookBestRoll(e) });
+    }
+    return out.length > 0 ? out : undefined;
+}
+
+function toDofusbookItem(raw: any): DofusbookItem | null {
+    if (!raw || raw.id == null) return null;
+    return {
+        id: Number(raw.id),
+        name: String(raw.name || "Équipement"),
+        picture: Number(raw.picture ?? 0),
+        official: Number(raw.official ?? 0),
+        level: Number(raw.level ?? raw.item_level ?? 0) || undefined,
+        typeName: typeof raw.type === "string" ? raw.type : typeof raw.typeName === "string" ? raw.typeName : undefined,
+        effects: toDofusbookItemEffects(raw),
+    };
+}
+
 export type DofusbookPreviewData = {
+    /** Version de forme des données (2 = items avec effets/niveau/type pour la modale interne). */
+    v: number;
     id: number;
     name: string;
     level: number;
@@ -215,12 +273,7 @@ export function processDofusbookRawData(id: string, raw: any): DofusbookPreviewD
     Object.entries(stuffItemsSlots).forEach(([slot, itemId]) => {
         const item = itemsList.find(i => Number(i.id) === Number(itemId));
         if (item) {
-            itemsMap[slot] = {
-                id: item.id,
-                name: item.name,
-                picture: item.picture,
-                official: item.official
-            };
+            itemsMap[slot] = toDofusbookItem(item);
             // Mod: Only add base effect if that stat hasn't been FM'd (overridden in stuffFmItem)
             const fmItemOverrides = (stuffFmItem && typeof stuffFmItem === 'object') ? (stuffFmItem as any)[slot] : null;
 
@@ -271,11 +324,11 @@ export function processDofusbookRawData(id: string, raw: any): DofusbookPreviewD
 
             if (equippedCount > 1) {
                 // Collect the actually-equipped items from this cloth
+                // (repli sur la donnée brute de la panoplie si l'item n'est pas dans `items`).
                 const equippedClothItems: DofusbookItem[] = (cloth.items || [])
                     .filter((ci: any) => Object.values(stuffItemsSlots).some(id => Number(id) === Number(ci.id)))
-                    .map((ci: any) => itemsList.find((i: any) => Number(i.id) === Number(ci.id)))
-                    .filter(Boolean)
-                    .map((i: any) => ({ id: i.id, name: i.name, picture: i.picture, official: i.official }));
+                    .map((ci: any) => toDofusbookItem(itemsList.find((i: any) => Number(i.id) === Number(ci.id)) ?? ci))
+                    .filter((v: DofusbookItem | null): v is DofusbookItem => !!v);
 
                 activeCloths.push({ name: clothName, count: equippedCount, total, clothItems: equippedClothItems, bonuses: clothBonuses });
             }
@@ -442,6 +495,7 @@ export function processDofusbookRawData(id: string, raw: any): DofusbookPreviewD
     const validClassId = Number.isFinite(rawClassId) && rawClassId >= 1 && rawClassId <= 19 ? rawClassId : null;
 
     return {
+        v: 2,
         id: parseInt(id) || 0,
         name: raw.stuff?.name || "Sans nom",
         level,

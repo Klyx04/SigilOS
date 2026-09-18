@@ -6,13 +6,22 @@ import {
   ExternalLink, MapPin, Sword, Package,
   ArrowUp, BookOpen, Skull, X,
   ChevronRight, Info, Layers, Users,
-  Lock, Search, EyeOff, Eye, Crosshair, Flag, RotateCcw, Copy,
+  Lock, Search, EyeOff, Eye, Crosshair, Flag, RotateCcw, Copy, Trophy,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { DofusQuestStatus } from "@prisma/client";
 import { toast } from "sonner";
 import type { DofusPresenceMember } from "@/hooks/use-dofus-presence";
 import { isSafeImageUrl } from "@/lib/security";
+import {
+  buildQuestTree,
+  collectSubtreeQuestIds,
+  filterTreeEntries,
+  isAchievement,
+  nodeProgress,
+  questProgress,
+  type QuestTree,
+} from "@/lib/dofus-quest-tree";
 
 interface DofusTimelineQuestProps {
   guildId: string;
@@ -354,6 +363,100 @@ function QuestRow({ quest, color, isCompleted, isLast, isNext, isBlocked, isSele
   );
 }
 
+// ─── Succès imbriqué ───────────────────────────────────────────────────────
+/**
+ * Succès du jeu contenant une série de succès (ou de quêtes) — « Le pays des
+ * Vermeils » → « Même pas malle » → ses quêtes.
+ *
+ * Le bloc n'a pas d'état propre : sa progression et ses boutons portent sur les
+ * quêtes de son sous-arbre (`collectSubtreeQuestIds`), donc valider le succès
+ * revient exactement à valider ses objectifs, comme en jeu.
+ */
+function AchievementBlock({
+  entry, tree, color, completedIds, onToggleStatus, renderQuest, depth = 0,
+}: {
+  entry: any;
+  tree: QuestTree<any>;
+  color: string;
+  completedIds: Set<string>;
+  onToggleStatus: (questId: string, status: DofusQuestStatus) => void;
+  renderQuest: (entry: any, depth: number) => React.ReactNode;
+  depth?: number;
+}) {
+  const [collapsed, setCollapsed] = useState(false);
+  const children = tree.childrenByParent.get(entry.id) ?? [];
+  const progress = nodeProgress(tree, entry, completedIds);
+  const questIds = collectSubtreeQuestIds(tree, entry.id);
+
+  const handleValidateAll = () => {
+    const missing = questIds.filter((id) => !completedIds.has(id));
+    missing.forEach((id) => onToggleStatus(id, "COMPLETED" as DofusQuestStatus));
+    if (missing.length > 0) toast.success(`${missing.length} objectif${missing.length > 1 ? "s" : ""} validé${missing.length > 1 ? "s" : ""}`);
+  };
+
+  const handleResetAll = () => {
+    const done = questIds.filter((id) => completedIds.has(id));
+    done.forEach((id) => onToggleStatus(id, "NOT_STARTED" as DofusQuestStatus));
+    if (done.length > 0) toast.success(`${done.length} objectif${done.length > 1 ? "s" : ""} réinitialisé${done.length > 1 ? "s" : ""}`);
+  };
+
+  const isDone = progress.total > 0 && progress.completed === progress.total;
+
+  return (
+    <div className="rounded-2xl border overflow-hidden bg-surface/20" style={{ borderColor: `${color}44` }}>
+      <div className="flex items-center justify-between gap-3 p-3" style={{ background: `${color}0d` }}>
+        <button onClick={() => setCollapsed((v) => !v)} className="flex items-center gap-3 min-w-0 text-left">
+          <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 border" style={{ background: `${color}18`, borderColor: `${color}33` }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/assets/icons/icone-succes.png" alt="" className="w-6 h-6 object-contain" />
+          </div>
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5">
+              <Trophy className="w-3 h-3 shrink-0" style={{ color }} />
+              <span className="text-caption font-black uppercase tracking-widest" style={{ color }}>Succès</span>
+              {isDone && <CheckCircle2 className="w-3 h-3 text-success shrink-0" />}
+            </div>
+            <p className={`text-xs font-bold truncate ${isDone ? "text-success" : "text-foreground"}`}>{entry.name}</p>
+          </div>
+        </button>
+        <div className="flex items-center gap-2 shrink-0">
+          {progress.completed < progress.total && (
+            <span role="button" tabIndex={0} onClick={(e) => { e.stopPropagation(); handleValidateAll(); }} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleValidateAll(); } }}
+              className="hidden sm:flex items-center gap-1 px-2 py-1 rounded-lg bg-success/10 border border-success/20 text-success text-caption font-black uppercase tracking-wider hover:bg-success/20 transition-all cursor-pointer">
+              <CheckCircle2 className="w-3 h-3" /> Tout valider
+            </span>
+          )}
+          {progress.completed > 0 && (
+            <span role="button" tabIndex={0} onClick={(e) => { e.stopPropagation(); handleResetAll(); }} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleResetAll(); } }}
+              className="hidden sm:flex items-center gap-1 px-2 py-1 rounded-lg bg-danger/10 border border-danger/20 text-danger text-caption font-black uppercase tracking-wider hover:bg-danger/20 transition-all cursor-pointer">
+              <RotateCcw className="w-3 h-3" /> Tout reset
+            </span>
+          )}
+          <span className="text-caption font-black text-muted-foreground tabular-nums">{progress.completed}/{progress.total} objectifs</span>
+          <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform duration-300 ${collapsed ? "" : "rotate-180"}`} />
+        </div>
+      </div>
+      <AnimatePresence>
+        {!collapsed && (
+          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
+            <div className="p-3 pt-2 space-y-1 border-l-2 ml-4" style={{ borderColor: `${color}55` }}>
+              {children.length === 0 ? (
+                <p className="text-caption text-muted-foreground font-medium px-2 py-1.5">Aucun objectif renseigné.</p>
+              ) : (
+                children.map((child: any) => isAchievement(child)
+                  ? <AchievementBlock key={child.id} entry={child} tree={tree} color={color} completedIds={completedIds}
+                      onToggleStatus={onToggleStatus} renderQuest={renderQuest} depth={depth + 1} />
+                  : renderQuest(child, depth + 1)
+                )
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 // ─── Chain Section ────────────────────────────────────────────────────────
 function ChainSection({ chain, color, completedIds, onToggleStatus, onQuestClick, expandedQuest, setExpandedQuest, guildId, synergy, currentUser, collapsed, onToggleCollapse, prereqsByQuestId, onFocusPrereq, presence, metamobPseudo = null }: {
   chain: any; color: string; completedIds: Set<string>; onToggleStatus: (q: string, s: DofusQuestStatus) => void;
@@ -367,14 +470,22 @@ function ChainSection({ chain, color, completedIds, onToggleStatus, onQuestClick
   metamobPseudo?: string | null;
 }) {
   const entries = chain.entries || [];
-  const completedCount = entries.filter((e: any) => completedIds.has(e.id)).length;
-  const progress = entries.length > 0 ? Math.round((completedCount / entries.length) * 100) : 0;
+  // Succès imbriqués : l'arbre ne sert qu'à l'affichage et aux compteurs, qui
+  // ignorent les succès conteneurs (ce ne sont pas des étapes jouables).
+  const tree = useMemo(() => buildQuestTree<any>(entries), [entries]);
+  const { completed: completedCount, total: totalQuestsInChain, percent: progress } = useMemo(
+    () => questProgress(tree, completedIds),
+    [tree, completedIds]
+  );
+  const firstNonCompletedQuestId = useMemo(
+    () => tree.quests.find((e: any) => !completedIds.has(e.id))?.id ?? null,
+    [tree, completedIds]
+  );
 
   if (entries.length === 0) return null;
-  const firstNonCompletedIdx = entries.findIndex((e: any) => !completedIds.has(e.id));
 
   const handleValidateAll = async () => {
-    const missing = entries.filter((e: any) => !completedIds.has(e.id));
+    const missing = tree.quests.filter((e: any) => !completedIds.has(e.id));
     for (const e of missing) {
       onToggleStatus(e.id, "COMPLETED" as DofusQuestStatus);
     }
@@ -383,7 +494,7 @@ function ChainSection({ chain, color, completedIds, onToggleStatus, onQuestClick
 
   // #148 — « TOUT RESET » rouge à côté de « Tout valider »
   const handleResetAll = async () => {
-    const done = entries.filter((e: any) => completedIds.has(e.id));
+    const done = tree.quests.filter((e: any) => completedIds.has(e.id));
     for (const e of done) {
       onToggleStatus(e.id, "NOT_STARTED" as DofusQuestStatus);
     }
@@ -404,11 +515,11 @@ function ChainSection({ chain, color, completedIds, onToggleStatus, onQuestClick
           </div>
           <div>
             <h3 className="font-black text-sm text-foreground uppercase tracking-tight">{chain.sectionName}</h3>
-            <p className="text-caption text-muted-foreground font-medium mt-0.5">{completedCount}/{entries.length} • {progress}%</p>
+            <p className="text-caption text-muted-foreground font-medium mt-0.5">{completedCount}/{totalQuestsInChain} • {progress}%</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {completedCount < entries.length && (
+          {completedCount < totalQuestsInChain && (
             <span role="button" tabIndex={0} onClick={(e) => { e.stopPropagation(); handleValidateAll(); }} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); handleValidateAll(); } }}
               className="hidden sm:flex items-center gap-1 px-2.5 py-1 rounded-lg bg-success/10 border border-success/20 text-success text-caption font-black uppercase tracking-wider hover:bg-success/20 transition-all cursor-pointer">
               <CheckCircle2 className="w-3 h-3" /> Tout valider
@@ -430,29 +541,39 @@ function ChainSection({ chain, color, completedIds, onToggleStatus, onQuestClick
         {!collapsed && (
           <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
             <div className="p-5 pt-2 space-y-1">
-              {entries.map((entry: any, idx: number) => {
-                const isSelected = expandedQuest === entry.id;
-                const entryPrereqs = prereqsByQuestId?.[entry.id] || [];
-                const blockedByPrereqs = entryPrereqs.some((p) => !completedIds.has(p.fromQuestId));
-                const liveViewers = (presence || []).filter((p) => p.questId === entry.id);
-                return (
-                  <div key={entry.id}>
-                    <QuestRow quest={entry} color={color} isCompleted={completedIds.has(entry.id)} isLast={idx === entries.length - 1}
-                      isNext={!completedIds.has(entry.id) && idx === firstNonCompletedIdx} isBlocked={blockedByPrereqs}
-                      isSelected={isSelected}
-                      synergyForQuest={synergy[entry.id] || []}
-                      currentUser={currentUser}
-                      prereqs={entryPrereqs}
-                      liveViewers={liveViewers}
-                      onFocusPrereq={onFocusPrereq}
-                      onClick={() => { setExpandedQuest(isSelected ? null : entry.id); onQuestClick(entry); }}
-                      onToggle={(s) => onToggleStatus(entry.id, s)} />
-                    <AnimatePresence>
-                      {isSelected && <QuestDetailInline quest={entry} color={color} isCompleted={completedIds.has(entry.id)} onToggle={(s) => onToggleStatus(entry.id, s)} liveViewers={liveViewers} metamobPseudo={metamobPseudo} guildId={guildId} />}
-                    </AnimatePresence>
-                  </div>
+              {(() => {
+                // Rendu d'une quête (racine ou objectif d'un succès, au même niveau visuel).
+                const renderQuest = (entry: any, depth = 0) => {
+                  const isSelected = expandedQuest === entry.id;
+                  const entryPrereqs = prereqsByQuestId?.[entry.id] || [];
+                  const blockedByPrereqs = entryPrereqs.some((p) => !completedIds.has(p.fromQuestId));
+                  const liveViewers = (presence || []).filter((p) => p.questId === entry.id);
+                  return (
+                    <div key={entry.id} style={depth > 0 ? { marginLeft: `${(depth - 1) * 12}px` } : undefined}>
+                      <QuestRow quest={entry} color={color} isCompleted={completedIds.has(entry.id)}
+                        isLast={entry.id === tree.quests[tree.quests.length - 1]?.id}
+                        isNext={!completedIds.has(entry.id) && entry.id === firstNonCompletedQuestId} isBlocked={blockedByPrereqs}
+                        isSelected={isSelected}
+                        synergyForQuest={synergy[entry.id] || []}
+                        currentUser={currentUser}
+                        prereqs={entryPrereqs}
+                        liveViewers={liveViewers}
+                        onFocusPrereq={onFocusPrereq}
+                        onClick={() => { setExpandedQuest(isSelected ? null : entry.id); onQuestClick(entry); }}
+                        onToggle={(s) => onToggleStatus(entry.id, s)} />
+                      <AnimatePresence>
+                        {isSelected && <QuestDetailInline quest={entry} color={color} isCompleted={completedIds.has(entry.id)} onToggle={(s) => onToggleStatus(entry.id, s)} liveViewers={liveViewers} metamobPseudo={metamobPseudo} guildId={guildId} />}
+                      </AnimatePresence>
+                    </div>
+                  );
+                };
+
+                return tree.roots.map((entry: any) => isAchievement(entry)
+                  ? <AchievementBlock key={entry.id} entry={entry} tree={tree} color={color} completedIds={completedIds}
+                      onToggleStatus={onToggleStatus} renderQuest={renderQuest} />
+                  : renderQuest(entry)
                 );
-              })}
+              })()}
             </div>
           </motion.div>
         )}
@@ -576,16 +697,29 @@ export function DofusTimelineQuest({ guildId, dofus, chains, dofusColor, complet
     }, 60);
   }, [chains, onFocusedQuestChange]);
 
-  const totalQuests = useMemo(() => chains.reduce((acc: number, c: any) => acc + (c.entries?.length || 0), 0), [chains]);
-  const completedQuests = useMemo(() => chains.reduce((acc: number, c: any) => acc + (c.entries?.filter((e: any) => completedIds.has(e.id)).length || 0), 0), [chains, completedIds]);
+  // Succès imbriqués : seules les quêtes jouables comptent comme « étapes ».
+  const totals = useMemo(() => {
+    const quests = chains.flatMap((c: any) => buildQuestTree<any>(c.entries || []).quests);
+    return {
+      total: quests.length,
+      completed: quests.filter((q: any) => completedIds.has(q.id)).length,
+    };
+  }, [chains, completedIds]);
+  const totalQuests = totals.total;
+  const completedQuests = totals.completed;
   const progressPercent = totalQuests > 0 ? Math.round((completedQuests / totalQuests) * 100) : 0;
 
   const filteredChains = useMemo(() => {
     if (!searchQuery && !hideCompleted) return chains;
+    const needle = searchQuery.toLowerCase();
     return chains.map((chain: any) => {
-      let entries = chain.entries || [];
-      if (hideCompleted) entries = entries.filter((e: any) => !completedIds.has(e.id));
-      if (searchQuery) entries = entries.filter((e: any) => e.name.toLowerCase().includes(searchQuery.toLowerCase()) || (e.zone || "").toLowerCase().includes(searchQuery.toLowerCase()));
+      // `filterTreeEntries` garde les succès parents d'un objectif retenu :
+      // une quête trouvée par la recherche reste dans son succès.
+      const entries = filterTreeEntries(chain.entries || [], (e: any) => {
+        if (hideCompleted && completedIds.has(e.id)) return false;
+        if (needle) return e.name.toLowerCase().includes(needle) || (e.zone || "").toLowerCase().includes(needle);
+        return true;
+      });
       return { ...chain, entries };
     }).filter((c: any) => c.entries.length > 0 || !hideCompleted);
   }, [chains, searchQuery, hideCompleted, completedIds]);

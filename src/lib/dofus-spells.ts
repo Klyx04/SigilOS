@@ -18,6 +18,14 @@
 
 export type SpellElementKey = "terre" | "feu" | "eau" | "air" | "neutre";
 
+/** Zone d'effet brute portée par une ligne de dégâts (issue de `zoneDescr` DofusDB). */
+export interface SpellLineZone {
+    /** Lettre de gabarit Ankama (`P`, `C`, `X`, `L`, `V`, `+`…). */
+    shape: string;
+    /** Taille (`param1`, ex. rayon du cercle). */
+    size: number;
+}
+
 export interface SpellBaseDamage {
     /** Dommages de base min (au grade donné). */
     min: number;
@@ -27,6 +35,59 @@ export interface SpellBaseDamage {
     element: SpellElementKey;
     /** Grade (niveau) du sort utilisé pour ces dégâts. */
     grade: number;
+    /** Zone d'effet de CETTE ligne (`zoneDescr` DofusDB, absent = monocible). */
+    zone?: SpellLineZone | null;
+}
+
+/**
+ * Forme de zone normalisée (même vocabulaire que Dofensive/`SpellRangeGrid`).
+ * Convention reprise de `toAnomalyZone` (session 15/09 : `zoneDescr.shape` =
+ * code ASCII du gabarit Ankama, `'P'` = 80 → Point, `'C'` = 67 → Cercle…).
+ * `'+'` (43, observé sur des effets monocibles, ex. Somnolence) vaut Point ;
+ * les gabarits non calibrés (`'Q'`, `'O'`…) restent « Inconnue » : on n'invente rien.
+ */
+export type SpellZoneShape = "Point" | "Cercle" | "Croix" | "Ligne" | "Cône" | "Inconnue";
+
+export interface SpellZoneSummary {
+    shape: SpellZoneShape;
+    size: number;
+}
+
+export function spellZoneShapeFromLetter(letter: string): SpellZoneShape {
+    switch (String(letter || "").toUpperCase()) {
+        case "P":
+        case "+":
+            return "Point";
+        case "C":
+            return "Cercle";
+        case "X":
+            return "Croix";
+        case "L":
+            return "Ligne";
+        case "V":
+            return "Cône";
+        default:
+            return "Inconnue";
+    }
+}
+
+/**
+ * Zone d'effet d'un sort à partir de ses lignes de dégâts : la première ligne
+ * avec une vraie AoE (non-Point) fait foi (toutes les lignes d'un sort
+ * partagent la même zone en pratique — vérifié : Torrent Arcanique = 4× Cercle 2) ;
+ * sinon le sort est monocible. `null` = aucun dégât (sort utilitaire).
+ */
+export function spellZoneFromDamages(
+    damages: Array<{ zone?: SpellLineZone | null } | null | undefined>
+): SpellZoneSummary | null {
+    const lines = (damages || []).filter(Boolean) as { zone?: SpellLineZone | null }[];
+    if (lines.length === 0) return null;
+    for (const line of lines) {
+        const shape = line.zone ? spellZoneShapeFromLetter(line.zone.shape) : "Point";
+        const size = Math.max(0, Number(line.zone?.size) || 0);
+        if (shape !== "Point") return { shape, size };
+    }
+    return { shape: "Point", size: 0 };
 }
 
 /** Caractéristiques réelles d'un build, issues de `DofusbookPreviewData`. */
@@ -186,6 +247,88 @@ export function computeSpellDamage(
 }
 
 /**
+ * Limites de lancer Dofus (0 = illimité / non renseigné par DofusDB).
+ * `maxPerTarget`/`maxPerTurn` à 0 signifient "pas de plafond du sort"
+ * (seuls les PA limitent) : on ne multiplie jamais par 0.
+ */
+export function castsPerTarget(maxPerTarget: number, maxPerTurn: number): number | null {
+    const t = Math.floor(Number(maxPerTarget) || 0);
+    const p = Math.floor(Number(maxPerTurn) || 0);
+    if (t > 0 && p > 0) return Math.min(t, p);
+    if (t > 0) return t;
+    if (p > 0) return 1; // plafonné au tour mais pas à la cible : 1 lancer de référence par cible
+    return null;
+}
+
+export function castsPerTurn(maxPerTurn: number): number | null {
+    const p = Math.floor(Number(maxPerTurn) || 0);
+    return p > 0 ? p : null;
+}
+
+/**
+ * Forme structurelle minimale d'un grade de sort (suffit à sélectionner et
+ * appliquer le grade par défaut — pas de dépendance au module serveur).
+ */
+export interface SpellGradeLike {
+    grade: number;
+    minPlayerLevel?: number;
+    apCost: number;
+    minRange: number;
+    maxRange: number;
+    criticalChance: number;
+    maxCastPerTurn: number;
+    maxCastPerTarget: number;
+    minCastInterval: number;
+    castInLine?: boolean;
+    castInDiagonal?: boolean;
+    castTestLos?: boolean;
+    zone: { shape: string; size: number; range: number } | null;
+    damages: SpellBaseDamage[];
+    critDamages?: SpellBaseDamage[];
+}
+
+/** Grade par défaut pour un niveau de perso : le plus élevé accessible, sinon le 1er. */
+export function pickGradeForLevel<T extends SpellGradeLike>(grades: T[] | undefined, charLevel: number): T | null {
+    const list = (grades || []).filter(Boolean);
+    if (list.length === 0) return null;
+    const accessible = list.filter((g) => Number(g.minPlayerLevel ?? 1) <= charLevel);
+    return (accessible.length > 0 ? accessible[accessible.length - 1] : list[0]) ?? null;
+}
+
+/**
+ * Applique le grade par défaut (selon le niveau) à chaque sort.persisté.
+ * Les sorts stockés (`ClassSpellbook`, canonique niv. 200) portent déjà tous
+ * leurs grades : cette fonction pure re-dérive les champs de tête SANS réseau,
+ * à l'identique du fetch (`normalizeSpell` + filtre d'accessibilité).
+ */
+export function applyCharLevelToSpells<
+    T extends { grade: number; minPlayerLevel?: number; grades?: SpellGradeLike[] | null } & Partial<SpellGradeLike>,
+>(spells: T[], charLevel: number): T[] {
+    return (spells || []).map((sp) => {
+        const chosen = pickGradeForLevel(sp.grades ?? undefined, charLevel);
+        if (!chosen) return sp;
+        return {
+            ...sp,
+            grade: chosen.grade,
+            minPlayerLevel: Number(chosen.minPlayerLevel ?? 1),
+            apCost: chosen.apCost,
+            minRange: chosen.minRange,
+            maxRange: chosen.maxRange,
+            criticalChance: chosen.criticalChance,
+            maxCastPerTurn: chosen.maxCastPerTurn,
+            maxCastPerTarget: chosen.maxCastPerTarget,
+            minCastInterval: chosen.minCastInterval,
+            castInLine: !!chosen.castInLine,
+            castInDiagonal: !!chosen.castInDiagonal,
+            castTestLos: chosen.castTestLos !== false,
+            zone: chosen.zone,
+            damages: chosen.damages,
+            critDamages: chosen.critDamages,
+        };
+    });
+}
+
+/**
  * Applique un build aux sorts d'une classe et renvoie les dégâts théoriques.
  * Fonction pure → réside ici (module client-safe), pas dans un fichier "use server".
  */
@@ -285,11 +428,21 @@ export function spellDamageFromEffect(eff: any): SpellBaseDamage | null {
     if (max === 0) max = min;
     if (min === 0) return null;
 
+    // Zone d'effet de la ligne (`zoneDescr` DofusDB : `shape` = code ASCII du
+    // gabarit, `param1` = taille). Absent = monocible (cas nominal).
+    const zd = (eff as any).zoneDescr;
+    const zoneShapeCode = Number(zd?.shape) || 0;
+    const zone: SpellLineZone | null =
+        zoneShapeCode > 0
+            ? { shape: String.fromCharCode(zoneShapeCode), size: Math.max(0, Number(zd?.param1) || 0) }
+            : null;
+
     return {
         min,
         max,
         element: elementFromDofusdb(eff.effectElement ?? (eff as any).effectElementId),
         grade: Number(eff.grade ?? eff.level ?? 0),
+        zone,
     };
 }
 

@@ -71,6 +71,25 @@ RUN npm run build:worker
 # Build WebSockets server
 RUN npm run build:ws
 
+# -----------------------------------------------------------------------------
+# CLI Prisma (devDependency → ABSENTE de .next/standalone)
+# -----------------------------------------------------------------------------
+# Les déploiements exécutent `prisma migrate deploy` / `db push` DANS le conteneur.
+# Sans cette étape, le CLI était retéléchargé par `npx` à CHAQUE déploiement
+# (conteneur recréé = cache npm vide) : 1 à 3 minutes d'attente MUETTE à l'étape
+# 4/5 de scripts/deploy-cd.sh (incident du 19/09/2026).
+# Installation LOCALE dans un dossier autonome → une seule copie à faire, et
+# aucune ambiguïté sur l'aplatissement des dépendances (contrairement à une copie
+# partielle de node_modules). Même base Alpine → mêmes moteurs (linux-musl) que
+# le client généré au build.
+# ⚠️ La version doit rester alignée sur `prisma` de package.json ET sur PRISMA_PIN
+# de scripts/deploy-cd.sh.
+FROM base AS prisma-cli
+ARG PRISMA_VERSION=7.10.0
+WORKDIR /prisma-cli
+RUN npm init -y >/dev/null 2>&1 \
+    && npm install --no-audit --no-fund --loglevel=error "prisma@${PRISMA_VERSION}"
+
 # Production image, copy all the files and run next
 FROM base AS runner
 WORKDIR /app
@@ -110,6 +129,12 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
 COPY --from=builder --chown=nextjs:nodejs /app/prisma.config.js ./
 COPY --from=builder --chown=nextjs:nodejs /app/scripts ./scripts
+
+# CLI Prisma embarqué (utilisé par scripts/deploy-cd.sh pour `migrate deploy` et
+# `db push` dans le conteneur) : supprime le `npx` + le téléchargement npm à
+# CHAQUE déploiement. scripts/deploy-cd.sh garde un repli npx automatique si cet
+# artefact disparaissait → un déploiement ne peut pas casser pour ça.
+COPY --from=prisma-cli --chown=nextjs:nodejs /prisma-cli /opt/prisma-cli
 
 # Copy bundled seeds
 COPY --from=builder --chown=nextjs:nodejs /app/prisma/seed-data/seed.js ./prisma/seed-data/

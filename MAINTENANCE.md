@@ -505,6 +505,34 @@ git pull origin main
   sudo docker compose -f docker-compose.prod.yml --env-file .env.beta up -d --force-recreate --no-deps caddy   # beta
   sudo docker compose -f docker-compose.prod.yml --env-file .env.prod  up -d --force-recreate --no-deps caddy   # prod
   ```
+- ⏱️ **Étape 4/5 muette puis `P1002` (incident beta 19/09/2026 — RÉSOLU, 2 sujets distincts)** — `Application des migrations Prisma...` sans la moindre sortie, puis `Timed out trying to acquire a postgres advisory lock (SELECT pg_advisory_lock(72707369))`.
+  - **① La panne : le schema-engine de Prisma 7 part en boucle CPU à 100 %** sur `prisma/migrations/20260919130000_add_dungeon_slug/migration.sql` **écrit avec des instructions sur plusieurs lignes**. Constat : **aucune** instruction exécutée (la colonne `Dungeon.slug` n'existait même pas) mais le **verrou advisory conservé** → `migrate deploy` paraît figé (réflexe Ctrl+C), et la tentative suivante meurt en `P1002` après 10 s. **Preuve** : schema-engine mesuré à 98 % CPU ; le fichier d'origine (multi-lignes) bloque, **le même SQL en « une instruction par ligne » passe** (`nullable=NO`, index unique créé, les 5 instructions exécutées, slugs vérifiés) ⇒ c'est la **mise en forme du fichier**, pas le SQL (les 27 `replace()` imbriqués n'étaient pas le déclencheur : `translate()` fait la même chose en un appel). ⇒ fichier réécrit (**une instruction par ligne, commentaires ASCII**) + **garde de non-régression** (`tests/unit/boss-slug.test.ts` : toute ligne de code se termine par `;`).
+  - **② Le confort : plus aucune étape muette** — le CLI Prisma n'étant pas dans l'image runner, `npx --yes prisma@7.10.0` le **retéléchargeait à CHAQUE déploiement** (1 à 3 min) et sa sortie partait dans un fichier temporaire (donc invisible). Désormais le `Dockerfile` embarque le CLI (stage `prisma-cli` → `/opt/prisma-cli`) et `scripts/deploy-cd.sh` affiche la sortie en direct + borne le temps.
+  - **Débloquer une migration interrompue (à retenir)** :
+    ```bash
+    # 1) tuer le process Prisma bloqué (il garde le verrou) + libérer la base
+    sudo docker compose -f docker-compose.prod.yml --env-file .env.beta restart app-beta
+    sudo docker compose -f docker-compose.prod.yml --env-file .env.beta exec -T db-beta \
+      sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "select pg_terminate_backend(pid) from pg_stat_activity where datname=current_database() and pid <> pg_backend_pid();"'
+    # 2) effacer l'enregistrement « failed » puis relancer
+    sudo docker compose -f docker-compose.prod.yml --env-file .env.beta exec -T app-beta \
+      sh -c 'npx --yes prisma@7.10.0 migrate resolve --rolled-back <migration>'
+    ./scripts/deploy-cd.sh beta
+    ```
+    Si le SQL est trivial et idempotent, l'application manuelle (`psql -f -` puis `migrate resolve --applied <migration>`) reste valide.
+  - **Filet + visibilité** : `scripts/deploy-cd.sh` affiche la sortie **en direct** (helper `compose_exec_streamed` : `exec -T` + `</dev/null`) et borne chaque étape par un **timeout** (code `124` + message clair au lieu d'une attente infinie). **Repli automatique sur `npx`** si `/opt/prisma-cli` manque → le déploiement ne peut jamais casser à cause de cette optimisation.
+  - **Réglages** : `PRISMA_PIN` (défaut `7.10.0` — doit rester aligné sur `prisma` de `package.json` **et** sur `ARG PRISMA_VERSION` du `Dockerfile`) · `PRISMA_TIMEOUT` (défaut `900` s) → ex. `PRISMA_TIMEOUT=1800 ./scripts/deploy-cd.sh prod <sha>`.
+  - **Diagnostic d'un `migrate deploy` long (2ᵉ session SSH)** :
+    ```bash
+    sudo docker compose -f docker-compose.prod.yml --env-file .env.beta logs -f --tail 50 app-beta
+    # La migration tourne-t-elle vraiment ? (verrou / requête en cours)
+    sudo docker compose -f docker-compose.prod.yml --env-file .env.beta exec db-beta \
+      sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "select pid,state,wait_event_type,left(query,80) from pg_stat_activity where datname=current_database();"'
+    # Où en est Prisma ?
+    sudo docker compose -f docker-compose.prod.yml --env-file .env.beta exec db-beta \
+      sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "select migration_name,finished_at from \"_prisma_migrations\" order by started_at desc limit 3;"'
+    ```
+    ⚠️ **Ne JAMAIS Ctrl+C en pleine migration** : une migration à moitié appliquée exige `migrate resolve --rolled-back <migration>` avant de relancer.
 - **Note** : le workflow GHCR ne remplace PAS `verify.yml` (qui reste le garde-fou lint/test/audit). Les deux coexistent : `verify` valide, `deploy.yml` build/push.
 - ⚠️ **Prérequis secrets GitHub** : `BETA_PASSWORD` (settings > secrets). `NEXT_PUBLIC_APP_URL` est défini automatiquement selon la branche.
 - ⚠️ **GHCR Token sur le VPS** : générer un PAT GitHub avec scope `read:packages`, et l'exporter (ou le mettre dans le `.bashrc`/cron).

@@ -1,5 +1,4 @@
 import { getPlatformConfig } from "@/server/actions/changelog-actions";
-import { Wrench, Shield, Clock } from "lucide-react";
 
 export const metadata = {
     title: "SigilOS — Maintenance",
@@ -13,55 +12,76 @@ export default async function MaintenancePage() {
     const message = config?.maintenanceMessage || t.maintenance.defaultMessage;
 
     return (
-        <div className="min-h-screen bg-zinc-950 flex items-center justify-center relative overflow-hidden">
-            {/* Animated background */}
-            <div className="absolute inset-0 pointer-events-none">
-                <div className="absolute top-[-20%] left-[-10%] w-[600px] h-[600px] bg-indigo-600/10 rounded-full blur-[120px] animate-pulse" />
-                <div className="absolute bottom-[-20%] right-[-10%] w-[500px] h-[500px] bg-violet-600/10 rounded-full blur-[120px] animate-pulse" style={{ animationDelay: "1s" }} />
-                <div className="absolute top-[40%] left-[50%] -translate-x-1/2 w-[400px] h-[400px] bg-indigo-500/5 rounded-full blur-[100px]" />
-                {/* Grid pattern */}
-                <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:60px_60px]" />
-            </div>
+        <div className="registre min-h-screen bg-background text-foreground flex flex-col">
+            <a className="reg-skip" href="#contenu">
+                Aller au contenu
+            </a>
 
-            <div className="relative z-10 flex flex-col items-center gap-10 px-6 max-w-2xl w-full text-center">
-                {/* Logo + Icon */}
-                <div className="relative">
-                    <div className="w-24 h-24 rounded-3xl bg-gradient-to-br from-indigo-500/20 to-violet-500/20 border border-indigo-500/30 flex items-center justify-center  mx-auto">
-                        <Wrench className="w-10 h-10 text-indigo-400 animate-[spin_8s_linear_infinite]" />
+            <header className="border-b border-border">
+                <div className="reg-shell flex flex-wrap items-center justify-between gap-3 py-3.5">
+                    <span className="inline-flex items-center gap-2.5 text-[1.0625rem] font-bold tracking-tight">
+                        <img src="/assets/ui/logo-v2.png" alt="" width="28" height="28" className="w-7 h-7 object-contain" />
+                        SigilOS
+                    </span>
+                    <p className="reg-mono flex items-center gap-2 text-xs text-muted-foreground">
+                        <span className="w-1.5 h-1.5 rounded-full bg-warning" aria-hidden="true" />
+                        {t.maintenance.title}
+                    </p>
+                </div>
+            </header>
+
+            <main id="contenu" className="flex-1 w-full">
+                <section className="border-b border-border">
+                    <div className="reg-shell grid gap-10 pt-12 pb-14 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:gap-14 lg:pt-16 lg:pb-20 lg:items-start">
+                        <div>
+                            <p className="reg-eyebrow">Maintenance · retour rapide</p>
+
+                            <h1 className="mt-5 max-w-[13ch] text-[clamp(2rem,4.2vw,3.1rem)] font-bold leading-[1.06] tracking-tight text-foreground">
+                                SigilOS est en maintenance.
+                            </h1>
+
+                            <p className="mt-5 max-w-[34rem] text-base text-muted-foreground leading-relaxed">
+                                {t.maintenance.subtitle} — {message}
+                            </p>
+
+                            <div className="mt-6 pt-5 border-t border-border/60 space-y-2 text-xs text-muted-foreground">
+                                <p className="font-mono text-[11px]">
+                                    Aucune action requise · Réessayez dans quelques minutes
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="reg-panel p-0 overflow-hidden">
+                            <table className="reg-table m-0">
+                                <thead>
+                                    <tr>
+                                        <th scope="col">Service</th>
+                                        <th scope="col">État</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>SigilOS</td>
+                                        <td>
+                                            <span className="reg-tag">{t.maintenance.title}</span>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td>Message de l’équipe</td>
+                                        <td className="text-muted-foreground">{message}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
-                    {/* Pulsing ring */}
-                    <div className="absolute inset-0 rounded-3xl border border-indigo-500/20 animate-ping" style={{ animationDuration: "3s" }} />
-                </div>
+                </section>
+            </main>
 
-                {/* Badge */}
-                <div className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-black uppercase tracking-widest">
-                    <Clock className="w-3.5 h-3.5" />
-                    {t.maintenance.title}
+            <footer className="border-t border-border py-6 text-[0.8125rem] text-muted-foreground">
+                <div className="reg-shell">
+                    <p>© SigilOS 2026 · {t.maintenance.managedBy}</p>
                 </div>
-
-                {/* Title */}
-                <div className="space-y-4">
-                    <h1 className="text-5xl md:text-6xl font-black text-white tracking-tight leading-none">
-                        Sigil<span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-violet-400">OS</span>
-                    </h1>
-                    <p className="text-xl font-bold text-zinc-400">
-                        {t.maintenance.subtitle}
-                    </p>
-                </div>
-
-                {/* Message */}
-                <div className="bg-white/[0.03] border border-white/5 rounded-2xl p-6 backdrop-blur-md w-full">
-                    <p className="text-zinc-300 text-base leading-relaxed font-medium">
-                        {message}
-                    </p>
-                </div>
-
-                {/* Footer */}
-                <div className="flex items-center gap-2 text-zinc-600 text-xs font-bold uppercase tracking-widest">
-                    <Shield className="w-3.5 h-3.5" />
-                    <span>{t.maintenance.managedBy}</span>
-                </div>
-            </div>
+            </footer>
         </div>
     );
 }

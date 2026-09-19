@@ -12,17 +12,14 @@ import {
     Plus,
     LayoutGrid,
     Loader2,
-    Sparkles,
-    Swords,
-    PartyPopper,
-    Target,
-    Wheat,
     Filter,
     ChevronLeft,
     ChevronRight,
 } from "lucide-react";
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, addMonths, subMonths, addWeeks, subWeeks, isBefore, startOfDay } from "date-fns";
 import { fr } from "date-fns/locale";
+import { DofusUiIcon } from "@/components/shared/dofus-ui-icon";
+import { calendarEventTheme } from "@/lib/calendar-event-theme";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -79,36 +76,8 @@ interface DiscordRole {
     color?: number;
 }
 
-const FILTER_TYPES: Record<string, { label: string; icon: any; color: string; bg: string; border: string; }> = {
-    RAID_OFFICIAL: {
-        label: "Raid 3.6",
-        icon: Swords,
-        color: "text-danger",
-        bg: "bg-danger/15",
-        border: "border-danger/40",
-    },
-    EVENT_GUILD: {
-        label: "Event Guilde",
-        icon: PartyPopper,
-        color: "text-info",
-        bg: "bg-info/15",
-        border: "border-info/40",
-    },
-    SESSION_MISSIONS: {
-        label: "Missions",
-        icon: Target,
-        color: "text-warning",
-        bg: "bg-warning/15",
-        border: "border-warning/40",
-    },
-    SORTIE_FARM: {
-        label: "Farm",
-        icon: Wheat,
-        color: "text-success",
-        bg: "bg-success/15",
-        border: "border-success/40",
-    },
-};
+/** Types filtrables (dans l'ordre d'affichage) — libellés/couleurs via `calendarEventTheme`. */
+const FILTER_TYPE_KEYS = ["RAID_OFFICIAL", "EVENT_GUILD", "SESSION_MISSIONS", "SORTIE_FARM"] as const;
 
 export function CalendarDashboard({ guildId, currentUserId, canManage, canManageRaid, userPseudo, discordChannels, isAdmin = false }: CalendarDashboardProps) {
     const [displayMode] = useState<ViewMode>("grid");
@@ -514,9 +483,9 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, canManage
                             </span>
                         </button>
 
-                        {Object.entries(FILTER_TYPES).map(([type, config]) => {
+                        {FILTER_TYPE_KEYS.map((type) => {
+                            const config = calendarEventTheme(type);
                             const count = typeCounts[type] || 0;
-                            const Icon = config.icon;
                             const isActive = selectedFilter === type;
 
                             return (
@@ -530,8 +499,8 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, canManage
                                             : "bg-surface/60 text-muted-foreground border border-border hover:border-border hover:text-foreground"
                                     )}
                                 >
-                                    <Icon className={cn("h-3.5 w-3.5", isActive ? config.color : "")} />
-                                    {config.label}
+                                    <DofusUiIcon name={config.picto} size={14} />
+                                    {config.shortLabel}
                                     <span className={cn(
                                         "px-1.5 py-0.5 rounded-full text-caption font-bold",
                                         isActive ? "bg-elevated" : "bg-elevated text-muted-foreground"
@@ -548,7 +517,7 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, canManage
             {/* ============ COMPACT PERIOD BAR ============ */}
             <div className="flex items-center justify-between gap-4 px-4 py-2.5 rounded-xl bg-surface/40 border border-border">
                 <div className="flex items-center gap-3">
-                    <Sparkles className="h-4 w-4 text-warning/80" />
+                    <DofusUiIcon name="calendar" size={16} />
                     <h3 className="text-base font-bold capitalize text-foreground">
                         {format(currentDate, "MMMM yyyy", { locale: fr })}
                         <span className="ml-2 text-xs font-semibold text-muted-foreground normal-case">

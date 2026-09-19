@@ -5,48 +5,14 @@ import { format, isToday, differenceInMinutes } from "date-fns";
 import { fr } from "date-fns/locale";
 import {
     Clock,
-    Users,
-    Swords,
-    PartyPopper,
-    Target,
-    Wheat,
-    Eye
+    Users
 } from "lucide-react";
+import { DofusUiIcon } from "@/components/shared/dofus-ui-icon";
+import { calendarEventTheme } from "@/lib/calendar-event-theme";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 
-const TYPE_CONFIG: Record<string, { label: string; icon: React.ElementType; color: string; bg: string }> = {
-    RAID_OFFICIAL: {
-        label: "Raid 3.6",
-        icon: Swords,
-        color: "text-danger",
-        bg: "bg-danger/10 border-danger/20"
-    },
-    EVENT_GUILD: {
-        label: "Event Guilde",
-        icon: PartyPopper,
-        color: "text-info",
-        bg: "bg-info/10 border-info/20"
-    },
-    SESSION_MISSIONS: {
-        label: "Missions",
-        icon: Target,
-        color: "text-warning",
-        bg: "bg-warning/10 border-warning/20"
-    },
-    SORTIE_FARM: {
-        label: "Farm",
-        icon: Wheat,
-        color: "text-success",
-        bg: "bg-success/10 border-success/20"
-    },
-    KRALAMOURE: {
-        label: "Kralamoure",
-        icon: Eye,
-        color: "text-pink-400",
-        bg: "bg-pink-500/10 border-pink-500/20"
-    }
-};
+// Libellés, couleurs et pictos Dofus : `@/lib/calendar-event-theme` (source unique).
 
 interface FeaturedEventsCarouselProps {
     events: any[];
@@ -75,7 +41,7 @@ export function FeaturedEventsCarousel({ events, onEventClick }: FeaturedEventsC
     if (upcoming.length === 0) return null;
 
     const event = upcoming[currentIndex];
-    const config = TYPE_CONFIG[event.type] || TYPE_CONFIG.EVENT_GUILD;
+    const config = calendarEventTheme(event.type);
     const startDate = new Date(event.startDate);
 
     // Participants logic
@@ -95,12 +61,13 @@ export function FeaturedEventsCarousel({ events, onEventClick }: FeaturedEventsC
                     exit={{ opacity: 0, y: -10 }}
                     transition={{ duration: 0.3 }}
                     className={cn(
-                        "flex items-center gap-3 px-4 py-2 rounded-full border bg-surface/50 backdrop-blur-md transition-all hover:bg-elevated/50  hover:border-border group",
-                        config.bg.replace("/10", "/20").replace("border-", "border-border/50 ")
+                        "flex items-center gap-3 px-4 py-2 rounded-full border bg-surface/50 transition-all hover:bg-elevated/50 group",
+                        config.bg,
+                        config.border
                     )}
                 >
-                    {/* Status Dot */}
-                    <div className={cn("h-2 w-2 rounded-full animate-pulse", config.color.replace("text-", "bg-"))} />
+                    {/* Pastille du type (couleur sémantique, jamais un dégradé) */}
+                    <div className={cn("h-2 w-2 rounded-full", config.dot)} />
 
                     {/* Title */}
                     <span className="text-sm font-bold text-foreground truncate max-w-[150px] group-hover:text-warning transition-colors">

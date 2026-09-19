@@ -76,7 +76,7 @@ export function RegistrationModal({
                             Classe Dofus (optionnel)
                         </Label>
 
-                        <div className="grid grid-cols-5 gap-2">
+                        <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
                             {DOFUS_CLASSES.map((classe) => {
                                 const isSelected = selectedClass === classe.id;
                                 const borderColor = isSelected ? classe.color : undefined;

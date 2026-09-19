@@ -46,10 +46,12 @@ Verdict : **cité + lancé** = vivant (à garder) · **cité seulement dans un v
 | `CONTEXT.md` | **Point d'entrée technique** : arborescence, modules, assets, pièges (le condensé) |
 | `RULES.md` | Conventions de code + règles de sécurité non négociables |
 | `SECURITY.md` | Politique de sécurité (convention GitHub) + chantiers ouverts |
-| `WORKFLOW.md` | Process git (branches, cycle de travail) |
 | `PROMPT_START.md` | Amorce de session lue par les assistants IA (courte volontairement) |
-| `MAINTENANCE.md` | **Ops** : cron, déploiement, incidents, procédures (50 Ko) |
-| `USER_ACTIONS_REQUIRED.md` | Liste d'actions attendues du propriétaire (à vérifier : probablement périmé) |
+| `MAINTENANCE.md` | **Ops** : cron, déploiement, incidents, procédures (50 Ko) — cité 20× dont dans du code, reste à la racine |
+
+> **Supprimés le 19/09/2026** : `WORKFLOW.md` (doublon exact de `RULES.md §Git Workflow`, zéro citation) et
+> `USER_ACTIONS_REQUIRED.md` (checklist de mise en production one-shot, zéro citation) — récupérables via
+> `git log` (ils étaient versionnés).
 | `.antigravity` | Fichier de contexte du projet pour l'assistant Antigravity |
 | `package.json` / `package-lock.json` | Dépendances + scripts npm (`dev`, `build`, `test:run`, `seed:docs`, `build:worker`…) |
 | `next.config.ts` | Config Next.js (images, redirections, sécurité) |

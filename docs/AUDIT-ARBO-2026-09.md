@@ -90,12 +90,16 @@ terminé) → archive externe.
 
 ## 3. Plan de nettoyage proposé (par lots, du plus sûr au plus sensible)
 
-| Lot | Contenu | Risque | Vérification |
-|---|---|---|---|
-| **L1** | Détracker les artefacts générés (P1) + règles `.gitignore` | faible | `npm run build` repasse, Dockerfile inchangé |
-| **L2** | Détracker les données d'exécution (`private_uploads`, `backups`) | faible | aucun code ne lit ces chemins en dur |
-| **L3** | `.playwright-profile/` supprimé (87,5 Mo) | nul | se recrée via `--login` |
-| **L4** | Racine : fusionner `WORKFLOW.md` → `RULES.md`, déplacer `MAINTENANCE.md` → `docs/`, archiver `USER_ACTIONS_REQUIRED.md` si périmé | faible | corriger les liens citants |
-| **L5** | `scripts/` : tri one-shot vs vivants, archive des one-shot | moyen | vérifier les citations avant chaque suppression |
-| **L6** | `src/temp` : sort du kit de mesure `refonte_landing/` (le versionner dans `scripts/` ou l'archiver) | faible | sa propre règle dit « ne pas supprimer » → décision explicite |
-| **L7** | `.git` : 3,43 Go dont ≈ 2,3 Go récupérables (refs de checkpoints) — outil `_git-purge.ps1` prêt | **irréversible** | sauvegarde complète de `.git` obligatoire, hors chantier actif |
+| Lot | Contenu | Risque | Vérification | État |
+|---|---|---|---|---|
+| **L1** | Détracker les artefacts générés (P1) + règles `.gitignore` | faible | `npm run build` repasse, Dockerfile inchangé | ✅ **fait le 19/09** (8 fichiers + règles) |
+| **L2** | Détracker les données d'exécution (`private_uploads`, `backups`) | faible | aucun code ne lit ces chemins en dur | ✅ **fait le 19/09** (7 fichiers) |
+| **L3** | `.playwright-profile/` supprimé (87,5 Mo) | nul | se recrée via `--login` | ⏳ à faire |
+| **L4** | Racine : fusionner `WORKFLOW.md` → `RULES.md`, déplacer `MAINTENANCE.md` → `docs/`, archiver `USER_ACTIONS_REQUIRED.md` si périmé | faible | corriger les liens citants | ✅ **fait le 19/09** — `WORKFLOW.md` (doublon exact de `RULES.md §Git Workflow`, 0 citation) **supprimé**, `USER_ACTIONS_REQUIRED.md` (0 citation) **supprimé** ; `MAINTENANCE.md` **reste à la racine** (20 citations dont du code) |
+| **L5** | `scripts/` : tri one-shot vs vivants, archive des one-shot | moyen | vérifier les citations avant chaque suppression | ⏳ à faire |
+| **L6** | `src/temp` : sort du kit de mesure `refonte_landing/` (le versionner dans `scripts/` ou l'archiver) | faible | sa propre règle dit « ne pas supprimer » → décision explicite | ⏳ décision |
+| **L7** | `.git` : 3,43 Go dont ≈ 2,3 Go récupérables (refs de checkpoints) — outil `_git-purge.ps1` prêt | **irréversible** | sauvegarde complète de `.git` obligatoire, hors chantier actif | ⏳ à faire |
+
+**Bilan racine après L1/L2/L4** : 6 `.md` (README, CONTEXT, RULES, SECURITY, PROMPT_START, MAINTENANCE)
+au lieu de 8, plus aucun fichier généré ni donnée d'exécution suivi par git.
+

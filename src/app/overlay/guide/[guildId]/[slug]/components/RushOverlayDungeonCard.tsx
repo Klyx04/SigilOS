@@ -34,7 +34,9 @@ export function RushOverlayDungeonCard({ dungeons, guildId, className }: RushOve
 
       <div className="mt-1.5 space-y-0.5">
         {dungeons.map((dj, i) => {
-          const href = dj?.id ? `/boss/${encodeURIComponent(dj.id)}` : (guildId && dj?.id ? `/dashboard/${guildId}/succes?dungeon=${encodeURIComponent(dj.id)}&view=boss` : null);
+          // Segment d'URL : slug public si la donnée de jeu le porte, sinon identifiant.
+          const segment = dj?.slug ?? dj?.id;
+          const href = segment ? `/boss/${encodeURIComponent(segment)}` : (guildId && segment ? `/dashboard/${guildId}/succes?dungeon=${encodeURIComponent(segment)}&view=boss` : null);
           return <DungeonRow key={i} dj={dj} href={href} />;
         })}
       </div>

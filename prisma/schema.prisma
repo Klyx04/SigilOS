@@ -873,6 +873,10 @@ model Dungeon {
   id                   String                @id @default(cuid())
   name                 String
   bossName             String
+  /// Segment d'URL publique (`/boss/<slug>`) : généré depuis `bossName`, stable
+  /// dans le temps (une fois publié, on ne le change plus — sinon 308 depuis
+  /// l'ancien slug ET l'ancien identifiant, cf. src/app/boss/[dungeonId]/page.tsx).
+  slug                 String                @unique
   level                Int
   dpnlUrl              String?
   dofuspourlesnoobsUrl String?
@@ -1502,6 +1506,11 @@ model ChangelogEntry {
   updatedAt   DateTime          @updatedAt
   summary     String?
   isInternal  Boolean           @default(false)
+  // Traductions anglaises (facultatives). NULL = repli automatique sur le FR à
+  // l'affichage (cf. localizeChangelogEntry dans changelog-actions.ts).
+  titleEn     String?
+  summaryEn   String?
+  contentEn   String?
 
   @@index([publishedAt])
   @@index([category])

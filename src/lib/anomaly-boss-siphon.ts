@@ -29,6 +29,7 @@ import { DB_READABLE, persistMonsterStat, siphonDofensiveMapById } from "@/lib/d
 import { mergeDofensiveSpells, type DofensiveSpellCombat } from "@/lib/dofensive-spells";
 import { siphonAndCompressImage } from "@/lib/dofus-asset-siphon";
 import { attachNoAchievementToDungeon } from "@/lib/dungeon-no-achievement";
+import { resolveUniqueDungeonSlug } from "@/server/game/dungeon-slug";
 import {
     ANOMALY_COMPANION_FAMILY_ID,
     ANOMALY_COMPANION_PICK,
@@ -572,6 +573,9 @@ async function upsertAnomalyDungeonRow(input: {
         create: {
             name: input.name,
             bossName: input.bossName,
+            // Slug public `/boss/<slug>` : généré à la création, **conservé** ensuite
+            // (une URL publiée ne doit pas changer quand le nom du boss évolue).
+            slug: await resolveUniqueDungeonSlug(input.bossName),
             level: input.level,
             dofusdbId: input.dofusdbId,
             imageUrl: input.imageUrl,

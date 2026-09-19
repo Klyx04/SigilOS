@@ -72,6 +72,8 @@ export interface BountyPublicMeta {
 /** Entrée `dungeon` (forme attendue par `PublicBossDetailClient`) d'un avis de recherche. */
 export interface BountyPublicDungeon {
     id: string;
+    /** Slug d'URL publique (`/boss/<slug>`) — repli sur `id` s'il est absent. */
+    slug: string | null;
     name: string;
     bossName: string;
     level: number;
@@ -158,6 +160,8 @@ export function buildBountyBestiaireEntry(bounty: BountyRowInput) {
     const zone = String(bounty.zoneName ?? "").trim();
     return {
         id: bounty.id,
+        // Slug d'URL publique de l'avis (`/boss/<slug>`) — repli sur l'id côté liens.
+        slug: String(bounty.slug ?? "").trim() || null,
         name: zone || bounty.name,
         bossName: bounty.name,
         level: Math.floor(Number(bounty.level) || 0),
@@ -180,6 +184,7 @@ export function buildBountyPublicDungeon(bounty: BountyRowInput): BountyPublicDu
     const zone = String(bounty.zoneName ?? "").trim();
     return {
         id: bounty.id,
+        slug: String(bounty.slug ?? "").trim() || null,
         name: zone || bounty.name,
         bossName: bounty.name,
         level: Math.floor(Number(bounty.level) || 0),

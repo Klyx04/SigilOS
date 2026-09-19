@@ -13,19 +13,25 @@ import { getServerI18n } from "@/lib/i18n/server";
 
 export const revalidate = 3600; // Cache ISR 1h
 
-export const metadata: Metadata = {
-    title: "Almanax Dofus du Jour : Offrande, Bonus et Calendrier | SigilOS",
-    description:
-        "Consultez l'Almanax Dofus du jour : offrande requise, bonus du Méryde, récompenses en kamas et calendrier des prochains jours pour préparer vos offrandes.",
-    alternates: {
-        canonical: `${getAppBaseUrl()}/almanax`,
-    },
-    openGraph: {
-        title: "Almanax Dofus du Jour — Offrande & Bonus | SigilOS",
-        description: "Offrande du jour, bonus du Méryde et calendrier prévisionnel de l'Almanax Dofus.",
-        url: `${getAppBaseUrl()}/almanax`,
-    },
-};
+export async function generateMetadata(): Promise<Metadata> {
+    const { getServerI18n } = await import("@/lib/i18n/server");
+    const { t, locale } = await getServerI18n();
+    const dateLocale = locale === "en" ? "en-US" : "fr-FR";
+
+    return {
+        title: t.almanaxPage.metaTitle,
+        description: t.almanaxPage.metaDesc,
+        alternates: {
+            canonical: `${getAppBaseUrl()}/almanax`,
+        },
+        openGraph: {
+            title: t.almanaxPage.metaTitle,
+            description: t.almanaxPage.metaDesc,
+            url: `${getAppBaseUrl()}/almanax`,
+            locale: dateLocale,
+        },
+    };
+}
 
 export default async function AlmanaxPublicPage() {
     const { t, locale } = await getServerI18n();
@@ -153,7 +159,10 @@ export default async function AlmanaxPublicPage() {
                                         {locale === "en" ? "Almanax Sanctuary" : "Sanctuaire de l'Almanax"}
                                     </p>
                                     <p className="reg-mono mt-1.5 text-xs text-muted-foreground">
-                                        Position [-4,-24] ({locale === "en" ? "Scarafly Plain Zaap" : "Zaap Plaine des Scarafeuilles"})
+                                        {/* Zaap le plus proche du Sanctuaire [-4,-24] : « Plaine des Porkass » (sous-zone
+                                            DofusDB 178, nom officiel EN « Lousy Pig Plain »). L'ancien libellé
+                                            « Plaine des Scarafeuilles » désignait un autre zaap (sous-zone 170, [-1,24]). */}
+                                        Position [-4,-24] ({locale === "en" ? "Lousy Pig Plain Zaap" : "Zaap Plaine des Porkass"})
                                     </p>
                                 </div>
                             </div>

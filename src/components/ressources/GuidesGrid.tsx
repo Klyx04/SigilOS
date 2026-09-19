@@ -3,7 +3,7 @@ import { Clock, BookOpen } from "lucide-react";
 import type { Guide } from "@/content/guides";
 
 interface GuidesGridProps {
-    guides: Guide[];
+    guides: readonly Guide[];
 }
 
 export function GuidesGrid({ guides }: GuidesGridProps) {

@@ -203,7 +203,7 @@ export function PublicBossCatalogClient({ bosses }: PublicBossCatalogClientProps
             return (
               <Link
                 key={boss.id}
-                href={`/boss/${boss.id}`}
+                href={`/boss/${boss.slug ?? boss.id}`}
                 className="group rounded-lg border border-border bg-surface/30 hover:bg-surface/60 hover:border-warning/40 transition-colors p-3.5 flex flex-col gap-3"
               >
                 <div className="flex items-start gap-3">

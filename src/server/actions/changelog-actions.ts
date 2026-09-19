@@ -16,10 +16,22 @@ import { revalidatePath } from 'next/cache';
 import { auth } from '@/auth';
 import { ChangelogCategory } from '@prisma/client';
 import { getAppBaseUrl } from '@/lib/utils';
+import { DEFAULT_LOCALE, type Locale } from '@/lib/i18n/types';
+import { getServerLocale } from '@/lib/i18n/server';
 
 // ---------------------------------------------------------------------------
 // Validation schemas
 // ---------------------------------------------------------------------------
+
+/**
+ * Texte EN facultatif : une chaîne vide (ou uniquement des espaces) devient
+ * `null` ⇒ l'affichage retombe sur le FR (jamais de release vide en anglais).
+ */
+const optionalEnText = (max: number) =>
+    z.preprocess(
+        (value) => (typeof value === "string" && value.trim() === "" ? null : value),
+        z.string().max(max).trim().nullish()
+    );
 
 const ChangelogSchema = z.object({
     version: z.string().min(1).max(32).trim(),
@@ -37,6 +49,10 @@ const ChangelogSchema = z.object({
     content: z.string().min(1).max(100000).trim(),
     category: z.nativeEnum(ChangelogCategory),
     isInternal: z.boolean().optional().default(false),
+    // Traductions EN (facultatives) — repli FR à l'affichage si absentes.
+    titleEn: optionalEnText(120),
+    summaryEn: optionalEnText(5000),
+    contentEn: optionalEnText(100000),
 });
 
 const ChangelogUpdateSchema = ChangelogSchema.partial();
@@ -148,10 +164,39 @@ export async function deleteChangelogEntry(id: string) {
 // ---------------------------------------------------------------------------
 
 /**
+ * Repli FR : une traduction EN absente (NULL en base) ne doit jamais faire
+ * disparaître la release — on retombe sur le texte source.
+ */
+function localizeChangelogEntry<
+    T extends {
+        title: string;
+        summary: string | null;
+        content: string;
+        titleEn: string | null;
+        summaryEn: string | null;
+        contentEn: string | null;
+    },
+>(entry: T, locale: Locale): T {
+    if (locale === DEFAULT_LOCALE) return entry;
+
+    return {
+        ...entry,
+        title: entry.titleEn?.trim() || entry.title,
+        summary: entry.summaryEn?.trim() || entry.summary,
+        content: entry.contentEn?.trim() || entry.content,
+    };
+}
+
+/**
  * Get all changelog entries (public access)
  * Optional category filter
+ * `locale` : sélectionne les traductions EN quand elles existent (repli FR).
  */
-export async function getChangelogEntries(category?: ChangelogCategory, onlyPublic: boolean = false) {
+export async function getChangelogEntries(
+    category?: ChangelogCategory,
+    onlyPublic: boolean = false,
+    locale: Locale = DEFAULT_LOCALE
+) {
     try {
         const where: Record<string, unknown> = {};
         if (category) where.category = category;
@@ -162,10 +207,10 @@ export async function getChangelogEntries(category?: ChangelogCategory, onlyPubl
             orderBy: { publishedAt: 'desc' }
         });
 
-        return entries.map(e => ({
+        return entries.map(e => localizeChangelogEntry({
             ...e,
             publishedAt: e.publishedAt.toISOString()
-        }));
+        }, locale));
     } catch (error) {
         logger.error('[Changelog] Fetch error:', error);
         return [];
@@ -195,8 +240,9 @@ export async function getChangelogEntry(id: string) {
 
 /**
  * Get the latest published changelog entry
+ * `locale` : sélectionne les traductions EN quand elles existent (repli FR).
  */
-export async function getLatestChangelogEntry() {
+export async function getLatestChangelogEntry(locale: Locale = DEFAULT_LOCALE) {
     try {
         const entry = await db.changelogEntry.findFirst({
             // 🔒 Les entrées INTERNES (brouillons/notes God) ne doivent JAMAIS
@@ -207,10 +253,10 @@ export async function getLatestChangelogEntry() {
 
         if (!entry) return null;
 
-        return {
+        return localizeChangelogEntry({
             ...entry,
             publishedAt: entry.publishedAt.toISOString()
-        };
+        }, locale);
     } catch (error) {
         logger.error('[Changelog] Fetch latest error:', error);
         return null;
@@ -234,7 +280,7 @@ export async function checkChangelogVisibility(): Promise<{
                 where: { id: session.user.id },
                 select: { lastSeenChangelogId: true }
             }),
-            getLatestChangelogEntry()
+            getLatestChangelogEntry(await getServerLocale())
         ]);
 
         if (!latest) return { show: false };

@@ -2,6 +2,7 @@ import { getRoadmapItems, getPlatformConfig } from "@/server/actions/god-roadmap
 import { getUserContext, getUserGuilds } from "@/server/actions/user-actions";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
+import type { Metadata } from "next";
 import { ArrowLeft, Rocket, CheckCircle2, Circle } from "lucide-react";
 import { PublicHeader } from "@/components/layout/public-header";
 import { GalacticFooter } from "@/components/layout/galactic-footer";
@@ -10,16 +11,21 @@ import { isSuperAdmin } from "@/server/actions/super-admin-actions";
 import { redirect } from "next/navigation";
 import { getAppBaseUrl } from "@/lib/utils";
 import { getServerI18n } from "@/lib/i18n/server";
+import { canViewRoadmap } from "@/lib/roadmap-access";
 
 export const dynamic = "force-dynamic";
 
-export const metadata = {
-    title: "Roadmap | SigilOS",
-    description: "Découvrez la feuille de route de SigilOS et les prochaines fonctionnalités.",
-    alternates: {
-        canonical: `${getAppBaseUrl()}/roadmap`,
-    },
-};
+export async function generateMetadata(): Promise<Metadata> {
+    const { t } = await getServerI18n();
+
+    return {
+        title: t.roadmapPage.metaTitle,
+        description: t.roadmapPage.metaDesc,
+        alternates: {
+            canonical: `${getAppBaseUrl()}/roadmap`,
+        },
+    };
+}
 
 export default async function PublicRoadmapPage() {
     const session = await auth();
@@ -27,19 +33,18 @@ export default async function PublicRoadmapPage() {
     const isAdmin = await isSuperAdmin();
     const { t } = await getServerI18n();
 
-    const [itemsRes, configRes, userGuilds] = await Promise.all([
+    const [itemsRes, configRes] = await Promise.all([
         getRoadmapItems(),
-        getPlatformConfig(),
-        getUserGuilds()
+        getPlatformConfig()
     ]);
 
     const isEnabled = configRes.success && configRes.data ? configRes.data.roadmapEnabled : false;
-    const isInAnyGuild = userGuilds.length > 0;
 
-    // Access condition:
-    // 1. Super Admin bypass
-    // 2. OR (Roadmap is enabled AND user belongs to at least one authorized guild)
-    const hasAccess = isAdmin || (isEnabled && isInAnyGuild);
+    // Access condition — **public dès que la feuille de route est activée** :
+    // 1. Super Admin : accès permanent (prévisualisation avant publication) ;
+    // 2. sinon : `roadmapEnabled` (toggle God) suffit.
+    // Voir `canViewRoadmap` (module pur) pour la règle et son historique.
+    const hasAccess = canViewRoadmap({ isAdmin, roadmapEnabled: isEnabled });
 
     if (!hasAccess) {
         redirect("/");

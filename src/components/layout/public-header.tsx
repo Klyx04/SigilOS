@@ -78,6 +78,13 @@ const TOOLS = [
         href: "/carte-du-monde",
         icon: "/assets/nav/map.png",
     },
+    {
+        id: "raids",
+        label: "Raid Studio 3.6",
+        hint: "Compos, Luminarium & Énigmes",
+        href: "/raids",
+        icon: "/assets/raids/sanctuaire.webp",
+    },
 ] as const;
 
 const NAV_ITEMS = [
@@ -155,6 +162,13 @@ export function PublicHeader({
             hint: t.tools.worldmapHint,
             href: "/carte-du-monde",
             icon: "/assets/nav/map.png",
+        },
+        {
+            id: "raids",
+            label: t.tools.raidTitle,
+            hint: t.tools.raidHint,
+            href: "/raids",
+            icon: "/assets/raids/sanctuaire.webp",
         },
     ];
 

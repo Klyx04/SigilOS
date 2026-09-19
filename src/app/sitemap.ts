@@ -17,11 +17,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         { url: `${baseUrl}/guides/rush-sylvestre`, lastModified: now, changeFrequency: "weekly", priority: 0.9 },
         { url: `${baseUrl}/boss`, lastModified: now, changeFrequency: "weekly", priority: 0.8 },
         { url: `${baseUrl}/almanax`, lastModified: now, changeFrequency: "daily", priority: 0.9 },
+        { url: `${baseUrl}/raids`, lastModified: now, changeFrequency: "weekly", priority: 0.9 },
         { url: `${baseUrl}/guilds`, lastModified: now, changeFrequency: "weekly", priority: 0.8 },
         { url: `${baseUrl}/guides`, lastModified: now, changeFrequency: "weekly", priority: 0.8 },
         { url: `${baseUrl}/changelog`, lastModified: now, changeFrequency: "weekly", priority: 0.5 },
         { url: `${baseUrl}/status`, lastModified: now, changeFrequency: "daily", priority: 0.3 },
-        { url: `${baseUrl}/roadmap`, lastModified: now, changeFrequency: "monthly", priority: 0.4 },
         { url: `${baseUrl}/legal/faq`, lastModified: now, changeFrequency: "monthly", priority: 0.6 },
         { url: `${baseUrl}/legal/cgu`, lastModified: now, changeFrequency: "monthly", priority: 0.2 },
         { url: `${baseUrl}/legal/mentions`, lastModified: now, changeFrequency: "monthly", priority: 0.2 },
@@ -31,6 +31,26 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // 2. Guildes publiques : uniquement celles qui ont explicitement activé
     //    leur présentation publique (presentationEnabled = true).
     const routes: MetadataRoute.Sitemap = [...staticRoutes];
+
+    // Feuille de route : annoncée à Google **uniquement** quand elle est réellement
+    // publique (toggle God `roadmapEnabled`). Désactivée, la page redirige vers `/`
+    // et Search Console remonterait « Page avec redirection » (constat 19/09/2026).
+    try {
+        const config = await db.platformConfig.findUnique({
+            where: { id: "singleton" },
+            select: { roadmapEnabled: true },
+        });
+        if (config?.roadmapEnabled) {
+            routes.push({
+                url: `${baseUrl}/roadmap`,
+                lastModified: now,
+                changeFrequency: "monthly",
+                priority: 0.4,
+            });
+        }
+    } catch (error) {
+        console.error("[Sitemap] Error fetching platform config:", error);
+    }
 
     try {
         const publicGuilds = await db.guildConfig.findMany({
@@ -82,14 +102,16 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         console.error("[Sitemap] Error fetching almanax dates:", error);
     }
 
-    // Boss & Donjons publics : fiches tactiques Dofensive indexables
+    // Boss & Donjons publics : fiches tactiques Dofensive indexables.
+    // URL en **slug** (nom du boss) et non en identifiant interne : l'ancienne URL
+    // `/boss/<cuid>` reste servie en 308 par la page (liens Discord déjà publiés).
     try {
         const dungeons = await db.dungeon.findMany({
-            select: { id: true, updatedAt: true },
+            select: { id: true, slug: true, updatedAt: true },
         });
         for (const d of dungeons) {
             routes.push({
-                url: `${baseUrl}/boss/${d.id}`,
+                url: `${baseUrl}/boss/${d.slug}`,
                 lastModified: d.updatedAt ?? now,
                 changeFrequency: "monthly",
                 priority: 0.6,

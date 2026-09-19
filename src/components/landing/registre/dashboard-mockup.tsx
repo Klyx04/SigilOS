@@ -5,10 +5,16 @@ import {
     Vote,
     Gift,
 } from "lucide-react";
+import Image from "next/image";
 import { useI18n } from "@/lib/i18n/client";
 
 /**
  * DashboardMockup — Reproduction fidèle, sobre et vectorielle du tableau de bord SigilOS.
+ *
+ * Les vignettes des sorties utilisent les **assets réels du produit** :
+ * `kralamoure-head.png` (événements `KRALAMOURE`) et les portraits de boss de
+ * `images/songes-bosses` (Belladone, Vortex, Protozorreur pour le Ventre de la
+ * Baleine) — mêmes fichiers que les cartes du dashboard et les embeds Discord.
  */
 export function DashboardMockup() {
     const { t } = useI18n();
@@ -52,15 +58,28 @@ export function DashboardMockup() {
 
                 {/* 2. Événement majeur — Carte sobre et contrastée */}
                 <div className="rounded border border-border-strong bg-surface/90 p-3 flex items-center justify-between gap-3">
-                    <div className="space-y-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                            <span className="font-mono text-[9px] uppercase font-semibold text-rose-400 bg-rose-950/40 border border-rose-900/50 px-1.5 py-0.5 rounded">
-                                {d.majorEvent}
-                            </span>
-                            <span className="text-[11px] text-muted-foreground font-mono">{d.inTime}</span>
+                    <div className="flex items-center gap-3 min-w-0">
+                        {/* Vignette réelle du Kralamoure (asset canonique des événements KRALAMOURE) */}
+                        <div className="w-10 h-10 shrink-0 rounded-lg border border-border bg-background/60 flex items-center justify-center overflow-hidden p-1">
+                            <Image
+                                src="/assets/calendar/kralamoure-head.png"
+                                alt=""
+                                aria-hidden="true"
+                                width={32}
+                                height={32}
+                                className="w-full h-full object-contain"
+                            />
                         </div>
-                        <div className="font-semibold text-xs text-foreground truncate">
-                            {d.eventTitle}
+                        <div className="space-y-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                                <span className="font-mono text-[9px] uppercase font-semibold text-rose-400 bg-rose-950/40 border border-rose-900/50 px-1.5 py-0.5 rounded">
+                                    {d.majorEvent}
+                                </span>
+                                <span className="text-[11px] text-muted-foreground font-mono">{d.inTime}</span>
+                            </div>
+                            <div className="font-semibold text-xs text-foreground truncate">
+                                {d.eventTitle}
+                            </div>
                         </div>
                     </div>
                     <button
@@ -80,12 +99,32 @@ export function DashboardMockup() {
                             <span className="text-[10px] text-muted-foreground">{d.mySchedule}</span>
                         </div>
                         <div className="space-y-1.5">
-                            <div className="flex items-center justify-between text-[11px] p-2 rounded bg-background/50 border border-border">
-                                <span className="font-medium text-foreground truncate">{d.eventKralamoure}</span>
+                            <div className="flex items-center justify-between gap-2 text-[11px] p-2 rounded bg-background/50 border border-border">
+                                <span className="inline-flex items-center gap-2 min-w-0">
+                                    <Image
+                                        src="/assets/calendar/kralamoure-head.png"
+                                        alt=""
+                                        aria-hidden="true"
+                                        width={16}
+                                        height={16}
+                                        className="w-4 h-4 object-contain shrink-0"
+                                    />
+                                    <span className="font-medium text-foreground truncate">{d.eventKralamoure}</span>
+                                </span>
                                 <span className="font-mono text-[10px] text-muted-foreground shrink-0">{d.registeredCount}</span>
                             </div>
-                            <div className="flex items-center justify-between text-[11px] p-2 rounded bg-background/30 border border-border/50">
-                                <span className="font-medium text-muted-foreground truncate">{d.eventBelladone}</span>
+                            <div className="flex items-center justify-between gap-2 text-[11px] p-2 rounded bg-background/30 border border-border/50">
+                                <span className="inline-flex items-center gap-2 min-w-0">
+                                    <Image
+                                        src="/images/songes-bosses/7210_Belladone.png"
+                                        alt=""
+                                        aria-hidden="true"
+                                        width={16}
+                                        height={16}
+                                        className="w-4 h-4 object-contain shrink-0"
+                                    />
+                                    <span className="font-medium text-muted-foreground truncate">{d.eventBelladone}</span>
+                                </span>
                                 <span className="font-mono text-[10px] text-emerald-400 shrink-0">4/4</span>
                             </div>
                         </div>
@@ -98,19 +137,45 @@ export function DashboardMockup() {
                             <span className="text-[10px] text-muted-foreground">{d.activeGroupsCount}</span>
                         </div>
                         <div className="space-y-1.5">
-                            <div className="flex items-center justify-between text-[11px] p-2 rounded bg-background/50 border border-border">
-                                <div className="truncate">
-                                    <div className="font-medium text-foreground truncate">{d.vortexDungeon}</div>
-                                    <div className="text-[10px] text-muted-foreground">{d.vortexBy}</div>
+                            <div className="flex items-center justify-between gap-2 text-[11px] p-2 rounded bg-background/50 border border-border">
+                                <div className="flex items-center gap-2 min-w-0">
+                                    {/* Portrait réel du boss de l'Œil de Vortex */}
+                                    <div className="w-8 h-8 shrink-0 rounded border border-border bg-background/60 flex items-center justify-center overflow-hidden p-0.5">
+                                        <Image
+                                            src="/images/songes-bosses/3835_Vortex.png"
+                                            alt=""
+                                            aria-hidden="true"
+                                            width={28}
+                                            height={28}
+                                            className="w-full h-full object-contain"
+                                        />
+                                    </div>
+                                    <div className="min-w-0">
+                                        <div className="font-medium text-foreground truncate">{d.vortexDungeon}</div>
+                                        <div className="text-[10px] text-muted-foreground truncate">{d.vortexBy}</div>
+                                    </div>
                                 </div>
                                 <span className="font-mono text-[10px] px-1.5 py-0.5 rounded bg-surface border border-border-strong text-foreground font-semibold shrink-0">
                                     3/4
                                 </span>
                             </div>
-                            <div className="flex items-center justify-between text-[11px] p-2 rounded bg-background/30 border border-border/50">
-                                <div className="truncate">
-                                    <div className="font-medium text-muted-foreground truncate">{d.whaleDungeon}</div>
-                                    <div className="text-[10px] text-muted-foreground">{d.whaleBy}</div>
+                            <div className="flex items-center justify-between gap-2 text-[11px] p-2 rounded bg-background/30 border border-border/50">
+                                <div className="flex items-center gap-2 min-w-0">
+                                    {/* Portrait réel du Protozorreur, boss du Ventre de la Baleine */}
+                                    <div className="w-8 h-8 shrink-0 rounded border border-border/50 bg-background/60 flex items-center justify-center overflow-hidden p-0.5">
+                                        <Image
+                                            src="/images/songes-bosses/3828_Protozorreur.png"
+                                            alt=""
+                                            aria-hidden="true"
+                                            width={28}
+                                            height={28}
+                                            className="w-full h-full object-contain"
+                                        />
+                                    </div>
+                                    <div className="min-w-0">
+                                        <div className="font-medium text-muted-foreground truncate">{d.whaleDungeon}</div>
+                                        <div className="text-[10px] text-muted-foreground truncate">{d.whaleBy}</div>
+                                    </div>
                                 </div>
                                 <span className="font-mono text-[10px] text-emerald-400 shrink-0 font-medium">
                                     {d.fullBadge}

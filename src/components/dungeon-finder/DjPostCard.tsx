@@ -4,8 +4,8 @@ import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import {
-    Users, Clock, CheckCircle2,
-    XCircle, LogIn, LogOut, Bell, MoreHorizontal
+    Users, Clock,
+    XCircle, LogIn, LogOut, Bell, MoreHorizontal, CheckCircle2
 } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ClassIcon } from "@/components/shared/class-icon";
@@ -470,9 +470,16 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
                         )}
 
                         {myParticipation?.status === "ACCEPTED" && (
-                            <div className="flex-1 min-w-[110px] flex items-center justify-center h-10 rounded-xl bg-elevated text-foreground border border-border-strong font-bold text-xs uppercase tracking-wide whitespace-nowrap">
-                                <CheckCircle2 className="w-4 h-4 mr-2" /> Accepté
-                            </div>
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={handleLeave}
+                                disabled={isPending}
+                                className="flex-1 min-w-[110px] h-10 text-xs font-bold uppercase tracking-wide whitespace-nowrap border-danger/30 text-danger hover:text-danger-foreground hover:bg-danger transition-colors"
+                            >
+                                <LogOut className="w-4 h-4 mr-2" />
+                                Se retirer
+                            </Button>
                         )}
 
                         {myParticipation?.status === "REJECTED" && (

@@ -190,6 +190,8 @@ export function isDungeonSequence(seq: RushSequence): boolean {
 /** Extrait tous les donjons d'une séquence (supporte donjon singulier et tableau). */
 export type DungeonInfo = {
   id?: string;
+  /** Slug public (`/boss/<slug>`) quand la donnée de jeu le fournit. */
+  slug?: string;
   name: string | undefined;
   bossName: string | undefined;
   imageUrl: string | undefined;
@@ -204,6 +206,7 @@ export function getDungeons(seq: RushSequence): DungeonInfo[] {
   if (seq.dungeon) {
     result.push({
       id: (seq.dungeon as any).id,
+      slug: (seq.dungeon as any).slug,
       name: seq.dungeon.name,
       bossName: seq.dungeon.bossName,
       imageUrl: seq.dungeon.imageUrl ?? undefined,
@@ -217,6 +220,7 @@ export function getDungeons(seq: RushSequence): DungeonInfo[] {
       if (!result.find((r) => r.name === d.name)) {
         result.push({
           id: (d as any).id,
+          slug: (d as any).slug,
           name: d.name,
           bossName: d.bossName,
           imageUrl: d.imageUrl,

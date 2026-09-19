@@ -9,16 +9,18 @@ import { auth } from "@/auth";
 import { getAppBaseUrl } from "@/lib/utils";
 import { getGuideBySlug, getGuideContent } from "@/content/guides";
 import { DocContent } from "@/components/doc/doc-content";
+import { getServerI18n } from "@/lib/i18n/server";
 
 export const dynamic = "force-dynamic";
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
     const { slug } = await params;
-    const guide = getGuideBySlug(slug);
+    const { t, locale } = await getServerI18n();
+    const guide = getGuideBySlug(slug, locale);
 
     if (!guide) {
         return {
-            title: "Guide introuvable",
+            title: t.guidesPage.notFoundTitle,
             robots: { index: false, follow: false },
         };
     }
@@ -61,12 +63,15 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 
 export default async function GuidePage({ params }: { params: Promise<{ slug: string }> }) {
     const { slug } = await params;
-    const meta = getGuideBySlug(slug);
-    const content = await getGuideContent(slug);
+    const { t, locale } = await getServerI18n();
+    const meta = getGuideBySlug(slug, locale);
+    const content = await getGuideContent(slug, locale);
 
     if (!meta || !content) {
         notFound();
     }
+
+    const dateLocale = locale === "en" ? "en-US" : "fr-FR";
 
     const session = await auth();
     const { getUserContext } = await import("@/server/actions/user-actions");
@@ -90,8 +95,8 @@ export default async function GuidePage({ params }: { params: Promise<{ slug: st
                                 "@context": "https://schema.org",
                                 "@type": "BreadcrumbList",
                                 "itemListElement": [
-                                    { "@type": "ListItem", "position": 1, "name": "Accueil", "item": getAppBaseUrl() },
-                                    { "@type": "ListItem", "position": 2, "name": "Guides", "item": `${getAppBaseUrl()}/guides` },
+                                    { "@type": "ListItem", "position": 1, "name": t.guidesPage.breadcrumbHome, "item": getAppBaseUrl() },
+                                    { "@type": "ListItem", "position": 2, "name": t.guidesPage.breadcrumbGuides, "item": `${getAppBaseUrl()}/guides` },
                                     { "@type": "ListItem", "position": 3, "name": meta.title, "item": `${getAppBaseUrl()}/guides/${meta.slug}` },
                                 ],
                             },
@@ -104,14 +109,14 @@ export default async function GuidePage({ params }: { params: Promise<{ slug: st
                                 "dateModified": new Date(meta.updatedAt).toISOString(),
                                 "author": { "@type": "Organization", "name": "SigilOS", "url": getAppBaseUrl() },
                                 "publisher": { "@type": "Organization", "name": "SigilOS", "url": getAppBaseUrl() },
-                                "inLanguage": "fr-FR",
+                                "inLanguage": locale === "en" ? "en-US" : "fr-FR",
                             },
                         ]}
                     />
 
-                    <nav aria-label="Fil d'Ariane" className="mb-6">
+                    <nav aria-label={locale === "en" ? "Breadcrumb" : "Fil d'Ariane"} className="mb-6">
                         <Link href="/guides" className="reg-link-quiet text-sm">
-                            ← Tous les guides
+                            {t.guidesPage.allGuidesLink}
                         </Link>
                     </nav>
 
@@ -122,9 +127,9 @@ export default async function GuidePage({ params }: { params: Promise<{ slug: st
                                 {meta.title}
                             </h1>
                             <p className="reg-mono mt-3 text-xs text-muted-foreground">
-                                {meta.readingTime ? `${meta.readingTime} de lecture · ` : ""}
-                                Mis à jour le{" "}
-                                {new Date(meta.updatedAt).toLocaleDateString("fr-FR", {
+                                {meta.readingTime ? `${meta.readingTime} ${t.guidesPage.readingTimeSuffix} · ` : ""}
+                                {t.guidesPage.updatedAt}{" "}
+                                {new Date(meta.updatedAt).toLocaleDateString(dateLocale, {
                                     year: "numeric",
                                     month: "long",
                                     day: "numeric",

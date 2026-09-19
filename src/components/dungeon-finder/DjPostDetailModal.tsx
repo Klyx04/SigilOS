@@ -381,8 +381,18 @@ export function DjPostDetailModal({
                                             <Badge className="text-caption font-bold uppercase tracking-wider border-border bg-surface/50 text-muted-foreground">
                                                 Inscrit
                                             </Badge>
-                                            {/* Owner actions */}
-                                            {(isOwner || isAdmin) && post.status === "OPEN" && (
+                                            {/* Self leave button — visible only for the current participant */}
+                                            {p.profile.id === currentProfileId && post.status === "OPEN" && (
+                                                <Button size="sm" variant="outline"
+                                                    className="border-danger/50 bg-danger/10 text-danger hover:bg-danger/30 hover:text-danger h-8 px-2.5 text-xs font-bold"
+                                                    onClick={handleLeave} disabled={isPending}
+                                                    title="Se désinscrire">
+                                                    <LogOut className="w-3.5 h-3.5 mr-1" />
+                                                    Quitter
+                                                </Button>
+                                            )}
+                                            {/* Owner / admin actions */}
+                                            {(isOwner || isAdmin) && p.profile.id !== currentProfileId && post.status === "OPEN" && (
                                                 <div className="flex gap-1 shrink-0 bg-surface/80 rounded-lg border border-border opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity p-0.5">
                                                     <Button size="icon" variant="ghost"
                                                         className="w-8 h-8 text-danger hover:bg-danger/20 hover:text-danger rounded-md"
@@ -539,6 +549,19 @@ export function DjPostDetailModal({
                                 <Button size="sm" variant="outline" onClick={handleLeave} disabled={isPending}
                                     className="border-danger/50 bg-danger/20 text-danger hover:bg-danger/40 hover:text-danger">
                                     <LogOut className="w-4 h-4 mr-1.5" /> Se retirer
+                                </Button>
+                            </div>
+                        )}
+
+                        {/* My accepted status — se désinscrire */}
+                        {myParticipation?.status === "ACCEPTED" && !isOwner && post.status === "OPEN" && (
+                            <div className="border-t border-border pt-5 flex items-center justify-between gap-4">
+                                <p className="text-sm font-bold text-success flex items-center gap-2">
+                                    <CheckCircle2 className="w-4 h-4" /> Tu es inscrit à ce post
+                                </p>
+                                <Button size="sm" variant="outline" onClick={handleLeave} disabled={isPending}
+                                    className="shrink-0 border-danger/50 bg-danger/10 text-danger hover:bg-danger/30 hover:text-danger">
+                                    <LogOut className="w-4 h-4 mr-1.5" /> Se désinscrire
                                 </Button>
                             </div>
                         )}

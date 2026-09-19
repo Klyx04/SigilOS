@@ -606,7 +606,7 @@ git pull origin main
   `width`/`height` sur les **dimensions réelles** (le garde-fou `tests/unit/landing-figures.test.ts` lit
   l'en-tête PNG et échoue sinon). Cas réel : `screenshot1.png` (3280×1740) → `tableau-de-bord.png` (1913×704).
 - ⚠️ **Une figure de la landing doit faire AU MOINS 2× la largeur de son slot** (mesuré le 17/09/2026) :
-  les 4 figures s'affichent sur **619-718 px CSS** (`src/temp/refonte_landing/probe-figure-slots.mjs`),
+  les 4 figures s'affichent sur **619-718 px CSS** (`scripts/probe-figure-slots.mjs`),
   donc sur un écran 2× le navigateur a besoin de **1238-1436 px**. Or `next/image` **ne remonte jamais**
   une image — `GET /_next/image?url=…dashboard-guilde.png&w=1920` renvoie **1080×540**, la taille du
   fichier — donc c'est le **navigateur** qui agrandit : hero **×1,15**, guide **×1,39** → rendu mou même
@@ -616,7 +616,7 @@ git pull origin main
   `scripts/capture-landing-visuels.mjs` — viewport = largeur du slot, `deviceScaleFactor: 2`, cadrage sur
   une ancre `data-tour` (`tour-provider.tsx` pour la liste), chrome `fixed`/`sticky` masqué — puis recopier
   les dimensions imprimées dans `landing-figures.ts`. Garde :
-  `node src/temp/refonte_landing/probe-figure-slots.mjs` doit afficher « OK (aucun agrandissement) » pour
+  `node scripts/probe-figure-slots.mjs` doit afficher « OK (aucun agrandissement) » pour
   les 4 figures en DPR 2. ⚠️ Une capture par **outil système** (clic droit → « Capturer la page ») embarque
   en plus le **curseur** et la **pastille de dev Next** (`nextjs-portal`) : Playwright ne les capture pas.
   ⚠️ **Et un visuel de la landing se cadre sur un SUJET, pas sur un écran entier** (mesuré le 17/09) : les
@@ -625,7 +625,7 @@ git pull origin main
   vignette illisible et perçue comme floue (« ça fait amateur »), sans que la qualité du fichier soit en
   cause. Cible : **≈ 2× la largeur d'affichage** (1100-1300 px) et **un seul sujet lisible** par visuel
   (un panneau, une semaine, une carte) — jamais la colonne de navigation + l'en-tête de page + les
-  marges. Recadrage reproductible et borné : `node src/temp/refonte_landing/crop-landing-visuels.mjs`
+  marges. Recadrage reproductible et borné : `node scripts/crop-landing-visuels.mjs`
   (les captures d'origine restent en place : elles servent `docs-catalog.ts`).
 - ⏳ **Repo VPS non migré** : toujours sur `dev` (arbre sale : stashes + `public/game-data` modifié).
   Le passage à `main` et le nettoyage restent **à planifier** — avant tout switch de branche, faire

@@ -20,7 +20,7 @@
  * ⚠️ **Un visuel se cadre sur un composant, pas sur un écran entier.** Les
  * figures s'affichent sur **619-718 px CSS** (`hero.tsx` : `sizes="… 640px"` ;
  * `guide.tsx` : `680px` — largeurs réelles relevées par
- * `src/temp/refonte_landing/probe-figure-slots.mjs`). Une capture d'écran 4K
+ * `scripts/probe-figure-slots.mjs`). Une capture d'écran 4K
  * (3280 px) y subit une réduction **×5** : un texte d'interface de 13 px tombe à
  * 2,5 px à l'écran (constaté le 17/09/2026 sur les quatre figures).
  *
@@ -40,7 +40,7 @@
  *      layout compact de l'app qui fait le cadre, le texte garde donc sa taille
  *      réelle. Producteur : `scripts/capture-landing-visuels.mjs` (profil
  *      `.playwright-profile/`, connexion Discord une fois via `--login`).
- *      `src/temp/refonte_landing/crop-landing-visuels.mjs` (recadrage) est
+ *      `scripts/crop-landing-visuels.mjs` (recadrage) est
  *      **remplacé** : il n'existe plus que pour tracer l'origine des visuels
  *      `dashboard-guilde.png` / `calendrier-sorties.png` / `missions-guilde.png`
  *      / `guide-sylvestre.png` du 17/09, tous sous-dotés pour un écran 2×.

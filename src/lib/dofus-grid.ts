@@ -126,7 +126,7 @@ export function castRangeDistance(a: DofusPos, b: DofusPos, hasDirectionConstrai
     return hasDirectionConstraint ? Math.max(du, dv) : du + dv;
 }
 
-// ── États de case (cf. src/temp/debug.md) ───────────────────────────────────
+// ── États de case (cf. debug.md) ───────────────────────────────────
 // Dans les données Dofensive `Cells[row][col]` :
 //   0 = sol (marchable) · 1 = case impossible / trou (noir, non marchable) ·
 //   2 = case obstacle (bloc 3D, non marchable).

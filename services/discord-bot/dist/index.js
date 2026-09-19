@@ -25,7 +25,7 @@ if (!datasourceUrl) {
 // 🛡️ Fail-fast : valide que l'URL est bien formée dès le démarrage.
 // Sans cela, le bot tourne "à l'aveugle" et échoue en silence à CHAQUE écriture BDD
 // (ex: DATABASE_URL reconstruite cassée dans docker-compose → "Invalid URL").
-// Voir src/temp/prompt-next-chantier-ladder-discord.md (cause racine du bug Ladder Discord).
+// Voir prompt-next-chantier-ladder-discord.md (cause racine du bug Ladder Discord).
 try {
     const parsed = new URL(datasourceUrl);
     if (!parsed.hostname || !parsed.pathname || parsed.pathname === '/') {

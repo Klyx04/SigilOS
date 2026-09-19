@@ -37,6 +37,7 @@ import { normalizeItemIconUrl } from "@/lib/market/item-image";
 // elle ne fait pas basculer l'embed en « carte ». Même règle que le serveur.
 import { isStatBearingStatRow } from "@/lib/market/effects";
 import { buildMarketDashboardUrl } from "@/lib/market/discord-interactions";
+import { isDiscordSnowflake, isOutboxMessageId } from "@/lib/discord-ids";
 import { getDofusServerImage } from "@/lib/dofus-assets";
 import { resolveMarketForumTags } from "@/lib/market/forum-tags";
 import { countPendingMarketOffers } from "@/server/market/counters";
@@ -50,9 +51,6 @@ export type MarketDiscordResult = {
 };
 
 const MARKET_CHANNEL_KIND_FORUM = "FORUM";
-
-/** ID de message Discord = snowflake (15-21 chiffres). */
-const SNOWFLAKE_RE = /^\d{15,21}$/;
 
 /**
  * Clés Redis où **le worker d'outbox ré-ancre le VRAI ID** de message posté,
@@ -89,10 +87,10 @@ async function resolveMarketMessageId(
     storeKey: string
 ): Promise<string | null> {
     if (!stored) return null;
-    if (SNOWFLAKE_RE.test(stored)) return stored;
-    if (!stored.startsWith("outbox:")) return null;
+    if (isDiscordSnowflake(stored)) return stored;
+    if (!isOutboxMessageId(stored)) return null;
     const resolved = await redis.get(storeKey).catch(() => null);
-    return resolved && SNOWFLAKE_RE.test(resolved) ? resolved : null;
+    return isDiscordSnowflake(resolved) ? resolved : null;
 }
 
 /**

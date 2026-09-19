@@ -129,6 +129,11 @@ export const KNOWN_CRON_TASKS: Record<string, { name: string; schedule: string; 
         schedule: "Toutes les 10 min",
         logFile: "market-expire.log",
     },
+    raid_reminders: {
+        name: "Rappel Raids — ping des inscrits (1 h avant)",
+        schedule: "Toutes les 10 min",
+        logFile: "raid-reminders.log",
+    },
 };
 
 const REDIS_PREFIX = "cron:telemetry:";

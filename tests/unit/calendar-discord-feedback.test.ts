@@ -51,6 +51,14 @@ function calendarBranch(): string {
     return ROUTE_CODE.slice(start, end === -1 ? undefined : end);
 }
 
+/** Corps de la branche `calendar:apply` (retour de la modale « S'inscrire »). */
+function calendarModalBranch(): string {
+    const start = ROUTE_CODE.indexOf('else if (prefix === "calendar" && action === "apply")');
+    expect(start, "branche modale `calendar:apply` introuvable dans la route").toBeGreaterThan(-1);
+    const end = ROUTE_CODE.indexOf('} else if (prefix === "dj" && action === "join")', start);
+    return ROUTE_CODE.slice(start, end === -1 ? undefined : end);
+}
+
 describe("Calendar — messages éphémères du cliqueur", () => {
     it("inscription validée : annonce explicite + compteur de l'embed", () => {
         const content = buildCalendarInteractionFeedback("join", {
@@ -136,6 +144,25 @@ describe("Calendar — messages éphémères du cliqueur", () => {
         expect(buildCalendarInteractionFeedback("join", { success: true }))
             .not.toContain(CALENDAR_EMBED_WARNING);
     });
+    it("confirme la classe retenue quand la modale/le menu en fournit une", () => {
+        const withClass = buildCalendarInteractionFeedback("join", {
+            success: true,
+            registeredCount: 2,
+            maxParticipants: 8,
+            classe: "Cra",
+            embedStatus: "synced",
+        });
+        expect(withClass).toContain("Bien inscrit");
+        expect(withClass).toContain("Classe : **Cra**");
+
+        const withoutClass = buildCalendarInteractionFeedback("join", {
+            success: true,
+            registeredCount: 2,
+            maxParticipants: 8,
+            embedStatus: "synced",
+        });
+        expect(withoutClass).not.toContain("Classe");
+    });
 });
 
 describe("Route Discord — boutons du calendrier (non-régression du constat)", () => {
@@ -145,11 +172,28 @@ describe("Route Discord — boutons du calendrier (non-régression du constat)",
         );
     });
 
-    it("répond un éphémère construit par la fonction pure", () => {
+    it("« S'inscrire » ouvre la modale d'inscription (classe + message en une fois)", () => {
         const branch = calendarBranch();
-        expect(branch).toMatch(/processRegistration\(guild_id, entityId, account!\.userId\)/);
+        expect(branch, "le bouton doit ouvrir une modale, pas inscrire à l'aveugle").toMatch(/type:\s*9/);
+        expect(branch).toMatch(/custom_id: `calendar:apply:\$\{entityId\}`/);
+        expect(branch, "plus d'inscription « Sans classe » depuis le bouton").not.toMatch(
+            /processRegistration\(guild_id, entityId, account!\.userId\)/
+        );
+    });
+
+    it("« Se désinscrire » répond toujours un éphémère explicite", () => {
+        const branch = calendarBranch();
         expect(branch).toMatch(/processUnregistration\(guild_id, entityId, account!\.userId\)/);
-        expect(branch).toMatch(/ephemeralDiscordMessage\(buildCalendarInteractionFeedback\(action, outcome\)\)/);
+        expect(branch).toMatch(/ephemeralDiscordMessage\(buildCalendarInteractionFeedback\("leave", outcome\)\)/);
+    });
+
+    it("le retour de la modale inscrit AVEC la classe retenue (une seule écriture)", () => {
+        const branch = calendarModalBranch();
+        expect(branch).toMatch(/processRegistration\(guild_id, entityId, account\.userId, \{/);
+        expect(branch).toMatch(/classe: matchedClass/);
+        expect(branch).toMatch(/ephemeralDiscordMessage\(buildCalendarInteractionFeedback\("join", outcome\)\)/);
+        // RBAC de la modale : carte partagée avec les boutons (aucune règle dupliquée).
+        expect(branch).toMatch(/isDiscordPrefixAuthorized\(prefix, guild_id, member\.user\.id\)/);
     });
 });
 

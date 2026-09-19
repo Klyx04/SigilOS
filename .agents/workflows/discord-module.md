@@ -159,6 +159,8 @@ If user input is required (like Songes candidature), use Discord Modals:
 | `type: 6` (ACK muet) en réponse à un bouton | Un défer non résolu côté client : aucune confirmation (« bien inscrit »), bulle « Le message n'a pas pu être chargé ». Répondre en `type: 4` éphémère (`ephemeralDiscordMessage`), ou `type: 6` **suivi** d'un `editInteractionMessage` (pattern tickets). |
 | Embed rafraîchi en tâche de fond (`.catch()`) | Compteur/pseudos périmés si le PATCH échoue ou est coupé. **Attendre** le PATCH avant de répondre, avec un plafond (< 3 s : `refreshEmbedWithinDeadline` du service calendrier) pour ne jamais expirer l'interaction. |
 | Fenêtre anti-spam partagée entre deux actions | Clé `userId:eventId` ⇒ « S'inscrire » puis « Se désinscrire » se bloquent mutuellement. Clé **par action**, armée seulement quand l'action a réellement changé l'état. |
+| ID `outbox:<jobId>` stocké comme `discordMessageId` | Avec `DISCORD_OUTBOX_ENABLED=true` (bêta), `sendChannelMessage` renvoie `outbox:<jobId>` (écriture **en file**), pas un ID Discord : tout `PATCH /channels/{salon}/messages/outbox:…` finit en **404** et l'embed reste **figé** (constat raids du 19/09/2026, déjà vécu sur le Marché et le status Discord). Toujours : valider avec `isDiscordSnowflake` (`src/lib/discord-ids.ts`), passer `storeMessageIdKey` à l'enqueue, et **résoudre** l'ID (Redis) avant d'éditer. |
+| Bouton d'inscription qui n'enregistre pas ce que le menu demande | « S'inscrire » sans classe puis « choisir sa classe » après coup = roster « Sans classe » illisible. Un bouton d'inscription ouvre une **modale** (classe + message) traitée en `type 5` (`prefix:apply:<id>`) : une seule écriture, un seul message de confirmation. |
 
 ## Testing
 

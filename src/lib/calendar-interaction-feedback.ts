@@ -44,6 +44,8 @@ export interface CalendarRegistrationOutcome {
     maxParticipants?: number | null;
     /** Cette désinscription a promu le 1er de la file d'attente. */
     promoted?: boolean;
+    /** Classe Dofus retenue pour cette inscription (modale / menu classe). */
+    classe?: string;
     /** Renseigné **uniquement** quand un embed existait réellement à rafraîchir. */
     embedStatus?: CalendarEmbedSyncStatus;
 }
@@ -68,6 +70,15 @@ function embedWarning(outcome: CalendarRegistrationOutcome): string {
     return outcome.embedStatus === "failed" || outcome.embedStatus === "skipped"
         ? CALENDAR_EMBED_WARNING
         : "";
+}
+
+/**
+ * Rappel de la classe retenue (vide si l'inscription est « Sans classe ») :
+ * confirme au joueur ce qui figure dans l'embed (constat beta du 19/09/2026 où
+ * « S'inscrire » enregistrait un pseudo sans classe, sans rien dire).
+ */
+function classNote(outcome: CalendarRegistrationOutcome): string {
+    return outcome.classe ? `\n🧩 Classe : **${outcome.classe}**` : "";
 }
 
 /**
@@ -96,10 +107,11 @@ export function buildCalendarInteractionFeedback(
     if (action === "join") {
         if (outcome.isReserve) {
             const note = outcome.reserveMessage ?? "Une place se libère → tu es promu automatiquement.";
-            return `⏳ **File d'attente**${places}. ${note}${warning}`;
+            return `⏳ **File d'attente**${places}. ${note}${warning}${classNote(outcome)}`;
         }
-        return `✅ **Bien inscrit !**${places}.${warning}`;
+        return `✅ **Bien inscrit !**${places}.${warning}${classNote(outcome)}`;
     }
+
 
     const promotion = outcome.promoted ? "\n⬆️ Le 1er de la file d'attente a été promu." : "";
     return `👋 **Désinscrit**${places}.${promotion}${warning}`;

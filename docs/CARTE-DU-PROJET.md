@@ -88,7 +88,7 @@ Verdict : **cité + lancé** = vivant (à garder) · **cité seulement dans un v
 | `src/utils/` | 1 utilitaire isolé (`canvas.ts`) | 1 |
 | `src/workers/` | Workers Node exécutés par Docker (`worker.js`, `ladder-sync.js`) — pas par Next | ⚠️ |
 | `src/proxy.ts` | Proxy Next 16 (**convention non négociable** : remplace `middleware.ts`, tourne en Node) | 1 |
-| `src/scripts/` | ⚠️ 2 outils de dev (`reset-db.ts`, `verify-schema.ts`) — leur place est dans `scripts/` | 2 |
+| `src/scripts/` | ✅ **vidé le 19/09/2026** : ses 2 outils (`reset-db.ts`, `verify-schema.ts`) sont dans `scripts/` | 0 |
 | `src/temp/` | Zone de travail **volatile, ignorée par git** (cf. `docs/ARCHIVES-TEMP-2026-09.md`) | — |
 
 ## 4. `public/` — tout ce qui est servi aux visiteurs (2 303 fichiers suivis)
@@ -166,7 +166,7 @@ Verdict : **cité + lancé** = vivant (à garder) · **cité seulement dans un v
 | `.gemini/…/scratch/*.py` (3) | Brouillons d'agent | Détracker |
 | `.playwright-profile/` (**87,5 Mo / 915 fichiers**) | Profil navigateur de test | Supprimer (se recrée avec `--login`) |
 | `public/uploads/{guides,docs,guilds,proofs}` (636 suivis, ~20 Mo) | Ancien système d'upload | ⚠️ **Vérifier en base** puis archiver |
-| `src/scripts/reset-db.ts`, `verify-schema.ts` | Outils de dev mal placés | Déplacer dans `scripts/` |
+| `src/scripts/reset-db.ts`, `verify-schema.ts` | Outils de dev mal placés | ✅ **déplacés dans `scripts/`** le 19/09 |
 | `USER_ACTIONS_REQUIRED.md` | Liste d'actions du propriétaire | Vérifier la fraîcheur, archiver si périmé |
 | `prisma/seeds/game-data.json` + `prisma/seed-data/game-data.json` | Doublon apparent | Vérifier lequel est lu |
 | `tsconfig.tsbuildinfo`, `.next/` | Artefacts locaux | Jetables (déjà ignorés) |

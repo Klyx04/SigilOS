@@ -112,7 +112,6 @@ import { auth } from "@/auth";
 import { SupportOrb } from "@/components/shared/support-orb";
 import { db } from "@/lib/prisma";
 import { headers } from "next/headers";
-import { GodBypassCookie } from "@/components/god-bypass-cookie";
 import { PwaRegistration, PwaInstallBanner } from "@/components/pwa/PwaRegistration";
 
 import { BossOverlayHost } from "@/components/boss-overlay/BossOverlayHost";
@@ -144,7 +143,6 @@ export default async function RootLayout({
           <I18nProvider initialLocale={locale}>
             <AuthProvider session={session}>
               <TooltipProvider>
-                <GodBypassCookie />
                 <PwaRegistration />
                 {children}
                 {donationsEnabled && <SupportOrb />}

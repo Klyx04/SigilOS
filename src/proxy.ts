@@ -17,9 +17,9 @@ const { auth } = NextAuth(authConfig)
 const MAX_IP_COUNTER_ENTRIES = 10_000
 const ipCounters = new Map<string, { count: number; reset: number }>()
 
-// ─── Maintenance Mode Cache (30s TTL, avoids a DB fetch on every request) ───
+// ─── Maintenance Mode Cache (10s TTL, avoids a DB fetch on every request) ───
 let _maintenanceCache: { value: boolean; expiresAt: number } | null = null
-const MAINTENANCE_CACHE_TTL_MS = 30_000
+const MAINTENANCE_CACHE_TTL_MS = 10_000
 
 // ─── God route prefix (R3 anti-scout, computed at build — env inlined) ─────
 const GOD_PREFIX = getGodRoutePrefix()
@@ -268,22 +268,28 @@ export default auth(async (req) => {
     }
 
     // --- MAINTENANCE MODE CHECK ---
+    // Seules les routes God (panel + API) contournent la maintenance : c'est
+    // le seul moyen de la désactiver une fois active. AUCUN bypass par cookie
+    // (un cookie posé côté client est falsifiable en une ligne de console) et
+    // AUCUNE exception pour les sessions loggées — God compris : la maintenance
+    // verrouille tout le site, dashboards inclus.
     const isMaintenanceBypassPath = nextUrl.pathname.startsWith("/maintenance") || isGodRoute(nextUrl.pathname) || nextUrl.pathname.startsWith("/api");
-    const isGodUser = req.cookies.get("sigil-god-bypass")?.value;
 
-    if (!isMaintenanceBypassPath && !isGodUser) {
+    if (!isMaintenanceBypassPath) {
         // 1. Fast path: read env var set by the admin panel action (no network, no Turbopack cold-start 404)
         const envMaintenance = process.env.MAINTENANCE_MODE;
         let isInMaintenance = envMaintenance === "true";
 
-        // 2. Slow path (prod only): if env var not explicitly set, fallback to cached DB check
-        if (envMaintenance === undefined && process.env.NODE_ENV === "production") {
+        // 2. Slow path: if env var not explicitly set, fallback to cached DB check.
+        // Actif dans TOUS les environnements (dev compris) : restreindre à la
+        // prod rendait la maintenance intestable en local (jamais appliquée).
+        if (envMaintenance === undefined) {
             const now = Date.now()
             if (_maintenanceCache && now < _maintenanceCache.expiresAt) {
                 // Cache hit: reuse last known value
                 isInMaintenance = _maintenanceCache.value
             } else {
-                // Cache miss: fetch from API and store result for 30s
+                // Cache miss: fetch from API and store result for 10s
                 try {
                     const res = await fetch(`${nextUrl.origin}/api/health/maintenance`, {
                         headers: { "x-middleware-check": "1" },

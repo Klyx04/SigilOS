@@ -70,6 +70,15 @@ export default async function DashboardLayout({
     const roadmapEnabled = configRes.success && configRes.data ? (configRes.data as any).roadmapEnabled : false;
     const donationsEnabled = configRes.success && configRes.data ? (configRes.data as any).donationsEnabled : true;
 
+    // --- MAINTENANCE : verrouille les dashboards loggés (le proxy réécrit les
+    // requêtes neuves, mais une session déjà posée sur un dashboard ne repasse
+    // pas forcément par lui dans sa fenêtre de cache). Lecture BDD directe,
+    // sans cache : le dashboard bascule dès l'activation. Fail-open : BDD
+    // injoignable → on laisse passer (le proxy garde son propre filet).
+    // Aucune exception God ici : seule la route God reste accessible.
+    const maintenanceOn = configRes.success && configRes.data ? (configRes.data as any).maintenanceMode === true : false;
+    if (maintenanceOn) redirect("/maintenance");
+
     // #5 — Couleur de guilde (teinte OKLCH) : le dashboard se teinte via --accent/--ring.
     const accentHue = await db.guildConfig
         .findUnique({ where: { discordGuildId: guildId }, select: { accentHue: true } })

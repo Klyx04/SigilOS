@@ -13,6 +13,7 @@ import { buildBountyBestiaireEntry } from "@/lib/bounty-fiche";
 import { sanitizeHtml } from "@/lib/security";
 import { getLocalMonsterStatAny, persistMonsterStat } from "@/lib/dofensive-sync";
 import { getDofensiveDungeonForBoss } from "@/server/actions/dofensive-actions";
+import { resolveUniqueDungeonSlug } from "@/server/game/dungeon-slug";
 
 const normStr = (s: string | null | undefined): string =>
     (s ?? "")
@@ -269,6 +270,8 @@ export interface BestiaireEntry {
     id: string;
     name: string;
     bossName: string;
+    /** Segment d'URL publique (`/boss/<slug>`) — repli sur `id` s'il est absent. */
+    slug?: string | null;
     level: number;
     imageUrl?: string | null;
     dofensiveUrl?: string | null;
@@ -293,6 +296,7 @@ export async function getBestiaireCatalog(): Promise<ActionResponse<BestiaireEnt
             orderBy: { level: 'asc' },
             select: {
                 id: true,
+                slug: true,
                 name: true,
                 bossName: true,
                 level: true,
@@ -313,6 +317,7 @@ export async function getBestiaireCatalog(): Promise<ActionResponse<BestiaireEnt
             .filter(d => d && (d.bossName || d.name))
             .map(d => ({
                 id: d.id,
+                slug: d.slug,
                 name: d.name,
                 bossName: d.bossName || d.name,
                 level: d.level ?? 0,
@@ -379,6 +384,7 @@ export async function getBestiaireCatalog(): Promise<ActionResponse<BestiaireEnt
             const titans = await db.titan.findMany({ orderBy: { level: 'asc' } });
             titanEntries = titans.map((t) => ({
                 id: t.id,
+                slug: t.slug,
                 name: t.zone || "Titan",
                 bossName: t.name,
                 level: t.level ?? 0,
@@ -405,6 +411,7 @@ export async function getBestiaireCatalog(): Promise<ActionResponse<BestiaireEnt
                 orderBy: [{ level: 'asc' }, { name: 'asc' }],
                 select: {
                     id: true,
+                    slug: true,
                     name: true,
                     level: true,
                     imageUrl: true,
@@ -2211,6 +2218,8 @@ export async function createDungeonAction(
             data: {
                 name: data.name.trim(),
                 bossName: data.bossName.trim(),
+                // Slug public `/boss/<slug>` (nom du boss, suffixé si déjà pris).
+                slug: await resolveUniqueDungeonSlug(data.bossName.trim()),
                 level: Number(data.level),
                 dofusdbId: data.dofusdbId ? Number(data.dofusdbId) : null,
                 dpnlUrl: data.dpnlUrl || null,

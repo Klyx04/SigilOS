@@ -84,6 +84,8 @@ function MonsterImage({
 
 interface BossDungeon {
     id: string;
+    /** Slug public (`/boss/<slug>`) — le deep-link `?dungeon=` accepte les deux. */
+    slug?: string | null;
     name: string;
     bossName: string;
     level: number;
@@ -233,7 +235,7 @@ export function SuccesBossGuide({ guildId, anomalyOnly = false }: { guildId: str
     useEffect(() => {
         if (!dungeonParam || dungeons.length === 0) return;
         if (deepLinkHandledRef.current) return;
-        const match = dungeons.find((d) => d.id === dungeonParam);
+        const match = dungeons.find((d) => d.id === dungeonParam || d.slug === dungeonParam);
         if (!match) return;
         deepLinkHandledRef.current = true;
         setSelected(match);

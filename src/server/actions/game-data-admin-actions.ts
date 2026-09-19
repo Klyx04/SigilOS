@@ -12,6 +12,8 @@ import { writeFileSync } from "fs";
 import { join } from "path";
 
 import { addIgnoredFamily, addIgnoredZone } from "@/server/actions/game-data-actions";
+import { resolveUniqueDungeonSlug } from "@/server/game/dungeon-slug";
+import { bossSlugWithFallback } from "@/lib/boss-slug";
 import { NO_ACHIEVEMENT_CHALLENGE_SLUG, ensureNoAchievementChallengeId } from "@/lib/dungeon-no-achievement";
 import { addIgnoredBounty, getIgnoredBounties, removeIgnoredBounty, type IgnoredBountyEntry } from "@/lib/bounty-ignore";
 
@@ -45,6 +47,11 @@ const ChallengeSchema = z.object({
 const DungeonFormSchema = z.object({
     name: z.string().min(1, "Nom requis").max(150),
     bossName: z.string().min(1, "Nom du boss requis").max(150),
+    /* Slug d'URL publique (`/boss/<slug>`) : optionnel. Vide ⇒ généré depuis le
+       nom du boss à la création, et **inchangé** à la modification (une URL
+       publiée ne doit pas bouger toute seule : les anciens slugs/ids restent
+       servis en 308, mais on ne casse pas un lien indexé sans raison). */
+    slug: z.string().max(150).optional().or(z.literal("")),
     level: z.number().min(1, "Niveau invalide").max(1000),
     dpnlUrl: z.string().optional().or(z.literal("")),
     dofuspourlesnoobsUrl: z.string().optional().or(z.literal("")),
@@ -394,10 +401,15 @@ export async function createDungeon(
         const validated = DungeonFormSchema.parse(data);
         const { challengeIds, isNoAchievement, isAnomalyBoss, ...dungeonData } = validated;
 
+        // Slug public `/boss/<slug>` : slugifié, et suffixé automatiquement s'il est
+        // déjà pris (« minotoror », « minotoror-2 »).
+        const slug = await resolveUniqueDungeonSlug(dungeonData.slug?.trim() || dungeonData.bossName);
+
         // Chantier double boss : conversion '' → null pour les champs de résolution Dofensive.
         const dungeon = await db.dungeon.create({
             data: {
                 ...dungeonData,
+                slug,
                 isNoAchievement: !!isNoAchievement,
                 isAnomalyBoss: !!isAnomalyBoss,
                 dpnlUrl: dungeonData.dpnlUrl || null,
@@ -460,11 +472,21 @@ export async function updateDungeon(
 
         // Update dungeon and sync achievements
         const dungeon = await db.$transaction(async (tx) => {
+            // Slug d'URL : une valeur explicite est slugifiée et rendue unique ;
+            // sinon le slug existant est **conservé** (l'URL publiée ne bouge pas
+            // quand on corrige un nom, ou alors 308 dans l'autre sens).
+            const requestedSlug = dungeonData.slug?.trim();
+            const { slug: _requestedSlug, ...restDungeonData } = dungeonData;
+            const slugUpdate = requestedSlug
+                ? { slug: await resolveUniqueDungeonSlug(requestedSlug, { excludeId: id, client: tx }) }
+                : {};
+
             // Update dungeon basic info
             const updated = await tx.dungeon.update({
                 where: { id },
                 data: {
-                    ...dungeonData,
+                    ...restDungeonData,
+                    ...slugUpdate,
                     isNoAchievement: !!isNoAchievement,
                     isAnomalyBoss: !!isAnomalyBoss,
                     dpnlUrl: dungeonData.dpnlUrl || null,
@@ -1563,6 +1585,9 @@ export async function importGameData(jsonData: string): Promise<ActionResponse<s
                             data: {
                                 name: dungeon.name,
                                 bossName: dungeon.bossName,
+                                // Slug public généré depuis le nom du boss (unique, y
+                                // compris au sein de ce lot d'import).
+                                slug: await resolveUniqueDungeonSlug(dungeon.bossName, { client: tx }),
                                 level: dungeon.level,
                                 dpnlUrl: dungeon.dpnlUrl || null,
                                 imageUrl: dungeon.imageUrl || null,

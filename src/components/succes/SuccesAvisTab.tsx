@@ -239,7 +239,7 @@ export function SuccesAvisTab({ guildId }: { guildId: string }) {
                                     <Sparkles className="h-3.5 w-3.5" /> Overlay
                                 </button>
                                 <Link
-                                    href={`/boss/${fiche.dungeon.id}`}
+                                    href={`/boss/${fiche.dungeon.slug ?? fiche.dungeon.id}`}
                                     target="_blank"
                                     className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground"
                                 >

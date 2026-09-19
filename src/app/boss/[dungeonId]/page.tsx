@@ -1,7 +1,7 @@
 import { Metadata } from "next";
 import { headers } from "next/headers";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import { ArrowLeft, Swords } from "lucide-react";
 import { PublicHeader } from "@/components/layout/public-header";
 import { GalacticFooter } from "@/components/layout/galactic-footer";
@@ -24,23 +24,28 @@ interface PageProps {
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { dungeonId } = await params;
-  const dungeon = await db.dungeon.findUnique({
-    where: { id: dungeonId },
-    select: { name: true, bossName: true, level: true, imageUrl: true },
+  // Le segment d'URL accepte le **slug** (nom du boss, ex. `/boss/tournesol-affame`)
+  // ou, en repli, l'identifiant historique (CUID) : les liens déjà publiés
+  // (Discord, overlays) continuent de fonctionner — la page redirige alors en 308
+  // vers l'URL canonique en slug (cf. `PublicBossDetailPage`).
+  const key = decodeURIComponent(dungeonId);
+  const dungeon = await db.dungeon.findFirst({
+    where: { OR: [{ slug: key }, { id: key }] },
+    select: { name: true, bossName: true, level: true, imageUrl: true, slug: true },
   });
   const titan = dungeon
     ? null
-    : await db.titan.findUnique({
-        where: { id: dungeonId },
-        select: { name: true, level: true, imageUrl: true, zone: true },
+    : await db.titan.findFirst({
+        where: { OR: [{ slug: key }, { id: key }] },
+        select: { name: true, level: true, imageUrl: true, zone: true, slug: true },
       });
   // 🎯 Avis de recherche (3ᵉ repli) : la fiche publique `MonsterStat` est locale, on n'appelle
   // qu'une lecture SQL pour le titre/description.
   const bounty = dungeon || titan
     ? null
     : await db.bounty.findFirst({
-        where: { isBountyMonster: true, OR: [{ id: dungeonId }, { slug: dungeonId }] },
-        select: { name: true, level: true, imageUrl: true, zoneName: true },
+        where: { isBountyMonster: true, OR: [{ id: key }, { slug: key }] },
+        select: { name: true, level: true, imageUrl: true, zoneName: true, slug: true },
       });
 
   const { getServerI18n } = await import("@/lib/i18n/server");
@@ -54,6 +59,9 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const dungeonLabel = dungeon ? dungeon.name : bounty ? bounty.zoneName || (locale === "en" ? "Wanted Bounty" : "Avis de recherche") : titan!.zone || "Titan";
   const level = dungeon ? dungeon.level : bounty ? bounty.level : titan!.level;
   const imageUrl = dungeon ? dungeon.imageUrl : bounty ? bounty.imageUrl : titan!.imageUrl;
+  /** Segment canonique (slug prioritaire, repli identifiant) : canonical + Open Graph. */
+  const canonicalSegment = dungeon?.slug || titan?.slug || bounty?.slug || key;
+  const canonicalUrl = `${getAppBaseUrl()}/boss/${canonicalSegment}`;
   if (bounty) {
     return {
       title: locale === "en"
@@ -63,14 +71,14 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
         ? `Tactical guide for wanted bounty ${bossName} (${t.bossPage.levelShort.toLowerCase()} ${level}, hunt zone: ${dungeonLabel}): monster spells, ranges, resistances, loot and isometric simulation. 100% free.`
         : `Fiche tactique de l'avis de recherche ${bossName} (niveau ${level}, zone de traque : ${dungeonLabel}) : sorts du monstre, portées, résistances, butin et simulation isométrique. 100% gratuit.`,
       alternates: {
-        canonical: `${getAppBaseUrl()}/boss/${dungeonId}`,
+        canonical: canonicalUrl,
       },
       openGraph: {
         title: locale === "en" ? `${bossName} — Wanted Bounty (100% Free) | SigilOS` : `${bossName} — Avis de recherche (100% Gratuit) | SigilOS`,
         description: locale === "en"
           ? `Spells, ranges, resistances and hunt zone for ${bossName}. Free, no account required.`
           : `Sorts, portées, résistances et zone de traque de ${bossName}. Gratuit et sans compte requis.`,
-        url: `${getAppBaseUrl()}/boss/${dungeonId}`,
+        url: canonicalUrl,
         images: imageUrl ? [{ url: imageUrl }] : [],
       },
     };
@@ -83,14 +91,14 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       ? `Complete tactical sheet for ${dungeon ? `boss ${bossName} from dungeon ${dungeonLabel}` : `titan ${bossName} (${dungeonLabel})`}. Isometric spell range simulation, resistances and detachable in-game overlay over Dofus. 100% free.`
       : `Fiche tactique complète pour ${dungeon ? `le boss ${bossName} du donjon ${dungeonLabel}` : `le titan ${bossName} (${dungeonLabel})`}. Simulation isométrique de portée des sorts, résistances et mini-fenêtre overlay détachable par-dessus Dofus. 100% gratuit.`,
     alternates: {
-      canonical: `${getAppBaseUrl()}/boss/${dungeonId}`,
+      canonical: canonicalUrl,
     },
     openGraph: {
       title: locale === "en" ? `${bossName} — Boss & Dungeon Sheet (100% Free) | SigilOS` : `${bossName} — Fiche Boss & Donjon (100% Gratuit) | SigilOS`,
       description: locale === "en"
         ? `Spells, ranges, resistances and room monsters for ${bossName}. Free, no account required.`
         : `Sorts, portées, résistances et compo de salle pour ${bossName}. Gratuit et sans compte requis.`,
-      url: `${getAppBaseUrl()}/boss/${dungeonId}`,
+      url: canonicalUrl,
       images: imageUrl ? [{ url: imageUrl }] : [],
     },
   };
@@ -98,26 +106,37 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 export default async function PublicBossDetailPage({ params }: PageProps) {
   const { dungeonId } = await params;
+  const key = decodeURIComponent(dungeonId);
   const session = await auth();
   const { getUserContext } = await import("@/server/actions/user-actions");
   const { getServerI18n } = await import("@/lib/i18n/server");
   const [userContext, { t, locale }] = await Promise.all([getUserContext(), getServerI18n()]);
 
-  const dungeon = await db.dungeon.findUnique({
-    where: { id: dungeonId },
+  const dungeon = await db.dungeon.findFirst({
+    where: { OR: [{ slug: key }, { id: key }] },
   });
   const titan = dungeon
     ? null
-    : await db.titan.findUnique({ where: { id: dungeonId } });
+    : await db.titan.findFirst({ where: { OR: [{ slug: key }, { id: key }] } });
 
   // 🎯 Chantier « Avis de recherche » — **3ᵉ repli** (Dungeon → Titan → Avis), même logique que
   // les Titans : un avis n'a ni salle ni carte Dofensive, mais il a une fiche SIPHONNÉE
   // (`Bounty` + `MonsterStat` + carte de repli déclarée) ⇒ **aucun appel réseau** ici.
-  const bountyRes = dungeon || titan ? null : await getBountyFiche(dungeonId);
+  const bountyRes = dungeon || titan ? null : await getBountyFiche(key);
   const bounty = bountyRes?.success ? bountyRes.data! : null;
 
   if (!dungeon && !titan && !bounty) {
     notFound();
+  }
+
+  // 🔗 URL canonique en **slug** (nom du boss). Un lien historique en identifiant
+  // (`/boss/<cuid>`) est redirigé **définitivement** (308) : Google transfère la
+  // valeur de l'ancienne URL vers la nouvelle et l'utilisateur atterrit sur l'URL
+  // propre. Aucun slug en base (entité créée hors migration) ⇒ on sert l'URL telle
+  // quelle plutôt que de casser la fiche.
+  const canonicalSegment = dungeon?.slug || titan?.slug || bounty?.dungeon.slug;
+  if (canonicalSegment && canonicalSegment !== key) {
+    permanentRedirect(`/boss/${canonicalSegment}`);
   }
 
   const isTitan = !dungeon && !bounty && !!titan;
@@ -194,7 +213,7 @@ export default async function PublicBossDetailPage({ params }: PageProps) {
           "@type": "ListItem",
           position: 3,
           name: bossName,
-          item: `${getAppBaseUrl()}/boss/${dungeonId}`,
+          item: `${getAppBaseUrl()}/boss/${canonicalSegment ?? key}`,
         },
       ],
     },

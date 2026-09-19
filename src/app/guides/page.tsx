@@ -1,37 +1,44 @@
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
+import type { Metadata } from "next";
 import { PublicHeader } from "@/components/layout/public-header";
 import { GalacticFooter } from "@/components/layout/galactic-footer";
 import { auth } from "@/auth";
 import { getAppBaseUrl } from "@/lib/utils";
-import { publishedGuides } from "@/content/guides";
+import { getPublishedGuides } from "@/content/guides";
 import { headers } from "next/headers";
 import { JsonLd } from "@/components/shared/json-ld";
 import { getServerI18n } from "@/lib/i18n/server";
 
 /**
  * Index des guides — registre.
+ * Métadonnées et registre localisés (FR source, EN traduit).
  */
 
-export const metadata = {
-    title: "Guides Dofus — Raids, Forgemagie, Élevage & Guilde",
-    description: "Guides stratégiques et tutoriels complets pour Dofus 3 : Raids de guilde (Gigalodon, Sanctuaire des Jardins Éternels), forgemagie, brisage et gestion de guilde.",
-    alternates: {
-        canonical: `${getAppBaseUrl()}/guides`,
-    },
-    openGraph: {
-        title: "Guides Stratégiques Dofus — SigilOS",
-        description: "Toutes les mécaniques décortiquées : Raids de guilde, rentabilité de brisage, poids des runes et élevage d'enclos.",
-        url: `${getAppBaseUrl()}/guides`,
-        type: "website",
-    },
-};
+export async function generateMetadata(): Promise<Metadata> {
+    const { t } = await getServerI18n();
+
+    return {
+        title: t.guidesPage.metaTitle,
+        description: t.guidesPage.metaDesc,
+        alternates: {
+            canonical: `${getAppBaseUrl()}/guides`,
+        },
+        openGraph: {
+            title: t.guidesPage.metaTitle,
+            description: t.guidesPage.metaDesc,
+            url: `${getAppBaseUrl()}/guides`,
+            type: "website",
+        },
+    };
+}
 
 export default async function GuidesPage() {
     const session = await auth();
     const { getUserContext } = await import("@/server/actions/user-actions");
     const userContext = await getUserContext();
     const { t, locale } = await getServerI18n();
+    const guides = getPublishedGuides(locale);
 
     // [AUDIT 2026] Retrieve nonce for inline scripts
     const headersList = await headers();
@@ -68,11 +75,11 @@ export default async function GuidesPage() {
 
                     <div className="mt-8 border-t border-border">
 
-                        {publishedGuides.length === 0 ? (
+                        {guides.length === 0 ? (
                             <p className="py-14 text-sm text-muted-foreground">{t.guidesPage.empty}</p>
                         ) : (
                             <ul>
-                                {publishedGuides.map((guide) => {
+                                {guides.map((guide) => {
                                     const updated = new Date(guide.updatedAt);
                                     return (
                                         <li key={guide.slug}>

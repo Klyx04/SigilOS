@@ -689,8 +689,10 @@ export function BossOverlayClient({
 
                 {/* Liens externes : liens texte discrets (plus de boutons bordés). */}
                 <div className="flex items-center gap-2 mt-1.5 text-[10px]">
+                  {/* Segment d'URL : slug public (nom du boss) ; en interne, le
+                      deep-link accepte le slug comme l'identifiant. */}
                   <a
-                    href={guildId && guildId !== "public" ? `/dashboard/${guildId}/succes?view=boss&dungeon=${selected.id}` : `/boss/${selected.id}`}
+                    href={guildId && guildId !== "public" ? `/dashboard/${guildId}/succes?view=boss&dungeon=${selected.slug ?? selected.id}` : `/boss/${selected.slug ?? selected.id}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-1 text-white/45 hover:text-white/85 transition-colors"

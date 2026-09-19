@@ -3,6 +3,7 @@ import { ChangelogCategory } from '@prisma/client';
 import { formatDistanceToNow } from 'date-fns';
 import { fr, enUS } from 'date-fns/locale';
 import Link from 'next/link';
+import type { Metadata } from 'next';
 import { ArrowLeft, Rocket, Bug, Shield, Zap, BookOpen, Tag, type LucideIcon } from 'lucide-react';
 import { PublicHeader } from '@/components/layout/public-header';
 import { GalacticFooter } from '@/components/layout/galactic-footer';
@@ -27,13 +28,23 @@ const CATEGORY_ICONS: Record<ChangelogCategory, LucideIcon> = {
 
 export const dynamic = "force-dynamic";
 
-export const metadata = {
-    title: "Changelog | SigilOS",
-    description: "Suivez l'évolution de SigilOS : mises à jour, correctifs et nouvelles fonctionnalités en temps réel.",
-    alternates: {
-        canonical: `${getAppBaseUrl()}/changelog`,
-    },
-};
+export async function generateMetadata(): Promise<Metadata> {
+    const { t } = await getServerI18n();
+
+    return {
+        title: t.changelogPage.metaTitle,
+        description: t.changelogPage.metaDesc,
+        alternates: {
+            canonical: `${getAppBaseUrl()}/changelog`,
+        },
+        openGraph: {
+            title: t.changelogPage.metaTitle,
+            description: t.changelogPage.metaDesc,
+            url: `${getAppBaseUrl()}/changelog`,
+            type: "website",
+        },
+    };
+}
 
 export default async function ChangelogPage() {
     const session = await auth();
@@ -42,7 +53,7 @@ export default async function ChangelogPage() {
     const { t, locale } = await getServerI18n();
 
     // Non-logged-in users only see public entries
-    const allEntries = await getChangelogEntries(undefined, !session);
+    const allEntries = await getChangelogEntries(undefined, !session, locale);
     const latestVersion = allEntries[0]?.version ?? null;
 
     // [AUDIT 2026] Retrieve nonce for inline scripts

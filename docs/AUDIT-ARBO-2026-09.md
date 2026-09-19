@@ -120,6 +120,7 @@ au lieu de 8, plus aucun fichier généré ni donnée d'exécution suivi par git
 | `src/temp/**` (583 → 50 fichiers) | Zone volatile : 148 références nettoyées, 8 outils one-shot supprimés | `A:\SigilOS--temp-archive-2026-09-19\lot4-src-temp-avant-vidage\` |
 | Branches git : 24 locales + 28 distantes | Toutes vérifiées `PR MERGED` + contenu présent dans `dev` | `_menage-2026-09-19/branches-supprimees-2026-09-19.txt` (nom + SHA) |
 | `.next/` (**43,6 Go**) | Cache de build | se reconstruit |
+| `scripts/` : **19 outils one-shot** jamais cités (5 backfills bosses, 12 seeds de modules livrés, 2 doublons) | Leur travail est terminé (données en BDD + `prisma/seed-data/`) | `git show <sha>:scripts/<nom>` (supprimés du disque **et** de git) |
 
 ### Conservés volontairement (vérifiés comme vivants)
 - `docs/OCR_STRATEGY_2026.md` + `docs/REDIS-OCR-SETUP.md` → l'OCR **existe** (`src/lib/llm-ocr.ts`, ~570 lignes,

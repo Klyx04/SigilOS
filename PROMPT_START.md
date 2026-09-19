@@ -19,9 +19,9 @@
 
 📖 Ouvre l'historique SEULEMENT si nécessaire (jamais en plan mode par défaut) :
 - Contexte complet (point d'entrée/étape de chaque session) : @/CONTEXT.md.
-- Historique annoté complet (toutes demandes depuis 2026) : `src/temp/archive/contexte/chantier-historique-complet-2026-08-21.md`.
-- Mémo/amorce #223 résilience Discord : `src/temp/archive/memos/memo-2026-08-21-resilience-discord.md`
-  + `src/temp/prompt-next-chantier-2026-08-21-resilience-discord.md` (à ouvrir si la session touche Discord).
+- Historique annoté complet (toutes demandes depuis 2026) : `archive/contexte/chantier-historique-complet-2026-08-21.md`.
+- Mémo/amorce #223 résilience Discord : `archive/memos/memo-2026-08-21-resilience-discord.md`
+  + `prompt-next-chantier-2026-08-21-resilience-discord.md` (à ouvrir si la session touche Discord).
 
 🔒 Exigences systématiques (état de l'art) :
 - Sécurité : respecter RULES.md + SECURITY.md (fail-closed, auth sur chaque action,
@@ -30,7 +30,7 @@
   `npm run test:run` + `npm run build` (ou au minimum tsc + lint) en local.
 - Infra : respecter MAINTENANCE.md (déploiement CD GHCR : ./scripts/deploy-cd.sh,
   fallback : ./scripts/deploy.sh, rollback : ./scripts/rollback.sh).
-- Ne JAMAIS committer : docs/audits/, src/audit-*, AUDIT_*.md, .env*, src/temp/.
+- Ne JAMAIS committer : docs/audits/, src/audit-*, AUDIT_*.md, .env*, .
 - Nommer les findings sécurité avec référence (F-xx) + fichier précis.
 - Pousser sur une branche puis PR vers dev (pas directement sur main/dev sauf exception).
 
@@ -93,10 +93,10 @@ vérifier l'impact multi-tenant (guildId), jamais de breaking sans rollback poss
 > ⚠️ **Règle permanente** : au démarrage d'une nouvelle session, lire la mémo de session la plus récente, puis **la mettre à jour** en fin de session (ajouter ce qui a été fait, supprimer ce qui est obsolète, corriger toute info devenue fausse).
 
 > 📌 **Liste des tâches** : `src/temp/chantier-actif.md` = demandes OUVERTES (léger, à lire/annoter chaque session).
-> L’historique complet (toutes demandes annotées) est archivé : `src/temp/archive/contexte/chantier-historique-complet-2026-08-21.md`.
+> L’historique complet (toutes demandes annotées) est archivé : `archive/contexte/chantier-historique-complet-2026-08-21.md`.
 > On NE JAMAIS supprimer une demande (on ajoute, on reformate, on annote) — l’archive conserve tout.
 
-- **Emplacement** : `src/temp/memo-*.md` (dossier **non commité** — jamais poussé sur git).
+- **Emplacement** : `memo-*.md` (dossier **non commité** — jamais poussé sur git).
 - **But** : garder une trace fiable de l'état réel entre les sessions, car `.antigravity` n'est **plus mis à jour** et ne doit plus servir de référence.
 - **Convention de nom** : `memo-AAAA-MM-JJ-sujet.md` (ex: `memo-2026-08-03-services-dialogue.md`).
 
@@ -109,6 +109,6 @@ vérifier l'impact multi-tenant (guildId), jamais de breaking sans rollback poss
 
 ---
 
-*— Bonus : cette fiche vit à la racine (`PROMPT_START.md`) et est volontairement courte. Le vrai contenu détaillé est dans CONTEXT.md, RULES.md, SECURITY.md, MAINTENANCE.md, docs/SEO_REPRISE.md et la mémo de session `src/temp/memo-*.md`.*
+*— Bonus : cette fiche vit à la racine (`PROMPT_START.md`) et est volontairement courte. Le vrai contenu détaillé est dans CONTEXT.md, RULES.md, SECURITY.md, MAINTENANCE.md, docs/SEO_REPRISE.md et la mémo de session `memo-*.md`.*
 
-> ⚠️ **Tours admin** : toute modif des tutos → lire d'abord `src/temp/archive/memos/memo-2026-08-08-tours-admin.md` (phases, `data-tour` stables, maintenance).
+> ⚠️ **Tours admin** : toute modif des tutos → lire d'abord `archive/memos/memo-2026-08-08-tours-admin.md` (phases, `data-tour` stables, maintenance).

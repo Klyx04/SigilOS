@@ -2,7 +2,7 @@
  * Régression (14/09/2026, constat beta) — **« +15975 Effet »** sur la carte d'une
  * *Pestilence de Corruption* (`22412`), dans le bloc « Jet déclaré » et l'image OG.
  *
- * 📏 Cause **mesurée** (sonde `src/temp/_probe-effet-15975.mjs`, `api.dofusdb.fr`) :
+ * 📏 Cause **mesurée** (sonde `_probe-effet-15975.mjs`, `api.dofusdb.fr`) :
  * `effectId` **1175** est un **porteur de capacité légendaire** — `diceNum` = id du
  * pouvoir (`15975` = « Nuée Pestilentielle »), `diceSide` = 1. DofusDB l'écarte
  * lui-même du tableau normalisé `effects` (**17** entrées brutes `possibleEffects`

@@ -3481,7 +3481,7 @@ enum MarketListingType {
   /// 🧺 Décision user du 14/09/2026 — **lot multiple** : jusqu'à 5 objets
   /// différents (familles mélangées) vendus **ensemble**, chaque objet portant
   /// **son propre prix** (réservable séparément) et publié dans **son** message
-  /// Discord. Cf. `src/temp/refonte-marche/PLAN-LOT-MULTIPLE.md`.
+  /// Discord. Cf. `refonte-marche/PLAN-LOT-MULTIPLE.md`.
   BUNDLE
 }
 

@@ -2,9 +2,9 @@
 
 > **Point d’entrée du contexte projet — VERSION CONDENSÉE (mise à jour 2026-09-02).**
 > ⚠️ L’historique détaillé des sessions (avant le 21/08/2026) est archivé :
-> `src/temp/archive/contexte/CONTEXT-historique-complet-2026-08-21.md` — NON relu par les prompts.
+> `archive/contexte/CONTEXT-historique-complet-2026-08-21.md` — NON relu par les prompts.
 > 📌 **État actuel & prochaines priorités** : voir `/\.agents/workflows/activeContext.md` (léger, à jour) — c'est la référence pour « où on en est ».
-> Les sections ci-dessous décrivent l'**architecture & le produit** (stables). L'état du chantier évolue : suivez `activeContext.md` + la mémo de session `src/temp/memo-*.md` la plus récente.
+> Les sections ci-dessous décrivent l'**architecture & le produit** (stables). L'état du chantier évolue : suivez `activeContext.md` + la mémo de session `memo-*.md` la plus récente.
 
 ---
 
@@ -23,7 +23,7 @@
 - **Infra** : VPS Docker (app, bot, workers, ws, db, redis, monitoring) orienté **Caddy** reverse proxy · **Cloudflare Workers** (proxies ladder/dofusbook) · Grafana/Prometheus · Sentry · Backups GPG → Cloudflare R2.
 - **CI/CD** : GitHub Actions (`dev`→beta, `main`→prod), `npm audit`, Semgrep, Trivy, Gitleaks. Déploiement CD (build GitHub → images GHCR → VPS `scripts/deploy-cd.sh`, ~30s). Fallback historique `scripts/deploy.sh`, rollback `scripts/rollback.sh`. Voir `MAINTENANCE.md`.
 
-## 🧭 Chantier global — `src/temp/chantier.md` (liste des tâches annotée)
+## 🧭 Chantier global — `chantier.md` (liste des tâches annotée)
 
 > 📌 Pour les prompts, lire **`src/temp/chantier-actif.md`** (demandes ouvertes + dernières annotations, léger).
 > Le fichier `chantier.md` complet (toutes demandes + historique) est conservé/archivé.
@@ -31,7 +31,7 @@
 ### 🔴 PRIORITÉ #223 — Résilience Discord long terme (point dur : **16/11/2026**)
 > ✅ **P0 + P1 + P2 + fix CodeQL FAIT + MERGÉ (PR #520, `6e5a779a3`)** — anti-obfuscation (name nullable, UI « Salon masqué ») · signature Ed25519 UNIFIÉE (anti-replay ±300 s, clé 64 hex, fail-closed 401) · route webhook au FORMAT RÉEL (PING→204, `APPLICATION_AUTHORIZED`/`DEAUTHORIZED` ; handlers Gateway morts supprimés — Gateway = source de vérité) · fetch membres centralisés · invite SANS `permissions=8` (bitmask 6356836904068) · User-Agent `DiscordBot (url, version)` · doc intents · **fix CodeQL SSRF** (barrière regex ancrée). Vérifs : tsc 0 · lint 0 · **283/283** · build OK · **CodeQL vert**.
 > 🟢 **Reste (P3 + finition + veille)** : outbox BullMQ/Redis écritures Discord · révocation de session Auth.js sur `APPLICATION_DEAUTHORIZED` · rapatrier les fetch directs restants (`dungeon-finder-actions`, `service-actions`, `profile-actions`, `god-discord-actions`) · **veille mensuelle changelog Discord + jour J 16/11/2026**.
-> 📄 Plan maître : `src/temp/refonte-long-terme-discord-compatibilite/PLAN-MAITRE-RESILIENCE-DISCORD-LONG-TERME.md` · Source technique : `sigilos-discord-resilience.md` (⚠️ §12 = VEILLE) · Mémo : `src/temp/archive/memos/memo-2026-08-21-resilience-discord.md` · Amorce : `src/temp/prompt-next-chantier-2026-08-21-resilience-discord.md`.
+> 📄 Plan maître : `refonte-long-terme-discord-compatibilite/PLAN-MAITRE-RESILIENCE-DISCORD-LONG-TERME.md` · Source technique : `sigilos-discord-resilience.md` (⚠️ §12 = VEILLE) · Mémo : `archive/memos/memo-2026-08-21-resilience-discord.md` · Amorce : `prompt-next-chantier-2026-08-21-resilience-discord.md`.
 > 🔒 Consignes stabilité long terme (plan maître §5) : couche anti-corruption unique, IDs only (jamais de noms), name nullable, v10 explicite, UA, signature + timestamp, **pas d’upgrade v11 sans preuve changelog**.
 
 ### Sessions récentes (résumé — détail dans l’archive)
@@ -44,7 +44,7 @@
 | **23/08 (vitrine prod)** | **Vitrine `sigilos.fr` saine (fix `/assets/*`)** : cause racine = Caddyfile/compose **VPS périmés** → `/assets/*` retombait sur `maintenance.html` (HTML) au lieu des PNG → restaurés depuis `origin/main` (`handle /assets/*` + mount `./public:/srv/static:ro`) via `git restore --source=origin/main -- Caddyfile docker-compose.prod.yml` (**sans** `git checkout -- .` pour éviter le conflit `public/game-data`) → Caddy recréé (`sigilos-gateway`). Vérifs : `/` → 200 HTML · `/assets/screenshots/screenshot1.png` → 200 PNG · `/assets/ui/logo-v2.png` (favicon+og:image) → 200 PNG · 404 `favicon.svg` = **faux positif** (non référencé, chemin inexistant). ⏳ **Reste** : VPS toujours sur `dev` (stashes + `public/game-data` modifié) → migration `main` à planifier · branches nettoyées (`dev`, `main`, `feat/inter-guilde` conservées). |
 
 | **23/08** | **Landing & ouverture prod (vitrine `maintenance.html` + `page.tsx`)** : CTA contrasté (`.header-nav a.header-cta` → 6.67) · `docs/DECISION-OUVERTURE-LANDING.md` créé (décision + checklist ouverture) · Caddy `sigilos.fr` = `rewrite * /maintenance.html` (L75) · **métadonnées vérification Discord validées** : 4/6 manquants = URLs (CU, privacy, install) à remplir après ouverture (pointeur « offensive » déjà OK) · placeholders Discord/Portal/Dev remplis avec liens prod après ouverture (décidé — aucun code à changer) · **`/legal/*` existent** (`src/app/legal/{cgu,privacy,mentions,faq}/page.tsx`, contredit les recherches précédentes). ⏳ **Décision user pendante** : refonte immersive landing React maintenant ou après ouverture · preview `:9320` (PID 61956) jusqu'à confirmation. |
-| **22/08** | **BLOC A complet (9 quick wins)** : #192 bouton Suivant darkmode · #199 tour Succès (ancres stables) · #204 upload missions masqué pour God · **#201 embeds prêts/coffre** (migration `20260822000000_add_loan_vault_discord_embeds` + suppression embed à la clôture/purge) · #202 RBAC footer sticky bas + indicateur non-sauvé · #206 Dofoobz image locale · #203 multi-DJ taille de groupe par donjon ; #286/#247 vérifiés déjà corrigés. Vérifs : tsc 0 · lint 0 erreur · 313/313 · build OK. Mémo : `src/temp/archive/memos/memo-2026-08-22-chantier-bloc-a.md`. |
+| **22/08** | **BLOC A complet (9 quick wins)** : #192 bouton Suivant darkmode · #199 tour Succès (ancres stables) · #204 upload missions masqué pour God · **#201 embeds prêts/coffre** (migration `20260822000000_add_loan_vault_discord_embeds` + suppression embed à la clôture/purge) · #202 RBAC footer sticky bas + indicateur non-sauvé · #206 Dofoobz image locale · #203 multi-DJ taille de groupe par donjon ; #286/#247 vérifiés déjà corrigés. Vérifs : tsc 0 · lint 0 erreur · 313/313 · build OK. Mémo : `archive/memos/memo-2026-08-22-chantier-bloc-a.md`. |
 | **22/08 (suite)** | Fix #206 Dofoobz **centralisé** (`src/lib/dofus-image-url.ts` + test, commit `1075b032a`) appliqué au hub Quêtes Dofus + profil. ✔ **Rebasé sur `origin/dev` (22/08) : divergence résolue, branche prête à merger (PR propre, 10 commits ahead).** Prochaine session : **#228 étendre `UnsavedChangesGuard` à galerie/présentation/services/donjons** + **#227 épurer l'UI de la notif partout**. |
 | **22/08 (sécurité CodeQL)** | Fix `js/incomplete-url-scheme-check` : `UnsavedChangesGuard` rejette désormais `javascript:`/`data:`/`vbscript:` (helper `isExecutableScheme` : decodeURI `%xx` + trim + minuscules, insensible casse, `preventDefault` pour bloquer l'exécution au lieu de laisser le navigateur) — commit `87f56e076` + docs `13ceecc54`. Branche **12 ahead / 0 behind** `origin/dev` → PR-ready (PR à créer si pas ouverte). Vérifs : tsc 0 · lint 0 erreur · **316/316** · pre-commit vert. |
 | **09/08** | Module « Titans » (branche `feat/slash-rework`, non commité) : modèle `Titan`/`DjSearchMode.TITAN` + migration · Admin God · seed Gargandyas (8062, Osavora) · `SuccesTitanTab` parité fiche boss (Stats/Simulation/Monstres) · DJ Titan (taille FIXE + date/heure calquée sur dispo, cron couvre TITAN, file d'attente) · barre de vues Succès en assets Dofus (« Fiche Titans ») · fix overlay retour `/boss` + catalogue épuré. ⚠️ `SpellRangeGrid.tsx` JSX cassé (tsc) à réparer. |
@@ -57,14 +57,14 @@
 
 ## 🎨 Assets disponibles (réutilisables dans tout chantier)
 
-- **Design / directions UI (maquettes HTML à plat — `src/temp/`)** : `sigilos-home-direction-2026.html`, `test.html` (⚠️ `sigilos-landing-direction-2026-v3.html` et `guide-complet-refonte.html`, citées ici auparavant, ne sont plus présentes dans `src/temp/`).
+- **Design / directions UI (maquettes HTML à plat)** : **archivées hors dépôt le 19/09/2026** → `A:\SigilOS--temp-archive-2026-09-19\lot4-src-temp-avant-vidage\` (`sigilos-home-direction-2026.html`, `test.html`, `refonte-rush-sylvestre-2026.html`, `refonte-marche/maquette-lot-multiple.html` — recherche par nom de fichier). Cf. `docs/ARCHIVES-TEMP-2026-09.md`.
 - **Landing / vitrine** : `public/assets/landing/` → `bg-guild.jpg` (hero), `icone-dofus.png`, `mission-preview.png`, `songes-preview.png` · `public/assets/icons/dofus_landing.png` · `public/hall-guilde.jpg` · `public/noise.svg`. **Captures de la page d'accueil** : `public/assets/screenshots/` (`screenshot1.png`, `screenshot3.png`, `guide-complet.png`, `screenshot6.png`), déclarées dans **`src/lib/landing-figures.ts`** — visuels **statiques**, et **plus aucun pilotage God** : l'interface `/god/landing` (feature #140, table `LandingScreen`) a été **retirée le 17/09/2026** (remplacer un visuel = remplacer le fichier).
 - **Icônes Dofus** : `public/module-dofus/Dofus_*.png` (28 fichiers, dont `Dofus_Dofoozbz.png`). **Classes** : `public/assets/dofus/classes/<n>.png` (19 fichiers) — passer par `DOFUS_CLASSES`/`getClass()` (`src/lib/dofus-assets.ts`), jamais par une URL écrite à la main. **Serveurs Unity** : `DOFUS_UNITY_SERVERS` (`src/lib/presentation-constants.ts`, groupés Monocompte/Classique/Pionnier mono/Pionnier/Épique) — il n'existe **pas** d'icône de serveur dans le dépôt (nom seul).
-- **Ambiance audio Dofus (archivé, **hors dépôt** depuis le ménage du 17/09/2026)** : les 8 mp3 (`Dofus_{Ebene,Emeraude,Ivoire,Nébuleux,Ocre,Pourpre,Turquoise,Vulbis}.mp3`) sont dans `A:\SigilOS--temp-archive-2026-09-17\lot5\ambiance-dofus\` ; la spec reste à `src/temp/archive/media/ajout-ambiance-Dofus/spec-audio-dofus-dashboard.md` (+ `LISEZ-MOI.md`).
-- **Divers (archivé)** : `src/temp/archive/media/` → `fuji-dofensive.png`, `fuji-sigilos.png`, `map-servitude.png`.
+- **Ambiance audio Dofus (archivé, **hors dépôt** depuis le ménage du 17/09/2026)** : les 8 mp3 (`Dofus_{Ebene,Emeraude,Ivoire,Nébuleux,Ocre,Pourpre,Turquoise,Vulbis}.mp3`) sont dans `A:\SigilOS--temp-archive-2026-09-17\lot5\ambiance-dofus\` ; la spec reste à `archive/media/ajout-ambiance-Dofus/spec-audio-dofus-dashboard.md` (+ `LISEZ-MOI.md`).
+- **Divers (archivé)** : `archive/media/` → `fuji-dofensive.png`, `fuji-sigilos.png`, `map-servitude.png`.
 - **Uploads (`/api/upload`, super-admin only)** : l'écriture va dans `private_uploads/<scope>/` et l'URL publique est `/uploads/<scope>/<uuid>.webp`, réécrite par `src/proxy.ts` vers `/api/storage/<scope>/…`. **Le scope décide de la visibilité** : `docs` (défaut) exige une session, tandis que `guides` et `assets` sont servis **publiquement** (`isPublicPresentationAsset` dans `src/app/api/storage/[...path]/route.ts`). Un visuel affiché sur une page publique (image de bloc de guide, bandeau) doit donc être uploadé avec `uploadImageFile(file, "guides")` — sinon l'image répond **401** aux visiteurs anonymes. ⚠️ Le scope `landing` a existé pour la feature #140 : il a été **retiré le 17/09/2026** avec le reste du pilotage God de la landing.
 - **Progression invitée (guide public, sans compte)** : tout vit dans `localStorage`, sous `sigil_guest_<slug>_…` et **la clé décide du personnage** — `sigil_guest_<slug>_completed_ms|steps|bookmarks` (visiteur **sans** personnage déclaré, clés historiques) ou `sigil_guest_<slug>_c_<pseudo>-<idServeur>_…` (personnage déclaré : classe + pseudo + serveur, tous facultatifs). Passer **toujours** par `src/lib/guest-progress.ts` (`guestProgressPrefix`, `readGuestProgress`, `readGuestCharacter`, `adoptAnonymousGuestProgress`) : c'est ce module qui garde la page publique **et** `GuideOverlayClient` sur le même emplacement (`guestStoragePrefix`), et qui évite d'écrire une clé à la main (donc de perdre la progression d'un visiteur).
-- **Encodage des fichiers (règle dure)** : tout fichier du dépôt est en **UTF-8 sans BOM**. **Ne jamais** réécrire un fichier source avec `Get-Content` / `Set-Content` / `Out-File` / `>` de **PowerShell 5.1** : il *lit* l'UTF-8 en Windows-1252, donc un simple aller-retour transforme `↗` en `â†—` (U+00E2 U+2020 U+2014), `é` en `Ã©`, `─` en `â”€` — c'est un **double encodage silencieux** (déjà arrivé sur `src/app/globals.css`, ~450 chaînes ; les formes fautives sont montrées ici **exprès**). Éditer avec les outils de l'IDE, et contrôler après toute retouche massive : `node src/temp/refonte_landing/scan-mojibake-all.mjs` doit afficher **0 fichier** (réparation : `fix-mojibake.mjs`).
+- **Encodage des fichiers (règle dure)** : tout fichier du dépôt est en **UTF-8 sans BOM**. **Ne jamais** réécrire un fichier source avec `Get-Content` / `Set-Content` / `Out-File` / `>` de **PowerShell 5.1** : il *lit* l'UTF-8 en Windows-1252, donc un simple aller-retour transforme `↗` en `â†—` (U+00E2 U+2020 U+2014), `é` en `Ã©`, `─` en `â”€` — c'est un **double encodage silencieux** (déjà arrivé sur `src/app/globals.css`, ~450 chaînes ; les formes fautives sont montrées ici **exprès**). Éditer avec les outils de l'IDE, et contrôler après toute retouche massive : `node scripts/scan-mojibake-all.mjs` doit afficher **0 fichier** (réparation : `fix-mojibake.mjs`).
 
 ## 🔒 Non-négociables (résumé — détail : `RULES.md` + `SECURITY.md`)
 
@@ -91,8 +91,8 @@
 | [`README.md`](./README.md) | Démarrage, stack, structure, scripts |
 | [`docs/DECISION-OUVERTURE-LANDING.md`](./docs/DECISION-OUVERTURE-LANDING.md) | **Décision ouverture prod & landing immersive** : vitrine `maintenance.html` vs `page.tsx`, checklist ouverture, statut CTA contrasté |
 | [`prisma/schema.prisma`](./prisma/schema.prisma) | Schéma BDD (source de vérité) |
-| `src/temp/refonte-long-terme-discord-compatibilite/` | Chantier #223 : plan maître + source technique résilience |
-| `src/temp/archive/` | Historiques complets + mémos/amorces/média archivés |
+| `refonte-long-terme-discord-compatibilite/` | Chantier #223 : plan maître + source technique résilience |
+| `archive/` | Historiques complets + mémos/amorces/média archivés |
 
 ## ⚙️ Règles d’interaction avec l’IA
 
@@ -162,6 +162,6 @@ import { ModuleHelpActions } from "@/components/doc/module-help-actions";
 
 ## 🗂️ Archives (tout est conservé, rien n'est supprimé)
 
-- Historique complet des sessions : `src/temp/archive/contexte/CONTEXT-historique-complet-2026-08-21.md`
-- Historique complet du chantier (toutes demandes annotées) : `src/temp/archive/contexte/chantier-historique-complet-2026-08-21.md`
-- Mémos anciens : `src/temp/archive/memos/` · Amorces anciennes : `src/temp/archive/amorces/` · Média : `src/temp/archive/media/`
+- Historique complet des sessions : `archive/contexte/CONTEXT-historique-complet-2026-08-21.md`
+- Historique complet du chantier (toutes demandes annotées) : `archive/contexte/chantier-historique-complet-2026-08-21.md`
+- Mémos anciens : `archive/memos/` · Amorces anciennes : `archive/amorces/` · Média : `archive/media/`

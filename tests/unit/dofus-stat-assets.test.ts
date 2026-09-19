@@ -3,7 +3,7 @@ import fs from "fs";
 import path from "path";
 
 /**
- * BUG-4 — 6 assets d'icônes de statistiques **manquants** (`src/temp/debug.md` :
+ * BUG-4 — 6 assets d'icônes de statistiques **manquants** (`debug.md` :
  * `404 /assets/dofus/stats/{dmgCritique,sablier,dmgArme,dmgDistance,dmgMelee,dmgSort}.png`).
  *
  * Ce test élimine la **classe** de bug : toute icône `public/assets/dofus/stats/*.png`

@@ -8,7 +8,7 @@
  * statistique ne peut être déclarée » — alors que le vendeur n'avait **rien**
  * déclaré (les deux lignes venaient du catalogue).
  *
- * 📏 Mesure en base (sonde `src/temp/_probe-cosmetic-noise.mjs`) : `983`
+ * 📏 Mesure en base (sonde `_probe-cosmetic-noise.mjs`) : `983`
  * « Échangeable : » sur **3 330** fiches, `1179` « Compatible avec : » sur
  * **2 603**, toutes en `0 → 0` ; **4 203** fiches `equipment` + **2 196**
  * `cosmetics` en portent ; **0** ligne `0 → 0` n'était persistée dans

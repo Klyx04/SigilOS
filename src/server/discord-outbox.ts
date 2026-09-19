@@ -13,6 +13,7 @@ import {
     getDiscordApiStatus,
     isPermanentDiscordWriteFailure,
 } from "@/lib/discord-api-errors";
+import { isDiscordSnowflake } from "@/lib/discord-ids";
 
 // #223 P3.1 — Outbox des écritures Discord (BullMQ/Redis).
 //
@@ -68,9 +69,8 @@ export function isDiscordOutboxJobData(value: unknown): value is DiscordOutboxJo
     return DiscordOutboxJobSchema.safeParse(value).success;
 }
 
-// ID de message Discord = snowflake (15-21 chiffres). Local ici (pas d'import
-// du core status-ping : éviter tout cycle discord ↔ core).
-const SNOWFLAKE_RE = /^\d{15,21}$/;
+// ID de message Discord = snowflake (15-21 chiffres) : règle partagée, module PUR
+// `@/lib/discord-ids` (aucun cycle avec le core status-ping ni avec Discord).
 
 // ─── Idempotency ───────────────────────────────────────────────────────────────
 
@@ -133,7 +133,7 @@ async function dispatchDiscordWrite(
             if (messageId === null) throw new Error("Discord outbox: postMessage a échoué");
             // Living status : ré-ancre le VRAI ID posté pour que le prochain
             // tick puisse PATCHer au lieu de recréer. Jamais de valeur non-snowflake.
-            if (validated.storeMessageIdKey && SNOWFLAKE_RE.test(messageId)) {
+            if (validated.storeMessageIdKey && isDiscordSnowflake(messageId)) {
                 try {
                     const { redis } = await import("@/lib/redis");
                     await redis.set(

@@ -3,6 +3,9 @@ import { logger } from "@/lib/logger";
 import { db } from "@/lib/prisma";
 import { redis } from "@/lib/redis";
 import { sendChannelMessage, updateChannelMessage } from "@/server/discord";
+// Règle « un ID de message Discord est un snowflake » : source unique partagée
+// (statut Discord, outbox, Marché, embeds du calendrier).
+import { isDiscordSnowflake } from "@/lib/discord-ids";
 
 const REDIS_STATUS_MSG_KEY = process.env.NODE_ENV === "production" ? "sigilos:discord_status_message_id_prod" : "sigilos:discord_status_message_id_beta";
 const REDIS_STATUS_LAST_TS_KEY = process.env.NODE_ENV === "production" ? "sigilos:discord_status_last_ts_prod" : "sigilos:discord_status_last_ts_beta";
@@ -22,10 +25,12 @@ export interface StatusPingCoreOptions {
 
 // ─── Helpers purs (testés unitairement, sans I/O) ───────────────────────────
 
-/** Un ID de message Discord est un snowflake : 15 à 21 chiffres. */
-export function isDiscordSnowflake(v: unknown): v is string {
-    return typeof v === "string" && /^\d{15,21}$/.test(v);
-}
+/**
+ * Un ID de message Discord est un snowflake (15-21 chiffres) — un ID d'outbox
+ * (`outbox:<jobId>`) ne doit jamais servir au PATCH living (cause du spam en
+ * boucle du 17/09/2026). Implémentation partagée : `@/lib/discord-ids`.
+ */
+export { isDiscordSnowflake };
 
 export const STATUS_PING_DEFAULT_FREQUENCY_MIN = 15;
 

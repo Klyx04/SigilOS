@@ -257,22 +257,63 @@ export async function POST(request: NextRequest) {
             }
 
             if (prefix === "calendar") {
-                // Inscriptions aux événements. Deux garanties tenues ici (constat beta du
-                // 18/09/2026) :
-                //  1. le cliqueur reçoit toujours un message **explicite** — un `type: 4`
-                //     éphémère. L'ancien `type: 6` (ACK muet) laissait un « bien inscrit »
+                // Inscriptions aux événements. Trois garanties tenues ici :
+                //  1. le cliqueur reçoit toujours un message **explicite** — une réponse
+                //     visible. L'ancien `type: 6` (ACK muet) laissait un « bien inscrit »
                 //     absent, le défer non résolu côté client (« Le message n'a pas pu être
                 //     chargé ») et aucun compteur ;
                 //  2. le compteur annoncé vient du service, qui a **attendu** le PATCH de
-                //     l'embed (borné) avant de répondre : plus d'embed périmé silencieux.
-                const { processRegistration, processUnregistration } = await import("@/server/calendar-service");
+                //     l'embed (borné) avant de répondre : plus d'embed périmé silencieux ;
+                //  3. « S'inscrire » ouvre une **modale** (classe facultative + message) :
+                //     l'inscription part avec sa classe en UNE fois, au lieu d'un pseudo
+                //     « Sans classe » que le menu select complétait après coup (constat
+                //     beta du 19/09/2026).
+                const { processUnregistration } = await import("@/server/calendar-service");
                 const { buildCalendarInteractionFeedback } = await import("@/lib/calendar-interaction-feedback");
 
-                if (action === "join" || action === "leave") {
-                    const outcome = action === "join"
-                        ? await processRegistration(guild_id, entityId, account!.userId)
-                        : await processUnregistration(guild_id, entityId, account!.userId);
-                    return ephemeralDiscordMessage(buildCalendarInteractionFeedback(action, outcome));
+                if (action === "join") {
+                    return NextResponse.json({
+                        type: 9, // MODAL
+                        data: {
+                            custom_id: `calendar:apply:${entityId}`,
+                            title: "🎫 Inscription à l'événement",
+                            components: [
+                                {
+                                    type: 1, // Action Row
+                                    components: [
+                                        {
+                                            type: 4, // Text Input
+                                            custom_id: "classe",
+                                            label: "Ta classe Dofus (facultatif)",
+                                            style: 1, // Short
+                                            placeholder: "Ex: Cra — laisse vide si peu importe",
+                                            required: false,
+                                            max_length: 30,
+                                        },
+                                    ],
+                                },
+                                {
+                                    type: 1, // Action Row
+                                    components: [
+                                        {
+                                            type: 4, // Text Input
+                                            custom_id: "message",
+                                            label: "Message (facultatif)",
+                                            style: 2, // Paragraph
+                                            placeholder: "Ex: dispo dès 21h, stuff full stuff",
+                                            required: false,
+                                            max_length: 200,
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
+                    });
+                }
+
+                if (action === "leave") {
+                    const outcome = await processUnregistration(guild_id, entityId, account!.userId);
+                    return ephemeralDiscordMessage(buildCalendarInteractionFeedback("leave", outcome));
                 }
 
                 return ephemeralDiscordMessage("❌ Action calendrier inconnue.");
@@ -1388,6 +1429,51 @@ export async function POST(request: NextRequest) {
                         data: { content: `❌ ${result?.error || "Erreur inconnue"}`, flags: 64 },
                     });
                 }
+            } else if (prefix === "calendar" && action === "apply") {
+                // ── Retour de la modale ouverte par « S'inscrire » ────────────────
+                // Constat beta du 19/09/2026 (raids) : le bouton « S'inscrire » créait un
+                // participant « Sans classe », et le menu select ne faisait qu'ajouter la
+                // classe APRÈS coup. Ici : classe + message sont enregistrés dans la MÊME
+                // écriture que l'inscription.
+                const account = await findUserByDiscordId(member.user.id);
+                if (!account) {
+                    return ephemeralDiscordRefusal(DISCORD_ACCOUNT_REQUIRED);
+                }
+
+                // RBAC : même carte de permissions que les boutons (une seule source).
+                if (!(await isDiscordPrefixAuthorized(prefix, guild_id, member.user.id))) {
+                    return ephemeralDiscordRefusal(DISCORD_PERMISSION_DENIED);
+                }
+
+                let classe = "";
+                let message = "";
+                for (const row of components) {
+                    for (const comp of row.components) {
+                        if (comp.custom_id === "classe") classe = comp.value?.trim() || "";
+                        if (comp.custom_id === "message") message = comp.value?.trim() || "";
+                    }
+                }
+
+                // Classe FACULTATIVE : les événements non-raid n'ont pas besoin de classe
+                // (un raid, oui). Une saisie inconnue reste un refus explicite.
+                let matchedClass: string | undefined;
+                if (classe) {
+                    const { matchDispatchClass } = await import("@/server/discord-class-dispatch");
+                    matchedClass = matchDispatchClass(classe) ?? undefined;
+                    if (!matchedClass) {
+                        return ephemeralDiscordMessage(
+                            `❌ Classe « ${classe} » non reconnue.\n\n**Classes disponibles :** ${VALID_CLASSES.join(", ")}`
+                        );
+                    }
+                }
+
+                const { processRegistration } = await import("@/server/calendar-service");
+                const { buildCalendarInteractionFeedback } = await import("@/lib/calendar-interaction-feedback");
+                const outcome = await processRegistration(guild_id, entityId, account.userId, {
+                    classe: matchedClass,
+                    comment: message || undefined,
+                });
+                return ephemeralDiscordMessage(buildCalendarInteractionFeedback("join", outcome));
             } else if (prefix === "dj" && action === "join") {
                 // #169 — Submit de la modal d'inscription DJ (choix de classe + message optionnel).
                 // custom_id: dj:join:{postId}[:{idx}]

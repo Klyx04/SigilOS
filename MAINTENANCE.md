@@ -40,6 +40,7 @@ Appelés depuis le crontab VPS (`crontab -l`) via
 - `/api/cron/avatar-resync` — **resync des hashs d'avatars Discord (#134)** : `GET /guilds/{id}/members`, mise à jour de `User.image` uniquement si le hash a changé ; `null` → avatar par défaut côté UI. Fréquence recommandée : quotidien (`0 5 * * *`).
 - `/api/cron/cleanup-proofs` · `/api/cron/cleanup-logs` · `/api/cron/cleanup-inactive-posts` · `/api/cron/cleanup-inactive-service-requests` — purges (depuis **S5.6**, `cleanup-logs` purge aussi les **logs d'audit du marché**, cf. §Module « Marché »)
 - `/api/cron/daily-summary` · `/api/cron/status-ping` · `/api/cron/mission-reset-notify` · `/api/cron/loan-reminders` — notifications
+- `/api/cron/raid-reminders` — **rappel automatique des raids** : pour chaque raid `PUBLISHED` entré dans sa fenêtre (`GuildEvent.notifyBefore`, **60 min par défaut**), poste UN message dans le salon du raid dont le `content` ne porte que les mentions `<@id>` des **inscrits** (REGISTERED + CONFIRMED) — **jamais** les rôles de l'embed, jamais `@everyone`. Idempotent (`metadata.raidReminderSentAt`) et silencieux si un rappel manuel vient d'être envoyé. Fréquence recommandée : toutes les 10 min (`0,10,20,30,40,50 * * * *`).
 - `/api/cron/ladder-sync` · `/api/cron/discord-status` — synchronisations
 - `/api/cron/account-retention` — **#168 rétention/purge comptes orphelins** (RGPD) : purge `User`+`Account` sans profil ACTIVE après 90 j et grâce `scheduledDeletion` écoulée, 50 max/exécution. Fréquence recommandée : quotidien (`0 6 * * *`).
 - `/api/cron/sync-dofensive-maps` — **siphon local Dofensive (fiches boss)** : `/dungeons/preview` + `/maps/{id}` → tables `DofensiveDungeon` + `DofensiveMap` (grille `Cells` 40×14, ally/enemyCells, coords). `versionHash` → update auto si changement, salles fraîches (< 24 h) sautées. Fréquence recommandée : quotidien (`30 3 * * *`).
@@ -123,6 +124,12 @@ annonces de **prod**) avec `> /dev/null` (⇒ **aucun log**, donc invisible dans
 */5 * * * * curl -s -o /dev/null -w "status-ping \%{http_code} $(date -Is)\n" \
   -H "x-cron-secret: $(cat /home/sigiladmin/.sigilos-cron-secret)" \
   "$APP_URL/api/cron/status-ping" >> "$LOG_DIR/status-ping.log" 2>&1
+
+# Rappel des raids — ping des INSCRITS 1 h avant le départ (toutes les 10 min ;
+# un seul ping par raid, silence si un rappel manuel vient d'être envoyé)
+0,10,20,30,40,50 * * * * curl -s -o /dev/null -w "raid-reminders \%{http_code} $(date -Is)\n" \
+  -H "x-cron-secret: $(cat /home/sigiladmin/.sigilos-cron-secret)" \
+  "$APP_URL/api/cron/raid-reminders" >> "$LOG_DIR/raid-reminders.log" 2>&1
 ```
 
 > 📋 **Rappel des 23 tâches lues par God** (`KNOWN_CRON_TASKS`, `src/lib/cron-telemetry.ts`) : chacune

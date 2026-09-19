@@ -10,6 +10,8 @@ import { updateChannelMessage, sendChannelMessage, fetchChannel, createForumPost
 import { getAppBaseUrl } from "@/lib/utils";
 import { getDofusWeek } from "@/lib/date-utils";
 import { resolveEventImageFile } from "@/lib/calendar-event-images";
+import { discordIdKind, isDiscordSnowflake, isOutboxMessageId } from "@/lib/discord-ids";
+import { messageHasCustomId } from "@/lib/discord-components";
 import { buildClassDispatchFields, buildClassSelectRow, type DispatchEntry } from "@/server/discord-class-dispatch";
 
 // Les visuels (génériques + dédiés par type de raid) vivent dans
@@ -92,6 +94,103 @@ function countParticipants(rows: { status: string }[]) {
 /** Un embed Discord existe-t-il pour cet événement ? (sinon rien à rafraîchir) */
 function hasPublishedEmbed(event: { discordMessageId: string | null; discordChannelId: string | null }) {
     return Boolean(event.discordMessageId && event.discordChannelId);
+}
+
+// ---------------------------------------------------------------------------
+// RÉSOLUTION DE L'ID DE MESSAGE (outbox `outbox:<jobId>` ≠ ID Discord)
+// ---------------------------------------------------------------------------
+// Constat beta du 19/09/2026 (raids du calendrier) : avec l'outbox active
+// (`DISCORD_OUTBOX_ENABLED=true`), `publishDiscordEvent` recevait `outbox:<jobId>`
+// de `sendChannelMessage` et le stockait tel quel dans
+// `GuildEvent.discordMessageId`. Tous les `PATCH` d'embed partaient donc sur un
+// message inexistant (404) : compteur et inscrits restaient FIGÉS à l'état de la
+// publication pendant que les joueurs s'inscrivaient (et le cliqueur lisait
+// « ⚠️ L'embed Discord n'a pas pu être rafraîchi »). Le worker d'écritures
+// ré-ancre le VRAI snowflake dans Redis quand on lui passe `storeMessageIdKey`.
+
+/** Clé Redis où le worker ré-ancre le vrai ID du message de l'événement. */
+function eventMessageKey(eventId: string): string {
+    return `calendar:msg:${eventId}`;
+}
+
+/** TTL du ré-ancre (30 j) : au-delà, l'événement est passé depuis longtemps. */
+const EVENT_MESSAGE_KEY_TTL_SECONDS = 30 * 24 * 3600;
+
+/**
+ * Rend l'ID **exploitable** du message Discord d'un événement :
+ *  - snowflake → tel quel ;
+ *  - `outbox:<jobId>` → résolu depuis Redis (ré-ancre du worker), `null` tant que
+ *    l'écriture n'est pas passée ;
+ *  - toute autre valeur (nulle, vide, tronquée) → `null` : on n'écrit **jamais**
+ *    dans le vide.
+ */
+async function resolveEventMessageId(
+    stored: string | null | undefined,
+    eventId: string
+): Promise<string | null> {
+    if (isDiscordSnowflake(stored)) return stored;
+    if (!isOutboxMessageId(stored)) return null;
+
+    try {
+        const { redis } = await import("@/lib/redis");
+        const resolved = await redis.get(eventMessageKey(eventId));
+        return isDiscordSnowflake(resolved) ? resolved : null;
+    } catch {
+        // Redis injoignable : on ne PATCH pas un ID inconnu (jamais d'écriture au hasard).
+        return null;
+    }
+}
+
+/**
+ * Tentatives de récupération déjà menées, par événement et par process : un
+ * événement dont l'embed reste introuvable ne doit pas déclencher un appel
+ * Discord à **chaque** clic (fail-soft, jamais de boucle d'API).
+ */
+const recoveryAttempted = new Set<string>();
+
+/**
+ * Récupération **best-effort** de l'embed d'un événement ancien dont l'ID stocké
+ * n'est pas exploitable : `outbox:<jobId>` publié AVANT le correctif du
+ * 19/09/2026 — le worker n'avait alors aucune clé Redis où ré-ancrer le vrai ID.
+ *
+ * On relit les derniers messages du salon et on retient celui qui porte les
+ * boutons de CET événement (`calendar:join:<eventId>`). L'ID trouvé est
+ * **réparé en base** (une écriture) : plus aucun coût ensuite. Une seule
+ * tentative par événement et par process ; tout échec laisse l'embed en place
+ * (l'opérateur peut toujours republier depuis le dashboard).
+ */
+async function recoverEventMessageId(
+    guildConfigId: string,
+    eventId: string,
+    channelId: string
+): Promise<string | null> {
+    if (recoveryAttempted.has(eventId)) return null;
+    if (recoveryAttempted.size > 512) recoveryAttempted.clear();
+    recoveryAttempted.add(eventId);
+
+    const { fetchChannelMessagesDiscord } = await import("@/server/discord");
+    const messages = await fetchChannelMessagesDiscord(channelId, 100);
+
+    // Messages rendus du plus ancien au plus récent : le DERNIER porteur du
+    // bouton est l'embed de référence (une republication remplace la précédente).
+    const marker = `calendar:join:${eventId}`;
+    const found = [...messages]
+        .reverse()
+        .find((message) => messageHasCustomId(message?.components, marker));
+    if (!found?.id || !isDiscordSnowflake(found.id)) return null;
+
+    await db.guildEvent
+        .update({
+            where: { id: eventId, guildId: guildConfigId },
+            data: { discordMessageId: found.id, discordChannelId: channelId },
+        })
+        .catch(() => null);
+
+    logger.warn("[Calendar] ID de message Discord récupéré (ID outbox jamais ré-ancré) — lien réparé", {
+        eventId,
+        channelId,
+    });
+    return found.id;
 }
 
 /** Budget d'attente du PATCH d'embed : l'ACK d'une interaction doit partir < 3 s. */
@@ -232,7 +331,9 @@ export async function processRegistration(guildId: string, eventId: string, user
             status: isReserve ? "RESERVE" : "REGISTERED",
             // Position unique : elle est recomputée à chaque désinscription.
             position: event.participants.length + 1,
-            classe: data?.classe,
+            // Borne dure (RULES §4) : la classe part dans l'embed Discord, une valeur
+            // libre trop longue ferait échouer le field (1000 car. max).
+            classe: data?.classe?.trim().slice(0, 30) || undefined,
             comment: data?.comment
         }
     });
@@ -254,6 +355,8 @@ export async function processRegistration(guildId: string, eventId: string, user
         registeredCount: counts.registeredCount + (isReserve ? 0 : 1),
         reserveCount: counts.reserveCount + (isReserve ? 1 : 0),
         maxParticipants,
+        // Confirmée au cliqueur : la classe retenue (vide = « Sans classe »).
+        classe: data?.classe?.trim() || undefined,
         embedStatus,
     };
 }
@@ -605,11 +708,27 @@ export async function publishDiscordEvent(guildId: string, eventId: string) {
             messageId = await sendChannelMessage(
                 targetChannelId,
                 mentionContent,
-                messageOptions
+                {
+                    ...messageOptions,
+                    // Mode outbox : on demande au worker de ré-ancrer le VRAI ID du
+                    // message dans Redis. Sans cette clé, la base ne garderait que
+                    // `outbox:<jobId>` et TOUS les PATCH d'embed échoueraient (panne
+                    // beta du 19/09/2026 : compteur + inscrits figés).
+                    storeMessageIdKey: eventMessageKey(eventId),
+                    storeMessageIdTTL: EVENT_MESSAGE_KEY_TTL_SECONDS,
+                }
             );
         }
 
         if (messageId) {
+            if (!isDiscordSnowflake(messageId)) {
+                // Écriture encore EN FILE : l'ID réel est ré-ancre par le worker, puis
+                // résolu par `resolveEventMessageId` à chaque rafraîchissement.
+                logger.warn("[Calendar] Publication via l'outbox — ID de message différé", {
+                    eventId,
+                    idKind: discordIdKind(messageId),
+                });
+            }
             await db.guildEvent.update({
                 where: { id: eventId },
                 data: {
@@ -674,6 +793,24 @@ export async function refreshDiscordEventEmbed(guildId: string, eventId: string)
         });
 
         if (!event || !event.discordMessageId || !event.discordChannelId) return "skipped";
+
+        // ID **réel** du message : un `outbox:<jobId>` (écriture en file) doit être
+        // résolu avant tout PATCH — sinon on écrit sur un message inexistant (404) et
+        // l'embed reste figé à l'état de la publication (panne beta du 19/09/2026).
+        let messageId = await resolveEventMessageId(event.discordMessageId, event.id);
+        if (!messageId && isOutboxMessageId(event.discordMessageId)) {
+            // Dernier recours (événements publiés AVANT le correctif : leur ID outbox
+            // n'a jamais été ré-ancre) : on retrouve le message par ses boutons.
+            messageId = await recoverEventMessageId(guildConfig.id, event.id, event.discordChannelId);
+        }
+        if (!messageId) {
+            logger.warn("[Calendar] ID du message Discord non exploitable — embed non rafraîchi", {
+                guildId,
+                eventId,
+                storedIdKind: discordIdKind(event.discordMessageId),
+            });
+            return "skipped";
+        }
 
         const typeConfig = EVENT_CONFIG[event.type] || { emoji: "📅", color: 0x9333ea, label: event.type };
         // Même résolution que la publication : un PATCH ne doit jamais changer le visuel.
@@ -793,7 +930,7 @@ export async function refreshDiscordEventEmbed(guildId: string, eventId: string)
 
         const synced = await updateChannelMessage(
             event.discordChannelId,
-            event.discordMessageId,
+            messageId,
             "",
             {
                 embedTitle: `${typeConfig.emoji} ${event.title}`,

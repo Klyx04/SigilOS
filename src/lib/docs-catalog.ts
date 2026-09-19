@@ -530,10 +530,13 @@ C'est la valeur du marché FM. SigilOS ne peut pas lire ton inventaire : il éti
 La copie est <em>unitaire</em> : plus de bouton qui copiait toute la liste d'un coup (on collait huit lignes dans Discord au lieu d'un seul chuchotement). Si un joueur n'a pas renseigné sa classe dans son profil, seule l'icône manque — le pseudo et la copie restent disponibles.
 </div>
 
-<h2>5. Menu de classe dans l'embed Discord</h2>
-<p>Chaque annonce publiée porte un menu <em>« Choisir ma classe »</em> sous les boutons d'inscription : choisir une classe inscrit directement le membre, ou met à jour la classe d'une inscription déjà enregistrée. L'embed regroupe alors les participants dans un champ par classe représentée, ce qui donne au créateur une lecture immédiate de la composition du groupe.</p>
+<h2>5. Bouton d'inscription et menu de classe (embed Discord)</h2>
+<p>Chaque annonce publiée porte un bouton <em>« S'inscrire »</em> qui ouvre une <strong>modale</strong> : la classe Dofus (facultative) et un message y sont saisis <strong>en une seule fois</strong>, l'inscription partant directement avec sa classe. Le menu <em>« Choisir ma classe »</em> placé sous les boutons sert à s'inscrire en un clic avec une classe, ou à corriger la sienne sans annuler son inscription. L'embed regroupe alors les participants dans un champ par classe représentée, et le compteur de places suit chaque inscription : le créateur lit la composition du groupe d'un coup d'œil.</p>
 
-<h2>6. Récompense en Points de Contribution</h2>
+<h2>6. Rappel automatique avant un raid</h2>
+<p>Chaque raid publié déclenche <strong>un rappel automatique</strong> dans son salon Discord <strong>1 h avant le départ</strong> (délai réglable par événement, 60 min par défaut). Ce rappel <strong>notifie uniquement les membres inscrits</strong> : le message ne mentionne que les joueurs du roster — les rôles mentionnés à la publication de l'embed ne sont <em>pas</em> re-pingés, et la file d'attente n'est pas notifiée. Un rappel manuel reste possible depuis le dashboard : dans ce cas, le rappel automatique se tait pendant 30 minutes, pour ne jamais pinguer deux fois.</p>
+
+<h2>7. Récompense en Points de Contribution</h2>
 <p>Lorsque le combat est terminé, le créateur clôture le post en cliquant sur <em>"Objectif Réussi"</em> :</p>
 <ul>
     <li>Chaque membre ayant apporté son aide reçoit automatiquement des <strong>Points de Contribution</strong> sur son profil de guilde.</li>

@@ -3,9 +3,51 @@
 Objectif : un dépôt **compréhensible de A à Z**, sans artefact généré, sans doublon, exploitable par
 quelqu'un qui n'a pas suivi les 40 derniers chantiers.
 
-> Périmètre : **fichiers suivis par git** (4 213 au 19/09/2026) + dossiers de travail non suivis.
+> Périmètre : **fichiers suivis par git** — **4 164 après assainissement** (4 213 à l'audit initial).
 > Méthode : `git ls-files`, `git ls-files -i -c --exclude-standard` (suivi **et** ignoré),
-> `git check-ignore -v`, mesures disque. Aucune suppression dans ce document.
+> `git check-ignore -v`, mesures disque. **Les chiffres de §1 datent de l'audit initial** (avant L1→L5) :
+> l'état courant est décrit ci-dessous.
+
+---
+
+## 0. État de reprise — mis à jour le 19/09/2026 (pour reprendre l'assainissement)
+
+> **Branche** : `refactor/nettoyage-src-temp` → **PR #688** (OPEN, MERGEABLE, 8 commits, 94 fichiers,
+> +854 / −47 003). **Rien n'est encore mergé dans `dev`** : tout ce qui suit est porté par cette PR.
+
+### ✅ Fait
+
+| Lot | Contenu | Preuve / récupération |
+|---|---|---|
+| **L1/L2** | 13 fichiers **générés** + **données d'exécution** détrackés : `dist/*.js`, `prisma/seed.js`, `seed_simple.js`, `scripts/database-janitor.js`, `siphon-guide-images.js`, `seed-v3-compiled.js`, `services/discord-bot/dist/index.js`, cache `.wrangler/`, 3 `.py` d'agent, `private_uploads/**`, `backups/**` — + règles `.gitignore` | `git ls-files -i -c --exclude-standard` → **0** (hors `public/game-data`) |
+| **L3** | `.playwright-profile/` supprimé (**87,5 Mo**) | se recrée : `node scripts/capture-landing-visuels.mjs --login` |
+| **L4** | Racine **8 → 6 `.md`** : `WORKFLOW.md` (doublon de `RULES.md §Git Workflow`, 0 citation) et `USER_ACTIONS_REQUIRED.md` (0 citation) supprimés ; `MAINTENANCE.md` **conservé** (cité 20× dont dans du code) | `git log -- <fichier>` |
+| **L5** | `scripts/` **93 → 76** : 19 one-shot jamais cités retirés. **Pièges conservés** : `bounties.json` (importé par `src/lib/bounty-ignore.ts`), `capture-landing-visuels.mjs` (`MAINTENANCE.md` + code), `siphon-guide-images.ts` (`npm run build:siphon`), `seed-dofus-quests.ts` (chargeur de 30 JSON maintenus) | `git show <sha>:scripts/<nom>` |
+| — | `src/temp` : **583 → 50 fichiers**, **148 références** nettoyées dans 28 fichiers, 8 outils Rush supprimés, 4 outils promus dans `scripts/` | `docs/ARCHIVES-TEMP-2026-09.md` |
+| — | `src/scripts/` vidé (ses 2 outils sont dans `scripts/`) | — |
+| — | Branches : **34 → 3** (`dev`, `main`, `feat/inter-guilde`) + 28 branches GitHub supprimées | `_menage-2026-09-19/branches-supprimees-2026-09-19.txt` (nom + SHA) |
+| — | `.next/` supprimé (**43,6 Go**) · `docs/` 15 → 13 | se reconstruit |
+
+**Vérifications** : `tsc --noEmit` **0 erreur** · `eslint .` **0 erreur** · `npm run test:run` **1722 tests / 161 fichiers** · `node scripts/scan-mojibake-all.mjs` → **0 fichier**.
+
+### ⏳ Reste à faire (ordre conseillé)
+
+| # | Sujet | Méthode |
+|---|---|---|
+| **1** | **`.git` = 3,43 Go** (~2,3 Go récupérables : refs de checkpoints) | `powershell -NoProfile -ExecutionPolicy Bypass -File A:\SigilOS\_menage-2026-09-13\_git-purge.ps1` (**simulation** par défaut) → `-Apply` **après sauvegarde complète de `.git`**. ⚠️ **irréversible** |
+| **2** | `public/uploads/{guides,docs,guilds,proofs}` : **636 fichiers suivis (~20 Mo)** = **ancien** système d'upload | Vérifier en base qu'aucune ligne ne pointe sur ces chemins (cf. `scripts/migrate-uploads.mjs`), puis archiver |
+| **3** | `public/game-data` : **473 fichiers suivis ALORS QUE `.gitignore` les ignore** | Trancher : versionner (retirer la règle) **ou** détracker — servis en prod par bind mount `./public/game-data` (`docker-compose.prod.yml`) |
+| **4** | `.agents/workflows/activeContext.md` (**77 Ko**, journal qui grossit sans fin) | Écrire une règle de rotation (N dernières sessions + archive) |
+| **5** | `prometheus/prometheus.yml` (dev, `docker-compose.yml:192`) vs `monitoring/prometheus/prometheus.yml` (prod, `docker-compose.prod.yml:367`) | Unifier + adapter les 2 compose |
+| **6** | `src/temp/refonte_landing/` (**47 fichiers**, kit de mesure, règle « ne pas supprimer : un fixe = une mesure ») | Versionner dans `scripts/landing/` **ou** archiver — décision explicite |
+| **7** | `scratch/_tunnel.log` | Verrouillé par un tunnel `ssh` → `Remove-Item -LiteralPath 'A:\SigilOS\scratch' -Recurse -Force` après fermeture |
+| **8** | **Merger la PR #688** | Après relecture (volume supprimé important, risque faible : docs, détrackages, outils) |
+
+### 📌 Fichiers de référence produits
+- `docs/CARTE-DU-PROJET.md` — la carte du projet + méthode « ce fichier sert-il encore ? » (§0).
+- `docs/ARCHIVES-TEMP-2026-09.md` — où est passé `src/temp`, et comment lire une référence devenue un nom nu.
+- `src/temp/README.md` — la règle de la zone volatile (+ journal de purge §8).
+- `_menage-2026-09-19/` — manifeste des branches supprimées, scripts de ménage, `lot*-` archivés.
 
 ---
 

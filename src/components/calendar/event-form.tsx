@@ -16,13 +16,8 @@ import {
     Clock,
     Loader2,
     Users,
-    Swords,
-    PartyPopper,
-    Target,
-    Wheat,
     Info,
     AlertTriangle,
-    Diamond,
     Shield,
     Globe,
     Lock,
@@ -54,6 +49,8 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { raidImagePath } from "@/lib/calendar-event-images";
+import { DofusUiIcon } from "@/components/shared/dofus-ui-icon";
+import { calendarEventTheme } from "@/lib/calendar-event-theme";
 import { MissionPicker } from "./mission-picker";
 import Link from "next/link";
 import { getDiscordRolesAction } from "@/server/actions/user-actions";
@@ -75,8 +72,6 @@ import {
 interface TypeConfig {
     label: string;
     shortLabel: string;
-    icon: React.ElementType;
-    gradient: string;
     bg: string;
     border: string;
     text: string;
@@ -97,7 +92,6 @@ const RAID_TYPES = [
         short: "Jardins Éternels",
         min: 8,
         max: 16,
-        icon: "🌿",
         // Illustration SigilOS (portrait 3:4) — le sélecteur l'affiche entière, jamais rognée.
         image: raidImagePath("jardin"),
         thumbnail: "https://static.ankama.com/dofus/www/game/monsters/200/5131.png",
@@ -108,7 +102,6 @@ const RAID_TYPES = [
         short: "Gigalodon",
         min: 8,
         max: 12,
-        icon: "🦈",
         image: raidImagePath("gigalodon"),
         thumbnail: "https://static.ankama.com/dofus/www/game/monsters/200/5129.png",
     },
@@ -118,8 +111,6 @@ const TYPE_CONFIG: Record<string, TypeConfig> = {
     RAID_OFFICIAL: {
         label: "Raid Officiel 3.6",
         shortLabel: "Raid 3.6",
-        icon: Swords,
-        gradient: "from-danger to-danger",
         bg: "bg-danger/10",
         border: "border-danger/30",
         text: "text-danger",
@@ -128,8 +119,6 @@ const TYPE_CONFIG: Record<string, TypeConfig> = {
     EVENT_GUILD: {
         label: "Event Guilde (Mini-jeux)",
         shortLabel: "Event Guilde",
-        icon: PartyPopper,
-        gradient: "from-info to-fuchsia-600",
         bg: "bg-info/10",
         border: "border-info/30",
         text: "text-info",
@@ -138,8 +127,6 @@ const TYPE_CONFIG: Record<string, TypeConfig> = {
     SESSION_MISSIONS: {
         label: "Missions Guilde",
         shortLabel: "Missions Guilde",
-        icon: Target,
-        gradient: "from-warning to-warning",
         bg: "bg-warning/10",
         border: "border-warning/30",
         text: "text-warning",
@@ -148,8 +135,6 @@ const TYPE_CONFIG: Record<string, TypeConfig> = {
     SORTIE_FARM: {
         label: "Sortie Farm / Drop",
         shortLabel: "Sortie Farm",
-        icon: Wheat,
-        gradient: "from-success to-green-600",
         bg: "bg-success/10",
         border: "border-success/30",
         text: "text-success",
@@ -158,8 +143,6 @@ const TYPE_CONFIG: Record<string, TypeConfig> = {
     OTHERS: {
         label: "Autres activités",
         shortLabel: "Autres",
-        icon: Diamond,
-        gradient: "from-muted to-muted",
         bg: "bg-muted/10",
         border: "border-border/30",
         text: "text-muted-foreground",
@@ -564,10 +547,10 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
                     <FormLabel className="text-sm font-medium text-foreground">
                         Type d'événement
                     </FormLabel>
-                    <div className="grid grid-cols-5 gap-2">
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
                         {EVENT_TYPES.filter(t => t !== "RAID_OFFICIAL" || canManageRaid).map((type) => {
                             const config = TYPE_CONFIG[type];
-                            const Icon = config.icon;
+                            const picto = calendarEventTheme(type).picto;
                             const isSelected = selectedType === type;
 
                             return (
@@ -583,13 +566,10 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
                                     )}
                                 >
                                     <div className={cn(
-                                        "h-10 w-10 rounded-lg flex items-center justify-center transition-colors",
+                                        "h-10 w-10 rounded-[4px] flex items-center justify-center transition-colors",
                                         isSelected ? config.bg : "bg-elevated"
                                     )}>
-                                        <Icon className={cn(
-                                            "h-5 w-5 transition-colors",
-                                            isSelected ? config.text : "text-muted-foreground"
-                                        )} />
+                                        <DofusUiIcon name={picto} size={20} />
                                     </div>
                                     <span className={cn(
                                         "text-caption font-medium text-center leading-tight",
@@ -617,10 +597,10 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
 
                     {/* ========== RAID SPECIFIC PANEL ========== */}
                     {selectedType === "RAID_OFFICIAL" && (
-                        <div className="space-y-4 p-4 rounded-xl border border-danger/20 bg-danger/5 animate-in fade-in slide-in-from-top-2 duration-300">
+                        <div className="space-y-4 p-4 rounded-lg border border-danger/25 bg-danger/5">
                             <div className="flex items-center gap-2 mb-1">
-                                <Swords className="h-4 w-4 text-danger" />
-                                <span className="text-xs font-black text-danger uppercase tracking-widest">Options Raid 3.6</span>
+                                <DofusUiIcon name="dungeon" size={16} />
+                                <span className="text-xs font-black text-danger uppercase tracking-wider">Options Raid 3.6</span>
                             </div>
 
                             {/* Raid Subtype */}
@@ -666,7 +646,7 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
                                             )}
 
                                             <div className="relative flex min-w-0 flex-col justify-center">
-                                                <span className="text-2xl leading-none mb-1.5">{rt.icon}</span>
+                                                <DofusUiIcon name="boss" size={28} className="mb-1.5" />
                                                 <span className="text-label font-black leading-tight uppercase tracking-tight text-foreground">{rt.short}</span>
                                                 <span className={cn(
                                                     "text-caption font-bold uppercase tracking-widest mt-0.5",
@@ -855,7 +835,7 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
                 {/* ============ DATE & TIME (unified row) ============ */}
                 <div className="space-y-2">
                     <FormLabel className="text-foreground">Date et horaires</FormLabel>
-                    <div className="grid grid-cols-3 gap-3">
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                         <FormField
                             control={form.control}
                             name="date"
@@ -1036,7 +1016,7 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
                 {/* Header Recap */}
                 <div className="flex items-center gap-4 bg-surface rounded-3xl p-5 border border-border relative overflow-hidden">
                     <div className="w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 border relative z-10 bg-background border-border">
-                        {currentConfig && <currentConfig.icon className="w-6 h-6 text-muted-foreground" />}
+                        {currentConfig && <DofusUiIcon name={calendarEventTheme(selectedType).picto} size={24} />}
                     </div>
                     <div className="flex-1 min-w-0 relative z-10">
                         <p className="font-black text-foreground text-lg tracking-tight truncate leading-tight">
@@ -1249,7 +1229,7 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
                             </>
                         ) : (
                             <>
-                                {currentConfig && <currentConfig.icon className="mr-2 h-5 w-5" />}
+                                {currentConfig && <DofusUiIcon name={calendarEventTheme(selectedType).picto} size={20} className="mr-2" />}
                                 {initialData ? "Enregistrer" : "Créer l'événement"}
                             </>
                         )}

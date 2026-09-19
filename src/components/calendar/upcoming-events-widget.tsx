@@ -14,14 +14,12 @@ import {
     Users,
     ChevronRight,
     Bell,
-    Flame,
-    Swords,
-    PartyPopper,
-    Target,
-    Wheat
+    Flame
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { DofusUiIcon } from "@/components/shared/dofus-ui-icon";
+import { calendarEventTheme } from "@/lib/calendar-event-theme";
 import { cn } from "@/lib/utils";
 
 // ============================================
@@ -50,33 +48,7 @@ interface UpcomingEventsWidgetProps {
 // ============================================
 // TYPE CONFIG
 // ============================================
-
-const TYPE_CONFIG: Record<string, { label: string; icon: React.ElementType; color: string; bg: string }> = {
-    RAID_OFFICIAL: {
-        label: "Raid 3.6",
-        icon: Swords,
-        color: "text-danger",
-        bg: "bg-danger/15 border-danger/30"
-    },
-    EVENT_GUILD: {
-        label: "Event Guilde",
-        icon: PartyPopper,
-        color: "text-info",
-        bg: "bg-info/15 border-info/30"
-    },
-    SESSION_MISSIONS: {
-        label: "Missions Guilde",
-        icon: Target,
-        color: "text-warning",
-        bg: "bg-warning/15 border-warning/30"
-    },
-    SORTIE_FARM: {
-        label: "Sortie Farm",
-        icon: Wheat,
-        color: "text-success",
-        bg: "bg-success/15 border-success/30"
-    },
-};
+// Libellés, couleurs et pictos Dofus : `@/lib/calendar-event-theme` (source unique).
 
 // ============================================
 // COMPONENT
@@ -172,8 +144,7 @@ function EventRow({
     onClick: () => void;
     compact?: boolean;
 }) {
-    const config = TYPE_CONFIG[event.type] || TYPE_CONFIG.EVENT_GUILD;
-    const Icon = config.icon;
+    const config = calendarEventTheme(event.type);
     const startDate = new Date(event.startDate);
     const hoursUntil = differenceInHours(startDate, now);
     const minutesUntil = differenceInMinutes(startDate, now) % 60;
@@ -201,13 +172,14 @@ function EventRow({
                 compact && "p-2.5"
             )}
         >
-            {/* Icon */}
+            {/* Picto du type (Dofus) */}
             <div className={cn(
-                "shrink-0 h-10 w-10 rounded-lg flex items-center justify-center border",
+                "shrink-0 h-10 w-10 rounded-[4px] flex items-center justify-center border",
                 config.bg,
+                config.border,
                 compact && "h-8 w-8"
             )}>
-                <Icon className={cn("h-5 w-5", config.color, compact && "h-4 w-4")} />
+                <DofusUiIcon name={config.picto} size={compact ? 16 : 20} />
             </div>
 
             {/* Content */}
@@ -292,8 +264,7 @@ export function UpcomingEventsBadge({
     const startDate = new Date(nextEvent.startDate);
     const hoursUntil = differenceInHours(startDate, now);
     const isUrgent = hoursUntil < 2;
-    const config = TYPE_CONFIG[nextEvent.type] || TYPE_CONFIG.EVENT_GUILD;
-    const Icon = config.icon;
+    const config = calendarEventTheme(nextEvent.type);
 
     return (
         <button
@@ -305,7 +276,7 @@ export function UpcomingEventsBadge({
                     : "bg-surface/60 border-border/50 text-muted-foreground hover:border-border"
             )}
         >
-            <Icon className="h-4 w-4" />
+            <DofusUiIcon name={config.picto} size={16} />
             <span className="text-xs font-medium truncate max-w-[120px]">
                 {nextEvent.title}
             </span>

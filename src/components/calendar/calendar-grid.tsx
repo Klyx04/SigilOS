@@ -28,11 +28,6 @@ import {
 } from "date-fns";
 import {
     Users,
-    Swords,
-    PartyPopper,
-    Target,
-    Wheat,
-    Eye,
     CheckCircle2
 } from "lucide-react";
 import {
@@ -41,63 +36,15 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { DofusUiIcon } from "@/components/shared/dofus-ui-icon";
+import { CALENDAR_EVENT_THEME_TYPES, calendarEventTheme } from "@/lib/calendar-event-theme";
 import { cn } from "@/lib/utils";
 
 // ============================================
-// 4 EVENT TYPES
+// IDENTITÉ DES TYPES D'ÉVÉNEMENT
 // ============================================
-
-interface TypeConfig {
-    label: string;
-    icon: React.ElementType;
-    color: string;
-    bg: string;
-    border: string;
-    dot: string;
-}
-
-const TYPE_CONFIG: Record<string, TypeConfig> = {
-    RAID_OFFICIAL: {
-        label: "Raid 3.6",
-        icon: Swords,
-        color: "text-danger",
-        bg: "bg-danger/15",
-        border: "border-danger/40",
-        dot: "bg-danger"
-    },
-    EVENT_GUILD: {
-        label: "Event Guilde",
-        icon: PartyPopper,
-        color: "text-info",
-        bg: "bg-info/15",
-        border: "border-info/40",
-        dot: "bg-info"
-    },
-    SESSION_MISSIONS: {
-        label: "Missions Guilde",
-        icon: Target,
-        color: "text-warning",
-        bg: "bg-warning/15",
-        border: "border-warning/40",
-        dot: "bg-warning"
-    },
-    SORTIE_FARM: {
-        label: "Sortie Farm",
-        icon: Wheat,
-        color: "text-success",
-        bg: "bg-success/15",
-        border: "border-success/40",
-        dot: "bg-success"
-    },
-    KRALAMOURE: {
-        label: "Kralamoure",
-        icon: Eye,
-        color: "text-pink-400",
-        bg: "bg-pink-500/15",
-        border: "border-pink-500/40",
-        dot: "bg-pink-500"
-    },
-};
+// Libellés, couleurs et **pictos Dofus** viennent de la source unique
+// `@/lib/calendar-event-theme` (fin des tables recopiées par composant).
 
 /**
  * Visual priority for sorting events within a day.
@@ -301,8 +248,7 @@ export function CalendarGrid({
                                             const start = event.startDate ? new Date(event.startDate) : null;
                                             if (!start || isNaN(start.getTime())) return null;
 
-                                            const config = TYPE_CONFIG[event.type] || TYPE_CONFIG.EVENT_GUILD;
-                                            const Icon = config.icon;
+                                            const config = calendarEventTheme(event.type);
                                             const time = format(start, "HH:mm");
                                             const isCompleted = event.status === "COMPLETED" || (Boolean(event.endDate) && new Date(event.endDate).getTime() < Date.now());
 
@@ -340,7 +286,7 @@ export function CalendarGrid({
                                                                         // eslint-disable-next-line @next/next/no-img-element
                                                                         <img src="/assets/calendar/kralamoure-head.png" alt="Kralamoure" className="w-5 h-5 object-contain" />
                                                                     ) : (
-                                                                        <Icon className={cn("h-3.5 w-3.5", config.color)} />
+                                                                        <DofusUiIcon name={config.picto} size={14} />
                                                                     )}
                                                                 </div>
 
@@ -399,12 +345,15 @@ export function CalendarGrid({
 
             {/* ============ LÉGENDE ============ */}
             <div className="flex flex-wrap items-center justify-center gap-2 py-3 bg-surface/40 border border-border rounded-xl px-4">
-                {Object.entries(TYPE_CONFIG).map(([type, config]) => (
-                    <div key={type} className="flex items-center gap-2 px-2.5 py-1 rounded-lg">
-                        <div className={cn("h-2 w-2 rounded-full", config.dot)} />
-                        <span className="text-xs font-medium text-muted-foreground">{config.label}</span>
-                    </div>
-                ))}
+                {CALENDAR_EVENT_THEME_TYPES.filter((type) => type !== "OTHERS").map((type) => {
+                    const config = calendarEventTheme(type);
+                    return (
+                        <div key={type} className="flex items-center gap-2 px-2.5 py-1 rounded-lg">
+                            <div className={cn("h-2 w-2 rounded-full", config.dot)} />
+                            <span className="text-xs font-medium text-muted-foreground">{config.label}</span>
+                        </div>
+                    );
+                })}
                 {/* Les événements terminés sont grisés avec un tampon « Terminé » dans la grille */}
                 <div className="flex items-center gap-2 px-2.5 py-1 rounded-lg">
                     <CheckCircle2 className="h-3 w-3 text-success/80" />

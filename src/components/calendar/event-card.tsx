@@ -14,13 +14,7 @@ import {
     HelpCircle,
     XCircle,
     Trash2,
-    Edit,
-    Target,
-    Swords,
-    PartyPopper,
-    Wheat,
-    Eye,
-    Diamond
+    Edit
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -33,6 +27,8 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { DofusUiIcon } from "@/components/shared/dofus-ui-icon";
+import { calendarEventTheme } from "@/lib/calendar-event-theme";
 import { cn } from "@/lib/utils";
 
 // Local type definitions
@@ -47,14 +43,8 @@ interface EventCardProps {
     canManage: boolean;
 }
 
-const TYPE_THEMES: Record<string, { label: string; color: string; bg: string; border: string; icon: any; gradient: string }> = {
-    RAID_OFFICIAL: { label: "Raid 3.6", color: "text-danger", bg: "bg-danger/10", border: "border-danger/20", icon: Swords, gradient: "from-danger to-danger" },
-    EVENT_GUILD: { label: "Event Guilde", color: "text-info", bg: "bg-info/10", border: "border-info/20", icon: PartyPopper, gradient: "from-info to-fuchsia-600" },
-    SESSION_MISSIONS: { label: "Missions Guilde", color: "text-warning", bg: "bg-warning/10", border: "border-warning/20", icon: Target, gradient: "from-warning to-warning" },
-    SORTIE_FARM: { label: "Sortie Farm", color: "text-success", bg: "bg-success/10", border: "border-success/20", icon: Wheat, gradient: "from-success to-green-600" },
-    KRALAMOURE: { label: "Kralamoure", color: "text-pink-400", bg: "bg-pink-500/10", border: "border-pink-500/20", icon: Eye, gradient: "from-pink-600 to-danger" },
-    OTHERS: { label: "Autres", color: "text-muted-foreground", bg: "bg-muted/10", border: "border-border/20", icon: Diamond, gradient: "from-muted to-muted" },
-};
+// Identité des types d'événement (libellé, couleur, picto Dofus) :
+// `@/lib/calendar-event-theme` — source unique, plus de table locale.
 
 // Les visuels d'événement (dont les deux raids) viennent de
 // `src/lib/calendar-event-images.ts` — même source que les embeds Discord.
@@ -74,8 +64,7 @@ export function EventCard({
     if (!startDate || isNaN(startDate.getTime())) return null;
     const validEndDate = (endDate && !isNaN(new Date(endDate).getTime())) ? new Date(endDate) : startDate;
 
-    const theme = TYPE_THEMES[event.type] || TYPE_THEMES.SESSION_MISSIONS;
-    const Icon = theme.icon;
+    const theme = calendarEventTheme(event.type);
 
     const myAttendance = event.participants?.find((a: any) => a.userId === currentUserId);
     const attendeeCount = event.participants?.length || 0;
@@ -123,7 +112,7 @@ export function EventCard({
                                 // eslint-disable-next-line @next/next/no-img-element
                                 <img src="/assets/calendar/kralamoure-head.png" alt="Kralamoure" className="mr-1 h-3.5 w-3.5 object-contain inline-block" />
                             ) : (
-                                <Icon className="mr-1 h-3 w-3" />
+                                <DofusUiIcon name={theme.picto} size={14} className="mr-1" />
                             )}
                             {theme.label}
                         </Badge>
@@ -205,8 +194,8 @@ export function EventCard({
                 />
             </div>
 
-            {/* Top Accent Line */}
-            <div className={cn("h-1.5 w-full bg-gradient-to-r opacity-90 relative z-20", theme.gradient)} />
+            {/* Top Accent Line — aplat de la couleur du type (jamais un dégradé) */}
+            <div className={cn("h-1.5 w-full opacity-90 relative z-20", theme.dot)} />
 
             {/* Completed watermark stamp overlay */}
             {isCompleted && (
@@ -230,7 +219,7 @@ export function EventCard({
                                 // eslint-disable-next-line @next/next/no-img-element
                                 <img src="/assets/calendar/kralamoure-head.png" alt="Kralamoure" className="w-4 h-4 mr-2 object-contain inline-block" />
                             ) : (
-                                <Icon className="w-4 h-4 mr-2" />
+                                <DofusUiIcon name={theme.picto} size={16} className="mr-2" />
                             )}
                             {theme.label}
                         </Badge>

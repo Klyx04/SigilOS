@@ -70,6 +70,23 @@ describe("fiches boss — URL en slug, anciens liens conservés", () => {
         expect(migration).toContain("row_number() OVER");
     });
 
+    it("garde le fichier de migration sur UNE instruction par ligne (piège schema-engine Prisma 7)", () => {
+        const migration = readSource("prisma/migrations/20260919130000_add_dungeon_slug/migration.sql");
+        const instructions = migration
+            .split(/\r?\n/)
+            .map((ligne) => ligne.trim())
+            .filter((ligne) => ligne.length > 0 && !ligne.startsWith("--"));
+
+        // Incident beta 19/09/2026 : avec ce fichier écrit sur plusieurs lignes, le
+        // schema-engine de Prisma 7 part en **boucle CPU à 100 %** sans exécuter la
+        // moindre instruction, tout en gardant le verrou advisory → `migrate deploy`
+        // paraît figé, puis la tentative suivante échoue en P1002. La même requête
+        // en « une instruction par ligne » passe (vérifié dans les deux sens).
+        for (const instruction of instructions) {
+            expect(instruction.endsWith(";"), instruction.slice(0, 80)).toBe(true);
+        }
+    });
+
     it("fournit un slug à chaque création de donjon", () => {
         const sites = [
             "src/server/actions/game-data-actions.ts",

@@ -61,6 +61,52 @@ bar() {
 }
 
 # -----------------------------------------------------------------------------
+# Exécution d'une commande DANS un conteneur, sortie affichée EN DIRECT
+# -----------------------------------------------------------------------------
+# Pourquoi ce helper existe (incident 19/09/2026, « jamais attendu aussi
+# longtemps ») : `npx prisma@…` retélécharge le CLI à chaque déploiement (l'image
+# runner ne contient pas les devDependencies). Avec la sortie redirigée dans un
+# fichier temporaire, l'étape 4 restait MUETTE 1 à 3 minutes : impossible de
+# savoir si ça travaillait ou si c'était figé → réflexe Ctrl+C (dangereux en
+# pleine migration). Ici :
+#   • la sortie est suivie en direct (≤ 1 s de latence) ;
+#   • l'exécution est bornée par `timeout` → soit ça réussit, soit ça échoue
+#     proprement AVEC un message (plus jamais d'attente infinie) ;
+#   • `exec -T` + `< /dev/null` : aucun risque de blocage sur une saisie.
+#
+#   compose_exec_streamed <env-file> <service> <durée max s> <fichier log> <commande sh -c>
+# Retour : code de sortie de la commande ; 124 si la durée maximale est atteinte.
+compose_exec_streamed() {
+    local ENV_FILE_C="$1" SERVICE="$2" MAX_S="$3" LOG="$4"; shift 4
+    local RC_FILE; RC_FILE="$(mktemp)"
+    : >"$LOG"
+    (
+        timeout --kill-after=30 "$MAX_S" \
+            sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE_C" \
+            exec -T "$SERVICE" sh -c "$*" </dev/null >"$LOG" 2>&1
+        printf '%s' "$?" >"$RC_FILE"
+    ) &
+    local PID=$! SHOWN=0 LINES=0
+    while kill -0 "$PID" 2>/dev/null; do
+        LINES="$(wc -l <"$LOG" 2>/dev/null || printf '0')"
+        if (( LINES > SHOWN )); then
+            sed -n "$(( SHOWN + 1 )),${LINES}p" "$LOG" | sed '/^[[:space:]]*$/d; s/^/     /'
+            SHOWN="$LINES"
+        fi
+        sleep 1
+    done
+    # Dernières lignes écrites juste avant la fin du process (flush).
+    LINES="$(wc -l <"$LOG" 2>/dev/null || printf '0')"
+    if (( LINES > SHOWN )); then
+        sed -n "$(( SHOWN + 1 )),${LINES}p" "$LOG" | sed '/^[[:space:]]*$/d; s/^/     /'
+    fi
+    wait "$PID" 2>/dev/null
+    local RC; RC="$(cat "$RC_FILE" 2>/dev/null || printf '1')"
+    rm -f "$RC_FILE"
+    return "${RC:-1}"
+}
+
+# -----------------------------------------------------------------------------
 # Aide
 # -----------------------------------------------------------------------------
 usage() {
@@ -118,6 +164,19 @@ show_token_expiry() {
 GHCR_USER="${GHCR_USER:-klyx04}"
 GHCR_USER_LOWER="${GHCR_USER,,}"            # GHCR impose des noms en minuscules
 GHCR_REG="ghcr.io/${GHCR_USER_LOWER}"
+
+# Version du CLI Prisma épinglée (⚠️ MIROIR de l'ARG PRISMA_VERSION du Dockerfile :
+# les deux doivent rester alignées, et alignées sur `prisma` de package.json —
+# actuellement 7.10.0). Épingler est obligatoire : sans version, `npx prisma`
+# tire `prisma@latest` (une RC cassée où `migrate` est renommé `migration`).
+# Sert uniquement de REPLI : si l'image embarque /opt/prisma-cli, aucun
+# téléchargement n'a lieu (voir compose_exec_streamed / deploy()).
+PRISMA_PIN="${PRISMA_PIN:-7.10.0}"
+
+# Durée maximale d'une étape Prisma (secondes). Borne de sécurité : une étape
+# muette qui dure « trop longtemps » échoue désormais avec un message au lieu
+# de laisser l'opérateur deviner (et Ctrl+C en pleine migration).
+PRISMA_TIMEOUT="${PRISMA_TIMEOUT:-900}"
 
 cd "$(dirname "$0")/.."
 # -----------------------------------------------------------------------------
@@ -296,7 +355,12 @@ run_conditional_seed() {
     if [[ "${SEED_ALWAYS:-0}" == "1" || "$CURRENT_HASH" != "$PREV_HASH" ]]; then
         info "   Synchronisation des données de jeu ${TARGET^^}..."
         local SEED_LOG; SEED_LOG="$(mktemp)"
-        if sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" exec "$APP_SERVICE" npm run seed:game-data:prod >"$SEED_LOG" 2>&1; then
+        local SEED_RC=0
+        # Borne de sécurité 15 min (le seed peut être long, mais jamais muet :
+        # la sortie est désormais affichée en direct).
+        compose_exec_streamed "$ENV_FILE" "$APP_SERVICE" 900 "$SEED_LOG" \
+            "npm run seed:game-data:prod" || SEED_RC=$?
+        if (( SEED_RC == 0 )); then
             ok "Données de jeu synchronisées."
         else
             err "Seeding en échec. Dernières lignes :"
@@ -486,19 +550,42 @@ deploy() {
         exit 1
     fi
     info "   Application des migrations Prisma..."
-    local MIGRATE_LOG; MIGRATE_LOG="$(mktemp)"
+    # CLI Prisma : celui EMBARQUÉ dans l'image (rapide, zéro réseau) s'il est là,
+    # sinon repli npx (téléchargement 1 à 3 min, source de l'attente muette du
+    # 19/09/2026). Le repli garantit qu'un déploiement ne casse jamais si l'image
+    # ne contient pas /opt/prisma-cli.
     # ⚠️ Prisma CLI absent de l'image runner (devDependency, non incluse dans .next/standalone) :
     # sans pin, `npx prisma` tire `prisma@latest` (actuellement une RC cassée 8.0.0-rc.10 où la
     # commande est renommée `migration` → "No command registered for `migrate`"). On épingle la
-    # version du projet (7.9.1) comme dans services/discord-bot/Dockerfile.
-    if sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" exec app-${TARGET} sh -c 'NO_UPDATE_NOTIFIER=1 npm_config_update_notifier=false npx --yes prisma@7.9.1 migrate deploy' >"$MIGRATE_LOG" 2>&1; then
-        if grep -qi "no pending migrations" "$MIGRATE_LOG"; then
-            ok "Base à jour — aucune migration en attente."
-        else
-            ok "Migrations appliquées."
-        fi
+    # version du projet (7.10.0) comme dans services/discord-bot/Dockerfile.
+    local PRISMA_CMD="npx --yes prisma@${PRISMA_PIN}"
+    if sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" exec -T app-${TARGET} \
+        sh -c 'node /opt/prisma-cli/node_modules/prisma/build/index.js --version' >/dev/null 2>&1; then
+        PRISMA_CMD="node /opt/prisma-cli/node_modules/prisma/build/index.js"
+        dim "     CLI Prisma embarqué dans l'image — aucun téléchargement."
     else
-        err "Échec des migrations Prisma :"
+        dim "     CLI Prisma absent de l'image → npx le télécharge (1 à 3 min, c'est normal)."
+    fi
+    local MIGRATE_LOG MIGRATE_T0
+    MIGRATE_LOG="$(mktemp)"; MIGRATE_T0="$SECONDS"
+    local MIGRATE_RC=0
+    compose_exec_streamed "$ENV_FILE" "app-${TARGET}" "$PRISMA_TIMEOUT" "$MIGRATE_LOG" \
+        "NO_UPDATE_NOTIFIER=1 npm_config_update_notifier=false ${PRISMA_CMD} migrate deploy" || MIGRATE_RC=$?
+    if (( MIGRATE_RC == 0 )); then
+        if grep -qi "no pending migrations" "$MIGRATE_LOG"; then
+            ok "Base à jour — aucune migration en attente ($(( SECONDS - MIGRATE_T0 ))s)."
+        else
+            ok "Migrations appliquées ($(( SECONDS - MIGRATE_T0 ))s)."
+        fi
+    elif (( MIGRATE_RC == 124 )); then
+        err "Migrations Prisma interrompues après ${PRISMA_TIMEOUT}s (durée maximale dépassée)."
+        dim "   → Cause probable : le serveur télécharge le CLI Prisma via npm (accès réseau lent/bloqué)."
+        dim "     Relancer le déploiement, ou allonger le délai : PRISMA_TIMEOUT=1800 ./scripts/deploy-cd.sh $TARGET"
+        tail -20 "$MIGRATE_LOG" | sed 's/^/     /'
+        rm -f "$MIGRATE_LOG"
+        exit 1
+    else
+        err "Échec des migrations Prisma (code ${MIGRATE_RC}) :"
         tail -20 "$MIGRATE_LOG" | sed 's/^/     /'
         rm -f "$MIGRATE_LOG"
         exit 1
@@ -507,14 +594,23 @@ deploy() {
     if [[ "$TARGET" == "beta" ]]; then
         info "   Synchronisation du schéma (beta, db push)..."
         local PUSH_LOG; PUSH_LOG="$(mktemp)"
-        if sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" exec app-${TARGET} sh -c 'NO_UPDATE_NOTIFIER=1 npm_config_update_notifier=false npx --yes prisma@7.9.1 db push' >"$PUSH_LOG" 2>&1; then
+        local PUSH_RC=0
+        compose_exec_streamed "$ENV_FILE" "app-${TARGET}" "$PRISMA_TIMEOUT" "$PUSH_LOG" \
+            "NO_UPDATE_NOTIFIER=1 npm_config_update_notifier=false ${PRISMA_CMD} db push" || PUSH_RC=$?
+        if (( PUSH_RC == 0 )); then
             if grep -qi "already in sync" "$PUSH_LOG"; then
                 ok "Schéma déjà à jour."
             else
                 ok "Schéma synchronisé."
             fi
+        elif (( PUSH_RC == 124 )); then
+            err "db push interrompu après ${PRISMA_TIMEOUT}s (durée maximale dépassée)."
+            dim "     Relancer le déploiement, ou allonger : PRISMA_TIMEOUT=1800 ./scripts/deploy-cd.sh $TARGET"
+            tail -20 "$PUSH_LOG" | sed 's/^/     /'
+            rm -f "$PUSH_LOG"
+            exit 1
         else
-            err "Échec du db push :"
+            err "Échec du db push (code ${PUSH_RC}) :"
             tail -20 "$PUSH_LOG" | sed 's/^/     /'
             rm -f "$PUSH_LOG"
             exit 1

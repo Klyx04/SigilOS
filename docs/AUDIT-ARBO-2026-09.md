@@ -103,3 +103,28 @@ terminé) → archive externe.
 **Bilan racine après L1/L2/L4** : 6 `.md` (README, CONTEXT, RULES, SECURITY, PROMPT_START, MAINTENANCE)
 au lieu de 8, plus aucun fichier généré ni donnée d'exécution suivi par git.
 
+---
+
+## 4. Journal des suppressions — 19/09/2026 (tout est archivé ou dans git)
+
+| Élément retiré | Motif | Récupération |
+|---|---|---|
+| `WORKFLOW.md` | Doublon exact de `RULES.md §Git Workflow`, **0 citation** | `git log -- WORKFLOW.md` |
+| `USER_ACTIONS_REQUIRED.md` | Checklist de mise en prod one-shot, **0 citation** | `git log` |
+| 13 fichiers générés / données d'exécution | Détrackés (restent sur disque) | rien à faire |
+| `.playwright-profile/` (**87,5 Mo**) | Profil navigateur de test | se recrée : `node scripts/capture-landing-visuels.mjs --login` |
+| `docs/game-data-workflow.md` | Obsolète — remplacé par `prisma/seed-data/README.md` | archive `lot5-arbo/` |
+| `docs/guide-sigil-draw.md` | Spécification du mini-jeu **livré** | archive `lot5-arbo/` |
+| `prisma/seeds/game-data.json` | **Doublon mort** — le fichier vivant est `prisma/seed-data/game-data.json` (utilisé par `deploy.sh`) | archive `lot5-arbo/` |
+| `prisma/clear.ts`, `clear-dj-posts.sql`, `add-new-creators.ts`, `seed-example.md`, `seed-data-examples.sql` | Outils one-shot, **0 citation** | archive `lot5-arbo/` |
+| `src/temp/**` (583 → 50 fichiers) | Zone volatile : 148 références nettoyées, 8 outils one-shot supprimés | `A:\SigilOS--temp-archive-2026-09-19\lot4-src-temp-avant-vidage\` |
+| Branches git : 24 locales + 28 distantes | Toutes vérifiées `PR MERGED` + contenu présent dans `dev` | `_menage-2026-09-19/branches-supprimees-2026-09-19.txt` (nom + SHA) |
+| `.next/` (**43,6 Go**) | Cache de build | se reconstruit |
+
+### Conservés volontairement (vérifiés comme vivants)
+- `docs/OCR_STRATEGY_2026.md` + `docs/REDIS-OCR-SETUP.md` → l'OCR **existe** (`src/lib/llm-ocr.ts`, ~570 lignes,
+  via LLM vision) ;
+- `docs/PLAN-REFONTE-ONBOARDING.md` → référence active du chantier onboarding en cours ;
+- `MAINTENANCE.md` → cité 20× dont dans du code (`src/app/api/cron/avatar-resync/route.ts`, `scripts/deploy-cd.sh`).
+
+

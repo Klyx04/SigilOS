@@ -475,7 +475,7 @@ export function PlatformConfigPanel({ config, availableGuilds, availableRoles }:
                             <Power className="w-4 h-4 text-rose-400" />
                             Accès Plateforme & Maintenance
                         </h4>
-                        <p className="text-zinc-500 text-xs font-medium">Restreint l'accès au site uniquement aux Super-Admins.</p>
+                        <p className="text-zinc-500 text-xs font-medium">Verrouille tout le site (sessions loggées incluses, Gods compris) — seul ce panel God reste accessible pour désactiver.</p>
                     </div>
 
                     <div className="space-y-4">

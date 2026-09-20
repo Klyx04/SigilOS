@@ -87,8 +87,7 @@
 |---------|------|
 | **`docs/CONTEXT.md`** | Ce fichier — point d’entrée (condensé) |
 | [`RULES.md`](./RULES.md) | Conventions + règles sécu non-négociables + patterns copy-paste |
-| [`SECURITY.md`](./SECURITY.md) | Posture sécurité réelle + chantiers ouverts |
-| [`SECURITY_HARDENING_PLAN.md`](./reference/SECURITY_HARDENING_PLAN.md) | Plan de durcissement |
+| [`SECURITY.md`](./SECURITY.md) | Politique de sécurité **publique** : signalement privé, périmètre, garanties |
 | [`MAINTENANCE.md`](./MAINTENANCE.md) | Infra VPS : backups, monitoring, déploiement, urgence |
 | [`DEVELOPPEMENT.md`](./DEVELOPPEMENT.md) | **Mise en route locale** : prérequis, les 3 fichiers `.env`, démarrage, commandes npm, tests, déploiement, dépannage (le `README.md` racine est une **vitrine publique**, sans détail technique) |
 | [`DECISION-OUVERTURE-LANDING.md`](./plans/DECISION-OUVERTURE-LANDING.md) | **Décision ouverture prod & landing immersive** : vitrine `maintenance.html` vs `page.tsx`, checklist ouverture, statut CTA contrasté |

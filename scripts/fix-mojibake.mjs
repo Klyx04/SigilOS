@@ -1,7 +1,7 @@
 /**
  * Réparation (non commitée) : annule un double encodage UTF-8 → cp1252 → UTF-8.
  * Ne touche QUE les séquences qui sont un UTF-8 valide caché dans des chars cp1252.
- *   node src/temp/refonte_landing/fix-mojibake.mjs [fichier] [--write]
+ *   node scripts/fix-mojibake.mjs [fichier] [--write]
  * Sans `--write` : rapport seul (aucune écriture).
  */
 import { readFileSync, writeFileSync, copyFileSync, existsSync } from "node:fs";

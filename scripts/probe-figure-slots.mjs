@@ -12,7 +12,7 @@
  *     fichier de 1180 px renvoie du 1180 px) → un fichier trop petit est
  *     agrandi par le **navigateur**, jamais par le serveur : flou côté client.
  *
- * Usage : `node src/temp/refonte_landing/probe-figure-slots.mjs`
+ * Usage : `node scripts/probe-figure-slots.mjs`
  * Env : `SIGILOS_URL` (défaut `http://localhost:3000`), `WIDTH` (viewport CSS px).
  */
 import { chromium } from "playwright";

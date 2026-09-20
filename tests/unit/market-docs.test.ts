@@ -1,5 +1,5 @@
 /**
- * Module « Marché » — test de la **documentation** (S8.22 / §19.1 et RULES.md).
+ * Module « Marché » — test de la **documentation** (S8.22 / §19.1 et docs/RULES.md).
  *
  * Vérifie que la fiche membre `marche` et la fiche admin `admin-marche` sont à
  * jour, en catégorie « Outils & Services » / « Administration & Staff », que les

@@ -89,6 +89,6 @@ routes quelques minutes plus tard (`X-Dofusbook-Status: 200`, `X-SigilOS-Cache: 
 
 Si le blocage devenait **permanent**, le même `worker.js` fonctionne tel quel sur une
 machine à IP résidentielle (`npx wrangler dev --port 8787` + `cloudflared`/Tailscale).
-Détails et runbook : [`docs/GALERIE-DOFUSBOOK-RELAIS.md`](../../docs/GALERIE-DOFUSBOOK-RELAIS.md).
+Détails et runbook : [`docs/reference/GALERIE-DOFUSBOOK-RELAIS.md`](../../docs/reference/GALERIE-DOFUSBOOK-RELAIS.md).
 
 Attendu : `✅ Worker validé (logique OK avant déploiement)`.

@@ -42,7 +42,7 @@ function setCachedSearch(key: string, data: any[]): void {
     searchCache.set(key, { data, expiresAt: Date.now() + CACHE_TTL_MS });
 }
 
-/** Bornage defensif des donnees issues de l'API externe (RULES.md par.4). */
+/** Bornage defensif des donnees issues de l'API externe (docs/RULES.md par.4). */
 function extractAnkamaIds(payload: unknown): number[] {
     if (!Array.isArray(payload)) return [];
     const ids: number[] = [];

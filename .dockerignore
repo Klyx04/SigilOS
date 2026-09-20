@@ -26,3 +26,23 @@ temp_map.jpg
 utf8_map.tsx
 potable_map.tsx
 old_map*.tsx
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Jamais nécessaires au build ni au runtime de l'image : documentation, tests,
+# zones de travail locales et kits de ménage. Allège le contexte de build
+# (`COPY . .` au stage builder).
+# ⚠️ `public/` n'est PAS exclu : les assets sont servis par l'image.
+# ─────────────────────────────────────────────────────────────────────────────
+/docs
+/tests
+/src/temp
+/scratch
+/_*
+/monitoring
+/prometheus
+/cloudflare-workers
+/private_uploads
+/backups
+/.husky
+/.github
+/.vscode

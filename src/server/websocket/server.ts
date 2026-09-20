@@ -23,7 +23,7 @@ const logger = AppLogger || console;
 // any guild room with NO session verification — anyone could spy on any guild
 // (voice presence, rush, ocre, dj, games).
 //
-// Fix (deployed beta-first, see CONTEXT.md):
+// Fix (deployed beta-first, see docs/CONTEXT.md):
 //   1. io.use() middleware decodes the SESSION cookie (HttpOnly) via Auth.js
 //      `getToken` — NOT a client-readable bearer. The client already sends the
 //      cookie thanks to `withCredentials: true` (step 1 already done).

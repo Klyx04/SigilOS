@@ -161,8 +161,9 @@ const nextConfig: NextConfig = {
         headers: [
           { key: 'X-Frame-Options', value: 'DENY' },
           { key: 'X-Content-Type-Options', value: 'nosniff' },
-          // X-XSS-Protection is legacy but kept for old browsers
-          { key: 'X-XSS-Protection', value: '1; mode=block' },
+          // ⚠️ `X-XSS-Protection` volontairement ABSENT : en-tête obsolète et non standard
+          // (MDN : « in some cases, X-XSS-Protection can create XSS vulnerabilities in
+          // otherwise safe websites ») — remplacé par la CSP nonce-based de `src/proxy.ts`.
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
           { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=(), payment=(), interest-cohort=()' },
           { key: 'Strict-Transport-Security', value: 'max-age=31536000; includeSubDomains; preload' },

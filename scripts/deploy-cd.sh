@@ -150,7 +150,7 @@ show_token_expiry() {
     NOW="$(date +%s)"
     DAYS=$(( (EXP - NOW) / 86400 ))
     if (( DAYS < 0 )); then
-        err "GHCR_TOKEN EXPIRÉ depuis $((-DAYS)) jour(s) — renouvelez-le (voir MAINTENANCE.md)."
+        err "GHCR_TOKEN EXPIRÉ depuis $((-DAYS)) jour(s) — renouvelez-le (voir docs/MAINTENANCE.md)."
     elif (( DAYS <= 14 )); then
         warn "GHCR_TOKEN expire dans $DAYS jour(s) ($GHCR_TOKEN_EXPIRY) — pensez à le renouveler."
     else

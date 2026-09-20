@@ -11,7 +11,7 @@ import { logger } from "@/lib/logger";
  * avatar). Utilise `GET /guilds/{guild_id}/members` via listGuildMembers.
  *
  * Fréquence recommandée : quotidienne (ex: `0 5 * * *`).
- * À configurer dans le crontab VPS (voir MAINTENANCE.md) ou cron-job.org.
+ * À configurer dans le crontab VPS (voir docs/MAINTENANCE.md) ou cron-job.org.
  *
  * Protection : x-cron-secret requis (fail-closed).
  */

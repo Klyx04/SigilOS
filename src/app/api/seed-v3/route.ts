@@ -2,7 +2,7 @@
  * ⚠️ ROUTE DÉSACTIVÉE EN PRODUCTION
  *
  * Le seed de données doit être exécuté via le script CLI :
- *   npx tsx scripts/seed-game-data.ts
+ *   npm run seed:game-data
  *
  * Cette route ne répond plus qu'un 410 Gone pour ne pas exposer de surface d'attaque.
  * Si tu as besoin de re-seeder, connecte-toi en SSH au VPS et lance le script manuellement.
@@ -22,7 +22,7 @@ export async function GET() {
         return NextResponse.json(
             {
                 error: "Cette route est désactivée en production.",
-                hint: "Utilise le script CLI : npx tsx scripts/seed-game-data.ts",
+                hint: "Utilise le script CLI : npm run seed:game-data",
             },
             { status: 410 } // 410 Gone = ressource intentionnellement supprimée
         );

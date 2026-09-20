@@ -949,7 +949,7 @@ async function sendPollOutcomeToDiscord(
         })
         .join("\n\n");
 
-    const description = `## � Résultats du vote\n\n${resultsList}\n\n---\n\n### 📝 Décision Finale :\n${outcome}\n\n*📌 Retrouvez le détail sur [SigilOS](${voteUrl})*`;
+    const description = `## 📊 Résultats du vote\n\n${resultsList}\n\n---\n\n### 📝 Décision Finale :\n${outcome}\n\n*📌 Retrouvez le détail sur [SigilOS](${voteUrl})*`;
 
     await sendChannelMessage(poll.discordChannelId, description, {
         embedTitle: `🏁 SONDAGE TERMINÉ : ${poll.title.toUpperCase()}`,

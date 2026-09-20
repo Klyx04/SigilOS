@@ -384,7 +384,7 @@ function withDisplayReadyIcons<
 /**
  * S7.8 — Construit la vue **réservation** d'une annonce (pseudo, échéance, « c'est
  * moi »). Le profil du réservataire est lu **dans la guilde du contexte**
- * (défense en profondeur : un id de profil ne suffit jamais, cf. RULES.md).
+ * (défense en profondeur : un id de profil ne suffit jamais, cf. docs/RULES.md).
  */
 async function buildReservationView(
     reservation: {

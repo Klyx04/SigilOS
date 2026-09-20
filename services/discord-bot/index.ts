@@ -1344,7 +1344,7 @@ setInterval(async () => {
         lastResetWeek = currentWeek;
         console.log("[Discord Bot] Weekly Reset of Discord stats starting...");
         try {
-            // 🔒 Guild isolation (multi-tenant / RULES.md) : on ne reset QUE les guildes
+            // 🔒 Guild isolation (multi-tenant / docs/RULES.md) : on ne reset QUE les guildes
             // du bot (client.guilds.cache), jamais toutes les guildes de la base.
             const guildIds = client.guilds.cache.map(g => g.id);
             // I-10: Scope the reset to this bot's ACTIVE guilds only to avoid a
@@ -1372,7 +1372,7 @@ setInterval(async () => {
         lastResetMonth = currentMonth;
         console.log("[Discord Bot] Monthly Reset of Discord stats starting...");
         try {
-            // 🔒 Guild isolation (multi-tenant / RULES.md) : on ne reset QUE les guildes du bot.
+            // 🔒 Guild isolation (multi-tenant / docs/RULES.md) : on ne reset QUE les guildes du bot.
             const guildIds = client.guilds.cache.map(g => g.id);
             // I-10: Scope the reset to this bot's ACTIVE guilds only.
             await db.userProfile.updateMany({

@@ -7,6 +7,17 @@ node_modules
 .git
 .gitignore
 
+# ───────────────────────────────────────────────────────────────────────────────
+# Secrets d'environnement : JAMAIS dans le contexte de build.
+# Pourquoi c'est indispensable : Next.js recopie `.env` et `.env.production` dans
+# `.next/standalone` (cf. `writeStandaloneDirectory` dans next/dist/build/index.js),
+# et le Dockerfile copie ce dossier dans l'image finale
+# (`COPY --from=builder /app/.next/standalone ./`). Sans cette règle, un build lancé
+# depuis un dossier contenant un `.env` embarquait ce fichier dans l'image.
+# Le runtime n'en a pas besoin : les variables arrivent par `env_file:` / `--env-file`
+# (côté hôte, jamais depuis l'image).
+.env*
+
 # Game Assets (Served via Volume or directly on host, DO NOT include in image)
 # These are the 30,000+ files causing slow builds
 public/game-data/tiles/

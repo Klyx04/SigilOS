@@ -742,54 +742,9 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
                       </div>
                     </div>
 
-                    {/* Image du bloc — le MÊME champ qu'à l'édition, posé dès la création :
-                        upload (scope `guides`, visible par un visiteur anonyme) ou URL
-                        manuelle. Sur un SÉPARATEUR, elle remplit la droite du bandeau. */}
-                    <div>
-                      <label className="text-caption font-black text-zinc-500 uppercase tracking-widest mb-1 block">
-                        Image du bloc <span className="text-zinc-600">(optionnel)</span>
-                      </label>
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <input
-                          value={newStepImage}
-                          onChange={e => setNewStepImage(e.target.value)}
-                          className="flex-1 min-w-[160px] bg-black/60 border border-white/10 rounded-lg px-2 py-1 text-xs text-white focus:outline-none focus:border-emerald-500/50"
-                          placeholder="URL de l'image (ex. /module-dofus/Dofus_Pourpre.png)"
-                        />
-                        <label className="cursor-pointer px-2 py-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-lg text-caption flex items-center gap-1">
-                          Importer
-                          <input
-                            type="file"
-                            accept="image/*"
-                            className="hidden"
-                            onChange={async (e) => {
-                              const f = e.target.files?.[0];
-                              if (!f) return;
-                              const url = await uploadImageFile(f, "guides");
-                              if (url) { setNewStepImage(url); toast.success("Image importée ✓"); }
-                              else toast.error("Upload impossible");
-                              e.target.value = "";
-                            }}
-                          />
-                        </label>
-                        {newStepImage ? (
-                          <>
-                            {/* Aperçu nu : on voit ce qu'on pose AVANT de créer le bloc. */}
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img
-                              src={newStepImage}
-                              alt=""
-                              onError={e => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
-                              className="h-7 w-14 shrink-0 rounded-[3px] border border-white/10 object-cover"
-                            />
-                            <button type="button" onClick={() => setNewStepImage("")} title="Retirer l'image"
-                              className="p-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 rounded-lg transition-all">
-                              <X className="w-3.5 h-3.5" />
-                            </button>
-                          </>
-                        ) : null}
-                      </div>
-                    </div>
+                    {/* Image du bloc — champ partagé avec l'édition (upload scope `guides`,
+                        aperçu nu, retrait). Sur un SÉPARATEUR, elle remplit la droite du bandeau. */}
+                    <BlockImageField value={newStepImage} onChange={setNewStepImage} />
 
                     <div className="flex items-center gap-2">
                       <button onClick={handleAddStep} disabled={isPending}
@@ -1084,6 +1039,67 @@ function ToggleRow({ label, description, value, onToggle, disabled, color }: { l
   );
 }
 
+// ─── BlockImageField ──────────────────────────────────────────────────────────
+/**
+ * Champ « Image du bloc » — PARTAGÉ par les trois formulaires du studio (création,
+ * édition d'un bloc, édition d'un séparateur) : une seule écriture du couple
+ * upload + URL + aperçu + retrait, donc aucun formulaire ne peut l'oublier.
+ * Upload en scope `guides` : l'image sert le guide PUBLIC (visiteur anonyme) —
+ * `docs` est réservé aux pièces privées. Aperçu NU (ni tuile ni cadre).
+ */
+function BlockImageField({ value, onChange }: { value: string; onChange: (url: string) => void }) {
+  const preview = value ? safeImageUrl(value) : "";
+  return (
+    <div>
+      <label className="text-caption font-black text-zinc-500 uppercase tracking-widest mb-1 block">
+        Image du bloc <span className="text-zinc-600">(optionnel)</span>
+      </label>
+      <div className="flex items-center gap-2 flex-wrap">
+        <input
+          value={value}
+          onChange={e => onChange(e.target.value)}
+          className="flex-1 min-w-[160px] bg-black/60 border border-white/10 rounded-lg px-2 py-1 text-xs text-white focus:outline-none focus:border-emerald-500/50"
+          placeholder="URL de l'image (ex. /module-dofus/Dofus_Pourpre.png)"
+        />
+        <label className="cursor-pointer px-2 py-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-lg text-caption flex items-center gap-1">
+          Importer
+          <input
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={async (e) => {
+              const f = e.target.files?.[0];
+              if (!f) return;
+              const url = await uploadImageFile(f, "guides");
+              if (url) { onChange(url); toast.success("Image importée ✓"); }
+              else toast.error("Upload impossible");
+              e.target.value = "";
+            }}
+          />
+        </label>
+        {value ? (
+          <>
+            {/* Aperçu nu : on voit ce qu'on pose avant d'enregistrer. */}
+            {preview ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={preview}
+                alt=""
+                onError={e => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+                className="h-7 w-14 shrink-0 rounded-[3px] border border-white/10 object-cover"
+              />
+            ) : null}
+            <button type="button" onClick={() => onChange("")} title="Retirer l'image"
+              className="p-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 rounded-lg transition-all">
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 // ─── SortableSeparatorRow ─────────────────────────────────────────────────────
 function SortableSeparatorRow(props: {
   milestone: Milestone;
@@ -1148,6 +1164,18 @@ function SeparatorRowAdmin({
               placeholder="Titre de section"
               autoFocus
             />
+            <input
+              value={editingData?.description ?? ""}
+              onChange={(e) => onEditChange({ description: e.target.value })}
+              className="w-full bg-black/60 border border-white/10 rounded-lg px-2 py-1 text-xs text-zinc-400 focus:outline-none focus:border-amber-500/40"
+              placeholder="Description (optionnel) — sous le titre du bandeau"
+            />
+            {/* Image du séparateur : elle remplit la DROITE du bandeau (côté membre,
+                dans le guide public et dans l'overlay). Même champ que les autres blocs. */}
+            <BlockImageField
+              value={editingData?.imageUrl ?? ""}
+              onChange={(url) => onEditChange({ imageUrl: url })}
+            />
             <div className="flex items-center gap-2">
               <div className="flex gap-1">
                 {COLOR_PALETTE.map((c) => (
@@ -1177,6 +1205,16 @@ function SeparatorRowAdmin({
                 {milestone.title}
               </p>
             </div>
+            {/* Vignette : on voit l'image posée sur le bandeau sans ouvrir l'édition. */}
+            {milestone.imageUrl && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={safeImageUrl(milestone.imageUrl)}
+                alt=""
+                onError={e => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+                className="h-7 w-14 shrink-0 rounded-[3px] border border-white/10 object-cover"
+              />
+            )}
             <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
               <button onClick={onEdit} className="p-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 rounded-lg transition-all"><Pencil className="w-3 h-3" /></button>
               <button onClick={onDelete} disabled={isPending} className="p-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg transition-all"><Trash2 className="w-3 h-3" /></button>
@@ -1296,43 +1334,13 @@ function MilestoneRow({
               className="w-full bg-black/60 border border-white/10 rounded-lg px-2 py-1.5 text-xs text-amber-300/80 focus:outline-none focus:border-amber-500/30 resize-none"
               placeholder="💡 Tips / Conseils pour ce bloc" rows={2}
             />
-            {/* Image du bloc — disponible pour TOUS les types de bloc (Quêtes, Prérequis,
-                Alignement, Dofus, Succès, Zone, Donjon, Conseil/Tips, Séparateur, Obtention
-                Dofus). Elle se loge à DROITE du bloc côté membre, servie NUE : pas de cadre,
-                pas de tuile, un fondu l'amène dans la ligne. Upload (R2) ou URL manuelle.
-                ⚠️ Scope `guides` : l'image du bloc doit rester visible par un visiteur
-                ANONYME (guide public indexé) — `docs` est réservé aux pièces privées. */}
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-caption text-zinc-500 uppercase tracking-wider shrink-0">Image du bloc</span>
-              <input
-                value={editingData?.imageUrl ?? ""}
-                onChange={e => onEditChange({ imageUrl: e.target.value })}
-                className="flex-1 min-w-[160px] bg-black/60 border border-white/10 rounded-lg px-2 py-1 text-xs text-white focus:outline-none focus:border-emerald-500/50"
-                placeholder="URL de l'image (ex. /module-dofus/Dofus_Pourpre.png)"
-              />
-              <label className="cursor-pointer px-2 py-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-lg text-caption flex items-center gap-1">
-                Importer
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={async (e) => {
-                    const f = e.target.files?.[0];
-                    if (!f) return;
-                    const url = await uploadImageFile(f, "guides");
-                    if (url) { onEditChange({ imageUrl: url }); toast.success("Image importée ✓"); }
-                    else toast.error("Upload impossible");
-                    e.target.value = "";
-                  }}
-                />
-              </label>
-              {editingData?.imageUrl ? (
-                <button type="button" onClick={() => onEditChange({ imageUrl: "" })} title="Retirer l'image"
-                  className="p-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 rounded-lg transition-all">
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              ) : null}
-            </div>
+            {/* Image du bloc — TOUS les types, y compris le séparateur : elle se loge à
+                DROITE du bloc côté membre, servie NUE (pas de cadre, un fondu l'amène
+                dans la ligne). Champ partagé avec la création et le séparateur. */}
+            <BlockImageField
+              value={editingData?.imageUrl ?? ""}
+              onChange={(url) => onEditChange({ imageUrl: url })}
+            />
             {/* Dofus selector si type DOFUS */}
             {editingData?.type === "DOFUS" && (
               <div className="flex flex-wrap gap-1.5">

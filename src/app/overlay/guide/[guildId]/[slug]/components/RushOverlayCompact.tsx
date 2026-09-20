@@ -11,6 +11,10 @@ interface RushOverlayCompactProps {
   objective: RushSequence | null;
   isDone: boolean;
   isLightMode?: boolean;
+  /** Bloc non cochable (séparateur) : aucune case à cocher, il n'y a rien à valider. */
+  checkable?: boolean;
+  /** Corps de remplacement (bandeau du séparateur) : prend la place de l'objectif. */
+  body?: React.ReactNode;
   onToggle: () => void;
   onPrev: () => void;
   onNext: () => void;
@@ -25,12 +29,16 @@ interface RushOverlayCompactProps {
  * Mode jeu compact — recommandé pendant une phase de combat.
  * Affiche uniquement : checkbox quête · nom · Étape n/m · objectif courant ·
  * précédent / suivant · agrandir · fermer.
+ * Un bloc non cochable (séparateur) perd sa case à cocher et reçoit un `body`
+ * de remplacement (son bandeau) : un séparateur n'est pas une étape.
  */
 export function RushOverlayCompact({
   milestone,
   objective,
   isDone,
   isLightMode = false,
+  checkable = true,
+  body,
   onToggle,
   onPrev,
   onNext,
@@ -54,29 +62,34 @@ export function RushOverlayCompact({
     >
       {/* Ligne supérieure : checkbox · titre · actions */}
       <div className="flex items-center gap-2 min-w-0">
-        <button
-          type="button"
-          onClick={onToggle}
-          aria-label={isDone ? "Décocher la quête" : "Marquer comme terminée"}
-          className="shrink-0 rounded-md focus-visible:outline-2 focus-visible:outline-[#39bc95] focus-visible:outline-offset-1"
-        >
-          <span
-            className={cn(
-              "flex h-4 w-4 items-center justify-center rounded-md border transition-all",
-              isDone
-                ? "bg-[#39bc95] border-[#39bc95] text-black"
-                : isLightMode
-                  ? "border-slate-300 bg-white"
-                  : "border-[#3a4d60] bg-[#0f1419]"
-            )}
+        {checkable && (
+          <button
+            type="button"
+            onClick={onToggle}
+            aria-label={isDone ? "Décocher la quête" : "Marquer comme terminée"}
+            className="shrink-0 rounded-md focus-visible:outline-2 focus-visible:outline-[#39bc95] focus-visible:outline-offset-1"
           >
-            {isDone && <Check className="h-2.5 w-2.5 stroke-[3]" />}
-          </span>
-        </button>
+            <span
+              className={cn(
+                "flex h-4 w-4 items-center justify-center rounded-md border transition-all",
+                isDone
+                  ? "bg-[#39bc95] border-[#39bc95] text-black"
+                  : isLightMode
+                    ? "border-slate-300 bg-white"
+                    : "border-[#3a4d60] bg-[#0f1419]"
+              )}
+            >
+              {isDone && <Check className="h-2.5 w-2.5 stroke-[3]" />}
+            </span>
+          </button>
+        )}
 
-        <h2 className={cn("truncate text-sm font-bold leading-tight", isLightMode ? "text-slate-900" : "text-[#f2f0e9]")}>
-          {name}
-        </h2>
+        {/* Le titre du bloc est porté par le `body` (bandeau du séparateur) : pas de doublon. */}
+        {!body && (
+          <h2 className={cn("truncate text-sm font-bold leading-tight", isLightMode ? "text-slate-900" : "text-[#f2f0e9]")}>
+            {name}
+          </h2>
+        )}
 
         <button
           type="button"
@@ -110,14 +123,18 @@ export function RushOverlayCompact({
         </button>
       </div>
 
-      {/* Métadonnées : Étape n/m · Chapitre */}
-      <p className={cn("text-[10px] tabular-nums", isLightMode ? "text-slate-500" : "text-[#929aa5]")}>
-        {stepLabel}
-        {milestone.title ? ` · ${milestone.title}` : ""}
-      </p>
+      {/* Métadonnées : Étape n/m · Chapitre (sans objet pour un bandeau de séparateur) */}
+      {!body && (
+        <p className={cn("text-[10px] tabular-nums", isLightMode ? "text-slate-500" : "text-[#929aa5]")}>
+          {stepLabel}
+          {milestone.title ? ` · ${milestone.title}` : ""}
+        </p>
+      )}
 
-      {/* Objectif courant */}
-      {objective ? (
+      {/* Objectif courant — ou le corps de remplacement (bandeau du séparateur) */}
+      {body ? (
+        body
+      ) : objective ? (
         <RushCurrentObjective sequence={objective} milestoneTitle={milestone.title} variant="overlay" />
       ) : (
         <p className={cn("text-xs font-semibold", isLightMode ? "text-slate-500" : "text-[#929aa5]")}>

@@ -24,6 +24,7 @@ import { RushOverlayQuestDetailModal } from "./components/RushOverlayQuestDetail
 import { RushOverlayFooter } from "./components/RushOverlayFooter";
 import { RushOverlayCompact } from "./components/RushOverlayCompact";
 import { RushCurrentObjective } from "@/components/dofus-quests/rush/RushCurrentObjective";
+import { RushSeparatorBanner } from "@/components/dofus-quests/rush/RushSeparatorBanner";
 import { getNextObjective, aggregateRushResources } from "./components/overlay-utils";
 import { RushOverlayResourcesModal } from "./components/RushOverlayResourcesModal";
 import { RushOverlayMembersModal, type OverlayMember } from "./components/RushOverlayMembersModal";
@@ -1085,6 +1086,18 @@ export default function GuideOverlayClient({
                   );
                 })
               )
+            ) : currentMs?.type === "SEPARATEUR" ? (
+              // Bloc SÉPARATEUR : le MÊME bandeau que le dashboard membre et le guide
+              // public (composant partagé) — et AUCUNE case à cocher : un séparateur
+              // n'est pas une étape, il n'y a rien à valider. Marges resserrées : la
+              // fenêtre PiP ne fait que 420 px de large (paliers `sm`/`md` inatteignables).
+              <RushSeparatorBanner
+                title={currentMs.title}
+                description={currentMs.description}
+                imageUrl={currentMs.imageUrl}
+                accentColor={currentMs.accentColor}
+                className="my-3"
+              />
             ) : msIsInfoBlock ? (
               <div className="flex flex-col items-center gap-3 py-10 px-6 text-center select-none max-w-md mx-auto">
                 {currentMsDofus ? (
@@ -1183,6 +1196,19 @@ export default function GuideOverlayClient({
           objective={compactObjective}
           isDone={!!compactObjective && currentMsDoneSeqs.has(compactObjective.id)}
           isLightMode={isLightMode}
+          checkable={currentMs.type !== "SEPARATEUR"}
+          body={
+            currentMs.type === "SEPARATEUR" ? (
+              // Bandeau du séparateur — et AUCUNE case à cocher : ce n'est pas une étape.
+              <RushSeparatorBanner
+                title={currentMs.title}
+                description={currentMs.description}
+                imageUrl={currentMs.imageUrl}
+                accentColor={currentMs.accentColor}
+                className="my-0"
+              />
+            ) : undefined
+          }
           onToggle={() => currentMs && compactObjective && handleToggleSeq(currentMs, compactObjective.id)}
           onPrev={goToPrevMs}
           onNext={goToNextMs}

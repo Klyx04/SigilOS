@@ -1,13 +1,15 @@
 # 📚 Documentation SigilOS — index
 
 Toute la documentation du projet vit ici. Un seul point d'entrée, une seule arborescence :
-plus aucun `.md` de documentation n'est éparpillé ailleurs (le seul `.md` hors `docs/` est
-`README.md`, à la racine, et les `README.md` colocalisés d'un sous-projet autonome).
+plus aucun `.md` de documentation n'est éparpillé ailleurs (hors `docs/`, il n'y a que `AGENTS.md`
+— l'amorce lue automatiquement par les assistants IA —, `README.md` à la racine, et les `README.md`
+colocalisés d'un sous-projet autonome).
 
 ## Par où commencer
 
 | Tu veux… | Ouvre |
 |---|---|
+| **Travailler avec un assistant IA** (amorce obligatoire) | [`../AGENTS.md`](../AGENTS.md) |
 | Comprendre le projet (vitrine publique) | [`../README.md`](../README.md) |
 | Lancer le projet en local | [`DEVELOPPEMENT.md`](./DEVELOPPEMENT.md) |
 | Le contexte technique condensé (archi, modules, pièges) | [`CONTEXT.md`](./CONTEXT.md) |
@@ -72,7 +74,9 @@ docs/
 ## Règles de la documentation
 
 1. **Un sujet = un fichier.** Une doc périmée est corrigée ou supprimée, jamais laissée à dériver.
-2. **Tout nouveau `.md` va dans `docs/`** (jamais à la racine de `src/`, `scripts/` ou autre).
+2. **Tout nouveau `.md` va dans `docs/`** (jamais à la racine de `src/`, `scripts/` ou autre). Seule
+   exception : `AGENTS.md`, à la racine — le standard impose cet emplacement pour être lu
+   automatiquement par les assistants IA.
 3. **Jamais de rapport d'audit versionné** : il va dans `docs/audits/` (ignoré par git).
 4. **Un chemin cité doit exister.** Avant de renommer/déplacer un fichier, mettre à jour ses citations
    (`git grep -n "nom-du-fichier"`).

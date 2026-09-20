@@ -38,22 +38,24 @@ Verdict : **cité + lancé** = vivant (à garder) · **cité seulement dans un v
 | `.github/` `.husky/` | CI/CD + hook pre-commit (scan de secrets, tsc, vérif migration Prisma) | ✅ |
 | `node_modules/` `.next/` `dist/` `.playwright-profile/` | Artefacts locaux (jamais commités) | ❌ jetables |
 
-## 2. La racine, fichier par fichier (25 fichiers suivis)
+## 2. La racine, fichier par fichier (26 fichiers suivis)
 
 > **Pourquoi tout ça à la racine ?** Trois familles, par ordre de contrainte :
 > 1. **Imposé par l'outil** (déplacer casse le build) : `package.json` / `package-lock.json`, `next.config.ts`,
 >    `tsconfig.json`, `postcss.config.mjs`, `eslint.config.mjs`, `vitest.config.ts`, `prisma.config.js`,
 >    `sentry.{client,server,edge}.config.ts` (lus **à la racine** par `@sentry/nextjs`), `Dockerfile`,
 >    `.dockerignore`, `.gitignore`, `.gitattributes`, `.npmrc`, `.env`.
-> 2. **Convention forte de l'écosystème** (déplaçable, mais tout le monde l'attend là) : `components.json`
->    (CLI shadcn), `docker-compose.yml` / `docker-compose.prod.yml` / `Dockerfile.caddy` / `Caddyfile`
->    (référencés par les scripts de déploiement et la CI), `README.md`, `.env.example`.
+> 2. **Convention forte de l'écosystème** (déplaçable, mais tout le monde l'attend là) : `AGENTS.md`
+>    (standard lu **automatiquement** par les assistants IA — Cline, Cursor, Copilot, Codex…),
+>    `components.json` (CLI shadcn), `docker-compose.yml` / `docker-compose.prod.yml` / `Dockerfile.caddy` /
+>    `Caddyfile` (référencés par les scripts de déploiement et la CI), `README.md`, `.env.example`.
 > 3. **Supprimés / générés** : `tailwind.config.ts` (mort — Tailwind v4 est *CSS-first*, la config n'est
 >    jamais lue) ; `tsconfig.tsbuildinfo` et `next-env.d.ts` sont générés et ignorés par git.
 
 | Fichier | Rôle |
 |---|---|
-| `README.md` | **Vitrine publique** du projet (aucun détail technique) — **le seul `.md` de la racine** ; la mise en route locale est dans `docs/DEVELOPPEMENT.md` |
+| `AGENTS.md` | **Amorce des assistants IA** (créé le 20/09/2026) : point d'entrée unique, lu **automatiquement** — routage vers les sources de vérité, invariants de sécurité, hygiène « zéro dette ». Il **ne duplique aucune doc** (il route). |
+| `README.md` | **Vitrine publique** du projet (aucun détail technique) — l'un des **2 seuls `.md` de la racine** (avec `AGENTS.md`) ; la mise en route locale est dans `docs/DEVELOPPEMENT.md` |
 
 > 📌 **Toute la documentation vit dans `docs/`** : index `docs/README.md`, arborescence détaillée §2bis.
 > **Supprimés le 19/09/2026** : `WORKFLOW.md` (doublon exact de `docs/RULES.md §Git Workflow`, zéro citation) et

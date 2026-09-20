@@ -243,9 +243,11 @@ powershell -NoProfile -ExecutionPolicy Bypass -File A:\SigilOS\_menage-2026-09-1
 - **Outils du ménage du 13/09 remis en place** (petits, encore utiles) : `_menage-2026-09-13\RESTAURER.ps1`,
   `_git-purge.ps1` (§7), `_menage-l1-l2.ps1`, `INVENTAIRE.txt`. Le volume du dossier (scratch + exports de sessions)
   reste dans l'archive externe, sous `lot2-sessions\_menage-2026-09-13\`.
-- **Résidu assumé** : `scratch\_tunnel.log` + `_tunnel.log.out` **verrouillés** par un tunnel `ssh.exe` actif
-  (msys/OpenSSH). À finir après fermeture du tunnel :
-  `Remove-Item -LiteralPath 'A:\SigilOS\scratch' -Recurse -Force`.
+- **✅ Résidu soldé le 20/09/2026** : `scratch\_tunnel.log` + `_tunnel.log.out` étaient verrouillés par un tunnel
+  `ssh.exe` actif (msys/OpenSSH) et par un tunnel `cloudflared` (relais Dofusbook, `wrangler dev --port 8787`,
+  désinstallé le 20/09). Logs vidés à 0 octet puis dossier supprimé après fermeture de la session :
+  `Remove-Item -LiteralPath 'A:\SigilOS\scratch' -Recurse -Force`. La règle `/scratch/` (`.gitignore` l.101)
+  reste en place pour les prochains scratchs.
 - **Branches git** : 24 locales + 28 distantes supprimées le même jour, après vérification `gh` (`state=MERGED`)
   + `git cherry` (aucun patch absent de `dev`). Manifeste nom + SHA (pour restaurer) :
   `_menage-2026-09-19\branches-supprimees-2026-09-19.txt`. Reste : `dev`, `main`, `feat/inter-guilde`

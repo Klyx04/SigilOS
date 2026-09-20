@@ -7,7 +7,7 @@
  * et laisser le fichier sous-doté pour un écran 2×. La bonne recette est de
  * **capturer le composant à la largeur où il s'affiche** (`data-tour`, viewport
  * = slot, `deviceScaleFactor: 2`) — cf. l'en-tête de `capture-landing-visuels.mjs`
- * et `MAINTENANCE.md` §3e.
+ * et `docs/MAINTENANCE.md` §3e.
  *
  * Ce fichier est conservé pour **tracer l'origine** des quatre visuels du
  * 17/09 (`dashboard-guilde.png`, `calendrier-sorties.png`, `missions-guilde.png`,
@@ -20,10 +20,10 @@
  * 4K (3280 px) est donc réduite **×5,1** → un texte de 13 px dans l'interface
  * tombe à 2,5 px : illisible et perçu comme flou.
  *
- * Usage : `node src/temp/refonte_landing/crop-landing-visuels.mjs`
+ * Usage : `node scripts/crop-landing-visuels.mjs`
  * Les fichiers source sont **conservés** (ils servent la doc de l'app) ; les
  * recadrages sortent sous un **nom neuf** — obligatoire, sinon le cache de
- * `next/image` ressert l'ancienne image (cf. `MAINTENANCE.md` §3e).
+ * `next/image` ressert l'ancienne image (cf. `docs/MAINTENANCE.md` §3e).
  */
 import sharp from "sharp";
 

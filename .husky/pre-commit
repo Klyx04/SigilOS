@@ -51,6 +51,21 @@ echo "✅ No secrets found"
 echo ""
 
 # ─────────────────────────────────────────────────────────────
+# STAGE 1.6: MÉDIAS SANS MÉTADONNÉES (EXIF/XMP/texte)
+# Une capture d'écran ou un export d'éditeur embarque le logiciel, un horodatage
+# ou un chemin local. Le dépôt est PUBLIC (`docs/RULES.md` §Sécurité).
+# ─────────────────────────────────────────────────────────────
+
+echo "🖼️  Scanning tracked images for metadata..."
+node scripts/check-media-metadata.mjs
+if [ $? -ne 0 ]; then
+    echo ""
+    echo "❌ Métadonnées détectées dans une image suivie. Commit bloqué."
+    exit 1
+fi
+echo ""
+
+# ─────────────────────────────────────────────────────────────
 # STAGE 1.5: PRISMA MIGRATION DRIFT CHECK
 # Si schema.prisma est staged sans nouvelle migration → BLOQUÉ
 # ─────────────────────────────────────────────────────────────

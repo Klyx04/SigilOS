@@ -9,7 +9,7 @@ import { guide as poidsRunesForgemagieDofusFr } from "./poids-runes-forgemagie-d
 import { guide as guideBrisageRentabiliteRunesFr } from "./guide-brisage-rentabilite-runes";
 import { guide as guideElevageEnclosGuildeDofusFr } from "./guide-elevage-enclos-guilde-dofus";
 
-// Contenus EN (traductions, vocabulaire officiel du client anglais — voir GLOSSARY-EN.md)
+// Contenus EN (traductions, vocabulaire officiel du client anglais — voir docs/reference/GLOSSARY-EN.md)
 import { guide as gererDiscordGuildeDofusEn } from "./en/gerer-discord-guilde-dofus";
 import { guide as guideGigalodonDofusEn } from "./en/guide-gigalodon-dofus";
 import { guide as guideSanctuaireJardinsEternelsEn } from "./en/guide-sanctuaire-jardins-eternels";

@@ -22,7 +22,7 @@ const ScopesSchema = z.array(z.enum(GOD_SCOPES)).min(0);
 
 const GrantDelegateSchema = z.object({
     userId: z.string().optional(),
-    // 🔄 Bound & format (RULES.md) : ID Discord = 17-20 chiffres
+    // 🔄 Bound & format (docs/RULES.md) : ID Discord = 17-20 chiffres
     discordId: z.string().regex(/^\d{17,20}$/, "ID Discord invalide (17-20 chiffres)").optional(),
     scopes: ScopesSchema,
     expiresAt: z.coerce.date().optional().nullable(),

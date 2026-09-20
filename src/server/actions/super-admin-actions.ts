@@ -192,7 +192,7 @@ export async function canAccessBrick(
  * 🛡️ Guard fail-closed pour les actions serveur des modules ouverts aux sous-gods.
  * Autorise si super-admin OU (page ouvrable + grant/scope sur la brique).
  * Lève une erreur sinon (utilisable dans les server actions), et trace le refus
- * (GodAccessLog) pour l'anti-scout, cohérent avec la sécurité RULES.md.
+ * (GodAccessLog) pour l'anti-scout, cohérent avec la sécurité docs/RULES.md.
  */
 export async function requireGodBrick(brickId: string): Promise<true> {
     if (await isSuperAdmin()) return true;

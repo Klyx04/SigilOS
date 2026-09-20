@@ -11,7 +11,7 @@
  * Ce module ne fait **aucune I/O** : il traduit l'issue réelle de l'inscription
  * (calculée par `src/server/calendar-service.ts`) en message éphémère, et la
  * route le renvoie en `type: 4` (`flags: 64`). Règle tenue : **jamais muet**
- * (cf. `.agents/workflows/discord-module.md`).
+ * (cf. `docs/agents/discord-module.md`).
  */
 
 /** État du rafraîchissement de l'embed Discord après une action d'inscription. */

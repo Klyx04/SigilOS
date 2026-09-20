@@ -43,7 +43,7 @@
  *
  * ⚠️ **Un contenu qui change change de NOM de fichier** : `next/image` sert
  * `/_next/image?url=…&w=…`, une URL indépendante du contenu, donc un fichier
- * écrasé reste l'ancien dans le cache du navigateur (cf. `MAINTENANCE.md` §3e).
+ * écrasé reste l'ancien dans le cache du navigateur (cf. `docs/MAINTENANCE.md` §3e).
  * Le script **refuse** d'écrire sur un fichier présent dans `HEAD` (utiliser
  * `--force` en connaissance de cause). Les figures actuelles sont donc nommées
  * `…-2x.png` : le suffixe dit la densité du fichier.
@@ -65,7 +65,11 @@ import sharp from "sharp";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const BASE_URL = process.env.BASE_URL || "http://localhost:3000";
-const GUILD_ID = process.env.GUILD_ID || "1290442961380835451";
+const GUILD_ID = process.env.GUILD_ID;
+if (!GUILD_ID) {
+  console.error("GUILD_ID manquant (ex. GUILD_ID=<id-de-guilde> node scripts/capture-landing-visuels.mjs)");
+  process.exit(1);
+}
 const PROFILE_DIR = path.join(ROOT, ".playwright-profile");
 const OUT_DIR = path.resolve(ROOT, process.env.OUT_DIR || "public/assets/screenshots");
 const LOGIN_MODE = process.argv.includes("--login");

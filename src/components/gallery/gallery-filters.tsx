@@ -227,7 +227,7 @@ export function GenderFilter({
                     "w-8 h-8 rounded-lg flex items-center justify-center transition-colors",
                     selectedGender === "F" ? "bg-danger text-danger-foreground" : "text-muted-foreground hover:text-danger hover:bg-surface"
                 )}
-                title="Sexe F�minin"
+                title="Sexe Féminin"
             >
                 <Venus className="w-4 h-4" />
             </button>

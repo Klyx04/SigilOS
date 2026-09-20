@@ -255,7 +255,7 @@ function buildExoBadge(exoLabels: string[] | undefined): string | null {
 /**
  * S8.17 — palier de potion **borné** aux 3 paliers de jeu (50 / 65 / 80 %).
  * Une valeur hors référentiel est **ignorée** : jamais un « potion 0 % » publié
- * (RULES.md § *Bornes validation* — toute donnée issue d'une API externe / d'une
+ * (docs/RULES.md § *Bornes validation* — toute donnée issue d'une API externe / d'une
  * saisie est bornée avant affichage).
  */
 export function resolvePotionTierLabel(tier: number | null | undefined): string | null {

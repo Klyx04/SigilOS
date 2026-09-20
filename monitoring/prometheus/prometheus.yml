@@ -1,5 +1,8 @@
-# Prometheus Configuration for SigilOS Production
-# This file tells Prometheus what to scrape and how often
+# Prometheus Configuration — SigilOS (fichier UNIQUE : dev ET prod)
+# Monté par `docker-compose.yml` (dev, port 9090) et `docker-compose.prod.yml` (prod).
+# Remplace l'ancien doublon `prometheus/prometheus.yml`, supprimé le 20/09/2026
+# (deux copies identiques = risque de divergence silencieuse).
+# Cf. docs/arbo/CARTE-DU-PROJET.md §7.
 
 global:
   scrape_interval: 15s

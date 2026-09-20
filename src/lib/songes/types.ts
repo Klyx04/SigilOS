@@ -252,7 +252,7 @@ export function getDifficultyColor(difficulty: DifficultyKey): string {
 }
 
 /**
- * Parse le fichier bonus_songes.json
+ * Parse le fichier src/data/bonus_songes.json
  */
 export type SongesBonus = {
     rarete: "Commun" | "Rare" | "Épique" | "Légendaire";

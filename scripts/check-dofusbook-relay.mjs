@@ -22,7 +22,7 @@ const SIGN = process.env.DOFUSBOOK_WORKER_SIGN_SECRET || SECRET;
 const ID = process.argv[2] || "16582901";
 
 if (!RELAY) {
-    console.error("❌ DOFUSBOOK_CF_WORKER_URL absent (voir docs/GALERIE-DOFUSBOOK-RELAIS.md §3)");
+    console.error("❌ DOFUSBOOK_CF_WORKER_URL absent (voir docs/reference/GALERIE-DOFUSBOOK-RELAIS.md §3)");
     process.exit(1);
 }
 

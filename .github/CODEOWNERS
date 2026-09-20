@@ -1,0 +1,50 @@
+# CODEOWNERS — SigilOS
+#
+# Convention GitHub : le DERNIER motif qui correspond gagne.
+# Devient contraignant dès que le ruleset de branche exigera une revue des propriétaires
+# (voir docs/SECURITY.md § « Écarts connus » : le ruleset `secure-dev` est aujourd'hui désactivé).
+# Rôle : un auditeur peut voir d'un coup d'œil qui est responsable de la surface sensible.
+
+# ── Par défaut : le mainteneur du projet ──────────────────────────────────────
+*                                           @Klyx04
+
+# ── Chaîne CI/CD & gouvernance ───────────────────────────────────────────────
+/.github/                                   @Klyx04
+/.husky/                                    @Klyx04
+/.gitleaks.toml                             @Klyx04
+/.npmrc                                     @Klyx04
+/.dockerignore                              @Klyx04
+
+# ── Déploiement & infrastructure ─────────────────────────────────────────────
+/Dockerfile                                 @Klyx04
+/Dockerfile.caddy                           @Klyx04
+/Caddyfile                                  @Klyx04
+/docker-compose.yml                         @Klyx04
+/docker-compose.prod.yml                    @Klyx04
+/docker-entrypoint.sh                       @Klyx04
+/monitoring/                                @Klyx04
+/scripts/deploy*.sh                         @Klyx04
+/scripts/check-*.sh                         @Klyx04
+/scripts/backup_db.sh                       @Klyx04
+/scripts/restore_db.sh                      @Klyx04
+
+# ── Cœur sécurité applicative ────────────────────────────────────────────────
+/src/proxy.ts                               @Klyx04
+/src/lib/csp.ts                             @Klyx04
+/src/lib/security.ts                        @Klyx04
+/src/lib/encryption.ts                      @Klyx04
+/src/lib/token-encryption.ts                @Klyx04
+/src/lib/storage-utils.ts                   @Klyx04
+/src/lib/ratelimit.ts                       @Klyx04
+/src/auth.ts                                @Klyx04
+/src/auth.config.ts                         @Klyx04
+/src/server/websocket/                      @Klyx04
+
+# ── Modèle de données (migrations = irréversibles côté prod) ─────────────────
+/prisma/schema.prisma                       @Klyx04
+/prisma/migrations/                         @Klyx04
+
+# ── Documentation de sécurité ────────────────────────────────────────────────
+/docs/SECURITY.md                           @Klyx04
+/docs/RULES.md                              @Klyx04
+/docs/reference/SECURITY_HARDENING_PLAN.md  @Klyx04

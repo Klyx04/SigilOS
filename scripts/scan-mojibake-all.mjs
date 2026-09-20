@@ -2,7 +2,7 @@
  * Balayage (non commité) : reste-t-il du mojibake ailleurs que dans globals.css ?
  * Même règle que le réparateur : un octet de tête UTF-8 caché dans un char cp1252
  * suivi d'octets de continuation.
- *   node src/temp/refonte_landing/scan-mojibake-all.mjs
+ *   node scripts/scan-mojibake-all.mjs
  */
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";

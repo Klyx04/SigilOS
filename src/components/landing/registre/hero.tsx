@@ -8,9 +8,10 @@
  * chips, image d'ambiance assombrie occupant tout l'écran.
  *
  * Ce qui le remplace : une phrase, une action principale, un lien secondaire,
- * et à droite un **écran réel du produit** légendé (pas une illustration).
- * Le visuel est statique (`src/lib/landing-figures.ts`) : il ne dépend plus d'un
- * upload en base.
+ * et à droite une **reproduction vectorielle du produit** (`./dashboard-mockup`).
+ * Aucun upload en base, aucune capture d'écran à maintenir : les PNG légendés,
+ * `src/lib/landing-figures.ts` et les outils de capture de figures ont été
+ * retirés le 20/09/2026.
  */
 
 import { useState } from "react";

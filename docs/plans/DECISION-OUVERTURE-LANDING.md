@@ -15,6 +15,14 @@ l'immersion** (y porter le design immersif Dofus aujourd'hui dans `public/mainte
 
 ## 2. Captures de la landing — visuels statiques (décision du 17/09/2026)
 
+> ⚠️ **PÉRIMÉ depuis le 20/09/2026** : la landing affiche des **mockups vectoriels**
+> (`src/components/landing/registre/*-mockup.tsx` : dashboard, calendrier, guide, missions). Les 4 visuels
+> `public/assets/screenshots/{dashboard-guilde,calendrier-sorties,missions-guilde,guide-sylvestre}.png`,
+> leur module `src/lib/landing-figures.ts`, son test et les scripts `capture-landing-visuels.mjs` /
+> `crop-landing-visuels.mjs` / `probe-figure-slots.mjs` ont été **supprimés**. L'image de partage social de
+> la page d'attente est `public/assets/landing/bg-guild.jpg`. Ce chapitre est conservé comme **trace de la
+> décision** (et les avertissements sur le cache `next/image` restent valables pour les visuels des guides).
+
 - Les captures affichées sur `/` sont **statiques**, source unique
   `src/lib/landing-figures.ts` → fichiers `public/assets/screenshots/` :
   `dashboard-guilde.png` (hero), `calendrier-sorties.png` (calendrier des sorties),

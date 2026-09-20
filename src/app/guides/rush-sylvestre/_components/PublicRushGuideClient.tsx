@@ -47,6 +47,7 @@ import { RushCoordinateChip } from "@/components/dofus-quests/rush/RushCoordinat
 import { brandIconForUrl } from "@/lib/source-icons";
 import { QuestItemResourceGrid } from "@/components/dofus-quests/rush/QuestItemResourceGrid";
 import { RushSeparatorBanner } from "@/components/dofus-quests/rush/RushSeparatorBanner";
+import { RushInfoBanner } from "@/components/dofus-quests/rush/RushInfoBanner";
 import {
   openPipWindow,
   openFallbackPopup,
@@ -1173,13 +1174,36 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
           // et l'image du bloc à droite quand le GOD en a posé une.
           if (ms.type === "SEPARATEUR") {
             return (
-              <RushSeparatorBanner
-                key={ms.id}
-                title={ms.title}
-                description={ms.description}
-                imageUrl={ms.imageUrl}
-                accentColor={ms.accentColor}
-              />
+              // L'ancre partageable `#bloc-<id>` (sommaire + hash d'URL) doit survivre : le
+              // bandeau reste donc dans un conteneur porteur de l'identifiant.
+              <div key={ms.id} id={`bloc-${ms.id}`}>
+                <RushSeparatorBanner
+                  title={ms.title}
+                  description={ms.description}
+                  imageUrl={ms.imageUrl}
+                  accentColor={ms.accentColor}
+                />
+              </div>
+            );
+          }
+
+          // Bloc CONSEIL / TIPS : le MÊME bandeau que le dashboard membre (composant partagé).
+          // Avant, le guide public le rendait comme un CHAPITRE (« Chapitre 0 · 0/0 étapes
+          // (0%) » avec un bouton « Tout valider » qui ne pouvait rien valider) : deux rendus
+          // pour un même bloc dans un guide partagé — c'est ce qui est corrigé ici.
+          if (ms.type === "INFO") {
+            const infoText = ms.tips || ms.description || ms.title || "";
+            const infoTitle = ms.title && !infoText.startsWith(ms.title) ? ms.title : null;
+            return (
+              <div key={ms.id} id={`bloc-${ms.id}`}>
+                <RushInfoBanner
+                  title={infoTitle}
+                  imageUrl={ms.imageUrl}
+                  accentColor={ms.accentColor}
+                >
+                  {infoText}
+                </RushInfoBanner>
+              </div>
             );
           }
 

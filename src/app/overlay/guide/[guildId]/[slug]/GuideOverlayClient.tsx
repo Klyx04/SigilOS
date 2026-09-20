@@ -25,6 +25,7 @@ import { RushOverlayFooter } from "./components/RushOverlayFooter";
 import { RushOverlayCompact } from "./components/RushOverlayCompact";
 import { RushCurrentObjective } from "@/components/dofus-quests/rush/RushCurrentObjective";
 import { RushSeparatorBanner } from "@/components/dofus-quests/rush/RushSeparatorBanner";
+import { RushInfoBanner } from "@/components/dofus-quests/rush/RushInfoBanner";
 import { getNextObjective, aggregateRushResources } from "./components/overlay-utils";
 import { RushOverlayResourcesModal } from "./components/RushOverlayResourcesModal";
 import { RushOverlayMembersModal, type OverlayMember } from "./components/RushOverlayMembersModal";
@@ -940,7 +941,11 @@ export default function GuideOverlayClient({
                   </span>
                 </button>
 
-                <span className="font-serif font-bold text-xs text-[#39bc95] shrink-0">{currentMsIndex + 1}.</span>
+                {/* Numéro et pourcentage ne valent que pour une ÉTAPE : un séparateur ou un
+                    encart n'a aucune progression (« 0% » n'est pas une information). */}
+                {!msIsInfoBlock && (
+                  <span className="font-serif font-bold text-xs text-[#39bc95] shrink-0">{currentMsIndex + 1}.</span>
+                )}
 
                 {/* Icône Dofus à côté du bloc courant + animation à la complétion */}
                 {currentMsDofus && (
@@ -976,11 +981,13 @@ export default function GuideOverlayClient({
                 )}
               </div>
 
-              <div className="flex items-center gap-1.5 shrink-0 pl-1">
-                <span className={`text-[11px] font-mono font-bold mr-1 ${isLightMode ? "text-slate-500" : "text-[#929aa5]"}`}>
-                  {currentMsPct}%
-                </span>
-              </div>
+              {!msIsInfoBlock && (
+                <div className="flex items-center gap-1.5 shrink-0 pl-1">
+                  <span className={`text-[11px] font-mono font-bold mr-1 ${isLightMode ? "text-slate-500" : "text-[#929aa5]"}`}>
+                    {currentMsPct}%
+                  </span>
+                </div>
+              )}
             </div>
           )}
 
@@ -1098,6 +1105,17 @@ export default function GuideOverlayClient({
                 accentColor={currentMs.accentColor}
                 className="my-3"
               />
+            ) : currentMs?.type === "INFO" ? (
+              // Bloc CONSEIL / TIPS : le MÊME bandeau partagé que le dashboard et le guide
+              // public (l'overlay avait sa propre mise en page centrée, picto compris).
+              <RushInfoBanner
+                title={currentMs.description && currentMs.title && !currentMs.description.startsWith(currentMs.title) ? currentMs.title : null}
+                imageUrl={currentMs.imageUrl}
+                accentColor={currentMs.accentColor}
+                className="my-3"
+              >
+                {currentMs.tips || currentMs.description || currentMs.title}
+              </RushInfoBanner>
             ) : msIsInfoBlock ? (
               <div className="flex flex-col items-center gap-3 py-10 px-6 text-center select-none max-w-md mx-auto">
                 {currentMsDofus ? (
@@ -1108,7 +1126,7 @@ export default function GuideOverlayClient({
                   <img src={currentMs.imageUrl} alt={currentMs.title} className="h-12 w-12 object-contain drop-shadow" />
                 ) : null}
                 <span className="text-[9px] font-black uppercase tracking-[0.22em]" style={{ color: currentMs.accentColor || "#a3e635" }}>
-                  {currentMs.type === "DOFUS_OBTAINED" ? "✦ Dofus obtenu ✦" : currentMs.type === "SEPARATEUR" ? "— Séparateur —" : "✦ Info ✦"}
+                  {currentMs.type === "DOFUS_OBTAINED" ? "✦ Dofus obtenu ✦" : currentMs.type === "SEPARATEUR" ? "Étape charnière" : "Conseil"}
                 </span>
                 <h3 className={`font-serif text-lg font-black uppercase tracking-wide ${isLightMode ? "text-slate-900" : "text-[#f2f0e9]"}`}>
                   {currentMs.title}

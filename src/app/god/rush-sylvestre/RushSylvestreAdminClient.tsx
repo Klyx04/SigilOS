@@ -1371,6 +1371,10 @@ function MilestoneRow({
 
   const dofusInfo = milestone.dofusId ? DOFUS_LIST.find(d => d.id === milestone.dofusId) : null;
 
+  // Un bloc CONSEIL / TIPS n'est pas un chapitre : il porte un texte + une image, rien
+  // d'autre. Ni option, ni compteur de quêtes, ni liste à déplier, ni ajout de quête.
+  const isTips = milestone.type === "INFO";
+
   return (
     <div className="bg-zinc-950/40">
       <div className="flex items-center gap-2 px-4 py-2.5 group">
@@ -1468,10 +1472,14 @@ function MilestoneRow({
           </div>
         ) : (
           <>
-            <button onClick={onToggle} className="flex-1 flex items-center gap-2 text-left min-w-0">
+            <button
+              onClick={() => { if (!isTips) onToggle(); }}
+              aria-expanded={isTips ? undefined : isExpanded}
+              className={`flex-1 flex items-center gap-2 text-left min-w-0 ${isTips ? "" : "cursor-pointer"}`}
+            >
               <span className="text-sm font-bold text-white truncate">{milestone.title}</span>
-              {milestone.isOptional && <span className="text-caption px-1 py-0.5 rounded bg-zinc-800 text-zinc-500 font-bold uppercase flex-shrink-0">opt.</span>}
-              {dofusInfo && (
+              {!isTips && milestone.isOptional && <span className="text-caption px-1 py-0.5 rounded bg-zinc-800 text-zinc-500 font-bold uppercase flex-shrink-0">opt.</span>}
+              {!isTips && dofusInfo && (
                 <span className="flex items-center flex-shrink-0" title={dofusInfo.label}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={dofusInfo.imageUrl} alt={dofusInfo.label} className="w-4 h-4 object-contain" />
@@ -1493,8 +1501,10 @@ function MilestoneRow({
                   className="hidden sm:block h-7 w-14 shrink-0 rounded-[3px] border border-white/10 object-cover"
                 />
               )}
-              <span className="text-caption text-zinc-600 flex-shrink-0">{milestone.sequences.length} quête{milestone.sequences.length !== 1 ? "s" : ""}</span>
-              {isExpanded ? <ChevronDown className="w-3 h-3 text-zinc-600 ml-auto flex-shrink-0" /> : <ChevronRight className="w-3 h-3 text-zinc-600 ml-auto flex-shrink-0" />}
+              {!isTips && (
+                <span className="text-caption text-zinc-600 flex-shrink-0">{milestone.sequences.length} quête{milestone.sequences.length !== 1 ? "s" : ""}</span>
+              )}
+              {!isTips && (isExpanded ? <ChevronDown className="w-3 h-3 text-zinc-600 ml-auto flex-shrink-0" /> : <ChevronRight className="w-3 h-3 text-zinc-600 ml-auto flex-shrink-0" />)}
             </button>
             <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
               <button onClick={onEdit} className="p-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 rounded-lg transition-all"><Pencil className="w-3 h-3" /></button>
@@ -1504,9 +1514,9 @@ function MilestoneRow({
         )}
       </div>
 
-      {/* Sequences */}
+      {/* Sequences — jamais pour un bloc CONSEIL / TIPS : il n'accueille aucune quête. */}
       <AnimatePresence>
-        {isExpanded && !isEditing && (
+        {!isTips && isExpanded && !isEditing && (
           <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
             <div className="pl-10 pr-4 pb-3 space-y-1.5">
               <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleSeqDragEnd}>

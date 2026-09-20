@@ -61,6 +61,7 @@ import { safeImageUrl } from "@/lib/security";
 import { getAlignmentSet, collectCascadeUncheck } from "@/lib/rush-helpers";
 import { RushHelperBadge } from "@/components/rush/RushHelperBadge";
 import { RushSeparatorBanner } from "@/components/dofus-quests/rush/RushSeparatorBanner";
+import { RushInfoBanner } from "@/components/dofus-quests/rush/RushInfoBanner";
 import { MilestoneCelebrationBurst } from "@/components/dofus-quests/rush/MilestoneCelebration";
 import { RushCoordinateChip } from "@/components/dofus-quests/rush/RushCoordinateChip";
 import { brandIconForUrl } from "@/lib/source-icons";
@@ -605,6 +606,17 @@ function DofusObtainedBanner({ milestone }: { milestone: Milestone }) {
           background: `linear-gradient(135deg, ${color}10 0%, rgba(0,0,0,0.5) 50%, ${color}06 100%)`,
         }}
       >
+        {/* Image du bloc — importée côté GOD : posée en tête de carte, NUE (l'œuf du Dofus
+            reste le picto du TYPE, l'image est l'illustration de l'obtention). */}
+        {milestone.imageUrl && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={safeImageUrl(milestone.imageUrl)}
+            alt=""
+            onError={e => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+            className="max-h-40 w-full object-contain"
+          />
+        )}
         {/* Inner content */}
         <div className="relative flex flex-col items-center gap-5 py-8 px-6 text-center">
           {/* Dofus icon — large egg */}
@@ -658,17 +670,6 @@ function DofusObtainedBanner({ milestone }: { milestone: Milestone }) {
 }
 
 // ─── InfoBanner (for INFO type milestones — tips/conseil bandeau) ────────────
-function getInfoStyle(accentColor?: string|null): { border: string; bg: string; icon: string } {
-  if (!accentColor) return { border:"border-success/30", bg:"from-success/20 via-background to-background", icon:"💡" };
-  const c = accentColor.toLowerCase();
-  if (c.startsWith("#ef")||c.startsWith("#f4")||c.startsWith("#f5")||c.startsWith("#eab")||c.startsWith("#dc")||c.startsWith("#f9")) 
-    return { border:"border-warning/30", bg:"from-warning/20 via-background to-background", icon:"⚠️" };
-  if (c.startsWith("#3b")||c.startsWith("#06")||c.startsWith("#4f")||c.startsWith("#63")||c.startsWith("#0e")||c.startsWith("#38"))
-    return { border:"border-info/30", bg:"from-info/20 via-background to-background", icon:"📖" };
-  if (c.startsWith("#7c")||c.startsWith("#a8")||c.startsWith("#8b")||c.startsWith("#c0"))
-    return { border:"border-info/30", bg:"from-info/20 via-background to-background", icon:"🔮" };
-  return { border:"border-success/30", bg:"from-success/20 via-background to-background", icon:"💡" };
-}
 function renderContentWithCoords(text: string, guildId: string = ""): (string | React.ReactNode)[] {
   const parts: (string | React.ReactNode)[] = [];
   // Combine link regex and coordinate regex in one pass
@@ -715,33 +716,20 @@ function renderContentWithCoords(text: string, guildId: string = ""): (string | 
 }
 
 function InfoBanner({ milestone }: { milestone: Milestone }) {
-  const color = milestone.accentColor || "#10b981";
   const content = milestone.tips || milestone.description || milestone.title || "";
   const parts = renderContentWithCoords(content);
   const hasTitle = !!milestone.title && !content.startsWith(milestone.title);
-  const isWarm = color.startsWith("#ef")||color.startsWith("#f4")||color.startsWith("#f5")||color.startsWith("#eab")||color.startsWith("#dc")||color.startsWith("#f9");
-  const isCool = color.startsWith("#3b")||color.startsWith("#06")||color.startsWith("#4f")||color.startsWith("#63")||color.startsWith("#0e")||color.startsWith("#38");
-  const isPurple = color.startsWith("#7c")||color.startsWith("#a8")||color.startsWith("#8b")||color.startsWith("#c0");
-  let icon = "💡";
-  if (isWarm) icon = "⚠️";
-  else if (isCool) icon = "📖";
-  else if (isPurple) icon = "🔮";
 
+  // Le bandeau lui-même vit dans `RushInfoBanner` (composant PARTAGÉ avec le guide public
+  // et l'overlay) : ici on ne fournit que le contenu rendu (liens + coordonnées cliquables).
   return (
-    <div className="relative my-3 rounded-[6px] overflow-hidden border select-none"
-      style={{
-        borderColor: `${color}30`,
-        background: `linear-gradient(135deg, ${color}12 0%, rgba(0,0,0,0.5) 50%, ${color}08 100%)`,
-      }}
+    <RushInfoBanner
+      title={hasTitle ? milestone.title : null}
+      imageUrl={milestone.imageUrl}
+      accentColor={milestone.accentColor}
     >
-      <div className="relative flex items-start gap-3 p-3">
-        <span className="text-lg leading-none mt-0.5 shrink-0">{icon}</span>
-        <div className="text-xs text-foreground leading-relaxed font-medium flex-1 min-w-0">
-          {hasTitle && <p className="font-[family-name:var(--font-cinzel)] font-semibold text-sm mb-1 " style={{color}}>{milestone.title}</p>}
-          {parts}
-        </div>
-      </div>
-    </div>
+      {parts}
+    </RushInfoBanner>
   );
 }
 

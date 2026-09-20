@@ -10,11 +10,11 @@
 > 🧹 **MàJ 20/09/2026 — ménage du dépôt** (détail : `docs/arbo/AUDIT-ARBO-2026-09.md` §0, lot **D1→D9**) :
 > - **toute la documentation est désormais sous `docs/`** (index `docs/README.md`) : plus aucun `.md` à la
 >   racine sauf `README.md`, plus de `.agents/workflows/` (→ `docs/agents/`), plus de `.antigravity` ;
-> - les kits de ménage `_menage-2026-09-13/17/19` ont été **archivés hors dépôt** :
->   `A:\SigilOS--menage-2026-09-20\lot2-menage\` (dont `_git-purge.ps1`, encore utile pour le lot 1 de l'audit) ;
-> - les 12 reliques posées à la racine de `src/` sont dans `A:\SigilOS--menage-2026-09-20\lot1-src-reliques\` ;
-> - les chemins `A:\SigilOS\_menage-*` cités dans le **journal historique ci-dessous** ne sont donc plus valides :
->   ils pointent maintenant vers l'archive ci-dessus.
+> - les kits de ménage `_menage-2026-09-13/17/19` ont été **sortis du dépôt** (kit `_git-purge.ps1` inclus) ;
+> - les 12 reliques posées à la racine de `src/` ont été **sorties du dépôt** ;
+> - ⛔ **ces archives externes ont toutes été supprimées du disque le 20/09/2026** (clôture de la purge
+>   d'historique — cf. `docs/arbo/ARCHIVES-TEMP-2026-09.md`) : les chemins `A:\SigilOS--*` cités dans le
+>   **journal historique ci-dessous sont donc historiques**, à ne pas chercher.
 
 ---
 

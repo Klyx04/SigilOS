@@ -1,5 +1,12 @@
 # Archives de la zone de travail `src/temp` — état au 19/09/2026
 
+> ⛔ **Mise à jour du 20/09/2026 — plus aucune archive externe n'existe.** Toutes les archives citées
+> dans ce document (`A:\SigilOS--temp-archive-*`, `A:\SigilOS--menage-*`) ont été **supprimées du disque**
+> en clôture de la purge d'historique : **ne cherche plus ces chemins, ils sont historiques.**
+> Ce qui est conservé pour la traçabilité tient dans `A:\SigilOS--purge-2026-09-20\` (~19 Mo : rapports,
+> scripts, `commit-map`) et dans l'**historique git**, qui n'est pas concerné.
+> Les renvois `A:\…` ci-dessous décrivent donc **ce qui a été fait**, pas un emplacement à consulter.
+
 > **Mise à jour du 20/09/2026 — la zone est VIDE et n'existe plus.**
 > `src/temp/` a été supprimé du disque (son contenu est archivé hors dépôt :
 > `A:\SigilOS--menage-2026-09-20\lot4-src-temp\` → `chantier-actif.md` 136 Ko, `debug.md`,

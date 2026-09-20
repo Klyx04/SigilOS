@@ -210,6 +210,6 @@ docs/
 | `tsconfig.tsbuildinfo`, `.next/` | Artefacts locaux | ✅ ignorés (jetables) |
 | `src/` — 12 **reliques** (`TODO-rush-sylvestre-refactor.md`, `module-quetes-dofus-v3.md`, `sigil_king_guide.md`, `temp-demo-deploy`, `.metamob_api`, `.feed-ankama`…) | Notes, dumps, specs livrées et log de déploiement **tracés à la racine de `src/`** | ✅ **sorties le 20/09** (archivées hors dépôt, 0 citation) |
 | `.antigravity` (58 Ko) | Contexte d'assistant figé depuis le 31/08 | ✅ **supprimé le 20/09** |
-| `_menage-2026-09-13/17/19` | Kits de ménage à la racine | ✅ **archivés le 20/09** (`A:\SigilOS--menage-2026-09-20\lot2-menage\`) |
+| `_menage-2026-09-13/17/19` | Kits de ménage à la racine | ✅ **sortis le 20/09** (l'archive du ménage a elle-même été supprimée le même jour, après copie des preuves utiles — voir `docs/arbo/ARCHIVES-TEMP-2026-09.md`) |
 
 

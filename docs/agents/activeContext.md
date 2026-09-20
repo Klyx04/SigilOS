@@ -1,10 +1,10 @@
 # Active Context — SigilOS
 
 > 📌 **Rotation (depuis le 20/09/2026)** : cette page ne garde que les **6 dernières sessions**.
-> Les blocs plus anciens (26 au 20/09/2026) sont **archivés hors dépôt**
-> (`A:\SigilOS--menage-2026-09-20\lot6-activeContext\`), et restent consultables via
-> `git log -p -- docs/agents/activeContext.md`. En fin de session : ajouter le nouveau bloc EN HAUT,
-> et sortir le 7ᵉ s'il existe (même emplacement d'archive, ou archives externes `A:\SigilOS--temp-archive-*`).
+> Les blocs plus anciens (26 au 20/09/2026) étaient archivés hors dépôt — ces archives ont été
+> **supprimées le 20/09/2026** (`docs/arbo/ARCHIVES-TEMP-2026-09.md`) ; ils restent **intégralement**
+> consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
+> En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 ## 🔐 Session 20/09/2026 (suite) — **Purge des empreintes machine + réécriture de l'historique git** → PR #689 (squash `ee93c06` sur `dev`), puis `dev` réécrit (`fd095b2`)
 > **Demande user (verbatim)** : « comment faire pour avoir un GitHub propre sans que personne ne puisse retrouver des reliquats comme ces images dangereuses ou autre aberration dans l'historique du projet […] c faisable sur GitHub ? »
 > **Constat (audit de 1 645 images suivies + archives d'uploads)** : 199 images portaient des métadonnées (« Adobe Photoshop 26.5 (Windows) », horodatages, chunks `eXIf/tEXt/iTXt`) · 6 « preuves » de guilde étaient des **captures d'explorateur local** du disque · 3 captures Discord d'un serveur tiers (pseudos de membres) suivies sans aucune référence · chemin machine `C:\Users\…\dofus_assets` dans 5 fichiers · identifiants Discord en dur (guilde **et** compte propriétaire) dans 3 scripts · **1 865 commits signés avec l'e-mail personnel** (prénom + nom lisibles) · historique contenant un dump SQL de 17,7 Mo, un `.xlsx` de 85 Mo, une application Electron extraite (`tmp/ankama-launcher-extracted`) et des rapports de lint.

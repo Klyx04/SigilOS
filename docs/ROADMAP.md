@@ -4,8 +4,9 @@
 > À chaque session, lire **uniquement** : `docs/ROADMAP.md` (backlog + demandes ouvertes).
 > Les invariants et les exigences par type sont dans **`AGENTS.md`** (racine), lu automatiquement :
 > rien à coller.
-> **Historique long** (`docs/CONTEXT.md` intégral, mémos de chantier) : **hors dépôt** (archives externes
-> `A:\SigilOS--temp-archive-*`) et **À LA DEMANDE UNIQUEMENT**.
+> **Historique long** (`docs/CONTEXT.md` intégral, mémos de chantier) : hors dépôt, et les archives
+> externes ont été **supprimées le 20/09/2026** (`docs/arbo/ARCHIVES-TEMP-2026-09.md`) — plus rien à
+> ouvrir hors du dépôt.
 > Réouvrir l'historique en mode plan = gaspillage de tokens.
 
 ---

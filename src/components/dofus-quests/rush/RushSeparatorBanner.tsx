@@ -33,9 +33,17 @@ export function RushSeparatorBanner({
   const src = imageUrl ? safeImageUrl(imageUrl) : "";
 
   return (
-    <section className={cn("relative my-6 flex select-none items-stretch overflow-hidden rounded-[6px] border border-border bg-surface", className)}>
+    <section
+      className={cn(
+        // Bandeau plat + hauteur MINIMALE : l'image a une vraie surface et le texte est
+        // centré DANS le bandeau (verticalement et horizontalement, dans la zone que
+        // l'image lui laisse). La hauteur ne dépend jamais de l'image.
+        "relative my-6 flex min-h-[96px] select-none items-stretch overflow-hidden rounded-[6px] border border-border bg-surface sm:min-h-[144px]",
+        className
+      )}
+    >
       <span aria-hidden="true" className="w-[3px] shrink-0" style={{ backgroundColor: accent }} />
-      <div className="flex min-w-0 flex-1 flex-col justify-center gap-1 px-4 py-3">
+      <div className="flex min-w-0 flex-1 flex-col items-center justify-center gap-1 px-4 py-3.5 text-center sm:px-5">
         <span className="font-mono text-[11px] font-semibold uppercase tracking-[0.055em]" style={{ color: accent }}>
           Étape charnière
         </span>
@@ -48,12 +56,13 @@ export function RushSeparatorBanner({
           src={src}
           alt=""
           onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
-          // Jamais masquée : le bandeau garde son image jusqu'à la fenêtre PiP (420 px),
-          // où les paliers `sm`/`md` ne s'appliquent pas — elle y rétrécit, c'est tout.
-          className="h-auto w-24 shrink-0 object-cover sm:w-32 md:w-40"
+          // L'image s'ADAPTE : hauteur = celle du bandeau, largeur déduite de SON ratio
+          // (`object-contain` + `w-auto` ⇒ jamais rognée, jamais déformée). Elle s'aligne
+          // à droite et son bord gauche se fond dans le bandeau.
+          className="my-auto h-[96px] w-auto max-w-[46%] shrink-0 self-center object-contain sm:h-[144px]"
           style={{
-            maskImage: "linear-gradient(to left, rgba(0,0,0,0.95), transparent)",
-            WebkitMaskImage: "linear-gradient(to left, rgba(0,0,0,0.95), transparent)",
+            maskImage: "linear-gradient(to left, rgba(0,0,0,1) 72%, rgba(0,0,0,0) 100%)",
+            WebkitMaskImage: "linear-gradient(to left, rgba(0,0,0,1) 72%, rgba(0,0,0,0) 100%)",
           }}
         />
       )}

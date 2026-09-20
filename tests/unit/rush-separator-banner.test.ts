@@ -34,11 +34,13 @@ describe("RushSeparatorBanner — bandeau de séparateur (2 surfaces)", () => {
     expect(html({})).toContain("background-color:#e6b96b");
   });
 
-  it("loge l'image du bloc à droite, nue et fondue dans le bandeau", () => {
+  it("loge l'image du bloc à droite, nue, adaptée et fondue dans le bandeau", () => {
     const out = html({ imageUrl: "/uploads/guides/section-incarnam.webp" });
     expect(out).toContain('src="/uploads/guides/section-incarnam.webp"');
-    // Grammaire des autres blocs : couverture DANS LE FLUX + fondu vers le texte.
-    expect(out).toContain("object-cover");
+    // L'image s'adapte : hauteur du bandeau, largeur déduite de son ratio — jamais rognée
+    // (`object-contain` + `w-auto`, et surtout PAS `object-cover`).
+    expect(out).toContain("object-contain");
+    expect(out).not.toContain("object-cover");
     expect(out).toContain("mask-image");
     // …et jamais de tuile : l'image est servie nue.
     expect(out).not.toContain("rounded-lg border");

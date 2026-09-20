@@ -14,6 +14,15 @@ quelqu'un qui n'a pas suivi les 40 derniers chantiers.
 
 > **Branche** : `refactor/nettoyage-src-temp` → **PR #688** (OPEN, MERGEABLE, 8 commits, 94 fichiers,
 > +854 / −47 003). **Rien n'est encore mergé dans `dev`** : tout ce qui suit est porté par cette PR.
+>
+> ⚠️ **MAJ 20/09/2026 — ce qui suit est HISTORIQUE** : la PR #688 est **fusionnée** (squash `e82920eba`),
+> suivie de la purge des **empreintes machine** (PR #689 → `ee93c0649`) et de la **réécriture de
+> l'historique** (2 497 chemins purgés, identités anonymisées). Les 4 visuels de la landing
+> (`dashboard-guilde`, `calendrier-sorties`, `missions-guilde`, `guide-sylvestre`), `src/lib/landing-figures.ts`,
+> son test et les scripts `capture-landing-visuels.mjs` / `crop-landing-visuels.mjs` / `probe-figure-slots.mjs`
+> ont été **supprimés** : les figures de la landing sont des **mockups vectoriels**
+> (`src/components/landing/registre/*-mockup.tsx`). Le profil Playwright se recrée avec
+> `node scripts/capture-screenshots.mjs --login`.
 
 ### ✅ Fait
 

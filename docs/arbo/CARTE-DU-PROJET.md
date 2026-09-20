@@ -38,22 +38,24 @@ Verdict : **cité + lancé** = vivant (à garder) · **cité seulement dans un v
 | `.github/` `.husky/` | CI/CD + hook pre-commit (scan de secrets, tsc, vérif migration Prisma) | ✅ |
 | `node_modules/` `.next/` `dist/` `.playwright-profile/` | Artefacts locaux (jamais commités) | ❌ jetables |
 
-## 2. La racine, fichier par fichier (25 fichiers suivis)
+## 2. La racine, fichier par fichier (26 fichiers suivis)
 
 > **Pourquoi tout ça à la racine ?** Trois familles, par ordre de contrainte :
 > 1. **Imposé par l'outil** (déplacer casse le build) : `package.json` / `package-lock.json`, `next.config.ts`,
 >    `tsconfig.json`, `postcss.config.mjs`, `eslint.config.mjs`, `vitest.config.ts`, `prisma.config.js`,
 >    `sentry.{client,server,edge}.config.ts` (lus **à la racine** par `@sentry/nextjs`), `Dockerfile`,
 >    `.dockerignore`, `.gitignore`, `.gitattributes`, `.npmrc`, `.env`.
-> 2. **Convention forte de l'écosystème** (déplaçable, mais tout le monde l'attend là) : `components.json`
->    (CLI shadcn), `docker-compose.yml` / `docker-compose.prod.yml` / `Dockerfile.caddy` / `Caddyfile`
->    (référencés par les scripts de déploiement et la CI), `README.md`, `.env.example`.
+> 2. **Convention forte de l'écosystème** (déplaçable, mais tout le monde l'attend là) : `AGENTS.md`
+>    (standard lu **automatiquement** par les assistants IA — Cline, Cursor, Copilot, Codex…),
+>    `components.json` (CLI shadcn), `docker-compose.yml` / `docker-compose.prod.yml` / `Dockerfile.caddy` /
+>    `Caddyfile` (référencés par les scripts de déploiement et la CI), `README.md`, `.env.example`.
 > 3. **Supprimés / générés** : `tailwind.config.ts` (mort — Tailwind v4 est *CSS-first*, la config n'est
 >    jamais lue) ; `tsconfig.tsbuildinfo` et `next-env.d.ts` sont générés et ignorés par git.
 
 | Fichier | Rôle |
 |---|---|
-| `README.md` | **Vitrine publique** du projet (aucun détail technique) — **le seul `.md` de la racine** ; la mise en route locale est dans `docs/DEVELOPPEMENT.md` |
+| `AGENTS.md` | **Amorce des assistants IA** (créé le 20/09/2026) : point d'entrée unique, lu **automatiquement** — routage vers les sources de vérité, invariants de sécurité, hygiène « zéro dette ». Il **ne duplique aucune doc** (il route). |
+| `README.md` | **Vitrine publique** du projet (aucun détail technique) — l'un des **2 seuls `.md` de la racine** (avec `AGENTS.md`) ; la mise en route locale est dans `docs/DEVELOPPEMENT.md` |
 
 > 📌 **Toute la documentation vit dans `docs/`** : index `docs/README.md`, arborescence détaillée §2bis.
 > **Supprimés le 19/09/2026** : `WORKFLOW.md` (doublon exact de `docs/RULES.md §Git Workflow`, zéro citation) et
@@ -90,8 +92,8 @@ docs/
 ├── SECURITY.md                    politique de sécurité (ex-racine ; GitHub lit aussi docs/)
 ├── MAINTENANCE.md                 ops : cron, déploiement, incidents (ex-racine)
 ├── ROADMAP.md                     backlog priorisé + workflow de session
-├── agents/                        consignes données aux assistants IA (ex-`.agents/workflows/`)
-│   ├── PROMPT_START.md            amorce de session (ex-racine)
+├── agents/                        consignes données aux assistants IA (ex-`.agents/workflows/`) ;
+│   │                              l'amorce lue automatiquement est `AGENTS.md` (RACINE)
 │   ├── session-amorce.md · activeContext.md · git-push.md · prisma-schema-change.md
 │   └── add-cron-task.md · discord-module.md · dev-local.md · deploy-vps.md ·
 │       disaster-recovery.md · dofus-quest-compile.md · siphon-worldmap.md · sync-game-assets.md
@@ -183,12 +185,12 @@ docs/
 | `services/discord-bot/` (6 suivis) | **Le bot Discord** : `index.ts` (source), `Dockerfile`, `package.json`… | ✅ `dist/index.js` est **détracké** (19/09) : régénéré au déploiement |
 | `cloudflare-workers/` (6) | 3 Workers : `dofusbook-proxy`, `dofus-ladder-proxy`, `sigil-ladder-ankama` (chacun `worker.js` + `wrangler.toml`) | ✅ cache `.wrangler/` **ignoré** (détracké le 19/09) |
 | `monitoring/prometheus/prometheus.yml` | Config Prometheus **unique** : montée par `docker-compose.yml:192` (dev) **et** `docker-compose.prod.yml:367` (prod) | ✅ unifié le 20/09/2026 (l'ancien doublon `prometheus/prometheus.yml` est supprimé) |
-| `docs/agents/` (13) | Procédures pour les assistants : `PROMPT_START.md`, `session-amorce.md`, `git-push.md`, `prisma-schema-change.md`, `deploy-vps.md`… + `activeContext.md` (**journal de session**, 111 Ko — rotation à prévoir) | ✅ outils internes (ex-`.agents/workflows/`) |
+| `docs/agents/` (13) | Procédures pour les assistants : `session-amorce.md`, `git-push.md`, `prisma-schema-change.md`, `deploy-vps.md`, `zone-volatile.md`… + `activeContext.md` (**journal de session** — rotation à 6 sessions, ~29 Ko). L'amorce lue automatiquement est `AGENTS.md` (racine) | ✅ outils internes (ex-`.agents/workflows/`) |
 | `.github/workflows/verify.yml` + `deploy.yml`, `dependabot.yml`, `CODEOWNERS` | CI (filtre, lint/tsc/tests, scan secrets/IOC, build de prod), déploiement GHCR, mises à jour de dépendances, propriétaires de revue (surface sensible) | ✅ |
 | `.husky/pre-commit` | Scan de secrets + `tsc` + refus si `schema.prisma` change sans migration | ✅ (⚠️ bloque aussi un simple commentaire dans le schéma) |
 | `.gemini/antigravity/brain/…/scratch/*` | Brouillons locaux d'un assistant IA | ✅ **rien de suivi** (ignoré par git) |
 | `docs/` (32 suivis) | **Toute la documentation du projet** : 5 docs de référence + `agents/`, `ops/`, `plans/`, `reference/`, `arbo/` | ✅ arbo unique (cf. §2bis) |
-| `docs/audits/` (6 fichiers, **non suivis**) | Audits de sécurité/infra/SEO + `retour-kimik3.md` | ✅ locaux par choix (`docs/agents/PROMPT_START.md` interdit de les committer) |
+| `docs/audits/` (6 fichiers, **non suivis**) | Audits de sécurité/infra/SEO + `retour-kimik3.md` | ✅ locaux par choix (`AGENTS.md` §3 l'interdit) |
 | `tests/` (162) | `unit/` (154) + `security/` + `infrastructure.test.ts` : 1722 tests | ✅ |
 
 ## 8. Récap : ce qui ne sert plus (par ordre de certitude)
@@ -208,6 +210,6 @@ docs/
 | `tsconfig.tsbuildinfo`, `.next/` | Artefacts locaux | ✅ ignorés (jetables) |
 | `src/` — 12 **reliques** (`TODO-rush-sylvestre-refactor.md`, `module-quetes-dofus-v3.md`, `sigil_king_guide.md`, `temp-demo-deploy`, `.metamob_api`, `.feed-ankama`…) | Notes, dumps, specs livrées et log de déploiement **tracés à la racine de `src/`** | ✅ **sorties le 20/09** (archivées hors dépôt, 0 citation) |
 | `.antigravity` (58 Ko) | Contexte d'assistant figé depuis le 31/08 | ✅ **supprimé le 20/09** |
-| `_menage-2026-09-13/17/19` | Kits de ménage à la racine | ✅ **archivés le 20/09** (`A:\SigilOS--menage-2026-09-20\lot2-menage\`) |
+| `_menage-2026-09-13/17/19` | Kits de ménage à la racine | ✅ **sortis le 20/09** (l'archive du ménage a elle-même été supprimée le même jour, après copie des preuves utiles — voir `docs/arbo/ARCHIVES-TEMP-2026-09.md`) |
 
 

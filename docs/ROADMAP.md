@@ -1,10 +1,12 @@
 # 🗺️ ROADMAP — SigilOS (backlog priorisé + workflow de session)
 
 > **Ce fichier est LA référence en mode plan.** Le backlog priorisé y est condensé.
-> À chaque session, lire **uniquement** : `docs/ROADMAP.md` (backlog + demandes ouvertes)
-> (+ `docs/agents/PROMPT_START.md` pour les exigences de type).
-> **Historique long** (`docs/CONTEXT.md` intégral, mémos de chantier) : **hors dépôt** (archives externes
-> `A:\SigilOS--temp-archive-*`) et **À LA DEMANDE UNIQUEMENT**.
+> À chaque session, lire **uniquement** : `docs/ROADMAP.md` (backlog + demandes ouvertes).
+> Les invariants et les exigences par type sont dans **`AGENTS.md`** (racine), lu automatiquement :
+> rien à coller.
+> **Historique long** (`docs/CONTEXT.md` intégral, mémos de chantier) : hors dépôt, et les archives
+> externes ont été **supprimées le 20/09/2026** (`docs/arbo/ARCHIVES-TEMP-2026-09.md`) — plus rien à
+> ouvrir hors du dépôt.
 > Réouvrir l'historique en mode plan = gaspillage de tokens.
 
 ---
@@ -135,7 +137,8 @@
 ## 🧭 Règle mode plan (économie de tokens)
 
 1. Lire `docs/ROADMAP.md` (backlog + demandes ouvertes).
-2. Ouvrir `docs/agents/PROMPT_START.md` pour le bloc exigences (type : dev / sécu / infra / SEO / données).
+2. Les invariants et les exigences de type sont dans **`AGENTS.md`** (racine) : **déjà chargés
+   automatiquement** — rien à ouvrir ni à coller.
 3. Ouvrir un fichier de référence (`docs/RULES.md`, `docs/SECURITY.md`, `docs/MAINTENANCE.md`, `docs/plans/SEO_REPRISE.md`)
    **uniquement si la tâche le touche**.
 4. NE JAMAIS ouvrir en plan mode : `docs/CONTEXT.md` intégral, les mémos et historiques de session

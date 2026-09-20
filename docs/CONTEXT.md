@@ -1,18 +1,24 @@
 # 🧠 CONTEXT — SigilOS (Contexte global à fournir à chaque prompt)
 
 > **Point d’entrée du contexte projet — VERSION CONDENSÉE (mise à jour 2026-09-02).**
-> ⚠️ L’historique détaillé des sessions (avant le 21/08/2026) est archivé **hors dépôt**
-> (archives externes `A:\SigilOS--temp-archive-*`) — NON relu par les prompts.
-> 📌 **État actuel & prochaines priorités** : voir `docs/agents/activeContext.md` (léger, à jour) — c'est la référence pour « où on en est ».
-> Les sections ci-dessous décrivent l'**architecture & le produit** (stables). L'état du chantier évolue : suivez `docs/agents/activeContext.md` + la mémo de session `memo-*.md` la plus récente.
+> ⚠️ L’historique détaillé des sessions (avant le 21/08/2026) était archivé **hors dépôt** : ces archives
+> ont été **supprimées le 20/09/2026**, en clôture de la purge d'historique (constat et inventaire des
+> lots : `docs/arbo/ARCHIVES-TEMP-2026-09.md`). NON relu par les prompts.
+> 📌 **État actuel & prochaines priorités** : `docs/agents/activeContext.md` — c'est la référence pour
+> « où on en est ».
+> Les sections ci-dessous décrivent l'**architecture & le produit** (stables) ; l'état du chantier évolue :
+> suivez `docs/agents/activeContext.md`.
 
 ---
 
 ## 👉 À fournir pour chaque prompt (démarrage rapide)
 
-- **→ Utiliser `docs/agents/PROMPT_START.md`** (à la racine) : bloc à coller + ligne selon le type (bug, sécu, infra, SEO, BDD).
-- **Référencer `docs/CONTEXT.md`** en premier (ce fichier). L’IA lit ensuite selon le sujet (sécurité → `docs/SECURITY.md`, dev → `docs/RULES.md`, infra → `docs/MAINTENANCE.md`, SEO → `docs/plans/SEO_REPRISE.md`).
-- **Ne pas** déverser tout le repo dans le prompt — `docs/agents/PROMPT_START.md` + `docs/CONTEXT.md` suffisent.
+- **Rien à coller** : l'amorce des assistants vit à la racine du dépôt — **`AGENTS.md`**, lu automatiquement
+  par Cline, Cursor, Copilot, Codex… Elle route vers les sources de vérité et rappelle les invariants.
+- **Ce fichier (`docs/CONTEXT.md`) décrit l'architecture et le produit** — il n'est **pas** à lire par
+  défaut. L'IA ouvre ensuite selon le sujet (sécurité → `docs/SECURITY.md`, conventions → `docs/RULES.md`,
+  infra → `docs/MAINTENANCE.md`, SEO → `docs/plans/SEO_REPRISE.md`).
+- **Ne pas** déverser tout le dépôt dans le prompt : `AGENTS.md` + la source du sujet suffisent.
 
 ## 🏗️ Vue d’ensemble
 
@@ -27,8 +33,8 @@
 
 > 📌 Pour les prompts, lire **`docs/ROADMAP.md`** : c'est LA source unique des demandes ouvertes
 > (blocs de session + entrées de module + priorités).
-> L'historique annoté complet (toutes demandes depuis 2026, mémos, plans de chantier) est
-> **hors dépôt** (archives externes `A:\SigilOS--temp-archive-*`, cf. `docs/arbo/ARCHIVES-TEMP-2026-09.md`).
+> L'historique annoté complet (toutes demandes depuis 2026, mémos, plans de chantier) était **hors dépôt** :
+> ces archives ont été **supprimées le 20/09/2026** (cf. `docs/arbo/ARCHIVES-TEMP-2026-09.md`).
 
 ### 🔴 PRIORITÉ #223 — Résilience Discord long terme (point dur : **16/11/2026**)
 > ✅ **P0 + P1 + P2 + fix CodeQL FAIT + MERGÉ (PR #520, `6e5a779a3`)** — anti-obfuscation (name nullable, UI « Salon masqué ») · signature Ed25519 UNIFIÉE (anti-replay ±300 s, clé 64 hex, fail-closed 401) · route webhook au FORMAT RÉEL (PING→204, `APPLICATION_AUTHORIZED`/`DEAUTHORIZED` ; handlers Gateway morts supprimés — Gateway = source de vérité) · fetch membres centralisés · invite SANS `permissions=8` (bitmask 6356836904068) · User-Agent `DiscordBot (url, version)` · doc intents · **fix CodeQL SSRF** (barrière regex ancrée). Vérifs : tsc 0 · lint 0 · **283/283** · build OK · **CodeQL vert**.
@@ -93,7 +99,7 @@
 | [`DECISION-OUVERTURE-LANDING.md`](./plans/DECISION-OUVERTURE-LANDING.md) | **Décision ouverture prod & landing immersive** : vitrine `maintenance.html` vs `page.tsx`, checklist ouverture, statut CTA contrasté |
 | [`prisma/schema.prisma`](../prisma/schema.prisma) | Schéma BDD (source de vérité) |
 | `refonte-long-terme-discord-compatibilite/` | Chantier #223 : plan maître + source technique résilience |
-| archives externes | Historiques complets + mémos/amorces/média **hors dépôt** (`A:\SigilOS--temp-archive-*`) |
+| archives externes | Historiques complets + mémos/amorces/média — **hors dépôt, supprimées le 20/09/2026** (plus rien à consulter) |
 
 ## ⚙️ Règles d’interaction avec l’IA
 

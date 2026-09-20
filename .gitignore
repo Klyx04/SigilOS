@@ -206,7 +206,7 @@ temp_map.jpg
 
 utf8_map.tsx
 
-# Dossier mémo/plan de session — ne JAMAIS pousser (voir docs/agents/PROMPT_START.md)
+# Dossier mémo/plan de session — ne JAMAIS pousser (voir AGENTS.md §3)
 /src/temp/
 
 # Scratch de session à la racine (logs, sondes, scripts one-shot) — jamais commités.

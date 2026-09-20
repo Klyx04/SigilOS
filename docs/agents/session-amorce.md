@@ -8,8 +8,10 @@ description: Template générique d'« amorce de session » — le prompt à col
 > contexte, les **règles de sécurité non négociables**, la méthode de preuve et la
 > **Definition of Done** du dépôt — sans rien réinventer et sans en oublier la moitié.
 >
-> **Comment s'en servir** : (1) remplir le **§1 « Brief »** ; (2) copier le **§10** dans une
-> nouvelle session ; (3) en fin de session cocher le **§8** et ouvrir la PR vers `dev`.
+> **Comment s'en servir** : l'amorce courte est **`AGENTS.md`** (racine), chargée automatiquement à chaque
+> session — ce fichier-ci est le **complément détaillé, à la demande** : (1) remplir le **§1 « Brief »** ;
+> (2) le **§10** sert de prompt long si un cadrage exhaustif est nécessaire ; (3) en fin de session cocher
+> le **§8** et ouvrir la PR vers `dev`.
 >
 > **Règles de référence (toujours valables)** : `docs/RULES.md` · `docs/SECURITY.md` ·
 > `docs/agents/{git-push,prisma-schema-change,add-cron-task,discord-module,dev-local}.md`.
@@ -138,7 +140,8 @@ La CI **`Verify & Build`** enchaîne : `npm ci` → intégrité du lockfile → 
 ## 10. 📋 Bloc à coller (prompt de session générique)
 
 > Remplacer chaque `<…>` ; **supprimer** les lignes qui ne s'appliquent pas.
-> Version prête à copier en dehors du dépôt : `AMORCE-GENERIQUE-A-COLLER.txt`.
+> En temps normal, **rien à copier** : `AGENTS.md` (racine) est chargé automatiquement par l'assistant.
+> Ce bloc ne sert que pour un cadrage long, ou un assistant qui n'ouvrirait pas le dépôt.
 
 ```
 CONTEXTE — projet SigilOS (Next 16 + Prisma 7 + Discord). Avant de coder, lis :

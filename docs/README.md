@@ -32,7 +32,7 @@ docs/
 ├── ROADMAP.md                     backlog priorisé + workflow de session
 │
 ├── agents/                        consignes données aux assistants IA
-│   ├── PROMPT_START.md            amorce de session (bloc à coller)
+│   │                              (amorce lue automatiquement : `AGENTS.md`, à la RACINE)
 │   ├── session-amorce.md          amorce détaillée : sources, checklists, DoD
 │   ├── activeContext.md           journal de session (état réel entre deux sessions)
 │   ├── zone-volatile.md           règle de la zone de brouillons `src/temp/` (recréée au besoin)

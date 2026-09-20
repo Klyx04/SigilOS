@@ -131,7 +131,7 @@ retirées du dépôt** (`A:\SigilOS--menage-2026-09-20\lot5-old-uploads\`).
 | `scripts/` | 84 | 0,7 Mo | ⚠️ mélange **one-shot livrés** / **outils vivants** |
 | racine | 34 | — | ⚠️ 8 `.md` + 2 artefacts (`dist/`) |
 | `docs/agents/` | 13 | 0,2 Mo | ⚠️ 12 `.md` de workflow (dont `docs/agents/activeContext.md` = journal de session) |
-| `docs/` | 12 | 0,4 Mo | ✅ (les 6 fichiers d'`docs/audits/` restent **non suivis**, conformément à `docs/agents/PROMPT_START.md`) |
+| `docs/` | 12 | 0,4 Mo | ✅ (les 6 fichiers d'`docs/audits/` restent **non suivis**, conformément à `AGENTS.md` §3) |
 | `services/` | 7 | 117 Mo (dont `node_modules` du bot) | ⚠️ `dist/index.js` compilé suivi |
 | `cloudflare-workers/` | 7 | 0,3 Mo | ⚠️ 1 fichier de **cache** wrangler suivi |
 | `private_uploads/` | 5 | 1,1 Mo | 🔴 **données d'exécution** suivies |
@@ -180,7 +180,7 @@ Profil navigateur Playwright (ignoré par git ✅). Se recrée avec
 | `docs/CONTEXT.md` | point d'entrée technique (condensé) | **garder** |
 | `docs/RULES.md` | conventions + règles de sécurité non négociables | **garder** |
 | `docs/SECURITY.md` | politique de sécurité (convention GitHub) | **garder** |
-| `docs/agents/PROMPT_START.md` | amorce de session (lu par les agents) | **garder** (raccourcir) |
+| `docs/agents/PROMPT_START.md` | ~~amorce de session (lu par les agents)~~ | ✅ **supprimé le 20/09/2026** — remplacé par **`AGENTS.md`** (racine, lu automatiquement), qui le remplace sans le dupliquer |
 | `WORKFLOW.md` | process git | **fusionner dans `docs/RULES.md`** (2 Ko) |
 | `docs/MAINTENANCE.md` | exploitation/ops (50 Ko) | **déplacer dans `docs/`** |
 | `USER_ACTIONS_REQUIRED.md` | actions attendues du propriétaire | **vérifier la fraîcheur** puis archiver si périmé |

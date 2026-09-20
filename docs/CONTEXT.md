@@ -10,9 +10,12 @@
 
 ## 👉 À fournir pour chaque prompt (démarrage rapide)
 
-- **→ Utiliser `docs/agents/PROMPT_START.md`** (à la racine) : bloc à coller + ligne selon le type (bug, sécu, infra, SEO, BDD).
-- **Référencer `docs/CONTEXT.md`** en premier (ce fichier). L’IA lit ensuite selon le sujet (sécurité → `docs/SECURITY.md`, dev → `docs/RULES.md`, infra → `docs/MAINTENANCE.md`, SEO → `docs/plans/SEO_REPRISE.md`).
-- **Ne pas** déverser tout le repo dans le prompt — `docs/agents/PROMPT_START.md` + `docs/CONTEXT.md` suffisent.
+- **Rien à coller** : l'amorce des assistants vit à la racine du dépôt — **`AGENTS.md`**, lu automatiquement
+  par Cline, Cursor, Copilot, Codex… Elle route vers les sources de vérité et rappelle les invariants.
+- **Ce fichier (`docs/CONTEXT.md`) décrit l'architecture et le produit** — il n'est **pas** à lire par
+  défaut. L'IA ouvre ensuite selon le sujet (sécurité → `docs/SECURITY.md`, conventions → `docs/RULES.md`,
+  infra → `docs/MAINTENANCE.md`, SEO → `docs/plans/SEO_REPRISE.md`).
+- **Ne pas** déverser tout le dépôt dans le prompt : `AGENTS.md` + la source du sujet suffisent.
 
 ## 🏗️ Vue d’ensemble
 

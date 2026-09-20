@@ -92,8 +92,8 @@ docs/
 ├── SECURITY.md                    politique de sécurité (ex-racine ; GitHub lit aussi docs/)
 ├── MAINTENANCE.md                 ops : cron, déploiement, incidents (ex-racine)
 ├── ROADMAP.md                     backlog priorisé + workflow de session
-├── agents/                        consignes données aux assistants IA (ex-`.agents/workflows/`)
-│   ├── PROMPT_START.md            amorce de session (ex-racine)
+├── agents/                        consignes données aux assistants IA (ex-`.agents/workflows/`) ;
+│   │                              l'amorce lue automatiquement est `AGENTS.md` (RACINE)
 │   ├── session-amorce.md · activeContext.md · git-push.md · prisma-schema-change.md
 │   └── add-cron-task.md · discord-module.md · dev-local.md · deploy-vps.md ·
 │       disaster-recovery.md · dofus-quest-compile.md · siphon-worldmap.md · sync-game-assets.md
@@ -185,12 +185,12 @@ docs/
 | `services/discord-bot/` (6 suivis) | **Le bot Discord** : `index.ts` (source), `Dockerfile`, `package.json`… | ✅ `dist/index.js` est **détracké** (19/09) : régénéré au déploiement |
 | `cloudflare-workers/` (6) | 3 Workers : `dofusbook-proxy`, `dofus-ladder-proxy`, `sigil-ladder-ankama` (chacun `worker.js` + `wrangler.toml`) | ✅ cache `.wrangler/` **ignoré** (détracké le 19/09) |
 | `monitoring/prometheus/prometheus.yml` | Config Prometheus **unique** : montée par `docker-compose.yml:192` (dev) **et** `docker-compose.prod.yml:367` (prod) | ✅ unifié le 20/09/2026 (l'ancien doublon `prometheus/prometheus.yml` est supprimé) |
-| `docs/agents/` (13) | Procédures pour les assistants : `PROMPT_START.md`, `session-amorce.md`, `git-push.md`, `prisma-schema-change.md`, `deploy-vps.md`… + `activeContext.md` (**journal de session**, 111 Ko — rotation à prévoir) | ✅ outils internes (ex-`.agents/workflows/`) |
+| `docs/agents/` (13) | Procédures pour les assistants : `session-amorce.md`, `git-push.md`, `prisma-schema-change.md`, `deploy-vps.md`, `zone-volatile.md`… + `activeContext.md` (**journal de session** — rotation à 6 sessions, ~29 Ko). L'amorce lue automatiquement est `AGENTS.md` (racine) | ✅ outils internes (ex-`.agents/workflows/`) |
 | `.github/workflows/verify.yml` + `deploy.yml`, `dependabot.yml`, `CODEOWNERS` | CI (filtre, lint/tsc/tests, scan secrets/IOC, build de prod), déploiement GHCR, mises à jour de dépendances, propriétaires de revue (surface sensible) | ✅ |
 | `.husky/pre-commit` | Scan de secrets + `tsc` + refus si `schema.prisma` change sans migration | ✅ (⚠️ bloque aussi un simple commentaire dans le schéma) |
 | `.gemini/antigravity/brain/…/scratch/*` | Brouillons locaux d'un assistant IA | ✅ **rien de suivi** (ignoré par git) |
 | `docs/` (32 suivis) | **Toute la documentation du projet** : 5 docs de référence + `agents/`, `ops/`, `plans/`, `reference/`, `arbo/` | ✅ arbo unique (cf. §2bis) |
-| `docs/audits/` (6 fichiers, **non suivis**) | Audits de sécurité/infra/SEO + `retour-kimik3.md` | ✅ locaux par choix (`docs/agents/PROMPT_START.md` interdit de les committer) |
+| `docs/audits/` (6 fichiers, **non suivis**) | Audits de sécurité/infra/SEO + `retour-kimik3.md` | ✅ locaux par choix (`AGENTS.md` §3 l'interdit) |
 | `tests/` (162) | `unit/` (154) + `security/` + `infrastructure.test.ts` : 1722 tests | ✅ |
 
 ## 8. Récap : ce qui ne sert plus (par ordre de certitude)

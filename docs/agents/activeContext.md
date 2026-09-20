@@ -123,7 +123,7 @@
 ## Références clés
 - 🎨 **SOURCE D'ICÔNES OFFICIELLE (permanente, tout module)** : `<Bureau>/dofus_assets` (~23 770 fichiers : icônes 1x/2x, items 2x, sorts, monstres, UI…). On peut y piocher des icônes pour n'importe quel module, **UNIQUEMENT après les avoir proposées au user ET validées** avant intégration.
 - Backlog canonique : `docs/ROADMAP.md` (à lire en premier en mode plan).
-- 🧭 **Amorce de session générique** : `docs/agents/session-amorce.md` (contexte + **checklist sécurité non négociable** + méthode de preuve + vérifs + DoD + **bloc à coller** §10) — copie prête à copier : `AMORCE-GENERIQUE-A-COLLER.txt`.
+- 🧭 **Amorce de session générique** : `docs/agents/session-amorce.md` (contexte + **checklist sécurité non négociable** + méthode de preuve + vérifs + DoD + **bloc à coller** §10) — **remplacée le 20/09/2026 par `AGENTS.md`** (racine), lu automatiquement par les assistants.
 - 🛒 **Marché — amorce de la phase de debug** : `refonte-marche/AMORCE-DERNIERE-PHASE-DEBUG.md` (+ `AMORCE-DEBUG-A-COLLER.txt`).
 - Demandes ouvertes + annotations : `docs/ROADMAP.md` (source unique).
 - Plan maître #223 : `refonte-long-terme-discord-compatibilite/PLAN-MAITRE-RESILIENCE-DISCORD-LONG-TERME.md` + `sigilos-discord-resilience.md`.

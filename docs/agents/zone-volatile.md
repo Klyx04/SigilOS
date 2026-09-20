@@ -167,7 +167,7 @@ Get-ChildItem -LiteralPath 'A:\SigilOS\src\temp' -Recurse -File -Filter '*.old' 
   `archive/refonte-succes/versions-anciennes/`, `archive/archive` vide supprimé) et le manifeste réécrit.
 - **9 pointeurs morts corrigés** dans des fichiers **suivis** (le contenu était bien dans `archive/memos/`, seul
   le chemin cité avait vieilli) — c'était le « non fait, sur validation » resté ouvert au **§6** : `CONTEXT.md`
-  l.34 / 46 / 59 / 62 · `PROMPT_START.md` l.23 / 114 · `docs/ROADMAP.md` l.457 / 474 / 480 / 500.
+  l.34 / 46 / 59 / 62 · `docs/ROADMAP.md` l.457 / 474 / 480 / 500.
   **Contrôle après** : sur **80 références suivies** (`git grep`), 2 « non résolues » — et ce sont des
   **gabarits de nommage** (`src/temp/memo-…`, `src/temp/_probe-*`) ⇒ **0 chemin réellement mort**.
 - **Retour arrière testé** : `powershell -NoProfile -ExecutionPolicy Bypass -File A:\SigilOS\_menage-2026-09-17\RESTAURER.ps1`

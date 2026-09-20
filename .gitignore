@@ -250,3 +250,6 @@ AUDIT_*.md
 src/audit-cyber
 src/audit-infra
 .lint-result.json
+
+# Dossier de travail temporaire (audits, tests, captures) - ne jamais committer
+/temp/

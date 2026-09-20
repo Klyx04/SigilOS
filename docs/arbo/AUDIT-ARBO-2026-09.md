@@ -108,7 +108,7 @@ retirées du dépôt** (`A:\SigilOS--menage-2026-09-20\lot5-old-uploads\`).
 | **4** | ~~`activeContext.md` : journal qui grossit sans fin~~ | ✅ **fait le 20/09 (D14)** — rotation à **6 sessions**, 111 Ko → 29 Ko, règle écrite en tête |
 | **5** | ~~Deux `prometheus.yml` identiques (dev + prod)~~ | ✅ **fait le 20/09 (D13)** — un seul fichier (`monitoring/prometheus/`), les 2 compose pointent dessus |
 | **6** | ~~`src/temp/refonte_landing/` (47 fichiers)~~ | ✅ **fait le 20/09 (D12)** — tout `src/temp/` archivé hors dépôt ; la règle de la zone vit dans `docs/agents/zone-volatile.md` |
-| **7** | `scratch/_tunnel.log` | Verrouillé par un tunnel `ssh` → `Remove-Item -LiteralPath 'A:\SigilOS\scratch' -Recurse -Force` après fermeture |
+| **7** | ~~`scratch/_tunnel.log` : 2 fichiers verrouillés par un tunnel `ssh`~~ | ✅ **fait le 20/09 (D15)** — logs vidés puis `scratch/` supprimé après fermeture du tunnel ; règle `/scratch/` conservée |
 | **8** | **Merger la PR #688** | Après relecture (volume supprimé important, risque faible : docs, détrackages, outils) |
 
 ### 📌 Fichiers de référence produits
@@ -195,7 +195,7 @@ terminé) → archive externe.
 
 - `_menage-2026-09-13/`, `_menage-2026-09-17/`, `_menage-2026-09-19/` — rapports de ménage : **archivés hors dépôt
   le 20/09/2026** (`A:\SigilOS--menage-2026-09-20\lot2-menage\`) — la racine est propre.
-- `scratch/` — 2 fichiers verrouillés par un tunnel `ssh` en cours (`_tunnel.log`).
+- ✅ `scratch/` — soldé le 20/09/2026 : logs vidés, dossier supprimé (tunnel `ssh` fermé et `cloudflared` désinstallé).
 - `tsconfig.tsbuildinfo` — présent sur disque, **non suivi** ✅ (déjà dans `.gitignore`).
 
 ---

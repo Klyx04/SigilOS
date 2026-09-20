@@ -493,6 +493,7 @@ git pull origin main
 - **Problème** : le build lourd tournait sur le VPS (~4 min à CPU/RAM à fond).
 - **Solution implémentée** :
   - **`.github/workflows/deploy.yml`** : sur `push` vers `dev` (beta) ou `main` (prod), GitHub **build** les 4 images (app, worker, ws, discord-bot) et les **pousse vers GHCR** (GitHub Container Registry), taggées par SHA + `latest`.
+  - **Chaîne de fabrication verrouillée (F2, 20/09/2026)** : les **14 `uses:`** des deux workflows sont épinglés sur un **SHA de commit complet** (`owner/action@<sha40> # vX`), **actions first-party `actions/*` comprises** (`actions/checkout`, `actions/cache`, `actions/setup-node`), et **chaque image est poussée avec provenance + SBOM** (`--provenance=true --sbom=true`) : la référence publiée sur GHCR est donc un **index OCI** (image + attestations) — lisible par `docker buildx imagetools inspect ghcr.io/<owner>/sigilos-app-beta:<sha>` ; `docker pull` / `deploy-cd.sh` sont **inchangés** (le manifeste de la plateforme est sélectionné comme avant). Garde de non-régression : `tests/unit/workflows-actions-pinned.test.ts`.
   - **`scripts/deploy-cd.sh`** : sur le VPS, fait `pull` + `up -d --no-build` depuis GHCR → **aucun build local**, déploiement ~30s.
 - **Utilisation** (sur le VPS, une fois GHCR_TOKEN défini) :
   ```bash

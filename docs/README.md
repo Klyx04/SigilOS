@@ -54,7 +54,6 @@ docs/
 │   └── SEO_REPRISE.md
 │
 ├── reference/                     références stables
-│   ├── SECURITY_HARDENING_PLAN.md
 │   ├── GALERIE-DOFUSBOOK-RELAIS.md
 │   ├── I18N_GUIDE.md
 │   ├── GLOSSARY-EN.md

@@ -48,7 +48,8 @@ Type : développeur. Implémente la correction/nouveauté, puis lance la vérif 
 ### 🔒 Sécurité
 ```
 Type : sécurité. Applique la posture docs/SECURITY.md : fail-closed, auth, guild isolation,
-validation des entrées. Nomme tout finding F-xx si audit. Voir docs/reference/SECURITY_HARDENING_PLAN.md.
+validation des entrées. Nomme tout finding F-xx si audit. Le rapport interne de durcissement
+(mesures détaillées + écarts) vit **hors dépôt**, jamais publié.
 ```
 
 ### 🖥️ Infra / Déploiement / CI-CD

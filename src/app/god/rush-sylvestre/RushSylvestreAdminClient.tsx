@@ -468,12 +468,21 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
 
   const handleDeleteMilestone = useCallback((id: string) => {
     if (!confirm("Supprimer cette étape et toutes ses quêtes ?")) return;
+    // Optimiste : la ligne quitte la liste AVANT l'aller-retour serveur. Sans ça, la
+    // liste gardait la ligne tant que le refresh n'était pas arrivé → un second clic (ou
+    // un clic sur une ligne déjà supprimée ailleurs) visait une ligne absente en base,
+    // et Prisma remontait un P2025 en plein studio. En cas d'échec réel, le `refresh()`
+    // fait foi : la ligne encore en base réapparaît.
+    setLocalMilestones(prev => prev.filter(m => m.id !== id));
     startTransition(async () => {
       try {
-        await deleteRushMilestone(id);
-        toast.success("Étape supprimée");
+        const res = await deleteRushMilestone(id);
+        toast.success(res?.alreadyDeleted ? "Étape déjà supprimée" : "Étape supprimée");
         router.refresh();
-      } catch (e: any) { toast.error(e.message); }
+      } catch (e: any) {
+        toast.error(e?.message || "Suppression impossible");
+        router.refresh();
+      }
     });
   }, [router]);
 
@@ -488,11 +497,18 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
   }, [router]);
 
   const handleDeleteSequence = useCallback((id: string) => {
+    // Même correctif que les blocs : la quête quitte la liste tout de suite (une quête
+    // déjà supprimée — cascade d'un bloc — ne peut plus être « resupprimée »).
+    setLocalMilestones(prev => prev.map(m => ({ ...m, sequences: m.sequences.filter(s => s.id !== id) })));
     startTransition(async () => {
       try {
-        await deleteRushSequence(id);
+        const res = await deleteRushSequence(id);
+        toast.success(res?.alreadyDeleted ? "Quête déjà supprimée" : "Quête supprimée");
         router.refresh();
-      } catch (e: any) { toast.error(e.message); }
+      } catch (e: any) {
+        toast.error(e?.message || "Suppression impossible");
+        router.refresh();
+      }
     });
   }, [router]);
 

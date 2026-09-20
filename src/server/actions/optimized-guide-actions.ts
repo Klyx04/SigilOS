@@ -2974,12 +2974,28 @@ export async function upsertRushMilestone(data: {
 }
 
 /**
- * (God) Supprime un milestone du Rush Sylvestre.
+ * (God) Supprime un milestone du Rush Sylvestre — **IDEMPOTENT**.
+ *
+ * `db.guideMilestone.delete()` jetait un **P2025** quand la ligne n'existait déjà plus
+ * (double clic sur une liste pas encore rafraîchie, suppression depuis un autre onglet) :
+ * l'erreur Prisma remontait brute dans le studio. On COMPTE donc les lignes supprimées et
+ * « déjà absente » devient un succès — l'état visé par la demande est atteint (même
+ * sémantique qu'un `DELETE` HTTP). Le `guideId` reste dans le `WHERE` : garde d'état en
+ * course, aucune écriture hors du guide rush (`AGENTS.md` §5.9).
  */
 export async function deleteRushMilestone(milestoneId: string) {
   await requireRushAccess();
 
-  await db.guideMilestone.delete({ where: { id: milestoneId } });
+  const guide = await db.optimizedGuide.findUnique({
+    where: { slug: "rush-sylvestre" },
+    select: { id: true },
+  });
+  const { count } = guide
+    ? await db.guideMilestone.deleteMany({ where: { id: milestoneId, guideId: guide.id } })
+    : { count: 0 };
+
+  if (count === 0) return { success: true, alreadyDeleted: true };
+
   await logGodWrite({
     action: "GOD_RUSH_UPDATE",
     targetType: "DATA_SYNC",
@@ -2988,7 +3004,7 @@ export async function deleteRushMilestone(milestoneId: string) {
   });
   revalidatePath("/god/rush-sylvestre");
   revalidatePath("/dashboard");
-  return { success: true };
+  return { success: true, alreadyDeleted: false };
 }
 
 /**
@@ -3127,12 +3143,17 @@ export async function upsertRushSequence(data: {
 }
 
 /**
- * (God) Supprime une séquence Rush.
+ * (God) Supprime une séquence Rush — **IDEMPOTENT**.
+ * Même correctif que `deleteRushMilestone` : `delete()` jetait P2025 sur une ligne déjà
+ * supprimée (cascade d'un bloc supprimé juste avant, double clic). Périmètre inchangé
+ * (l'accès à la brique rush est déjà vérifié par `requireRushAccess`).
  */
 export async function deleteRushSequence(sequenceId: string) {
   await requireRushAccess();
 
-  await db.guideSequence.delete({ where: { id: sequenceId } });
+  const { count } = await db.guideSequence.deleteMany({ where: { id: sequenceId } });
+  if (count === 0) return { success: true, alreadyDeleted: true };
+
   await logGodWrite({
     action: "GOD_RUSH_UPDATE",
     targetType: "DATA_SYNC",
@@ -3141,5 +3162,5 @@ export async function deleteRushSequence(sequenceId: string) {
   });
   revalidatePath("/god/rush-sylvestre");
   revalidatePath("/dashboard");
-  return { success: true };
+  return { success: true, alreadyDeleted: false };
 }

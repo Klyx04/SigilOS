@@ -12,6 +12,7 @@ import {
   resolveItemImage,
   getItemImageFallback,
   RUSH_ACTIVITY_TAG_CONFIG,
+  findMilestoneInsertIndex,
 } from "@/lib/rush-guide-utils";
 import type { RushMilestone, RushSequence } from "@/types/rush-guide-types";
 
@@ -343,6 +344,39 @@ describe("rush-guide-utils", () => {
 
     it("renvoie l'URL distante sans id", () => {
       expect(getItemImageFallback(undefined, "https://cdn.example/img.png")).toBe("https://cdn.example/img.png");
+    });
+  });
+
+  describe("findMilestoneInsertIndex", () => {
+    // Liste ordonnée type : CH1 (2 blocs) · séparateur · CH2 (1 bloc) · CH4 (1 bloc)
+    const ordered = [
+      { type: "QUETE_SERIE", chapter: 1 },
+      { type: "DONJON", chapter: 1 },
+      { type: "SEPARATEUR", chapter: 0 },
+      { type: "QUETE_SERIE", chapter: 2 },
+      { type: "DOFUS", chapter: 4 },
+    ];
+
+    it("range un bloc APRÈS le dernier bloc de son chapitre (avant le séparateur suivant)", () => {
+      expect(findMilestoneInsertIndex(ordered, { type: "ZONE", chapter: 1 })).toBe(2);
+      expect(findMilestoneInsertIndex(ordered, { type: "ZONE", chapter: 2 })).toBe(4);
+    });
+
+    it("place un chapitre neuf AVANT le premier chapitre supérieur", () => {
+      // Chapitre 3 encore inexistant → il se glisse juste avant le CH4 (index 4),
+      // donc APRÈS le séparateur intercalé (qui n'est pas un chapitre).
+      expect(findMilestoneInsertIndex(ordered, { type: "ZONE", chapter: 3 })).toBe(4);
+    });
+
+    it("append quand le chapitre est au-delà de tous les autres", () => {
+      expect(findMilestoneInsertIndex(ordered, { type: "ZONE", chapter: 9 })).toBe(ordered.length);
+    });
+
+    it("append un bloc hors chapitre (séparateur, encart, bannière)", () => {
+      for (const type of ["SEPARATEUR", "INFO", "DOFUS_OBTAINED"]) {
+        expect(findMilestoneInsertIndex(ordered, { type, chapter: 0 })).toBe(ordered.length);
+      }
+      expect(findMilestoneInsertIndex([], { type: "ZONE", chapter: 1 })).toBe(0);
     });
   });
 });

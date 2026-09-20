@@ -359,3 +359,51 @@ export function resolveRushSeqIcon(icon?: string | null | undefined): string | n
   if (/^https?:\/\//i.test(trimmed) || trimmed.startsWith("/")) return trimmed;
   return `/assets/icons/${trimmed}.png`;
 }
+
+/**
+ * Blocs qui n'appartiennent à AUCUN chapitre du guide : ils vivent ENTRE les chapitres
+ * (séparateur visuel, encart d'information, bannière d'obtention de Dofus). Le studio GOD
+ * les range donc hors du tri par chapitre.
+ */
+export const OUTSIDE_CHAPTER_BLOCK_TYPES = ["SEPARATEUR", "INFO", "DOFUS_OBTAINED"] as const;
+
+/**
+ * Où INSÉRER un nouveau bloc dans la liste ordonnée du studio GOD (même règle que le
+ * glisser-déposer, appliquée à la création).
+ *
+ * Motif du correctif (mesuré le 20/09/2026) : un bloc créé arrivait **toujours en fin de
+ * guide** (`order = nombre de blocs`) — donc hors de son chapitre et à l'autre bout du
+ * scroll, à remonter à la main. On se place désormais :
+ *   · bloc hors chapitre (séparateur, encart, bannière) → **à la fin** (il n'a pas de rang
+ *     de chapitre à respecter) ;
+ *   · bloc d'un chapitre → **après le dernier bloc de ce chapitre** ;
+ *   · chapitre encore inexistant → **avant le premier bloc d'un chapitre supérieur** (les
+ *     chapitres restent croissants), sinon à la fin.
+ *
+ * Le tableau reçu doit être **ordonné** (l'appelant passe la liste triée par `order`).
+ * Retour : l'index d'insertion (`0` = en tête, `ordered.length` = en fin).
+ */
+export function findMilestoneInsertIndex(
+  ordered: { type?: string | null; chapter?: number | null }[],
+  target: { type: string; chapter: number }
+): number {
+  const isOutside = (type?: string | null) =>
+    (OUTSIDE_CHAPTER_BLOCK_TYPES as readonly string[]).includes(String(type ?? ""));
+
+  if (isOutside(target.type)) return ordered.length;
+
+  let lastOfChapter = -1;
+  for (let i = 0; i < ordered.length; i++) {
+    const ms = ordered[i];
+    if (isOutside(ms.type)) continue;
+    if ((ms.chapter ?? 0) === target.chapter) lastOfChapter = i;
+  }
+  if (lastOfChapter >= 0) return lastOfChapter + 1;
+
+  for (let i = 0; i < ordered.length; i++) {
+    const ms = ordered[i];
+    if (isOutside(ms.type)) continue;
+    if ((ms.chapter ?? 0) > target.chapter) return i;
+  }
+  return ordered.length;
+}

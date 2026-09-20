@@ -7,7 +7,7 @@ import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   DndContext, closestCenter, KeyboardSensor, PointerSensor,
-  useSensor, useSensors, DragEndEvent, DragOverEvent
+  useSensor, useSensors, DragEndEvent, DragOverEvent, DragStartEvent, DragOverlay
 } from "@dnd-kit/core";
 import {
   SortableContext, sortableKeyboardCoordinates,
@@ -35,7 +35,7 @@ import {
 } from "@/server/actions/optimized-guide-actions";
 import { searchDungeonsLocal, searchGuideQuests, searchItemsLocalThenDofusDB } from "@/server/actions/dofus-search-actions";
 import { DOFUS_WORLDS, DOFUS_JOBS } from "@/lib/dofus-assets";
-import { resolveRushSeqIcon, getGuideMetiersRequires, RUSH_ACTIVITY_TAG_CONFIG } from "@/lib/rush-guide-utils";
+import { resolveRushSeqIcon, getGuideMetiersRequires, RUSH_ACTIVITY_TAG_CONFIG, findMilestoneInsertIndex } from "@/lib/rush-guide-utils";
 import { resolveRushUIConfig, type RushUIConfig } from "@/lib/rush-ui-config";
 import { uploadImageFile } from "@/components/editor/utils/image-upload";
 import { isSafeImageUrl, safeImageUrl } from "@/lib/security";
@@ -257,7 +257,7 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
 
   // Local sortable milestones for optimistic DnD
   const [localMilestones, setLocalMilestones] = useState<Milestone[]>(initialGuide.milestones as Milestone[]);
-  useEffect(() => { setLocalMilestones(initialGuide.milestones as Milestone[]); }, [initialGuide.milestones]);
+  useEffect(() => { if (!draggingRef.current) setLocalMilestones(initialGuide.milestones as Milestone[]); }, [initialGuide.milestones]);
 
   const sortedMilestones = useMemo(() => sortMilestonesByOrder(localMilestones), [localMilestones]);
   const chapterCount = useMemo(() => countContentChapters(localMilestones), [localMilestones]);
@@ -324,53 +324,72 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
+  // DnD — bloc en cours de glissement (pour le fantôme `DragOverlay`) et drapeau qui
+  // PROTÈGE la liste d'une resynchronisation serveur pendant le geste : un `router.refresh()`
+  // qui atterrissait en plein drag remplaçait `localMilestones` (nouvelle identité de
+  // tableau) et l'index du bloc glissé n'existait plus ⇒ le drag « partait en vrille »
+  // après quelques secondes, surtout en remontant loin (scroll automatique).
+  const [activeDragId, setActiveDragId] = useState<string | null>(null);
+  const draggingRef = useRef(false);
+
+  const handleMilestoneDragStart = useCallback((event: DragStartEvent) => {
+    draggingRef.current = true;
+    setActiveDragId(String(event.active.id));
+  }, []);
+
+  const handleMilestoneDragCancel = useCallback(() => {
+    draggingRef.current = false;
+    setActiveDragId(null);
+  }, []);
+
+  // Une SEULE source d'ordre pour le drag : `sortedMilestones` — l'array réellement rendu,
+  // celui du `SortableContext`. Avant, les index venaient de `localMilestones` pendant que
+  // le DOM suivait `sortedMilestones` : au moindre écart, le bloc sautait ailleurs.
   const handleMilestoneDragOver = useCallback((event: DragOverEvent) => {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
 
-    const activeIndex = localMilestones.findIndex(m => m.id === active.id);
-    const overIndex = localMilestones.findIndex(m => m.id === over.id);
+    const activeIndex = sortedMilestones.findIndex(m => m.id === active.id);
+    const overIndex = sortedMilestones.findIndex(m => m.id === over.id);
     if (activeIndex === -1 || overIndex === -1) return;
 
-    const activeMs = localMilestones[activeIndex];
-    const overMs = localMilestones[overIndex];
+    const activeMs = sortedMilestones[activeIndex];
+    const overMs = sortedMilestones[overIndex];
+
+    const reorder = (item: Milestone) => {
+      const updated = [...sortedMilestones];
+      updated.splice(activeIndex, 1);
+      updated.splice(overIndex, 0, item);
+      setLocalMilestones(updated.map((m, idx) => ({ ...m, order: idx })));
+    };
 
     if (isSeparatorMilestone(activeMs) || isSeparatorMilestone(overMs)) {
-      setLocalMilestones(prev => {
-        const updated = [...prev];
-        const [item] = updated.splice(activeIndex, 1);
-        updated.splice(overIndex, 0, item);
-        return updated.map((m, idx) => ({ ...m, order: idx }));
-      });
+      reorder(activeMs);
       return;
     }
 
-    // Si on survole un bloc dans un chapitre différent
-    // INFO, DOFUS_OBTAINED etc. stay outside chapters — don't reassign
+    // Survol d'un bloc d'un autre chapitre : on montre le rattachement (il est persisté au
+    // drop). INFO, DOFUS_OBTAINED, SEPARATEUR restent hors chapitre — aucune réassignation.
     if (activeMs.chapter !== overMs.chapter && !isOutsideChapterMilestone(activeMs)) {
-      setLocalMilestones(prev => {
-        const updated = [...prev];
-        const item = { ...updated[activeIndex], chapter: overMs.chapter, chapterLabel: overMs.chapterLabel };
-        updated.splice(activeIndex, 1);
-        updated.splice(overIndex, 0, item);
-        return updated.map((m, idx) => ({ ...m, order: idx }));
-      });
+      reorder({ ...activeMs, chapter: overMs.chapter, chapterLabel: overMs.chapterLabel });
     }
-  }, [localMilestones]);
+  }, [sortedMilestones]);
 
   const handleMilestoneDragEnd = useCallback((event: DragEndEvent) => {
+    draggingRef.current = false;
+    setActiveDragId(null);
     const { active, over } = event;
     if (!over) return;
 
-    const oldIndex = localMilestones.findIndex(m => m.id === active.id);
-    const newIndex = localMilestones.findIndex(m => m.id === over.id);
+    const oldIndex = sortedMilestones.findIndex(m => m.id === active.id);
+    const newIndex = sortedMilestones.findIndex(m => m.id === over.id);
     if (oldIndex === -1 || newIndex === -1) return;
 
-    const targetMilestone = localMilestones[newIndex];
-    const sourceMilestone = localMilestones[oldIndex];
+    const targetMilestone = sortedMilestones[newIndex];
+    const sourceMilestone = sortedMilestones[oldIndex];
 
     // Finaliser le tri
-    const updatedMilestones = [...localMilestones];
+    const updatedMilestones = [...sortedMilestones];
     const [movedItem] = updatedMilestones.splice(oldIndex, 1);
 
     // INFO, DOFUS_OBTAINED, SEPARATEUR stay outside chapters — don't reassign
@@ -411,7 +430,7 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
         toast.error("Erreur lors du réordonnancement du bloc");
       }
     });
-  }, [localMilestones, router]);
+  }, [sortedMilestones, router]);
 
   // ── Handlers ─────────────────────────────────────────────────────────────
 
@@ -423,7 +442,7 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
     const isOutsideChapter = isSeparator || isDofusBanner || isInfoBlock;
     startTransition(async () => {
       try {
-        await upsertRushMilestone({
+        const res = await upsertRushMilestone({
           chapter: isOutsideChapter ? "0" : String(newChapterNum),
           chapterLabel: isOutsideChapter ? "" : (newChapterLabel.trim() || `Chapitre ${newChapterNum}`),
           label: newStepTitle.trim(),
@@ -435,12 +454,28 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
           // son bandeau, les autres types dans leur en-tête) — même champ qu'à l'édition.
           imageUrl: newStepImage.trim() || null,
         });
+        // Placement à la CRÉATION : le bloc partait toujours en fin de guide (« order » =
+        // nombre de blocs) — donc hors de son chapitre et à l'autre bout du scroll, à
+        // remonter à la main. On le glisse à sa place (après le dernier bloc de son
+        // chapitre) et on persiste l'ordre, exactement comme le ferait le glisser-déposer.
+        const created = res?.milestone;
+        if (created?.id) {
+          const orderedIds = sortedMilestones.map(m => m.id);
+          const insertAt = findMilestoneInsertIndex(sortedMilestones, {
+            type: newStepType,
+            chapter: isOutsideChapter ? 0 : newChapterNum,
+          });
+          orderedIds.splice(insertAt, 0, created.id);
+          await reorderRushMilestones(orderedIds);
+          // Et il est déplié : le nouveau bloc se voit tout de suite, même hors écran.
+          setExpandedMilestones(prev => new Set(prev).add(created.id));
+        }
         toast.success(isSeparator ? "Séparateur ajouté ✓" : isDofusBanner ? "Bannière Dofus ajoutée ✓" : "Étape ajoutée ✓");
         setNewStepTitle(""); setNewChapterLabel(""); setNewDofusId(null); setNewStepImage(""); setAddingStep(false);
         router.refresh();
       } catch (e: any) { toast.error(e.message); }
     });
-  }, [newChapterNum, newChapterLabel, newStepTitle, newStepColor, newStepType, newDofusId, newStepImage, localMilestones.length, router]);
+  }, [newChapterNum, newChapterLabel, newStepTitle, newStepColor, newStepType, newDofusId, newStepImage, sortedMilestones, router]);
 
   const handleSaveMilestone = useCallback((m: Milestone) => {
     startTransition(async () => {
@@ -786,8 +821,15 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
                 <p className="text-zinc-600 font-black uppercase text-xs tracking-widest italic">Aucun bloc — clique sur &quot;Ajouter un bloc&quot;</p>
               </div>
             ) : (
-              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragOver={handleMilestoneDragOver} onDragEnd={handleMilestoneDragEnd}>
-                <SortableContext items={localMilestones.map(m => m.id)} strategy={verticalListSortingStrategy}>
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragStart={handleMilestoneDragStart}
+                onDragOver={handleMilestoneDragOver}
+                onDragEnd={handleMilestoneDragEnd}
+                onDragCancel={handleMilestoneDragCancel}
+              >
+                <SortableContext items={sortedMilestones.map(m => m.id)} strategy={verticalListSortingStrategy}>
                   <div className="space-y-2">
                     {sortedMilestones.map((m, index) => {
                       const prevContent = sortedMilestones.slice(0, index).reverse().find((item) => !isSeparatorMilestone(item));
@@ -840,6 +882,31 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
                     })}
                   </div>
                 </SortableContext>
+                {/* Fantôme du bloc saisi : il suit le curseur HORS du flux de la liste. Sans
+                    lui, l'élément glissé restait solidaire du conteneur qui défile — sur une
+                    longue remontée (scroll automatique), il dérivait du curseur et le drop
+                    tombait à côté. */}
+                <DragOverlay dropAnimation={null}>
+                  {(() => {
+                    const dragged = activeDragId ? sortedMilestones.find(x => x.id === activeDragId) : null;
+                    if (!dragged) return null;
+                    const t = getMilestoneTypeInfo(dragged.type as MilestoneType);
+                    return (
+                      <div className="flex items-center gap-2 rounded-xl border border-white/15 bg-zinc-900/95 px-3 py-2 shadow-2xl">
+                        <span
+                          className="flex h-5 w-5 shrink-0 items-center justify-center rounded"
+                          style={{ background: t.color + "20", color: t.color }}
+                        >
+                          {t.icon}
+                        </span>
+                        <span className="truncate text-sm font-bold text-white">{dragged.title}</span>
+                        <span className="shrink-0 text-caption text-zinc-500">
+                          {dragged.sequences.length} quête{dragged.sequences.length !== 1 ? "s" : ""}
+                        </span>
+                      </div>
+                    );
+                  })()}
+                </DragOverlay>
               </DndContext>
             )}
           </motion.div>

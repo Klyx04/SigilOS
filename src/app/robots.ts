@@ -15,7 +15,7 @@ export default function robots(): MetadataRoute.Robots {
             userAgent: '*',
             allow: isIndexable ? ['/', '/almanax', '/changelog', '/guilds', '/guides', '/boss', '/legal/', '/status', '/roadmap', '/llms.txt'] : [],
             disallow: isIndexable
-                ? ['/dashboard/', '/api/', '/god/', '/mng-', '/docs/', '/_next/', '/onboarding/', '/test-route/', '/auth/', '/overlay/'] // Hide sensitive, internal, auth-gated, and overlay routes
+                ? ['/dashboard/', '/api/', '/god/', '/mng-', '/docs/', '/_next/', '/onboarding/', '/auth/', '/overlay/'] // Hide sensitive, internal, auth-gated, and overlay routes
                 : '/', // Full block for search engines on non-prod
         },
         sitemap: `${baseUrl}/sitemap.xml`,

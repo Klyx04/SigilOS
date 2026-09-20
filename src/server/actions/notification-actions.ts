@@ -91,7 +91,7 @@ export async function getUnreadNotifications(guildId?: string): Promise<{ succes
             return { success: true, data: JSON.parse(cached) as Notification[] };
         }
 
-        // 2. SECURITY (I-XX): guild isolation — membre requis (fail-closed, SECURITY.md)
+        // 2. SECURITY (I-XX): guild isolation — membre requis (fail-closed, docs/SECURITY.md)
         //    Les notifs système sans guilde restent visibles via le scope OR [guildId, null].
         let internalGuildId: string | undefined;
         if (guildId) {

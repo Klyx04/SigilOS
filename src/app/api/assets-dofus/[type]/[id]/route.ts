@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import fs from 'fs';
+import os from 'os';
 import path from 'path';
 import sharp from 'sharp';
 import { ASSET_DIRS, ensureAssetDirsExist } from '@/lib/dofus-asset-siphon';
@@ -85,7 +86,8 @@ export async function GET(
 
         // 1.5 Sources locales « game data » (assets officiels, ZÉRO réseau)
         // 👑 « God » = dump du client de jeu (`items_2x`, `spells_2x`, `monsters_2x`).
-        //    • dev  : chemin historique Windows (C:\Users\user\Desktop\dofus_assets)
+        //    • dev  : <Bureau>/dofus_assets, résolu via le dossier utilisateur
+        //      (jamais de chemin absolu en dur — cf. docs/RULES.md §Sécurité)
         //    • prod : `DOFUS_ASSETS_DIR` (ex. /data/dofus_assets monté en lecture seule)
         //      → les icônes sont alors servies LOCALEMENT, sans dépendre de DofusDB.
         //    Plusieurs racines possibles, séparées par « ; » ou « , ».
@@ -94,7 +96,7 @@ export async function GET(
                 .split(/[;,]/)
                 .map((dir) => dir.trim())
                 .filter(Boolean),
-            'C:\\Users\\user\\Desktop\\dofus_assets', // héritage dev (ignoré si absent)
+            path.join(os.homedir(), 'Desktop', 'dofus_assets'), // héritage dev (ignoré si absent)
         ];
         const godSubDir = assetType === 'items' ? 'items_2x' : assetType === 'monsters' ? 'monsters_2x' : 'spells_2x';
 

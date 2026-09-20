@@ -101,7 +101,7 @@ typescript-errors.txt
 /scratch/
 /tmp/
 
-# Refactoring one-shot scripts (hors git — cf. CONTEXT.md règle scripts .ps1)
+# Refactoring one-shot scripts (hors git — cf. docs/CONTEXT.md règle scripts .ps1)
 /scripts/convert-console-to-logger.ps1
 
 # Scratch & test scripts at root (one-shot dev tools)
@@ -167,21 +167,25 @@ sylvestre_results.txt
 # Discord bot node_modules
 services/discord-bot/node_modules/
 
-# Game Data Assets (too large for Git) — servis via bind mount + sync-assets.sh,
-# jamais versionnés pour les NOUVEAUX fichiers ; les fichiers déjà suivis ne sont PAS untrackés.
-# NOTE : `/*` (contenu) et non le dossier lui-même — sinon aucune exception `!` ne
-# peut s'appliquer (git ne ré-inclut jamais sous un dossier exclu).
-/public/game-data/*
-# /public/game-data/tiles/ + /public/game-data/hd_maps/ sont couverts par la règle ci-dessus.
-# EXCEPTION : le bestiaire monstres (1 Mo) DOIT être versionné — sans lui, l'onglet
-# "Monstres" du Bestiaire (overlay + landing) est vide sur beta/prod car l'image
-# Docker ne contient pas les fichiers ignorés (recréés à chaque déploiement).
-!/public/game-data/dungeon-monsters.json
-!/public/game-data/secret-passages.json
+# Game Data Assets — DEUX familles bien distinctes :
+#   1. le GÉNÉRÉ (lourd, recréé par les scripts siphon/sync + `sync-assets.sh`, servi en
+#      prod par bind mount, et rempli à la demande depuis le panneau God) → JAMAIS versionné ;
+#   2. le CURÉ (~21 Mo : icônes donjons/monstres/succès/légendaires/invaders + JSON de
+#      référence) → VERSIONNÉ, sinon l'app est vide après un clone et dans l'image Docker.
+# ⚠️ Ne PAS remettre de règle globale `/public/game-data/*` : elle rendait invisibles les
+# nouvelles icônes curées (ex. `dungeons/`) — un fichier ignoré n'existe plus pour git.
+/public/game-data/tiles/
+/public/game-data/hd_maps/
+/public/game-data/items/
+/public/game-data/defis/
+/public/game-data/titans/
+# Bestiaire monstres (1 Mo) : versionné volontairement (sans lui, l'onglet « Monstres » est
+# vide sur beta/prod) ; il est réécrit au runtime par le cron `sync-monster-stats`, et
+# `scripts/deploy.sh` restaure la version du dépôt avant chaque `git pull`.
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Artefacts de build & caches d'outils — regeneres par `npm run build:*`, le
-# Dockerfile ou l'outil lui-meme. Ne JAMAIS les committer (cf. docs/AUDIT-ARBO-2026-09.md).
+# Dockerfile ou l'outil lui-meme. Ne JAMAIS les committer (cf. docs/arbo/AUDIT-ARBO-2026-09.md).
 # ─────────────────────────────────────────────────────────────────────────────
 /dist/
 /services/discord-bot/dist/
@@ -193,17 +197,16 @@ services/discord-bot/node_modules/
 # Brouillons d'assistants IA (scratch des agents)
 /.gemini/antigravity/brain/
 
-# Donnees d'execution : uploads utilisateurs + sauvegardes locales (deja couverts
-# plus haut par /backups/ et private_uploads/, rappeles ici pour la lisibilite)
+# Donnees d'execution : uploads utilisateurs (le dossier /backups/ est deja
+# couvert plus haut, ligne « Backups BDD & artefacts locaux de deploiement »).
 /private_uploads/
-/backups/
 
 # Temporary files
 temp_map.jpg
 
 utf8_map.tsx
 
-# Dossier mémo/plan de session — ne JAMAIS pousser (voir PROMPT_START.md)
+# Dossier mémo/plan de session — ne JAMAIS pousser (voir docs/agents/PROMPT_START.md)
 /src/temp/
 
 # Scratch de session à la racine (logs, sondes, scripts one-shot) — jamais commités.

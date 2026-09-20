@@ -6,7 +6,7 @@
  *
  * Options :
  *   --src <dir>       racine des assets 2x (défaut : $DOFUS_ASSETS_DIR puis
- *                     C:\Users\user\Desktop\dofus_assets)
+ *                     <Bureau>/dofus_assets, résolu via le dossier utilisateur)
  *   --type <t>        items | spells | monsters | all   (défaut : all)
  *   --limit <n>       ne traite que n fichiers (test)
  *   --quality <n>     qualité WebP (défaut 85)
@@ -22,6 +22,7 @@
  * Idempotent : relançable à tout moment, les fichiers déjà convertis sont ignorés.
  */
 const fs = require("fs");
+const os = require("os");
 const path = require("path");
 const sharp = require("sharp");
 
@@ -52,7 +53,9 @@ function resolveSources(args) {
     const roots = [
         args.src,
         ...String(process.env.DOFUS_ASSETS_DIR || "").split(/[;,]/),
-        "C:\\Users\\user\\Desktop\\dofus_assets",
+        // Poste de dev : dump posé sur le Bureau. Aucun chemin machine en dur
+        // (nom d'utilisateur / arborescence locale) — cf. docs/RULES.md §Sécurité.
+        path.join(os.homedir(), "Desktop", "dofus_assets"),
     ].map((r) => (r || "").trim()).filter(Boolean);
     return [...new Set(roots)];
 }

@@ -132,7 +132,7 @@ const BUNDLE_RESERVE_FAILURE_MESSAGES: Record<BundleCoreReason, string> = {
 };
 
 /**
- * BUG-8 — **anti-spam des interactions Discord** (RULES.md § Rate Limiting).
+ * BUG-8 — **anti-spam des interactions Discord** (docs/RULES.md § Rate Limiting).
  *
  * Fenêtre volontairement courte et borne basse : un membre qui clique
  * légitimement (réserver puis se désister) reste sous la limite, tandis qu'un
@@ -562,7 +562,7 @@ export async function handleMarketComponentInteraction(params: {
         return ephemeral(MARKET_EPHEMERAL.MODULE_DISABLED);
     }
 
-    // BUG-8 — **anti-spam des boutons** (RULES.md § Rate Limiting : toute action
+    // BUG-8 — **anti-spam des boutons** (docs/RULES.md § Rate Limiting : toute action
     // déclenchée depuis Discord est throttlée **côté serveur**, pas seulement
     // côté bot). `rateLimit()` est **fail-closed** : si Redis est indisponible,
     // le clic est refusé plutôt que laissé passer.

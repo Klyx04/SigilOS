@@ -1,0 +1,30 @@
+{
+  "entries": [
+    {
+      "dofusdbId": 3399,
+      "name": "Œuf de la Mort",
+      "deletedAt": "2026-09-16T15:42:12.314Z"
+    },
+    {
+      "dofusdbId": 3530,
+      "name": "Ronce",
+      "deletedAt": "2026-09-16T15:42:08.922Z"
+    },
+    {
+      "dofusdbId": 3531,
+      "name": "Ronce animée",
+      "deletedAt": "2026-09-16T15:42:24.972Z"
+    },
+    {
+      "dofusdbId": 3555,
+      "name": "Ronce",
+      "deletedAt": "2026-09-16T15:42:21.291Z"
+    },
+    {
+      "dofusdbId": 4815,
+      "name": "Carlita de l'Aguerfelde",
+      "deletedAt": "2026-09-16T15:42:00.783Z"
+    }
+  ],
+  "updatedAt": "2026-09-16T15:42:24.972Z"
+}

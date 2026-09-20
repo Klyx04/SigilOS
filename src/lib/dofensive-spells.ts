@@ -40,7 +40,7 @@ export interface DofensiveSpellCombat {
     name: string;
     /**
      * Nom anglais (i18n). DofusDB le fournit dans la fusion ; la payload combat
-     * Dofensive ne le porte pas toujours — voir `docs/I18N_GUIDE.md`.
+     * Dofensive ne le porte pas toujours — voir `docs/reference/I18N_GUIDE.md`.
      */
     nameEn?: string;
     /** Icône officielle Dofensive (CDN) — distincte par sort, contrairement à DofusDB. */
@@ -80,7 +80,7 @@ export interface DofensiveMergedSpell extends Omit<DofensiveSpellCombat, "zone">
     description?: string;
     /**
      * Nom anglais (DofusDB) — i18n : `locale === "en" ? (spell.nameEn || spell.name) : spell.name`
-     * (voir `docs/I18N_GUIDE.md`). Aligné sur `SpellData` (grilles de sorts).
+     * (voir `docs/reference/I18N_GUIDE.md`). Aligné sur `SpellData` (grilles de sorts).
      */
     nameEn?: string;
 }

@@ -10,7 +10,7 @@
  * - getGodRoutePrefix() retourne le préfixe générique /mng- (constante standalone),
  *   utilisé par le middleware (build-time) pour MATCHER le trafic, et par robots.ts.
  *
- * Fail-closed (SECURITY.md) : en prod, si GOD_ROUTE absent ou invalide,
+ * Fail-closed (docs/SECURITY.md) : en prod, si GOD_ROUTE absent ou invalide,
  * getGodRoute() renvoie un chemin impossible -> le panel est inaccessible (404).
  */
 

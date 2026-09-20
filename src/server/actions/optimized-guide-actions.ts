@@ -1325,7 +1325,7 @@ export async function resetRushAlignment(guildId: string, altPseudo?: string) {
 }
 
 // ===========================================================================
-// S4 « qui peut aider » — badges membre + [Inviter / Partager]
+// S4 « qui peut aider » — badges membre (INFORMATIF : aucune invitation)
 // ===========================================================================
 
 const getSequenceHelpersSchema = z.object({
@@ -1438,91 +1438,6 @@ export async function getSequenceHelpers(guildId: string, sequenceId: string) {
 
   const helpers = findSequenceHelpers(seqForHelpers, members);
   return { success: true, ...helpers };
-}
-
-const inviteHelperSchema = z.object({
-  guildId: z.string().min(1),
-  sequenceId: z.string().min(1),
-  helperProfileId: z.string().min(1),
-  channelId: z.string().min(1),
-});
-
-/**
- * ── S4 [Inviter / Partager] — poste un ping Discord vers un membre aidant ──
- * Valide que le salon appartient bien à la guilde (fail-closed), résout le compte
- * Discord du membre aidant, et poste une mention. Le corps de la mention est
- * construit côté serveur (jamais passé brut par le client).
- */
-export async function inviteHelperForSequence(
-  guildId: string,
-  sequenceId: string,
-  helperProfileId: string,
-  channelId: string
-) {
-  const parsed = inviteHelperSchema.safeParse({ guildId, sequenceId, helperProfileId, channelId });
-  if (!parsed.success) return { success: false, error: "Paramètres invalides" };
-
-  const ctx = await getUserContext(guildId);
-  if (!ctx.isAuthenticated) return { success: false, error: "Non autorisé" };
-  if (!ctx.profileId) return { success: false, error: "Profile ID manquant" };
-
-  const { success: rateOk } = await rateLimit(`guide-invite:${ctx.profileId}`, 10, 60_000);
-  if (!rateOk) return { success: false, error: "Trop de requêtes, veuillez patienter." };
-
-  const { validateChannelBelongsToGuild, postChannelMessage } = await import("@/server/discord");
-  const belongs = await validateChannelBelongsToGuild(channelId, guildId).catch(() => false);
-  if (!belongs) return { success: false, error: "Salon Discord invalide ou n'appartient pas à ce serveur" };
-
-  // 🔒 Anti-oracle + anti cross-guilde : la séquence reste globale (guide partagé),
-  // mais le helper DOIT appartenir à la guilde appelante. Erreur unique (fail-closed).
-  const [sequence, helper] = await Promise.all([
-    db.guideSequence.findUnique({
-      where: { id: sequenceId },
-      select: { subGuideName: true },
-    }),
-    db.userProfile.findFirst({
-      where: { id: helperProfileId, guild: { discordGuildId: guildId }, status: "ACTIVE" },
-      select: {
-        user: {
-          select: { accounts: { where: { provider: "discord" }, select: { providerAccountId: true } } },
-        },
-      },
-    }),
-  ]);
-  if (!sequence || !helper?.user) return { success: false, error: "Cible introuvable" };
-
-  const helperDiscordId = helper?.user?.accounts?.[0]?.providerAccountId;
-  if (!helperDiscordId) return { success: false, error: "Cible introuvable" };
-
-  const questName = sequence.subGuideName || sequenceId;
-  const sender = ctx.name || "Un membre";
-  const mention = `<@${helperDiscordId}>`;
-
-  try {
-    await postChannelMessage(channelId, {
-      content: `${mention} — 🎯 ${sender} a besoin d'aide pour la quête **${questName}** du rush !`,
-    });
-    return { success: true };
-  } catch (err) {
-    logger.error("[inviteHelperForSequence] Discord post failed", { error: err });
-    return { success: false, error: "Impossible d'envoyer l'invitation sur Discord" };
-  }
-}
-
-/**
- * Liste les salons TEXTUELS de la guilde pour le sélecteur d'invitation.
- */
-export async function listRushTextChannels(guildId: string) {
-  const ctx = await getUserContext(guildId);
-  if (!ctx.isAuthenticated) return { success: false, error: "Non autorisé" };
-
-  const { fetchGuildChannels } = await import("@/server/discord");
-  const channels = await fetchGuildChannels(guildId).catch(() => []);
-  const text = channels
-    .filter((c) => c.type === 0)
-    .map((c) => ({ id: c.id, name: c.name || c.id }))
-    .sort((a, b) => a.name.localeCompare(b.name));
-  return { success: true, channels: text };
 }
 
 // ===========================================================================

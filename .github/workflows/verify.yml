@@ -8,6 +8,10 @@ name: SigilOS CI
 # NOTE: paths-ignore removed — using a filter job instead so
 #       the required check is always reported (never stuck in
 #       "Expected" state when only doc/config files change).
+# NOTE (F2, 20/09/2026): toute action — y compris first-party
+#       (`actions/*`) — est épinglée sur un SHA de commit complet,
+#       tag rappelé en commentaire (`@<sha40> # vX`, forme suivie par
+#       Dependabot). Garde automatique : tests/unit/workflows-actions-pinned.test.ts
 # ─────────────────────────────────────────────────────────────
 on:
   push:
@@ -44,7 +48,7 @@ jobs:
     outputs:
       should_run: ${{ steps.changes.outputs.src }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 2
       - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4
@@ -78,7 +82,7 @@ jobs:
       NODE_OPTIONS: "--max-old-space-size=4096"
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 1
 
@@ -98,7 +102,7 @@ jobs:
           echo "✅ Aucun fichier source ignoré"
 
       - name: Setup Node.js
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: '22'
           cache: 'npm'
@@ -114,7 +118,7 @@ jobs:
         run: npm install -g npm@11 --force
 
       - name: Next.js Cache
-        uses: actions/cache@v6.1.0
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
             ~/.npm
@@ -226,7 +230,7 @@ jobs:
       issues: write
     steps:
       - name: Checkout (full history for Gitleaks)
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
 
@@ -236,7 +240,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Node.js
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: '22'
           cache: 'npm'

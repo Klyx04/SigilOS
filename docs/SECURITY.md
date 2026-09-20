@@ -65,7 +65,8 @@ sur **1645 images suivies** + les archives d'uploads :
 | Chemins machine en dur (`C:\Users\…\Desktop\dofus_assets`) dans le code et la doc | remplacés par `os.homedir()` / placeholder — plus aucune arborescence locale nominative |
 | Identifiants Discord en dur (guilde **et** propriétaire) dans des scripts | passés en variables d'environnement avec **échec explicite** si absents (jamais de fallback de dev) |
 | Captures Discord (serveur tiers, pseudos de membres) suivies sans être référencées | **supprimées** (fichiers morts) |
-| Captures d'écran d'explorateur local dans des uploads de « preuves » de guilde | retirées du suivi le 20/09/2026 (voir écart **9** : elles restent dans l'**historique** git) |
+| Captures d'écran d'explorateur local dans des uploads de « preuves » de guilde | retirées du suivi **et purgées de tout l'historique** le 20/09/2026 (voir écart **9**) |
+| **Historique git** : 636 uploads morts, captures Discord d'un tiers, dump SQL (17,7 Mo), `.xlsx` (85 Mo), application Electron extraite, rapports de lint, fichiers de travail d'agents IA | **purge complète** le 20/09/2026 : `git filter-repo --invert-paths` sur **2 497 chemins** + anonymisation des identités (`Klyx04 <122028355+Klyx04@users.noreply.github.com>`) — **2 564 commits réécrits**, contenu identique à la purge près, historique **483 Mo → 206 Mo** |
 
 **Contrôle automatique** : `node scripts/check-media-metadata.mjs` (zéro dépendance) échoue si une
 image suivie porte EXIF/XMP/texte — branché dans le job `verify` **et** dans le hook `pre-commit`.
@@ -77,14 +78,14 @@ La règle « aucune capture du poste de travail » est inscrite dans [`RULES.md`
 | # | Écart | Risque | Correctif |
 |---|---|---|---|
 | **1** | **Le ruleset de branche `secure-dev` existe mais est `disabled`** : ni `dev` ni `main` ne sont protégées | **Élevé** — la CI n'est pas un mur : un merge peut passer au rouge, un `push --force` reste possible sur la branche par défaut | GitHub → *Rules* → passer `secure-dev` en **Active** et y ajouter `Require a pull request`, `Required status checks` (`✅ Verify & Build`) et `Require review from Code Owners` |
-| **2** | **Code scanning / CodeQL non activé** (aucun workflow, `advanced_security` absent) | Moyen — pas d'analyse statique automatique du code applicatif | GitHub → *Settings → Advanced Security* → **CodeQL default setup** |
+| **2** | CodeQL **activé mais restreint au langage `actions`** (fichiers de workflow uniquement) : le code TypeScript/JavaScript de l'application n'est **pas** analysé | Moyen — pas d'analyse statique automatique du code applicatif | GitHub → *Settings → Advanced Security* → **CodeQL default setup** → ajouter `javascript-typescript` |
 | **3** | Secret scanning : **validity checks** et **generic/non-provider patterns** désactivés | Faible (gratuit sur un dépôt public) | Même écran (*Secret Protection*) — à activer, coût nul |
-| **4** | `delete_branch_on_merge` = **false** | Faible — branches mortes (28 supprimées à la main le 19/09) | GitHub → *Settings* → « Automatically delete head branches » |
+| **4** | ~~`delete_branch_on_merge` = **false**~~ | — | ✅ **corrigé** : « Automatically delete head branches » est activé (`delete_branch_on_merge = true`) |
 | **5** | ~~`dorny/paths-filter@v4` non épinglée par SHA~~ | — | ✅ **corrigé le 20/09/2026** : `@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4` |
 | **6** | Conteneurs prod sans `security_opt: no-new-privileges:true`, `cap_drop`, `read_only`/`tmpfs` ni `user:` explicite | Moyen — surface post-exploitation | `docker-compose.prod.yml` (hors Caddy, qui doit garder ses capacités de binding) — **valider sur bêta avant prod** |
 | **7** | Ni **OpenSSF Scorecard**, ni **attestation de provenance** (SLSA) sur les images GHCR | Faible/Moyen — pas de note externe ni de preuve de build reproductible | Workflow `scorecard.yml` officiel + `actions/attest-build-provenance` dans `deploy.yml` |
 | **8** | **Grafana** : `GRAFANA_PASSWORD` à confirmer en prod (sinon `admin/admin` par défaut) | Moyen | Vérifier `.env.prod` |
-| **9** | **Médias sensibles encore présents dans l'HISTORIQUE git** : les 636 uploads morts (dont captures d'explorateur local et captures Discord) ont été **retirés du suivi** le 20/09/2026, mais restent dans les commits passés — donc clonables | **Moyen** — un `git log` d'un commit antérieur les ressert | Réécriture d'historique (`git filter-repo` / `_git-purge.ps1` du dossier de ménage) **après commit**, puis purge des caches GitHub (objets orphelins) — à faire quand l'arbre est propre |
+| **9** | ~~**Médias sensibles encore présents dans l'HISTORIQUE git**~~ | — | ✅ **corrigé le 20/09/2026** : réécriture d'historique (`git filter-repo --invert-paths`, **2 497 chemins** : uploads morts, captures Discord, dump SQL, `.xlsx` de 85 Mo, `tmp/ankama-launcher-extracted`, rapports de lint) + anonymisation des identités → **2 564 commits réécrits**, arbre de chaque branche identique **à la purge près** (vérifié avant le force-push), historique **483 Mo → 206 Mo**. **Résiduel assumé** : les *pull requests* historiques (`refs/pull/*`, 688 refs) restent consultables côté GitHub, et les copies externes (Web Archive, caches) échappent au dépôt → ticket au Support GitHub + demandes d'exclusion |
 
 ## État de la posture sécurité (audit 2026 — honnête et à jour)
 

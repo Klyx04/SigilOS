@@ -470,7 +470,7 @@ export function normalizeNativeRange(from: number, to: number): { from: number; 
 /**
  * Constat beta (14/09/2026) — **une ligne d'effet sans valeur n'est pas un jet**.
  *
- * 📏 Mesure en base (sonde locale `src/temp/_probe-cosmetic-noise.mjs`) :
+ * 📏 Mesure en base (sonde locale `_probe-cosmetic-noise.mjs`) :
  * DofusDB range dans `GameItem.nativeEffects` des **métadonnées** d'objet,
  * toujours écrites `0 → 0` — `983` « Échangeable : » (**3 330** fiches),
  * `1179` « Compatible avec : » (**2 603**), `811` « Combat restant », `805`
@@ -499,7 +499,7 @@ export function isStatBearingNativeEffect(fx: Pick<MarketNativeEffect, "from" | 
  * (`22412`) affichait **« +15975 Effet [15975] »** (carte d'annonce, image OG et
  * bloc « Jet déclaré »).
  *
- * 📏 Cause **mesurée** (sonde `src/temp/_probe-effet-15975.mjs` + `api.dofusdb.fr`) :
+ * 📏 Cause **mesurée** (sonde `_probe-effet-15975.mjs` + `api.dofusdb.fr`) :
  * l'`effectId` **1175** est un **porteur de capacité légendaire** — son `diceNum`
  * est l'**identifiant du pouvoir** (« Nuée Pestilentielle » → `15975`), jamais un
  * montant. DofusDB **écarte lui-même** cette ligne de son tableau normalisé

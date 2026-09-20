@@ -37,7 +37,7 @@
  * ── Usage ─────────────────────────────────────────────────────────────────
  *   node scripts/capture-landing-visuels.mjs                    # les 4 figures
  *   ONLY=guide-sylvestre node scripts/capture-landing-visuels.mjs
- *   OUT_DIR=src/temp/refonte_landing/_essai node …             # essai hors public/
+ *   OUT_DIR=src/temp/_essai node …                           # essai hors public/
  *   ONLY=… URL_ROUTE=/guides/rush-sylvestre node …             # route publique
  *   BASE_URL=https://beta.sigilos.fr GUILD_ID=… node …
  *
@@ -51,7 +51,7 @@
  * Après capture : recopier les dimensions imprimées dans
  * `src/lib/landing-figures.ts` (le garde-fou `tests/unit/landing-figures.test.ts`
  * lit l'en-tête PNG), puis rejouer
- * `node src/temp/refonte_landing/probe-figure-slots.mjs` : les 4 figures
+ * `node scripts/probe-figure-slots.mjs` : les 4 figures
  * doivent afficher « OK (aucun agrandissement) » en DPR 2.
  */
 
@@ -88,7 +88,7 @@ const VIEWPORT_HEIGHT = 1000;
  * `anchor` = valeur d'un `data-tour` du projet ; `up` = nombre de parents à
  * remonter pour englober le composant (0 = l'ancre elle-même).
  * `slot` = largeur CSS réelle du cadre dans la landing (mesurée par
- * `src/temp/refonte_landing/probe-figure-slots.mjs`, à rejouer si la mise en
+ * `scripts/probe-figure-slots.mjs`, à rejouer si la mise en
  * page change : c'est elle qui fixe la densité minimale du fichier).
  */
 const FIGURES = [

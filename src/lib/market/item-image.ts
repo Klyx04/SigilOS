@@ -4,7 +4,7 @@
  * ⚠️ Fichier **PUR** (aucune dépendance React / Prisma / Node) : importable côté
  * client, côté serveur et en test unitaire.
  *
- * 🎯 Problème constaté en beta (`src/temp/debug.md`) :
+ * 🎯 Problème constaté en beta (`debug.md`) :
  *   · l'API de recherche renvoyait un **nom nu** (`25757.webp`) ⇒ le navigateur
  *     le résolvait en `/marche/25757.webp` ⇒ **404** ;
  *   · le repli pointait vers le **chemin statique** `/uploads/assets-dofus/items/*.webp`,

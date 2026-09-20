@@ -174,7 +174,7 @@ const THEME_BY_ID: Record<number, StatThemeKey> = {
     /**
      * ⚠️ Correction 14/09/2026 — **audit de tous les ids de cette carte** contre
      * le référentiel siphonné (`GameCharacteristic` / `GameEffect`, sonde
-     * `src/temp/_probe-stat-icons-audit.mjs`) : trois entrées donnaient une
+     * `_probe-stat-icons-audit.mjs`) : trois entrées donnaient une
      * **mauvaise** icône (le référentiel est la source de vérité) :
      *   · `82` = « Retrait PA » (`tx_attackAP`) — était `apDodge` ;
      *   · `84` = « Poussée » (`tx_push`) — était `mpDodge` ;

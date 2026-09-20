@@ -10,7 +10,7 @@
  * l'objet**, jamais sur le lot · chaque objet est réservable séparément à son
  * prix et publié dans **son** message Discord (option A).
  *
- * Plan : `src/temp/refonte-marche/PLAN-LOT-MULTIPLE.md`.
+ * Plan : `refonte-marche/PLAN-LOT-MULTIPLE.md`.
  */
 
 import { z } from "zod";

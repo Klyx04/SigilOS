@@ -61,7 +61,7 @@ DÉJÀ FAIT le 03/08 (fix robots.txt beta — cause racine de l'erreur GSC) :
 - RACINE du problème GSC "Impossible de lire le sitemap" : robots.ts servait
   Disallow:/ sur la beta (isProd ne matchait QUE sigilos.fr)
 - Fix : isIndexable = sigilos.fr || beta.sigilos.fr → beta.indexable (Allow:/)
-  + mêmes zones privées bloquées (dashboard/api/god/docs/_next/onboarding/test-route)
+  + mêmes zones privées bloquées (dashboard/api/god/docs/_next/onboarding)
 - Commit 3601e96e (branche fix/robots-beta-indexable) + doc checklist prod 7eeea94c
 - DÉPLOYÉ + VÉRIFIÉ : robots.txt beta = Allow:/ (plus de Disallow:/),
   sitemap.xml = 200 + application/xml + accessible en Googlebot,

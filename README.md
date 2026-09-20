@@ -34,18 +34,6 @@ Sorties, missions, guides, succès, échanges : **une seule vérité, au même e
 
 ---
 
-## 🖼️ Aperçu
-
-| Tableau de bord | Calendrier des sorties |
-|---|---|
-| ![Tableau de bord SigilOS : sorties, progression et membres d'une guilde Dofus](public/assets/screenshots/dashboard-guilde.png) | ![Calendrier des sorties SigilOS : événements de la semaine, types de sortie et filtres](public/assets/screenshots/calendrier-sorties.png) |
-
-| Missions de guilde | Guide Sylvestre |
-|---|---|
-| ![Missions de guilde SigilOS : paliers d'XP de guilde, objectifs en attente et coordonnées du hall](public/assets/screenshots/missions-guilde.png) | ![Guide Sylvestre dans SigilOS : étape courante, coordonnées copiables et reprise de la quête](public/assets/screenshots/guide-sylvestre.png) |
-
----
-
 ## 🚦 État du projet
 
 **Bêta fermée, en développement actif.** L'accès se fait sur demande via le site ;

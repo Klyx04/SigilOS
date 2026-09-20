@@ -311,6 +311,8 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
   const [newStepColor, setNewStepColor] = useState("#10b981");
   const [newStepType, setNewStepType] = useState<MilestoneType>("QUETE_SERIE");
   const [newDofusId, setNewDofusId] = useState<string | null>(null);
+  // Image du bloc (upload scope `guides` — servie aussi aux visiteurs anonymes).
+  const [newStepImage, setNewStepImage] = useState("");
 
   useEffect(() => {
     if (!addingStep) setNewChapterNum(chapterCount + 1);
@@ -429,13 +431,16 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
           order: localMilestones.length,
           type: newStepType,
           dofusId: isSeparator ? null : newDofusId,
+          // Image du bloc : posée dès la création (le séparateur l'affiche à droite de
+          // son bandeau, les autres types dans leur en-tête) — même champ qu'à l'édition.
+          imageUrl: newStepImage.trim() || null,
         });
         toast.success(isSeparator ? "Séparateur ajouté ✓" : isDofusBanner ? "Bannière Dofus ajoutée ✓" : "Étape ajoutée ✓");
-        setNewStepTitle(""); setNewChapterLabel(""); setNewDofusId(null); setAddingStep(false);
+        setNewStepTitle(""); setNewChapterLabel(""); setNewDofusId(null); setNewStepImage(""); setAddingStep(false);
         router.refresh();
       } catch (e: any) { toast.error(e.message); }
     });
-  }, [newChapterNum, newChapterLabel, newStepTitle, newStepColor, newStepType, newDofusId, localMilestones.length, router]);
+  }, [newChapterNum, newChapterLabel, newStepTitle, newStepColor, newStepType, newDofusId, newStepImage, localMilestones.length, router]);
 
   const handleSaveMilestone = useCallback((m: Milestone) => {
     startTransition(async () => {
@@ -677,7 +682,8 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
                       </p>
                     ) : newStepType === "SEPARATEUR" ? (
                       <p className="text-caption text-amber-400/70 leading-relaxed">
-                        Le séparateur est un titre visuel entre les blocs — il n'appartient à aucun chapitre.
+                        Le séparateur est un titre visuel entre les blocs — il n&apos;appartient à aucun chapitre.
+                        L&apos;image importée remplit la droite de son bandeau, côté membre comme dans le guide public.
                       </p>
                     ) : (
                       <p className="text-caption text-amber-400/70 leading-relaxed">
@@ -733,6 +739,55 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
                             style={{ backgroundColor: c.value }}
                           />
                         ))}
+                      </div>
+                    </div>
+
+                    {/* Image du bloc — le MÊME champ qu'à l'édition, posé dès la création :
+                        upload (scope `guides`, visible par un visiteur anonyme) ou URL
+                        manuelle. Sur un SÉPARATEUR, elle remplit la droite du bandeau. */}
+                    <div>
+                      <label className="text-caption font-black text-zinc-500 uppercase tracking-widest mb-1 block">
+                        Image du bloc <span className="text-zinc-600">(optionnel)</span>
+                      </label>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <input
+                          value={newStepImage}
+                          onChange={e => setNewStepImage(e.target.value)}
+                          className="flex-1 min-w-[160px] bg-black/60 border border-white/10 rounded-lg px-2 py-1 text-xs text-white focus:outline-none focus:border-emerald-500/50"
+                          placeholder="URL de l'image (ex. /module-dofus/Dofus_Pourpre.png)"
+                        />
+                        <label className="cursor-pointer px-2 py-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-lg text-caption flex items-center gap-1">
+                          Importer
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={async (e) => {
+                              const f = e.target.files?.[0];
+                              if (!f) return;
+                              const url = await uploadImageFile(f, "guides");
+                              if (url) { setNewStepImage(url); toast.success("Image importée ✓"); }
+                              else toast.error("Upload impossible");
+                              e.target.value = "";
+                            }}
+                          />
+                        </label>
+                        {newStepImage ? (
+                          <>
+                            {/* Aperçu nu : on voit ce qu'on pose AVANT de créer le bloc. */}
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={newStepImage}
+                              alt=""
+                              onError={e => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+                              className="h-7 w-14 shrink-0 rounded-[3px] border border-white/10 object-cover"
+                            />
+                            <button type="button" onClick={() => setNewStepImage("")} title="Retirer l'image"
+                              className="p-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 rounded-lg transition-all">
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          </>
+                        ) : null}
                       </div>
                     </div>
 
@@ -1335,6 +1390,17 @@ function MilestoneRow({
                 <span title={milestone.tips} className="flex-shrink-0">
                   <Info className="w-3 h-3 text-amber-400/60" />
                 </span>
+              )}
+              {/* Vignette de l'image du bloc : on voit ce qui est posé sans ouvrir l'édition.
+                  Le séparateur est celui qui en profite le plus (bandeau sans quêtes). */}
+              {milestone.imageUrl && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={safeImageUrl(milestone.imageUrl)}
+                  alt=""
+                  onError={e => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+                  className="hidden sm:block h-7 w-14 shrink-0 rounded-[3px] border border-white/10 object-cover"
+                />
               )}
               <span className="text-caption text-zinc-600 flex-shrink-0">{milestone.sequences.length} quête{milestone.sequences.length !== 1 ? "s" : ""}</span>
               {isExpanded ? <ChevronDown className="w-3 h-3 text-zinc-600 ml-auto flex-shrink-0" /> : <ChevronRight className="w-3 h-3 text-zinc-600 ml-auto flex-shrink-0" />}

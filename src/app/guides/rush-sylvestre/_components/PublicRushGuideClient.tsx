@@ -46,6 +46,7 @@ import {
 import { RushCoordinateChip } from "@/components/dofus-quests/rush/RushCoordinateChip";
 import { brandIconForUrl } from "@/lib/source-icons";
 import { QuestItemResourceGrid } from "@/components/dofus-quests/rush/QuestItemResourceGrid";
+import { RushSeparatorBanner } from "@/components/dofus-quests/rush/RushSeparatorBanner";
 import {
   openPipWindow,
   openFallbackPopup,
@@ -1167,19 +1168,18 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
           const msPercent = sequences.length > 0 ? Math.round((msDoneCount / sequences.length) * 100) : 0;
           const chapterDofusImg = resolveDofusLocalImage(ms.title);
 
-          // Séparateur de chapitre majeur
+          // Séparateur de chapitre majeur — le MÊME bandeau que le dashboard membre
+          // (composant partagé) : filet d'accent, eyebrow mono, titre fort, description,
+          // et l'image du bloc à droite quand le GOD en a posé une.
           if (ms.type === "SEPARATEUR") {
             return (
-              <div
+              <RushSeparatorBanner
                 key={ms.id}
-                className="my-6 border-t border-border pt-4"
-              >
-                <span className="reg-eyebrow block">
-                  Étape Charnière
-                </span>
-                <h3 className="text-lg font-bold text-foreground mt-1">{ms.title}</h3>
-                {ms.description && <p className="text-xs text-muted-foreground mt-1">{ms.description}</p>}
-              </div>
+                title={ms.title}
+                description={ms.description}
+                imageUrl={ms.imageUrl}
+                accentColor={ms.accentColor}
+              />
             );
           }
 

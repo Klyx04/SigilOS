@@ -2,8 +2,8 @@
 
 > **À lire à chaque session, en entier.** Ce fichier est le **point d'entrée unique** des assistants
 > (Cline, Cursor, Copilot, Codex, Gemini CLI…) : il dit **quoi lire, quand, et ce qui n'est jamais
-> négociable**, pour ~1 500 tokens. Format ouvert [AGENTS.md](https://agents.md) — lu automatiquement :
-> **il n'y a plus de « bloc à coller » à préparer**.
+> négociable** : 145 lignes, ~2 500 tokens — le minimum vital, tout le reste se lit à la demande.
+> Format ouvert [AGENTS.md](https://agents.md), lu automatiquement : **il n'y a plus de « bloc à coller »**.
 >
 > **Il ne duplique aucune documentation.** Une information qui vit dans `docs/` est **pointée**, jamais
 > recopiée : une règle modifiée ailleurs n'a rien à répercuter ici (sauf le tableau §2).

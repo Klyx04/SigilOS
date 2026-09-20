@@ -10,7 +10,7 @@
  *   - Dofensive `/monsters/{id}` → **preuve d'appartenance** (`Race.Name`), **zone de traque**
  *     (`Subareas[].IsFavorite`), critères de quête, sorts de combat.
  *
- * Mesures de référence (sondes `src/temp/_probe-bounties-gap.mjs` + `_probe-bounty-list.mjs`) :
+ * Mesures de référence (sondes `_probe-bounties-gap.mjs` + `_probe-bounty-list.mjs`) :
  * 96 avis (38 + 21 + 15 + 19 + 3, 0 doublon) · niveaux **1 → 1600** · 81 sous-zones ·
  * 15 avis sans sous-zone · 5 sans sort · **maps sauvages non exposées par Dofensive**
  * (grille `Cells` = stub) ⇒ carte de simulation = **grille vide**, jamais une carte inventée.

@@ -26,7 +26,7 @@ description: Template générique d'« amorce de session » — le prompt à col
 | **Constats / demandes** | 1 ligne par constat + **une capture** (jamais deviner) |
 | **DoD (attendu)** | ce qui doit être **vrai** à la fin (comportement, écran, embed, cron, requête…) |
 | **Hors périmètre** | à écrire explicitement (anti-dérive) |
-| **Entrées fournies** | captures, logs, IDs, sondes existantes, `src/temp/debug.md` |
+| **Entrées fournies** | captures, logs, IDs, sondes existantes, `debug.md` |
 | **Risque** | schéma/données ? Discord ? God ? sécurité ? prod ? |
 | **Docs concernées** | `ROADMAP` · `activeContext` · `chantier-actif` · §25 du plan · fiche `docs-catalog` |
 
@@ -34,14 +34,14 @@ description: Template générique d'« amorce de session » — le prompt à col
 
 1. `docs/ROADMAP.md` — **le backlog canonique** (bloc courant + entrées du module).
 2. `.agents/workflows/activeContext.md` — en-tête = **dernière PR mergée**, bloc de la session, `NEXT`.
-3. `src/temp/chantier-actif.md` (demandes ouvertes) + `src/temp/debug.md` (retours en cours) + **mémo** et **plan maître** du module.
+3. `src/temp/chantier-actif.md` (demandes ouvertes) + `debug.md` (retours en cours) + **mémo** et **plan maître** du module.
 4. `RULES.md` (§ Security · § fail-closed · § doc obligatoire · § rate limiting) et `SECURITY.md`.
 5. Les workflows concernés : `git-push.md` · `prisma-schema-change.md` (si schéma) · `add-cron-task.md` (si cron) · `discord-module.md` (si Discord).
 6. **Le code** — puis l'écart entre la doc et la réalité : **vérifier, corriger la doc** (elle peut être en retard d'une ou deux PR).
 
 ## 3. 🎯 Méthode imposée (c'est comme ça que le dépôt fonctionne)
 
-1. **Mesurer avant de corriger** : reproduire (URL exacte, compte, **thème**, **taille d'écran**), puis **cause racine mesurée** — sonde `src/temp/_probe-*.mjs`, requête SQL **en lecture seule**, `curl` d'une route, logs. Écrire la **mesure** dans le rapport (jamais « ça devait être »).
+1. **Mesurer avant de corriger** : reproduire (URL exacte, compte, **thème**, **taille d'écran**), puis **cause racine mesurée** — sonde `_probe-*.mjs`, requête SQL **en lecture seule**, `curl` d'une route, logs. Écrire la **mesure** dans le rapport (jamais « ça devait être »).
 2. **Corriger au bon étage** : règle **pure** (`src/lib/**`) > serveur (`src/server/**`) > composant. **Une seule source de vérité** par règle (§13.4) — pas de correctif dupliqué dans deux écrans.
 3. **Tester le comportement**, pas le rendu : test unitaire **+ non-régression** des verrous existants. **Jamais** de test désactivé pour verdir.
 4. **Prouver** : capture **avant/après** (UI) ou mesure chiffrée (perf, OG, DB) attachée au rapport.
@@ -120,8 +120,8 @@ La CI **`Verify & Build`** enchaîne : `npm ci` → intégrité du lockfile → 
 - [ ] `npm run test:run` **vert** · `npx tsc --noEmit` **0** · `eslint` **0 erreur** · `build` **0** (ou délégué à la CI).
 - [ ] `tests/security/*` **verts** · **0 migration** non voulue (sinon **additive + idempotente**).
 - [ ] Sécurité repassée (§4) : auth, isolation guilde, RBAC/God, Zod borné, fail-closed, logger, rate limit, garde d'état dans le `WHERE`.
-- [ ] Docs : `docs/ROADMAP.md` + `.agents/workflows/activeContext.md` + `src/temp/chantier-actif.md` + **§25 du plan** du module + fiche `seed-docs` si le module change + mémo `src/temp/memo-<AAAA-MM-JJ>-<sujet>.md`.
-- [ ] `src/temp/debug.md` mis à jour (constats traités / restants / décisions).
+- [ ] Docs : `docs/ROADMAP.md` + `.agents/workflows/activeContext.md` + `src/temp/chantier-actif.md` + **§25 du plan** du module + fiche `seed-docs` si le module change + mémo `memo-<AAAA-MM-JJ>-<sujet>.md`.
+- [ ] `debug.md` mis à jour (constats traités / restants / décisions).
 - [ ] PR → `dev` · **CI verte** · merge · branche supprimée · `dev` repullé · `gh pr list --state open` **vide**.
 - [ ] Rapport final **court** : ce qui est fait · ce qui reste · ce que **le user** doit faire (ops).
 
@@ -138,12 +138,12 @@ La CI **`Verify & Build`** enchaîne : `npm ci` → intégrité du lockfile → 
 ## 10. 📋 Bloc à coller (prompt de session générique)
 
 > Remplacer chaque `<…>` ; **supprimer** les lignes qui ne s'appliquent pas.
-> Version prête à copier en dehors du dépôt : `src/temp/AMORCE-GENERIQUE-A-COLLER.txt`.
+> Version prête à copier en dehors du dépôt : `AMORCE-GENERIQUE-A-COLLER.txt`.
 
 ```
 CONTEXTE — projet SigilOS (Next 16 + Prisma 7 + Discord). Avant de coder, lis :
 docs/ROADMAP.md · .agents/workflows/activeContext.md (en-tête + bloc du module/sujet) ·
-src/temp/chantier-actif.md · src/temp/debug.md · RULES.md (§ Security) · SECURITY.md ·
+src/temp/chantier-actif.md · debug.md · RULES.md (§ Security) · SECURITY.md ·
 .agents/workflows/{git-push,prisma-schema-change,add-cron-task,discord-module}.md
 et le plan/mémo du module s'il existe. Vérifie le code : la doc peut être en retard.
 
@@ -153,7 +153,7 @@ Constats / demandes (captures fournies) : <1 ligne par constat>.
 DoD : <ce qui doit être vrai à la fin>.
 Hors périmètre : <…>.
 
-MÉTHODE — 1) mesure la CAUSE RACINE avant de corriger (sonde src/temp/_probe-*.mjs,
+MÉTHODE — 1) mesure la CAUSE RACINE avant de corriger (sonde _probe-*.mjs,
 requête SQL en lecture seule, curl de route, logs) et écris la mesure ; 2) corrige au bon
 étage : règle pure src/lib/** > serveur src/server/** > composant, UNE source de vérité par
 règle ; 3) test unitaire du comportement + non-régression des tests existants ;
@@ -179,7 +179,7 @@ docs-catalog.ts a changé. Push : .agents/workflows/git-push.md (sync origin/dev
 
 LIVRABLE — commit(s) `fix(…)/feat(…)` en français · PR mergée et CI verte · docs à jour
 (docs/ROADMAP.md + activeContext.md + src/temp/chantier-actif.md + §25 du plan + mémo
-src/temp/memo-<date>-<sujet>.md) · src/temp/debug.md à jour · rapport final ≤ 15 lignes
+memo-<date>-<sujet>.md) · debug.md à jour · rapport final ≤ 15 lignes
 (fait / reste / ops côté user).
 ```
 
@@ -187,9 +187,9 @@ src/temp/memo-<date>-<sujet>.md) · src/temp/debug.md à jour · rapport final �
 
 ## 11. 🧾 Exemples d'amorces spécifiques du dépôt (même esprit, plus détaillées)
 
-- **Module Marché — phase de debug + clôture** : `src/temp/refonte-marche/AMORCE-DERNIERE-PHASE-DEBUG.md` (+ `AMORCE-DEBUG-A-COLLER.txt`) : tableau des constats, playbook par zone de fichiers, harnais de preuve, ops du user.
-- **Lots de chantier (historique)** : `src/temp/refonte-marche/AMORCE-LOT3-A-COLLER.txt`, `AMORCE-LOT4-A-COLLER.txt`, `AMORCES-A-COPIER.md`.
-- **Plan maître type** : `src/temp/refonte-marche/PLAN-MAITRE-MODULE-MARCHE.md` (§0.1.bis modes d'exécution, §21 tâches, §25 journal) — le format à copier pour tout nouveau module.
+- **Module Marché — phase de debug + clôture** : `refonte-marche/AMORCE-DERNIERE-PHASE-DEBUG.md` (+ `AMORCE-DEBUG-A-COLLER.txt`) : tableau des constats, playbook par zone de fichiers, harnais de preuve, ops du user.
+- **Lots de chantier (historique)** : `refonte-marche/AMORCE-LOT3-A-COLLER.txt`, `AMORCE-LOT4-A-COLLER.txt`, `AMORCES-A-COPIER.md`.
+- **Plan maître type** : `refonte-marche/PLAN-MAITRE-MODULE-MARCHE.md` (§0.1.bis modes d'exécution, §21 tâches, §25 journal) — le format à copier pour tout nouveau module.
 
 
 

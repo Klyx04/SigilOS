@@ -6,7 +6,7 @@ import {
 } from "@/lib/market/item-image";
 
 /**
- * BUG-3 — images d'objets 404/relatives (`src/temp/debug.md`).
+ * BUG-3 — images d'objets 404/relatives (`debug.md`).
  *
  * Le contrat testé est celui qui manquait : **toute** icône d'objet du module
  * repart sur le proxy auto-siphon `/api/assets-dofus/items/{id}`, jamais sur un

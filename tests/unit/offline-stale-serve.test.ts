@@ -1,6 +1,6 @@
 /**
  * Lot 1 « stale-while-offline » + D6 « interrupteur de test de panne » (amorce
- * `src/temp/amorces/amorce-2026-09-15-independance-totale.md`).
+ * `amorces/amorce-2026-09-15-independance-totale.md`).
  *
  * Ce que ces tests PROUVENT :
  *   1. une ligne locale **périmée** (> TTL) est **servie** (marquée `stale`, datée) au lieu

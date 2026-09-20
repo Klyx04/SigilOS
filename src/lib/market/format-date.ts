@@ -7,7 +7,7 @@
  * 🎯 Pourquoi : `Date#toLocaleDateString("fr-FR")` produisait une chaîne qui
  * différait entre le rendu **serveur** (Node, fuseau + ICU du serveur) et
  * l'hydratation **navigateur** (fuseau + ICU du poste) ⇒ React levait
- * `error #418` (« text didn't match ») sur `/marche` (`src/temp/debug.md`).
+ * `error #418` (« text didn't match ») sur `/marche` (`debug.md`).
  *
  * ✅ Solution : un format **figé** (`JJ/MM/AAAA` et `JJ/MM/AAAA HH:mm`), calculé
  * sur les composantes **UTC** — donc **identique** des deux côtés, quel que soit

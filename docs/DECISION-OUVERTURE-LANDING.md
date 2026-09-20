@@ -31,7 +31,7 @@ l'immersion** (y porter le design immersif Dofus aujourd'hui dans `public/mainte
   l'écran, et la vignette est perçue comme floue (« ça fait amateur »), sans que la qualité du fichier
   soit en cause. Les 4 visuels sont donc **recadrés sur un seul sujet** (un panneau, une semaine, une
   carte) à **≈ 2× la largeur d'affichage** (1080-1280 px) :
-  `node src/temp/refonte_landing/crop-landing-visuels.mjs` (script borné : il refuse de rogner hors
+  `node scripts/crop-landing-visuels.mjs` (script borné : il refuse de rogner hors
   cadre). Les captures d'origine (`screenshot3.png`, `screenshot6.png`, `guide-complet.png`,
   `tableau-de-bord.png`) restent en place : elles servent `src/lib/docs-catalog.ts`.
 - L'interface God `/god/landing` (feature #140, modèle `LandingScreen`, actions

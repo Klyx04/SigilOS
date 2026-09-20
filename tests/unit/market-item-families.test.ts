@@ -11,7 +11,7 @@ import {
 } from "@/lib/market/item-families";
 
 /**
- * BUG-11 / T10 — familles d'objets du Marché (`src/temp/debug.md` + décisions
+ * BUG-11 / T10 — familles d'objets du Marché (`debug.md` + décisions
  * user du 13/09). La table `superTypeId → famille` a été **vérifiée sur
  * DofusDB** (`api.dofusdb.fr/item-types`, 239 types) ; ce test fige les règles
  * produit pour qu'une évolution de l'API ne les casse pas en silence.

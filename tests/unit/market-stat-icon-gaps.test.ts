@@ -2,7 +2,7 @@
  * Régression (14/09/2026, constat beta) — **« icône assets ko : +5 % Mêlée (%) »**,
  * et audit des autres icônes manquantes/fausses.
  *
- * 📏 Mesure (sonde `src/temp/_probe-stat-icons-audit.mjs`, lecture du référentiel
+ * 📏 Mesure (sonde `_probe-stat-icons-audit.mjs`, lecture du référentiel
  * siphonné `GameCharacteristic` + `GameEffect` — c'est la **source de vérité**) :
  *   · `Mêlée (%)` (caractéristique **124**, asset `tx_resMelee`) et
  *     `Distance (%)` (`120`/`121`, `tx_distanceRes`) n'avaient **aucun** thème ⇒

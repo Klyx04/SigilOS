@@ -1,7 +1,7 @@
 /**
  * BUG-4 — **embed Discord : miniature toujours présente + carte sans « ? »**.
  *
- * Constat beta (`src/temp/debug.md`) :
+ * Constat beta (`debug.md`) :
  *   · la carte image ne s'affichait qu'après un clic sur un bouton, et l'embed
  *     n'avait **aucune miniature** hors salon forum ⇒ on veut l'objet en haut à
  *     droite **dès la publication** ;

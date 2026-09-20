@@ -54,7 +54,7 @@ export function getItemImageFallback(id?: string | number | null, imageUrl?: str
  * Métadonnées graphiques des tags d'activité Rush Sylvestre.
  *
  * Pictos : ce sont les pictos RÉELS du jeu (art Ankama coloré), importés par
- * `src/temp/refonte-guide-sylvestre/import-dofus-pictos.mjs` vers
+ * `refonte-guide-sylvestre/import-dofus-pictos.mjs` vers
  * `public/assets/dofus-ui/pictos/`. Les masques blancs de `icons_assets_*` sont
  * volontairement écartés : invisibles en thème clair. `imagePath` est la source
  * unique — vue publique, overlay et GOD le lisent ici.

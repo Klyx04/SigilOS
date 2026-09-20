@@ -179,8 +179,28 @@ services/discord-bot/node_modules/
 !/public/game-data/dungeon-monsters.json
 !/public/game-data/secret-passages.json
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Artefacts de build & caches d'outils — regeneres par `npm run build:*`, le
+# Dockerfile ou l'outil lui-meme. Ne JAMAIS les committer (cf. docs/AUDIT-ARBO-2026-09.md).
+# ─────────────────────────────────────────────────────────────────────────────
+/dist/
+/services/discord-bot/dist/
+/scripts/database-janitor.js
+/scripts/siphon-guide-images.js
+/scripts/seed-v3-compiled.js
+**/.wrangler/
+
+# Brouillons d'assistants IA (scratch des agents)
+/.gemini/antigravity/brain/
+
+# Donnees d'execution : uploads utilisateurs + sauvegardes locales (deja couverts
+# plus haut par /backups/ et private_uploads/, rappeles ici pour la lisibilite)
+/private_uploads/
+/backups/
+
 # Temporary files
 temp_map.jpg
+
 utf8_map.tsx
 
 # Dossier mémo/plan de session — ne JAMAIS pousser (voir PROMPT_START.md)

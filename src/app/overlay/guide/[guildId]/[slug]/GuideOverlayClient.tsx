@@ -969,6 +969,7 @@ export default function GuideOverlayClient({
             isLightMode={isLightMode}
             isNarrow={overlaySmall}
             onToggleTheme={toggleTheme}
+            onEnterCompact={enterGameMode}
             onOpenResources={() => setShowResources(true)}
             hideCompleted={hideCompleted}
             onToggleHideCompleted={toggleHideCompleted}
@@ -1004,7 +1005,7 @@ export default function GuideOverlayClient({
           {/* ══ BARRE CHAPITRE COURANT ══ */}
           {currentMs && (
             <div
-              className={`flex items-center justify-between gap-2 px-4 py-2 border-b shrink-0 ${
+              className={`flex items-center justify-between gap-2 px-4 py-2.5 border-y shrink-0 ${
                 isLightMode ? "border-slate-200 bg-white" : "border-[#28303a]/60 bg-[#12161b]"
               }`}
             >
@@ -1231,7 +1232,6 @@ export default function GuideOverlayClient({
             canNext={currentMsIndex < milestones.length - 1}
             isLightMode={isLightMode}
             label={chapterPos.index > 0 ? `${chapterPos.index} / ${chapterPos.total}` : ""}
-            onToggleCompact={enterGameMode}
           />
         </>
       ) : currentMs ? (

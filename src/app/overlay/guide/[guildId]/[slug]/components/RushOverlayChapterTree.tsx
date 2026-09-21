@@ -68,7 +68,7 @@ export function RushOverlayChapterTree({
     <nav
       aria-label="Chapitres du guide"
       className={cn(
-        "relative shrink-0 px-3 py-2 border-b z-30",
+        "relative shrink-0 px-3 py-2.5 border-b z-30",
         isLightMode ? "bg-slate-50 border-slate-200" : "bg-[#0d1014] border-[#28303a]/70",
         className
       )}

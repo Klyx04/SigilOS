@@ -24,13 +24,19 @@ const html = (props: Record<string, unknown>) =>
 const imgTag = (out: string) => (out.includes("<img") ? out.slice(out.indexOf("<img")) : "");
 
 describe("RushSeparatorBanner — bandeau de séparateur (3 surfaces)", () => {
-  it("porte le titre et le filet d'accent du bloc — plus aucune eyebrow", () => {
+  it("porte le titre, les losanges d'accent et les filets — plus aucune eyebrow, plus aucune barre latérale", () => {
     const out = html({ accentColor: "#e11d48" });
     expect(out).toContain("Départ Incarnam");
     // Retour user : « supprime étape charnière » — la mention ne revient pas.
     expect(out).not.toContain("Étape charnière");
-    // Filet d'accent (à gauche) : la couleur réglée côté GOD.
-    expect(out).toContain("background-color:#e11d48");
+    // Identité du bloc : DEUX losanges d'accent (TITRE encadré) + deux filets latéraux…
+    expect((out.match(/rotate-45/g) ?? []).length).toBe(2);
+    expect((out.match(/background-color:#e11d48/g) ?? []).length).toBe(2);
+    expect(out).toContain("bg-gradient-to-r");
+    expect(out).toContain("to-border");
+    // …et plus la barre de couleur pleine hauteur à gauche (retour user du 21/09/2026).
+    expect(out).not.toContain("w-[3px]");
+    expect(out).not.toContain("inset-y-0 left-0");
     // Aucune image posée ⇒ aucun <img> (donc aucun cadre vide).
     expect(out).not.toContain("<img");
   });

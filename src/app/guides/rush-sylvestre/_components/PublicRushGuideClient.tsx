@@ -928,9 +928,17 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
     document.getElementById("guide-detail")?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [chapterPages]);
 
-  // Le chapitre ouvert est la page : il est toujours déplié. La recherche, elle,
-  // fouille TOUS les chapitres (sinon elle cacherait ses propres résultats).
+  // Le chapitre ouvert est la page : on le déplie **à l'arrivée sur la page**
+  // (navigation, ancre, sommaire) — mais il reste **repliable** ensuite.
+  // ⚠️ Avant, `isExpanded` était forcé à `true` pour la page courante : la flèche de
+  // repli était alors **inerte** (retour user : « la flèche pour replier un bloc marche
+  // pas sur le guide public »). La recherche, elle, fouille TOUS les chapitres (sinon
+  // elle cacherait ses propres résultats) : elle déplie tout, à la volée.
   const pagedChapterId = isSearching ? null : currentPage?.ms.id ?? null;
+  useEffect(() => {
+    if (!pagedChapterId) return;
+    setExpandedMs((prev) => (prev.has(pagedChapterId) ? prev : new Set(prev).add(pagedChapterId)));
+  }, [pagedChapterId]);
   const visibleMilestones = useMemo(
     () => (isSearching || !currentPage ? milestones : [...currentPage.lead, currentPage.ms, ...currentPage.tail]),
     [isSearching, currentPage, milestones]
@@ -1272,7 +1280,7 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
         {visibleMilestones.map((ms) => {
           const msIndex = milestones.indexOf(ms);
           const isDone = completedIds.has(ms.id);
-          const isExpanded = expandedMs.has(ms.id) || isSearching || pagedChapterId === ms.id;
+          const isExpanded = isSearching || expandedMs.has(ms.id);
           const doneSteps = completedStepsByMs.get(ms.id) || new Set();
           const sequences = ms.sequences || [];
           // Étapes RÉELLEMENT cochables : les encarts info ne comptent pas dans la

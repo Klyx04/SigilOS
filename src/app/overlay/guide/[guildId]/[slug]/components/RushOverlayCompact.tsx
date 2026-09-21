@@ -11,9 +11,7 @@ interface RushOverlayCompactProps {
   objective: RushSequence | null;
   isDone: boolean;
   isLightMode?: boolean;
-  /** Bloc non cochable (séparateur) : aucune case à cocher, il n'y a rien à valider. */
-  checkable?: boolean;
-  /** Corps de remplacement (bandeau du séparateur) : prend la place de l'objectif. */
+  /** Corps de remplacement (bannières du chapitre sans objectif restant) : prend la place de l'objectif. */
   body?: React.ReactNode;
   onToggle: () => void;
   onPrev: () => void;
@@ -27,17 +25,14 @@ interface RushOverlayCompactProps {
 
 /**
  * Mode jeu compact — recommandé pendant une phase de combat.
- * Affiche uniquement : checkbox quête · nom · Étape n/m · objectif courant ·
+ * Affiche uniquement : checkbox de la quête · nom · Étape n/m · objectif courant ·
  * précédent / suivant · agrandir · fermer.
- * Un bloc non cochable (séparateur) perd sa case à cocher et reçoit un `body`
- * de remplacement (son bandeau) : un séparateur n'est pas une étape.
  */
 export function RushOverlayCompact({
   milestone,
   objective,
   isDone,
   isLightMode = false,
-  checkable = true,
   body,
   onToggle,
   onPrev,
@@ -62,29 +57,28 @@ export function RushOverlayCompact({
     >
       {/* Ligne supérieure : checkbox · titre · actions */}
       <div className="flex items-center gap-2 min-w-0">
-        {checkable && (
-          <button
-            type="button"
-            onClick={onToggle}
-            aria-label={isDone ? "Décocher la quête" : "Marquer comme terminée"}
-            className="shrink-0 rounded-md focus-visible:outline-2 focus-visible:outline-[#39bc95] focus-visible:outline-offset-1"
+        {/* Le bloc courant est toujours un CHAPITRE (les bannières ne sont pas des étapes) :
+            la case à cocher a donc toujours un sens ici. */}
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-label={isDone ? "Décocher la quête" : "Marquer comme terminée"}
+          className="shrink-0 rounded-md focus-visible:outline-2 focus-visible:outline-[#39bc95] focus-visible:outline-offset-1"
+        >
+          <span
+            className={cn(
+              "flex h-4 w-4 items-center justify-center rounded-md border transition-all",
+              isDone
+                ? "bg-[#39bc95] border-[#39bc95] text-black"
+                : isLightMode
+                  ? "border-slate-300 bg-white"
+                  : "border-[#3a4d60] bg-[#0f1419]"
+            )}
           >
-            <span
-              className={cn(
-                "flex h-4 w-4 items-center justify-center rounded-md border transition-all",
-                isDone
-                  ? "bg-[#39bc95] border-[#39bc95] text-black"
-                  : isLightMode
-                    ? "border-slate-300 bg-white"
-                    : "border-[#3a4d60] bg-[#0f1419]"
-              )}
-            >
-              {isDone && <Check className="h-2.5 w-2.5 stroke-[3]" />}
-            </span>
-          </button>
-        )}
-
-        {/* Le titre du bloc est porté par le `body` (bandeau du séparateur) : pas de doublon. */}
+            {isDone && <Check className="h-2.5 w-2.5 stroke-[3]" />}
+          </span>
+        </button>
+        {/* Le titre du bloc est porté par le `body` (bannières) : pas de doublon. */}
         {!body && (
           <h2 className={cn("truncate text-sm font-bold leading-tight", isLightMode ? "text-slate-900" : "text-[#f2f0e9]")}>
             {name}

@@ -14,10 +14,9 @@ export { resolveItemImage };
  * Index du prochain bloc à proposer dans l'overlay : le prochain bloc QUI RESTE À VALIDER
  * (on saute les chapitres déjà cochés, pour toujours proposer le suivant à faire).
  *
- * Un bandeau — séparateur, encart CONSEIL/TIPS, « Dofus obtenu » — n'a aucune progression :
- * il ne peut pas être « fait », donc on **ne le saute jamais**, même si une validation
- * héritée traîne en base. C'est ce qui faisait « disparaître » les bandeaux dès qu'on
- * changeait d'étape (21/09/2026).
+ * ⚠️ `blocks` = les CHAPITRES uniquement : les bannières (séparateur, encart CONSEIL/TIPS,
+ * « Dofus obtenu ») ne sont pas des étapes, elles s'affichent dans le flux de leur chapitre
+ * (voir `bannersForChapter`) — jamais comme un bloc courant, donc jamais « sautées ».
  *
  * @returns l'index du bloc suivant, ou `null` si on est déjà au bout du guide.
  */
@@ -27,10 +26,54 @@ export function nextBlockIndex(
   completedIds: Set<string>
 ): number | null {
   for (let i = fromIndex + 1; i < blocks.length; i++) {
-    const ms = blocks[i];
-    if (isNonCheckableBlock(ms) || !completedIds.has(ms.id)) return i;
+    if (!completedIds.has(blocks[i].id)) return i;
   }
   return null;
+}
+
+/**
+ * Les bannières à afficher AVEC un chapitre — même règle que le dashboard membre
+ * (`chapterPages` : « les bannières restent collées au chapitre qui les suit »).
+ *
+ * 🎯 Demande user (21/09/2026) : « ces bandeaux-là ont juste à afficher dans l'ordre
+ * chronologique » + « si je choisis une étape dans le dropdown, je peux plus retrouver la
+ * partie des bandeaux ». Donc une bannière se lit à sa place dans le flux : juste AVANT le
+ * chapitre qu'elle introduit — et on la retrouve dès qu'on ouvre ce chapitre, quel que soit
+ * le chemin (dropdown, précédent/suivant, repère).
+ *
+ * @returns `before` = bannières situées entre le chapitre précédent (exclu) et ce chapitre
+ *          (exclu) ; `after` = bannières de fin de guide, rattachées au DERNIER chapitre.
+ */
+export function bannersForChapter(
+  allBlocks: RushMilestone[],
+  chapterMsId: string | null | undefined
+): { before: RushMilestone[]; after: RushMilestone[] } {
+  const chapterIdx = allBlocks.findIndex((ms) => ms.id === chapterMsId && !isNonCheckableBlock(ms));
+  if (chapterIdx < 0) return { before: [], after: [] };
+
+  const before: RushMilestone[] = [];
+  for (let i = chapterIdx - 1; i >= 0; i--) {
+    if (!isNonCheckableBlock(allBlocks[i])) break;
+    before.unshift(allBlocks[i]);
+  }
+
+  // Les bannières qui suivent ce chapitre : elles appartiennent au chapitre SUIVANT, sauf
+  // s'il n'y en a plus — elles terminent alors le guide, donc la vue du dernier chapitre.
+  const after: RushMilestone[] = [];
+  let isLastChapter = true;
+  for (let i = chapterIdx + 1; i < allBlocks.length; i++) {
+    if (isNonCheckableBlock(allBlocks[i])) continue;
+    isLastChapter = false;
+    break;
+  }
+  if (isLastChapter) {
+    for (let i = chapterIdx + 1; i < allBlocks.length; i++) {
+      if (!isNonCheckableBlock(allBlocks[i])) continue;
+      after.push(allBlocks[i]);
+    }
+  }
+
+  return { before, after };
 }
 
 // ─── Types locaux ─────────────────────────────────────────────────────────────

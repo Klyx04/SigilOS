@@ -27,7 +27,7 @@ import { RushCurrentObjective } from "@/components/dofus-quests/rush/RushCurrent
 import { RushSeparatorBanner } from "@/components/dofus-quests/rush/RushSeparatorBanner";
 import { RushInfoBanner } from "@/components/dofus-quests/rush/RushInfoBanner";
 import { RushRichText } from "@/components/dofus-quests/rush/RushRichText";
-import { getNextObjective, aggregateRushResources, nextBlockIndex } from "./components/overlay-utils";
+import { getNextObjective, aggregateRushResources, nextBlockIndex, bannersForChapter } from "./components/overlay-utils";
 import { RushOverlayResourcesModal } from "./components/RushOverlayResourcesModal";
 import { RushOverlayMembersModal, type OverlayMember } from "./components/RushOverlayMembersModal";
 import { RushOverlayTutorialModal } from "./components/RushOverlayTutorialModal";
@@ -109,14 +109,15 @@ export default function GuideOverlayClient({
     [character, effectiveAltPseudo]
   );
 
-  // TOUS les blocs du guide, BANDEAUX COMPRIS (séparateur, encart CONSEIL/TIPS, « Dofus
-  // obtenu ») : un bandeau fait partie du guide et doit rester VISIBLE dans l'overlay —
-  // c'est ce que demandait l'utilisateur le 21/09/2026 (« dans l'overlay on doit voir aussi
-  // les bandeaux de tips »). Le filtre `INFO`/`DOFUS_OBTAINED` d'avant les retirait de la
-  // liste : impossible de tomber dessus, et le rendu de leurs bandeaux juste en dessous
-  // était du code mort. Ils restent NON COCHABLES (`isNonCheckableBlock`) : hors du
-  // sélecteur d'étapes, jamais proposés à la validation, jamais sautés par la navigation.
-  const milestones = rawMilestones;
+  // La NAVIGATION ne porte que sur les CHAPITRES : les bannières (séparateur, encart
+  // CONSEIL/TIPS, « Dofus obtenu ») ne sont pas des étapes — ni case à cocher, ni « 0/0 »,
+  // ni titre de chapitre. Elles s'affichent dans le FLUX de leur chapitre, à leur place
+  // chronologique (`bannersForChapter`), et on les retrouve dès qu'on ouvre ce chapitre,
+  // quelle que soit la façon d'y arriver. Règle partagée `isNonCheckableBlock`.
+  const milestones = useMemo(
+    () => rawMilestones.filter((ms) => !isNonCheckableBlock(ms)),
+    [rawMilestones]
+  );
 
   // Détecte le Dofus associé à un jalon (via dofusId insensible aux accents, ou par correspondance du titre).
   const getMsDofus = useCallback((ms?: RushMilestone | null) => {
@@ -352,6 +353,14 @@ export default function GuideOverlayClient({
   const chapterPos = useMemo(
     () => rushChapterPosition(milestones, currentMs?.id),
     [milestones, currentMs?.id]
+  );
+
+  // Bannières à lire AVEC ce chapitre, à leur place chronologique : celles qui l'introduisent
+  // au-dessus du contenu, celles de fin de guide en dessous (règle partagée avec le
+  // dashboard : « les bannières restent collées au chapitre qui les suit »).
+  const banners = useMemo(
+    () => bannersForChapter(rawMilestones, currentMs?.id),
+    [rawMilestones, currentMs?.id]
   );
   const totalSteps = useMemo(() => milestones.reduce((acc, ms) => acc + contentSeqs(ms.sequences).length, 0), [milestones]);
   const completedSteps = useMemo(() => {
@@ -831,10 +840,6 @@ export default function GuideOverlayClient({
     : null;
 
   const msDone = currentMs ? completedIds.has(currentMs.id) : false;
-  // Blocs non cochables (pas de case à cocher, pas de validation de chapitre, pas de
-  // numéro) : séparateur, encart CONSEIL/TIPS et bloc « Dofus obtenu ». Règle partagée
-  // (`isNonCheckableBlock`) — une seule définition pour tout le module.
-  const msIsInfoBlock = isNonCheckableBlock(currentMs);
   const currentMsDofus = currentMs ? getMsDofus(currentMs) : null;
   const currentMsTotal = currentMsSeqs.length;
   const dofusDone = !!currentMsDofus && currentMsTotal > 0 && currentMsDoneCount >= currentMsTotal;
@@ -850,6 +855,62 @@ export default function GuideOverlayClient({
     if (objective) parts.push(`Étape : ${objective.subGuideName || objective.subGuideRef || "?"}`);
     return parts.join(" · ");
   }, [currentMs, chapterPos, compactObjective]);
+
+  // ─── Rendu d'une BANNIÈRE (bloc non cochable) ──────────────────────────────
+  // Le MÊME composant partagé que le dashboard et le guide public : un séparateur, un
+  // encart CONSEIL/TIPS ou un « Dofus obtenu » se lit à sa place dans le flux, jamais comme
+  // une étape (aucune case à cocher, aucun numéro, aucun « n/N »).
+  const renderBanner = (ms: RushMilestone) => {
+    if (ms.type === "SEPARATEUR") {
+      return (
+        <RushSeparatorBanner
+          key={ms.id}
+          title={ms.title}
+          description={ms.description}
+          imageUrl={ms.imageUrl}
+          accentColor={ms.accentColor}
+          className="my-3"
+        />
+      );
+    }
+    if (ms.type === "INFO") {
+      return (
+        <RushInfoBanner
+          key={ms.id}
+          title={ms.description && ms.title && !ms.description.startsWith(ms.title) ? ms.title : null}
+          imageUrl={ms.imageUrl}
+          accentColor={ms.accentColor}
+          className="my-3"
+        >
+          <RushRichText text={ms.tips || ms.description || ms.title} />
+        </RushInfoBanner>
+      );
+    }
+    const dofus = getMsDofus(ms);
+    return (
+      <div key={ms.id} className="flex flex-col items-center gap-3 py-10 px-6 text-center select-none max-w-md mx-auto">
+        {dofus ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={dofus.imageUrl} alt={dofus.label} title={dofus.label} className="h-12 w-12 object-contain drop-shadow" />
+        ) : ms.imageUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={ms.imageUrl} alt={ms.title} className="h-12 w-12 object-contain drop-shadow" />
+        ) : null}
+        <span className="text-[9px] font-black uppercase tracking-[0.22em]" style={{ color: ms.accentColor || "#a3e635" }}>
+          ✦ Dofus obtenu ✦
+        </span>
+        <h3 className={`font-serif text-lg font-black uppercase tracking-wide ${isLightMode ? "text-slate-900" : "text-[#f2f0e9]"}`}>
+          {ms.title}
+        </h3>
+        {(ms.description || ms.tips) && (
+          <p className={`text-[12px] leading-relaxed ${isLightMode ? "text-slate-500" : "text-[#929aa5]"}`}>
+            <RushRichText text={ms.description || ms.tips} />
+          </p>
+        )}
+        <div className="h-px w-28" style={{ background: `linear-gradient(90deg, transparent, ${ms.accentColor || "#a3e635"})` }} />
+      </div>
+    );
+  };
 
   // ─── Rendu COMMUN ─────────────────────────────────────────────────────────
   // La fenêtre source et la fenêtre PiP (always-on-top) affichent le même
@@ -929,13 +990,8 @@ export default function GuideOverlayClient({
                 <button
                   type="button"
                   onClick={() => handleToggleMs(currentMs)}
-                  disabled={msIsInfoBlock}
-                  aria-label={msIsInfoBlock ? "Bloc informatif" : msDone ? "Marquer le chapitre comme non terminé" : "Marquer le chapitre comme terminé"}
-                  className={
-                    msIsInfoBlock
-                      ? "shrink-0 cursor-default opacity-20"
-                      : "shrink-0 rounded focus-visible:outline-2 focus-visible:outline-[#39bc95] focus-visible:outline-offset-1"
-                  }
+                  aria-label={msDone ? "Marquer le chapitre comme non terminé" : "Marquer le chapitre comme terminé"}
+                  className="shrink-0 rounded focus-visible:outline-2 focus-visible:outline-[#39bc95] focus-visible:outline-offset-1"
                 >
                   <span
                     className={`flex h-4 w-4 items-center justify-center rounded-md border transition-all ${
@@ -952,9 +1008,7 @@ export default function GuideOverlayClient({
 
                 {/* Numéro et pourcentage ne valent que pour une ÉTAPE : un séparateur ou un
                     encart n'a aucune progression (« 0% » n'est pas une information). */}
-                {!msIsInfoBlock && (
-                  <span className="font-serif font-bold text-xs text-[#39bc95] shrink-0">{currentMsIndex + 1}.</span>
-                )}
+                <span className="font-serif font-bold text-xs text-[#39bc95] shrink-0">{currentMsIndex + 1}.</span>
 
                 {/* Icône Dofus à côté du bloc courant + animation à la complétion */}
                 {currentMsDofus && (
@@ -990,13 +1044,11 @@ export default function GuideOverlayClient({
                 )}
               </div>
 
-              {!msIsInfoBlock && (
-                <div className="flex items-center gap-1.5 shrink-0 pl-1">
-                  <span className={`text-[11px] font-mono font-bold mr-1 ${isLightMode ? "text-slate-500" : "text-[#929aa5]"}`}>
-                    {currentMsPct}%
-                  </span>
-                </div>
-              )}
+              <div className="flex items-center gap-1.5 shrink-0 pl-1">
+                <span className={`text-[11px] font-mono font-bold mr-1 ${isLightMode ? "text-slate-500" : "text-[#929aa5]"}`}>
+                  {currentMsPct}%
+                </span>
+              </div>
             </div>
           )}
 
@@ -1065,6 +1117,10 @@ export default function GuideOverlayClient({
 
           {/* ══ LISTE DES QUÊTES + DÉTAILS ══ */}
           <main className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-3 space-y-2 custom-scrollbar">
+            {/* Bannières qui INTRODUISENT ce chapitre — leur place chronologique dans le
+                flux. Elles suivent le chapitre, donc on les retrouve dès qu'on l'ouvre
+                (dropdown, précédent/suivant, repère) : c'est ce qui manquait. */}
+            {!search.trim() && banners.before.map(renderBanner)}
             {search.trim() ? (
               globalResults.length === 0 ? (
                 <div className="py-12 text-center text-[#929aa5] text-xs">
@@ -1102,51 +1158,6 @@ export default function GuideOverlayClient({
                   );
                 })
               )
-            ) : currentMs?.type === "SEPARATEUR" ? (
-              // Bloc SÉPARATEUR : le MÊME bandeau que le dashboard membre et le guide
-              // public (composant partagé) — et AUCUNE case à cocher : un séparateur
-              // n'est pas une étape, il n'y a rien à valider. Marges resserrées : la
-              // fenêtre PiP ne fait que 420 px de large (paliers `sm`/`md` inatteignables).
-              <RushSeparatorBanner
-                title={currentMs.title}
-                description={currentMs.description}
-                imageUrl={currentMs.imageUrl}
-                accentColor={currentMs.accentColor}
-                className="my-3"
-              />
-            ) : currentMs?.type === "INFO" ? (
-              // Bloc CONSEIL / TIPS : le MÊME bandeau partagé que le dashboard et le guide
-              // public (l'overlay avait sa propre mise en page centrée, picto compris).
-              <RushInfoBanner
-                title={currentMs.description && currentMs.title && !currentMs.description.startsWith(currentMs.title) ? currentMs.title : null}
-                imageUrl={currentMs.imageUrl}
-                accentColor={currentMs.accentColor}
-                className="my-3"
-              >
-                <RushRichText text={currentMs.tips || currentMs.description || currentMs.title} />
-              </RushInfoBanner>
-            ) : msIsInfoBlock ? (
-              <div className="flex flex-col items-center gap-3 py-10 px-6 text-center select-none max-w-md mx-auto">
-                {currentMsDofus ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={currentMsDofus.imageUrl} alt={currentMsDofus.label} title={currentMsDofus.label} className="h-12 w-12 object-contain drop-shadow" />
-                ) : currentMs.imageUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={currentMs.imageUrl} alt={currentMs.title} className="h-12 w-12 object-contain drop-shadow" />
-                ) : null}
-                <span className="text-[9px] font-black uppercase tracking-[0.22em]" style={{ color: currentMs.accentColor || "#a3e635" }}>
-                  {currentMs.type === "DOFUS_OBTAINED" ? "✦ Dofus obtenu ✦" : currentMs.type === "SEPARATEUR" ? "Étape charnière" : "Conseil"}
-                </span>
-                <h3 className={`font-serif text-lg font-black uppercase tracking-wide ${isLightMode ? "text-slate-900" : "text-[#f2f0e9]"}`}>
-                  {currentMs.title}
-                </h3>
-                {(currentMs.description || currentMs.tips) && (
-                  <p className={`text-[12px] leading-relaxed ${isLightMode ? "text-slate-500" : "text-[#929aa5]"}`}>
-                    <RushRichText text={currentMs.description || currentMs.tips} />
-                  </p>
-                )}
-                <div className="h-px w-28" style={{ background: `linear-gradient(90deg, transparent, ${currentMs.accentColor || "#a3e635"})` }} />
-              </div>
             ) : visibleSequences.length === 0 ? (
               <div className="py-12 text-center text-[#929aa5] text-xs">
                 <CheckCircle2 className="w-8 h-8 mx-auto mb-2 text-[#39bc95] opacity-40" />
@@ -1203,6 +1214,9 @@ export default function GuideOverlayClient({
                 );
               })
             ) : null}
+
+            {/* Bannières de fin de guide : rattachées au dernier chapitre (même règle) */}
+            {!search.trim() && banners.after.map(renderBanner)}
           </main>
 
           {/* ══ FOOTER FIXE ══ */}
@@ -1223,30 +1237,10 @@ export default function GuideOverlayClient({
           objective={compactObjective}
           isDone={!!compactObjective && currentMsDoneSeqs.has(compactObjective.id)}
           isLightMode={isLightMode}
-          checkable={!isNonCheckableBlock(currentMs)}
-          body={
-            currentMs.type === "SEPARATEUR" ? (
-              // Bandeau du séparateur — et AUCUNE case à cocher : ce n'est pas une étape.
-              <RushSeparatorBanner
-                title={currentMs.title}
-                description={currentMs.description}
-                imageUrl={currentMs.imageUrl}
-                accentColor={currentMs.accentColor}
-                className="my-0"
-              />
-            ) : currentMs.type === "INFO" ? (
-              // Bandeau CONSEIL/TIPS en mode jeu : le MÊME rendu que partout ailleurs
-              // (composant partagé) — sans case à cocher, il n'y a rien à valider.
-              <RushInfoBanner
-                title={currentMs.description && currentMs.title && !currentMs.description.startsWith(currentMs.title) ? currentMs.title : null}
-                imageUrl={currentMs.imageUrl}
-                accentColor={currentMs.accentColor}
-                className="my-0"
-              >
-                <RushRichText text={currentMs.tips || currentMs.description || currentMs.title} />
-              </RushInfoBanner>
-            ) : undefined
-          }
+          // Mode jeu : l'objectif courant reste la priorité. Les bannières ne remplacent
+          // l'objectif que s'il n'y a RIEN à faire ici (chapitre sans quête restante) —
+          // sinon elles restent lisibles en mode normal, à leur place dans le flux.
+          body={!compactObjective && banners.before.length > 0 ? banners.before.map(renderBanner) : undefined}
           onToggle={() => currentMs && compactObjective && handleToggleSeq(currentMs, compactObjective.id)}
           onPrev={goToPrevMs}
           onNext={goToNextMs}

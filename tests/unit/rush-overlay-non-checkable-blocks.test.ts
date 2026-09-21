@@ -1,60 +1,88 @@
 /**
- * Garde — dans l'overlay, les bandeaux (séparateur, encart CONSEIL/TIPS, « Dofus obtenu »)
- * sont VISIBLES et JAMAIS sautés par la navigation.
+ * Garde — dans l'overlay, les bannières (séparateur, encart CONSEIL/TIPS, « Dofus obtenu »)
+ * ne sont PAS des étapes : elles s'affichent dans le FLUX de leur chapitre, à leur place
+ * chronologique.
  *
- * 🎯 Demande user (21/09/2026) : « dans l'overlay on doit voir aussi les bandeaux de tips
- * ajouté, et ya un pb si on passe à une autre étape dans l'overlay les bandeaux type
- * separateur / tips on ne les a plus dispo ».
+ * 🎯 Demande user (21/09/2026, verbatim) : « pk tu continue à mettre les tips/conseil dans
+ * l'overlay avec le cercle à cocher (qui ne l'est pas) ces bandeaux là ont juste à afficher
+ * dans l'ordre chronologique · si je vais dans le dropdown d'étape et que je choisis une
+ * étape, je peux plus retrouver la partie des bandeaux ».
  *
- * 🔍 Causes mesurées avant correctif :
- *   1. `GuideOverlayClient` filtrait la liste — `rawMilestones.filter(ms => !["INFO",
- *      "DOFUS_OBTAINED"].includes(ms.type))` — donc AUCUN bandeau de tips n'était rendu
- *      (la branche `<RushInfoBanner>` plus bas était du code mort) ;
- *   2. `goToNextMs` sautait tout bloc dont l'id était dans `completedIds` — un bandeau
- *      marqué « fait » par une donnée héritée disparaissait alors de la navigation.
+ * 🔍 Ce qui était faux : les bannières étaient devenues des BLOCS COURANTS navigables — donc
+ * affichées avec une case à cocher, un « 1. » et le titre du bandeau en guise de chapitre, et
+ * une fois passé à un chapitre par le sélecteur on ne les revoyait plus.
  *
- * 🛡️ Ce que ce test verrouille : la règle pure (`nextBlockIndex`), les deux câblages
- * (liste complète, bandeau utilisé) et le fait que les 3 surfaces rendent le texte enrichi.
+ * 🛡️ Règle retenue (la MÊME que le dashboard, `chapterPages`) : une bannière est collée au
+ * chapitre qui la SUIT ; celles de fin de guide terminent le dernier chapitre. On les retrouve
+ * donc dès qu'on ouvre ce chapitre, quel que soit le chemin (sélecteur, précédent/suivant).
  */
 
 import { describe, it, expect } from "vitest";
 import { readFileSync, existsSync } from "node:fs";
-import { nextBlockIndex } from "@/app/overlay/guide/[guildId]/[slug]/components/overlay-utils";
+import { nextBlockIndex, bannersForChapter } from "@/app/overlay/guide/[guildId]/[slug]/components/overlay-utils";
+import type { RushMilestone } from "@/types/rush-guide-types";
 
-const blocks = [
-  { id: "c1", type: "QUETE_SERIE" },
-  { id: "sep", type: "SEPARATEUR" },
-  { id: "c2", type: "QUETE_SERIE" },
-  { id: "tips", type: "INFO" },
-  { id: "c3", type: "DOFUS" },
+const ms = (id: string, type: string): RushMilestone => ({
+  id,
+  chapter: 1,
+  chapterLabel: "Chapitre 1",
+  title: id,
+  type,
+  order: 0,
+  isOptional: false,
+  sequences: [],
+});
+
+// Guide de test : b1 · c1 · b2 · b3 · c2 · b4 (b = bannière, c = chapitre)
+const GUIDE = [
+  ms("b1", "SEPARATEUR"),
+  ms("c1", "QUETE_SERIE"),
+  ms("b2", "INFO"),
+  ms("b3", "DOFUS_OBTAINED"),
+  ms("c2", "DOFUS"),
+  ms("b4", "INFO"),
 ];
 
-describe("nextBlockIndex — un bandeau n'est jamais sauté", () => {
-  it("s'arrête sur le bandeau suivant, même s'il traîne une validation héritée", () => {
-    // Le séparateur est marqué « fait » en base (donnée héritée) : on s'y arrête quand même.
-    expect(nextBlockIndex(blocks, 0, new Set(["sep", "c2"]))).toBe(1);
+describe("bannersForChapter — chaque bannière à sa place chronologique", () => {
+  it("rattache au chapitre les bannières qui le précèdent, dans l'ordre", () => {
+    expect(bannersForChapter(GUIDE, "c1").before.map((b) => b.id)).toEqual(["b1"]);
+    expect(bannersForChapter(GUIDE, "c2").before.map((b) => b.id)).toEqual(["b2", "b3"]);
   });
 
-  it("saute les chapitres déjà validés mais pas les bandeaux", () => {
-    // Depuis le séparateur : c2 est fait ⇒ on va au bandeau de tips.
-    expect(nextBlockIndex(blocks, 1, new Set(["c2"]))).toBe(3);
+  it("ne rattache rien au chapitre PRÉCÉDENT (b2/b3 appartiennent à c2)", () => {
+    // Elles s'affichent juste avant c2 — et on les retrouve en ouvrant c2 par le sélecteur.
+    expect(bannersForChapter(GUIDE, "c1").after).toEqual([]);
   });
 
-  it("propose le chapitre suivant quand il reste à valider", () => {
-    expect(nextBlockIndex(blocks, 0, new Set())).toBe(1);
-    expect(nextBlockIndex(blocks, 3, new Set())).toBe(4);
+  it("rend les bannières de fin de guide avec le DERNIER chapitre", () => {
+    expect(bannersForChapter(GUIDE, "c2").after.map((b) => b.id)).toEqual(["b4"]);
+  });
+
+  it("un chapitre sans bannière autour n'en reçoit aucune", () => {
+    expect(bannersForChapter([ms("c1", "QUETE_SERIE"), ms("c2", "DOFUS")], "c2")).toEqual({ before: [], after: [] });
+  });
+
+  it("sans chapitre courant (ou id de bannière), rien n'est rendu", () => {
+    expect(bannersForChapter(GUIDE, null)).toEqual({ before: [], after: [] });
+    expect(bannersForChapter(GUIDE, "b2")).toEqual({ before: [], after: [] });
+  });
+});
+
+describe("nextBlockIndex — la navigation ne porte que sur les chapitres", () => {
+  const chapters = [
+    { id: "c1", type: "QUETE_SERIE" },
+    { id: "c2", type: "QUETE_SERIE" },
+    { id: "c3", type: "DOFUS" },
+  ];
+
+  it("saute les chapitres déjà validés", () => {
+    expect(nextBlockIndex(chapters, 0, new Set(["c2"]))).toBe(2);
+    expect(nextBlockIndex(chapters, 0, new Set())).toBe(1);
   });
 
   it("retourne null au bout du guide", () => {
-    expect(nextBlockIndex(blocks, 4, new Set())).toBeNull();
-    // Tous les chapitres validés d'un guide sans bandeau : plus rien à proposer.
-    expect(
-      nextBlockIndex([{ id: "c1", type: "QUETE_SERIE" }, { id: "c2", type: "DOFUS" }], 0, new Set(["c2"]))
-    ).toBeNull();
-  });
-
-  it("propose un bandeau même marqué validé : il ne disparaît jamais", () => {
-    expect(nextBlockIndex(blocks, 2, new Set(["tips"]))).toBe(3);
+    expect(nextBlockIndex(chapters, 2, new Set())).toBeNull();
+    expect(nextBlockIndex(chapters, 0, new Set(["c1", "c2", "c3"]))).toBeNull();
   });
 });
 
@@ -65,17 +93,17 @@ const codeOf = (p: string) =>
     .replace(/(^|[^:])\/\/[^\n]*/g, "$1");
 
 const OVERLAY = "src/app/overlay/guide/[guildId]/[slug]/GuideOverlayClient.tsx";
+const COMPACT = "src/app/overlay/guide/[guildId]/[slug]/components/RushOverlayCompact.tsx";
 const DASHBOARD = "src/app/dashboard/[guildId]/quetes-dofus/guide/[slug]/RushTimelineClient.tsx";
 const PUBLIC = "src/app/guides/rush-sylvestre/_components/PublicRushGuideClient.tsx";
 const RICH = "src/components/dofus-quests/rush/RushRichText.tsx";
 
-describe("Overlay — les bandeaux font partie de la liste", () => {
-  it("la liste ne filtre plus les blocs CONSEIL/TIPS ni « Dofus obtenu »", () => {
+describe("Overlay — les bannières sont dans le flux, pas dans la navigation", () => {
+  it("la liste des étapes ne garde que les chapitres (règle partagée)", () => {
     const code = codeOf(OVERLAY);
-    expect(code, "filtre INFO/DOFUS_OBTAINED toujours présent").not.toMatch(
-      /rawMilestones\.filter\(\s*\(ms\)\s*=>\s*!\["INFO"/
+    expect(code).toMatch(
+      /const milestones = useMemo\(\s*\(\) => rawMilestones\.filter\(\(ms\) => !isNonCheckableBlock\(ms\)\),/
     );
-    expect(code).toMatch(/const milestones = rawMilestones;/);
   });
 
   it("la navigation passe par la règle partagée `nextBlockIndex`", () => {
@@ -83,15 +111,30 @@ describe("Overlay — les bandeaux font partie de la liste", () => {
     expect(code).toMatch(/nextBlockIndex\(milestones, currentMsIndex, completedIds\)/);
   });
 
-  it("le bandeau CONSEIL/TIPS est rendu, en compact comme en normal", () => {
+  it("les bannières du chapitre sont rendues AVANT et APRÈS son contenu", () => {
     const code = codeOf(OVERLAY);
-    // Deux rendus : contenu principal + mode jeu compact.
-    expect(code.split("<RushInfoBanner").length - 1).toBeGreaterThanOrEqual(2);
-    expect(code).toMatch(/currentMs\.type === "INFO" \? \(/);
+    expect(code).toMatch(/bannersForChapter\(rawMilestones, currentMs\?\.id\)/);
+    expect(code).toMatch(/\{!search\.trim\(\) && banners\.before\.map\(renderBanner\)\}/);
+    expect(code).toMatch(/\{!search\.trim\(\) && banners\.after\.map\(renderBanner\)\}/);
   });
 
-  it("la règle des blocs non cochables vient du module partagé", () => {
-    expect(codeOf(OVERLAY)).toMatch(/const msIsInfoBlock = isNonCheckableBlock\(currentMs\);/);
+  it("chaque bannière garde son composant PARTAGÉ (aucune mise en page locale)", () => {
+    const code = codeOf(OVERLAY);
+    expect(code).toMatch(/const renderBanner = \(ms: RushMilestone\) => \{/);
+    expect(code).toMatch(/<RushSeparatorBanner/);
+    expect(code).toMatch(/<RushInfoBanner/);
+  });
+
+  it("plus aucune case à cocher désactivée ni « bloc informatif »", () => {
+    const code = codeOf(OVERLAY);
+    expect(code).not.toMatch(/msIsInfoBlock/);
+  });
+
+  it("le mode compact ne cache plus l'objectif derrière un bandeau", () => {
+    expect(codeOf(OVERLAY)).toMatch(/body=\{!compactObjective && banners\.before\.length > 0/);
+    // La prop `checkable` n'existe plus : le bloc courant est toujours un chapitre.
+    expect(codeOf(COMPACT)).not.toMatch(/checkable\?: boolean/);
+    expect(codeOf(COMPACT)).not.toMatch(/\{checkable &&/);
   });
 });
 

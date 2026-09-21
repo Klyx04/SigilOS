@@ -27,6 +27,7 @@ import { RushCurrentObjective } from "@/components/dofus-quests/rush/RushCurrent
 import { RushSeparatorBanner } from "@/components/dofus-quests/rush/RushSeparatorBanner";
 import { RushInfoBanner } from "@/components/dofus-quests/rush/RushInfoBanner";
 import { RushRichText } from "@/components/dofus-quests/rush/RushRichText";
+import { RushInfoSequenceBanner } from "@/components/dofus-quests/rush/RushInfoSequenceBanner";
 import { getNextObjective, aggregateRushResources, nextBlockIndex, bannersForChapter } from "./components/overlay-utils";
 import { RushOverlayResourcesModal } from "./components/RushOverlayResourcesModal";
 import { RushOverlayMembersModal, type OverlayMember } from "./components/RushOverlayMembersModal";
@@ -1172,20 +1173,10 @@ export default function GuideOverlayClient({
               visibleSequences.map((seq) => {
                 // Les séquences info (conseils/bandeaux) ne sont pas des quêtes cochables.
                 if (isInfoSequence(seq)) {
-                  const info = seq.tips || seq.subGuideName || seq.subGuideRef || "";
+                  // Bandeau d'une séquence informative : composant PARTAGÉ (dashboard,
+                  // guide public, overlay) — rien à cocher, ce n'est pas une quête.
                   return (
-                    <div
-                      key={seq.id}
-                      className={cn(
-                        "rounded-xl border px-4 py-3 text-[12px] leading-relaxed",
-                        isLightMode
-                          ? "bg-slate-50 border-slate-200 text-slate-500"
-                          : "bg-[#0f1318]/70 border-[#1e2530]/60 text-[#8b95a0]"
-                      )}
-                    >
-                      <span className="font-semibold text-[#39bc95]">📘&nbsp;</span>
-                      <RushRichText text={info} />
-                    </div>
+                    <RushInfoSequenceBanner key={seq.id} seq={seq} accentColor={currentMs.accentColor} />
                   );
                 }
                 const isSeqDone = currentMsDoneSeqs.has(seq.id);

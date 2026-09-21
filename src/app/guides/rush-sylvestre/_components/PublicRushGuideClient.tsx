@@ -49,6 +49,7 @@ import { QuestItemResourceGrid } from "@/components/dofus-quests/rush/QuestItemR
 import { RushSeparatorBanner } from "@/components/dofus-quests/rush/RushSeparatorBanner";
 import { RushInfoBanner } from "@/components/dofus-quests/rush/RushInfoBanner";
 import { RushRichText } from "@/components/dofus-quests/rush/RushRichText";
+import { RushInfoSequenceBanner } from "@/components/dofus-quests/rush/RushInfoSequenceBanner";
 import {
   openPipWindow,
   openFallbackPopup,
@@ -61,6 +62,7 @@ import {
   aggregateRushResources,
   getSequenceCoord,
 } from "@/app/overlay/guide/[guildId]/[slug]/components/overlay-utils";
+import { isInfoSequence } from "@/lib/rush-guide-utils";
 import { getAlignmentSet } from "@/lib/rush-helpers";
 import { RushOverlayResourcesModal } from "@/app/overlay/guide/[guildId]/[slug]/components/RushOverlayResourcesModal";
 import { RushOverlayQuestDetailModal } from "@/app/overlay/guide/[guildId]/[slug]/components/RushOverlayQuestDetailModal";
@@ -88,12 +90,18 @@ function groupSequencesIntoQuests(
 ): QuestBlock[] {
   const blocks: QuestBlock[] = [];
   let currentBlock: QuestBlock | null = null;
+  // Les séquences info sont des ENCARTS, pas des quêtes : elles gardent leur place dans le
+  // flux (ordre du guide) et ne comptent JAMAIS dans la progression d'un bloc. Une info en
+  // tête de bloc est collée au bloc qui la suit (même règle que les bannières du dashboard) ;
+  // une info de fin reste dans le dernier bloc.
+  let pendingInfo: RushSequence[] = [];
 
   for (const seq of sequences) {
-    // Séquences info (bandeaux méta) : hors blocs de quêtes — jamais cochables,
-    // sinon aucun bloc ne pourrait être marqué terminé (filtre « masquer ce qui
-    // est terminé » piloté depuis la vue partagée).
-    if (Array.isArray((seq as any).activityTags) && (seq as any).activityTags.some((t: any) => t.type === "info_sequence")) continue;
+    if (isInfoSequence(seq)) {
+      if (currentBlock) currentBlock.sequences.push(seq);
+      else pendingInfo.push(seq);
+      continue;
+    }
     const qName = seq.subGuideName || seq.subGuideRef || "Étape";
     const qRef = seq.subGuideRef || qName;
 
@@ -101,7 +109,7 @@ function groupSequencesIntoQuests(
       currentBlock = {
         questName: qName,
         questRef: qRef,
-        sequences: [seq],
+        sequences: [...pendingInfo, seq],
         dofusdbUrl: seq.dofusdbUrl || null,
         dofuspourlesnoobsUrl: seq.dofuspourlesnoobsUrl || null,
         dungeons: [],
@@ -109,6 +117,7 @@ function groupSequencesIntoQuests(
         doneCount: 0,
         totalCount: 0,
       };
+      pendingInfo = [];
       blocks.push(currentBlock);
     } else {
       currentBlock.sequences.push(seq);
@@ -126,9 +135,26 @@ function groupSequencesIntoQuests(
     }
   }
 
+  // Milestone fait uniquement d'encarts info : ils sont portés par un bloc sans étape
+  // (aucun en-tête de quête n'est rendu pour lui — voir le rendu).
+  if (pendingInfo.length) {
+    blocks.push({
+      questName: "",
+      questRef: "",
+      sequences: pendingInfo,
+      dofusdbUrl: null,
+      dofuspourlesnoobsUrl: null,
+      dungeons: [],
+      isDone: false,
+      doneCount: 0,
+      totalCount: 0,
+    });
+  }
+
   for (const b of blocks) {
-    b.totalCount = b.sequences.length;
-    b.doneCount = b.sequences.filter((s) => doneSteps.has(s.id)).length;
+    const steps = b.sequences.filter((s) => !isInfoSequence(s));
+    b.totalCount = steps.length;
+    b.doneCount = steps.filter((s) => doneSteps.has(s.id)).length;
     b.isDone = b.totalCount > 0 && b.doneCount === b.totalCount;
   }
 
@@ -327,8 +353,15 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
   const [expandedMs, setExpandedMs] = useState<Set<string>>(() => new Set([milestones[0]?.id].filter(Boolean)));
 
   // Global counts
+  // Les séquences info (encarts) ne sont pas des étapes : elles ne comptent PAS dans la
+  // progression — avant, elles étaient comptées mais jamais affichées, donc le guide ne
+  // pouvait jamais atteindre 100 %.
   const totalSequences = useMemo(
-    () => milestones.reduce((acc, ms) => acc + (ms.sequences?.length || 0), 0),
+    () =>
+      milestones.reduce(
+        (acc, ms) => acc + (ms.sequences?.filter((s) => !isInfoSequence(s)).length || 0),
+        0
+      ),
     [milestones]
   );
 
@@ -447,7 +480,10 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
 
       const ms = milestones.find((m) => m.id === msId);
       if (ms && ms.sequences) {
-        const allDone = ms.sequences.length > 0 && ms.sequences.every((s) => current.has(s.id));
+        // Seules les étapes cochables comptent : un encart info n'est jamais validé, donc
+        // sans ce filtre un bloc contenant un encart ne serait jamais « terminé ».
+        const steps = ms.sequences.filter((s) => !isInfoSequence(s));
+        const allDone = steps.length > 0 && steps.every((s) => current.has(s.id));
         setCompletedIds((prev) => {
           const next = new Set(prev);
           allDone ? next.add(msId) : next.delete(msId);
@@ -480,7 +516,8 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
       if (!ms || !ms.sequences) return;
 
       const current = new Set(completedStepsByMs.get(msId) || []);
-      ms.sequences.forEach((s) => {
+      // Jamais les encarts info : ils n'ont pas de case à cocher.
+      ms.sequences.filter((s) => !isInfoSequence(s)).forEach((s) => {
         completeAll ? current.add(s.id) : current.delete(s.id);
       });
 
@@ -543,7 +580,7 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
           if (completeAll) doneSet.add(id);
           else doneSet.delete(id);
         });
-        const relevant = ms.sequences.map((s) => s.id);
+        const relevant = ms.sequences.filter((s) => !isInfoSequence(s)).map((s) => s.id);
         const allDone = relevant.length > 0 && relevant.every((id) => doneSet.has(id));
         setCompletedIds((prev) => {
           const next = new Set(prev);
@@ -1077,7 +1114,8 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
         <nav aria-label="Sommaire du guide" className="mt-2">
           <ul className="grid max-h-72 grid-cols-1 gap-0.5 overflow-y-auto border border-border p-1.5 sm:grid-cols-2 lg:grid-cols-3">
             {chapterPages.map((p, i) => {
-              const done = p.ms.sequences.filter((s) => (completedStepsByMs.get(p.ms.id) || new Set()).has(s.id)).length;
+              const pageSteps = p.ms.sequences.filter((s) => !isInfoSequence(s));
+              const done = pageSteps.filter((s) => (completedStepsByMs.get(p.ms.id) || new Set()).has(s.id)).length;
               const isCurrent = !isSearching && i === currentPageIndex;
               return (
                 <li key={p.ms.id} className="min-w-0">
@@ -1093,7 +1131,7 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
                     <span className="reg-mono shrink-0 text-[11px] tabular-nums">{p.index + 1}</span>
                     <span className="min-w-0 flex-1 truncate text-xs font-semibold">{p.ms.title}</span>
                     <span className="reg-mono shrink-0 text-[11px] tabular-nums">
-                      {done}/{p.ms.sequences.length}
+                      {done}/{pageSteps.length}
                     </span>
                   </a>
                 </li>
@@ -1138,8 +1176,12 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
           const isExpanded = expandedMs.has(ms.id) || isSearching || pagedChapterId === ms.id;
           const doneSteps = completedStepsByMs.get(ms.id) || new Set();
           const sequences = ms.sequences || [];
+          // Étapes RÉELLEMENT cochables : les encarts info ne comptent pas dans la
+          // progression (ni « n/N », ni pourcentage, ni « toutes les étapes »).
+          const chapterSteps = sequences.filter((s) => !isInfoSequence(s));
 
-          // Regroupement des séquences en blocs de quête
+          // Regroupement des séquences en blocs de quête (encarts info compris : ils se
+          // lisent à leur place dans le flux).
           let questBlocks = groupSequencesIntoQuests(sequences, doneSteps);
 
           // Filtrage par recherche
@@ -1166,8 +1208,8 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
             return null;
           }
 
-          const msDoneCount = sequences.filter((s) => doneSteps.has(s.id)).length;
-          const msPercent = sequences.length > 0 ? Math.round((msDoneCount / sequences.length) * 100) : 0;
+          const msDoneCount = chapterSteps.filter((s) => doneSteps.has(s.id)).length;
+          const msPercent = chapterSteps.length > 0 ? Math.round((msDoneCount / chapterSteps.length) * 100) : 0;
           const chapterDofusImg = resolveDofusLocalImage(ms.title);
 
           // Séparateur de chapitre majeur — le MÊME bandeau que le dashboard membre
@@ -1247,7 +1289,7 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
                         </span>
                       )}
                       <span className="reg-mono text-xs text-muted-foreground">
-                        {msDoneCount} / {sequences.length} étapes ({msPercent}%)
+                        {msDoneCount} / {chapterSteps.length} étapes ({msPercent}%)
                       </span>
                     </div>
                     <h2 className="mt-0.5 truncate text-base font-bold text-foreground sm:text-lg">
@@ -1315,8 +1357,15 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
                   ) : (
                     questBlocks.map((block, blockIdx) => {
                       const questDofusImg = resolveDofusLocalImage(block.questName) || resolveDofusLocalImage(ms.title);
+                      // Les encarts info ne sont pas des étapes : ils ne comptent ni dans
+                      // l'en-tête (« n/N »), ni dans « Valider tout le bloc », ni dans le
+                      // repère — mais ils gardent leur place dans le flux.
+                      const blockSteps = block.sequences.filter((s) => !isInfoSequence(s));
+                      const hasSteps = blockSteps.length > 0;
+                      // Éléments réellement affichés (étapes + encarts, dans l'ordre du guide).
+                      const blockItems = block.sequences.filter((s) => !hideDone || !doneSteps.has(s.id));
                       // Bloc mono-étape : pas d'en-tête redondant, la ligne-carte porte le nom (comme le guide interne)
-                      const isSingleStep = block.sequences.length === 1;
+                      const isSingleStep = blockSteps.length === 1;
                       return (
                       <div
                         key={`${block.questRef}-${blockIdx}`}
@@ -1326,7 +1375,7 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
                         )}
                       >
                         {/* ── EN-TÊTE DU BLOC DE QUÊTE (multi-étapes uniquement) ── */}
-                        {!isSingleStep && (
+                        {hasSteps && !isSingleStep && (
                         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3.5 sm:px-4 bg-surface border-b border-border">
                           <div className="flex items-center gap-2.5 min-w-0 flex-1">
                             {questDofusImg ? (
@@ -1367,14 +1416,14 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
                           </div>
                           {(() => {
                             const bmSeqId = bookmarksByMs.get(ms.id) || null;
-                            const bmInBlock = bmSeqId && block.sequences.some((s) => s.id === bmSeqId);
-                            const firstUndone = block.sequences.find((s) => !doneSteps.has(s.id));
+                            const bmInBlock = bmSeqId && blockSteps.some((s) => s.id === bmSeqId);
+                            const firstUndone = blockSteps.find((s) => !doneSteps.has(s.id));
                             return (
                               <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-center">
                                 {!block.isDone && (
                                   <button
                                     type="button"
-                                    onClick={() => handleToggleBlockSteps(ms.id, block.sequences.map((s) => s.id), true)}
+                                    onClick={() => handleToggleBlockSteps(ms.id, blockSteps.map((s) => s.id), true)}
                                     className="inline-flex items-center gap-1 rounded-md border border-success/40 px-2.5 py-1.5 text-xs font-semibold text-success transition-colors hover:bg-success/10"
                                     title="Valider toutes les étapes du bloc"
                                   >
@@ -1398,10 +1447,16 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
                         )}
 
                         {/* ── ÉTAPES DE LA QUÊTE ── */}
-                        <div className={isSingleStep ? "p-2 sm:p-3" : "p-2 sm:p-3 space-y-2.5"}>
-                          {block.sequences.filter((s) => !hideDone || !doneSteps.has(s.id)).map((seq) => {
+                        <div className={blockItems.length > 1 ? "p-2 sm:p-3 space-y-2.5" : "p-2 sm:p-3"}>
+                          {blockItems.map((seq) => {
                             const stepDone = doneSteps.has(seq.id);
                             const parsedCoord = getSequenceCoord(seq);
+
+                            // Encart informatif : jamais cochable, aucune progression — le
+                            // MÊME bandeau que le dashboard et l'overlay (composant partagé).
+                            if (isInfoSequence(seq)) {
+                              return <RushInfoSequenceBanner key={seq.id} seq={seq} accentColor={ms.accentColor} />;
+                            }
 
                             // Extraction et séparation des tags d'items pour ne PAS polluer la ligne
                             const allTags = seq.activityTags || [];

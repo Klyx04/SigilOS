@@ -63,6 +63,7 @@ import { RushHelperBadge } from "@/components/rush/RushHelperBadge";
 import { RushSeparatorBanner } from "@/components/dofus-quests/rush/RushSeparatorBanner";
 import { RushInfoBanner } from "@/components/dofus-quests/rush/RushInfoBanner";
 import { RushRichText } from "@/components/dofus-quests/rush/RushRichText";
+import { RushInfoSequenceBanner } from "@/components/dofus-quests/rush/RushInfoSequenceBanner";
 import { MilestoneCelebrationBurst } from "@/components/dofus-quests/rush/MilestoneCelebration";
 import { RushCoordinateChip } from "@/components/dofus-quests/rush/RushCoordinateChip";
 import { brandIconForUrl } from "@/lib/source-icons";
@@ -688,34 +689,10 @@ function InfoBanner({ milestone }: { milestone: Milestone }) {
   );
 }
 
-// ─── InfoSequenceBanner (bandeau informatif non-cliquable dans un bloc) ─────
-function InfoSequenceBanner({ seq, accentColor }: { seq: Sequence; accentColor: string }) {
-  const color = seq.activityTags?.find((t: any) => t.type === "info_sequence")?.color || accentColor || "#10b981";
-  const content = seq.tips || seq.subGuideName || seq.subGuideRef || "";
-  const isWarm = color.startsWith("#ef")||color.startsWith("#f4")||color.startsWith("#f5")||color.startsWith("#eab")||color.startsWith("#dc")||color.startsWith("#f9");
-  const isCool = color.startsWith("#3b")||color.startsWith("#06")||color.startsWith("#4f")||color.startsWith("#63")||color.startsWith("#0e")||color.startsWith("#38");
-  const isPurple = color.startsWith("#7c")||color.startsWith("#a8")||color.startsWith("#8b")||color.startsWith("#c0");
-  let icon = "💡";
-  if (isWarm) icon = "⚠️";
-  else if (isCool) icon = "📖";
-  else if (isPurple) icon = "🔮";
-
-  return (
-    <div className="relative rounded-[6px] overflow-hidden border select-none"
-      style={{
-        borderColor: `${color}25`,
-        background: `linear-gradient(135deg, ${color}10 0%, rgba(0,0,0,0.4) 50%, ${color}06 100%)`,
-      }}
-    >
-      <div className="relative flex items-start gap-2.5 p-3">
-        <span className="text-base leading-none mt-0.5 shrink-0">{icon}</span>
-        <div className="text-xs sm:text-sm text-foreground/90 leading-relaxed font-medium flex-1 min-w-0 flex flex-wrap items-center gap-x-2 gap-y-1">
-          <RushRichText text={content} />
-        </div>
-      </div>
-    </div>
-  );
-}
+// ─── InfoSequenceBanner — remplacé par le composant PARTAGÉ ──────────────────
+// Le rendu du bandeau d'une séquence « info_sequence » vit maintenant dans
+// `@/components/dofus-quests/rush/RushInfoSequenceBanner` (une seule grammaire pour le
+// dashboard, le guide public et l'overlay).
 const MilestoneRow = memo(function MilestoneRow({ ms, isCompleted, completedStepsSet, isBookmarked, membersHere, hideDone, isLoading, accentColor, userAlignmentInfo, focusedSeqId, onFocusSequence, onToggle, onToggleSequence, onReset, onDungeonClick, isSearching, blockIndex }: any) {
   const [expanded,setExpanded]=useState(false);
   const bookmarksByMs = React.useContext(BookmarkedSeqCtx);
@@ -817,7 +794,7 @@ const MilestoneRow = memo(function MilestoneRow({ ms, isCompleted, completedStep
                   ) : (
                     visibleSeqs.map((s:any)=>(
                       isInfoSequence(s) ? (
-                        <InfoSequenceBanner key={s.id} seq={s} accentColor={c} />
+                        <RushInfoSequenceBanner key={s.id} seq={s} accentColor={c} />
                       ) : (
                         <SequenceRow key={s.id} seq={s} ms={ms} isSeqCompleted={completedStepsSet.has(s.id)} focusedSeqId={focusedSeqId} accentColor={c} userAlignmentInfo={userAlignmentInfo} onToggleSeq={()=>onToggleSequence(ms,s.id)} onDungeonClick={onDungeonClick} isFirstVisible={s.id===firstVisibleSeqId}/>
                       )

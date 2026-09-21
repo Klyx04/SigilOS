@@ -4,7 +4,7 @@
  */
 
 import type { RushMilestone, RushSequence, RushActivityTag } from "@/types/rush-guide-types";
-import { parseCoordinates, getSequenceCoord, isNonCheckableBlock, RUSH_ACTIVITY_TAG_CONFIG, getMetierIconPath, isSequenceBlockedByPrereqs, resolveItemImage } from "@/lib/rush-guide-utils";
+import { parseCoordinates, getSequenceCoord, isNonCheckableBlock, RUSH_ACTIVITY_TAG_CONFIG, getMetierIconPath, isSequenceBlockedByPrereqs, resolveItemImage, rushResourceKey } from "@/lib/rush-guide-utils";
 // Re-export du helper central pour compatibilité des consumers overlay.
 export { getSequenceCoord };
 // Re-export pour compatibilité des imports overlay.
@@ -192,7 +192,7 @@ export function aggregateRushResources(
         // altération d'idole, pas des objets (non mappés, sans icône DofusDB)
         // → on les écarte de la liste des ressources à prévoir.
         if ((tag as any).kind === "unresolved" && /avec altération/i.test(tag.name)) continue;
-        const key = `id:${tag.id ?? ""}|${normResourceName(tag.name)}`;
+        const key = rushResourceKey(tag);
         const existing = map.get(key);
         const qty = tag.count ?? tag.quantity ?? 1;
         if (!existing) {

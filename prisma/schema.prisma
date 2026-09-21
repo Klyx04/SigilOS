@@ -760,6 +760,8 @@ model UserProfile {
   hasLegendaryPrerequisites  Boolean                    @default(false)
   hasLegendaryPet            Boolean                    @default(false)
   playerGuideProgress        PlayerGuideProgress[]
+  /** Coches manuelles de ressources du Rush (par personnage) — cf. PlayerGuideResourceCheck. */
+  rushResourceChecks         PlayerGuideResourceCheck[]
   guild                      GuildConfig                @relation(fields: [guildId], references: [id], onDelete: Cascade)
   user                       User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
   skins                      UserSkin[]
@@ -2625,6 +2627,7 @@ model OptimizedGuide {
   updatedAt           DateTime             @updatedAt
   steps               OptimizedGuideStep[]
   milestones          GuideMilestone[]
+  resourceChecks      PlayerGuideResourceCheck[]
 }
 
 model OptimizedGuideStep {
@@ -2751,6 +2754,27 @@ model PlayerGuideProgress {
   @@index([profileId])
   @@index([milestoneId])
   @@index([characterSlot])
+}
+
+/// Coche MANUELLE d'une ressource du guide (Rush Sylvestre) : « j'ai déjà préparé
+/// cet objet ». Une ligne = une ressource cochée, par MEMBRE et par PERSONNAGE
+/// (principale ou mule) : ce qu'on a acheté avec une mule ne l'est pas avec la
+/// principale. Une quête invalidée remet à zéro les coches de ses ressources.
+model PlayerGuideResourceCheck {
+  id            String   @id @default(cuid())
+  profileId     String
+  guideId       String
+  characterSlot String   @default("PRINCIPAL") // "PRINCIPAL" = main, pseudo = mule
+  /// Clé STABLE de la ressource (voir `rushResourceKey`, `id:<id>|<nom normalisé>`).
+  resourceKey   String
+  checkedAt     DateTime @default(now())
+
+  profile       UserProfile    @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  guide         OptimizedGuide @relation(fields: [guideId], references: [id], onDelete: Cascade)
+
+  @@unique([profileId, guideId, resourceKey, characterSlot])
+  @@index([guideId, characterSlot])
+  @@index([profileId])
 }
 
 enum GuideMilestoneType {

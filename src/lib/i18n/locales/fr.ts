@@ -794,8 +794,6 @@ export const fr = {
         completedPercent: "accompli",
         remainingSteps: "étapes restantes",
         guestProfile: "Profil invité",
-        selectClass: "Choisir ma classe",
-        selectServer: "Choisir mon serveur",
     },
     tacticalSim: {
         simulatedSpell: "Sort simulé :",

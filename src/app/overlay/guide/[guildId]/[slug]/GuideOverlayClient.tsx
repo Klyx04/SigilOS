@@ -30,6 +30,8 @@ import { RushInfoSequenceBanner } from "@/components/dofus-quests/rush/RushInfoS
 import { getNextObjective, aggregateRushResources, nextBlockIndex, bannersForChapter } from "./components/overlay-utils";
 import { RushOverlayResourcesModal } from "./components/RushOverlayResourcesModal";
 import { RushOverlayMembersModal, type OverlayMember } from "./components/RushOverlayMembersModal";
+import { RushOverlayOcreModal } from "./components/RushOverlayOcreModal";
+import { buildOcrePlan, type OcrePanelData } from "@/lib/ocre-soul-stones";
 import { RushOverlayTutorialModal } from "./components/RushOverlayTutorialModal";
 import { OverlayPinNotice } from "@/components/overlay-pin-notice";
 
@@ -83,6 +85,11 @@ type Props = {
    * (vraie PiP toujours-au-dessus, ou page overlay directe).
    */
   pinned?: boolean;
+  /**
+   * Quête Ocre du membre (Metamob lié) — **overlay interne uniquement** : le guide
+   * public n'a ni guilde ni compte, donc aucun bouton. `null`/absent ⇒ masqué.
+   */
+  ocre?: OcrePanelData | null;
 };
 
 export default function GuideOverlayClient({
@@ -96,6 +103,7 @@ export default function GuideOverlayClient({
   isGuest = false,
   guestStoragePrefix,
   pinned = true,
+  ocre = null,
 }: Props) {
   const effectiveAltPseudo = altPseudo ?? undefined;
   // Repli si le personnage n'est pas fourni (accès direct à la page overlay).
@@ -159,6 +167,7 @@ export default function GuideOverlayClient({
   // ─── Mode compact (jeu) ───────────────────────────────────────────────────
   const [isCompactMode, setIsCompactMode] = useState<boolean>(false);
   const [showResources, setShowResources] = useState<boolean>(false);
+  const [showOcre, setShowOcre] = useState<boolean>(false);
   const [membersModal, setMembersModal] = useState<{ title: string; members: OverlayMember[] } | null>(null);
   const [showTutorial, setShowTutorial] = useState<boolean>(false);
 
@@ -369,6 +378,17 @@ export default function GuideOverlayClient({
     return n;
   }, [milestones, completedStepsByMs]);
   const overallPct = totalSteps > 0 ? Math.round((completedSteps / totalSteps) * 100) : 0;
+
+  // ─── Quête Ocre (Metamob) ─────────────────────────────────────────────────
+  // Réservé à l'overlay INTERNE d'un membre dont le compte Metamob est lié : le guide
+  // public (`isGuest`) et l'overlay sans guilde n'ont ni compte ni progression Ocre,
+  // donc aucun bouton n'est rendu — et aucun calcul n'est fait.
+  const ocreEnabled = !isGuest && !!ocre && !!guildId && guildId !== "public";
+  const ocreSummary = useMemo(() => {
+    if (!ocreEnabled || !ocre) return null;
+    const plan = buildOcrePlan(ocre);
+    return { missing: plan.progress.missing, percent: plan.progress.percent };
+  }, [ocre, ocreEnabled]);
 
   // Ressources agrégées sur TOUT le guide (bouton "Ressources" du header).
   const allResources = useMemo(() => aggregateRushResources(milestones), [milestones]);
@@ -957,6 +977,8 @@ export default function GuideOverlayClient({
             character={overlayCharacter}
             onResetGuide={handleResetGuide}
             isGuest={isGuest}
+            ocre={ocreSummary}
+            onOpenOcre={ocreEnabled ? () => setShowOcre(true) : undefined}
           />
 
           {/* ══ RECHERCHE ══ */}
@@ -1269,6 +1291,16 @@ export default function GuideOverlayClient({
       {/* ══ MODALE TUTORIEL ══ */}
       {showTutorial && (
         <RushOverlayTutorialModal isLightMode={isLightMode} onClose={() => setShowTutorial(false)} />
+      )}
+
+      {/* ══ PANNEAU QUÊTE OCRE (Metamob · overlay interne) ══ */}
+      {showOcre && ocreEnabled && ocre && (
+        <RushOverlayOcreModal
+          guildId={guildId}
+          isLightMode={isLightMode}
+          initial={ocre}
+          onClose={() => setShowOcre(false)}
+        />
       )}
     </div>
   );

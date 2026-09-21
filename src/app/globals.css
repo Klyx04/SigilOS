@@ -1,12 +1,5 @@
 @import "tailwindcss";
 
-/* ── Feuille de LA vue de guide partagée (public ↔ guilde) ─────────────────
-   Elle est importée ICI, avec les autres classes du registre, et non depuis le
-   composant : un chunk CSS par composant peut ne pas être présent au premier
-   rendu (page servie avec l'ancien chunk → vue à l'état brut, tout empilé en
-   texte nu). Une seule feuille = une seule requête, aucun décalage. */
-@import "../components/dofus-quests/rush/rush-guide-view.css";
-
 /* Dark mode basé sur la classe .dark (next-themes pose la classe sur <html>).
    Sans ce @custom-variant, les variantes dark:* suivraient prefers-color-scheme
    (défaut Tailwind v4) au lieu du toggle applicatif. */

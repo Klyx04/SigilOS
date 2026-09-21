@@ -275,6 +275,18 @@ export function parseCoordinates(
 /** Référence vers une quête prérequis d'une autre quête. */
 export type RushPrereqRef = { seqId: string; milestoneId: string; name: string };
 
+/** Normalise un nom de ressource (casse, espaces) — base de la clé stable. */
+const normResourceName = (name = "") => name.trim().toLowerCase().replace(/\s+/g, " ");
+
+/**
+ * Clé STABLE d'une ressource `item` du guide — celle portée par `RushResourceAgg.key`
+ * (agrégation) ET stockée par les coches manuelles (base comme navigateur). Une seule
+ * définition : une ressource cochée est la MÊME sur toutes les surfaces.
+ */
+export function rushResourceKey(tag: { id?: string | null; name?: string | null }): string {
+  return `id:${tag.id ?? ""}|${normResourceName(tag.name ?? "")}`;
+}
+
 /**
  * Retourne les quêtes prérequis d'une séquence (match par nom via tags `prereq_text`).
  * Indépendant de la complétion : sert à afficher/dispatcher les prérequis cliquables.

@@ -17,6 +17,7 @@ import { buildGuildProgressRows, buildPresenceMap, buildUniqueGuildMembers, buil
 import { z } from "zod";
 import { findSequenceHelpers, type RushHelperProfile, type RushHelperMetier } from "@/lib/rush-helpers";
 import { normalizeMetiers } from "@/lib/metiers";
+import { rushResourceKey } from "@/lib/rush-guide-utils";
 import type { RushSequence } from "@/types/rush-guide-types";
 
 /**
@@ -973,11 +974,46 @@ export async function setRushSequenceProgress(guildId: string, milestoneId: stri
   const checkedSet = new Set(incoming);
   const isCompleted = contentIds.length > 0 && contentIds.every((id) => checkedSet.has(id));
 
+  // État AVANT écriture : les séquences cochées qui ne le sont plus = INVALIDÉES.
+  // (Une quête invalidée fait repartir à zéro les coches manuelles de ses ressources.)
+  const before = await db.playerGuideProgress.findUnique({
+    where: { profileId_milestoneId_characterSlot: { profileId, milestoneId, characterSlot } },
+    select: { completedSteps: true },
+  });
+  const previouslyChecked = Array.isArray(before?.completedSteps)
+    ? (before!.completedSteps as string[])
+    : [];
+  const unvalidatedSeqIds = previouslyChecked.filter((id) => !checkedSet.has(id));
+
   const progress = await db.playerGuideProgress.upsert({
     where: { profileId_milestoneId_characterSlot: { profileId, milestoneId, characterSlot } },
     update: { completedSteps: incoming, isCompleted, completedAt: isCompleted ? new Date() : null },
     create: { profileId, milestoneId, characterSlot, completedSteps: incoming, isCompleted, completedAt: isCompleted ? new Date() : null },
   });
+
+  // ── Ressources : une quête INVALIDÉE remet à zéro ses coches manuelles ───────
+  // « Si la quête est invalidée, la coche manuelle repart à zéro » : les ressources
+  // de cette quête ne sont plus « préparées », on supprime donc les coches du
+  // personnage courant. Échec non bloquant : la validation de l'étape prime.
+  try {
+    if (unvalidatedSeqIds.length > 0) {
+      const resourceKeys = new Set<string>();
+      for (const seq of milestone.sequences || []) {
+        if (!unvalidatedSeqIds.includes(seq.id)) continue;
+        for (const tag of (seq as any).activityTags || []) {
+          if (tag?.type === "item" && tag.name) resourceKeys.add(rushResourceKey(tag));
+        }
+      }
+      if (resourceKeys.size > 0) {
+        await db.playerGuideResourceCheck.deleteMany({
+          where: { profileId, characterSlot, resourceKey: { in: [...resourceKeys] } },
+        });
+        revalidatePath(`/dashboard/${guildId}/quetes-dofus/guide/${milestone.guide?.slug ?? ""}`);
+      }
+    }
+  } catch (e) {
+    logger.error("[setRushSequenceProgress] reset des coches de ressources échoué (non bloquant)", { error: e });
+  }
 
   // Temps réel + cache (fail-closed, non bloquant).
   try {
@@ -1067,6 +1103,92 @@ export async function setRushBookmark(guildId: string, milestoneId: string, seqI
   }
 
   return { success: true, bookmarkedSeqId: resolved };
+}
+
+/**
+ * Coches MANUELLES de ressources du Rush — lecture, par membre ET par personnage.
+ * Une coche veut dire « j'ai déjà préparé cet objet » ; la clé est celle de
+ * `aggregateRushResources` (`rushResourceKey`), donc la même que côté navigateur.
+ */
+export async function getRushResourceChecks(guildId: string, slug: string, altPseudo?: string) {
+  const ctx = await getUserContext(guildId);
+  if (!ctx.isAuthenticated) throw new Error("Non autorisé");
+  if (!ctx.profileId) throw new Error("Profile ID manquant");
+
+  const { profileId, characterSlot } = resolvePlayerProgressKey(ctx.profileId, altPseudo);
+
+  const guide = await db.optimizedGuide.findUnique({ where: { slug }, select: { id: true } });
+  if (!guide) return { success: false as const, error: "Guide introuvable", keys: [] as string[] };
+
+  const rows = await db.playerGuideResourceCheck.findMany({
+    where: { profileId, guideId: guide.id, characterSlot },
+    select: { resourceKey: true },
+    orderBy: { checkedAt: "asc" },
+  });
+
+  return { success: true as const, keys: rows.map((r) => r.resourceKey) };
+}
+
+/** Entrée bornée : clés de ressources (jamais de payload libre). */
+const rushResourceKeysSchema = z.array(z.string().min(1).max(200)).max(500);
+
+/**
+ * Coches MANUELLES de ressources du Rush — écriture par REMPLACEMENT.
+ *
+ * La surface envoie l'ENSEMBLE des clés cochées (l'écran est la source de vérité de
+ * son propre geste) : on aligne la base dessus. Un remplacement — plutôt qu'un
+ * toggle — reste idempotent si deux onglets cliquent en même temps.
+ */
+export async function setRushResourceChecks(
+  guildId: string,
+  slug: string,
+  keys: string[],
+  altPseudo?: string
+) {
+  const ctx = await getUserContext(guildId);
+  if (!ctx.isAuthenticated) throw new Error("Non autorisé");
+  if (!ctx.profileId) throw new Error("Profile ID manquant");
+
+  const { profileId, characterSlot } = resolvePlayerProgressKey(ctx.profileId, altPseudo);
+
+  // 🛡️ RATE LIMIT (P0) : 60 écritures de préparation/min par membre.
+  const { success: rateOk } = await rateLimit(`guide-resource-check:${ctx.profileId}`, 60, 60_000);
+  if (!rateOk) throw new Error("Trop de requêtes, veuillez patienter.");
+
+  const parsed = rushResourceKeysSchema.safeParse(keys);
+  if (!parsed.success) throw new Error("Données invalides");
+  const wanted = [...new Set(parsed.data)];
+
+  const guide = await db.optimizedGuide.findUnique({ where: { slug }, select: { id: true } });
+  if (!guide) return { success: false as const, error: "Guide introuvable", keys: [] as string[] };
+
+  const existing = await db.playerGuideResourceCheck.findMany({
+    where: { profileId, guideId: guide.id, characterSlot },
+    select: { resourceKey: true },
+  });
+  const existingKeys = new Set(existing.map((r) => r.resourceKey));
+  const wantedSet = new Set(wanted);
+
+  const toAdd = wanted.filter((k) => !existingKeys.has(k));
+  const toRemove = existing.filter((r) => !wantedSet.has(r.resourceKey)).map((r) => r.resourceKey);
+
+  if (toAdd.length > 0) {
+    await db.playerGuideResourceCheck.createMany({
+      data: toAdd.map((resourceKey) => ({ profileId, guideId: guide.id, characterSlot, resourceKey })),
+      skipDuplicates: true,
+    });
+  }
+  if (toRemove.length > 0) {
+    await db.playerGuideResourceCheck.deleteMany({
+      where: { profileId, guideId: guide.id, characterSlot, resourceKey: { in: toRemove } },
+    });
+  }
+
+  try {
+    revalidatePath(`/dashboard/${guildId}/quetes-dofus/guide/${slug}`);
+  } catch { /* revalidation best-effort */ }
+
+  return { success: true as const, keys: wanted };
 }
 
 /**

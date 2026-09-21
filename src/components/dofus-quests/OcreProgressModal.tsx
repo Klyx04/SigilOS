@@ -2,19 +2,28 @@
 import { useEffect, useMemo, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Search, X, ExternalLink, Eye, EyeOff } from "lucide-react";
+import { ExternalLink, Eye, EyeOff, Info, RefreshCw, Search, X } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { BRAND_ICONS } from "@/lib/source-icons";
+import { useOcreWriteQueue } from "@/hooks/use-ocre-write-queue";
+import { OcreMonsterThumb, OcreTargetStepper } from "@/components/ocre/OcreTargetBits";
+import { metamobProfileUrl, type OcreMonsterLite } from "@/lib/ocre-soul-stones";
 
-/** Version allégée d'OcreMonster (src/lib/metamob-client.ts) — pas de dépendance. */
-export type OcreMonsterLite = {
-  id: number;
-  nameFr: string;
-  image?: string;
-  type: string; // "boss" | "archimonstre" | "monstre"
-  owned: number;
-  state?: string; // "POSSEDE" | "DOUBLON" | "MANQUANT"
-  zone?: string;
-  subzone?: string;
-};
+/**
+ * Modale « Mon Ocre » (ouverte depuis le guide) — registre + vocabulaire partagés.
+ *
+ * Ce qui a été retiré volontairement (déslop) : le titre en capitales ultra-trackées, la
+ * surface `rounded-[2rem]`, la forêt de classes CSS dédiées (`.ocre-row*`, `.ocre-tab*`,
+ * `.ocre-state*` — supprimées de `guide-styles.css`) et les écritures Metamob « à la
+ * volée » sans file (rafales possibles).
+ *
+ * Désormais : jetons de thème, **nos** WebP locaux (`OcreMonsterThumb`), libellés
+ * identiques à l'overlay (« À capturer », « À capturer ×1/2 », « Possédé ×2 ») et la
+ * **même file d'écriture** (`useOcreWriteQueue`) — optimiste, sérialisée, mise en pause
+ * dès qu'une limite est renvoyée (rate limit serveur ou 429 Metamob).
+ */
+
+export type { OcreMonsterLite };
 
 type Tab = "all" | "boss" | "archi";
 
@@ -26,6 +35,7 @@ export default function OcreProgressModal({
   archiCount,
   metamobPseudo,
   guildId,
+  requiredCopies = 1,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -34,182 +44,207 @@ export default function OcreProgressModal({
   archiCount?: { gathered?: number; total?: number };
   metamobPseudo?: string | null;
   guildId: string;
+  /** Copies exigées par la quête (parallelQuests) : sert au premier « + ». */
+  requiredCopies?: number;
 }) {
   const [query, setQuery] = useState("");
   const [tab, setTab] = useState<Tab>("all");
   const [hideOwned, setHideOwned] = useState(false);
 
-  // Copie locale pour re-render immédiat sur +/− (Metamob patché en direct).
-  const [monstersList, setMonstersList] = useState<OcreMonsterLite[]>(monsters);
-  useEffect(() => setMonstersList(monsters), [monsters]);
+  const {
+    monsters: list,
+    adoptServerList,
+    changeQuantity,
+    pendingIds,
+    busy,
+    notice,
+  } = useOcreWriteQueue({ guildId, monsters, requiredCopies });
+
+  // Les données serveur font foi dès qu'elles changent (rafraîchissement du guide).
+  useEffect(() => { adoptServerList(monsters); }, [monsters, adoptServerList]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    let list = monstersList.filter(m => m.type === "boss" || m.type === "archimonstre");
-    if (tab === "boss") list = list.filter(m => m.type === "boss");
-    if (tab === "archi") list = list.filter(m => m.type === "archimonstre");
+    let out = list.filter((m) => m.type === "boss" || m.type === "archimonstre");
+    if (tab === "boss") out = out.filter((m) => m.type === "boss");
+    if (tab === "archi") out = out.filter((m) => m.type === "archimonstre");
     if (q) {
-      list = list.filter(m =>
+      out = out.filter((m) =>
         `${m.nameFr} ${m.zone ?? ""} ${m.subzone ?? ""}`.toLowerCase().includes(q)
       );
     }
-    if (hideOwned) list = list.filter(m => m.owned <= 0);
-    // Possédés en premier, puis tri alphabétique.
-    return [...list].sort((a, b) => {
-      const aHas = a.owned > 0 ? 0 : 1;
-      const bHas = b.owned > 0 ? 0 : 1;
-      if (aHas !== bHas) return aHas - bHas;
+    if (hideOwned) out = out.filter((m) => m.owned <= 0);
+    // À capturer d'abord (c'est l'action), puis par nom.
+    return [...out].sort((a, b) => {
+      const aNeeded = a.owned <= 0 ? 0 : 1;
+      const bNeeded = b.owned <= 0 ? 0 : 1;
+      if (aNeeded !== bNeeded) return aNeeded - bNeeded;
       return a.nameFr.localeCompare(b.nameFr, "fr");
     });
-  }, [monstersList, query, tab, hideOwned]);
+  }, [list, query, tab, hideOwned]);
 
-  const bossOwned = bossCount?.gathered ?? monstersList.filter(m => m.type === "boss" && m.owned > 0).length;
-  const archiOwned = archiCount?.gathered ?? monstersList.filter(m => m.type === "archimonstre" && m.owned > 0).length;
+  const bossOwned = bossCount?.gathered ?? list.filter((m) => m.type === "boss" && m.owned > 0).length;
+  const archiOwned = archiCount?.gathered ?? list.filter((m) => m.type === "archimonstre" && m.owned > 0).length;
+  const bossTotal = bossCount?.total ?? 0;
+  const archiTotal = archiCount?.total ?? 0;
 
   const countByTab = (t: Tab) => {
-    if (t === "boss") return `${bossOwned}/${bossCount?.total ?? 51}`;
-    if (t === "archi") return `${archiOwned}/${archiCount?.total ?? 286}`;
-    return `${bossOwned + archiOwned}/${(bossCount?.total ?? 51) + (archiCount?.total ?? 286)}`;
+    if (t === "boss") return `${bossOwned}/${bossTotal}`;
+    if (t === "archi") return `${archiOwned}/${archiTotal}`;
+    return `${bossOwned + archiOwned}/${bossTotal + archiTotal}`;
   };
+
+  const profileUrl = metamobProfileUrl(metamobPseudo);
+  const segCls = (active: boolean) =>
+    cn(
+      "inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[11px] font-semibold transition-colors",
+      active
+        ? "border-warning/50 bg-warning/10 text-warning"
+        : "border-border bg-surface text-muted-foreground hover:text-foreground"
+    );
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg bg-background/95 border border-border rounded-[2rem] p-0 text-foreground outline-none overflow-hidden">
-        <DialogHeader className="px-6 pt-5 pb-3 border-b border-border">
-          <div className="flex items-center justify-between">
-            <DialogTitle className="text-sm font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
-              <img src="/assets/icons/ocre.png" alt="Ocre" className="w-4 h-4 object-contain"/>
+      <DialogContent className="max-w-lg overflow-hidden border border-border bg-background p-0 text-foreground outline-none">
+        <DialogHeader className="space-y-3 border-b border-border px-5 pb-3 pt-5">
+          <div className="flex items-center justify-between gap-3">
+            <DialogTitle className="flex items-center gap-2 text-sm font-semibold text-foreground">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/assets/dofus/icons/archimonster.png" alt="" className="h-4 w-4 object-contain" />
               Mon Ocre
             </DialogTitle>
-            <span className="text-caption font-bold text-muted-foreground">Metamob · {metamobPseudo}</span>
+            <span className="flex items-center gap-2 text-[11px] text-muted-foreground">
+              Metamob · {metamobPseudo || "—"}
+              {profileUrl && (
+                <a
+                  href={profileUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Ouvrir mon profil Metamob"
+                  title="Mon profil Metamob"
+                  className="rounded-md p-1 transition-colors hover:bg-surface"
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={BRAND_ICONS.metamob.src} alt="" className="h-3.5 w-3.5 rounded-[3px]" />
+                </a>
+              )}
+            </span>
           </div>
-          <div className="flex items-center gap-3 mt-3">
-            <div className="flex-1 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface/60 border border-border">
-              <Search size={12} className="text-muted-foreground shrink-0"/>
+
+          <div className="flex items-center gap-3">
+            <div className="flex flex-1 items-center gap-1.5 rounded-md border border-border bg-surface px-2.5 py-1.5">
+              <Search className="h-3 w-3 shrink-0 text-muted-foreground" aria-hidden="true" />
               <input
                 type="text"
-                className="flex-1 min-w-0 bg-transparent border-none outline-none text-xs font-semibold text-foreground"
-                placeholder="Rechercher un Gardien ou un Archimonstre…"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 aria-label="Rechercher dans ma collection Ocre"
+                placeholder="Rechercher un gardien ou un archimonstre…"
+                className="min-w-0 flex-1 bg-transparent text-xs font-medium text-foreground outline-none placeholder:text-muted-foreground"
               />
               {query && (
-                <button type="button" onClick={() => setQuery("")} aria-label="Effacer la recherche" className="text-muted-foreground hover:text-foreground">
-                  <X size={12}/>
+                <button
+                  type="button"
+                  onClick={() => setQuery("")}
+                  aria-label="Effacer la recherche"
+                  className="text-muted-foreground transition-colors hover:text-foreground"
+                >
+                  <X className="h-3 w-3" />
                 </button>
               )}
             </div>
             <a
               href={`/dashboard/${guildId}/quete-ocre`}
-              className="inline-flex items-center gap-1 text-caption font-bold text-warning/80 hover:text-warning whitespace-nowrap"
+              className="inline-flex items-center gap-1 whitespace-nowrap text-[11px] font-semibold text-warning/90 transition-colors hover:text-warning"
             >
-              Quête complète <ExternalLink size={11}/>
+              Quête complète <ExternalLink className="h-3 w-3" />
             </a>
           </div>
-          {/* Onglets */}
-          <div className="flex gap-1.5 mt-3">
-            {(["all", "boss", "archi"] as Tab[]).map(t => (
+
+          <div className="flex flex-wrap items-center gap-1.5">
+            {(["all", "boss", "archi"] as Tab[]).map((t) => (
               <button
                 key={t}
                 type="button"
-                className={`ocre-tab${tab === t ? " active" : ""}`}
                 onClick={() => setTab(t)}
+                aria-pressed={tab === t}
+                className={segCls(tab === t)}
               >
-                {t === "all" ? "Tous" : t === "boss" ? "Gardiens" : "Archis"}
-                <span className="ocre-tab-count">{countByTab(t)}</span>
+                {t === "all" ? "Tout" : t === "boss" ? "Gardiens" : "Archis"}
+                <span className="tabular-nums opacity-80">{countByTab(t)}</span>
               </button>
             ))}
             <button
               type="button"
-              onClick={() => setHideOwned(v => !v)}
-              className={`inline-flex items-center gap-1.5 ml-auto px-2.5 py-1.5 rounded-lg border text-caption font-bold transition-colors ${
-                hideOwned
-                  ? "border-warning/40 bg-warning/10 text-warning"
-                  : "border-border bg-surface/60 text-muted-foreground hover:text-foreground"
-              }`}
-              title={hideOwned ? "Afficher aussi ceux déjà en poche" : "Masquer ceux déjà en poche"}
+              onClick={() => setHideOwned((v) => !v)}
+              aria-pressed={hideOwned}
+              className={cn(segCls(hideOwned), "ml-auto")}
+              title={hideOwned ? "Afficher aussi ceux déjà capturés" : "Masquer ceux déjà capturés"}
             >
-              {hideOwned ? <Eye size={12} /> : <EyeOff size={12} />}
+              {hideOwned ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
               <span className="whitespace-nowrap">{hideOwned ? "Masqués" : "Masquer les possédés"}</span>
             </button>
           </div>
+
+
+          {/* Retour d'écriture DANS la modale (mêmes règles que l'overlay). */}
+          {(busy || notice) && (
+            <p
+              className={cn(
+                "flex items-center gap-1 text-[11px]",
+                notice?.kind === "error" ? "text-danger" : "text-muted-foreground"
+              )}
+              role={notice?.kind === "error" ? "alert" : "status"}
+            >
+              {busy ? (
+                <RefreshCw className="h-3 w-3 animate-spin" aria-hidden="true" />
+              ) : (
+                <Info className="h-3 w-3" aria-hidden="true" />
+              )}
+              {busy ? "Enregistrement sur Metamob…" : notice?.text}
+            </p>
+          )}
         </DialogHeader>
 
         <ScrollArea className="max-h-[440px] px-2 py-2 no-scrollbar">
-          {filtered.length > 0 && (
-            <div className="px-1 pb-1.5 text-[11px] text-muted-foreground flex items-center justify-between gap-2">
-              <span>{filtered.length} affiché{filtered.length > 1 ? "s" : ""}</span>
-              {hideOwned && <span className="font-bold text-warning/80">Restants à récupérer</span>}
-            </div>
-          )}
           {filtered.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-10 text-muted-foreground italic text-sm">
-              {query ? "Aucun monstre ne correspond à la recherche" : hideOwned ? "Tout est déjà en poche 🎉" : "Aucun monstre dans cette catégorie"}
-            </div>
+            <p className="px-2 py-10 text-center text-sm text-muted-foreground">
+              {query
+                ? "Aucune cible ne correspond à la recherche."
+                : hideOwned
+                  ? "Tout est déjà capturé."
+                  : "Aucune cible dans cette catégorie."}
+            </p>
           ) : (
             <div className="space-y-1">
-              {filtered.map(m => {
-                const isOwned = m.owned > 0;
-                const isDoublon = m.state === "DOUBLON";
-                return (
-                  <div key={m.id} className={`ocre-row${isOwned ? " owned" : ""}`}>
-                    {m.image ? (
-                      <img src={m.image} alt="" className="ocre-row-icon"/>
-                    ) : (
-                      <span className="ocre-row-icon ocre-row-icon-fallback">{m.nameFr.slice(0, 1).toUpperCase()}</span>
-                    )}
-                    <div className="flex flex-col min-w-0 flex-1">
-                      <span className="ocre-row-name">{m.nameFr}</span>
-                      {(m.zone || m.subzone) && (
-                        <span className="ocre-row-zone">{[m.zone, m.subzone].filter(Boolean).join(" · ")}</span>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      <div className="flex items-center gap-1 bg-surface border border-border rounded-lg p-0.5">
-                        <button
-                          type="button"
-                          onClick={async (e) => {
-                            e.stopPropagation();
-                            if (m.owned <= 0) return;
-                            const nextQty = Math.max(0, m.owned - 1);
-                            setMonstersList(prev => prev.map(x => x.id === m.id ? { ...x, owned: nextQty, state: nextQty > 1 ? "DOUBLON" : nextQty === 1 ? "POSSEDE" : "MANQUANT" } : x));
-                            try {
-                              const { updateUserMonsterQuantityAction } = await import("@/server/actions/ocre-actions");
-                              await updateUserMonsterQuantityAction({ guildId, monsterId: m.id, quantity: nextQty });
-                            } catch { }
-                          }}
-                          disabled={m.owned <= 0}
-                          className="w-5 h-5 flex items-center justify-center rounded text-xs font-bold text-muted-foreground hover:text-foreground disabled:opacity-25"
-                          title="Retirer (-1 sur Metamob)"
-                        >
-                          -
-                        </button>
-                        <span className="text-caption font-bold px-1 min-w-[16px] text-center">{m.owned}</span>
-                        <button
-                          type="button"
-                          onClick={async (e) => {
-                            e.stopPropagation();
-                            const nextQty = m.owned + 1;
-                            setMonstersList(prev => prev.map(x => x.id === m.id ? { ...x, owned: nextQty, state: nextQty > 1 ? "DOUBLON" : "POSSEDE" } : x));
-                            try {
-                              const { updateUserMonsterQuantityAction } = await import("@/server/actions/ocre-actions");
-                              await updateUserMonsterQuantityAction({ guildId, monsterId: m.id, quantity: nextQty });
-                            } catch { }
-                          }}
-                          className="w-5 h-5 flex items-center justify-center rounded text-xs font-bold text-muted-foreground hover:text-foreground"
-                          title="Ajouter (+1 sur Metamob)"
-                        >
-                          +
-                        </button>
-                      </div>
-                      <span className={`ocre-state ${isOwned ? (isDoublon ? "doublon" : "possede") : "manquant"}`}>
-                        {isOwned ? (isDoublon ? `${m.owned} doublon${m.owned > 1 ? "s" : ""}` : "En poche") : "Manquant"}
+              {filtered.map((m) => (
+                <div
+                  key={m.id}
+                  className={cn(
+                    "flex items-center gap-2 rounded-md border bg-surface px-2.5 py-2",
+                    m.owned > 0 ? "border-border" : "border-warning/25"
+                  )}
+                >
+                  <OcreMonsterThumb id={m.id} type={m.type} dimmed={m.owned > 0} className="h-8 w-8" />
+
+                  <div className="flex min-w-0 flex-1 flex-col">
+                    <span className="truncate text-xs font-semibold text-foreground">{m.nameFr}</span>
+                    {(m.zone || m.subzone) && (
+                      <span className="truncate text-[10px] text-muted-foreground">
+                        {[m.zone, m.subzone].filter(Boolean).join(" · ")}
                       </span>
-                    </div>
+                    )}
                   </div>
-                );
-              })}
+
+                  <OcreTargetStepper
+                    owned={m.owned}
+                    requiredCopies={requiredCopies}
+                    pending={pendingIds.includes(m.id)}
+                    label={m.nameFr}
+                    onStep={(delta) => changeQuantity(m, delta)}
+                  />
+                </div>
+              ))}
             </div>
           )}
         </ScrollArea>
@@ -217,3 +252,4 @@ export default function OcreProgressModal({
     </Dialog>
   );
 }
+

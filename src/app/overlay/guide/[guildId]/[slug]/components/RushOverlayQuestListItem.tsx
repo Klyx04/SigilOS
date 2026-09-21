@@ -86,13 +86,17 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
       id={`overlay-seq-${seq.id}`}
       className={cn(
         "overflow-hidden rounded-[4px] border transition-colors",
-        // Priorité à « validé » : seul un repère posé sur une quête NON validée
-        // déclenche la couleur dorée. Une quête validée reprend son style « done »
-        // (le repère, s'il existait, a été retiré à la validation).
-        // Le repère se signale par un filet gauche (3 px) et une teinte, jamais
-        // par un halo : c'est lisible dans une fenêtre de jeu réduite.
+        // DEUX états, DEUX couleurs — jamais la même carte :
+        //   · VERROUILLÉ (prérequis non terminés) ⇒ rouge `danger` : c'est un blocage ;
+        //   · REPÈRE (« Je suis ici ») ⇒ ambre `warning` : c'est un marqueur de reprise.
+        // Avant, une quête bloquée restait neutre et une quête repérée prenait l'ambre :
+        // deux états voisins, indistinguables d'un coup d'œil dans la fenêtre de jeu.
+        // Le repère se signale en plus par un filet gauche (3 px) et une teinte, jamais
+        // par un halo : c'est lisible dans une fenêtre PiP réduite.
         isDone
           ? "border-border bg-surface opacity-60"
+          : isLocked
+          ? "border-danger/30 bg-danger/[0.05]"
           : isBookmarked
           ? "border-warning/40 border-l-[3px] border-l-warning bg-warning/10"
           : "border-border bg-surface hover:border-border-strong hover:bg-elevated"
@@ -120,7 +124,7 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
               isDone
                 ? "border-accent bg-accent text-accent-foreground"
                 : isLocked
-                ? "border-border bg-background text-subtle-foreground"
+                ? "border-danger/40 bg-background text-danger"
                 : "border-border-strong bg-background hover:border-accent"
             )}
           >
@@ -257,7 +261,7 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
                   key={p.seqId}
                   type="button"
                   onClick={() => onGoToPrereq?.(p.seqId, p.milestoneId)}
-                  className="rounded-[3px] border border-warning/40 bg-warning/10 px-1.5 py-0.5 text-[11px] font-medium text-warning transition-colors hover:bg-warning/20"
+                  className="rounded-[3px] border border-danger/40 bg-danger/10 px-1.5 py-0.5 text-[11px] font-medium text-danger transition-colors hover:bg-danger/20"
                   title={`Aller à : ${p.name}`}
                 >
                   {p.name}

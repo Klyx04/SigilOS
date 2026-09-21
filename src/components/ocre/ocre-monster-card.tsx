@@ -52,21 +52,21 @@ interface OcreMonsterCardProps {
     onToggleSelection?: (id: number) => void;
 }
 
-const stateConfig: Record<MonsterState, { label: string; color: string; icon: string }> = {
+const stateConfig: Record<MonsterState, { label: string; color: string; dot: string }> = {
     MANQUANT: {
         label: "Manquant",
-        color: "bg-danger/10 text-danger border border-danger/20 backdrop-blur-md ",
-        icon: "🔴",
+        color: "bg-danger/10 text-danger border border-danger/20",
+        dot: "bg-danger",
     },
     POSSEDE: {
         label: "Possédé",
-        color: "bg-success/10 text-success border border-success/20 backdrop-blur-md ",
-        icon: "🟢",
+        color: "bg-success/10 text-success border border-success/20",
+        dot: "bg-success",
     },
     DOUBLON: {
         label: "Doublon",
-        color: "bg-warning/10 text-warning border border-warning/20 backdrop-blur-md ",
-        icon: "🟡",
+        color: "bg-warning/10 text-warning border border-warning/20",
+        dot: "bg-warning",
     },
 };
 
@@ -168,16 +168,15 @@ export const OcreMonsterCard = memo(function OcreMonsterCard({
         >
             <Card
                 className={cn(
-                    "group relative overflow-hidden transition-all duration-300",
-                    "backdrop-blur-xl bg-surface/90 hover:bg-elevated/95",
-                    "border border-border hover:border-warning/40 shadow-[0_12px_32px_rgba(0,0,0,0.4)] hover:shadow-[0_20px_48px_rgba(0,0,0,0.6)]",
-                    "hover:-translate-y-1 hover:scale-[1.03]",
+                    "group relative overflow-hidden transition-colors",
+                    "bg-card hover:bg-elevated",
+                    "border border-border hover:border-warning/40",
                     isSelected && isSelectionMode
                         ? "border-warning ring-2 ring-warning/20"
                         : hasExchange && isManquant
-                            ? "border-success/40 hover:border-success/60 ring-1 ring-success/20 shadow-[0_8px_32px_rgba(16,185,129,0.08)] hover:shadow-[0_16px_40px_rgba(16,185,129,0.15)]"
+                            ? "border-success/40 hover:border-success/60 ring-1 ring-success/20"
                             : "",
-                    isSelectionMode && "cursor-pointer active:scale-95"
+                    isSelectionMode && "cursor-pointer"
                 )}
                 onClick={() => isSelectionMode && onToggleSelection?.(monster.id)}
             >
@@ -194,20 +193,10 @@ export const OcreMonsterCard = memo(function OcreMonsterCard({
                         </div>
                     </div>
                 )}
-                {/* Glow effect on hover */}
-                <div
-                    className={cn(
-                        "absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300",
-                        hasExchange && isManquant
-                            ? "bg-gradient-to-br from-success/5 to-transparent"
-                            : "bg-gradient-to-br from-warning/5 to-transparent"
-                    )}
-                />
-
                 {/* Exchange available badge */}
                 {hasExchange && isManquant && (
                     <div className="absolute -top-1 -right-1 z-10">
-                        <Badge className="bg-success text-success-foreground text-caption font-bold px-1.5 py-0.5 animate-pulse">
+                        <Badge className="bg-success text-success-foreground text-caption font-bold px-1.5 py-0.5">
                             <Sparkles className="h-2.5 w-2.5 mr-0.5" />
                             {availableExchanges}
                         </Badge>
@@ -262,8 +251,9 @@ export const OcreMonsterCard = memo(function OcreMonsterCard({
                                         >
                                             -
                                         </button>
-                                        <Badge variant="outline" className={cn("text-xs font-bold px-1.5 py-0.5", config.color)}>
-                                            {config.icon} x{currentQuantity}
+                                        <Badge variant="outline" className={cn("text-xs font-bold px-1.5 py-0.5 gap-1", config.color)}>
+                                            <span className={cn("h-1.5 w-1.5 rounded-full", config.dot)} />
+                                            x{currentQuantity}
                                         </Badge>
                                         <button
                                             type="button"
@@ -297,10 +287,10 @@ export const OcreMonsterCard = memo(function OcreMonsterCard({
                                                 <Settings2 className="h-3 w-3" />
                                             </Button>
                                         </PopoverTrigger>
-                                        <PopoverContent className="w-48 p-3 rounded-2xl bg-card border-border shadow-2xl" side="left" align="start">
+                                        <PopoverContent className="w-48 p-3 rounded-lg bg-card border-border" side="left" align="start">
                                             <div className="space-y-3">
                                                 <div className="flex flex-col gap-1">
-                                                    <span className="text-caption font-black uppercase tracking-widest text-muted-foreground/50">Forçage Manuel</span>
+                                                    <span className="text-xs font-semibold text-muted-foreground">Forçage manuel</span>
                                                     <span className="text-caption text-muted-foreground leading-tight">Remplace les calculs automatiques de Metamob.</span>
                                                 </div>
 

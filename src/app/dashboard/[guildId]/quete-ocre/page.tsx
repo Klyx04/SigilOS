@@ -4,8 +4,9 @@ import { Suspense } from "react";
 import { getMyOcreProgress } from "@/server/actions/ocre-actions";
 import { getUserContext } from "@/server/actions/user-actions";
 import { OcreDashboard, KralamoureWidget, NotLinkedState, OcreSyncButton } from "@/components/ocre";
+import { OcreSoulStonesCard } from "@/components/ocre/OcreSoulStonesPanel";
+import { toOcrePanelData } from "@/lib/ocre-soul-stones";
 import { MetamobLink } from "@/components/profile/metamob-link";
-import { AuroraBackground } from "@/components/ui/aurora-background";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Sparkles, Crown } from "lucide-react";
@@ -65,10 +66,8 @@ export default async function QueteOcrePage({
     const hasOcreChannel = !!guildConfig?.ocreNotifyChannelId;
 
     return (
-        <div className="relative min-h-[calc(100vh-4rem)] pb-12">
-            <AuroraBackground className="absolute inset-0 z-0 opacity-20 pointer-events-none" />
-
-            <div className="relative z-10 max-w-7xl mx-auto space-y-8">
+        <div className="pb-12">
+            <div className="mx-auto max-w-7xl space-y-6">
                 <div data-tour="ocre-header">
                     <UnifiedModuleHeader
                         title="Quête Ocre"
@@ -86,6 +85,12 @@ export default async function QueteOcrePage({
                         }
                     />
                 </div>
+
+                {/* Pierres d'âme à prévoir : l'encart « quoi préparer » AVANT de partir
+                    chasser (mêmes chiffres que la progression, règle partagée). */}
+                {ocreResponse.success && ocreResponse.data ? (
+                    <OcreSoulStonesCard data={toOcrePanelData(ocreResponse.data)} />
+                ) : null}
 
                 <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-6">
                     {/* Main Content */}
@@ -125,25 +130,25 @@ export default async function QueteOcrePage({
                             </div>
                         </Suspense>
 
-                        {/* Quick Tips */}
-                        <Card className="bg-card/30 backdrop-blur-sm border-border" data-tour="ocre-tips">
-                            <CardContent className="p-4 space-y-3">
-                                <h3 className="text-sm font-medium flex items-center gap-2">
-                                    <Sparkles className="h-4 w-4 text-warning" />
-                                    Astuces
+                        {/* Repères de parcours (carte du registre : surface plate, pas de verre dépoli) */}
+                        <Card className="border-border bg-card" data-tour="ocre-tips">
+                            <CardContent className="space-y-3 p-4">
+                                <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                                    <Sparkles className="h-4 w-4 text-warning" aria-hidden="true" />
+                                    Repères
                                 </h3>
-                                <ul className="text-xs text-muted-foreground space-y-2">
+                                <ul className="space-y-2 text-xs text-muted-foreground">
                                     <li className="flex gap-2">
-                                        <span className="text-warning">•</span>
-                                        Mettez à jour votre compte Metamob régulièrement
+                                        <span className="text-warning" aria-hidden="true">•</span>
+                                        Synchronisez votre compte Metamob après chaque session de capture.
                                     </li>
                                     <li className="flex gap-2">
-                                        <span className="text-success">•</span>
-                                        Les monstres verts peuvent être échangés par des guildeux
+                                        <span className="text-success" aria-hidden="true">•</span>
+                                        Un monstre marqué « échangeable » peut venir d&apos;un membre de la guilde.
                                     </li>
                                     <li className="flex gap-2">
-                                        <span className="text-info">•</span>
-                                        Surveillez les apparitions de Kralamoure
+                                        <span className="text-info" aria-hidden="true">•</span>
+                                        Les apparitions de Kralamoure ouvrent des échanges de masse.
                                     </li>
                                 </ul>
                             </CardContent>

@@ -10,15 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-    DialogDescription,
-} from "@/components/ui/dialog";
-import {
     AlertTriangle,
-    Package,
     Gift,
     Bug,
     ChevronLeft,
@@ -26,24 +18,19 @@ import {
     ArrowRightLeft,
     Loader2,
     Sparkles,
-    Check,
-    User,
     CheckCircle2,
     Plus,
     Minus,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import Link from "next/link";
 import { toast } from "sonner";
 
 import { Progress } from "@/components/ui/progress";
-// import { ProgressRing } from "./progress-ring"; // Removed as we use bars now
 import { OcreStatCard, StatsGrid } from "./ocre-stats";
 import { OcreMonsterCard } from "./ocre-monster-card";
-import { OcreFilterBar, type OcreFilters, type MonsterType, type SortOption } from "./ocre-filter-bar";
+import { OcreFilterBar, type OcreFilters } from "./ocre-filter-bar";
 import { OcreExchangeModal } from "./ocre-exchange-modal";
 import { OcreTradeInbox } from "./ocre-trade-inbox";
-import { OcreSettingsModal } from "./ocre-settings-modal";
 import { OcreGuildDirectory } from "./ocre-guild-directory";
 
 import {
@@ -271,16 +258,13 @@ export function OcreDashboard({ data, guildId, hasOcreChannel }: OcreDashboardPr
     return (
         <div className="space-y-6">
             {/* Header with Progress (Metamob Style) */}
-            <div className="relative overflow-hidden p-6 rounded-2xl bg-card border border-border shadow-xl">
-                {/* Background Decoration */}
-                <div className="absolute top-0 right-0 w-64 h-64 bg-warning/5 blur-3xl -mr-32 -mt-32 pointer-events-none" />
-
-                <div className="relative z-10 flex flex-col md:flex-row gap-8">
+            <div className="rounded-lg border border-border bg-card p-5">
+                <div className="flex flex-col md:flex-row gap-6">
                     {/* Left Side: Character & Quest Info */}
                     <div className="flex-1 space-y-4">
                         <div className="flex flex-col gap-1">
-                            <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
-                                <Sparkles className="h-5 w-5 text-warning fill-amber-500/20" />
+                            <h2 className="flex items-center gap-2 text-lg font-semibold text-foreground">
+                                <Sparkles className="h-4 w-4 text-warning" aria-hidden="true" />
                                 Quête de l&apos;Éternelle Moisson
                             </h2>
                             <div className="flex items-center gap-2 text-muted-foreground text-sm">
@@ -313,19 +297,19 @@ export function OcreDashboard({ data, guildId, hasOcreChannel }: OcreDashboardPr
                         </div>
 
                         <div className="flex flex-wrap items-center gap-3">
-                            <div className="flex flex-col bg-background/50 border border-border px-3 py-2 rounded-xl min-w-[100px]">
-                                <span className="text-caption uppercase tracking-wider text-muted-foreground font-bold">Étape Actuelle</span>
+                            <div className="flex flex-col rounded-md border border-border bg-surface px-3 py-2 min-w-[100px]">
+                                <span className="text-xs font-medium text-muted-foreground">Étape actuelle</span>
                                 <span className="text-lg font-bold text-warning">{data.questInfo.currentStep}<span className="text-muted-foreground/30 text-xs ml-1">/ {data.questInfo.totalSteps}</span></span>
                             </div>
-                            <div className="flex flex-col bg-background/50 border border-border px-3 py-2 rounded-xl min-w-[100px]">
-                                <span className="text-caption uppercase tracking-wider text-muted-foreground font-bold">Progression</span>
+                            <div className="flex flex-col rounded-md border border-border bg-surface px-3 py-2 min-w-[100px]">
+                                <span className="text-xs font-medium text-muted-foreground">Progression</span>
                                 <span className="text-lg font-bold text-success">{data.stats.progressPercent}%</span>
                             </div>
                         </div>
                     </div>
 
                     {/* Right Side: Progress Bars */}
-                    <div className="w-full md:w-[350px] space-y-4 bg-background/30 p-5 rounded-3xl border border-border/50 shadow-inner">
+                    <div className="w-full md:w-[350px] space-y-4 rounded-lg border border-border bg-surface p-4">
                         {renderProgressBar("Gardiens", data.stats.bosses)}
                         {renderProgressBar("Archimonstres", data.stats.archis)}
                     </div>
@@ -335,80 +319,67 @@ export function OcreDashboard({ data, guildId, hasOcreChannel }: OcreDashboardPr
 
             {/* Main Navigation Sub-menu */}
             <Tabs defaultValue="progression" className="w-full space-y-8">
-                <TabsList className="flex items-center justify-start h-auto p-1.5 bg-surface/50 border border-border rounded-2xl w-full gap-3 overflow-x-auto no-scrollbar shrink-0">
+                <TabsList className="flex items-center justify-start h-auto p-1 bg-surface border border-border rounded-lg w-full gap-1 overflow-x-auto no-scrollbar shrink-0">
                     <TabsTrigger
                         value="progression"
-                        className="flex-1 py-3 px-6 rounded-xl data-[state=active]:bg-elevated data-[state=active]:text-warning data-[state=active]:shadow-lg hover:bg-surface transition-all font-bold uppercase tracking-widest text-xs border border-transparent data-[state=active]:border-warning/20"
+                        className="flex-1 py-2.5 px-4 rounded-md text-xs font-semibold text-muted-foreground data-[state=active]:bg-elevated data-[state=active]:text-warning hover:bg-surface transition-colors"
                     >
                         Progression
                     </TabsTrigger>
                     <TabsTrigger
                         value="monstres"
-                        className="flex-1 py-3 px-6 rounded-xl data-[state=active]:bg-elevated data-[state=active]:text-warning data-[state=active]:shadow-lg hover:bg-surface transition-all font-bold uppercase tracking-widest text-xs border border-transparent data-[state=active]:border-warning/20"
+                        className="flex-1 py-2.5 px-4 rounded-md text-xs font-semibold text-muted-foreground data-[state=active]:bg-elevated data-[state=active]:text-warning hover:bg-surface transition-colors"
                     >
                         Bestiaire
                     </TabsTrigger>
                     <TabsTrigger
                         value="echanges"
-                        className="flex-1 py-3 px-6 rounded-xl data-[state=active]:bg-elevated data-[state=active]:text-warning data-[state=active]:shadow-lg hover:bg-surface transition-all font-bold uppercase tracking-widest text-xs border border-transparent data-[state=active]:border-warning/20"
+                        className="flex-1 py-2.5 px-4 rounded-md text-xs font-semibold text-muted-foreground data-[state=active]:bg-elevated data-[state=active]:text-warning hover:bg-surface transition-colors"
                     >
                         Échanges
                     </TabsTrigger>
                     <TabsTrigger
                         value="membres"
-                        className="flex-1 py-3 px-6 rounded-xl data-[state=active]:bg-elevated data-[state=active]:text-warning data-[state=active]:shadow-lg hover:bg-surface transition-all font-bold uppercase tracking-widest text-xs border border-transparent data-[state=active]:border-warning/20"
+                        className="flex-1 py-2.5 px-4 rounded-md text-xs font-semibold text-muted-foreground data-[state=active]:bg-elevated data-[state=active]:text-warning hover:bg-surface transition-colors"
                     >
                         Membres
                     </TabsTrigger>
                 </TabsList>
 
                 {/* Tab: Summary & Global Stats */}
-                <TabsContent value="progression" className="space-y-8 outline-none mt-0">
-                    <div className="grid gap-6">
-                        <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground/50">Vue d&apos;ensemble</h3>
+                <TabsContent value="progression" className="space-y-6 outline-none mt-0">
+                    <div className="grid gap-4">
+                        <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Vue d&apos;ensemble</h3>
                         <StatsGrid>
                             <OcreStatCard
-                                label="Total Éléments"
+                                label="Total éléments"
                                 value={data.stats.total}
                                 icon={Bug}
                                 color="purple"
-                                delay={0}
                             />
                             <OcreStatCard
-                                label="Acquis / Validés"
+                                label="Acquis / validés"
                                 value={data.stats.acquired}
                                 icon={CheckCircle2}
                                 color="green"
-                                delay={0.1}
                             />
                             <OcreStatCard
                                 label="Reste à trouver"
                                 value={data.stats.remaining}
                                 icon={AlertTriangle}
                                 color="red"
-                                delay={0.2}
                             />
                             <OcreStatCard
                                 label="Doublons"
                                 value={data.stats.doublons}
                                 icon={Gift}
                                 color="amber"
-                                delay={0.3}
                             />
                         </StatsGrid>
                     </div>
 
-                    <div className="p-8 rounded-3xl border border-dashed border-border flex flex-col items-center justify-center text-center space-y-4">
-                        <div className="h-12 w-12 rounded-2xl bg-warning/10 flex items-center justify-center">
-                            <Sparkles className="h-6 w-6 text-warning" />
-                        </div>
-                        <div className="max-w-xs">
-                            <h4 className="font-bold text-foreground">Astuce Ocre</h4>
-                            <p className="text-sm text-muted-foreground mt-1">
-                                Utilisez la synchronisation Metamob pour mettre à jour vos captures automatiquement et trouver des partenaires d&apos;échange dans la guilde.
-                            </p>
-                        </div>
-                    </div>
+                    {/* Les pierres d'âme à prévoir vivent désormais dans l'encart du module
+                        (page Quête Ocre) : une seule source, calculée par `buildOcrePlan`. */}
                 </TabsContent>
 
                 {/* Tab: Monsters & Search */}

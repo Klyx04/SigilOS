@@ -36,12 +36,12 @@ export function RushOverlayMembersModal({ title, members, onClose }: RushOverlay
         onClick={onClose}
         className="absolute inset-0 bg-black/60"
       />
-      <div className="relative z-10 flex max-h-[70vh] w-full max-w-[21rem] flex-col overflow-hidden rounded-[6px] border border-border-strong bg-elevated">
+      <div className="relative z-10 flex max-h-[min(70vh,22rem)] w-full max-w-[21rem] flex-col overflow-hidden rounded-[6px] border border-border-strong bg-elevated">
         <header className="flex shrink-0 items-center justify-between gap-2 border-b border-border px-3.5 py-2.5">
-          <div className="flex items-center gap-2">
-            <Users className="h-4 w-4 text-accent" aria-hidden="true" />
-            <h2 className="text-[13px] font-semibold text-foreground">{title}</h2>
-            <span className="text-[11px] font-semibold tabular-nums text-muted-foreground">
+          <div className="flex min-w-0 items-center gap-2">
+            <Users className="h-4 w-4 shrink-0 text-accent" aria-hidden="true" />
+            <h2 className="min-w-0 truncate text-[13px] font-semibold text-foreground">{title}</h2>
+            <span className="shrink-0 text-[11px] font-semibold tabular-nums text-muted-foreground">
               {members.length}
             </span>
           </div>
@@ -49,13 +49,16 @@ export function RushOverlayMembersModal({ title, members, onClose }: RushOverlay
             type="button"
             onClick={onClose}
             aria-label="Fermer"
-            className="rounded-[4px] p-1.5 text-muted-foreground transition-colors hover:bg-surface hover:text-foreground"
+            className="shrink-0 rounded-[4px] p-1.5 text-muted-foreground transition-colors hover:bg-surface hover:text-foreground"
           >
             <X className="h-4 w-4" />
           </button>
         </header>
 
-        <div className="flex-1 space-y-1 overflow-y-auto p-2">
+        {/* Liste DÉFILANTE : `min-h-0` est indispensable dans un flex en hauteur bornée,
+            sinon le contenu déborde au lieu de défiler — la modale était coupée dans une
+            fenêtre PiP réduite (retour user 21/09/2026 : « mini modale scrollable »). */}
+        <div className="min-h-0 flex-1 space-y-1 overflow-y-auto p-2">
           {members.length === 0 ? (
             <p className="py-8 text-center text-[12px] text-muted-foreground">
               Personne ici pour l'instant.

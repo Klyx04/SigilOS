@@ -4,11 +4,88 @@
  */
 
 import type { RushMilestone, RushSequence, RushActivityTag } from "@/types/rush-guide-types";
-import { parseCoordinates, getSequenceCoord, RUSH_ACTIVITY_TAG_CONFIG, getMetierIconPath, isSequenceBlockedByPrereqs, resolveItemImage } from "@/lib/rush-guide-utils";
+import { parseCoordinates, getSequenceCoord, isNonCheckableBlock, RUSH_ACTIVITY_TAG_CONFIG, getMetierIconPath, isSequenceBlockedByPrereqs, resolveItemImage, rushResourceKey } from "@/lib/rush-guide-utils";
 // Re-export du helper central pour compatibilité des consumers overlay.
 export { getSequenceCoord };
 // Re-export pour compatibilité des imports overlay.
 export { resolveItemImage };
+
+/**
+ * Index du prochain bloc à proposer dans l'overlay : le prochain bloc QUI RESTE À VALIDER
+ * (on saute les chapitres déjà cochés, pour toujours proposer le suivant à faire).
+ *
+ * ⚠️ `blocks` = les CHAPITRES uniquement : les bannières (séparateur, encart CONSEIL/TIPS,
+ * « Dofus obtenu ») ne sont pas des étapes, elles s'affichent dans le flux de leur chapitre
+ * (voir `bannersForChapter`) — jamais comme un bloc courant, donc jamais « sautées ».
+ *
+ * @returns l'index du bloc suivant, ou `null` si on est déjà au bout du guide.
+ */
+export function nextBlockIndex(
+  blocks: Array<Pick<RushMilestone, "id" | "type">>,
+  fromIndex: number,
+  completedIds: Set<string>
+): number | null {
+  for (let i = fromIndex + 1; i < blocks.length; i++) {
+    if (!completedIds.has(blocks[i].id)) return i;
+  }
+  return null;
+}
+
+/**
+ * L'overlay tourne-t-il pour le **guide public** (hors guilde) ?
+ *
+ * SOURCE UNIQUE : la destination des liens de l'overlay en dépend — une fiche donjon vit
+ * `/boss/<slug>` côté public, et `/dashboard/<guildId>/succes?dungeon=…&view=boss` côté
+ * interne. Même convention que le reste du dépôt (`BossOverlayClient`).
+ */
+export function isPublicOverlay(guildId?: string | null): boolean {
+  return !guildId || guildId === "public";
+}
+
+/**
+ * Les bannières à afficher AVEC un chapitre — même règle que le dashboard membre
+ * (`chapterPages` : « les bannières restent collées au chapitre qui les suit »).
+ *
+ * 🎯 Demande user (21/09/2026) : « ces bandeaux-là ont juste à afficher dans l'ordre
+ * chronologique » + « si je choisis une étape dans le dropdown, je peux plus retrouver la
+ * partie des bandeaux ». Donc une bannière se lit à sa place dans le flux : juste AVANT le
+ * chapitre qu'elle introduit — et on la retrouve dès qu'on ouvre ce chapitre, quel que soit
+ * le chemin (dropdown, précédent/suivant, repère).
+ *
+ * @returns `before` = bannières situées entre le chapitre précédent (exclu) et ce chapitre
+ *          (exclu) ; `after` = bannières de fin de guide, rattachées au DERNIER chapitre.
+ */
+export function bannersForChapter(
+  allBlocks: RushMilestone[],
+  chapterMsId: string | null | undefined
+): { before: RushMilestone[]; after: RushMilestone[] } {
+  const chapterIdx = allBlocks.findIndex((ms) => ms.id === chapterMsId && !isNonCheckableBlock(ms));
+  if (chapterIdx < 0) return { before: [], after: [] };
+
+  const before: RushMilestone[] = [];
+  for (let i = chapterIdx - 1; i >= 0; i--) {
+    if (!isNonCheckableBlock(allBlocks[i])) break;
+    before.unshift(allBlocks[i]);
+  }
+
+  // Les bannières qui suivent ce chapitre : elles appartiennent au chapitre SUIVANT, sauf
+  // s'il n'y en a plus — elles terminent alors le guide, donc la vue du dernier chapitre.
+  const after: RushMilestone[] = [];
+  let isLastChapter = true;
+  for (let i = chapterIdx + 1; i < allBlocks.length; i++) {
+    if (isNonCheckableBlock(allBlocks[i])) continue;
+    isLastChapter = false;
+    break;
+  }
+  if (isLastChapter) {
+    for (let i = chapterIdx + 1; i < allBlocks.length; i++) {
+      if (!isNonCheckableBlock(allBlocks[i])) continue;
+      after.push(allBlocks[i]);
+    }
+  }
+
+  return { before, after };
+}
 
 // ─── Types locaux ─────────────────────────────────────────────────────────────
 
@@ -115,7 +192,7 @@ export function aggregateRushResources(
         // altération d'idole, pas des objets (non mappés, sans icône DofusDB)
         // → on les écarte de la liste des ressources à prévoir.
         if ((tag as any).kind === "unresolved" && /avec altération/i.test(tag.name)) continue;
-        const key = `id:${tag.id ?? ""}|${normResourceName(tag.name)}`;
+        const key = rushResourceKey(tag);
         const existing = map.get(key);
         const qty = tag.count ?? tag.quantity ?? 1;
         if (!existing) {

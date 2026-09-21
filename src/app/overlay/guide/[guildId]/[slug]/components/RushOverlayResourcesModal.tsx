@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { Package, X, Search } from "lucide-react";
+import { Package, X, Search, Check } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { copyToClipboard } from "@/lib/clipboard";
@@ -26,7 +26,16 @@ interface RushOverlayResourcesModalProps {
    * dur empilés les uns sur les autres.
    */
   theme?: "site" | "overlay";
+  /** Clés cochées à la MAIN (« j'ai déjà préparé cet objet »), par personnage. */
+  checkedKeys?: Set<string>;
+  /**
+   * Coche/décoche une ressource. Sans handler, aucune case n'est affichée (l'overlay
+   * public en lecture seule garde sa liste telle quelle).
+   */
+  onToggleCheck?: (key: string) => void;
 }
+
+const EMPTY_KEYS = new Set<string>();
 
 /**
  * Modale « Ressources » — liste AGREGÉE de tous les objets nécessaires au guide,
@@ -43,13 +52,25 @@ export function RushOverlayResourcesModal({
   onClose,
   totalCount,
   theme = "overlay",
+  checkedKeys,
+  onToggleCheck,
 }: RushOverlayResourcesModalProps) {
   const [query, setQuery] = useState("");
   const [mode, setMode] = useState<"restantes" | "toutes">("restantes");
+  const checked = checkedKeys ?? EMPTY_KEYS;
   const list = mode === "restantes" ? resources : allResources;
-  const visible = query.trim()
+  // Les ressources cochées à la main restent DANS la liste (on doit pouvoir décocher),
+  // mais elles descendent en bas : ce qu'il reste à préparer se lit en premier.
+  const visible = (query.trim()
     ? list.filter((r) => r.name.toLowerCase().includes(query.trim().toLowerCase()))
-    : list;
+    : list
+  )
+    .slice()
+    .sort((a, b) => Number(checked.has(a.key)) - Number(checked.has(b.key)));
+
+  // Compteur : en mode « restantes », ce qu'il reste = non validé PAR LES QUÊTES et
+  // non coché à la main.
+  const remainingCount = resources.filter((r) => !checked.has(r.key)).length;
 
   const isSite = theme === "site";
   /** Site (tokens du registre) → thème clair → thème sombre de l'overlay. */
@@ -162,7 +183,7 @@ export function RushOverlayResourcesModal({
             )}
             title={totalCount != null ? `Total sur toutes les étapes : ${totalCount}` : undefined}
           >
-            {mode === "restantes" && totalCount != null ? `${list.length} / ${totalCount}` : `${list.length}`}
+            {mode === "restantes" && totalCount != null ? `${remainingCount} / ${totalCount}` : `${list.length}`}
           </span>
         </div>
 
@@ -202,7 +223,9 @@ export function RushOverlayResourcesModal({
           className={cn(
             "flex-1 overflow-y-auto",
             pick(
-              "p-4 grid gap-1.5 md:grid-cols-2 xl:grid-cols-3 content-start",
+              // Colonnes à largeur MINIMALE (15 rem) : un nom long passe à la ligne,
+              // il n'est jamais cassé lettre par lettre par une colonne écrasée.
+              "p-4 grid grid-cols-[repeat(auto-fill,minmax(15rem,1fr))] gap-1.5 content-start",
               "p-3 space-y-1.5",
               "p-3 space-y-1.5"
             )
@@ -212,13 +235,15 @@ export function RushOverlayResourcesModal({
             <p
               className={cn(
                 "py-10 text-center text-xs",
-                pick("text-muted-foreground md:col-span-2 xl:col-span-3", "text-slate-400", "text-[#6e7784]")
+                pick("text-muted-foreground col-span-full", "text-slate-400", "text-[#6e7784]")
               )}
             >
               Aucune ressource trouvée.
             </p>
           ) : (
-            visible.map((r) => (
+            visible.map((r) => {
+              const isChecked = checked.has(r.key);
+              return (
               <div
                 key={r.key}
                 className={cn(
@@ -230,6 +255,26 @@ export function RushOverlayResourcesModal({
                   )
                 )}
               >
+                {/* Case « déjà préparé » — le geste est manuel et par personnage :
+                    une quête invalidée remet ses ressources à zéro (côté serveur). */}
+                {onToggleCheck && (
+                  <button
+                    type="button"
+                    onClick={() => onToggleCheck(r.key)}
+                    aria-pressed={isChecked}
+                    aria-label={isChecked ? `Remettre « ${r.name} » à préparer` : `Marquer « ${r.name} » comme préparé`}
+                    title={isChecked ? "Déjà préparé — cliquer pour décocher" : "J'ai déjà préparé cet objet"}
+                    className={cn(
+                      "shrink-0 w-4 h-4 rounded-[3px] border flex items-center justify-center transition-colors",
+                      isChecked
+                        ? pick("border-success/70 text-success", "border-emerald-500 text-emerald-600", "border-[#39bc95]/70 text-[#39bc95]")
+                        : pick("border-border-strong text-transparent hover:border-success", "border-slate-300 text-transparent hover:border-emerald-500", "border-[#3a4553] text-transparent hover:border-[#39bc95]")
+                    )}
+                  >
+                    <Check className="w-3 h-3 stroke-[3]" aria-hidden="true" />
+                  </button>
+                )}
+
                 {/* Icône */}
                 <div
                   className={cn(
@@ -257,7 +302,11 @@ export function RushOverlayResourcesModal({
                       title={`Copier le nom « ${r.name} »`}
                       aria-label={`Copier le nom ${r.name}`}
                       className={cn(
-                        "text-[12px] font-semibold truncate min-w-0 flex-1 text-left transition-colors cursor-pointer",
+                        // Nom COMPLET : il n'est plus tronqué (retour user : « le texte est
+                        // mangé ») — on passe à la ligne, l'icône et la quantité restent
+                        // alignées sur la première ligne.
+                        "text-[12px] font-semibold min-w-0 flex-1 text-left transition-colors cursor-pointer break-words",
+                        isChecked && "line-through opacity-60",
                         pick("text-foreground hover:text-accent", "text-slate-800 hover:text-[#e6b96b]", "text-[#e8e4da] hover:text-[#e6b96b]")
                       )}
                     >
@@ -299,7 +348,8 @@ export function RushOverlayResourcesModal({
                   </a>
                 )}
               </div>
-            ))
+              );
+            })
           )}
         </div>
       </div>

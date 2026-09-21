@@ -26,12 +26,15 @@ import {
   UserRound,
   Server,
   Eraser,
+  Lock,
+  ClipboardList,
+  RotateCcw,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n/client";
 import type { RushMilestone, RushSequence, RushDungeonRef } from "@/types/rush-guide-types";
-import { getClass, DOFUS_CLASSES } from "@/lib/dofus-assets";
+import { getClass } from "@/lib/dofus-assets";
 import { getDofusServerImage } from "@/lib/dofus-assets";
 import { DOFUS_UNITY_SERVERS } from "@/lib/presentation-constants";
 import {
@@ -46,6 +49,14 @@ import {
 import { RushCoordinateChip } from "@/components/dofus-quests/rush/RushCoordinateChip";
 import { brandIconForUrl } from "@/lib/source-icons";
 import { QuestItemResourceGrid } from "@/components/dofus-quests/rush/QuestItemResourceGrid";
+import { RushSeparatorBanner } from "@/components/dofus-quests/rush/RushSeparatorBanner";
+import { RushInfoBanner } from "@/components/dofus-quests/rush/RushInfoBanner";
+import { RushRichText } from "@/components/dofus-quests/rush/RushRichText";
+import { RushInfoSequenceBanner } from "@/components/dofus-quests/rush/RushInfoSequenceBanner";
+// Pense-bête : MÊME modale que le guide interne, alimentée par la config GOD
+// (`rushUIConfig.penseBete`) avec repli sur le contenu statique du module.
+import { RushPenseBeteModal } from "@/components/dofus-quests/rush/RushPenseBeteModal";
+import { resolveRushUIConfig } from "@/lib/rush-ui-config";
 import {
   openPipWindow,
   openFallbackPopup,
@@ -58,13 +69,19 @@ import {
   aggregateRushResources,
   getSequenceCoord,
 } from "@/app/overlay/guide/[guildId]/[slug]/components/overlay-utils";
+import { isInfoSequence, isSequenceBlockedByPrereqs, getPrereqRefs } from "@/lib/rush-guide-utils";
+// Panneau de droite — le MÊME composant que le guide interne (chapitres, progression,
+// donjons & métiers à prévoir, objets requis + bascule Restantes/Toutes).
+import { RushChapterSidebar } from "@/components/dofus-quests/rush/RushChapterSidebar";
 import { getAlignmentSet } from "@/lib/rush-helpers";
 import { RushOverlayResourcesModal } from "@/app/overlay/guide/[guildId]/[slug]/components/RushOverlayResourcesModal";
 import { RushOverlayQuestDetailModal } from "@/app/overlay/guide/[guildId]/[slug]/components/RushOverlayQuestDetailModal";
 import { resolveDofusLocalImage } from "@/lib/dofus-image-url";
-import { RushGuideView } from "@/components/dofus-quests/rush/RushGuideView";
 import { buildRushGuideView } from "@/lib/rush-guide-view";
-
+import { alignmentCrest } from "@/lib/rush-guide-view";
+// Modale « Mon personnage » (pictos de classe, vignettes de serveur, pseudo validé
+// par la règle partagée du profil) — le choix n'est plus un panneau replié.
+import { GuestCharacterModal } from "@/components/dofus-quests/rush/GuestCharacterModal";
 // ─── Structuration en Blocs de Quêtes ─────────────────────────────────────────
 
 interface QuestBlock {
@@ -85,12 +102,18 @@ function groupSequencesIntoQuests(
 ): QuestBlock[] {
   const blocks: QuestBlock[] = [];
   let currentBlock: QuestBlock | null = null;
+  // Les séquences info sont des ENCARTS, pas des quêtes : elles gardent leur place dans le
+  // flux (ordre du guide) et ne comptent JAMAIS dans la progression d'un bloc. Une info en
+  // tête de bloc est collée au bloc qui la suit (même règle que les bannières du dashboard) ;
+  // une info de fin reste dans le dernier bloc.
+  let pendingInfo: RushSequence[] = [];
 
   for (const seq of sequences) {
-    // Séquences info (bandeaux méta) : hors blocs de quêtes — jamais cochables,
-    // sinon aucun bloc ne pourrait être marqué terminé (filtre « masquer ce qui
-    // est terminé » piloté depuis la vue partagée).
-    if (Array.isArray((seq as any).activityTags) && (seq as any).activityTags.some((t: any) => t.type === "info_sequence")) continue;
+    if (isInfoSequence(seq)) {
+      if (currentBlock) currentBlock.sequences.push(seq);
+      else pendingInfo.push(seq);
+      continue;
+    }
     const qName = seq.subGuideName || seq.subGuideRef || "Étape";
     const qRef = seq.subGuideRef || qName;
 
@@ -98,7 +121,7 @@ function groupSequencesIntoQuests(
       currentBlock = {
         questName: qName,
         questRef: qRef,
-        sequences: [seq],
+        sequences: [...pendingInfo, seq],
         dofusdbUrl: seq.dofusdbUrl || null,
         dofuspourlesnoobsUrl: seq.dofuspourlesnoobsUrl || null,
         dungeons: [],
@@ -106,6 +129,7 @@ function groupSequencesIntoQuests(
         doneCount: 0,
         totalCount: 0,
       };
+      pendingInfo = [];
       blocks.push(currentBlock);
     } else {
       currentBlock.sequences.push(seq);
@@ -123,9 +147,26 @@ function groupSequencesIntoQuests(
     }
   }
 
+  // Milestone fait uniquement d'encarts info : ils sont portés par un bloc sans étape
+  // (aucun en-tête de quête n'est rendu pour lui — voir le rendu).
+  if (pendingInfo.length) {
+    blocks.push({
+      questName: "",
+      questRef: "",
+      sequences: pendingInfo,
+      dofusdbUrl: null,
+      dofuspourlesnoobsUrl: null,
+      dungeons: [],
+      isDone: false,
+      doneCount: 0,
+      totalCount: 0,
+    });
+  }
+
   for (const b of blocks) {
-    b.totalCount = b.sequences.length;
-    b.doneCount = b.sequences.filter((s) => doneSteps.has(s.id)).length;
+    const steps = b.sequences.filter((s) => !isInfoSequence(s));
+    b.totalCount = steps.length;
+    b.doneCount = steps.filter((s) => doneSteps.has(s.id)).length;
     b.isDone = b.totalCount > 0 && b.doneCount === b.totalCount;
   }
 
@@ -140,19 +181,13 @@ interface PublicRushGuideClientProps {
     slug: string;
     description?: string | null;
     imageUrl?: string | null;
+    /** Config UI/UX poussée depuis le GOD (pense-bête éditable) — même source que l'interne. */
+    rushUIConfig?: unknown;
   };
   milestones: RushMilestone[];
 }
 
 // ─── Personnage invité (facultatif) ──────────────────────────────────────────
-// Catégories de serveurs Unity, dans l'ordre d'affichage du choix.
-const GUEST_SERVER_GROUPS: { key: keyof typeof DOFUS_UNITY_SERVERS; label: string }[] = [
-  { key: "monocompte", label: "Monocompte" },
-  { key: "classique", label: "Classique" },
-  { key: "pionnierMono", label: "Pionnier monocompte" },
-  { key: "pionnier", label: "Pionnier" },
-  { key: "epique", label: "Épique" },
-];
 
 /** Nom officiel d'un serveur à partir de son identifiant (null si inconnu). */
 function guestServerLabel(serverId: number | null | undefined): string | null {
@@ -164,6 +199,62 @@ function guestServerLabel(serverId: number | null | undefined): string | null {
   return null;
 }
 
+/**
+ * Remise à zéro de la progression locale : une action DESTRUCTIVE, donc en deux
+ * temps (jamais d'aller simple). Le premier clic demande, le second efface —
+ * c'est le panneau de progression qui la porte depuis que le bloc d'en-tête a été
+ * supprimé (demande user).
+ */
+function ResetProgressButton({
+  onReset,
+  label,
+  confirmLabel,
+  yesLabel,
+  cancelLabel,
+}: {
+  onReset: () => void;
+  label: string;
+  confirmLabel: string;
+  yesLabel: string;
+  cancelLabel: string;
+}) {
+  const [confirming, setConfirming] = React.useState(false);
+  if (!confirming) {
+    return (
+      <button
+        type="button"
+        onClick={() => setConfirming(true)}
+        className="inline-flex items-center gap-1.5 rounded-[3px] border border-border px-2.5 py-2 text-[11px] font-semibold text-muted-foreground transition-colors hover:text-foreground cursor-pointer"
+      >
+        <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
+        {label}
+      </button>
+    );
+  }
+  return (
+    <span className="flex flex-wrap items-center justify-end gap-2">
+      <span className="text-[11px] text-muted-foreground">{confirmLabel}</span>
+      <button
+        type="button"
+        onClick={() => {
+          setConfirming(false);
+          onReset();
+        }}
+        className="rounded-[3px] border border-danger/40 px-2.5 py-2 text-[11px] font-semibold text-danger transition-colors hover:bg-danger/10 cursor-pointer"
+      >
+        {yesLabel}
+      </button>
+      <button
+        type="button"
+        onClick={() => setConfirming(false)}
+        className="rounded-[3px] border border-border px-2.5 py-2 text-[11px] font-semibold text-muted-foreground transition-colors hover:text-foreground cursor-pointer"
+      >
+        {cancelLabel}
+      </button>
+    </span>
+  );
+}
+
 export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClientProps) {
   const { t, locale } = useI18n();
   // ── Progression locale PAR PERSONNAGE ───────────────────────────────────────
@@ -173,9 +264,42 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
   // aucun visiteur déjà en cours de rush ne perd sa progression.
   const [character, setCharacter] = useState<GuestCharacter | null>(() => readGuestCharacter(guide.slug));
   const storagePrefix = guestProgressPrefix(guide.slug, character);
-  // Formulaire « personnage » : on travaille sur un brouillon jusqu'à validation.
+
+  // ── Coches MANUELLES de ressources (« déjà préparé ») ────────────────────────
+  // Persistées LOCALEMENT (aucun compte requis), par personnage — même clé que le
+  // reste de la progression visiteur. Côté guilde, la même coche vit en base.
+  const [resourceChecks, setResourceChecks] = useState<Set<string>>(() => {
+    if (typeof window === "undefined") return new Set<string>();
+    try {
+      const raw = localStorage.getItem(`${storagePrefix}resources`);
+      if (raw) return new Set(JSON.parse(raw) as string[]);
+    } catch {}
+    return new Set<string>();
+  });
+  const handleToggleResourceCheck = useCallback(
+    (key: string) => {
+      setResourceChecks((prev) => {
+        const next = new Set(prev);
+        next.has(key) ? next.delete(key) : next.add(key);
+        if (typeof window !== "undefined") {
+          try {
+            localStorage.setItem(`${storagePrefix}resources`, JSON.stringify([...next]));
+          } catch {}
+        }
+        return next;
+      });
+    },
+    [storagePrefix]
+  );
+
+  // ── Pense-bête (mêmes sections que le guide interne) ─────────────────────────
+  const [penseBeteOpen, setPenseBeteOpen] = useState(false);
+  const penseBeteSections = useMemo(
+    () => resolveRushUIConfig(guide.rushUIConfig)?.penseBete,
+    [guide.rushUIConfig]
+  );
+  // Modale « Mon personnage » : elle porte son propre brouillon jusqu'à validation.
   const [characterOpen, setCharacterOpen] = useState(false);
-  const [charDraft, setCharDraft] = useState<GuestCharacter>({ classId: null, pseudo: null, serverId: null });
 
   // Overlay Floating Window state
   const [pipWin, setPipWin] = useState<Window | null>(null);
@@ -324,8 +448,15 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
   const [expandedMs, setExpandedMs] = useState<Set<string>>(() => new Set([milestones[0]?.id].filter(Boolean)));
 
   // Global counts
+  // Les séquences info (encarts) ne sont pas des étapes : elles ne comptent PAS dans la
+  // progression — avant, elles étaient comptées mais jamais affichées, donc le guide ne
+  // pouvait jamais atteindre 100 %.
   const totalSequences = useMemo(
-    () => milestones.reduce((acc, ms) => acc + (ms.sequences?.length || 0), 0),
+    () =>
+      milestones.reduce(
+        (acc, ms) => acc + (ms.sequences?.filter((s) => !isInfoSequence(s)).length || 0),
+        0
+      ),
     [milestones]
   );
 
@@ -369,6 +500,25 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
   }, [completedStepsByMs]);
 
   const allResources = useMemo(() => aggregateRushResources(milestones), [milestones]);
+
+  // Séquence par id + verrou de prérequis : la MÊME règle que le guide interne
+  // (`isSequenceBlockedByPrereqs`, helper partagé du module). Le public n'avait
+  // aucun verrou : il laissait cocher « Le Dofus Pourpre » avant « Protection
+  // divine » là où l'interne refuse (défaut signalé par le user).
+  const seqById = useMemo(() => {
+    const m = new Map<string, RushSequence>();
+    for (const ms of milestones) for (const s of ms.sequences || []) m.set(s.id, s);
+    return m;
+  }, [milestones]);
+
+  const isStepLocked = useCallback(
+    (seqId: string): boolean => {
+      const s = seqById.get(seqId);
+      if (!s || completedSeqIds.has(seqId)) return false;
+      return isSequenceBlockedByPrereqs(s, completedSeqIds, milestones);
+    },
+    [seqById, completedSeqIds, milestones]
+  );
 
   const remainingResources = useMemo(
     () => aggregateRushResources(milestones, completedSeqIds),
@@ -425,6 +575,15 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
     (msId: string, seqId: string) => {
       const current = new Set(completedStepsByMs.get(msId) || []);
       const was = current.has(seqId);
+
+      // 🚫 Même refus que le guide interne : un prérequis non terminé verrouille la
+      // quête. Le garde-fou est ICI (dans l'écriture), pas seulement dans le rendu :
+      // un état local trafiqué ne doit pas valider plus que la guilde.
+      if (!was && isStepLocked(seqId)) {
+        toast.error("Prérequis non terminé — cette quête est encore verrouillée.");
+        return;
+      }
+
       was ? current.delete(seqId) : current.add(seqId);
 
       setCompletedStepsByMs((prev) => {
@@ -444,7 +603,10 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
 
       const ms = milestones.find((m) => m.id === msId);
       if (ms && ms.sequences) {
-        const allDone = ms.sequences.length > 0 && ms.sequences.every((s) => current.has(s.id));
+        // Seules les étapes cochables comptent : un encart info n'est jamais validé, donc
+        // sans ce filtre un bloc contenant un encart ne serait jamais « terminé ».
+        const steps = ms.sequences.filter((s) => !isInfoSequence(s));
+        const allDone = steps.length > 0 && steps.every((s) => current.has(s.id));
         setCompletedIds((prev) => {
           const next = new Set(prev);
           allDone ? next.add(msId) : next.delete(msId);
@@ -457,17 +619,7 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
         });
       }
     },
-    [completedStepsByMs, milestones, storagePrefix]
-  );
-
-  // Validation depuis la vue partagée : la vue ne connaît que l'étape (règle du
-  // module), la page résout son bloc puis délègue au handler local existant.
-  const handleValidateStepById = useCallback(
-    (seqId: string) => {
-      const ms = milestones.find((m) => m.sequences?.some((s) => s.id === seqId));
-      if (ms) handleToggleStep(ms.id, seqId);
-    },
-    [milestones, handleToggleStep]
+    [completedStepsByMs, milestones, storagePrefix, isStepLocked]
   );
 
   // Toggle whole chapter
@@ -477,7 +629,10 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
       if (!ms || !ms.sequences) return;
 
       const current = new Set(completedStepsByMs.get(msId) || []);
-      ms.sequences.forEach((s) => {
+      // Jamais les encarts info : ils n'ont pas de case à cocher. Et jamais une quête
+      // verrouillée : « Tout valider » ne contourne pas les prérequis.
+      ms.sequences.filter((s) => !isInfoSequence(s)).forEach((s) => {
+        if (completeAll && !current.has(s.id) && isStepLocked(s.id)) return;
         completeAll ? current.add(s.id) : current.delete(s.id);
       });
 
@@ -507,16 +662,25 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
         return next;
       });
     },
-    [completedStepsByMs, milestones, storagePrefix]
+    [completedStepsByMs, milestones, storagePrefix, isStepLocked]
   );
 
   // Toggle all steps of one quest block (comme le guide interne)
   const handleToggleBlockSteps = useCallback(
     (msId: string, seqIds: string[], completeAll: boolean) => {
+      // Une quête verrouillée par un prérequis n'est jamais cochée en lot (même règle
+      // que le guide interne) : on filtre la cible AVANT d'écrire quoi que ce soit.
+      const targets = completeAll
+        ? seqIds.filter((id) => {
+            const s = seqById.get(id);
+            if (!s || completedSeqIds.has(id)) return true;
+            return !isSequenceBlockedByPrereqs(s, completedSeqIds, milestones);
+          })
+        : seqIds;
       setCompletedStepsByMs((prev) => {
         const next = new Map(prev);
         const current = new Set(next.get(msId) || []);
-        seqIds.forEach((id) => {
+        targets.forEach((id) => {
           if (completeAll) current.add(id);
           else current.delete(id);
         });
@@ -536,11 +700,11 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
       const ms = milestones.find((m) => m.id === msId);
       if (ms && ms.sequences) {
         const doneSet = new Set(completedStepsByMs.get(msId) || []);
-        seqIds.forEach((id) => {
+        targets.forEach((id) => {
           if (completeAll) doneSet.add(id);
           else doneSet.delete(id);
         });
-        const relevant = ms.sequences.map((s) => s.id);
+        const relevant = ms.sequences.filter((s) => !isInfoSequence(s)).map((s) => s.id);
         const allDone = relevant.length > 0 && relevant.every((id) => doneSet.has(id));
         setCompletedIds((prev) => {
           const next = new Set(prev);
@@ -554,7 +718,7 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
         });
       }
     },
-    [completedStepsByMs, milestones, storagePrefix]
+    [completedStepsByMs, milestones, storagePrefix, seqById, completedSeqIds]
   );
 
   // Personnage déclaré → libellé affiché (icône de classe + pseudo + serveur) et
@@ -645,10 +809,10 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
     [guide.slug, milestones]
   );
 
+  // Ouvrir la modale : elle repart du personnage déclaré (aucun état à préparer ici).
   const openCharacterForm = useCallback(() => {
-    setCharDraft(character ?? { classId: null, pseudo: null, serverId: null });
     setCharacterOpen(true);
-  }, [character]);
+  }, []);
 
   // Toggle chapter expansion
   const toggleChapter = (msId: string) => {
@@ -774,32 +938,16 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
 
   return (
     <>
-      {/* ── LE GUIDE — la vue partagée (public ↔ guilde) ──
-          C'est EXACTEMENT la vue du guide interne (`RushGuideView`) alimentée par
-          le modèle unique du module (`buildRushGuideView`) : repère du joueur
-          prioritaire, étapes informatives ignorées, dépendances `prereq_text`
-          respectées, compteurs. Deux sections seulement : où en est l'expédition,
-          et l'unique action qui suit — le contenu complet est plus bas, chapitre
-          par chapitre. Variante « public » = visiteur non connecté : aucune
-          fonction communautaire, aucun plein écran, la progression reste dans le
-          stockage local du navigateur. */}
-
-      <RushGuideView
-        variant="public"
-        view={rushView}
-        onValidateStep={handleValidateStepById}
-        onResetProgress={handleResetProgress}
-        className="mb-8"
-      />
-
-      {/* ── BARRE DE CONTRÔLE + RECHERCHE ──
-          Avant : `rounded-3xl`, `shadow-2xl`, `backdrop-blur-xl` et libellés en
-          capitales grasses. Maintenant : panneau opaque du registre, sans ombre —
-          il reste lisible quand il se colle sous l'en-tête. */}
+      {/* ── BARRE DE CONTRÔLE (progression · actions · personnage) + RECHERCHE ──
+          Un seul panneau porte les trois : où en est le joueur, ce qu'il peut
+          préparer, et SON personnage. Le bloc d'en-tête qui les répétait au-dessus
+          est supprimé (retour user : « supprime le bloc ») — l'alignement et la
+          remise à zéro qu'il portait descendent ICI. */}
       <div className="sticky top-16 z-30 mb-8 reg-panel bg-background p-4 sm:p-5 space-y-4">
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        {/* Ligne 1 — progression + actions */}
+        <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
           {/* Progress summary */}
-          <div className="flex items-center gap-3.5">
+          <div className="flex min-w-0 items-center gap-3.5">
             <div className="w-12 h-12 shrink-0 flex items-center justify-center">
               <img
                 src={guide.imageUrl || "/module-dofus/Dofus_Sylvestre.png"}
@@ -807,27 +955,49 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
                 className="w-12 h-12 object-contain"
               />
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-semibold text-foreground">
-                  {locale === "en" ? "Local Progress" : "Progression Locale"}
-                </span>
-              </div>
+            <div className="min-w-0">
+              <span className="text-xs font-semibold text-foreground">
+                {locale === "en" ? "Local Progress" : "Progression locale"}
+              </span>
               <p className="reg-mono text-sm text-foreground">
                 {completedCount} / {totalSequences} {locale === "en" ? "steps completed" : "étapes validées"} ({progressPercent}%)
               </p>
+              <div
+                className="mt-1.5 h-1.5 w-[10rem] max-w-full bg-elevated"
+                role="progressbar"
+                aria-valuenow={progressPercent}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-label={locale === "en" ? "Guide progress" : "Progression du guide"}
+              >
+                <span className="block h-full bg-success transition-all duration-300" style={{ width: `${progressPercent}%` }} />
+              </div>
             </div>
           </div>
 
-          {/* Action buttons */}
-          <div className="flex items-center gap-2 w-full md:w-auto flex-wrap">
+          {/* Boutons d'action : TOUS sur la même ligne (4 colonnes) dès qu'il y a la
+              place, 2 par ligne sur tablette, empilés sur mobile — largeurs égales,
+              aucun bouton qui déborde du cadre. */}
+          <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2 xl:w-auto xl:grid-cols-4">
             <button
               type="button"
               onClick={() => setShowResources(true)}
-              className="reg-btn reg-btn-secondary"
+              className="reg-btn reg-btn-secondary w-full"
             >
               <Package className="w-4 h-4 text-warning" aria-hidden="true" />
               <span>{t.rushGuide.resourcesTab}</span>
+            </button>
+
+            {/* Pense-bête — contenu édité côté GOD, lecture seule (même modale que
+                le guide interne). Il remplace le conseil perdu dans la FAQ. */}
+            <button
+              type="button"
+              onClick={() => setPenseBeteOpen(true)}
+              className="reg-btn reg-btn-secondary w-full"
+              title={locale === "en" ? "Things to know / to prepare before the rush" : "Les choses à savoir / à préparer avant le rush"}
+            >
+              <ClipboardList className="w-4 h-4" aria-hidden="true" />
+              <span>{locale === "en" ? "Checklist" : "Pense-bête"}</span>
             </button>
 
             {/* Le seul interrupteur de densité : son interrupteur d'origine vivait
@@ -837,7 +1007,7 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
               type="button"
               onClick={() => setHideDone((v) => !v)}
               aria-pressed={hideDone}
-              className={cn("reg-btn reg-btn-secondary", hideDone && "border-accent/40 text-accent")}
+              className={cn("reg-btn reg-btn-secondary w-full", hideDone && "border-accent/40 text-accent")}
               title={locale === "en" ? "Remove validated steps from detail view" : "Retirer du détail ce qui est déjà validé"}
             >
               <CheckCheck className="w-4 h-4" aria-hidden="true" />
@@ -852,7 +1022,7 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
             <button
               type="button"
               onClick={handleLaunchOverlay}
-              className="reg-btn reg-btn-primary flex-1 md:flex-initial"
+              className="reg-btn reg-btn-primary w-full"
               title={locale === "en" ? "Displays a floating mini-window always on top over Dofus" : "Affiche une mini-fenêtre flottante toujours au premier plan par-dessus Dofus"}
             >
               <Sparkles className="w-4 h-4" aria-hidden="true" />
@@ -861,25 +1031,61 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
           </div>
         </div>
 
-        {/* ── PERSONNAGE (facultatif) ──────────────────────────────────────────
-            La progression locale est gardée PAR PERSONNAGE : déclarer classe +
-            pseudo + serveur permet de suivre plusieurs persos (et de retrouver sa
-            progression dans l'overlay en jeu). Les trois champs sont facultatifs :
-            sans personnage, la progression reste celle du navigateur. */}
-        <div className="border-t border-border pt-3">
-          {hasGuestCharacter(character) && !characterOpen ? (
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        {/* Ligne 2 — ce que le guide a DÉJÀ donné (alignement, recalculé à chaque
+            coche) et la sortie de secours (remise à zéro en deux temps). */}
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-3">
+          <p className="inline-flex min-w-0 items-center gap-2 text-[11px] text-muted-foreground">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={rushView.alignment?.crestSrc ?? alignmentCrest(null)}
+              alt=""
+              width={18}
+              height={18}
+              className="h-[18px] w-[18px] shrink-0 object-contain"
+            />
+            {rushView.alignment ? (
+              <span>
+                {locale === "en" ? "Alignment" : "Alignement"} <b className="text-foreground">{rushView.alignment.label}</b>
+                {rushView.alignment.level > 0 && (
+                  <>
+                    {" · "}
+                    {locale === "en" ? "tier" : "tranche"}{" "}
+                    <span className="reg-mono">{rushView.alignment.level}</span>
+                  </>
+                )}
+              </span>
+            ) : (
+              <span>
+                {locale === "en" ? "Alignment" : "Alignement"} <b className="text-foreground">neutre</b> —{" "}
+                {locale === "en" ? "no alignment quest validated yet" : "aucune quête d'alignement validée"}
+              </span>
+            )}
+          </p>
+          <ResetProgressButton
+            onReset={handleResetProgress}
+            label={locale === "en" ? "Reset progress" : "Réinitialiser la progression"}
+            confirmLabel={locale === "en" ? "Erase everything?" : "Effacer toute la progression ?"}
+            yesLabel={locale === "en" ? "Yes, erase all" : "Oui, tout effacer"}
+            cancelLabel={locale === "en" ? "Cancel" : "Annuler"}
+          />
+        </div>
+        {/* ── Ligne 3 — MON PERSONNAGE ────────────────────────────────────────
+            Le choix vivait dans un panneau replié (trois `<select>`) que le user ne
+            voyait pas : il vit maintenant dans une MODALE dédiée (pictos de classe,
+            vignettes de serveur, pseudo validé comme dans le profil interne) et le
+            résumé du personnage choisi reste affiché ici, en clair. */}
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-3">
+          {hasGuestCharacter(character) ? (
+            <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2">
               {characterClass ? (
                 // Icône de classe du jeu (mêmes PNG que le profil et le dashboard).
                 <img
                   src={characterClass.icon}
                   alt={characterClass.name}
                   title={characterClass.name}
-                  className="h-7 w-7 shrink-0 object-contain"
+                  className="h-8 w-8 shrink-0 object-contain"
                 />
-              ) : (
-                <UserRound className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-              )}
+              ) : null}
               {character.serverId && getDofusServerImage(character.serverId) && (
                 // Vignette du serveur déclaré (assets du jeu, WebP).
                 <img
@@ -889,129 +1095,56 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
                   loading="lazy"
                   decoding="async"
                   draggable={false}
-                  className="h-7 w-7 shrink-0 rounded-[3px] border border-border object-cover"
+                  className="h-8 w-8 shrink-0 rounded-[3px] border border-border object-cover"
                 />
               )}
-              <span className="text-xs font-semibold text-foreground">{characterLabel}</span>
-              <span className="text-[11px] text-muted-foreground">
-                {locale === "en" ? "progress saved for this character" : "progression enregistrée pour ce personnage"}
+              <span className="min-w-0">
+                <span className="block text-xs font-semibold text-foreground">{characterLabel}</span>
+                <span className="block text-[11px] text-muted-foreground">
+                  {locale === "en" ? "progress saved for this character" : "progression enregistrée pour ce personnage"}
+                </span>
               </span>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={openCharacterForm}
-                  className="rounded-[3px] border border-border px-2.5 py-1.5 text-[11px] font-semibold text-muted-foreground transition-colors hover:text-foreground cursor-pointer"
-                >
-                  {locale === "en" ? "Change" : "Changer"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => applyGuestCharacter(null)}
-                  className="inline-flex items-center gap-1.5 rounded-[3px] border border-border px-2.5 py-1.5 text-[11px] font-semibold text-muted-foreground transition-colors hover:text-foreground cursor-pointer"
-                  title={locale === "en" ? "Reset to browser progress (no character)" : "Revenir à la progression du navigateur (sans personnage)"}
-                >
-                  <Eraser className="h-3.5 w-3.5" aria-hidden="true" />
-                  {locale === "en" ? "Remove" : "Retirer"}
-                </button>
-              </div>
-            </div>
-          ) : characterOpen ? (
-            <div className="space-y-3 rounded-md border border-border bg-surface p-3">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                {/* Classe */}
-                <div>
-                  <label className="block text-[11px] font-semibold text-muted-foreground mb-1">
-                    {t.rushGuide.selectClass}
-                  </label>
-                  <select
-                    value={charDraft.classId || ""}
-                    onChange={(e) => setCharDraft((d) => ({ ...d, classId: e.target.value || null }))}
-                    className="w-full h-8 px-2 rounded-[3px] bg-background border border-border text-xs text-foreground focus:outline-none focus:border-accent"
-                  >
-                    <option value="">{locale === "en" ? "-- Choose a class --" : "-- Choisir une classe --"}</option>
-                    {DOFUS_CLASSES.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Serveur */}
-                <div>
-                  <label className="block text-[11px] font-semibold text-muted-foreground mb-1">
-                    {t.rushGuide.selectServer}
-                  </label>
-                  <select
-                    value={charDraft.serverId ?? ""}
-                    onChange={(e) =>
-                      setCharDraft((d) => ({ ...d, serverId: e.target.value ? Number(e.target.value) : null }))
-                    }
-                    className="w-full h-8 px-2 rounded-[3px] bg-background border border-border text-xs text-foreground focus:outline-none focus:border-accent"
-                  >
-                    <option value="">{locale === "en" ? "-- Choose a server --" : "-- Choisir un serveur --"}</option>
-                    {GUEST_SERVER_GROUPS.map((grp) => {
-                      const list = (DOFUS_UNITY_SERVERS as Record<string, readonly { name: string; id: number }[]>)[
-                        grp.key
-                      ];
-                      if (!list || list.length === 0) return null;
-                      return (
-                        <optgroup key={grp.key} label={grp.label}>
-                          {list.map((s) => (
-                            <option key={s.id} value={s.id}>
-                              {s.name}
-                            </option>
-                          ))}
-                        </optgroup>
-                      );
-                    })}
-                  </select>
-                </div>
-
-                {/* Pseudo */}
-                <div>
-                  <label className="block text-[11px] font-semibold text-muted-foreground mb-1">
-                    {locale === "en" ? "Character nickname" : "Pseudo du personnage"}
-                  </label>
-                  <input
-                    type="text"
-                    value={charDraft.pseudo || ""}
-                    onChange={(e) => setCharDraft((d) => ({ ...d, pseudo: e.target.value || null }))}
-                    placeholder={locale === "en" ? "e.g. Cra-Zar" : "ex. Cra-Zar"}
-                    maxLength={30}
-                    className="w-full h-8 px-2 rounded-[3px] bg-background border border-border text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-accent"
-                  />
-                </div>
-              </div>
-
-              <div className="flex items-center justify-end gap-2 pt-1">
-                <button
-                  type="button"
-                  onClick={() => applyGuestCharacter(charDraft)}
-                  className="reg-btn reg-btn-primary text-xs py-1 px-3"
-                >
-                  {locale === "en" ? "Save" : "Enregistrer"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setCharacterOpen(false)}
-                  className="rounded-[3px] border border-border px-3 py-1.5 text-[11px] font-semibold text-muted-foreground transition-colors hover:text-foreground cursor-pointer"
-                >
-                  {locale === "en" ? "Cancel" : "Annuler"}
-                </button>
-              </div>
             </div>
           ) : (
+            <p className="min-w-0 text-[11px] text-muted-foreground">
+              {locale === "en"
+                ? "Progress is saved for this browser. Declare a character to keep one progress per character."
+                : "La progression est enregistrée pour ce navigateur. Déclare un personnage pour garder une progression par personnage."}
+            </p>
+          )}
+          <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={openCharacterForm}
-              className="inline-flex items-center gap-2 text-[11px] font-semibold text-muted-foreground transition-colors hover:text-foreground cursor-pointer"
+              className="reg-btn reg-btn-secondary"
               title={locale === "en" ? "Class + nickname + server: each character keeps their own progress" : "Classe + pseudo + serveur : chaque personnage garde sa propre progression"}
             >
-              <UserRound className="h-4 w-4 shrink-0" aria-hidden="true" />
-              {locale === "en" ? "Choose my character (optional)" : "Choisir mon personnage (facultatif)"}
+              <UserRound className="h-4 w-4" aria-hidden="true" />
+              <span>
+                {hasGuestCharacter(character)
+                  ? locale === "en" ? "Change character" : "Changer de personnage"
+                  : locale === "en" ? "Choose my character" : "Choisir mon personnage"}
+              </span>
             </button>
-          )}
+            {hasGuestCharacter(character) && (
+              <button
+                type="button"
+                onClick={() => applyGuestCharacter(null)}
+                className="inline-flex items-center gap-1.5 rounded-[3px] border border-border px-2.5 py-2 text-[11px] font-semibold text-muted-foreground transition-colors hover:text-foreground cursor-pointer"
+                title={locale === "en" ? "Reset to browser progress (no character)" : "Revenir à la progression du navigateur (sans personnage)"}
+              >
+                <Eraser className="h-3.5 w-3.5" aria-hidden="true" />
+                {locale === "en" ? "Remove" : "Retirer"}
+              </button>
+            )}
+            <GuestCharacterModal
+              open={characterOpen}
+              onClose={() => setCharacterOpen(false)}
+              initial={character}
+              locale={locale}
+              onSubmit={(next) => applyGuestCharacter(next)}
+            />
+          </div>
         </div>
 
         {/* Search bar & Live Filter */}
@@ -1074,7 +1207,8 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
         <nav aria-label="Sommaire du guide" className="mt-2">
           <ul className="grid max-h-72 grid-cols-1 gap-0.5 overflow-y-auto border border-border p-1.5 sm:grid-cols-2 lg:grid-cols-3">
             {chapterPages.map((p, i) => {
-              const done = p.ms.sequences.filter((s) => (completedStepsByMs.get(p.ms.id) || new Set()).has(s.id)).length;
+              const pageSteps = p.ms.sequences.filter((s) => !isInfoSequence(s));
+              const done = pageSteps.filter((s) => (completedStepsByMs.get(p.ms.id) || new Set()).has(s.id)).length;
               const isCurrent = !isSearching && i === currentPageIndex;
               return (
                 <li key={p.ms.id} className="min-w-0">
@@ -1090,7 +1224,7 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
                     <span className="reg-mono shrink-0 text-[11px] tabular-nums">{p.index + 1}</span>
                     <span className="min-w-0 flex-1 truncate text-xs font-semibold">{p.ms.title}</span>
                     <span className="reg-mono shrink-0 text-[11px] tabular-nums">
-                      {done}/{p.ms.sequences.length}
+                      {done}/{pageSteps.length}
                     </span>
                   </a>
                 </li>
@@ -1128,15 +1262,25 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
         </div>
       )}
 
-      <div className="space-y-6">
+      {/* ── CONTENU + PANNEAU DE DROITE ──
+          Même grammaire que le guide interne : le contenu du chapitre à gauche, la
+          sidebar PARTAGÉE à droite (chapitres, progression, donjons & métiers à
+          prévoir, objets requis avec bascule Restantes/Toutes). Sur petit écran elle
+          passe sous le contenu — aucune information perdue, aucun doublon de rendu. */}
+      <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,1fr)_20rem]">
+        <div className="min-w-0 space-y-6">
         {visibleMilestones.map((ms) => {
           const msIndex = milestones.indexOf(ms);
           const isDone = completedIds.has(ms.id);
           const isExpanded = expandedMs.has(ms.id) || isSearching || pagedChapterId === ms.id;
           const doneSteps = completedStepsByMs.get(ms.id) || new Set();
           const sequences = ms.sequences || [];
+          // Étapes RÉELLEMENT cochables : les encarts info ne comptent pas dans la
+          // progression (ni « n/N », ni pourcentage, ni « toutes les étapes »).
+          const chapterSteps = sequences.filter((s) => !isInfoSequence(s));
 
-          // Regroupement des séquences en blocs de quête
+          // Regroupement des séquences en blocs de quête (encarts info compris : ils se
+          // lisent à leur place dans le flux).
           let questBlocks = groupSequencesIntoQuests(sequences, doneSteps);
 
           // Filtrage par recherche
@@ -1163,22 +1307,44 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
             return null;
           }
 
-          const msDoneCount = sequences.filter((s) => doneSteps.has(s.id)).length;
-          const msPercent = sequences.length > 0 ? Math.round((msDoneCount / sequences.length) * 100) : 0;
+          const msDoneCount = chapterSteps.filter((s) => doneSteps.has(s.id)).length;
+          const msPercent = chapterSteps.length > 0 ? Math.round((msDoneCount / chapterSteps.length) * 100) : 0;
           const chapterDofusImg = resolveDofusLocalImage(ms.title);
 
-          // Séparateur de chapitre majeur
+          // Séparateur de chapitre majeur — le MÊME bandeau que le dashboard membre
+          // (composant partagé) : filet d'accent, eyebrow mono, titre fort, description,
+          // et l'image du bloc à droite quand le GOD en a posé une.
           if (ms.type === "SEPARATEUR") {
             return (
-              <div
-                key={ms.id}
-                className="my-6 border-t border-border pt-4"
-              >
-                <span className="reg-eyebrow block">
-                  Étape Charnière
-                </span>
-                <h3 className="text-lg font-bold text-foreground mt-1">{ms.title}</h3>
-                {ms.description && <p className="text-xs text-muted-foreground mt-1">{ms.description}</p>}
+              // L'ancre partageable `#bloc-<id>` (sommaire + hash d'URL) doit survivre : le
+              // bandeau reste donc dans un conteneur porteur de l'identifiant.
+              <div key={ms.id} id={`bloc-${ms.id}`}>
+                <RushSeparatorBanner
+                  title={ms.title}
+                  description={ms.description}
+                  imageUrl={ms.imageUrl}
+                  accentColor={ms.accentColor}
+                />
+              </div>
+            );
+          }
+
+          // Bloc CONSEIL / TIPS : le MÊME bandeau que le dashboard membre (composant partagé).
+          // Avant, le guide public le rendait comme un CHAPITRE (« Chapitre 0 · 0/0 étapes
+          // (0%) » avec un bouton « Tout valider » qui ne pouvait rien valider) : deux rendus
+          // pour un même bloc dans un guide partagé — c'est ce qui est corrigé ici.
+          if (ms.type === "INFO") {
+            const infoText = ms.tips || ms.description || ms.title || "";
+            const infoTitle = ms.title && !infoText.startsWith(ms.title) ? ms.title : null;
+            return (
+              <div key={ms.id} id={`bloc-${ms.id}`}>
+                <RushInfoBanner
+                  title={infoTitle}
+                  imageUrl={ms.imageUrl}
+                  accentColor={ms.accentColor}
+                >
+                  <RushRichText text={infoText} />
+                </RushInfoBanner>
               </div>
             );
           }
@@ -1222,7 +1388,7 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
                         </span>
                       )}
                       <span className="reg-mono text-xs text-muted-foreground">
-                        {msDoneCount} / {sequences.length} étapes ({msPercent}%)
+                        {msDoneCount} / {chapterSteps.length} étapes ({msPercent}%)
                       </span>
                     </div>
                     <h2 className="mt-0.5 truncate text-base font-bold text-foreground sm:text-lg">
@@ -1290,8 +1456,15 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
                   ) : (
                     questBlocks.map((block, blockIdx) => {
                       const questDofusImg = resolveDofusLocalImage(block.questName) || resolveDofusLocalImage(ms.title);
+                      // Les encarts info ne sont pas des étapes : ils ne comptent ni dans
+                      // l'en-tête (« n/N »), ni dans « Valider tout le bloc », ni dans le
+                      // repère — mais ils gardent leur place dans le flux.
+                      const blockSteps = block.sequences.filter((s) => !isInfoSequence(s));
+                      const hasSteps = blockSteps.length > 0;
+                      // Éléments réellement affichés (étapes + encarts, dans l'ordre du guide).
+                      const blockItems = block.sequences.filter((s) => !hideDone || !doneSteps.has(s.id));
                       // Bloc mono-étape : pas d'en-tête redondant, la ligne-carte porte le nom (comme le guide interne)
-                      const isSingleStep = block.sequences.length === 1;
+                      const isSingleStep = blockSteps.length === 1;
                       return (
                       <div
                         key={`${block.questRef}-${blockIdx}`}
@@ -1301,7 +1474,7 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
                         )}
                       >
                         {/* ── EN-TÊTE DU BLOC DE QUÊTE (multi-étapes uniquement) ── */}
-                        {!isSingleStep && (
+                        {hasSteps && !isSingleStep && (
                         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3.5 sm:px-4 bg-surface border-b border-border">
                           <div className="flex items-center gap-2.5 min-w-0 flex-1">
                             {questDofusImg ? (
@@ -1342,14 +1515,14 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
                           </div>
                           {(() => {
                             const bmSeqId = bookmarksByMs.get(ms.id) || null;
-                            const bmInBlock = bmSeqId && block.sequences.some((s) => s.id === bmSeqId);
-                            const firstUndone = block.sequences.find((s) => !doneSteps.has(s.id));
+                            const bmInBlock = bmSeqId && blockSteps.some((s) => s.id === bmSeqId);
+                            const firstUndone = blockSteps.find((s) => !doneSteps.has(s.id));
                             return (
                               <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-center">
                                 {!block.isDone && (
                                   <button
                                     type="button"
-                                    onClick={() => handleToggleBlockSteps(ms.id, block.sequences.map((s) => s.id), true)}
+                                    onClick={() => handleToggleBlockSteps(ms.id, blockSteps.map((s) => s.id), true)}
                                     className="inline-flex items-center gap-1 rounded-md border border-success/40 px-2.5 py-1.5 text-xs font-semibold text-success transition-colors hover:bg-success/10"
                                     title="Valider toutes les étapes du bloc"
                                   >
@@ -1373,10 +1546,20 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
                         )}
 
                         {/* ── ÉTAPES DE LA QUÊTE ── */}
-                        <div className={isSingleStep ? "p-2 sm:p-3" : "p-2 sm:p-3 space-y-2.5"}>
-                          {block.sequences.filter((s) => !hideDone || !doneSteps.has(s.id)).map((seq) => {
+                        <div className={blockItems.length > 1 ? "p-2 sm:p-3 space-y-2.5" : "p-2 sm:p-3"}>
+                          {blockItems.map((seq) => {
                             const stepDone = doneSteps.has(seq.id);
+                            // Verrou de prérequis (même règle que le guide interne) : la case
+                            // devient inerte, la carte passe en danger, le prérequis est nommé.
+                            const stepLocked = !stepDone && isStepLocked(seq.id);
+                            const prereqRefs = stepLocked ? getPrereqRefs(seq, milestones) : [];
                             const parsedCoord = getSequenceCoord(seq);
+
+                            // Encart informatif : jamais cochable, aucune progression — le
+                            // MÊME bandeau que le dashboard et l'overlay (composant partagé).
+                            if (isInfoSequence(seq)) {
+                              return <RushInfoSequenceBanner key={seq.id} seq={seq} accentColor={ms.accentColor} />;
+                            }
 
                             // Extraction et séparation des tags d'items pour ne PAS polluer la ligne
                             const allTags = seq.activityTags || [];
@@ -1429,8 +1612,12 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
                                 data-seq-id={seq.id}
                                 className={cn(
                                   "group flex flex-col gap-2 rounded-[4px] border p-3 transition-colors",
+                                  // Trois états, trois couleurs (règle partagée avec l'interne) :
+                                  // validée = neutre atténué · VERROUILLÉE = danger · REPÈRE = ambre.
                                   stepDone
                                     ? "border-border bg-surface opacity-65"
+                                    : stepLocked
+                                    ? "border-danger/30 bg-danger/[0.05]"
                                     : isBookmarked
                                     ? "border-warning/40 bg-warning/10"
                                     : "border-border bg-elevated hover:bg-surface"
@@ -1443,15 +1630,21 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
                                     <button
                                       type="button"
                                       onClick={() => handleToggleStep(ms.id, seq.id)}
-                                      aria-label={stepDone ? "Décocher" : "Valider cette étape"}
+                                      disabled={stepLocked}
+                                      aria-label={stepDone ? "Décocher" : stepLocked ? "Quête verrouillée par un prérequis" : "Valider cette étape"}
+                                      title={stepLocked ? "Prérequis non terminé — valide d'abord les quêtes citées sous la ligne." : undefined}
                                       className={cn(
-                                        "w-5 h-5 rounded-[3px] border flex items-center justify-center shrink-0 mt-0.5 sm:mt-0 transition-colors cursor-pointer",
+                                        "w-5 h-5 rounded-[3px] border flex items-center justify-center shrink-0 mt-0.5 sm:mt-0 transition-colors",
+                                        stepLocked ? "border-danger/40 text-danger cursor-not-allowed" : "cursor-pointer",
                                         stepDone
                                           ? "border-success/70 text-success"
+                                          : stepLocked
+                                          ? ""
                                           : "border-border hover:border-success"
                                       )}
                                     >
                                       {stepDone && <Check className="w-3.5 h-3.5 stroke-[2]" />}
+                                      {stepLocked && <Lock className="w-3 h-3 stroke-[2]" aria-hidden="true" />}
                                     </button>
 
                                     <div className="min-w-0 flex-1">
@@ -1630,6 +1823,37 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
                                   </div>
                                 </div>
 
+                                {/* ── VERROU : prérequis non terminés ──
+                                    Même rendu que le guide interne (danger, cadenas,
+                                    prérequis nommés et cliquables) : le public disait
+                                    seulement « Rien ne bloque » alors que l'interne
+                                    refusait la validation. */}
+                                {stepLocked && (
+                                  <div className="flex flex-wrap items-center gap-1.5 border-t border-danger/20 pt-2">
+                                    <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-danger">
+                                      <Lock className="h-3 w-3 shrink-0" aria-hidden="true" />
+                                      À terminer avant :
+                                    </span>
+                                    {prereqRefs.length === 0 ? (
+                                      <span className="text-[11px] text-muted-foreground">
+                                        quête prérequis non listée dans ce guide
+                                      </span>
+                                    ) : (
+                                      prereqRefs.map((p) => (
+                                        <button
+                                          key={p.seqId}
+                                          type="button"
+                                          onClick={() => scrollToStep(p.seqId)}
+                                          className="rounded-[3px] border border-danger/40 bg-danger/10 px-1.5 py-0.5 text-[11px] font-medium text-danger transition-colors hover:bg-danger/20 cursor-pointer"
+                                          title={`Aller à : ${p.name}`}
+                                        >
+                                          {p.name}
+                                        </button>
+                                      ))
+                                    )}
+                                  </div>
+                                )}
+
                                 {/* Conseils & notes dépliables (comme le guide interne) */}
                                 {(seq.tips || seq.note) && (() => {
                                   const isHintsOpen = expandedHintsSteps.has(seq.id);
@@ -1666,7 +1890,7 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
                                         <div className="space-y-1.5 px-2.5 pb-2.5">
                                           {mainTip && (
                                             <p className={cn("text-xs leading-relaxed text-muted-foreground", stepDone && "line-through")}>
-                                              {mainTip}
+                                              <RushRichText text={mainTip} />
                                             </p>
                                           )}
                                           {succesPart && (
@@ -1674,7 +1898,7 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
                                               <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-warning">
                                                 {/* eslint-disable-next-line @next/next/no-img-element */}
                                                 <img src="/assets/dofus/game-icons/trophy-1.png" alt="" className="h-3 w-3 shrink-0 object-contain" />
-                                                Succès : {succesPart}
+                                                Succès : <RushRichText text={succesPart} />
                                               </span>
                                             </div>
                                           )}
@@ -1711,6 +1935,20 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
             </div>
           );
         })}
+        </div>
+
+        {/* Le panneau de droite suit la page courante : cliquer un chapitre y navigue
+            (même geste que dans le guide interne). */}
+        <RushChapterSidebar
+          className="xl:sticky xl:top-20"
+          milestones={milestones as any}
+          completedSeqIds={completedSeqIds}
+          selectedChapter={currentPage?.ms.chapter ?? "ALL"}
+          onSelectChapter={(chapter) => {
+            const idx = chapterPages.findIndex((p) => chapter === "ALL" || p.ms.chapter === chapter);
+            if (idx >= 0) goToChapterPage(idx);
+          }}
+        />
       </div>
 
       {/* ── PAGER (bas) : enchaîner les chapitres sans remonter au sommaire. ── */}
@@ -1763,9 +2001,18 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
           totalCount={allResources.length}
           theme="site"
           isLightMode={false}
+          checkedKeys={resourceChecks}
+          onToggleCheck={handleToggleResourceCheck}
           onClose={() => setShowResources(false)}
         />
       )}
+
+      {/* ── PENSE-BÊTE (contenu GOD, lecture seule — même modale que l'interne) ── */}
+      <RushPenseBeteModal
+        open={penseBeteOpen}
+        onClose={() => setPenseBeteOpen(false)}
+        sections={penseBeteSections}
+      />
 
       {/* ── POPUP « REPRENDRE ? » (retour avec repère local) ── */}
       {continueModalOpen &&

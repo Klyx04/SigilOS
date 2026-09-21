@@ -17,6 +17,15 @@ import { rateLimit } from "@/lib/ratelimit";
 import { buildProfileSlug } from "@/lib/profile-slug";
 import { z } from "zod";
 import { formatDofusPseudo } from "@/lib/utils";
+// Règle de pseudo PARTAGÉE (profil interne ↔ guide public) : une seule définition.
+import {
+    PSEUDO_PATTERN,
+    PSEUDO_MIN_LENGTH,
+    PSEUDO_MAX_LENGTH,
+    PSEUDO_TOO_SHORT_MESSAGE,
+    PSEUDO_TOO_LONG_MESSAGE,
+    PSEUDO_FORMAT_MESSAGE,
+} from "@/lib/pseudo-validation";
 import { getDiscordPublicUrl } from "@/lib/storage-utils";
 import { getDisplayName } from "@/lib/display-name";
 import { resolveDofusImageUrl } from "@/lib/dofus-image-url";
@@ -1132,9 +1141,9 @@ export async function updateForgemagieStatus(rawData: z.infer<typeof UpdateForge
 const AltPseudoObjectSchema = z.object({
     id: z.string().optional(),
     pseudo: z.string()
-        .min(2, "Pseudo trop court")
-        .max(20, "Pseudo trop long")
-        .regex(/^[A-Z\u00C0-\u017F][a-zA-Z\u00C0-\u017F]*(-[a-zA-Z\u00C0-\u017F]+)*$/, "Format invalide (Ex: Pseudo, Pseudo-mule - Pas de chiffres ni caractères spéciaux)"),
+        .min(PSEUDO_MIN_LENGTH, PSEUDO_TOO_SHORT_MESSAGE)
+        .max(PSEUDO_MAX_LENGTH, PSEUDO_TOO_LONG_MESSAGE)
+        .regex(PSEUDO_PATTERN, PSEUDO_FORMAT_MESSAGE),
     classe: z.string().optional(),
     level: z.number().min(0).max(200).optional(),
     alignment: z.string().nullable().optional(),
@@ -1227,8 +1236,8 @@ export async function updateAltPseudos(rawData: z.infer<typeof UpdateAltPseudosS
 const UpdateMuleAlignmentSchema = z.object({
     guildId: z.string(),
     pseudo: z.string()
-        .min(2, "Pseudo trop court")
-        .max(20, "Pseudo trop long"),
+        .min(PSEUDO_MIN_LENGTH, PSEUDO_TOO_SHORT_MESSAGE)
+        .max(PSEUDO_MAX_LENGTH, PSEUDO_TOO_LONG_MESSAGE),
     alignment: z.string().nullable(),
     alignmentOrder: z.string().nullable(),
     alignmentLevel: z.number().min(0).max(100),

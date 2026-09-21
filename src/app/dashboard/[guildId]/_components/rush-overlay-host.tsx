@@ -28,6 +28,7 @@ export function RushOverlayHost() {
       altPseudo={payload.altPseudo}
       character={payload.character}
       pinned={payload.pinned}
+      ocre={payload.ocre ?? null}
       onClose={close}
     />,
     win.document.body

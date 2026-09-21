@@ -4,7 +4,7 @@ import { Suspense } from "react";
 import { auth } from "@/auth";
 import { getUserContext } from "@/server/actions/user-actions";
 import { logger } from "@/lib/logger";
-import { getOptimizedGuideDetail, getGuildOptimizedGuideProgress, listSubGuides } from "@/server/actions/optimized-guide-actions";
+import { getOptimizedGuideDetail, getGuildOptimizedGuideProgress, listSubGuides, getRushResourceChecks } from "@/server/actions/optimized-guide-actions";
 import { getMemberProfile } from "@/server/actions/profile-actions";
 import { resolveRushUIConfig } from "@/lib/rush-ui-config";
 import { CharacterQuestSelector } from "@/components/dofus-quests/CharacterQuestSelector";
@@ -73,6 +73,16 @@ export default async function OptimizedGuideUserPage({ params, searchParams }: P
         logger.error("[Guide Page] Guild progress fetch failed (non-fatal)", { error: e });
     }
 
+    // Coches MANUELLES de ressources du membre (par personnage : principale ou mule) —
+    // non bloquant, même politique que la progression guilde ci-dessus.
+    let resourceChecks: string[] = [];
+    try {
+        const checks = await getRushResourceChecks(slug, guildId, altPseudo);
+        resourceChecks = checks.keys || [];
+    } catch (e) {
+        logger.error("[Guide Page] Resource checks fetch failed (non-fatal)", { error: e });
+    }
+
     // Fetch full profile to get alignment, alignmentOrder, alignmentLevel, altPseudos, class & metamob
     let userProfile: { 
         alignment?: string | null; 
@@ -121,6 +131,8 @@ export default async function OptimizedGuideUserPage({ params, searchParams }: P
                     progressPercent: ocreRes.data.stats.progressPercent,
                     currentStep: ocreRes.data.questInfo?.currentStep ?? 1,
                     serverName: ocreRes.data.questInfo?.serverName || "Dofus Unity",
+                    // Copies exigées par la quête (sert au premier « + » de l'overlay).
+                    parallelQuests: ocreRes.data.questInfo?.parallelQuests ?? 1,
                 };
                 // Build lists of captured monster IDs and names for dungeon detection
                 const monsters = ocreRes.data.monsters;
@@ -163,6 +175,7 @@ export default async function OptimizedGuideUserPage({ params, searchParams }: P
                             }}
                             milestones={guide.milestones as any}
                             guildProgress={allProgress}
+                            initialResourceChecks={resourceChecks}
                             guildId={guildId}
                             selectedCharacter={character}
                             mules={mules}

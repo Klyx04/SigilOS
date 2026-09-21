@@ -3,6 +3,7 @@
 import { create } from "zustand";
 import type { RushMilestone } from "@/types/rush-guide-types";
 import type { GuideProgressRow } from "@/lib/guide-progress-helpers";
+import type { OcrePanelData } from "@/lib/ocre-soul-stones";
 
 /**
  * Payload nécessaire pour rendre l'overlay Rush hors de la page guide.
@@ -23,6 +24,11 @@ export interface RushOverlayPayload {
    * qui n'expose pas l'API) → l'overlay affiche un bandeau d'avertissement.
    */
   pinned: boolean;
+  /**
+   * Quête Ocre du membre (Metamob lié) figée à l'ouverture, comme le reste du
+   * payload : l'overlay PiP reste autonome (aucun fetch) — `null` si non lié.
+   */
+  ocre?: OcrePanelData | null;
 }
 
 interface RushOverlayState {

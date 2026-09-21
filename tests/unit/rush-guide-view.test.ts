@@ -196,7 +196,7 @@ describe("rush-guide-view (vue partagée public ↔ guilde)", () => {
       const view = buildRushGuideView({ milestones: GUIDE, completedSeqIds: ["s-done"] });
       const active = view.active!;
       expect(active.coord).toMatchObject({ x: 4, y: -19 });
-      expect(active.travelCommand).toBe("/travel 4,-19");
+      expect(active.travelCommand).toBe("/w 4,-19");
       expect(active.nature.map((t) => t.type)).toEqual(["combat_tactique"]);
       expect(active.conditions.map((t) => t.type)).toEqual(["metier"]);
       expect(active.blockTitle).toBe("m-prereq");
@@ -244,7 +244,7 @@ describe("rush-guide-view (vue partagée public ↔ guilde)", () => {
   describe("repères et préparation", () => {
     it("liste chaque coordonnée copiable en commande de jeu", () => {
       const view = buildRushGuideView({ milestones: GUIDE, completedSeqIds: [] });
-      expect(view.landmarks.map((l) => l.travelCommand)).toEqual(["/travel 12,-21", "/travel 4,-19"]);
+      expect(view.landmarks.map((l) => l.travelCommand)).toEqual(["/w 12,-21", "/w 4,-19"]);
       expect(view.landmarks[1].label).toBe("Le réceptacle des Dofus");
       expect(view.landmarks[1].isDone).toBe(false);
     });

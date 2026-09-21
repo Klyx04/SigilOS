@@ -797,8 +797,6 @@ export const en: Translations = {
         completedPercent: "completed",
         remainingSteps: "steps remaining",
         guestProfile: "Guest Profile",
-        selectClass: "Choose my class",
-        selectServer: "Choose my server",
     },
     tacticalSim: {
         simulatedSpell: "Simulated Spell:",

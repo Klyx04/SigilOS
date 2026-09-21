@@ -3,8 +3,7 @@ import { motion } from "framer-motion";
 import { Sparkles, Star } from "lucide-react";
 
 // ─── Micro-célébration S6 : burst doré + label à la validation d'un bloc ──────
-// Cohérent avec le bloc doré ✦ RushCurrentObjective. Purement visuel, auto-fermé
-// par le parent (RushTimelineClient) via AnimatePresence.
+// Purement visuel, auto-fermé par le parent (RushTimelineClient) via AnimatePresence.
 const SPARKS = Array.from({ length: 12 }, (_, i) => i);
 
 export function MilestoneCelebrationBurst({ title, tint }: { title: string; tint?: string }) {

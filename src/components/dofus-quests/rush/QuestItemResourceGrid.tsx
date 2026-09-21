@@ -121,7 +121,7 @@ export function QuestItemResourceGrid({
           Toutes les ressources de cette étape sont réunies !
         </p>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 max-h-[360px] overflow-y-auto pr-1 custom-scrollbar">
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(15rem,1fr))] gap-2 max-h-[360px] overflow-y-auto pr-1 custom-scrollbar">
           {visibleItems.map((item) => (
             <div
               key={item.key}
@@ -147,7 +147,8 @@ export function QuestItemResourceGrid({
                 <div className="min-w-0 flex-1">
                   <span
                     className={cn(
-                      "text-xs font-semibold block truncate group-hover:text-warning transition-colors",
+                      // Nom COMPLET : on passe à la ligne plutôt que de le couper.
+                      "text-xs font-semibold block break-words group-hover:text-warning transition-colors",
                       item.isDone ? "line-through text-muted-foreground" : "text-foreground"
                     )}
                   >

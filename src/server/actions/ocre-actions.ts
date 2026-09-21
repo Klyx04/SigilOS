@@ -61,6 +61,12 @@ interface ActionResponse<T = void> {
     success: boolean;
     error?: string;
     data?: T;
+    /**
+     * Délai (ms) à respecter avant un nouvel essai quand la mutation a été REFUSÉE par
+     * une limite (rate limit serveur ou 429 Metamob). Le client met sa file en pause au
+     * lieu de réessayer en boucle — réponse directe au spam.
+     */
+    retryAfterMs?: number;
 }
 
 // Quest progress data for dashboard
@@ -2191,6 +2197,20 @@ export async function updateUserMonsterQuantityAction(rawData: {
             return { success: false, error: "Quantité invalide" };
         }
 
+        // [RateLimit] Chaque pas part en PATCH vers Metamob : on borne les rafales
+        // (l'overlay valide/dévalide en direct). Fail-closed : au-delà, on refuse ET on
+        // annonce le délai restant, pour que le client mette sa file en pause au lieu de
+        // réessayer en boucle (un spam de clics ne peut pas transformer SigilOS en
+        // amplificateur de requêtes vers Metamob).
+        const rateCheck = await rateLimit(`ocre:quantity:${session.user.id}`, 60, 60);
+        if (!rateCheck.success) {
+            return {
+                success: false,
+                error: "Trop de modifications en peu de temps — patiente un instant.",
+                retryAfterMs: Math.min(60_000, Math.max(1_000, rateCheck.reset - Date.now())),
+            };
+        }
+
         const profile = await db.userProfile.findFirst({
             where: { userId: session.user.id, guild: { discordGuildId: guildId }, status: "ACTIVE" },
             select: { metamobApiKey: true, metamobQuestSlug: true, metamobPseudo: true }
@@ -2218,7 +2238,14 @@ export async function updateUserMonsterQuantityAction(rawData: {
         return { success: true, data: { quantity } };
     } catch (error: any) {
         logger.error("[updateUserMonsterQuantityAction] Error:", error);
-        return { success: false, error: error?.message || "Erreur lors de la mise à jour Metamob" };
+        // 429 Metamob : on demande au client de lever le pied (pause de la file) plutôt
+        // que de relancer les écritures qui repartiraient en rate limit.
+        const isMetamobRateLimit = error instanceof MetamobApiError && error.code === "RATE_LIMIT";
+        return {
+            success: false,
+            error: error?.message || "Erreur lors de la mise à jour Metamob",
+            retryAfterMs: isMetamobRateLimit ? 30_000 : undefined,
+        };
     }
 }
 

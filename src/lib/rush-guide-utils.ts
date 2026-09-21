@@ -177,6 +177,42 @@ export function isInfoSequence(seq: RushSequence | null | undefined): boolean {
   return seq.activityTags.some((tag) => tag.type === "info_sequence");
 }
 
+/** Les trois types de blocs qui ne sont PAS des étapes : rien à cocher, pas de « n/N ». */
+export const NON_CHECKABLE_BLOCK_TYPES = ["SEPARATEUR", "INFO", "DOFUS_OBTAINED"] as const;
+
+/**
+ * Un bloc qui n'est pas une étape : séparateur, encart CONSEIL/TIPS, « Dofus obtenu ».
+ * Il n'a **aucune progression** — donc il ne peut jamais être « fait », ni être sauté
+ * comme tel par une navigation, ni compter dans une numérotation de chapitres.
+ *
+ * SOURCE UNIQUE : la même règle pilote le selecteur d'étapes de l'overlay, son
+ * `defaultMsIndex`, son `goToNextMs` et sa numérotation de chapitres.
+ */
+export function isNonCheckableBlock(
+  ms: Pick<RushMilestone, "type"> | null | undefined
+): boolean {
+  if (!ms) return false;
+  return (NON_CHECKABLE_BLOCK_TYPES as readonly string[]).includes(ms.type || "");
+}
+
+/**
+ * Position d'un bloc dans la numérotation des CHAPITRES (les blocs non cochables ne
+ * sont pas numérotés : sinon « Chapitre 12 / 45 » compterait des bandeaux).
+ *
+ * @returns `index` = rang 1-based du bloc s'il est cochable, `0` sinon ; `total` = nombre
+ *          de chapitres (blocs cochables) du guide.
+ */
+export function rushChapterPosition(
+  blocks: Array<Pick<RushMilestone, "id" | "type">>,
+  msId: string | null | undefined
+): { index: number; total: number } {
+  const chapters = blocks.filter((b) => !isNonCheckableBlock(b));
+  const total = chapters.length;
+  if (!msId) return { index: 0, total };
+  const idx = chapters.findIndex((b) => b.id === msId);
+  return { index: idx >= 0 ? idx + 1 : 0, total };
+}
+
 /**
  * Extrait la coordonnée d'une séquence (pos_tag > titre > tips > note).
  * Ordre de priorité aligné sur l'édition GOD : le tag technique `pos_tags`
@@ -195,34 +231,61 @@ export function getSequenceCoord(seq: RushSequence | null | undefined) {
 }
 
 /**
- * Analyse et extrait des coordonnées Dofus du format [x, y] ou [x, y, worldId]
+ * Analyse et extrait les coordonnées Dofus d'un texte.
+ *
+ * Formes reconnues (dans cet ordre) :
+ *   1. canonique `[x, y]` / `[x, y, worldId]` — c'est la forme AFFICHÉE (`raw`) ;
+ *   2. commande de déplacement écrite dans le texte : `/w x,y` (Dofus actuel) ou
+ *      `/travel x,y` (ancienne forme, toujours reconnue à la saisie) ;
+ *   3. « pos_tags » saisi au GOD sans crochets (`x, y ; x2, y2`).
+ *
+ * `travelCommand` est la commande COPIÉE par le presse-papier : `/w x,y`. SOURCE UNIQUE —
+ * aucune surface ne fabrique cette commande à la main.
  */
 export function parseCoordinates(
   text: string
 ): { x: number; y: number; worldId?: number; raw: string; travelCommand: string } | null {
   if (!text) return null;
-  // Priorité au format canonique [x, y] / [x, y, worldId] (tips, notes).
+  // 1) Priorité au format canonique [x, y] / [x, y, worldId] (tips, notes).
   let match = text.match(/\[\s*(-?\d+)\s*,\s*(-?\d+)(?:\s*,\s*(\d+))?\s*\]/);
-  // Repli : format « pos_tags » saisi au GOD (x, y ; x2, y2) sans crochets.
+  // 2) Commande de déplacement saisie telle quelle dans un texte.
+  const cmdMatch = match
+    ? null
+    : text.match(/\/(?:w|travel)\s+(-?\d+)\s*[,;]?\s*(-?\d+)(?:\s*,\s*(\d+))?(?!\d)/i);
+  if (!match && cmdMatch) match = cmdMatch;
+  // 3) Repli : format « pos_tags » saisi au GOD (x, y ; x2, y2) sans crochets.
   if (!match) match = text.match(/(-?\d+)\s*,\s*(-?\d+)/);
   if (!match) return null;
 
   const x = parseInt(match[1], 10);
   const y = parseInt(match[2], 10);
   const worldId = match[3] ? parseInt(match[3], 10) : undefined;
-  const travelCommand = worldId !== undefined ? `/travel ${x},${y},${worldId}` : `/travel ${x},${y}`;
+  const travelCommand = worldId !== undefined ? `/w ${x},${y},${worldId}` : `/w ${x},${y}`;
 
   return {
     x,
     y,
     worldId,
-    raw: match[0],
+    // Une commande ne s'affiche jamais crue : on rend la position canonique.
+    raw: cmdMatch ? `[${x}, ${y}]` : match[0],
     travelCommand,
   };
 }
 
 /** Référence vers une quête prérequis d'une autre quête. */
 export type RushPrereqRef = { seqId: string; milestoneId: string; name: string };
+
+/** Normalise un nom de ressource (casse, espaces) — base de la clé stable. */
+const normResourceName = (name = "") => name.trim().toLowerCase().replace(/\s+/g, " ");
+
+/**
+ * Clé STABLE d'une ressource `item` du guide — celle portée par `RushResourceAgg.key`
+ * (agrégation) ET stockée par les coches manuelles (base comme navigateur). Une seule
+ * définition : une ressource cochée est la MÊME sur toutes les surfaces.
+ */
+export function rushResourceKey(tag: { id?: string | null; name?: string | null }): string {
+  return `id:${tag.id ?? ""}|${normResourceName(tag.name ?? "")}`;
+}
 
 /**
  * Retourne les quêtes prérequis d'une séquence (match par nom via tags `prereq_text`).
@@ -358,4 +421,52 @@ export function resolveRushSeqIcon(icon?: string | null | undefined): string | n
   if (!trimmed) return null;
   if (/^https?:\/\//i.test(trimmed) || trimmed.startsWith("/")) return trimmed;
   return `/assets/icons/${trimmed}.png`;
+}
+
+/**
+ * Blocs qui n'appartiennent à AUCUN chapitre du guide : ils vivent ENTRE les chapitres
+ * (séparateur visuel, encart d'information, bannière d'obtention de Dofus). Le studio GOD
+ * les range donc hors du tri par chapitre.
+ */
+export const OUTSIDE_CHAPTER_BLOCK_TYPES = ["SEPARATEUR", "INFO", "DOFUS_OBTAINED"] as const;
+
+/**
+ * Où INSÉRER un nouveau bloc dans la liste ordonnée du studio GOD (même règle que le
+ * glisser-déposer, appliquée à la création).
+ *
+ * Motif du correctif (mesuré le 20/09/2026) : un bloc créé arrivait **toujours en fin de
+ * guide** (`order = nombre de blocs`) — donc hors de son chapitre et à l'autre bout du
+ * scroll, à remonter à la main. On se place désormais :
+ *   · bloc hors chapitre (séparateur, encart, bannière) → **à la fin** (il n'a pas de rang
+ *     de chapitre à respecter) ;
+ *   · bloc d'un chapitre → **après le dernier bloc de ce chapitre** ;
+ *   · chapitre encore inexistant → **avant le premier bloc d'un chapitre supérieur** (les
+ *     chapitres restent croissants), sinon à la fin.
+ *
+ * Le tableau reçu doit être **ordonné** (l'appelant passe la liste triée par `order`).
+ * Retour : l'index d'insertion (`0` = en tête, `ordered.length` = en fin).
+ */
+export function findMilestoneInsertIndex(
+  ordered: { type?: string | null; chapter?: number | null }[],
+  target: { type: string; chapter: number }
+): number {
+  const isOutside = (type?: string | null) =>
+    (OUTSIDE_CHAPTER_BLOCK_TYPES as readonly string[]).includes(String(type ?? ""));
+
+  if (isOutside(target.type)) return ordered.length;
+
+  let lastOfChapter = -1;
+  for (let i = 0; i < ordered.length; i++) {
+    const ms = ordered[i];
+    if (isOutside(ms.type)) continue;
+    if ((ms.chapter ?? 0) === target.chapter) lastOfChapter = i;
+  }
+  if (lastOfChapter >= 0) return lastOfChapter + 1;
+
+  for (let i = 0; i < ordered.length; i++) {
+    const ms = ordered[i];
+    if (isOutside(ms.type)) continue;
+    if ((ms.chapter ?? 0) > target.chapter) return i;
+  }
+  return ordered.length;
 }

@@ -7,7 +7,7 @@ import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   DndContext, closestCenter, KeyboardSensor, PointerSensor,
-  useSensor, useSensors, DragEndEvent, DragOverEvent
+  useSensor, useSensors, DragEndEvent, DragOverEvent, DragStartEvent, DragOverlay
 } from "@dnd-kit/core";
 import {
   SortableContext, sortableKeyboardCoordinates,
@@ -35,7 +35,7 @@ import {
 } from "@/server/actions/optimized-guide-actions";
 import { searchDungeonsLocal, searchGuideQuests, searchItemsLocalThenDofusDB } from "@/server/actions/dofus-search-actions";
 import { DOFUS_WORLDS, DOFUS_JOBS } from "@/lib/dofus-assets";
-import { resolveRushSeqIcon, getGuideMetiersRequires, RUSH_ACTIVITY_TAG_CONFIG } from "@/lib/rush-guide-utils";
+import { resolveRushSeqIcon, getGuideMetiersRequires, RUSH_ACTIVITY_TAG_CONFIG, findMilestoneInsertIndex } from "@/lib/rush-guide-utils";
 import { resolveRushUIConfig, type RushUIConfig } from "@/lib/rush-ui-config";
 import { uploadImageFile } from "@/components/editor/utils/image-upload";
 import { isSafeImageUrl, safeImageUrl } from "@/lib/security";
@@ -257,7 +257,7 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
 
   // Local sortable milestones for optimistic DnD
   const [localMilestones, setLocalMilestones] = useState<Milestone[]>(initialGuide.milestones as Milestone[]);
-  useEffect(() => { setLocalMilestones(initialGuide.milestones as Milestone[]); }, [initialGuide.milestones]);
+  useEffect(() => { if (!draggingRef.current) setLocalMilestones(initialGuide.milestones as Milestone[]); }, [initialGuide.milestones]);
 
   const sortedMilestones = useMemo(() => sortMilestonesByOrder(localMilestones), [localMilestones]);
   const chapterCount = useMemo(() => countContentChapters(localMilestones), [localMilestones]);
@@ -311,6 +311,12 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
   const [newStepColor, setNewStepColor] = useState("#10b981");
   const [newStepType, setNewStepType] = useState<MilestoneType>("QUETE_SERIE");
   const [newDofusId, setNewDofusId] = useState<string | null>(null);
+  // Image du bloc (upload scope `guides` — servie aussi aux visiteurs anonymes).
+  const [newStepImage, setNewStepImage] = useState("");
+  // Texte du bloc CONSEIL / TIPS : c'est SON contenu (le bandeau le rend tel quel côté
+  // membre). Sans ce champ à la création, il fallait créer le bloc puis le rouvrir en
+  // édition pour écrire le conseil — absurde pour un bloc qui ne porte que ça.
+  const [newStepTips, setNewStepTips] = useState("");
 
   useEffect(() => {
     if (!addingStep) setNewChapterNum(chapterCount + 1);
@@ -322,53 +328,72 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
+  // DnD — bloc en cours de glissement (pour le fantôme `DragOverlay`) et drapeau qui
+  // PROTÈGE la liste d'une resynchronisation serveur pendant le geste : un `router.refresh()`
+  // qui atterrissait en plein drag remplaçait `localMilestones` (nouvelle identité de
+  // tableau) et l'index du bloc glissé n'existait plus ⇒ le drag « partait en vrille »
+  // après quelques secondes, surtout en remontant loin (scroll automatique).
+  const [activeDragId, setActiveDragId] = useState<string | null>(null);
+  const draggingRef = useRef(false);
+
+  const handleMilestoneDragStart = useCallback((event: DragStartEvent) => {
+    draggingRef.current = true;
+    setActiveDragId(String(event.active.id));
+  }, []);
+
+  const handleMilestoneDragCancel = useCallback(() => {
+    draggingRef.current = false;
+    setActiveDragId(null);
+  }, []);
+
+  // Une SEULE source d'ordre pour le drag : `sortedMilestones` — l'array réellement rendu,
+  // celui du `SortableContext`. Avant, les index venaient de `localMilestones` pendant que
+  // le DOM suivait `sortedMilestones` : au moindre écart, le bloc sautait ailleurs.
   const handleMilestoneDragOver = useCallback((event: DragOverEvent) => {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
 
-    const activeIndex = localMilestones.findIndex(m => m.id === active.id);
-    const overIndex = localMilestones.findIndex(m => m.id === over.id);
+    const activeIndex = sortedMilestones.findIndex(m => m.id === active.id);
+    const overIndex = sortedMilestones.findIndex(m => m.id === over.id);
     if (activeIndex === -1 || overIndex === -1) return;
 
-    const activeMs = localMilestones[activeIndex];
-    const overMs = localMilestones[overIndex];
+    const activeMs = sortedMilestones[activeIndex];
+    const overMs = sortedMilestones[overIndex];
+
+    const reorder = (item: Milestone) => {
+      const updated = [...sortedMilestones];
+      updated.splice(activeIndex, 1);
+      updated.splice(overIndex, 0, item);
+      setLocalMilestones(updated.map((m, idx) => ({ ...m, order: idx })));
+    };
 
     if (isSeparatorMilestone(activeMs) || isSeparatorMilestone(overMs)) {
-      setLocalMilestones(prev => {
-        const updated = [...prev];
-        const [item] = updated.splice(activeIndex, 1);
-        updated.splice(overIndex, 0, item);
-        return updated.map((m, idx) => ({ ...m, order: idx }));
-      });
+      reorder(activeMs);
       return;
     }
 
-    // Si on survole un bloc dans un chapitre différent
-    // INFO, DOFUS_OBTAINED etc. stay outside chapters — don't reassign
+    // Survol d'un bloc d'un autre chapitre : on montre le rattachement (il est persisté au
+    // drop). INFO, DOFUS_OBTAINED, SEPARATEUR restent hors chapitre — aucune réassignation.
     if (activeMs.chapter !== overMs.chapter && !isOutsideChapterMilestone(activeMs)) {
-      setLocalMilestones(prev => {
-        const updated = [...prev];
-        const item = { ...updated[activeIndex], chapter: overMs.chapter, chapterLabel: overMs.chapterLabel };
-        updated.splice(activeIndex, 1);
-        updated.splice(overIndex, 0, item);
-        return updated.map((m, idx) => ({ ...m, order: idx }));
-      });
+      reorder({ ...activeMs, chapter: overMs.chapter, chapterLabel: overMs.chapterLabel });
     }
-  }, [localMilestones]);
+  }, [sortedMilestones]);
 
   const handleMilestoneDragEnd = useCallback((event: DragEndEvent) => {
+    draggingRef.current = false;
+    setActiveDragId(null);
     const { active, over } = event;
     if (!over) return;
 
-    const oldIndex = localMilestones.findIndex(m => m.id === active.id);
-    const newIndex = localMilestones.findIndex(m => m.id === over.id);
+    const oldIndex = sortedMilestones.findIndex(m => m.id === active.id);
+    const newIndex = sortedMilestones.findIndex(m => m.id === over.id);
     if (oldIndex === -1 || newIndex === -1) return;
 
-    const targetMilestone = localMilestones[newIndex];
-    const sourceMilestone = localMilestones[oldIndex];
+    const targetMilestone = sortedMilestones[newIndex];
+    const sourceMilestone = sortedMilestones[oldIndex];
 
     // Finaliser le tri
-    const updatedMilestones = [...localMilestones];
+    const updatedMilestones = [...sortedMilestones];
     const [movedItem] = updatedMilestones.splice(oldIndex, 1);
 
     // INFO, DOFUS_OBTAINED, SEPARATEUR stay outside chapters — don't reassign
@@ -409,7 +434,7 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
         toast.error("Erreur lors du réordonnancement du bloc");
       }
     });
-  }, [localMilestones, router]);
+  }, [sortedMilestones, router]);
 
   // ── Handlers ─────────────────────────────────────────────────────────────
 
@@ -421,7 +446,7 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
     const isOutsideChapter = isSeparator || isDofusBanner || isInfoBlock;
     startTransition(async () => {
       try {
-        await upsertRushMilestone({
+        const res = await upsertRushMilestone({
           chapter: isOutsideChapter ? "0" : String(newChapterNum),
           chapterLabel: isOutsideChapter ? "" : (newChapterLabel.trim() || `Chapitre ${newChapterNum}`),
           label: newStepTitle.trim(),
@@ -429,13 +454,35 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
           order: localMilestones.length,
           type: newStepType,
           dofusId: isSeparator ? null : newDofusId,
+          // Texte du conseil : uniquement pour un bloc Tips (c'est son contenu). Le champ
+          // du modèle est `tips?: string` (pas de null côté action) → undefined si vide.
+          tips: isInfoBlock && newStepTips.trim() ? newStepTips.trim() : undefined,
+          // Image du bloc : posée dès la création (le séparateur l'affiche à droite de
+          // son bandeau, les autres types dans leur en-tête) — même champ qu'à l'édition.
+          imageUrl: newStepImage.trim() || null,
         });
+        // Placement à la CRÉATION : le bloc partait toujours en fin de guide (« order » =
+        // nombre de blocs) — donc hors de son chapitre et à l'autre bout du scroll, à
+        // remonter à la main. On le glisse à sa place (après le dernier bloc de son
+        // chapitre) et on persiste l'ordre, exactement comme le ferait le glisser-déposer.
+        const created = res?.milestone;
+        if (created?.id) {
+          const orderedIds = sortedMilestones.map(m => m.id);
+          const insertAt = findMilestoneInsertIndex(sortedMilestones, {
+            type: newStepType,
+            chapter: isOutsideChapter ? 0 : newChapterNum,
+          });
+          orderedIds.splice(insertAt, 0, created.id);
+          await reorderRushMilestones(orderedIds);
+          // Et il est déplié : le nouveau bloc se voit tout de suite, même hors écran.
+          setExpandedMilestones(prev => new Set(prev).add(created.id));
+        }
         toast.success(isSeparator ? "Séparateur ajouté ✓" : isDofusBanner ? "Bannière Dofus ajoutée ✓" : "Étape ajoutée ✓");
-        setNewStepTitle(""); setNewChapterLabel(""); setNewDofusId(null); setAddingStep(false);
+        setNewStepTitle(""); setNewChapterLabel(""); setNewDofusId(null); setNewStepImage(""); setNewStepTips(""); setAddingStep(false);
         router.refresh();
       } catch (e: any) { toast.error(e.message); }
     });
-  }, [newChapterNum, newChapterLabel, newStepTitle, newStepColor, newStepType, newDofusId, localMilestones.length, router]);
+  }, [newChapterNum, newChapterLabel, newStepTitle, newStepColor, newStepType, newDofusId, newStepImage, newStepTips, sortedMilestones, router]);
 
   const handleSaveMilestone = useCallback((m: Milestone) => {
     startTransition(async () => {
@@ -463,12 +510,21 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
 
   const handleDeleteMilestone = useCallback((id: string) => {
     if (!confirm("Supprimer cette étape et toutes ses quêtes ?")) return;
+    // Optimiste : la ligne quitte la liste AVANT l'aller-retour serveur. Sans ça, la
+    // liste gardait la ligne tant que le refresh n'était pas arrivé → un second clic (ou
+    // un clic sur une ligne déjà supprimée ailleurs) visait une ligne absente en base,
+    // et Prisma remontait un P2025 en plein studio. En cas d'échec réel, le `refresh()`
+    // fait foi : la ligne encore en base réapparaît.
+    setLocalMilestones(prev => prev.filter(m => m.id !== id));
     startTransition(async () => {
       try {
-        await deleteRushMilestone(id);
-        toast.success("Étape supprimée");
+        const res = await deleteRushMilestone(id);
+        toast.success(res?.alreadyDeleted ? "Étape déjà supprimée" : "Étape supprimée");
         router.refresh();
-      } catch (e: any) { toast.error(e.message); }
+      } catch (e: any) {
+        toast.error(e?.message || "Suppression impossible");
+        router.refresh();
+      }
     });
   }, [router]);
 
@@ -483,11 +539,18 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
   }, [router]);
 
   const handleDeleteSequence = useCallback((id: string) => {
+    // Même correctif que les blocs : la quête quitte la liste tout de suite (une quête
+    // déjà supprimée — cascade d'un bloc — ne peut plus être « resupprimée »).
+    setLocalMilestones(prev => prev.map(m => ({ ...m, sequences: m.sequences.filter(s => s.id !== id) })));
     startTransition(async () => {
       try {
-        await deleteRushSequence(id);
+        const res = await deleteRushSequence(id);
+        toast.success(res?.alreadyDeleted ? "Quête déjà supprimée" : "Quête supprimée");
         router.refresh();
-      } catch (e: any) { toast.error(e.message); }
+      } catch (e: any) {
+        toast.error(e?.message || "Suppression impossible");
+        router.refresh();
+      }
     });
   }, [router]);
 
@@ -677,7 +740,8 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
                       </p>
                     ) : newStepType === "SEPARATEUR" ? (
                       <p className="text-caption text-amber-400/70 leading-relaxed">
-                        Le séparateur est un titre visuel entre les blocs — il n'appartient à aucun chapitre.
+                        Le séparateur est un titre visuel entre les blocs — il n&apos;appartient à aucun chapitre.
+                        L&apos;image importée remplit la droite de son bandeau, côté membre comme dans le guide public.
                       </p>
                     ) : (
                       <p className="text-caption text-amber-400/70 leading-relaxed">
@@ -686,7 +750,7 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
                     )}
                     <div>
                       <label className="text-caption font-black text-zinc-500 uppercase tracking-widest mb-1 block">
-                        {newStepType === "SEPARATEUR" ? "Titre de section *" : "Nom du bloc *"}
+                        {newStepType === "SEPARATEUR" ? "Titre de section *" : newStepType === "INFO" ? "Titre du conseil *" : "Nom du bloc *"}
                       </label>
                       <input value={newStepTitle} onChange={e => setNewStepTitle(e.target.value)}
                         onKeyDown={e => e.key === "Enter" && handleAddStep()}
@@ -695,6 +759,24 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
                         autoFocus
                       />
                     </div>
+
+                    {/* Bloc CONSEIL / TIPS : son TEXTE est tout son contenu — on le saisit
+                        ici (le bandeau membre, public et overlay le rend tel quel). */}
+                    {newStepType === "INFO" && (
+                      <div>
+                        <label className="text-caption font-black text-zinc-500 uppercase tracking-widest mb-1 block">
+                          Conseil / Tips
+                        </label>
+                        <textarea value={newStepTips} onChange={e => setNewStepTips(e.target.value)}
+                          className="w-full bg-black/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-purple-200/90 placeholder:text-zinc-700 focus:outline-none focus:border-purple-500/40 resize-none"
+                          placeholder="ex: Lancer [Eternelle Moisson](https://www.dofuspourlesnoobs.com/leacuteternelle-moisson.html) dès que possible. Position de lancement : Village de la Canopée [-55,15]."
+                          rows={4}
+                        />
+                        {/* Syntaxe du texte enrichi : le lien porte le NOM (l'URL ne s'affiche
+                            jamais) et une position entre crochets devient une puce copiable. */}
+                        <RichTextSyntaxHint />
+                      </div>
+                    )}
 
                     {/* Dofus selector (si type DOFUS ou DOFUS_OBTAINED) */}
                     {(newStepType === "DOFUS" || newStepType === "DOFUS_OBTAINED") && (
@@ -736,6 +818,10 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
                       </div>
                     </div>
 
+                    {/* Image du bloc — champ partagé avec l'édition (upload scope `guides`,
+                        aperçu nu, retrait). Sur un SÉPARATEUR, elle remplit la droite du bandeau. */}
+                    <BlockImageField value={newStepImage} onChange={setNewStepImage} />
+
                     <div className="flex items-center gap-2">
                       <button onClick={handleAddStep} disabled={isPending}
                         className="flex items-center gap-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-black rounded-xl text-xs font-black uppercase tracking-widest transition-all"
@@ -760,8 +846,15 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
                 <p className="text-zinc-600 font-black uppercase text-xs tracking-widest italic">Aucun bloc — clique sur &quot;Ajouter un bloc&quot;</p>
               </div>
             ) : (
-              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragOver={handleMilestoneDragOver} onDragEnd={handleMilestoneDragEnd}>
-                <SortableContext items={localMilestones.map(m => m.id)} strategy={verticalListSortingStrategy}>
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragStart={handleMilestoneDragStart}
+                onDragOver={handleMilestoneDragOver}
+                onDragEnd={handleMilestoneDragEnd}
+                onDragCancel={handleMilestoneDragCancel}
+              >
+                <SortableContext items={sortedMilestones.map(m => m.id)} strategy={verticalListSortingStrategy}>
                   <div className="space-y-2">
                     {sortedMilestones.map((m, index) => {
                       const prevContent = sortedMilestones.slice(0, index).reverse().find((item) => !isSeparatorMilestone(item));
@@ -814,6 +907,31 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
                     })}
                   </div>
                 </SortableContext>
+                {/* Fantôme du bloc saisi : il suit le curseur HORS du flux de la liste. Sans
+                    lui, l'élément glissé restait solidaire du conteneur qui défile — sur une
+                    longue remontée (scroll automatique), il dérivait du curseur et le drop
+                    tombait à côté. */}
+                <DragOverlay dropAnimation={null}>
+                  {(() => {
+                    const dragged = activeDragId ? sortedMilestones.find(x => x.id === activeDragId) : null;
+                    if (!dragged) return null;
+                    const t = getMilestoneTypeInfo(dragged.type as MilestoneType);
+                    return (
+                      <div className="flex items-center gap-2 rounded-xl border border-white/15 bg-zinc-900/95 px-3 py-2 shadow-2xl">
+                        <span
+                          className="flex h-5 w-5 shrink-0 items-center justify-center rounded"
+                          style={{ background: t.color + "20", color: t.color }}
+                        >
+                          {t.icon}
+                        </span>
+                        <span className="truncate text-sm font-bold text-white">{dragged.title}</span>
+                        <span className="shrink-0 text-caption text-zinc-500">
+                          {dragged.sequences.length} quête{dragged.sequences.length !== 1 ? "s" : ""}
+                        </span>
+                      </div>
+                    );
+                  })()}
+                </DragOverlay>
               </DndContext>
             )}
           </motion.div>
@@ -1029,6 +1147,82 @@ function ToggleRow({ label, description, value, onToggle, disabled, color }: { l
   );
 }
 
+// ─── BlockImageField ──────────────────────────────────────────────────────────
+/**
+ * Champ « Image du bloc » — PARTAGÉ par les trois formulaires du studio (création,
+ * édition d'un bloc, édition d'un séparateur) : une seule écriture du couple
+ * upload + URL + aperçu + retrait, donc aucun formulaire ne peut l'oublier.
+ * Upload en scope `guides` : l'image sert le guide PUBLIC (visiteur anonyme) —
+ * `docs` est réservé aux pièces privées. Aperçu NU (ni tuile ni cadre).
+ */
+function BlockImageField({ value, onChange }: { value: string; onChange: (url: string) => void }) {
+  const preview = value ? safeImageUrl(value) : "";
+  return (
+    <div>
+      <label className="text-caption font-black text-zinc-500 uppercase tracking-widest mb-1 block">
+        Image du bloc <span className="text-zinc-600">(optionnel)</span>
+      </label>
+      <div className="flex items-center gap-2 flex-wrap">
+        <input
+          value={value}
+          onChange={e => onChange(e.target.value)}
+          className="flex-1 min-w-[160px] bg-black/60 border border-white/10 rounded-lg px-2 py-1 text-xs text-white focus:outline-none focus:border-emerald-500/50"
+          placeholder="URL de l'image (ex. /module-dofus/Dofus_Pourpre.png)"
+        />
+        <label className="cursor-pointer px-2 py-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-lg text-caption flex items-center gap-1">
+          Importer
+          <input
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={async (e) => {
+              const f = e.target.files?.[0];
+              if (!f) return;
+              const url = await uploadImageFile(f, "guides");
+              if (url) { onChange(url); toast.success("Image importée ✓"); }
+              else toast.error("Upload impossible");
+              e.target.value = "";
+            }}
+          />
+        </label>
+        {value ? (
+          <>
+            {/* Aperçu nu : on voit ce qu'on pose avant d'enregistrer. */}
+            {preview ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={preview}
+                alt=""
+                onError={e => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+                className="h-7 w-14 shrink-0 rounded-[3px] border border-white/10 object-cover"
+              />
+            ) : null}
+            <button type="button" onClick={() => onChange("")} title="Retirer l'image"
+              className="p-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 rounded-lg transition-all">
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+// ─── RichTextSyntaxHint ──────────────────────────────────────────────────────
+/**
+ * Rappel de syntaxe du texte enrichi, affiché sous CHAQUE champ de conseil (bloc Tips,
+ * tips d'un bloc, tips d'une quête) : sans ça, la syntaxe `[Nom](url)` et la position
+ * copiable resteraient un secret d'initié. Source unique de l'aide.
+ */
+function RichTextSyntaxHint() {
+  return (
+    <p className="mt-1 text-[11px] leading-relaxed text-zinc-500">
+      Lien nommé : <code className="text-purple-300/80">[Nom de la quête](https://…)</code> — l&apos;URL ne s&apos;affiche pas, le nom pointe vers elle.
+      Position copiable : <code className="text-purple-300/80">[-55,15]</code> ou <code className="text-purple-300/80">/w -55,15</code> · un clic copie <code className="text-purple-300/80">/w -55,15</code>.
+    </p>
+  );
+}
+
 // ─── SortableSeparatorRow ─────────────────────────────────────────────────────
 function SortableSeparatorRow(props: {
   milestone: Milestone;
@@ -1093,6 +1287,18 @@ function SeparatorRowAdmin({
               placeholder="Titre de section"
               autoFocus
             />
+            <input
+              value={editingData?.description ?? ""}
+              onChange={(e) => onEditChange({ description: e.target.value })}
+              className="w-full bg-black/60 border border-white/10 rounded-lg px-2 py-1 text-xs text-zinc-400 focus:outline-none focus:border-amber-500/40"
+              placeholder="Description (optionnel) — sous le titre du bandeau"
+            />
+            {/* Image du séparateur : elle remplit la DROITE du bandeau (côté membre,
+                dans le guide public et dans l'overlay). Même champ que les autres blocs. */}
+            <BlockImageField
+              value={editingData?.imageUrl ?? ""}
+              onChange={(url) => onEditChange({ imageUrl: url })}
+            />
             <div className="flex items-center gap-2">
               <div className="flex gap-1">
                 {COLOR_PALETTE.map((c) => (
@@ -1122,6 +1328,16 @@ function SeparatorRowAdmin({
                 {milestone.title}
               </p>
             </div>
+            {/* Vignette : on voit l'image posée sur le bandeau sans ouvrir l'édition. */}
+            {milestone.imageUrl && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={safeImageUrl(milestone.imageUrl)}
+                alt=""
+                onError={e => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+                className="h-7 w-14 shrink-0 rounded-[3px] border border-white/10 object-cover"
+              />
+            )}
             <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
               <button onClick={onEdit} className="p-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 rounded-lg transition-all"><Pencil className="w-3 h-3" /></button>
               <button onClick={onDelete} disabled={isPending} className="p-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg transition-all"><Trash2 className="w-3 h-3" /></button>
@@ -1195,6 +1411,10 @@ function MilestoneRow({
 
   const dofusInfo = milestone.dofusId ? DOFUS_LIST.find(d => d.id === milestone.dofusId) : null;
 
+  // Un bloc CONSEIL / TIPS n'est pas un chapitre : il porte un texte + une image, rien
+  // d'autre. Ni option, ni compteur de quêtes, ni liste à déplier, ni ajout de quête.
+  const isTips = milestone.type === "INFO";
+
   return (
     <div className="bg-zinc-950/40">
       <div className="flex items-center gap-2 px-4 py-2.5 group">
@@ -1241,43 +1461,14 @@ function MilestoneRow({
               className="w-full bg-black/60 border border-white/10 rounded-lg px-2 py-1.5 text-xs text-amber-300/80 focus:outline-none focus:border-amber-500/30 resize-none"
               placeholder="💡 Tips / Conseils pour ce bloc" rows={2}
             />
-            {/* Image du bloc — disponible pour TOUS les types de bloc (Quêtes, Prérequis,
-                Alignement, Dofus, Succès, Zone, Donjon, Conseil/Tips, Séparateur, Obtention
-                Dofus). Elle se loge à DROITE du bloc côté membre, servie NUE : pas de cadre,
-                pas de tuile, un fondu l'amène dans la ligne. Upload (R2) ou URL manuelle.
-                ⚠️ Scope `guides` : l'image du bloc doit rester visible par un visiteur
-                ANONYME (guide public indexé) — `docs` est réservé aux pièces privées. */}
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-caption text-zinc-500 uppercase tracking-wider shrink-0">Image du bloc</span>
-              <input
-                value={editingData?.imageUrl ?? ""}
-                onChange={e => onEditChange({ imageUrl: e.target.value })}
-                className="flex-1 min-w-[160px] bg-black/60 border border-white/10 rounded-lg px-2 py-1 text-xs text-white focus:outline-none focus:border-emerald-500/50"
-                placeholder="URL de l'image (ex. /module-dofus/Dofus_Pourpre.png)"
-              />
-              <label className="cursor-pointer px-2 py-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-lg text-caption flex items-center gap-1">
-                Importer
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={async (e) => {
-                    const f = e.target.files?.[0];
-                    if (!f) return;
-                    const url = await uploadImageFile(f, "guides");
-                    if (url) { onEditChange({ imageUrl: url }); toast.success("Image importée ✓"); }
-                    else toast.error("Upload impossible");
-                    e.target.value = "";
-                  }}
-                />
-              </label>
-              {editingData?.imageUrl ? (
-                <button type="button" onClick={() => onEditChange({ imageUrl: "" })} title="Retirer l'image"
-                  className="p-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 rounded-lg transition-all">
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              ) : null}
-            </div>
+            <RichTextSyntaxHint />
+            {/* Image du bloc — TOUS les types, y compris le séparateur : elle se loge à
+                DROITE du bloc côté membre, servie NUE (pas de cadre, un fondu l'amène
+                dans la ligne). Champ partagé avec la création et le séparateur. */}
+            <BlockImageField
+              value={editingData?.imageUrl ?? ""}
+              onChange={(url) => onEditChange({ imageUrl: url })}
+            />
             {/* Dofus selector si type DOFUS */}
             {editingData?.type === "DOFUS" && (
               <div className="flex flex-wrap gap-1.5">
@@ -1322,10 +1513,14 @@ function MilestoneRow({
           </div>
         ) : (
           <>
-            <button onClick={onToggle} className="flex-1 flex items-center gap-2 text-left min-w-0">
+            <button
+              onClick={() => { if (!isTips) onToggle(); }}
+              aria-expanded={isTips ? undefined : isExpanded}
+              className={`flex-1 flex items-center gap-2 text-left min-w-0 ${isTips ? "" : "cursor-pointer"}`}
+            >
               <span className="text-sm font-bold text-white truncate">{milestone.title}</span>
-              {milestone.isOptional && <span className="text-caption px-1 py-0.5 rounded bg-zinc-800 text-zinc-500 font-bold uppercase flex-shrink-0">opt.</span>}
-              {dofusInfo && (
+              {!isTips && milestone.isOptional && <span className="text-caption px-1 py-0.5 rounded bg-zinc-800 text-zinc-500 font-bold uppercase flex-shrink-0">opt.</span>}
+              {!isTips && dofusInfo && (
                 <span className="flex items-center flex-shrink-0" title={dofusInfo.label}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={dofusInfo.imageUrl} alt={dofusInfo.label} className="w-4 h-4 object-contain" />
@@ -1336,8 +1531,21 @@ function MilestoneRow({
                   <Info className="w-3 h-3 text-amber-400/60" />
                 </span>
               )}
-              <span className="text-caption text-zinc-600 flex-shrink-0">{milestone.sequences.length} quête{milestone.sequences.length !== 1 ? "s" : ""}</span>
-              {isExpanded ? <ChevronDown className="w-3 h-3 text-zinc-600 ml-auto flex-shrink-0" /> : <ChevronRight className="w-3 h-3 text-zinc-600 ml-auto flex-shrink-0" />}
+              {/* Vignette de l'image du bloc : on voit ce qui est posé sans ouvrir l'édition.
+                  Le séparateur est celui qui en profite le plus (bandeau sans quêtes). */}
+              {milestone.imageUrl && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={safeImageUrl(milestone.imageUrl)}
+                  alt=""
+                  onError={e => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+                  className="hidden sm:block h-7 w-14 shrink-0 rounded-[3px] border border-white/10 object-cover"
+                />
+              )}
+              {!isTips && (
+                <span className="text-caption text-zinc-600 flex-shrink-0">{milestone.sequences.length} quête{milestone.sequences.length !== 1 ? "s" : ""}</span>
+              )}
+              {!isTips && (isExpanded ? <ChevronDown className="w-3 h-3 text-zinc-600 ml-auto flex-shrink-0" /> : <ChevronRight className="w-3 h-3 text-zinc-600 ml-auto flex-shrink-0" />)}
             </button>
             <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
               <button onClick={onEdit} className="p-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 rounded-lg transition-all"><Pencil className="w-3 h-3" /></button>
@@ -1347,9 +1555,9 @@ function MilestoneRow({
         )}
       </div>
 
-      {/* Sequences */}
+      {/* Sequences — jamais pour un bloc CONSEIL / TIPS : il n'accueille aucune quête. */}
       <AnimatePresence>
-        {isExpanded && !isEditing && (
+        {!isTips && isExpanded && !isEditing && (
           <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
             <div className="pl-10 pr-4 pb-3 space-y-1.5">
               <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleSeqDragEnd}>
@@ -2498,7 +2706,7 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
                     if (!x) return;
                     const y = prompt("Position Y :");
                     if (!y) return;
-                    const pos = `/travel ${x},${y}`;
+                    const pos = `/w ${x},${y}`;
                     setTips(prev => prev ? `${prev} ${pos}` : pos);
                     toast.success(`📍 ${pos} ajouté !`, { duration: 1500 });
                   }}
@@ -2514,6 +2722,7 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
                 placeholder="Conseil affiché côté membre..."
                 rows={2}
               />
+              <RichTextSyntaxHint />
             </div>
 
             <div>
@@ -3004,6 +3213,7 @@ function AddSequenceForm({ milestoneId, onAdd, isPending }: {
                   className="w-full bg-black/60 border border-white/5 rounded-lg px-2 py-1 text-xs text-amber-300/70 focus:outline-none resize-none"
                   placeholder="Conseil pour le membre…" rows={2}
                 />
+                <RichTextSyntaxHint />
               </div>
               <div className="flex flex-col gap-1 p-2 rounded-xl bg-purple-500/10 border border-purple-500/20">
                 <div className="flex items-center gap-2">

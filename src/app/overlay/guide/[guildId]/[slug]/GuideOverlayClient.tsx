@@ -13,7 +13,7 @@ import {
 } from "@/server/actions/optimized-guide-actions";
 import type { RushMilestone, RushSequence } from "@/types/rush-guide-types";
 import { type GuideProgressRow } from "@/lib/guide-progress-helpers";
-import { isInfoSequence, getPrereqRefs, type RushPrereqRef } from "@/lib/rush-guide-utils";
+import { isInfoSequence, isNonCheckableBlock, rushChapterPosition, getPrereqRefs, type RushPrereqRef } from "@/lib/rush-guide-utils";
 import { collectCascadeUncheck } from "@/lib/rush-helpers";
 import { useGuideProgressSync } from "@/hooks/use-guide-sync";
 import { RushOverlayHeader } from "./components/RushOverlayHeader";
@@ -23,10 +23,15 @@ import { RushOverlayQuestListItem } from "./components/RushOverlayQuestListItem"
 import { RushOverlayQuestDetailModal } from "./components/RushOverlayQuestDetailModal";
 import { RushOverlayFooter } from "./components/RushOverlayFooter";
 import { RushOverlayCompact } from "./components/RushOverlayCompact";
-import { RushCurrentObjective } from "@/components/dofus-quests/rush/RushCurrentObjective";
-import { getNextObjective, aggregateRushResources } from "./components/overlay-utils";
+import { RushSeparatorBanner } from "@/components/dofus-quests/rush/RushSeparatorBanner";
+import { RushInfoBanner } from "@/components/dofus-quests/rush/RushInfoBanner";
+import { RushRichText } from "@/components/dofus-quests/rush/RushRichText";
+import { RushInfoSequenceBanner } from "@/components/dofus-quests/rush/RushInfoSequenceBanner";
+import { getNextObjective, aggregateRushResources, nextBlockIndex, bannersForChapter } from "./components/overlay-utils";
 import { RushOverlayResourcesModal } from "./components/RushOverlayResourcesModal";
 import { RushOverlayMembersModal, type OverlayMember } from "./components/RushOverlayMembersModal";
+import { RushOverlayOcreModal } from "./components/RushOverlayOcreModal";
+import { buildOcrePlan, type OcrePanelData } from "@/lib/ocre-soul-stones";
 import { RushOverlayTutorialModal } from "./components/RushOverlayTutorialModal";
 import { OverlayPinNotice } from "@/components/overlay-pin-notice";
 
@@ -80,6 +85,11 @@ type Props = {
    * (vraie PiP toujours-au-dessus, ou page overlay directe).
    */
   pinned?: boolean;
+  /**
+   * Quête Ocre du membre (Metamob lié) — **overlay interne uniquement** : le guide
+   * public n'a ni guilde ni compte, donc aucun bouton. `null`/absent ⇒ masqué.
+   */
+  ocre?: OcrePanelData | null;
 };
 
 export default function GuideOverlayClient({
@@ -93,6 +103,7 @@ export default function GuideOverlayClient({
   isGuest = false,
   guestStoragePrefix,
   pinned = true,
+  ocre = null,
 }: Props) {
   const effectiveAltPseudo = altPseudo ?? undefined;
   // Repli si le personnage n'est pas fourni (accès direct à la page overlay).
@@ -106,8 +117,13 @@ export default function GuideOverlayClient({
     [character, effectiveAltPseudo]
   );
 
+  // La NAVIGATION ne porte que sur les CHAPITRES : les bannières (séparateur, encart
+  // CONSEIL/TIPS, « Dofus obtenu ») ne sont pas des étapes — ni case à cocher, ni « 0/0 »,
+  // ni titre de chapitre. Elles s'affichent dans le FLUX de leur chapitre, à leur place
+  // chronologique (`bannersForChapter`), et on les retrouve dès qu'on ouvre ce chapitre,
+  // quelle que soit la façon d'y arriver. Règle partagée `isNonCheckableBlock`.
   const milestones = useMemo(
-    () => rawMilestones.filter((ms) => !["INFO", "DOFUS_OBTAINED"].includes(ms.type || "")),
+    () => rawMilestones.filter((ms) => !isNonCheckableBlock(ms)),
     [rawMilestones]
   );
 
@@ -151,6 +167,7 @@ export default function GuideOverlayClient({
   // ─── Mode compact (jeu) ───────────────────────────────────────────────────
   const [isCompactMode, setIsCompactMode] = useState<boolean>(false);
   const [showResources, setShowResources] = useState<boolean>(false);
+  const [showOcre, setShowOcre] = useState<boolean>(false);
   const [membersModal, setMembersModal] = useState<{ title: string; members: OverlayMember[] } | null>(null);
   const [showTutorial, setShowTutorial] = useState<boolean>(false);
 
@@ -286,15 +303,12 @@ export default function GuideOverlayClient({
   const currentMs = milestones[currentMsIndex] || milestones[0] || null;
 
   const goToNextMs = useCallback(() => {
-    // Avance au prochain bloc NON déjà validé (saute les blocs déjà cochés)
-    // pour toujours proposer le bloc suivant à valider. Les blocs non cochables
-    // (séparateur / info / « Dofus obtenu ») restent atteignables.
-    for (let i = currentMsIndex + 1; i < milestones.length; i++) {
-      if (!completedIds.has(milestones[i].id)) {
-        setCurrentMsIndex(i);
-        setDetailSeq(null);
-        return;
-      }
+    // Prochain bloc qui reste à valider — les bandeaux (séparateur, encart CONSEIL/TIPS,
+    // « Dofus obtenu ») ne sont jamais sautés : règle pure dans `nextBlockIndex`.
+    const next = nextBlockIndex(milestones, currentMsIndex, completedIds);
+    if (next !== null) {
+      setCurrentMsIndex(next);
+      setDetailSeq(null);
     }
   }, [currentMsIndex, milestones, completedIds]);
 
@@ -343,7 +357,20 @@ export default function GuideOverlayClient({
   // Les séquences info (bandeaux/conseils) ne comptent pas dans la progression.
   const contentSeqs = (seqs: RushSequence[]) => seqs.filter((s) => !isInfoSequence(s));
 
-  const totalMs = milestones.length;
+  // Position du bloc courant dans la numérotation des CHAPITRES : un bandeau n'est pas
+  // numéroté (« 12 / 45 » ne doit pas compter les séparateurs ni les encarts CONSEIL/TIPS).
+  const chapterPos = useMemo(
+    () => rushChapterPosition(milestones, currentMs?.id),
+    [milestones, currentMs?.id]
+  );
+
+  // Bannières à lire AVEC ce chapitre, à leur place chronologique : celles qui l'introduisent
+  // au-dessus du contenu, celles de fin de guide en dessous (règle partagée avec le
+  // dashboard : « les bannières restent collées au chapitre qui les suit »).
+  const banners = useMemo(
+    () => bannersForChapter(rawMilestones, currentMs?.id),
+    [rawMilestones, currentMs?.id]
+  );
   const totalSteps = useMemo(() => milestones.reduce((acc, ms) => acc + contentSeqs(ms.sequences).length, 0), [milestones]);
   const completedSteps = useMemo(() => {
     let n = 0;
@@ -351,6 +378,17 @@ export default function GuideOverlayClient({
     return n;
   }, [milestones, completedStepsByMs]);
   const overallPct = totalSteps > 0 ? Math.round((completedSteps / totalSteps) * 100) : 0;
+
+  // ─── Quête Ocre (Metamob) ─────────────────────────────────────────────────
+  // Réservé à l'overlay INTERNE d'un membre dont le compte Metamob est lié : le guide
+  // public (`isGuest`) et l'overlay sans guilde n'ont ni compte ni progression Ocre,
+  // donc aucun bouton n'est rendu — et aucun calcul n'est fait.
+  const ocreEnabled = !isGuest && !!ocre && !!guildId && guildId !== "public";
+  const ocreSummary = useMemo(() => {
+    if (!ocreEnabled || !ocre) return null;
+    const plan = buildOcrePlan(ocre);
+    return { missing: plan.progress.missing, percent: plan.progress.percent };
+  }, [ocre, ocreEnabled]);
 
   // Ressources agrégées sur TOUT le guide (bouton "Ressources" du header).
   const allResources = useMemo(() => aggregateRushResources(milestones), [milestones]);
@@ -822,11 +860,6 @@ export default function GuideOverlayClient({
     : null;
 
   const msDone = currentMs ? completedIds.has(currentMs.id) : false;
-  // Blocs non cochables (pas de case à cocher, pas de validation de chapitre) :
-  // séparateur, bloc d'info et bloc « Dofus obtenu ».
-  const msIsInfoBlock = currentMs
-    ? ["SEPARATEUR", "INFO", "DOFUS_OBTAINED"].includes(currentMs.type || "")
-    : false;
   const currentMsDofus = currentMs ? getMsDofus(currentMs) : null;
   const currentMsTotal = currentMsSeqs.length;
   const dofusDone = !!currentMsDofus && currentMsTotal > 0 && currentMsDoneCount >= currentMsTotal;
@@ -834,11 +867,70 @@ export default function GuideOverlayClient({
   // Contexte exact de l'étape courante, pré-rempli dans le retour bug (overlay).
   const overlayBugContext = useMemo(() => {
     if (!currentMs) return undefined;
-    const parts = [`Chapitre ${currentMsIndex + 1}/${totalMs} — ${currentMs.title || "Jalon"}`];
+    const parts = [
+      chapterPos.index > 0 ? `Chapitre ${chapterPos.index}/${chapterPos.total}` : "Bloc informatif",
+      currentMs.title || "Jalon",
+    ];
     const objective = compactObjective;
     if (objective) parts.push(`Étape : ${objective.subGuideName || objective.subGuideRef || "?"}`);
     return parts.join(" · ");
-  }, [currentMs, currentMsIndex, totalMs, compactObjective]);
+  }, [currentMs, chapterPos, compactObjective]);
+
+  // ─── Rendu d'une BANNIÈRE (bloc non cochable) ──────────────────────────────
+  // Le MÊME composant partagé que le dashboard et le guide public : un séparateur, un
+  // encart CONSEIL/TIPS ou un « Dofus obtenu » se lit à sa place dans le flux, jamais comme
+  // une étape (aucune case à cocher, aucun numéro, aucun « n/N »).
+  const renderBanner = (ms: RushMilestone) => {
+    if (ms.type === "SEPARATEUR") {
+      return (
+        <RushSeparatorBanner
+          key={ms.id}
+          title={ms.title}
+          description={ms.description}
+          imageUrl={ms.imageUrl}
+          accentColor={ms.accentColor}
+          className="my-3"
+        />
+      );
+    }
+    if (ms.type === "INFO") {
+      return (
+        <RushInfoBanner
+          key={ms.id}
+          title={ms.description && ms.title && !ms.description.startsWith(ms.title) ? ms.title : null}
+          imageUrl={ms.imageUrl}
+          accentColor={ms.accentColor}
+          className="my-3"
+        >
+          <RushRichText text={ms.tips || ms.description || ms.title} />
+        </RushInfoBanner>
+      );
+    }
+    const dofus = getMsDofus(ms);
+    return (
+      <div key={ms.id} className="flex flex-col items-center gap-3 py-10 px-6 text-center select-none max-w-md mx-auto">
+        {dofus ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={dofus.imageUrl} alt={dofus.label} title={dofus.label} className="h-12 w-12 object-contain drop-shadow" />
+        ) : ms.imageUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={ms.imageUrl} alt={ms.title} className="h-12 w-12 object-contain drop-shadow" />
+        ) : null}
+        <span className="text-[9px] font-black uppercase tracking-[0.22em]" style={{ color: ms.accentColor || "#a3e635" }}>
+          ✦ Dofus obtenu ✦
+        </span>
+        <h3 className={`font-serif text-lg font-black uppercase tracking-wide ${isLightMode ? "text-slate-900" : "text-[#f2f0e9]"}`}>
+          {ms.title}
+        </h3>
+        {(ms.description || ms.tips) && (
+          <p className={`text-[12px] leading-relaxed ${isLightMode ? "text-slate-500" : "text-[#929aa5]"}`}>
+            <RushRichText text={ms.description || ms.tips} />
+          </p>
+        )}
+        <div className="h-px w-28" style={{ background: `linear-gradient(90deg, transparent, ${ms.accentColor || "#a3e635"})` }} />
+      </div>
+    );
+  };
 
   // ─── Rendu COMMUN ─────────────────────────────────────────────────────────
   // La fenêtre source et la fenêtre PiP (always-on-top) affichent le même
@@ -885,6 +977,8 @@ export default function GuideOverlayClient({
             character={overlayCharacter}
             onResetGuide={handleResetGuide}
             isGuest={isGuest}
+            ocre={ocreSummary}
+            onOpenOcre={ocreEnabled ? () => setShowOcre(true) : undefined}
           />
 
           {/* ══ RECHERCHE ══ */}
@@ -918,13 +1012,8 @@ export default function GuideOverlayClient({
                 <button
                   type="button"
                   onClick={() => handleToggleMs(currentMs)}
-                  disabled={msIsInfoBlock}
-                  aria-label={msIsInfoBlock ? "Bloc informatif" : msDone ? "Marquer le chapitre comme non terminé" : "Marquer le chapitre comme terminé"}
-                  className={
-                    msIsInfoBlock
-                      ? "shrink-0 cursor-default opacity-20"
-                      : "shrink-0 rounded focus-visible:outline-2 focus-visible:outline-[#39bc95] focus-visible:outline-offset-1"
-                  }
+                  aria-label={msDone ? "Marquer le chapitre comme non terminé" : "Marquer le chapitre comme terminé"}
+                  className="shrink-0 rounded focus-visible:outline-2 focus-visible:outline-[#39bc95] focus-visible:outline-offset-1"
                 >
                   <span
                     className={`flex h-4 w-4 items-center justify-center rounded-md border transition-all ${
@@ -939,6 +1028,8 @@ export default function GuideOverlayClient({
                   </span>
                 </button>
 
+                {/* Numéro et pourcentage ne valent que pour une ÉTAPE : un séparateur ou un
+                    encart n'a aucune progression (« 0% » n'est pas une information). */}
                 <span className="font-serif font-bold text-xs text-[#39bc95] shrink-0">{currentMsIndex + 1}.</span>
 
                 {/* Icône Dofus à côté du bloc courant + animation à la complétion */}
@@ -983,19 +1074,9 @@ export default function GuideOverlayClient({
             </div>
           )}
 
-          {/* ══ OBJECTIF COURANT (épinglé — toujours visible) ══ */}
-          {compactObjective && (
-            <div className="px-3 pt-2">
-              <RushCurrentObjective
-                sequence={compactObjective}
-                milestoneTitle={currentMs?.title}
-                variant="overlay"
-                collapsible
-                defaultCollapsed={overlaySmall}
-                onNavigate={() => handleGoToPrereq(compactObjective.id, currentMs?.id || "")}
-              />
-            </div>
-          )}
+          {/* L'objectif courant (« À FAIRE MAINTENANT ») a été retiré : la liste des quêtes
+              juste en dessous dit déjà quoi faire, avec sa coordonnée et ses donjons —
+              un encart doré qui répète la première ligne ne servait à rien (user, 21/09). */}
 
           {/* ══ PRÉSENCE COMMUNAUTÉ ══ */}
           {chapterMembers.length > 0 && (
@@ -1048,6 +1129,10 @@ export default function GuideOverlayClient({
 
           {/* ══ LISTE DES QUÊTES + DÉTAILS ══ */}
           <main className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-3 space-y-2 custom-scrollbar">
+            {/* Bannières qui INTRODUISENT ce chapitre — leur place chronologique dans le
+                flux. Elles suivent le chapitre, donc on les retrouve dès qu'on l'ouvre
+                (dropdown, précédent/suivant, repère) : c'est ce qui manquait. */}
+            {!search.trim() && banners.before.map(renderBanner)}
             {search.trim() ? (
               globalResults.length === 0 ? (
                 <div className="py-12 text-center text-[#929aa5] text-xs">
@@ -1070,6 +1155,7 @@ export default function GuideOverlayClient({
                       )}
                       <RushOverlayQuestListItem
                         seq={seq}
+                        guildId={guildId}
                         isDone={isSeqDone}
                         isBookmarked={bookmarksByMs.get(ms.id) === seq.id}
                         isLightMode={isLightMode}
@@ -1085,28 +1171,6 @@ export default function GuideOverlayClient({
                   );
                 })
               )
-            ) : msIsInfoBlock ? (
-              <div className="flex flex-col items-center gap-3 py-10 px-6 text-center select-none max-w-md mx-auto">
-                {currentMsDofus ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={currentMsDofus.imageUrl} alt={currentMsDofus.label} title={currentMsDofus.label} className="h-12 w-12 object-contain drop-shadow" />
-                ) : currentMs.imageUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={currentMs.imageUrl} alt={currentMs.title} className="h-12 w-12 object-contain drop-shadow" />
-                ) : null}
-                <span className="text-[9px] font-black uppercase tracking-[0.22em]" style={{ color: currentMs.accentColor || "#a3e635" }}>
-                  {currentMs.type === "DOFUS_OBTAINED" ? "✦ Dofus obtenu ✦" : currentMs.type === "SEPARATEUR" ? "— Séparateur —" : "✦ Info ✦"}
-                </span>
-                <h3 className={`font-serif text-lg font-black uppercase tracking-wide ${isLightMode ? "text-slate-900" : "text-[#f2f0e9]"}`}>
-                  {currentMs.title}
-                </h3>
-                {(currentMs.description || currentMs.tips) && (
-                  <p className={`text-[12px] leading-relaxed ${isLightMode ? "text-slate-500" : "text-[#929aa5]"}`}>
-                    {currentMs.description || currentMs.tips}
-                  </p>
-                )}
-                <div className="h-px w-28" style={{ background: `linear-gradient(90deg, transparent, ${currentMs.accentColor || "#a3e635"})` }} />
-              </div>
             ) : visibleSequences.length === 0 ? (
               <div className="py-12 text-center text-[#929aa5] text-xs">
                 <CheckCircle2 className="w-8 h-8 mx-auto mb-2 text-[#39bc95] opacity-40" />
@@ -1121,20 +1185,10 @@ export default function GuideOverlayClient({
               visibleSequences.map((seq) => {
                 // Les séquences info (conseils/bandeaux) ne sont pas des quêtes cochables.
                 if (isInfoSequence(seq)) {
-                  const info = seq.tips || seq.subGuideName || seq.subGuideRef || "";
+                  // Bandeau d'une séquence informative : composant PARTAGÉ (dashboard,
+                  // guide public, overlay) — rien à cocher, ce n'est pas une quête.
                   return (
-                    <div
-                      key={seq.id}
-                      className={cn(
-                        "rounded-xl border px-4 py-3 text-[12px] leading-relaxed",
-                        isLightMode
-                          ? "bg-slate-50 border-slate-200 text-slate-500"
-                          : "bg-[#0f1318]/70 border-[#1e2530]/60 text-[#8b95a0]"
-                      )}
-                    >
-                      <span className="font-semibold text-[#39bc95]">📘&nbsp;</span>
-                      {info}
-                    </div>
+                    <RushInfoSequenceBanner key={seq.id} seq={seq} accentColor={currentMs.accentColor} />
                   );
                 }
                 const isSeqDone = currentMsDoneSeqs.has(seq.id);
@@ -1144,6 +1198,7 @@ export default function GuideOverlayClient({
                   <React.Fragment key={seq.id}>
                     <RushOverlayQuestListItem
                       seq={seq}
+                      guildId={guildId}
                       isDone={isSeqDone}
                       isBookmarked={isBookmarked}
                       isLightMode={isLightMode}
@@ -1163,6 +1218,9 @@ export default function GuideOverlayClient({
                 );
               })
             ) : null}
+
+            {/* Bannières de fin de guide : rattachées au dernier chapitre (même règle) */}
+            {!search.trim() && banners.after.map(renderBanner)}
           </main>
 
           {/* ══ FOOTER FIXE ══ */}
@@ -1172,7 +1230,7 @@ export default function GuideOverlayClient({
             canPrev={currentMsIndex > 0}
             canNext={currentMsIndex < milestones.length - 1}
             isLightMode={isLightMode}
-            label={`${currentMsIndex + 1} / ${totalMs}`}
+            label={chapterPos.index > 0 ? `${chapterPos.index} / ${chapterPos.total}` : ""}
             onToggleCompact={enterGameMode}
           />
         </>
@@ -1183,6 +1241,10 @@ export default function GuideOverlayClient({
           objective={compactObjective}
           isDone={!!compactObjective && currentMsDoneSeqs.has(compactObjective.id)}
           isLightMode={isLightMode}
+          // Mode jeu : l'objectif courant reste la priorité. Les bannières ne remplacent
+          // l'objectif que s'il n'y a RIEN à faire ici (chapitre sans quête restante) —
+          // sinon elles restent lisibles en mode normal, à leur place dans le flux.
+          body={!compactObjective && banners.before.length > 0 ? banners.before.map(renderBanner) : undefined}
           onToggle={() => currentMs && compactObjective && handleToggleSeq(currentMs, compactObjective.id)}
           onPrev={goToPrevMs}
           onNext={goToNextMs}
@@ -1229,6 +1291,16 @@ export default function GuideOverlayClient({
       {/* ══ MODALE TUTORIEL ══ */}
       {showTutorial && (
         <RushOverlayTutorialModal isLightMode={isLightMode} onClose={() => setShowTutorial(false)} />
+      )}
+
+      {/* ══ PANNEAU QUÊTE OCRE (Metamob · overlay interne) ══ */}
+      {showOcre && ocreEnabled && ocre && (
+        <RushOverlayOcreModal
+          guildId={guildId}
+          isLightMode={isLightMode}
+          initial={ocre}
+          onClose={() => setShowOcre(false)}
+        />
       )}
     </div>
   );

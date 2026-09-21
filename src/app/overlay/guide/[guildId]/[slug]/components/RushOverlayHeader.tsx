@@ -33,6 +33,13 @@ interface RushOverlayHeaderProps {
   isNarrow?: boolean;
   /** Mode invité sans guilde ni compte */
   isGuest?: boolean;
+  /**
+   * Quête Ocre : résumé affiché en pastille sur le bouton (membre dont le compte
+   * Metamob est lié, overlay INTERNE uniquement). `null`/absent ⇒ aucun bouton.
+   */
+  ocre?: { missing: number; percent: number } | null;
+  /** Ouvre le panneau Quête Ocre. Sans ce callback, le bouton n'est jamais rendu. */
+  onOpenOcre?: () => void;
 }
 
 /**
@@ -62,6 +69,8 @@ export function RushOverlayHeader({
   className,
   isNarrow: isNarrowProp,
   isGuest = false,
+  ocre,
+  onOpenOcre,
 }: RushOverlayHeaderProps) {
   // Confirmation en 2 temps du reset (évite le reset accidentel).
   const [confirmReset, setConfirmReset] = useState(false);
@@ -81,6 +90,16 @@ export function RushOverlayHeader({
   }, []);
   // La prop `isNarrow` (ResizeObserver du conteneur) prime sur la détection window.
   const narrow = typeof isNarrowProp === "boolean" ? isNarrowProp : domNarrow;
+
+  // Retour / bug : le bouton vit dans le menu « ⋯ » (place libérée pour l'archimonstre),
+  // et reste un bouton direct quand l'overlay est large.
+  const openFeedback = () => {
+    if (isGuest) {
+      toast.info("Une remarque ou un bug ? Rejoignez notre Discord !", { duration: 2500 });
+      return;
+    }
+    setFeedbackOpen(true);
+  };
 
   // Style commun des entrées du menu « plus » (dropdown).
   const menuItemCls = cn(
@@ -202,6 +221,38 @@ export function RushOverlayHeader({
             <Package className="w-3.5 h-3.5" />
           </button>
 
+          {/* Quête Ocre (Metamob) — overlay interne uniquement : pastille du reste à capturer */}
+          {onOpenOcre && ocre && (
+            <button
+              type="button"
+              onClick={onOpenOcre}
+              aria-label={`Quête Ocre : ${ocre.missing} cibles restantes`}
+              title={`Quête Ocre · ${ocre.missing} archis / gardiens restants · ${ocre.percent}%`}
+              className={cn(
+                "relative p-1.5 rounded-lg border transition-colors",
+                isLightMode
+                  ? "bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100"
+                  : "bg-[#181d23] border-[#2a3646] text-[#d5a94e] hover:bg-[#1f2733]"
+              )}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/assets/dofus/icons/archimonster.png"
+                alt=""
+                className="w-3.5 h-3.5 object-contain"
+              />
+              {ocre.missing > 0 ? (
+                <span className="absolute -top-1 -right-1 min-w-[15px] h-[15px] px-0.5 rounded-full bg-[#e2726f] text-black text-[9px] font-black tabular-nums leading-[15px] text-center">
+                  {ocre.missing > 99 ? "99+" : ocre.missing}
+                </span>
+              ) : (
+                <span className="absolute -top-1 -right-1 w-[15px] h-[15px] rounded-full bg-[#39bc95] text-black grid place-items-center">
+                  <Check className="w-2.5 h-2.5 stroke-[3]" />
+                </span>
+              )}
+            </button>
+          )}
+
           {/* Masquer les quêtes terminées */}
           <button
             type="button"
@@ -219,27 +270,7 @@ export function RushOverlayHeader({
             {hideCompleted ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
           </button>
 
-          {/* Signaler un bug / retour */}
-          <button
-            type="button"
-            onClick={() => {
-              if (isGuest) {
-                toast.info("Une remarque ou un bug ? Rejoignez notre Discord !", { duration: 2500 });
-                return;
-              }
-              setFeedbackOpen(true);
-            }}
-            aria-label="Signaler un bug ou faire un retour"
-            title="Signaler un bug, proposer une amélioration ou un ajout"
-            className={cn(
-              "p-1.5 rounded-lg border transition-colors",
-              isLightMode
-                ? "bg-slate-100 border-slate-200 text-slate-500 hover:bg-slate-200"
-                : "bg-[#181d23] border-[#2a3646] text-[#6e7784] hover:text-[#f2f0e9] hover:bg-[#1f2733]"
-            )}
-          >
-            <Bug className="w-3.5 h-3.5" />
-          </button>
+          {/* Signaler un bug / retour — déplacé dans le menu « ⋯ » (place rendue à l'archimonstre) */}
           {!isGuest && feedbackOpen && (
             <RushOverlayFeedbackPanel
               guildId={guildId}
@@ -279,6 +310,9 @@ export function RushOverlayHeader({
                     <button type="button" onClick={() => { setMoreOpen(false); onOpenTutorial(); }} className={menuItemCls}>
                       <HelpCircle className="w-3.5 h-3.5" /> Aide / tutoriel
                     </button>
+                    <button type="button" onClick={() => { setMoreOpen(false); openFeedback(); }} className={menuItemCls}>
+                      <Bug className="w-3.5 h-3.5" /> Signaler un bug
+                    </button>
                     <a
                       href={isGuest ? `/guides/${guideSlug}` : `/dashboard/${guildId}/quetes-dofus/guide/${guideSlug}`}
                       target="_blank"
@@ -311,6 +345,22 @@ export function RushOverlayHeader({
             )}
           >
             <HelpCircle className="w-3.5 h-3.5" />
+          </button>
+
+          {/* Signaler un bug / retour (variante large : bouton direct) */}
+          <button
+            type="button"
+            onClick={openFeedback}
+            aria-label="Signaler un bug ou faire un retour"
+            title="Signaler un bug, proposer une amélioration ou un ajout"
+            className={cn(
+              "p-1.5 rounded-lg border transition-colors",
+              isLightMode
+                ? "bg-slate-100 border-slate-200 text-slate-500 hover:bg-slate-200"
+                : "bg-[#181d23] border-[#2a3646] text-[#6e7784] hover:text-[#f2f0e9] hover:bg-[#1f2733]"
+            )}
+          >
+            <Bug className="w-3.5 h-3.5" />
           </button>
 
           {/* Dashboard / Guide web */}

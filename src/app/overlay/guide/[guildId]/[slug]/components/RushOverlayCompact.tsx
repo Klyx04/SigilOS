@@ -4,13 +4,14 @@ import React from "react";
 import { Check, ChevronLeft, ChevronRight, Maximize2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { RushMilestone, RushSequence } from "@/types/rush-guide-types";
-import { RushCurrentObjective } from "@/components/dofus-quests/rush/RushCurrentObjective";
 
 interface RushOverlayCompactProps {
   milestone: RushMilestone;
   objective: RushSequence | null;
   isDone: boolean;
   isLightMode?: boolean;
+  /** Corps de remplacement (bannières du chapitre sans objectif restant) : prend la place de l'objectif. */
+  body?: React.ReactNode;
   onToggle: () => void;
   onPrev: () => void;
   onNext: () => void;
@@ -23,7 +24,7 @@ interface RushOverlayCompactProps {
 
 /**
  * Mode jeu compact — recommandé pendant une phase de combat.
- * Affiche uniquement : checkbox quête · nom · Étape n/m · objectif courant ·
+ * Affiche uniquement : checkbox de la quête · nom · Étape n/m · objectif courant ·
  * précédent / suivant · agrandir · fermer.
  */
 export function RushOverlayCompact({
@@ -31,6 +32,7 @@ export function RushOverlayCompact({
   objective,
   isDone,
   isLightMode = false,
+  body,
   onToggle,
   onPrev,
   onNext,
@@ -54,6 +56,8 @@ export function RushOverlayCompact({
     >
       {/* Ligne supérieure : checkbox · titre · actions */}
       <div className="flex items-center gap-2 min-w-0">
+        {/* Le bloc courant est toujours un CHAPITRE (les bannières ne sont pas des étapes) :
+            la case à cocher a donc toujours un sens ici. */}
         <button
           type="button"
           onClick={onToggle}
@@ -73,10 +77,12 @@ export function RushOverlayCompact({
             {isDone && <Check className="h-2.5 w-2.5 stroke-[3]" />}
           </span>
         </button>
-
-        <h2 className={cn("truncate text-sm font-bold leading-tight", isLightMode ? "text-slate-900" : "text-[#f2f0e9]")}>
-          {name}
-        </h2>
+        {/* Le titre du bloc est porté par le `body` (bannières) : pas de doublon. */}
+        {!body && (
+          <h2 className={cn("truncate text-sm font-bold leading-tight", isLightMode ? "text-slate-900" : "text-[#f2f0e9]")}>
+            {name}
+          </h2>
+        )}
 
         <button
           type="button"
@@ -110,20 +116,24 @@ export function RushOverlayCompact({
         </button>
       </div>
 
-      {/* Métadonnées : Étape n/m · Chapitre */}
-      <p className={cn("text-[10px] tabular-nums", isLightMode ? "text-slate-500" : "text-[#929aa5]")}>
-        {stepLabel}
-        {milestone.title ? ` · ${milestone.title}` : ""}
-      </p>
+      {/* Métadonnées : Étape n/m · Chapitre (sans objet pour un bandeau de séparateur) */}
+      {!body && (
+        <p className={cn("text-[10px] tabular-nums", isLightMode ? "text-slate-500" : "text-[#929aa5]")}>
+          {stepLabel}
+          {milestone.title ? ` · ${milestone.title}` : ""}
+        </p>
+      )}
 
-      {/* Objectif courant */}
-      {objective ? (
-        <RushCurrentObjective sequence={objective} milestoneTitle={milestone.title} variant="overlay" />
-      ) : (
+      {/* Objectif courant — ou le corps de remplacement (bandeau du séparateur).
+          Pas d'encart doré « À FAIRE MAINTENANT » : le titre ci-dessus EST la quête
+          courante (user, 21/09/2026). */}
+      {body ? (
+        body
+      ) : !objective ? (
         <p className={cn("text-xs font-semibold", isLightMode ? "text-slate-500" : "text-[#929aa5]")}>
           {isDone ? "✓ Quête terminée" : "Toutes les étapes sont terminées."}
         </p>
-      )}
+      ) : null}
 
       {/* Actions précédent / suivant */}
       <div className="flex items-center justify-between gap-2">

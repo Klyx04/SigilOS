@@ -141,17 +141,17 @@ export function OcreFilterBar({
     const currentQty = QUANTITY_OPTIONS.find(q => q.value === filters.minQuantity);
 
     return (
-        <div className="bg-[#12181a]/80 backdrop-blur-xl border border-border rounded-3xl p-5 md:p-6 space-y-5 shadow-[0_12px_40px_rgba(0,0,0,0.3)]">
+        <div className="rounded-lg border border-border bg-card p-4 md:p-5 space-y-4">
             {/* Search & Primary Actions Row */}
             <div className="flex flex-col md:flex-row items-stretch md:items-center gap-4">
                 {/* Search Input */}
                 <div className="relative flex-1 group">
-                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-amber-500 transition-colors duration-200" />
+                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-warning transition-colors" />
                     <Input
                         placeholder="Rechercher un monstre..."
                         value={localSearch}
                         onChange={(e) => setLocalSearch(e.target.value)}
-                        className="pl-10 h-11 text-sm bg-[#161e20]/70 focus:bg-[#1a2426]/90 border border-border focus:border-amber-500/50 focus:ring-4 focus:ring-amber-500/10 rounded-2xl transition-all duration-300 placeholder:text-muted-foreground text-foreground shadow-inner"
+                        className="pl-10 h-10 text-sm bg-surface border border-border focus:border-warning/50 rounded-lg transition-colors placeholder:text-muted-foreground text-foreground"
                     />
                     {localSearch && (
                         <button
@@ -170,7 +170,7 @@ export function OcreFilterBar({
                             variant="ghost"
                             size="sm"
                             onClick={clearFilters}
-                            className="h-11 px-4 text-xs text-muted-foreground hover:text-foreground font-bold rounded-2xl hover:bg-surface transition-all duration-200 border border-transparent hover:border-border"
+                            className="h-10 px-3 text-xs text-muted-foreground hover:text-foreground font-semibold rounded-lg hover:bg-surface transition-colors"
                         >
                             Réinitialiser
                         </Button>
@@ -181,10 +181,10 @@ export function OcreFilterBar({
                         size="sm"
                         onClick={onSelectionModeToggle}
                         className={cn(
-                            "h-11 px-5 rounded-2xl text-xs font-bold gap-2 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] border",
+                            "h-10 px-4 rounded-lg text-xs font-semibold gap-2 transition-colors border",
                             selectionMode
-                                ? "bg-amber-500 text-warning-foreground border-amber-500 shadow-lg shadow-amber-500/25"
-                                : "bg-[#161e20]/60 text-foreground border-border hover:bg-[#202a2c] hover:border-border"
+                                ? "bg-warning text-warning-foreground border-warning"
+                                : "bg-surface text-foreground border-border hover:bg-elevated"
                         )}
                     >
                         <Check className="h-4 w-4" />
@@ -198,9 +198,9 @@ export function OcreFilterBar({
                             trigger={
                                 <Button
                                     size="sm"
-                                    className="h-11 px-5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-foreground border-0 shadow-lg shadow-emerald-950/50 rounded-2xl font-bold gap-2 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] text-xs"
+                                    className="h-10 px-4 rounded-lg text-xs font-semibold gap-2"
                                 >
-                                    <Sparkles className="h-4 w-4 fill-white/25" />
+                                    <Sparkles className="h-4 w-4" />
                                     <span>Échanges</span>
                                 </Button>
                             }
@@ -220,10 +220,10 @@ export function OcreFilterBar({
                         <Button
                             variant="outline"
                             className={cn(
-                                "h-10 px-4 text-xs font-semibold rounded-2xl gap-2 border transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]",
+                                "h-10 px-3 text-xs font-semibold rounded-lg gap-2 border transition-colors",
                                 filters.selectedType !== "all"
                                     ? "border-amber-500/40 bg-amber-500/10 text-amber-400 "
-                                    : "border-border bg-[#161e20]/60 text-foreground hover:bg-[#202a2d] hover:border-border"
+                                    : "border-border bg-surface text-foreground hover:bg-elevated"
                             )}
                         >
                             {filters.selectedType === "all" ? (
@@ -236,7 +236,7 @@ export function OcreFilterBar({
                             <ChevronDown className="h-3 w-3 opacity-60" />
                         </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="start" className="bg-[#13191b] border border-border shadow-[0_20px_50px_rgba(0,0,0,0.5)] rounded-2xl p-1.5 z-[100] min-w-[160px]">
+                    <DropdownMenuContent align="start" className="border border-border bg-elevated rounded-lg p-1.5 z-[100] min-w-[160px]">
                         {MONSTER_TYPES.map((type) => {
                             const Icon = type.icon;
                             return (
@@ -260,10 +260,10 @@ export function OcreFilterBar({
                         <Button
                             variant="outline"
                             className={cn(
-                                "h-10 px-4 text-xs font-semibold rounded-2xl gap-2 border transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]",
+                                "h-10 px-3 text-xs font-semibold rounded-lg gap-2 border transition-colors",
                                 filters.selectedStep !== "all"
                                     ? "border-amber-500/40 bg-amber-500/10 text-amber-400 "
-                                    : "border-border bg-[#161e20]/60 text-foreground hover:bg-[#202a2d] hover:border-border"
+                                    : "border-border bg-surface text-foreground hover:bg-elevated"
                             )}
                         >
                             <Footprints className="h-3.5 w-3.5" />
@@ -271,7 +271,7 @@ export function OcreFilterBar({
                             <ChevronDown className="h-3 w-3 opacity-60" />
                         </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="start" className="max-h-[260px] overflow-y-auto bg-[#13191b] border border-border shadow-[0_20px_50px_rgba(0,0,0,0.5)] rounded-2xl p-1.5 z-[100] min-w-[160px]">
+                    <DropdownMenuContent align="start" className="max-h-[260px] overflow-y-auto border border-border bg-elevated rounded-lg p-1.5 z-[100] min-w-[160px]">
                         <DropdownMenuItem
                             onClick={() => updateFilter("selectedStep", "all")}
                             className="text-xs py-2.5 px-3.5 rounded-xl cursor-pointer hover:bg-surface text-foreground hover:text-foreground transition-colors"
@@ -298,10 +298,10 @@ export function OcreFilterBar({
                         <Button
                             variant="outline"
                             className={cn(
-                                "h-10 px-4 text-xs font-semibold rounded-2xl gap-2 border transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]",
+                                "h-10 px-3 text-xs font-semibold rounded-lg gap-2 border transition-colors",
                                 filters.sortBy !== "step-asc"
                                     ? "border-blue-500/40 bg-blue-500/10 text-blue-400 "
-                                    : "border-border bg-[#161e20]/60 text-foreground hover:bg-[#202a2d] hover:border-border"
+                                    : "border-border bg-surface text-foreground hover:bg-elevated"
                             )}
                         >
                             <ArrowUpDown className="h-3.5 w-3.5" />
@@ -309,7 +309,7 @@ export function OcreFilterBar({
                             <ChevronDown className="h-3 w-3 opacity-60" />
                         </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="start" className="bg-[#13191b] border border-border shadow-[0_20px_50px_rgba(0,0,0,0.5)] rounded-2xl p-1.5 z-[100] min-w-[185px]">
+                    <DropdownMenuContent align="start" className="border border-border bg-elevated rounded-lg p-1.5 z-[100] min-w-[185px]">
                         {SORT_OPTIONS.map((sort) => (
                             <DropdownMenuItem
                                 key={sort.id}
@@ -330,10 +330,10 @@ export function OcreFilterBar({
                             <Button
                                 variant="outline"
                                 className={cn(
-                                    "h-10 px-4 text-xs font-semibold rounded-2xl gap-2 border max-w-[180px] transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]",
+                                    "h-10 px-3 text-xs font-semibold rounded-lg gap-2 border max-w-[180px] transition-colors",
                                     filters.selectedZone !== "all"
                                         ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-400 "
-                                        : "border-border bg-[#161e20]/60 text-foreground hover:bg-[#202a2d] hover:border-border"
+                                        : "border-border bg-surface text-foreground hover:bg-elevated"
                                 )}
                             >
                                 <span className="truncate">
@@ -342,7 +342,7 @@ export function OcreFilterBar({
                                 <ChevronDown className="h-3 w-3 opacity-60 shrink-0" />
                             </Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="start" className="max-h-[260px] overflow-y-auto bg-[#13191b] border border-border shadow-[0_20px_50px_rgba(0,0,0,0.5)] rounded-2xl p-1.5 z-[100] min-w-[200px]">
+                        <DropdownMenuContent align="start" className="max-h-[260px] overflow-y-auto border border-border bg-elevated rounded-lg p-1.5 z-[100] min-w-[200px]">
                             <DropdownMenuItem
                                 onClick={() => updateFilter("selectedZone", "all")}
                                 className="text-xs py-2.5 px-3.5 rounded-xl cursor-pointer hover:bg-surface text-foreground hover:text-foreground transition-colors"
@@ -370,10 +370,10 @@ export function OcreFilterBar({
                         <Button
                             variant="outline"
                             className={cn(
-                                "h-10 px-4 text-xs font-semibold rounded-2xl gap-2 border transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]",
+                                "h-10 px-3 text-xs font-semibold rounded-lg gap-2 border transition-colors",
                                 filters.minQuantity > 0
                                     ? "border-purple-500/40 bg-purple-500/10 text-purple-400 "
-                                    : "border-border bg-[#161e20]/60 text-foreground hover:bg-[#202a2d] hover:border-border"
+                                    : "border-border bg-surface text-foreground hover:bg-elevated"
                             )}
                         >
                             <Crown className="h-3.5 w-3.5" />
@@ -381,7 +381,7 @@ export function OcreFilterBar({
                             <ChevronDown className="h-3 w-3 opacity-60" />
                         </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="start" className="bg-[#13191b] border border-border shadow-[0_20px_50px_rgba(0,0,0,0.5)] rounded-2xl p-1.5 z-[100] min-w-[180px]">
+                    <DropdownMenuContent align="start" className="border border-border bg-elevated rounded-lg p-1.5 z-[100] min-w-[180px]">
                         {QUANTITY_OPTIONS.map((q) => (
                             <DropdownMenuItem
                                 key={q.value}

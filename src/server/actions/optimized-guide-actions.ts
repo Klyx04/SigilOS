@@ -17,6 +17,7 @@ import { buildGuildProgressRows, buildPresenceMap, buildUniqueGuildMembers, buil
 import { z } from "zod";
 import { findSequenceHelpers, type RushHelperProfile, type RushHelperMetier } from "@/lib/rush-helpers";
 import { normalizeMetiers } from "@/lib/metiers";
+import { rushResourceKey } from "@/lib/rush-guide-utils";
 import type { RushSequence } from "@/types/rush-guide-types";
 
 /**
@@ -973,11 +974,46 @@ export async function setRushSequenceProgress(guildId: string, milestoneId: stri
   const checkedSet = new Set(incoming);
   const isCompleted = contentIds.length > 0 && contentIds.every((id) => checkedSet.has(id));
 
+  // État AVANT écriture : les séquences cochées qui ne le sont plus = INVALIDÉES.
+  // (Une quête invalidée fait repartir à zéro les coches manuelles de ses ressources.)
+  const before = await db.playerGuideProgress.findUnique({
+    where: { profileId_milestoneId_characterSlot: { profileId, milestoneId, characterSlot } },
+    select: { completedSteps: true },
+  });
+  const previouslyChecked = Array.isArray(before?.completedSteps)
+    ? (before!.completedSteps as string[])
+    : [];
+  const unvalidatedSeqIds = previouslyChecked.filter((id) => !checkedSet.has(id));
+
   const progress = await db.playerGuideProgress.upsert({
     where: { profileId_milestoneId_characterSlot: { profileId, milestoneId, characterSlot } },
     update: { completedSteps: incoming, isCompleted, completedAt: isCompleted ? new Date() : null },
     create: { profileId, milestoneId, characterSlot, completedSteps: incoming, isCompleted, completedAt: isCompleted ? new Date() : null },
   });
+
+  // ── Ressources : une quête INVALIDÉE remet à zéro ses coches manuelles ───────
+  // « Si la quête est invalidée, la coche manuelle repart à zéro » : les ressources
+  // de cette quête ne sont plus « préparées », on supprime donc les coches du
+  // personnage courant. Échec non bloquant : la validation de l'étape prime.
+  try {
+    if (unvalidatedSeqIds.length > 0) {
+      const resourceKeys = new Set<string>();
+      for (const seq of milestone.sequences || []) {
+        if (!unvalidatedSeqIds.includes(seq.id)) continue;
+        for (const tag of (seq as any).activityTags || []) {
+          if (tag?.type === "item" && tag.name) resourceKeys.add(rushResourceKey(tag));
+        }
+      }
+      if (resourceKeys.size > 0) {
+        await db.playerGuideResourceCheck.deleteMany({
+          where: { profileId, characterSlot, resourceKey: { in: [...resourceKeys] } },
+        });
+        revalidatePath(`/dashboard/${guildId}/quetes-dofus/guide/${milestone.guide?.slug ?? ""}`);
+      }
+    }
+  } catch (e) {
+    logger.error("[setRushSequenceProgress] reset des coches de ressources échoué (non bloquant)", { error: e });
+  }
 
   // Temps réel + cache (fail-closed, non bloquant).
   try {
@@ -1067,6 +1103,92 @@ export async function setRushBookmark(guildId: string, milestoneId: string, seqI
   }
 
   return { success: true, bookmarkedSeqId: resolved };
+}
+
+/**
+ * Coches MANUELLES de ressources du Rush — lecture, par membre ET par personnage.
+ * Une coche veut dire « j'ai déjà préparé cet objet » ; la clé est celle de
+ * `aggregateRushResources` (`rushResourceKey`), donc la même que côté navigateur.
+ */
+export async function getRushResourceChecks(guildId: string, slug: string, altPseudo?: string) {
+  const ctx = await getUserContext(guildId);
+  if (!ctx.isAuthenticated) throw new Error("Non autorisé");
+  if (!ctx.profileId) throw new Error("Profile ID manquant");
+
+  const { profileId, characterSlot } = resolvePlayerProgressKey(ctx.profileId, altPseudo);
+
+  const guide = await db.optimizedGuide.findUnique({ where: { slug }, select: { id: true } });
+  if (!guide) return { success: false as const, error: "Guide introuvable", keys: [] as string[] };
+
+  const rows = await db.playerGuideResourceCheck.findMany({
+    where: { profileId, guideId: guide.id, characterSlot },
+    select: { resourceKey: true },
+    orderBy: { checkedAt: "asc" },
+  });
+
+  return { success: true as const, keys: rows.map((r) => r.resourceKey) };
+}
+
+/** Entrée bornée : clés de ressources (jamais de payload libre). */
+const rushResourceKeysSchema = z.array(z.string().min(1).max(200)).max(500);
+
+/**
+ * Coches MANUELLES de ressources du Rush — écriture par REMPLACEMENT.
+ *
+ * La surface envoie l'ENSEMBLE des clés cochées (l'écran est la source de vérité de
+ * son propre geste) : on aligne la base dessus. Un remplacement — plutôt qu'un
+ * toggle — reste idempotent si deux onglets cliquent en même temps.
+ */
+export async function setRushResourceChecks(
+  guildId: string,
+  slug: string,
+  keys: string[],
+  altPseudo?: string
+) {
+  const ctx = await getUserContext(guildId);
+  if (!ctx.isAuthenticated) throw new Error("Non autorisé");
+  if (!ctx.profileId) throw new Error("Profile ID manquant");
+
+  const { profileId, characterSlot } = resolvePlayerProgressKey(ctx.profileId, altPseudo);
+
+  // 🛡️ RATE LIMIT (P0) : 60 écritures de préparation/min par membre.
+  const { success: rateOk } = await rateLimit(`guide-resource-check:${ctx.profileId}`, 60, 60_000);
+  if (!rateOk) throw new Error("Trop de requêtes, veuillez patienter.");
+
+  const parsed = rushResourceKeysSchema.safeParse(keys);
+  if (!parsed.success) throw new Error("Données invalides");
+  const wanted = [...new Set(parsed.data)];
+
+  const guide = await db.optimizedGuide.findUnique({ where: { slug }, select: { id: true } });
+  if (!guide) return { success: false as const, error: "Guide introuvable", keys: [] as string[] };
+
+  const existing = await db.playerGuideResourceCheck.findMany({
+    where: { profileId, guideId: guide.id, characterSlot },
+    select: { resourceKey: true },
+  });
+  const existingKeys = new Set(existing.map((r) => r.resourceKey));
+  const wantedSet = new Set(wanted);
+
+  const toAdd = wanted.filter((k) => !existingKeys.has(k));
+  const toRemove = existing.filter((r) => !wantedSet.has(r.resourceKey)).map((r) => r.resourceKey);
+
+  if (toAdd.length > 0) {
+    await db.playerGuideResourceCheck.createMany({
+      data: toAdd.map((resourceKey) => ({ profileId, guideId: guide.id, characterSlot, resourceKey })),
+      skipDuplicates: true,
+    });
+  }
+  if (toRemove.length > 0) {
+    await db.playerGuideResourceCheck.deleteMany({
+      where: { profileId, guideId: guide.id, characterSlot, resourceKey: { in: toRemove } },
+    });
+  }
+
+  try {
+    revalidatePath(`/dashboard/${guildId}/quetes-dofus/guide/${slug}`);
+  } catch { /* revalidation best-effort */ }
+
+  return { success: true as const, keys: wanted };
 }
 
 /**
@@ -1325,7 +1447,7 @@ export async function resetRushAlignment(guildId: string, altPseudo?: string) {
 }
 
 // ===========================================================================
-// S4 « qui peut aider » — badges membre + [Inviter / Partager]
+// S4 « qui peut aider » — badges membre (INFORMATIF : aucune invitation)
 // ===========================================================================
 
 const getSequenceHelpersSchema = z.object({
@@ -1438,91 +1560,6 @@ export async function getSequenceHelpers(guildId: string, sequenceId: string) {
 
   const helpers = findSequenceHelpers(seqForHelpers, members);
   return { success: true, ...helpers };
-}
-
-const inviteHelperSchema = z.object({
-  guildId: z.string().min(1),
-  sequenceId: z.string().min(1),
-  helperProfileId: z.string().min(1),
-  channelId: z.string().min(1),
-});
-
-/**
- * ── S4 [Inviter / Partager] — poste un ping Discord vers un membre aidant ──
- * Valide que le salon appartient bien à la guilde (fail-closed), résout le compte
- * Discord du membre aidant, et poste une mention. Le corps de la mention est
- * construit côté serveur (jamais passé brut par le client).
- */
-export async function inviteHelperForSequence(
-  guildId: string,
-  sequenceId: string,
-  helperProfileId: string,
-  channelId: string
-) {
-  const parsed = inviteHelperSchema.safeParse({ guildId, sequenceId, helperProfileId, channelId });
-  if (!parsed.success) return { success: false, error: "Paramètres invalides" };
-
-  const ctx = await getUserContext(guildId);
-  if (!ctx.isAuthenticated) return { success: false, error: "Non autorisé" };
-  if (!ctx.profileId) return { success: false, error: "Profile ID manquant" };
-
-  const { success: rateOk } = await rateLimit(`guide-invite:${ctx.profileId}`, 10, 60_000);
-  if (!rateOk) return { success: false, error: "Trop de requêtes, veuillez patienter." };
-
-  const { validateChannelBelongsToGuild, postChannelMessage } = await import("@/server/discord");
-  const belongs = await validateChannelBelongsToGuild(channelId, guildId).catch(() => false);
-  if (!belongs) return { success: false, error: "Salon Discord invalide ou n'appartient pas à ce serveur" };
-
-  // 🔒 Anti-oracle + anti cross-guilde : la séquence reste globale (guide partagé),
-  // mais le helper DOIT appartenir à la guilde appelante. Erreur unique (fail-closed).
-  const [sequence, helper] = await Promise.all([
-    db.guideSequence.findUnique({
-      where: { id: sequenceId },
-      select: { subGuideName: true },
-    }),
-    db.userProfile.findFirst({
-      where: { id: helperProfileId, guild: { discordGuildId: guildId }, status: "ACTIVE" },
-      select: {
-        user: {
-          select: { accounts: { where: { provider: "discord" }, select: { providerAccountId: true } } },
-        },
-      },
-    }),
-  ]);
-  if (!sequence || !helper?.user) return { success: false, error: "Cible introuvable" };
-
-  const helperDiscordId = helper?.user?.accounts?.[0]?.providerAccountId;
-  if (!helperDiscordId) return { success: false, error: "Cible introuvable" };
-
-  const questName = sequence.subGuideName || sequenceId;
-  const sender = ctx.name || "Un membre";
-  const mention = `<@${helperDiscordId}>`;
-
-  try {
-    await postChannelMessage(channelId, {
-      content: `${mention} — 🎯 ${sender} a besoin d'aide pour la quête **${questName}** du rush !`,
-    });
-    return { success: true };
-  } catch (err) {
-    logger.error("[inviteHelperForSequence] Discord post failed", { error: err });
-    return { success: false, error: "Impossible d'envoyer l'invitation sur Discord" };
-  }
-}
-
-/**
- * Liste les salons TEXTUELS de la guilde pour le sélecteur d'invitation.
- */
-export async function listRushTextChannels(guildId: string) {
-  const ctx = await getUserContext(guildId);
-  if (!ctx.isAuthenticated) return { success: false, error: "Non autorisé" };
-
-  const { fetchGuildChannels } = await import("@/server/discord");
-  const channels = await fetchGuildChannels(guildId).catch(() => []);
-  const text = channels
-    .filter((c) => c.type === 0)
-    .map((c) => ({ id: c.id, name: c.name || c.id }))
-    .sort((a, b) => a.name.localeCompare(b.name));
-  return { success: true, channels: text };
 }
 
 // ===========================================================================
@@ -3059,12 +3096,28 @@ export async function upsertRushMilestone(data: {
 }
 
 /**
- * (God) Supprime un milestone du Rush Sylvestre.
+ * (God) Supprime un milestone du Rush Sylvestre — **IDEMPOTENT**.
+ *
+ * `db.guideMilestone.delete()` jetait un **P2025** quand la ligne n'existait déjà plus
+ * (double clic sur une liste pas encore rafraîchie, suppression depuis un autre onglet) :
+ * l'erreur Prisma remontait brute dans le studio. On COMPTE donc les lignes supprimées et
+ * « déjà absente » devient un succès — l'état visé par la demande est atteint (même
+ * sémantique qu'un `DELETE` HTTP). Le `guideId` reste dans le `WHERE` : garde d'état en
+ * course, aucune écriture hors du guide rush (`AGENTS.md` §5.9).
  */
 export async function deleteRushMilestone(milestoneId: string) {
   await requireRushAccess();
 
-  await db.guideMilestone.delete({ where: { id: milestoneId } });
+  const guide = await db.optimizedGuide.findUnique({
+    where: { slug: "rush-sylvestre" },
+    select: { id: true },
+  });
+  const { count } = guide
+    ? await db.guideMilestone.deleteMany({ where: { id: milestoneId, guideId: guide.id } })
+    : { count: 0 };
+
+  if (count === 0) return { success: true, alreadyDeleted: true };
+
   await logGodWrite({
     action: "GOD_RUSH_UPDATE",
     targetType: "DATA_SYNC",
@@ -3073,7 +3126,7 @@ export async function deleteRushMilestone(milestoneId: string) {
   });
   revalidatePath("/god/rush-sylvestre");
   revalidatePath("/dashboard");
-  return { success: true };
+  return { success: true, alreadyDeleted: false };
 }
 
 /**
@@ -3212,12 +3265,17 @@ export async function upsertRushSequence(data: {
 }
 
 /**
- * (God) Supprime une séquence Rush.
+ * (God) Supprime une séquence Rush — **IDEMPOTENT**.
+ * Même correctif que `deleteRushMilestone` : `delete()` jetait P2025 sur une ligne déjà
+ * supprimée (cascade d'un bloc supprimé juste avant, double clic). Périmètre inchangé
+ * (l'accès à la brique rush est déjà vérifié par `requireRushAccess`).
  */
 export async function deleteRushSequence(sequenceId: string) {
   await requireRushAccess();
 
-  await db.guideSequence.delete({ where: { id: sequenceId } });
+  const { count } = await db.guideSequence.deleteMany({ where: { id: sequenceId } });
+  if (count === 0) return { success: true, alreadyDeleted: true };
+
   await logGodWrite({
     action: "GOD_RUSH_UPDATE",
     targetType: "DATA_SYNC",
@@ -3226,5 +3284,5 @@ export async function deleteRushSequence(sequenceId: string) {
   });
   revalidatePath("/god/rush-sylvestre");
   revalidatePath("/dashboard");
-  return { success: true };
+  return { success: true, alreadyDeleted: false };
 }

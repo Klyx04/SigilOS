@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { DoorOpen, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { DungeonInfo } from "./overlay-utils";
+import { isPublicOverlay } from "./overlay-utils";
 
 interface RushOverlayDungeonCardProps {
   dungeons: DungeonInfo[];
@@ -14,17 +15,26 @@ interface RushOverlayDungeonCardProps {
 }
 
 /**
- * Liste propre des donjons requis — chaque ligne est un LIEN vers la fiche boss
- * (`/dashboard/{guildId}/succes?dungeon={id}&view=boss`).
+ * Liste propre des donjons requis — chaque ligne est un LIEN vers la fiche du donjon.
  *
- * La donnée de jeu porte l'immersion (vignette officielle du boss + nom du
- * donjon) ; le panneau, lui, reste neutre : surface `--surface`, un filet, un
- * rayon de 4 px. Le bleu décoratif de l'ancienne version (`bg-blue-50`,
- * `text-blue-600`) ne disait rien — il est remplacé par le neutre, et l'ocre est
- * réservé au badge « Ocre », qui est une information, pas une décoration.
+ * 🎯 Demande user (21/09/2026) : « les dj dans les quêtes : le survol doit afficher le(s)
+ * dj … cliquable vers sa page (si overlay du guide public, page publique du dj ; si overlay
+ * du guide interne, page dj du module fiche boss) ».
+ *
+ * Destination du lien, déduite de `guildId` par la règle partagée `isPublicOverlay` :
+ *   · **public** → `/boss/<slug|id>` (fiche publique, hors guilde) ;
+ *   · **interne** → `/dashboard/<guildId>/succes?dungeon=<slug|id>&view=boss` (fiche boss du
+ *     module).
+ *
+ * La donnée de jeu porte l'immersion (vignette officielle du boss + nom du donjon) ; le
+ * panneau, lui, reste neutre : surface `--surface`, un filet, un rayon de 4 px. Le bleu
+ * décoratif de l'ancienne version (`bg-blue-50`, `text-blue-600`) ne disait rien — il est
+ * remplacé par le neutre, et l'ocre est réservé au badge « Ocre », qui est une information,
+ * pas une décoration.
  */
 export function RushOverlayDungeonCard({ dungeons, guildId, className }: RushOverlayDungeonCardProps) {
   if (dungeons.length === 0) return null;
+  const isPublic = isPublicOverlay(guildId);
 
   return (
     <div className={cn("rounded-[4px] border border-border bg-surface p-2.5", className)}>
@@ -36,15 +46,19 @@ export function RushOverlayDungeonCard({ dungeons, guildId, className }: RushOve
         {dungeons.map((dj, i) => {
           // Segment d'URL : slug public si la donnée de jeu le porte, sinon identifiant.
           const segment = dj?.slug ?? dj?.id;
-          const href = segment ? `/boss/${encodeURIComponent(segment)}` : (guildId && segment ? `/dashboard/${guildId}/succes?dungeon=${encodeURIComponent(segment)}&view=boss` : null);
-          return <DungeonRow key={i} dj={dj} href={href} />;
+          const href = !segment
+            ? null
+            : isPublic
+              ? `/boss/${encodeURIComponent(segment)}`
+              : `/dashboard/${guildId}/succes?dungeon=${encodeURIComponent(segment)}&view=boss`;
+          return <DungeonRow key={i} dj={dj} href={href} isPublic={isPublic} />;
         })}
       </div>
     </div>
   );
 }
 
-function DungeonRow({ dj, href }: { dj: DungeonInfo; href: string | null }) {
+function DungeonRow({ dj, href, isPublic }: { dj: DungeonInfo; href: string | null; isPublic: boolean }) {
   const [imgError, setImgError] = useState(false);
   const rawName = dj?.name || "Donjon";
   const bossDisplayName = dj?.bossName || rawName.replace(/^Donjon (du |de la |de l'|de |des )/i, "");
@@ -84,7 +98,7 @@ function DungeonRow({ dj, href }: { dj: DungeonInfo; href: string | null }) {
       href={href}
       target="_blank"
       rel="noopener noreferrer"
-      title={`Voir la fiche boss de ${bossDisplayName}`}
+      title={isPublic ? `Voir la fiche publique de ${bossDisplayName}` : `Ouvrir la fiche boss de ${bossDisplayName}`}
       className="group flex items-center gap-2.5 rounded-[4px] px-2 py-1.5 transition-colors hover:bg-elevated"
     >
       {inner}

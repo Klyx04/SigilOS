@@ -319,8 +319,8 @@ export function RushChapterSidebar({
                       ) : (
                         <DoorOpen className="w-5 h-5 text-muted-foreground shrink-0" />
                       )}
-                      <span className="truncate min-w-0">{d.name}</span>
-                      {d.bossName ? <span className="text-[10px] text-muted-foreground truncate shrink-0 max-w-[45%]">{d.bossName}</span> : null}
+                      <span className="min-w-0 break-words">{d.name}</span>
+                      {d.bossName ? <span className="text-[10px] text-muted-foreground shrink-0 max-w-[45%] break-words">{d.bossName}</span> : null}
                     </span>
                   ))}
                 </div>
@@ -335,7 +335,7 @@ export function RushChapterSidebar({
                       {/* Picto du métier réel (référentiel des 20 métiers), posé NU. */}
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={getMetierIconPath(m.name)} alt="" title={m.name} className="w-5 h-5 object-contain shrink-0" />
-                      <span className="truncate min-w-0">{m.name}</span>
+                      <span className="min-w-0 break-words">{m.name}</span>
                       {m.level ? <b className="font-mono font-medium text-muted-foreground shrink-0">{m.level}</b> : null}
                     </span>
                   ))}
@@ -407,7 +407,9 @@ export function RushChapterSidebar({
                       title={`Copier le nom « ${item.name} »`}
                       aria-label={`Copier le nom ${item.name}`}
                       className={cn(
-                        "font-medium truncate text-xs text-left block w-full max-w-full",
+                        // Nom COMPLET (plus de `truncate`) : un objet Dofus porte parfois
+                        // un nom long, et un nom mangé ne sert à rien.
+                        "font-medium text-xs text-left block w-full max-w-full break-words",
                         item.isCompleted ? "line-through text-muted-foreground" : "text-foreground",
                         "hover:text-success transition-colors cursor-pointer"
                       )}

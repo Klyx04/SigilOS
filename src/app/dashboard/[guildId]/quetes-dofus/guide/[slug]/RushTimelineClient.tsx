@@ -8,7 +8,7 @@ import {
   BookmarkCheck, Loader2, CheckCheck,
   Sparkles, Construction, AlertTriangle, Sword, Lock, MapPin, Plus,
   Pencil, Crown, ChevronRight, ListCollapse, Info, Check, Shield, Search, X, CircleHelp, ClipboardList,
-  Settings2, Ghost, Maximize2, Lightbulb
+  Settings2, Ghost, Maximize2, Lightbulb, Package
 } from "lucide-react";
 
 import Link from "next/link";
@@ -46,20 +46,32 @@ import {
   resetMilestoneProgress,
   setRushSequenceProgress,
   setRushBookmark,
+  setRushResourceChecks,
   applyRushAlignmentFromSequence,
   resetRushAlignment,
 } from "@/server/actions/optimized-guide-actions";
 import { GuildStatusPanel } from "./GuildStatusPanel";
 import { QuestGroupRenderer, useQuestGroups } from "./QuestGroup";
 import { QuestFeedbackButton } from "@/components/dofus-quests/QuestFeedbackButton";
-import { RushChapterSidebar } from "./RushChapterSidebar";
+// Sidebar « Chapitres / ce qu'il faut prévoir » — composant PARTAGÉ (dashboard
+// membre ↔ guide public) : même rendu, mêmes données dérivées.
+import { RushChapterSidebar } from "@/components/dofus-quests/rush/RushChapterSidebar";
 import { RushOverlayQuestDetailModal } from "@/app/overlay/guide/[guildId]/[slug]/components/RushOverlayQuestDetailModal";
+// Modale « Ressources à prévoir » + agrégation : SOURCE UNIQUE partagée avec
+// l'overlay et la page publique (mêmes clés de coche des deux côtés).
+import { RushOverlayResourcesModal } from "@/app/overlay/guide/[guildId]/[slug]/components/RushOverlayResourcesModal";
+import { aggregateRushResources } from "@/app/overlay/guide/[guildId]/[slug]/components/overlay-utils";
 import { isSequenceBlockedByPrereqs, resolveRushSeqIcon, getGuideMetiersRequires } from "@/lib/rush-guide-utils";
+import { toOcrePanelData } from "@/lib/ocre-soul-stones";
 import { metierIds } from "@/lib/metiers";
 import type { RushUIConfig } from "@/lib/rush-ui-config";
 import { safeImageUrl } from "@/lib/security";
 import { getAlignmentSet, collectCascadeUncheck } from "@/lib/rush-helpers";
 import { RushHelperBadge } from "@/components/rush/RushHelperBadge";
+import { RushSeparatorBanner } from "@/components/dofus-quests/rush/RushSeparatorBanner";
+import { RushInfoBanner } from "@/components/dofus-quests/rush/RushInfoBanner";
+import { RushRichText } from "@/components/dofus-quests/rush/RushRichText";
+import { RushInfoSequenceBanner } from "@/components/dofus-quests/rush/RushInfoSequenceBanner";
 import { MilestoneCelebrationBurst } from "@/components/dofus-quests/rush/MilestoneCelebration";
 import { RushCoordinateChip } from "@/components/dofus-quests/rush/RushCoordinateChip";
 import { brandIconForUrl } from "@/lib/source-icons";
@@ -70,7 +82,7 @@ type ActivityTag = { type: string; name?: string; level?: number; count?: number
 type Sequence = { id: string; subGuideRef: string; subGuideName: string; stepFrom?: number|null; stepTo?: number|null; note?: string|null; isOptional: boolean; order: number; dungeon?: DungeonRef|null; dungeons?: DungeonRef[]; dofusdbUrl?: string|null; dofuspourlesnoobsUrl?: string|null; tips?: string|null; alignReq?: string|null; alignOrderReq?: number|null; isSuccess?: boolean; icon?: string | null; metamobMonsterId?: number|null; activityTags?: ActivityTag[]; };
 type Milestone = { id:string; title:string; subtitle?:string|null; description?:string|null; type:string; accentColor?:string|null; imageUrl?:string|null; chapter:number; chapterLabel:string; order:number; isOptional:boolean; tips?:string|null; dofusId?:string|null; sequences:Sequence[]; playerProgress?:{isCompleted:boolean;completedSteps?:any;currentStep?:string|null}[]; };
 type GuildMemberProgress = { profileId:string; milestoneId:string; isCompleted:boolean; userName:string; userAvatar?:string; currentStep?:string|null };
-type RushTimelineClientProps = { guide:{id:string;name:string;slug:string;description?:string|null;isUnderConstruction?:boolean;imageUrl?:string|null;isDiscordConfigured?:boolean}; milestones:Milestone[]; guildProgress:GuildMemberProgress[]; guildId:string; selectedCharacter?:string; mules?:any[]; rushUIConfig?: RushUIConfig; currentUserProfile:{alignment?:string|null;alignmentOrder?:string|null;alignmentLevel?:number;altPseudos?:any[];dofusClass?:string|null;metamobPseudo?:string|null;metiers?:any[];pseudoDofus?:string|null;}; ocreStats?:{bosses?:{total:number;gathered:number};archis?:{total:number;gathered:number};progressPercent?:number;currentStep?:number;serverName?:string}|null; capturedOcreMonsterIds?:number[]; capturedMonsterNames?:string[]; ocreMonsters?:OcreMonsterLite[]; };
+type RushTimelineClientProps = { guide:{id:string;name:string;slug:string;description?:string|null;isUnderConstruction?:boolean;imageUrl?:string|null;isDiscordConfigured?:boolean}; milestones:Milestone[]; guildProgress:GuildMemberProgress[]; guildId:string; selectedCharacter?:string; mules?:any[]; rushUIConfig?: RushUIConfig; currentUserProfile:{alignment?:string|null;alignmentOrder?:string|null;alignmentLevel?:number;altPseudos?:any[];dofusClass?:string|null;metamobPseudo?:string|null;metiers?:any[];pseudoDofus?:string|null;}; ocreStats?:{bosses?:{total:number;gathered:number};archis?:{total:number;gathered:number};progressPercent?:number;currentStep?:number;serverName?:string;parallelQuests?:number}|null; capturedOcreMonsterIds?:number[]; capturedMonsterNames?:string[]; ocreMonsters?:OcreMonsterLite[]; initialResourceChecks?:string[]; };
 const DOFUS_DEFS = [
   { id:"ocre", label:"Ocre", color:"#f59e0b", imageUrl:"/assets/icons/ocre.png" }, { id:"turquoise", label:"Turquoise", color:"#06b6d4", imageUrl:"/module-dofus/Dofus_Turquoise.png" },
   { id:"argente", label:"Argenté", color:"#a1a1aa", imageUrl:"/module-dofus/Dofus_Argente.png" }, { id:"argente_scintillant", label:"Arg. Scintillant", color:"#c0c0c0", imageUrl:"/module-dofus/Dofus_Argente_Scintillant.png" },
@@ -90,12 +102,11 @@ function TougliCallout({text,colorStyle="emerald"}:{text:string;colorStyle?:stri
       ? "bg-gradient-to-r from-warning/15 via-warning/[0.04] to-transparent"
       : "bg-gradient-to-r from-success/12 via-success/[0.03] to-transparent";
   const accentText = isPurple ? "text-info" : isAmber ? "text-warning" : "text-success";
-  const parts = renderContentWithCoords(text);
 
   return (
     <div className={`flex items-start gap-2.5 px-3 py-2 rounded-[4px] border ${borderCol} ${bgGrad} my-1.5`}>
       <Sparkles className={`w-3.5 h-3.5 mt-0.5 shrink-0 ${accentText} opacity-80`} />
-      <div className="text-xs text-foreground/90 leading-relaxed font-sans font-medium">{parts}</div>
+      <div className="text-xs text-foreground/90 leading-relaxed font-sans font-medium"><RushRichText text={text} /></div>
     </div>
   );
 }
@@ -238,9 +249,6 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
   }, [guildProgressBySeq, seq.id]);
   const [membersModalOpen, setMembersModalOpen] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
-  const maxFloatingAvatars = 5;
-  const floatAvatars = seqMembers.slice(0, maxFloatingAvatars);
-  const floatExtra = seqMembers.length - maxFloatingAvatars;
   const questName=seq.subGuideName||seq.subGuideRef||"Quête sans nom";
   const allDungeons=seq.dungeons&&seq.dungeons.length>0?seq.dungeons:(seq.dungeon?[seq.dungeon]:[]);
   const dbUrl=seq.dofusdbUrl, noobsUrl=seq.dofuspourlesnoobsUrl;
@@ -255,39 +263,41 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
     const totalPrereqs = prereqTags.length;
     const singleName = totalPrereqs === 1 ? prereqTags[0]?.name : null;
     return (
-      <div data-seq-id={seq.id} className={`rounded-[4px] border bg-warning/[0.04] border-warning/25 hover:border-warning/50 scroll-mt-24 transition-colors ${focusedSeqId===seq.id?"ring-1 ring-success/60":""}`}>
+      <div data-seq-id={seq.id} className={`rounded-[4px] border bg-danger/[0.05] border-danger/30 hover:border-danger/50 scroll-mt-24 transition-colors ${focusedSeqId===seq.id?"ring-1 ring-success/60":""}`}>
         <div className="px-3 pt-3 pb-0">
           <p className="text-[13px] font-semibold text-muted-foreground truncate">{questName}</p>
         </div>
         {totalPrereqs === 1 && singleName ? (
           <button type="button" onClick={e=>{e.stopPropagation();scrollToPrereq(singleName);}}
-            className="w-full flex items-center gap-3 px-3 pb-3 pt-2 text-left group focus-visible:outline-2 focus-visible:outline-warning/50 rounded-[4px]"
+            className="w-full flex items-center gap-3 px-3 pb-3 pt-2 text-left group focus-visible:outline-2 focus-visible:outline-danger/50 rounded-[4px]"
             aria-label={`Voir la quête requise : ${singleName}`}
             data-tour={isFirstVisible ? "quest-prerequisite" : undefined}
           >
-            {/* Filet, pas de tuile teintée : l'état « bloqué » se dit par la couleur
-                du texte et du glyphe, comme partout ailleurs. */}
-            <Lock className="w-3.5 h-3.5 text-warning shrink-0" />
+            {/* Le DANGER dit le verrou, jamais l'ambre : l'ambre est le REPÈRE
+                (« Je suis ici »). Les deux états avaient la même couleur de carte —
+                impossible de lire lequel bloquait. Filet + teinte rouge, comme le
+                cadenas et le libellé. */}
+            <Lock className="w-3.5 h-3.5 text-danger shrink-0" />
             <div className="flex-1 min-w-0">
               <p className="text-[11px] text-muted-foreground mb-0.5">À terminer avant</p>
-              <p className="text-[13px] font-semibold text-warning truncate">{singleName}</p>
+              <p className="text-[13px] font-semibold text-danger truncate">{singleName}</p>
             </div>
-            <ChevronRight className="w-3.5 h-3.5 text-warning/50 group-hover:text-warning/80 transition-colors shrink-0" />
+            <ChevronRight className="w-3.5 h-3.5 text-danger/50 group-hover:text-danger/80 transition-colors shrink-0" />
           </button>
         ) : (
           <div className="px-3 pb-3 pt-2">
             <div className="flex items-center gap-2 mb-2">
-              <Lock className="w-3.5 h-3.5 text-warning shrink-0" />
+              <Lock className="w-3.5 h-3.5 text-danger shrink-0" />
               <p className="text-[11px] text-muted-foreground">{totalPrereqs} prérequis à terminer</p>
             </div>
             <div className="flex flex-wrap items-center gap-1.5">
               {prereqTags.map((t:any,i:number)=>(
                 <button key={i} type="button" onClick={e=>{e.stopPropagation();scrollToPrereq(t.name||"");}}
-                  className="inline-flex items-center gap-1.5 px-2 py-1 rounded-[4px] text-[11px] font-semibold text-warning border border-warning/30 hover:bg-warning/10 transition-colors group focus-visible:outline-2 focus-visible:outline-warning/50"
+                  className="inline-flex items-center gap-1.5 px-2 py-1 rounded-[4px] text-[11px] font-semibold text-danger border border-danger/30 hover:bg-danger/10 transition-colors group focus-visible:outline-2 focus-visible:outline-danger/50"
                   aria-label={`Voir la quête requise : ${t.name}`}
                 >
                   <span className="truncate max-w-[140px]">{t.name}</span>
-                  <ChevronRight className="w-2.5 h-2.5 text-warning/50 group-hover:text-warning/80 transition-colors shrink-0" />
+                  <ChevronRight className="w-2.5 h-2.5 text-danger/50 group-hover:text-danger/80 transition-colors shrink-0" />
                 </button>
               ))}
             </div>
@@ -474,14 +484,18 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
             </button>
           </div>
         </div>
-        {/* ── Membres sur cette quête (avatars bookmark) ── */}
-        {isThisBookmarked && !isSeqCompleted && seqMembers.length > 0 && (
+        {/* ── Membres ici : qui a posé son repère sur CETTE quête (guilde) ──
+            Affiché dès qu'un membre y est — le repère d'un coéquipier doit se voir
+            sans que J'AIE posé le mien (même règle que l'overlay). Cliquable : la
+            rangée ouvre la liste des pseudos présents sur cette quête. */}
+        {!isSeqCompleted && seqMembers.length > 0 && (
           <div>
             <button
               type="button"
               onClick={e => { e.stopPropagation(); setMembersModalOpen(true); }}
-              className="flex items-center gap-1.5 cursor-pointer"
-              title={`${seqMembers.length} membre${seqMembers.length > 1 ? "s" : ""} ici`}
+              className="flex items-center gap-1.5 cursor-pointer rounded-[3px] px-1 py-0.5 transition-colors hover:bg-warning/10"
+              title={`Voir les membres ici : ${seqMembers.length}`}
+              aria-label={`Voir les membres ici : ${seqMembers.length}`}
             >
               <div className="flex -space-x-1">
                 {seqMembers.slice(0, 5).map(m => (
@@ -577,7 +591,7 @@ function CollapsibleHints({ tipsText, note }: { tipsText: string; note: string |
       {open && (
         <div className="space-y-1.5 pt-2">
           {tipsText && (
-            <div className="flex flex-wrap items-center gap-1 text-xs leading-relaxed text-muted-foreground">{renderContentWithCoords(tipsText)}</div>
+            <div className="flex flex-wrap items-center gap-1 text-xs leading-relaxed text-muted-foreground"><RushRichText text={tipsText} /></div>
           )}
           {note && (
             <p className="text-[11px] italic leading-relaxed text-muted-foreground">Note : {note}</p>
@@ -604,6 +618,17 @@ function DofusObtainedBanner({ milestone }: { milestone: Milestone }) {
           background: `linear-gradient(135deg, ${color}10 0%, rgba(0,0,0,0.5) 50%, ${color}06 100%)`,
         }}
       >
+        {/* Image du bloc — importée côté GOD : posée en tête de carte, NUE (l'œuf du Dofus
+            reste le picto du TYPE, l'image est l'illustration de l'obtention). */}
+        {milestone.imageUrl && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={safeImageUrl(milestone.imageUrl)}
+            alt=""
+            onError={e => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+            className="max-h-40 w-full object-contain"
+          />
+        )}
         {/* Inner content */}
         <div className="relative flex flex-col items-center gap-5 py-8 px-6 text-center">
           {/* Dofus icon — large egg */}
@@ -657,122 +682,28 @@ function DofusObtainedBanner({ milestone }: { milestone: Milestone }) {
 }
 
 // ─── InfoBanner (for INFO type milestones — tips/conseil bandeau) ────────────
-function getInfoStyle(accentColor?: string|null): { border: string; bg: string; icon: string } {
-  if (!accentColor) return { border:"border-success/30", bg:"from-success/20 via-background to-background", icon:"💡" };
-  const c = accentColor.toLowerCase();
-  if (c.startsWith("#ef")||c.startsWith("#f4")||c.startsWith("#f5")||c.startsWith("#eab")||c.startsWith("#dc")||c.startsWith("#f9")) 
-    return { border:"border-warning/30", bg:"from-warning/20 via-background to-background", icon:"⚠️" };
-  if (c.startsWith("#3b")||c.startsWith("#06")||c.startsWith("#4f")||c.startsWith("#63")||c.startsWith("#0e")||c.startsWith("#38"))
-    return { border:"border-info/30", bg:"from-info/20 via-background to-background", icon:"📖" };
-  if (c.startsWith("#7c")||c.startsWith("#a8")||c.startsWith("#8b")||c.startsWith("#c0"))
-    return { border:"border-info/30", bg:"from-info/20 via-background to-background", icon:"🔮" };
-  return { border:"border-success/30", bg:"from-success/20 via-background to-background", icon:"💡" };
-}
-function renderContentWithCoords(text: string, guildId: string = ""): (string | React.ReactNode)[] {
-  const parts: (string | React.ReactNode)[] = [];
-  // Combine link regex and coordinate regex in one pass
-  // Order matters: [text](url), raw urls, /travel X Y, /travel X,Y, [X, Y], [X, Y, W]
-  const combinedRx = /\[([^\]]+)\]\(([^)]+)\)|(https?:\/\/[^\s]+)|(?:\/travel\s+(-?\d+)\s*[,;]\s*(-?\d+)(?!\d))|\[(-?\d+),\s*(-?\d+)(?:,\s*(\d+))?\]/g;
-  let li = 0, m: RegExpExecArray | null;
-  while ((m = combinedRx.exec(text)) !== null) {
-    if (m.index > li) parts.push(text.slice(li, m.index));
-    if (m[1] && m[2]) {
-      // Markdown link [text](url)
-      parts.push(<a key={m.index} href={m[2]} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-0.5 font-bold underline underline-offset-2 transition-colors text-success hover:text-success decoration-success/50">{m[1]}<ExternalLink className="w-3 h-3 inline-block ml-0.5 opacity-80 shrink-0"/></a>);
-    } else if (m[3]) {
-      // Raw URL
-      let label = m[3];
-      if (m[3].includes("dofusdb.fr")) label = "Lien DofusDB ↗";
-      else if (m[3].includes("dofuspourlesnoobs.com")) label = "Lien DofusNoobs ↗";
-      parts.push(<a key={m.index} href={m[3]} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-0.5 font-bold underline underline-offset-2 transition-colors text-success hover:text-success decoration-success/50">{label}</a>);
-    } else if (m[4] && m[5]) {
-      // /travel X, Y format
-      const x = m[4], y = m[5];
-      const worldId = m[8] ? parseInt(m[8], 10) : undefined;
-      // Même chip mono neutre que la ligne d'étape et que le guide public.
-      const chip = <RushCoordinateChip key={`pos-${m.index}`} coordText={`${x}, ${y}`} showIcon />;
-      parts.push(
-        <MapPositionPopover key={`popover-${m.index}`} posX={parseInt(x, 10)} posY={parseInt(y, 10)} worldId={worldId} guildId={guildId} contextLabel={text}>
-          {chip}
-        </MapPositionPopover>
-      );
-    } else if (m[6] && m[7]) {
-      // [x, y] or [x, y, world] format
-      const x = m[6], y = m[7];
-      const worldId = m[8] ? parseInt(m[8], 10) : undefined;
-      const chip = <RushCoordinateChip key={`pos-${m.index}`} coordText={`${x}, ${y}`} showIcon />;
-      parts.push(
-        <MapPositionPopover key={`popover-${m.index}`} posX={parseInt(x, 10)} posY={parseInt(y, 10)} worldId={worldId} guildId={guildId} contextLabel={text}>
-          {chip}
-        </MapPositionPopover>
-      );
-    }
-    li = combinedRx.lastIndex;
-  }
-  if (li < text.length) parts.push(text.slice(li));
-  return parts;
-}
-
 function InfoBanner({ milestone }: { milestone: Milestone }) {
-  const color = milestone.accentColor || "#10b981";
   const content = milestone.tips || milestone.description || milestone.title || "";
-  const parts = renderContentWithCoords(content);
   const hasTitle = !!milestone.title && !content.startsWith(milestone.title);
-  const isWarm = color.startsWith("#ef")||color.startsWith("#f4")||color.startsWith("#f5")||color.startsWith("#eab")||color.startsWith("#dc")||color.startsWith("#f9");
-  const isCool = color.startsWith("#3b")||color.startsWith("#06")||color.startsWith("#4f")||color.startsWith("#63")||color.startsWith("#0e")||color.startsWith("#38");
-  const isPurple = color.startsWith("#7c")||color.startsWith("#a8")||color.startsWith("#8b")||color.startsWith("#c0");
-  let icon = "💡";
-  if (isWarm) icon = "⚠️";
-  else if (isCool) icon = "📖";
-  else if (isPurple) icon = "🔮";
 
+  // Le bandeau lui-même vit dans `RushInfoBanner` (composant PARTAGÉ avec le guide public
+  // et l'overlay) et le texte enrichi dans `RushRichText` (liens nommés + positions
+  // copiables en `/w x,y`) : ici on ne choisit que le contenu.
   return (
-    <div className="relative my-3 rounded-[6px] overflow-hidden border select-none"
-      style={{
-        borderColor: `${color}30`,
-        background: `linear-gradient(135deg, ${color}12 0%, rgba(0,0,0,0.5) 50%, ${color}08 100%)`,
-      }}
+    <RushInfoBanner
+      title={hasTitle ? milestone.title : null}
+      imageUrl={milestone.imageUrl}
+      accentColor={milestone.accentColor}
     >
-      <div className="relative flex items-start gap-3 p-3">
-        <span className="text-lg leading-none mt-0.5 shrink-0">{icon}</span>
-        <div className="text-xs text-foreground leading-relaxed font-medium flex-1 min-w-0">
-          {hasTitle && <p className="font-[family-name:var(--font-cinzel)] font-semibold text-sm mb-1 " style={{color}}>{milestone.title}</p>}
-          {parts}
-        </div>
-      </div>
-    </div>
+      <RushRichText text={content} />
+    </RushInfoBanner>
   );
 }
 
-// ─── InfoSequenceBanner (bandeau informatif non-cliquable dans un bloc) ─────
-function InfoSequenceBanner({ seq, accentColor }: { seq: Sequence; accentColor: string }) {
-  const color = seq.activityTags?.find((t: any) => t.type === "info_sequence")?.color || accentColor || "#10b981";
-  const content = seq.tips || seq.subGuideName || seq.subGuideRef || "";
-  const parts = renderContentWithCoords(content);
-  const isWarm = color.startsWith("#ef")||color.startsWith("#f4")||color.startsWith("#f5")||color.startsWith("#eab")||color.startsWith("#dc")||color.startsWith("#f9");
-  const isCool = color.startsWith("#3b")||color.startsWith("#06")||color.startsWith("#4f")||color.startsWith("#63")||color.startsWith("#0e")||color.startsWith("#38");
-  const isPurple = color.startsWith("#7c")||color.startsWith("#a8")||color.startsWith("#8b")||color.startsWith("#c0");
-  let icon = "💡";
-  if (isWarm) icon = "⚠️";
-  else if (isCool) icon = "📖";
-  else if (isPurple) icon = "🔮";
-
-  return (
-    <div className="relative rounded-[6px] overflow-hidden border select-none"
-      style={{
-        borderColor: `${color}25`,
-        background: `linear-gradient(135deg, ${color}10 0%, rgba(0,0,0,0.4) 50%, ${color}06 100%)`,
-      }}
-    >
-      <div className="relative flex items-start gap-2.5 p-3">
-        <span className="text-base leading-none mt-0.5 shrink-0">{icon}</span>
-        <div className="text-xs sm:text-sm text-foreground/90 leading-relaxed font-medium flex-1 min-w-0 flex flex-wrap items-center gap-x-2 gap-y-1">
-          {parts}
-        </div>
-      </div>
-    </div>
-  );
-}
+// ─── InfoSequenceBanner — remplacé par le composant PARTAGÉ ──────────────────
+// Le rendu du bandeau d'une séquence « info_sequence » vit maintenant dans
+// `@/components/dofus-quests/rush/RushInfoSequenceBanner` (une seule grammaire pour le
+// dashboard, le guide public et l'overlay).
 const MilestoneRow = memo(function MilestoneRow({ ms, isCompleted, completedStepsSet, isBookmarked, membersHere, hideDone, isLoading, accentColor, userAlignmentInfo, focusedSeqId, onFocusSequence, onToggle, onToggleSequence, onReset, onDungeonClick, isSearching, blockIndex }: any) {
   const [expanded,setExpanded]=useState(false);
   const bookmarksByMs = React.useContext(BookmarkedSeqCtx);
@@ -865,7 +796,7 @@ const MilestoneRow = memo(function MilestoneRow({ ms, isCompleted, completedStep
 {ms.tips && (
                   <div className="mb-1 flex items-start gap-2.5 rounded-[4px] border border-warning/20 bg-warning/[0.06] px-3 py-2 text-xs leading-relaxed text-muted-foreground">
                     <Sparkles className="w-3.5 h-3.5 text-warning/70 shrink-0 mt-0.5" />
-                    <div className="flex-1 flex flex-wrap items-center gap-1">{renderContentWithCoords(ms.tips)}</div>
+                    <div className="flex-1 flex flex-wrap items-center gap-1"><RushRichText text={ms.tips} /></div>
                   </div>
                 )}
                 <CompletedStepsCtx.Provider value={completedStepsSet}>
@@ -874,7 +805,7 @@ const MilestoneRow = memo(function MilestoneRow({ ms, isCompleted, completedStep
                   ) : (
                     visibleSeqs.map((s:any)=>(
                       isInfoSequence(s) ? (
-                        <InfoSequenceBanner key={s.id} seq={s} accentColor={c} />
+                        <RushInfoSequenceBanner key={s.id} seq={s} accentColor={c} />
                       ) : (
                         <SequenceRow key={s.id} seq={s} ms={ms} isSeqCompleted={completedStepsSet.has(s.id)} focusedSeqId={focusedSeqId} accentColor={c} userAlignmentInfo={userAlignmentInfo} onToggleSeq={()=>onToggleSequence(ms,s.id)} onDungeonClick={onDungeonClick} isFirstVisible={s.id===firstVisibleSeqId}/>
                       )
@@ -886,21 +817,6 @@ const MilestoneRow = memo(function MilestoneRow({ ms, isCompleted, completedStep
           )}
         </AnimatePresence>
       </div>
-    </div>
-  );
-});
-
-// ─── SectionDivider ───────────────────────────────────────────────────────────
-const SectionDivider = memo(function SectionDivider({title,accentColor="#e6b96b"}:{title:string;accentColor?:string}) {
-  return (
-    // Séparateur de chapitre : exactement la grammaire du guide public (filet, un
-    // eyebrow mono, le titre fort). Plus de dégradés, plus de paillettes, plus de
-    // capitales espacées — c'était le vocabulaire « landing » sur une page de travail.
-    <div className="relative my-6 border-t border-border pt-4 select-none">
-      <span className="block font-mono text-[11px] font-semibold uppercase tracking-[0.055em]" style={{ color: accentColor }}>
-        Étape charnière
-      </span>
-      <h2 className="mt-1 text-base font-bold text-foreground sm:text-lg">{title}</h2>
     </div>
   );
 });
@@ -1072,7 +988,7 @@ function ContextualHelp({ label, children, className }: { label: string; childre
 // MAIN COMPONENT
 // ══════════════════════════════════════════════════════════════════════════════
 
-export default function RushTimelineClient({ guide, milestones, guildProgress, guildId, selectedCharacter="PRINCIPAL", mules=[], currentUserProfile, rushUIConfig, ocreStats, capturedOcreMonsterIds, capturedMonsterNames, ocreMonsters=[] }: RushTimelineClientProps) {
+export default function RushTimelineClient({ guide, milestones, guildProgress, guildId, selectedCharacter="PRINCIPAL", mules=[], currentUserProfile, rushUIConfig, ocreStats, capturedOcreMonsterIds, capturedMonsterNames, ocreMonsters=[], initialResourceChecks }: RushTimelineClientProps) {
 const capturedMonsterSet=useMemo(()=>new Set(capturedOcreMonsterIds||[]),[capturedOcreMonsterIds]);
   const capturedMonsterNamesMemo=useMemo(()=>capturedMonsterNames||[], [capturedMonsterNames]);
   const router=useRouter();const altPseudo=selectedCharacter!=="PRINCIPAL"?selectedCharacter:undefined;
@@ -1118,8 +1034,25 @@ const capturedMonsterSet=useMemo(()=>new Set(capturedOcreMonsterIds||[]),[captur
       character: selectedCharacter === "PRINCIPAL"
         ? { pseudo: currentUserProfile?.pseudoDofus || "Principal", classe: currentUserProfile?.dofusClass || null, isMain: true }
         : { pseudo: selectedCharacter, classe: (mules || []).find((m: any) => m.pseudo === selectedCharacter)?.classe || null, isMain: false },
+      // Quête Ocre : figée avec le reste du payload (aucun fetch dans la fenêtre PiP).
+      ocre: toOcrePanelData(
+        ocreStats
+          ? {
+              monsters: ocreMonsters || [],
+              questInfo: {
+                currentStep: ocreStats.currentStep ?? 0,
+                // Même constante que `getMyOcreProgress` (questInfo.totalSteps) : la quête
+                // de l'Éternelle Moisson compte 34 étapes côté Metamob.
+                totalSteps: 34,
+                serverName: ocreStats.serverName,
+                parallelQuests: ocreStats.parallelQuests,
+              },
+              pseudo: currentUserProfile?.metamobPseudo ?? null,
+            }
+          : null
+      ),
     });
-  }, [guildId, guide, milestones, guildProgress, altPseudo, selectedCharacter, mules, currentUserProfile, openOverlay, closeOverlay]);
+  }, [guildId, guide, milestones, guildProgress, altPseudo, selectedCharacter, mules, currentUserProfile, ocreStats, ocreMonsters, openOverlay, closeOverlay]);
   // Local copy of profile for optimistic alignment updates (sync profile<->rush)
   const [localProfile,setLocalProfile]=useState(currentUserProfile);
   useEffect(()=>{setLocalProfile(currentUserProfile);},[currentUserProfile]);
@@ -1194,6 +1127,11 @@ const capturedMonsterSet=useMemo(()=>new Set(capturedOcreMonsterIds||[]),[captur
   const [ocreModalOpen,setOcreModalOpen]=useState(false);
   const [rushLiveModalOpen,setRushLiveModalOpen]=useState(false);
   const [penseBeteOpen,setPenseBeteOpen]=useState(false);
+  // ── Ressources à prévoir (bouton du module) + coches MANUELLES « déjà préparé » ──
+  // Les coches sont par MEMBRE et par PERSONNAGE (principale/mule) : elles viennent du
+  // serveur (`initialResourceChecks`) et y repartent à chaque geste.
+  const [resourcesModalOpen,setResourcesModalOpen]=useState(false);
+  const [resourceChecks,setResourceChecks]=useState<Set<string>>(()=>new Set(initialResourceChecks??[]));
   // Particules d'ambiance teintées au Dofus actif — désactivable (Options, défaut activé).
   const [rushParticlesEnabled,setRushParticlesEnabled]=useState<boolean>(() => {
     try { return localStorage.getItem(`rush-particles-${guide.slug}`) !== "false"; } catch { return true; }
@@ -1315,8 +1253,20 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
 
 
   const guildProgressByMs=useMemo(()=>{const m=new Map<string,GuildMemberProgress[]>;guildProgress.forEach(p=>{if(!p.isCompleted){if(!m.has(p.milestoneId))m.set(p.milestoneId,[]);m.get(p.milestoneId)!.push(p);}});return m;},[guildProgress]);
-  // ─── Guild progress by sequence (members with currentStep/bookmark on a specific seq) ──
-  const guildProgressBySeq=useMemo(()=>{const m=new Map<string,GuildMemberProgress[]>;guildProgress.forEach(p=>{if(p.currentStep&&p.currentStep.startsWith("seq:")){const seqId=p.currentStep.slice(4);if(!m.has(seqId))m.set(seqId,[]);m.get(seqId)!.push(p);}});return m;},[guildProgress]);
+  // ─── Guild progress by sequence (membres ayant posé leur repère sur une quête) ──
+  // `setRushBookmark` stocke l'id de séquence BRUT (`"abc"`) ; les vues legacy
+  // utilisaient `"seq:abc"`. On normalise les DEUX formes — sinon aucun repère réel
+  // n'était indexé (la map ne gardait que le préfixe) et les bulles de membres
+  // n'apparaissaient jamais sous une quête, alors que l'overlay, lui, les affichait.
+  // On ne garde que les ids qui EXISTENT dans le guide : un step-key Ganymède
+  // legacy (`GPx-N`) ne doit pas créer de bulles fantômes.
+  const guildProgressBySeq=useMemo(()=>{
+    const knownSeqIds=new Set<string>();
+    milestones.forEach(ms=>ms.sequences.forEach(s=>knownSeqIds.add(s.id)));
+    const m=new Map<string,GuildMemberProgress[]>;
+    guildProgress.forEach(p=>{if(!p.currentStep||p.isCompleted)return;const raw=String(p.currentStep);const seqId=raw.startsWith("seq:")?raw.slice(4):raw;if(!knownSeqIds.has(seqId))return;if(!m.has(seqId))m.set(seqId,[]);m.get(seqId)!.push(p);});
+    return m;
+  },[guildProgress,milestones]);
   const tMs=contentMilestones.length;const completedCount=contentMilestones.filter(ms=>completedIds.has(ms.id)).length;
   const overallPercent=tMs>0?Math.round((completedCount/tMs)*100):0;
 
@@ -1368,7 +1318,28 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
     }
     return all;
   }, [milestones, completedIds, completedStepsByMs]);
-  // (modale ressources dashboard retirée — les ressources restent dans l'overlay)
+  // ── Ressources à prévoir (bouton du module) ──────────────────────────────────
+  // `remaining` = recalculé à chaque coche de quête (temps réel), `all` = total statique
+  // du guide. Même agrégation que l'overlay et la page publique.
+  const rushResourcesAll = useMemo(() => aggregateRushResources(milestones as any), [milestones]);
+  const rushResourcesRemaining = useMemo(
+    () => aggregateRushResources(milestones as any, allCompletedSeqIds),
+    [milestones, allCompletedSeqIds]
+  );
+  // Coche/décoche une ressource « déjà préparée » : optimiste, puis persistée côté
+  // serveur (par membre ET par personnage). Rollback si l'écriture échoue.
+  const handleToggleResourceCheck = useCallback(async (key: string) => {
+    const previous = resourceChecks;
+    const next = new Set(previous);
+    next.has(key) ? next.delete(key) : next.add(key);
+    setResourceChecks(next);
+    try {
+      await setRushResourceChecks(guildId, guide.slug, [...next], effectiveAltPseudo);
+    } catch {
+      setResourceChecks(previous);
+      toast.error("Impossible d'enregistrer la préparation");
+    }
+  }, [resourceChecks, guildId, guide.slug, effectiveAltPseudo]);
 
   // Séquences bloquées par un prérequis non terminé → impossible de cocher / poser un repère
   const blockedSeqIds = useMemo(() => {
@@ -1818,13 +1789,16 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
 
             <button
               type="button"
-              onClick={() => void handleOverlayClick()}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[4px] bg-success text-success-foreground text-xs font-medium transition-colors hover:bg-success/90"
-              title="Ouvrir le guide en overlay — fenêtre épinglée au-dessus du jeu, sans rien installer"
-              aria-label="Ouvrir Overlay"
+              onClick={() => setResourcesModalOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[4px] border border-border text-xs font-medium text-muted-foreground transition-colors hover:text-foreground hover:border-foreground/20"
+              title="Ressources à prévoir — le calcul suit les quêtes validées et vos coches manuelles"
+              aria-label="Ouvrir les ressources à prévoir"
             >
-              <Maximize2 className="w-3.5 h-3.5" />
-              Ouvrir Overlay
+              <Package className="w-3.5 h-3.5 text-muted-foreground" />
+              Ressources à prévoir
+              <span className="font-mono tabular-nums text-[11px] text-muted-foreground">
+                {rushResourcesRemaining.filter((r) => !resourceChecks.has(r.key)).length}
+              </span>
             </button>
 
             <button
@@ -1965,6 +1939,20 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
               </button>
             </div>
           </div>
+          <span aria-hidden="true" className="hidden md:block w-px self-stretch bg-border" />
+          {/* Overlay : même rangée que « Rush Live » — c'est le geste de la session
+              (« je regarde qui est là, puis j'ouvre l'overlay par-dessus le jeu »),
+              pas un réglage noyé dans la barre du haut. */}
+          <button
+            type="button"
+            onClick={() => void handleOverlayClick()}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[4px] bg-success text-success-foreground text-xs font-medium transition-colors hover:bg-success/90 shrink-0"
+            title="Ouvrir le guide en overlay — fenêtre épinglée au-dessus du jeu, sans rien installer"
+            aria-label="Ouvrir Overlay"
+          >
+            <Maximize2 className="w-3.5 h-3.5" />
+            Ouvrir Overlay
+          </button>
         </div>
         <div className="flex flex-wrap items-center gap-3 px-1 pt-1">
           <span className="text-[11px] text-muted-foreground flex items-center gap-1">Progression<ContextualHelp label="Aide progression">La progression se synchronise en temps réel avec les autres membres connectés. Chaque quête cochée met à jour le pourcentage global.</ContextualHelp></span>
@@ -2199,7 +2187,7 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
             {searchResults ? "résultats" : "filtre Dofus"} — les {chapterPages.length} chapitres sont affichés
           </p>
         )}
-        {milestones.length===0?<div className="py-16 text-center"><BookOpen className="w-10 h-10 text-muted-foreground mx-auto mb-3"/><p className="text-muted-foreground font-semibold uppercase text-xs tracking-widest">Aucun objectif</p></div>:<div className="space-y-2">{visibleItems.map((item:any)=>item.kind==="separator"?<SectionDivider key={item.ms.id} title={item.ms.title} accentColor={item.ms.accentColor||"#e6b96b"}/>:item.kind==="info"?<div key={item.ms.id}>{item.ms.type==="DOFUS_OBTAINED"?<DofusObtainedBanner milestone={item.ms}/>:<InfoBanner milestone={item.ms}/>}</div>:<ChapterBlock key={`ch-${item.chapterNum}`} chapterNum={item.chapterNum} label={item.label} showHeader={item.showHeader} milestones={item.milestoneList} completedIds={completedIds} completedStepsByMs={completedStepsByMs} bookmarksByMs={bookmarksByMs} guildProgressByMs={guildProgressByMs} hideDone={hideDone} loadingIds={loadingIds} dofusFilter={null} userAlignmentInfo={resolvedCharacterInfo} focusedSeqId={focusedSeqId} onFocusSequence={handleFocusSequence} onToggle={handleToggle} onToggleSequence={handleToggleSequence} onReset={handleReset} onDungeonClick={handleDungeonClick} onChapterClick={(c: number)=>setActiveChapter(c)} searchFilter={searchResults} forceOpen={!showEveryChapter && currentPage?.chapterNum === item.chapterNum}/>)}</div>}
+        {milestones.length===0?<div className="py-16 text-center"><BookOpen className="w-10 h-10 text-muted-foreground mx-auto mb-3"/><p className="text-muted-foreground font-semibold uppercase text-xs tracking-widest">Aucun objectif</p></div>:<div className="space-y-2">{visibleItems.map((item:any)=>item.kind==="separator"?<RushSeparatorBanner key={item.ms.id} title={item.ms.title} description={item.ms.description} imageUrl={item.ms.imageUrl} accentColor={item.ms.accentColor}/>:item.kind==="info"?<div key={item.ms.id}>{item.ms.type==="DOFUS_OBTAINED"?<DofusObtainedBanner milestone={item.ms}/>:<InfoBanner milestone={item.ms}/>}</div>:<ChapterBlock key={`ch-${item.chapterNum}`} chapterNum={item.chapterNum} label={item.label} showHeader={item.showHeader} milestones={item.milestoneList} completedIds={completedIds} completedStepsByMs={completedStepsByMs} bookmarksByMs={bookmarksByMs} guildProgressByMs={guildProgressByMs} hideDone={hideDone} loadingIds={loadingIds} dofusFilter={null} userAlignmentInfo={resolvedCharacterInfo} focusedSeqId={focusedSeqId} onFocusSequence={handleFocusSequence} onToggle={handleToggle} onToggleSequence={handleToggleSequence} onReset={handleReset} onDungeonClick={handleDungeonClick} onChapterClick={(c: number)=>setActiveChapter(c)} searchFilter={searchResults} forceOpen={!showEveryChapter && currentPage?.chapterNum === item.chapterNum}/>)}</div>}
         {/* Pager de bas de page : on enchaîne les chapitres sans remonter. */}
         {chapterPages.length > 1 && !searchResults && !dofusFilter && !isAllChapters && (
           <div className="mt-4 flex items-center justify-between gap-2 border-t border-border pt-3">
@@ -2322,6 +2310,20 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
         </DialogFooter>
       </DialogContent>
     </Dialog>
+    {/* ── Ressources à prévoir : calcul TEMPS RÉEL (quêtes validées) + coches
+        manuelles « déjà préparé », par membre et par personnage. ── */}
+    {resourcesModalOpen && (
+      <RushOverlayResourcesModal
+        resources={rushResourcesRemaining}
+        allResources={rushResourcesAll}
+        totalCount={rushResourcesAll.length}
+        theme="site"
+        isLightMode={false}
+        checkedKeys={resourceChecks}
+        onToggleCheck={handleToggleResourceCheck}
+        onClose={() => setResourcesModalOpen(false)}
+      />
+    )}
     <OcreProgressModal
       open={ocreModalOpen}
       onOpenChange={setOcreModalOpen}
@@ -2330,6 +2332,7 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
       archiCount={ocreStats?.archis}
       metamobPseudo={currentUserProfile?.metamobPseudo}
       guildId={guildId}
+      requiredCopies={ocreStats?.parallelQuests ?? 1}
     />
 
     <RushPenseBeteModal

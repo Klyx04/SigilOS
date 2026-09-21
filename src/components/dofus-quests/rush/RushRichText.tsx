@@ -128,15 +128,31 @@ export function splitRichText(text: string): RushRichTextPart[] {
 }
 
 /**
+ * Libellés courts des domaines connus du module.
+ *
+ * ⚠️ La comparaison se fait sur le **hostname analysé**, jamais par sous-chaîne :
+ * `https://evil.com/?x=dofusdb.fr` s'affichait comme « Lien DofusDB » (règle CodeQL
+ * `js/incomplete-url-substring-sanitization`, alerte du 21/09/2026).
+ */
+const KNOWN_DOMAIN_LABELS: ReadonlyArray<readonly [string, string]> = [
+  ["dofusdb.fr", "Lien DofusDB"],
+  ["dofuspourlesnoobs.com", "Lien DofusNoobs"],
+];
+
+/**
  * Libellé d'une URL écrite crue dans un texte : jamais la bouillie `https://…/chemin`.
  * Les deux sites du module ont leur nom, le reste tombe sur son domaine seul.
  */
 export function bareLinkLabel(url: string): string {
-  if (url.includes("dofusdb.fr")) return "Lien DofusDB";
-  if (url.includes("dofuspourlesnoobs.com")) return "Lien DofusNoobs";
   try {
-    const host = new URL(url).hostname.replace(/^www\./, "");
-    return host || "Lien";
+    const host = new URL(url).hostname.replace(/^www\./, "").toLowerCase();
+    if (!host) return "Lien";
+    for (const [domain, label] of KNOWN_DOMAIN_LABELS) {
+      // Égalité de domaine ou vrai sous-domaine (suffixe borné par un point), jamais une
+      // sous-chaîne libre : `dofusdb.fr.evil.com` et `evil.com/?x=dofusdb.fr` sont rejetés.
+      if (host === domain || host.endsWith(`.${domain}`)) return label;
+    }
+    return host;
   } catch {
     return "Lien";
   }

@@ -40,6 +40,17 @@ describe("splitRichText — découpage du texte enrichi", () => {
     expect(bareLinkLabel("https://www.dofuspourlesnoobs.com/x.html")).toBe("Lien DofusNoobs");
   });
 
+  it("le domaine connu est reconnu sur le HOST, jamais par sous-chaîne (CodeQL)", () => {
+    // Un vrai sous-domaine garde son libellé…
+    expect(bareLinkLabel("https://api.dofusdb.fr/fr/x")).toBe("Lien DofusDB");
+    // …mais une sous-chaîne ailleurs dans l'URL ne suffit plus (usurpation de libellé).
+    expect(bareLinkLabel("https://evil.com/?x=dofusdb.fr")).toBe("evil.com");
+    expect(bareLinkLabel("https://dofusdb.fr.evil.com/x")).toBe("dofusdb.fr.evil.com");
+    expect(bareLinkLabel("https://evil.com/dofuspourlesnoobs.com")).toBe("evil.com");
+    // URL illisible : repli neutre, jamais de libellé trompeur.
+    expect(bareLinkLabel("pas une url")).toBe("Lien");
+  });
+
   it("la ponctuation qui suit une URL n'entre pas dans le lien", () => {
     const out = splitRichText("Voir https://metamob.fr/settings#api, puis revenir");
     expect(out[1]).toMatchObject({ kind: "link", href: "https://metamob.fr/settings#api" });

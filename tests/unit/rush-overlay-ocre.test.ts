@@ -86,11 +86,20 @@ describe("pierres d'âme — seuils mesurés (DofusDB 9686-9690)", () => {
     expect(soulStoneLevelLabel(SOUL_STONES[4])).toBe("Niv. 191 et +");
   });
 
-  it("chaque pierre a son WebP LOCAL (aucune dépendance externe)", () => {
+  it("chaque pierre pointe un WebP LOCAL (aucune dépendance externe)", () => {
     for (const stone of SOUL_STONES) {
       expect(stone.imageUrl.startsWith("/uploads/assets-dofus/items/")).toBe(true);
-      expect(existsSync(path.join(ROOT, "public", stone.imageUrl.replace(/^\//, "")))).toBe(true);
+      expect(stone.imageUrl).not.toMatch(/^https?:\/\//);
     }
+  });
+
+  it("une vignette absente est MASQUÉE (le cache d'assets n'est pas versionné)", () => {
+    // `public/uploads/assets-dofus/**` est un CACHE gitignoré (siphon runtime — `.gitignore:74`) :
+    // sa présence n'est pas une propriété du dépôt. L'exiger faisait échouer la CI (constat du
+    // 21/09/2026 : vert en local, rouge au build). Ce qui doit tenir partout, c'est le REPLI :
+    // la tuile disparaît d'elle-même quand le fichier local manque.
+    const panel = readFileSync("src/components/ocre/OcreSoulStonesPanel.tsx", "utf8");
+    expect(panel).toMatch(/onError=\{\(\) => setOk\(false\)\}/);
   });
 });
 

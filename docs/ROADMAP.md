@@ -475,8 +475,8 @@
   Vérifs : **vitest 429/429** · **tsc 0** · **build OK**.
 
 - ✅ **Refonte Complète Module Rush Sylvestre (28/08)** (`feat/dofusbook-spells-guide-refonte`, PR → dev) :
-  - **Types partagés & Helpers purs** (`rush-guide-types.ts`, `rush-guide-utils.ts` avec 13 tests unitaires passés) : parsing exact `/travel`, détection déterministe des prérequis `isSequenceBlockedByPrereqs`, recherche de prochaine étape actionable ignorant les `info_sequence`.
-  - **Composants UI Partagés** : `RushCoordinateChip` (copie `/travel`), `RushProgress` (barre fluide), `RushCurrentObjective` (objectif doré `✦ À FAIRE MAINTENANT`), `RushTagBadge`, `RushActionMenu`.
+  - **Types partagés & Helpers purs** (`rush-guide-types.ts`, `rush-guide-utils.ts` avec 13 tests unitaires passés) : parsing exact de la commande de déplacement (`/travel` à l'époque ; **depuis le 21/09/2026 : `/w x,y` est copié**, `/travel` restant reconnu en saisie), détection déterministe des prérequis `isSequenceBlockedByPrereqs`, recherche de prochaine étape actionable ignorant les `info_sequence`.
+  - **Composants UI Partagés** : `RushCoordinateChip` (copie `/w x,y` depuis le 21/09/2026), `RushProgress` (barre fluide), `RushCurrentObjective` (objectif doré `✦ À FAIRE MAINTENANT`), `RushTagBadge`, `RushActionMenu`.
   - **Dashboard Membre** (`RushTimelineClient.tsx`) : prérequis déterministes, cibles de clic agrandies, modal de reprise connectée au repère exact (`effectiveBookmarkSeqId`) et nom de quête.
   - **Overlay In-Game Redesign** (`GuideOverlayClient.tsx`) : Mode Normal + Mode Compact focalisé sur le jeu, gestion intelligente d'`Escape` et raccourci `/`.
   - **Overlay PiP toujours-au-dessus** (`use-guide-pip.ts`, modèle Ganymède) : clic direct `documentPictureInPicture.requestWindow()` + `createPortal(<GuideOverlayClient/>, pipWindow.document.body)` (une seule fenêtre, checkboxes synchronisées dashboard↔overlay). Fallback Firefox/Safari : **popup vierge + `createPortal`** (`openFallbackPopup`) — réutilise la session dashboard, plus de rebond `/dashboard/{guildId}`. Vérifs : **tsc 0** · **eslint 0 erreur**.

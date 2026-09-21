@@ -48,6 +48,7 @@ import { brandIconForUrl } from "@/lib/source-icons";
 import { QuestItemResourceGrid } from "@/components/dofus-quests/rush/QuestItemResourceGrid";
 import { RushSeparatorBanner } from "@/components/dofus-quests/rush/RushSeparatorBanner";
 import { RushInfoBanner } from "@/components/dofus-quests/rush/RushInfoBanner";
+import { RushRichText } from "@/components/dofus-quests/rush/RushRichText";
 import {
   openPipWindow,
   openFallbackPopup,
@@ -1201,7 +1202,7 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
                   imageUrl={ms.imageUrl}
                   accentColor={ms.accentColor}
                 >
-                  {infoText}
+                  <RushRichText text={infoText} />
                 </RushInfoBanner>
               </div>
             );
@@ -1690,7 +1691,7 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
                                         <div className="space-y-1.5 px-2.5 pb-2.5">
                                           {mainTip && (
                                             <p className={cn("text-xs leading-relaxed text-muted-foreground", stepDone && "line-through")}>
-                                              {mainTip}
+                                              <RushRichText text={mainTip} />
                                             </p>
                                           )}
                                           {succesPart && (
@@ -1698,7 +1699,7 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
                                               <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-warning">
                                                 {/* eslint-disable-next-line @next/next/no-img-element */}
                                                 <img src="/assets/dofus/game-icons/trophy-1.png" alt="" className="h-3 w-3 shrink-0 object-contain" />
-                                                Succès : {succesPart}
+                                                Succès : <RushRichText text={succesPart} />
                                               </span>
                                             </div>
                                           )}

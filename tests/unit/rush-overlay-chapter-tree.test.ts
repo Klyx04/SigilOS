@@ -1,12 +1,15 @@
 /**
- * Garde — les blocs SÉPARATEUR n'entrent jamais dans la navigation « étapes » de l'overlay.
+ * Garde — les blocs qui ne sont PAS des étapes (séparateur, encart CONSEIL/TIPS, « Dofus
+ * obtenu ») n'entrent jamais dans la navigation « étapes » de l'overlay.
  *
- * 🎯 Le besoin (user, 20/09/2026) : dans l'overlay, un séparateur ne doit pas apparaître
- * dans le sélecteur de chapitres (ce n'est pas une étape : rien à cocher, aucune quête,
- * donc « 0/0 » n'a aucun sens) — mais il doit rester visible dans le contenu (son bandeau).
+ * 🎯 Le besoin (user, 20/09/2026 puis 21/09/2026) : dans l'overlay, un bandeau ne doit pas
+ * apparaître dans le sélecteur de chapitres (rien à cocher, aucune quête, donc « 0/0 » n'a
+ * aucun sens) — mais il doit rester VISIBLE dans le contenu et atteignable par la
+ * navigation précédent / suivant. La règle est partagée (`isNonCheckableBlock`), pas
+ * recopiée ici : séparateur, encart CONSEIL/TIPS et « Dofus obtenu » tombent ensemble.
  *
- * 🛡️ Ce que ce test verrouille : le filtre, l'ordre des chapitres conservé, et le cas
- * dégénéré d'un guide fait uniquement de séparateurs (liste vide ⇒ rien à sélectionner).
+ * 🛡️ Ce que ce test verrouille : le filtre des trois types, l'ordre des chapitres conservé,
+ * et le cas dégénéré d'un guide fait uniquement de bandeaux (liste vide ⇒ rien à sélectionner).
  *
  * ⚠️ Lecture seule : aucune base, aucun réseau (`renderToStaticMarkup` inutile ici).
  */
@@ -26,23 +29,26 @@ const ms = (id: string, type: string): RushMilestone => ({
   sequences: [],
 });
 
-describe("selectableChapters — séparateurs hors du sélecteur d'étapes", () => {
-  it("retire les séparateurs en gardant l'ordre des vrais chapitres", () => {
+describe("selectableChapters — bandeaux hors du sélecteur d'étapes", () => {
+  it("retire les trois bandeaux en gardant l'ordre des vrais chapitres", () => {
     const out = selectableChapters([
       ms("c1", "QUETE_SERIE"),
       ms("sep", "SEPARATEUR"),
       ms("c2", "DONJON"),
       ms("info", "INFO"),
+      ms("dofus-out", "DOFUS_OBTAINED"),
+      ms("c3", "DOFUS"),
     ]);
-    expect(out.map((m) => m.id)).toEqual(["c1", "c2", "info"]);
+    expect(out.map((m) => m.id)).toEqual(["c1", "c2", "c3"]);
   });
 
-  it("ne touche pas à un guide sans séparateur", () => {
+  it("ne touche pas à un guide sans bandeau", () => {
     const guide = [ms("c1", "QUETE_SERIE"), ms("c2", "DOFUS")];
     expect(selectableChapters(guide)).toEqual(guide);
   });
 
-  it("guide fait uniquement de séparateurs ⇒ plus rien à sélectionner", () => {
+  it("guide fait uniquement de bandeaux ⇒ plus rien à sélectionner", () => {
     expect(selectableChapters([ms("s1", "SEPARATEUR"), ms("s2", "SEPARATEUR")])).toEqual([]);
+    expect(selectableChapters([ms("i1", "INFO"), ms("i2", "INFO")])).toEqual([]);
   });
 });

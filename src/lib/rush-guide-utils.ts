@@ -177,6 +177,42 @@ export function isInfoSequence(seq: RushSequence | null | undefined): boolean {
   return seq.activityTags.some((tag) => tag.type === "info_sequence");
 }
 
+/** Les trois types de blocs qui ne sont PAS des étapes : rien à cocher, pas de « n/N ». */
+export const NON_CHECKABLE_BLOCK_TYPES = ["SEPARATEUR", "INFO", "DOFUS_OBTAINED"] as const;
+
+/**
+ * Un bloc qui n'est pas une étape : séparateur, encart CONSEIL/TIPS, « Dofus obtenu ».
+ * Il n'a **aucune progression** — donc il ne peut jamais être « fait », ni être sauté
+ * comme tel par une navigation, ni compter dans une numérotation de chapitres.
+ *
+ * SOURCE UNIQUE : la même règle pilote le selecteur d'étapes de l'overlay, son
+ * `defaultMsIndex`, son `goToNextMs` et sa numérotation de chapitres.
+ */
+export function isNonCheckableBlock(
+  ms: Pick<RushMilestone, "type"> | null | undefined
+): boolean {
+  if (!ms) return false;
+  return (NON_CHECKABLE_BLOCK_TYPES as readonly string[]).includes(ms.type || "");
+}
+
+/**
+ * Position d'un bloc dans la numérotation des CHAPITRES (les blocs non cochables ne
+ * sont pas numérotés : sinon « Chapitre 12 / 45 » compterait des bandeaux).
+ *
+ * @returns `index` = rang 1-based du bloc s'il est cochable, `0` sinon ; `total` = nombre
+ *          de chapitres (blocs cochables) du guide.
+ */
+export function rushChapterPosition(
+  blocks: Array<Pick<RushMilestone, "id" | "type">>,
+  msId: string | null | undefined
+): { index: number; total: number } {
+  const chapters = blocks.filter((b) => !isNonCheckableBlock(b));
+  const total = chapters.length;
+  if (!msId) return { index: 0, total };
+  const idx = chapters.findIndex((b) => b.id === msId);
+  return { index: idx >= 0 ? idx + 1 : 0, total };
+}
+
 /**
  * Extrait la coordonnée d'une séquence (pos_tag > titre > tips > note).
  * Ordre de priorité aligné sur l'édition GOD : le tag technique `pos_tags`
@@ -195,28 +231,43 @@ export function getSequenceCoord(seq: RushSequence | null | undefined) {
 }
 
 /**
- * Analyse et extrait des coordonnées Dofus du format [x, y] ou [x, y, worldId]
+ * Analyse et extrait les coordonnées Dofus d'un texte.
+ *
+ * Formes reconnues (dans cet ordre) :
+ *   1. canonique `[x, y]` / `[x, y, worldId]` — c'est la forme AFFICHÉE (`raw`) ;
+ *   2. commande de déplacement écrite dans le texte : `/w x,y` (Dofus actuel) ou
+ *      `/travel x,y` (ancienne forme, toujours reconnue à la saisie) ;
+ *   3. « pos_tags » saisi au GOD sans crochets (`x, y ; x2, y2`).
+ *
+ * `travelCommand` est la commande COPIÉE par le presse-papier : `/w x,y`. SOURCE UNIQUE —
+ * aucune surface ne fabrique cette commande à la main.
  */
 export function parseCoordinates(
   text: string
 ): { x: number; y: number; worldId?: number; raw: string; travelCommand: string } | null {
   if (!text) return null;
-  // Priorité au format canonique [x, y] / [x, y, worldId] (tips, notes).
+  // 1) Priorité au format canonique [x, y] / [x, y, worldId] (tips, notes).
   let match = text.match(/\[\s*(-?\d+)\s*,\s*(-?\d+)(?:\s*,\s*(\d+))?\s*\]/);
-  // Repli : format « pos_tags » saisi au GOD (x, y ; x2, y2) sans crochets.
+  // 2) Commande de déplacement saisie telle quelle dans un texte.
+  const cmdMatch = match
+    ? null
+    : text.match(/\/(?:w|travel)\s+(-?\d+)\s*[,;]?\s*(-?\d+)(?:\s*,\s*(\d+))?(?!\d)/i);
+  if (!match && cmdMatch) match = cmdMatch;
+  // 3) Repli : format « pos_tags » saisi au GOD (x, y ; x2, y2) sans crochets.
   if (!match) match = text.match(/(-?\d+)\s*,\s*(-?\d+)/);
   if (!match) return null;
 
   const x = parseInt(match[1], 10);
   const y = parseInt(match[2], 10);
   const worldId = match[3] ? parseInt(match[3], 10) : undefined;
-  const travelCommand = worldId !== undefined ? `/travel ${x},${y},${worldId}` : `/travel ${x},${y}`;
+  const travelCommand = worldId !== undefined ? `/w ${x},${y},${worldId}` : `/w ${x},${y}`;
 
   return {
     x,
     y,
     worldId,
-    raw: match[0],
+    // Une commande ne s'affiche jamais crue : on rend la position canonique.
+    raw: cmdMatch ? `[${x}, ${y}]` : match[0],
     travelCommand,
   };
 }

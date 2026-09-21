@@ -5,6 +5,8 @@ import {
   parseCoordinates,
   getSequenceCoord,
   isInfoSequence,
+  isNonCheckableBlock,
+  rushChapterPosition,
   isSequenceBlockedByPrereqs,
   findNextActionableSequence,
   formatProgressLabel,
@@ -25,7 +27,7 @@ describe("rush-guide-utils", () => {
       expect(res?.y).toBe(2);
       expect(res?.worldId).toBeUndefined();
       expect(res?.raw).toBe("[-1, 2]");
-      expect(res?.travelCommand).toBe("/travel -1,2");
+      expect(res?.travelCommand).toBe("/w -1,2");
     });
 
     it("extrait les coordonnées avec worldId [x, y, worldId]", () => {
@@ -34,7 +36,7 @@ describe("rush-guide-utils", () => {
       expect(res?.x).toBe(15);
       expect(res?.y).toBe(-28);
       expect(res?.worldId).toBe(1);
-      expect(res?.travelCommand).toBe("/travel 15,-28,1");
+      expect(res?.travelCommand).toBe("/w 15,-28,1");
     });
 
     it("renvoie null si aucune coordonnée n'est présente", () => {
@@ -48,7 +50,7 @@ describe("rush-guide-utils", () => {
       expect(res?.x).toBe(-81);
       expect(res?.y).toBe(-37);
       expect(res?.worldId).toBeUndefined();
-      expect(res?.travelCommand).toBe("/travel -81,-37");
+      expect(res?.travelCommand).toBe("/w -81,-37");
     });
 
     it("extrait la première coordonnée d'une liste pos_tags multi-points", () => {
@@ -56,6 +58,61 @@ describe("rush-guide-utils", () => {
       expect(res).not.toBeNull();
       expect(res?.x).toBe(-2);
       expect(res?.y).toBe(0);
+    });
+
+    it("reconnaît une commande /w saisie dans un texte et affiche la position canonique", () => {
+      const res = parseCoordinates("Position de lancement : Village de la Canopée /w -55,15.");
+      expect(res?.x).toBe(-55);
+      expect(res?.y).toBe(15);
+      // Ce qu'on AFFICHE reste la position entre crochets — jamais la commande crue.
+      expect(res?.raw).toBe("[-55, 15]");
+      // Ce qu'on COPIE est la commande du Dofus actuel.
+      expect(res?.travelCommand).toBe("/w -55,15");
+    });
+
+    it("reconnaît encore l'ancienne écriture /travel (compatibilité de saisie)", () => {
+      const res = parseCoordinates("Allez en /travel -55 15");
+      expect(res?.x).toBe(-55);
+      expect(res?.y).toBe(15);
+      expect(res?.travelCommand).toBe("/w -55,15");
+    });
+  });
+
+  describe("isNonCheckableBlock", () => {
+    it("reconnaît les trois bandeaux qui ne sont pas des étapes", () => {
+      expect(isNonCheckableBlock({ type: "SEPARATEUR" })).toBe(true);
+      expect(isNonCheckableBlock({ type: "INFO" })).toBe(true);
+      expect(isNonCheckableBlock({ type: "DOFUS_OBTAINED" })).toBe(true);
+    });
+
+    it("laisse un vrai chapitre cochable", () => {
+      expect(isNonCheckableBlock({ type: "QUETE_SERIE" })).toBe(false);
+      expect(isNonCheckableBlock({ type: "DOFUS" })).toBe(false);
+      expect(isNonCheckableBlock(null)).toBe(false);
+      expect(isNonCheckableBlock({})).toBe(false);
+    });
+  });
+
+  describe("rushChapterPosition", () => {
+    const blocks = [
+      { id: "c1", type: "QUETE_SERIE" },
+      { id: "sep", type: "SEPARATEUR" },
+      { id: "tips", type: "INFO" },
+      { id: "c2", type: "DOFUS" },
+    ];
+
+    it("numérote les chapitres sans compter les bandeaux", () => {
+      expect(rushChapterPosition(blocks, "c1")).toEqual({ index: 1, total: 2 });
+      expect(rushChapterPosition(blocks, "c2")).toEqual({ index: 2, total: 2 });
+    });
+
+    it("ne numérote pas un bandeau (index 0)", () => {
+      expect(rushChapterPosition(blocks, "sep")).toEqual({ index: 0, total: 2 });
+      expect(rushChapterPosition(blocks, "tips")).toEqual({ index: 0, total: 2 });
+    });
+
+    it("sans bloc courant, retourne seulement le total", () => {
+      expect(rushChapterPosition(blocks, null)).toEqual({ index: 0, total: 2 });
     });
   });
 

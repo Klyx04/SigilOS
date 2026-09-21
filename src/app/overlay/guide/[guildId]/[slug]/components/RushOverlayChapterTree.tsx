@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { ChevronDown, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { isNonCheckableBlock } from "@/lib/rush-guide-utils";
 import type { RushMilestone } from "@/types/rush-guide-types";
 
 interface RushOverlayChapterTreeProps {
@@ -17,12 +18,13 @@ interface RushOverlayChapterTreeProps {
 
 /**
  * Les blocs d'un guide qui sont de VRAIES étapes (donc sélectionnables dans la navigation).
- * Un SÉPARATEUR n'est pas une étape : il n'apparaît jamais dans le sélecteur de chapitres
- * (pas de case, pas de « n/N »). Il reste visible autrement — bandeau du séparateur dans le
- * contenu, et titre affiché en haut quand on est dessus.
+ * Un bloc non cochable — SÉPARATEUR, encart CONSEIL/TIPS, « Dofus obtenu » — n'est pas une
+ * étape : il n'apparaît jamais dans le sélecteur de chapitres (pas de case, pas de « n/N »).
+ * Il reste visible autrement : son bandeau dans le contenu, et la navigation précédent /
+ * suivant s'y arrête.
  */
 export function selectableChapters(chapters: RushMilestone[]): RushMilestone[] {
-  return chapters.filter((ms) => ms.type !== "SEPARATEUR");
+  return chapters.filter((ms) => !isNonCheckableBlock(ms));
 }
 
 /**

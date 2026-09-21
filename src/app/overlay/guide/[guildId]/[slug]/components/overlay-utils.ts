@@ -4,11 +4,34 @@
  */
 
 import type { RushMilestone, RushSequence, RushActivityTag } from "@/types/rush-guide-types";
-import { parseCoordinates, getSequenceCoord, RUSH_ACTIVITY_TAG_CONFIG, getMetierIconPath, isSequenceBlockedByPrereqs, resolveItemImage } from "@/lib/rush-guide-utils";
+import { parseCoordinates, getSequenceCoord, isNonCheckableBlock, RUSH_ACTIVITY_TAG_CONFIG, getMetierIconPath, isSequenceBlockedByPrereqs, resolveItemImage } from "@/lib/rush-guide-utils";
 // Re-export du helper central pour compatibilité des consumers overlay.
 export { getSequenceCoord };
 // Re-export pour compatibilité des imports overlay.
 export { resolveItemImage };
+
+/**
+ * Index du prochain bloc à proposer dans l'overlay : le prochain bloc QUI RESTE À VALIDER
+ * (on saute les chapitres déjà cochés, pour toujours proposer le suivant à faire).
+ *
+ * Un bandeau — séparateur, encart CONSEIL/TIPS, « Dofus obtenu » — n'a aucune progression :
+ * il ne peut pas être « fait », donc on **ne le saute jamais**, même si une validation
+ * héritée traîne en base. C'est ce qui faisait « disparaître » les bandeaux dès qu'on
+ * changeait d'étape (21/09/2026).
+ *
+ * @returns l'index du bloc suivant, ou `null` si on est déjà au bout du guide.
+ */
+export function nextBlockIndex(
+  blocks: Array<Pick<RushMilestone, "id" | "type">>,
+  fromIndex: number,
+  completedIds: Set<string>
+): number | null {
+  for (let i = fromIndex + 1; i < blocks.length; i++) {
+    const ms = blocks[i];
+    if (isNonCheckableBlock(ms) || !completedIds.has(ms.id)) return i;
+  }
+  return null;
+}
 
 // ─── Types locaux ─────────────────────────────────────────────────────────────
 

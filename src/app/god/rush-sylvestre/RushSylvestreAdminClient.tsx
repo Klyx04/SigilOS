@@ -769,9 +769,12 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
                         </label>
                         <textarea value={newStepTips} onChange={e => setNewStepTips(e.target.value)}
                           className="w-full bg-black/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-purple-200/90 placeholder:text-zinc-700 focus:outline-none focus:border-purple-500/40 resize-none"
-                          placeholder="ex: Lancer Eternelle Moisson dès que possible pour rendre les captures et faire un Krala sur la première ouverture"
-                          rows={3}
+                          placeholder="ex: Lancer [Eternelle Moisson](https://www.dofuspourlesnoobs.com/leacuteternelle-moisson.html) dès que possible. Position de lancement : Village de la Canopée [-55,15]."
+                          rows={4}
                         />
+                        {/* Syntaxe du texte enrichi : le lien porte le NOM (l'URL ne s'affiche
+                            jamais) et une position entre crochets devient une puce copiable. */}
+                        <RichTextSyntaxHint />
                       </div>
                     )}
 
@@ -1205,6 +1208,21 @@ function BlockImageField({ value, onChange }: { value: string; onChange: (url: s
   );
 }
 
+// ─── RichTextSyntaxHint ──────────────────────────────────────────────────────
+/**
+ * Rappel de syntaxe du texte enrichi, affiché sous CHAQUE champ de conseil (bloc Tips,
+ * tips d'un bloc, tips d'une quête) : sans ça, la syntaxe `[Nom](url)` et la position
+ * copiable resteraient un secret d'initié. Source unique de l'aide.
+ */
+function RichTextSyntaxHint() {
+  return (
+    <p className="mt-1 text-[11px] leading-relaxed text-zinc-500">
+      Lien nommé : <code className="text-purple-300/80">[Nom de la quête](https://…)</code> — l&apos;URL ne s&apos;affiche pas, le nom pointe vers elle.
+      Position copiable : <code className="text-purple-300/80">[-55,15]</code> ou <code className="text-purple-300/80">/w -55,15</code> · un clic copie <code className="text-purple-300/80">/w -55,15</code>.
+    </p>
+  );
+}
+
 // ─── SortableSeparatorRow ─────────────────────────────────────────────────────
 function SortableSeparatorRow(props: {
   milestone: Milestone;
@@ -1443,6 +1461,7 @@ function MilestoneRow({
               className="w-full bg-black/60 border border-white/10 rounded-lg px-2 py-1.5 text-xs text-amber-300/80 focus:outline-none focus:border-amber-500/30 resize-none"
               placeholder="💡 Tips / Conseils pour ce bloc" rows={2}
             />
+            <RichTextSyntaxHint />
             {/* Image du bloc — TOUS les types, y compris le séparateur : elle se loge à
                 DROITE du bloc côté membre, servie NUE (pas de cadre, un fondu l'amène
                 dans la ligne). Champ partagé avec la création et le séparateur. */}
@@ -2687,7 +2706,7 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
                     if (!x) return;
                     const y = prompt("Position Y :");
                     if (!y) return;
-                    const pos = `/travel ${x},${y}`;
+                    const pos = `/w ${x},${y}`;
                     setTips(prev => prev ? `${prev} ${pos}` : pos);
                     toast.success(`📍 ${pos} ajouté !`, { duration: 1500 });
                   }}
@@ -2703,6 +2722,7 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
                 placeholder="Conseil affiché côté membre..."
                 rows={2}
               />
+              <RichTextSyntaxHint />
             </div>
 
             <div>
@@ -3193,6 +3213,7 @@ function AddSequenceForm({ milestoneId, onAdd, isPending }: {
                   className="w-full bg-black/60 border border-white/5 rounded-lg px-2 py-1 text-xs text-amber-300/70 focus:outline-none resize-none"
                   placeholder="Conseil pour le membre…" rows={2}
                 />
+                <RichTextSyntaxHint />
               </div>
               <div className="flex flex-col gap-1 p-2 rounded-xl bg-purple-500/10 border border-purple-500/20">
                 <div className="flex items-center gap-2">

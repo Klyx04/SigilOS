@@ -62,6 +62,7 @@ import { getAlignmentSet, collectCascadeUncheck } from "@/lib/rush-helpers";
 import { RushHelperBadge } from "@/components/rush/RushHelperBadge";
 import { RushSeparatorBanner } from "@/components/dofus-quests/rush/RushSeparatorBanner";
 import { RushInfoBanner } from "@/components/dofus-quests/rush/RushInfoBanner";
+import { RushRichText } from "@/components/dofus-quests/rush/RushRichText";
 import { MilestoneCelebrationBurst } from "@/components/dofus-quests/rush/MilestoneCelebration";
 import { RushCoordinateChip } from "@/components/dofus-quests/rush/RushCoordinateChip";
 import { brandIconForUrl } from "@/lib/source-icons";
@@ -92,12 +93,11 @@ function TougliCallout({text,colorStyle="emerald"}:{text:string;colorStyle?:stri
       ? "bg-gradient-to-r from-warning/15 via-warning/[0.04] to-transparent"
       : "bg-gradient-to-r from-success/12 via-success/[0.03] to-transparent";
   const accentText = isPurple ? "text-info" : isAmber ? "text-warning" : "text-success";
-  const parts = renderContentWithCoords(text);
 
   return (
     <div className={`flex items-start gap-2.5 px-3 py-2 rounded-[4px] border ${borderCol} ${bgGrad} my-1.5`}>
       <Sparkles className={`w-3.5 h-3.5 mt-0.5 shrink-0 ${accentText} opacity-80`} />
-      <div className="text-xs text-foreground/90 leading-relaxed font-sans font-medium">{parts}</div>
+      <div className="text-xs text-foreground/90 leading-relaxed font-sans font-medium"><RushRichText text={text} /></div>
     </div>
   );
 }
@@ -579,7 +579,7 @@ function CollapsibleHints({ tipsText, note }: { tipsText: string; note: string |
       {open && (
         <div className="space-y-1.5 pt-2">
           {tipsText && (
-            <div className="flex flex-wrap items-center gap-1 text-xs leading-relaxed text-muted-foreground">{renderContentWithCoords(tipsText)}</div>
+            <div className="flex flex-wrap items-center gap-1 text-xs leading-relaxed text-muted-foreground"><RushRichText text={tipsText} /></div>
           )}
           {note && (
             <p className="text-[11px] italic leading-relaxed text-muted-foreground">Note : {note}</p>
@@ -670,65 +670,20 @@ function DofusObtainedBanner({ milestone }: { milestone: Milestone }) {
 }
 
 // ─── InfoBanner (for INFO type milestones — tips/conseil bandeau) ────────────
-function renderContentWithCoords(text: string, guildId: string = ""): (string | React.ReactNode)[] {
-  const parts: (string | React.ReactNode)[] = [];
-  // Combine link regex and coordinate regex in one pass
-  // Order matters: [text](url), raw urls, /travel X Y, /travel X,Y, [X, Y], [X, Y, W]
-  const combinedRx = /\[([^\]]+)\]\(([^)]+)\)|(https?:\/\/[^\s]+)|(?:\/travel\s+(-?\d+)\s*[,;]\s*(-?\d+)(?!\d))|\[(-?\d+),\s*(-?\d+)(?:,\s*(\d+))?\]/g;
-  let li = 0, m: RegExpExecArray | null;
-  while ((m = combinedRx.exec(text)) !== null) {
-    if (m.index > li) parts.push(text.slice(li, m.index));
-    if (m[1] && m[2]) {
-      // Markdown link [text](url)
-      parts.push(<a key={m.index} href={m[2]} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-0.5 font-bold underline underline-offset-2 transition-colors text-success hover:text-success decoration-success/50">{m[1]}<ExternalLink className="w-3 h-3 inline-block ml-0.5 opacity-80 shrink-0"/></a>);
-    } else if (m[3]) {
-      // Raw URL
-      let label = m[3];
-      if (m[3].includes("dofusdb.fr")) label = "Lien DofusDB ↗";
-      else if (m[3].includes("dofuspourlesnoobs.com")) label = "Lien DofusNoobs ↗";
-      parts.push(<a key={m.index} href={m[3]} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-0.5 font-bold underline underline-offset-2 transition-colors text-success hover:text-success decoration-success/50">{label}</a>);
-    } else if (m[4] && m[5]) {
-      // /travel X, Y format
-      const x = m[4], y = m[5];
-      const worldId = m[8] ? parseInt(m[8], 10) : undefined;
-      // Même chip mono neutre que la ligne d'étape et que le guide public.
-      const chip = <RushCoordinateChip key={`pos-${m.index}`} coordText={`${x}, ${y}`} showIcon />;
-      parts.push(
-        <MapPositionPopover key={`popover-${m.index}`} posX={parseInt(x, 10)} posY={parseInt(y, 10)} worldId={worldId} guildId={guildId} contextLabel={text}>
-          {chip}
-        </MapPositionPopover>
-      );
-    } else if (m[6] && m[7]) {
-      // [x, y] or [x, y, world] format
-      const x = m[6], y = m[7];
-      const worldId = m[8] ? parseInt(m[8], 10) : undefined;
-      const chip = <RushCoordinateChip key={`pos-${m.index}`} coordText={`${x}, ${y}`} showIcon />;
-      parts.push(
-        <MapPositionPopover key={`popover-${m.index}`} posX={parseInt(x, 10)} posY={parseInt(y, 10)} worldId={worldId} guildId={guildId} contextLabel={text}>
-          {chip}
-        </MapPositionPopover>
-      );
-    }
-    li = combinedRx.lastIndex;
-  }
-  if (li < text.length) parts.push(text.slice(li));
-  return parts;
-}
-
 function InfoBanner({ milestone }: { milestone: Milestone }) {
   const content = milestone.tips || milestone.description || milestone.title || "";
-  const parts = renderContentWithCoords(content);
   const hasTitle = !!milestone.title && !content.startsWith(milestone.title);
 
   // Le bandeau lui-même vit dans `RushInfoBanner` (composant PARTAGÉ avec le guide public
-  // et l'overlay) : ici on ne fournit que le contenu rendu (liens + coordonnées cliquables).
+  // et l'overlay) et le texte enrichi dans `RushRichText` (liens nommés + positions
+  // copiables en `/w x,y`) : ici on ne choisit que le contenu.
   return (
     <RushInfoBanner
       title={hasTitle ? milestone.title : null}
       imageUrl={milestone.imageUrl}
       accentColor={milestone.accentColor}
     >
-      {parts}
+      <RushRichText text={content} />
     </RushInfoBanner>
   );
 }
@@ -737,7 +692,6 @@ function InfoBanner({ milestone }: { milestone: Milestone }) {
 function InfoSequenceBanner({ seq, accentColor }: { seq: Sequence; accentColor: string }) {
   const color = seq.activityTags?.find((t: any) => t.type === "info_sequence")?.color || accentColor || "#10b981";
   const content = seq.tips || seq.subGuideName || seq.subGuideRef || "";
-  const parts = renderContentWithCoords(content);
   const isWarm = color.startsWith("#ef")||color.startsWith("#f4")||color.startsWith("#f5")||color.startsWith("#eab")||color.startsWith("#dc")||color.startsWith("#f9");
   const isCool = color.startsWith("#3b")||color.startsWith("#06")||color.startsWith("#4f")||color.startsWith("#63")||color.startsWith("#0e")||color.startsWith("#38");
   const isPurple = color.startsWith("#7c")||color.startsWith("#a8")||color.startsWith("#8b")||color.startsWith("#c0");
@@ -756,7 +710,7 @@ function InfoSequenceBanner({ seq, accentColor }: { seq: Sequence; accentColor: 
       <div className="relative flex items-start gap-2.5 p-3">
         <span className="text-base leading-none mt-0.5 shrink-0">{icon}</span>
         <div className="text-xs sm:text-sm text-foreground/90 leading-relaxed font-medium flex-1 min-w-0 flex flex-wrap items-center gap-x-2 gap-y-1">
-          {parts}
+          <RushRichText text={content} />
         </div>
       </div>
     </div>
@@ -854,7 +808,7 @@ const MilestoneRow = memo(function MilestoneRow({ ms, isCompleted, completedStep
 {ms.tips && (
                   <div className="mb-1 flex items-start gap-2.5 rounded-[4px] border border-warning/20 bg-warning/[0.06] px-3 py-2 text-xs leading-relaxed text-muted-foreground">
                     <Sparkles className="w-3.5 h-3.5 text-warning/70 shrink-0 mt-0.5" />
-                    <div className="flex-1 flex flex-wrap items-center gap-1">{renderContentWithCoords(ms.tips)}</div>
+                    <div className="flex-1 flex flex-wrap items-center gap-1"><RushRichText text={ms.tips} /></div>
                   </div>
                 )}
                 <CompletedStepsCtx.Provider value={completedStepsSet}>

@@ -88,7 +88,7 @@ describe("RushGuideView — rendu partagé public ↔ guilde", () => {
   it("met en avant l'étape active, sa coordonnée et son indice replié", () => {
     const out = html({});
     expect(out).toContain("Protection divine");
-    expect(out).toContain("/travel 12,-21");
+    expect(out).toContain("/w 12,-21");
     expect(out).toContain("Parle d&#x27;abord à Pandala");
     // L'indice est replié : <details> sans attribut open.
     expect(out).toContain("<details");

@@ -3,6 +3,20 @@ import { db } from "@/lib/prisma";
 import { publishedGuides } from "@/content/guides";
 import { getAppBaseUrl } from "@/lib/utils";
 import { getIndexableGuildSegment } from "@/lib/presentation-constants";
+import { logger } from "@/lib/logger";
+
+/**
+ * ⚠️ `force-dynamic` — ce sitemap interroge la BASE (guildes publiques, fiches boss/donjons).
+ *
+ * Sans cet export, Next le **pré-génère au build** ; or la CI construit l'image sur GitHub,
+ * **sans accès à la base** : les blocs `guilds` et `boss` disparaissaient alors **en silence**
+ * (les `catch` avalaient l'erreur) et le sitemap publié tombait de ~200 URL à 29 — constaté le
+ * 21/09/2026 après le passage au déploiement CD (`deploy-cd.sh` + image GHCR).
+ *
+ * En dynamique, il est généré **sur le VPS** (qui a la base) à la première requête d'un robot :
+ * quelques appels par jour (Google, Bing), coût négligeable.
+ */
+export const dynamic = "force-dynamic";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // Base URL résolue selon l'environnement (beta.sigilos.fr sur dev, sigilos.fr en prod)
@@ -50,7 +64,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
             });
         }
     } catch (error) {
-        console.error("[Sitemap] Error fetching platform config:", error);
+        logger.error("[Sitemap] Error fetching platform config", { error });
     }
 
     try {
@@ -71,7 +85,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
         routes.push(...guildRoutes);
     } catch (error) {
-        console.error("[Sitemap] Error fetching public guilds:", error);
+        logger.error("[Sitemap] Error fetching public guilds", { error });
     }
 
     // Guides publiés : dérivés automatiquement du registre unique. Les drafts
@@ -106,7 +120,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
             });
         }
     } catch (error) {
-        console.error("[Sitemap] Error fetching almanax dates:", error);
+        logger.error("[Sitemap] Error fetching almanax dates", { error });
     }
 
     // Boss & Donjons publics : fiches tactiques Dofensive indexables.
@@ -125,7 +139,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
             });
         }
     } catch (error) {
-        console.error("[Sitemap] Error fetching boss pages:", error);
+        logger.error("[Sitemap] Error fetching boss pages", { error });
     }
 
     return routes;

@@ -602,7 +602,7 @@ export const fr = {
 
     // Catalogue des Modules
     modulesPage: {
-        metaTitle: "Modules de Guilde · SigilOS | Le tableau de bord complet Dofus Unity",
+        metaTitle: "Modules de Guilde : Le tableau de bord complet Dofus Unity | SigilOS",
         metaDesc: "Découvrez les 20+ modules configurables de SigilOS : sorties donjons, quête Ocre, Songes infinis, marché interne, carte du monde interactive et synchronisation Discord.",
         badge: "Architecture modulaire",
         title: "Chaque outil a sa place.",

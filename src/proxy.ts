@@ -7,6 +7,7 @@ import { getGodRoutePrefix, isValidGodSecret } from "./lib/god-route"
 import { buildCsp, generateCspNonce } from "./lib/csp"
 import { logger } from "@/lib/logger"
 import { LOCALE_COOKIE_NAME, isSupportedLocale } from "./lib/i18n/types"
+import { isLegacyBossIdPath } from "@/lib/legacy-routes"
 
 const { auth } = NextAuth(authConfig)
 
@@ -127,6 +128,22 @@ export default auth(async (req) => {
     // ─── PERFORMANCE GAIN: Short-circuit for images and common assets ───
     if (nextUrl.pathname.match(/\.(png|jpg|jpeg|gif|webp|svg|ico|woff2|woff|ttf)$/) || nextUrl.pathname.startsWith("/images/") || nextUrl.pathname.startsWith("/icons/")) {
         return NextResponse.next();
+    }
+
+    // ─── 410 GONE : anciennes URL de fiche boss (`/boss/<cuid>`) ────────────────
+    // Les fiches sont passées aux slugs (`/boss/<nom-du-boss>`) et Google garde les anciens
+    // identifiants en mémoire (constat GSC du 21/09/2026 : « Explorée, non indexée »).
+    // 410 = « supprimé définitivement » → purge plus rapide qu'un 404, et **sans accès base**
+    // (motif purement syntaxique, cf. `src/lib/legacy-routes.ts`).
+    if (isLegacyBossIdPath(nextUrl.pathname)) {
+        return new NextResponse("Cette fiche boss a été déplacée : voir /boss", {
+            status: 410,
+            headers: {
+                "Content-Type": "text/plain; charset=utf-8",
+                "X-Robots-Tag": "noindex, nofollow",
+                "Cache-Control": "public, max-age=86400",
+            },
+        });
     }
 
     // ─── R3 ANTI-SCOUT: route secrète → vérifier le secret DANS le proxy ────

@@ -6,16 +6,20 @@ import { cn } from "@/lib/utils";
 /**
  * RushSeparatorBanner — le bandeau d'un bloc SÉPARATEUR du Rush Sylvestre.
  *
- * SOURCE UNIQUE pour les trois surfaces (dashboard membre + guide public +
- * overlay PiP) : le séparateur se dessine ici, jamais deux fois.
+ * SOURCE UNIQUE pour les quatre surfaces (dashboard membre + guide public + overlay
+ * interne + overlay public) : le séparateur se dessine ici, jamais deux fois.
  *
- * Grammaire : un bandeau NU — ni cadre, ni aplat, ni rayon (retour user :
- * « pas de contour ni de fond »). Ne restent que le filet d'accent à gauche
- * (l'identité du bloc réglée côté GOD), le titre fort et la description
- * optionnelle, tous deux CENTRÉS sur toute la largeur. L'image du bloc (upload
- * GOD, scope `guides`), quand il y en a une, est un DÉCOR de droite posé
- * HORS FLUX (absolu + fondu) : elle ne décale donc jamais le texte, qui reste
- * centré dans le bandeau — pas « centré dans ce que l'image laisse ».
+ * Grammaire (retour user du 21/09/2026) : **plus de barre de couleur sur le côté** et
+ * **plus de cadre** — l'identité du bloc passe par une composition centrée :
+ *
+ *     ────────  ◆  TITRE  ◆  ────────
+ *
+ * deux filets qui s'effacent vers l'extérieur, un losange d'accent (couleur réglée côté
+ * GOD) de part et d'autre du titre, titre en capitales espacées. La description reste
+ * dessous, centrée et sobre.
+ *
+ * L'image du bloc (upload GOD, scope `guides`), quand il y en a une, est un DÉCOR de
+ * droite posé HORS FLUX (absolu + fondu) : elle ne décale donc jamais le texte.
  * URL non sûre ou asset absent (401/404) ⇒ pas d'image, pas de trou.
  */
 export function RushSeparatorBanner({
@@ -38,16 +42,23 @@ export function RushSeparatorBanner({
   return (
     <section
       className={cn(
-        // Bandeau NU : ni cadre, ni aplat, ni rayon. Hauteur MINIMALE pour que l'image
-        // ait une vraie surface ; le texte est centré dans le bandeau ENTIER (horizontal
-        // ET vertical), jamais dans « ce que l'image laisse ».
-        "relative my-6 flex min-h-[96px] select-none items-center overflow-hidden sm:min-h-[144px]",
+        // Bandeau NU et sans barre latérale. Hauteur MINIMALE pour que le décor de droite
+        // ait une vraie surface ; le texte reste centré dans le bandeau ENTIER.
+        "relative my-7 flex min-h-[84px] select-none items-center overflow-hidden sm:min-h-[116px]",
         className
       )}
     >
-      <span aria-hidden="true" className="absolute inset-y-0 left-0 w-[3px]" style={{ backgroundColor: accent }} />
-      <div className="relative z-10 flex min-w-0 flex-1 flex-col items-center justify-center gap-1 px-6 py-5 text-center sm:px-8">
-        <h2 className="text-base font-bold leading-tight text-foreground sm:text-lg">{title}</h2>
+      <div className="relative z-10 flex min-w-0 flex-1 flex-col items-center justify-center gap-2 px-6 py-5 text-center sm:px-8">
+        {/* Composition : filet — losange — TITRE — losange — filet. */}
+        <div className="flex w-full max-w-[46rem] items-center gap-3 sm:gap-4">
+          <span aria-hidden="true" className="h-px flex-1 bg-gradient-to-r from-transparent to-border" />
+          <span aria-hidden="true" className="h-1.5 w-1.5 shrink-0 rotate-45" style={{ backgroundColor: accent }} />
+          <h2 className="text-sm font-semibold uppercase leading-tight tracking-[0.18em] text-foreground sm:text-[0.9375rem]">
+            {title}
+          </h2>
+          <span aria-hidden="true" className="h-1.5 w-1.5 shrink-0 rotate-45" style={{ backgroundColor: accent }} />
+          <span aria-hidden="true" className="h-px flex-1 bg-gradient-to-l from-transparent to-border" />
+        </div>
         {description && (
           <p className="max-w-[60ch] text-xs leading-relaxed text-muted-foreground">{description}</p>
         )}

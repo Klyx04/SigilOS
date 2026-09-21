@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { ChevronLeft, ChevronRight, Minimize2 } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface RushOverlayFooterProps {
@@ -12,14 +12,13 @@ interface RushOverlayFooterProps {
   isLightMode?: boolean;
   /** Libellé central, ex : "1 / 5" */
   label?: string;
-  onToggleCompact?: () => void;
-  isCompact?: boolean;
   className?: string;
 }
 
 /**
- * Pied de page fixe : navigation Précédent / Suivant entre les chapitres,
- * libellé de position, et bouton "Réduire" (mode jeu compact).
+ * Pied de page fixe : navigation Précédent / Suivant entre les chapitres + libellé de
+ * position. Le bouton « mode compact » (vue de jeu) **n'est plus ici** : c'est un réglage
+ * d'affichage, il vit dans l'en-tête à côté du thème (retour user du 21/09/2026).
  */
 export function RushOverlayFooter({
   onPrev,
@@ -28,8 +27,6 @@ export function RushOverlayFooter({
   canNext,
   isLightMode = false,
   label,
-  onToggleCompact,
-  isCompact = false,
   className,
 }: RushOverlayFooterProps) {
   const baseBtn = "flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold disabled:opacity-20 transition-all shadow-sm";
@@ -62,26 +59,6 @@ export function RushOverlayFooter({
           <span className={cn("text-[11px] font-mono font-bold", isLightMode ? "text-slate-500" : "text-[#929aa5]")}>
             {label}
           </span>
-        )}
-        {onToggleCompact && (
-          <button
-            type="button"
-            onClick={onToggleCompact}
-            aria-label={isCompact ? "Agrandir l'overlay" : "Passer en mode jeu compact"}
-            title={isCompact ? "Agrandir" : "Mode compact"}
-            className={cn(
-              "p-1.5 rounded-lg border transition-colors",
-              isCompact
-                ? isLightMode
-                  ? "bg-amber-50 border-amber-300 text-amber-700"
-                  : "bg-[#d5a94e]/15 border-[#d5a94e]/30 text-[#d5a94e]"
-                : isLightMode
-                  ? "bg-slate-100 border-slate-200 text-slate-500 hover:bg-slate-200"
-                  : "bg-[#181d23] border-[#2a3646] text-[#6e7784] hover:text-[#f2f0e9] hover:bg-[#1f2733]"
-            )}
-          >
-            <Minimize2 className="w-3.5 h-3.5" />
-          </button>
         )}
       </div>
 

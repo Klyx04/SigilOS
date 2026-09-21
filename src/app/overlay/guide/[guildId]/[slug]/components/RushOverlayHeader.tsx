@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Sun, Moon, ExternalLink, Package, Eye, EyeOff, HelpCircle, RotateCcw, Crown, Users, Check, X, MoreVertical, Bug } from "lucide-react";
+import { Sun, Moon, ExternalLink, Package, Eye, EyeOff, HelpCircle, RotateCcw, Crown, Users, Check, X, MoreVertical, Bug, Minimize2 } from "lucide-react";
 import { RushOverlayFeedbackPanel } from "./RushOverlayFeedbackPanel";
 import { getClass } from "@/lib/dofus-assets";
 import { cn } from "@/lib/utils";
@@ -18,6 +18,10 @@ interface RushOverlayHeaderProps {
   overallPct: number;
   isLightMode: boolean;
   onToggleTheme: () => void;
+  /** Bascule en **mode compact** (vue de jeu). Réglage d'affichage : sa place est ici, à
+   *  côté du thème — il vivait au pied de page, entre « Précédent » et « Suivant »
+   *  (retour user : « à quoi sert le mode compact avec le bouton en bas »). */
+  onEnterCompact?: () => void;
   onOpenResources: () => void;
   hideCompleted: boolean;
   onToggleHideCompleted: () => void;
@@ -59,6 +63,7 @@ export function RushOverlayHeader({
   overallPct,
   isLightMode,
   onToggleTheme,
+  onEnterCompact,
   onOpenResources,
   hideCompleted,
   onToggleHideCompleted,
@@ -204,6 +209,24 @@ export function RushOverlayHeader({
           >
             {isLightMode ? <Moon className="w-3.5 h-3.5" /> : <Sun className="w-3.5 h-3.5" />}
           </button>
+
+          {/* Mode compact (vue de jeu) : même famille que le thème — un réglage d'affichage. */}
+          {onEnterCompact && (
+            <button
+              type="button"
+              onClick={onEnterCompact}
+              aria-label="Passer en mode compact (vue de jeu)"
+              title="Mode compact"
+              className={cn(
+                "p-1.5 rounded-lg border transition-colors",
+                isLightMode
+                  ? "bg-slate-100 border-slate-200 text-slate-500 hover:bg-slate-200"
+                  : "bg-[#181d23] border-[#2a3646] text-[#6e7784] hover:text-[#f2f0e9] hover:bg-[#1f2733]"
+              )}
+            >
+              <Minimize2 className="w-3.5 h-3.5" />
+            </button>
+          )}
 
           {/* Ressources (toutes étapes) */}
           <button

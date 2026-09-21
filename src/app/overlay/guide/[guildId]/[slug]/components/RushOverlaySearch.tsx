@@ -27,7 +27,7 @@ export const RushOverlaySearch = forwardRef<HTMLInputElement, RushOverlaySearchP
     return (
       <div
         className={cn(
-          "flex shrink-0 items-center gap-2 h-9 mx-3 my-2 px-3 rounded-lg border transition-colors",
+          "flex shrink-0 items-center gap-2 h-9 mx-3 mt-3 mb-2.5 px-3 rounded-lg border transition-colors",
           isLightMode ? "bg-white border-slate-200" : "bg-[#181c22] border-[#28303a]",
           className
         )}

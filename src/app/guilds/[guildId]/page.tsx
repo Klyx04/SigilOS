@@ -20,7 +20,7 @@ export async function generateMetadata({ params }: Props) {
         const baseUrl = getAppBaseUrl();
         const slug = getGuildSlug(guild);
         return {
-            title: `${guild.name} — Guilde Dofus ${guild.server || ''} | SigilOS`,
+            title: { absolute: `${guild.name} — Guilde Dofus ${guild.server || ''} | SigilOS` },
             description: `Profil de la guilde ${guild.name} sur le serveur ${guild.server || 'Dofus'}. ${guild.isRecruiting ? 'Recrutement ouvert ! ' : ''}Missions, membres, progression et événements. Plateforme SigilOS 2026.`,
             alternates: {
                 canonical: `${baseUrl}/guilds/${slug || guildId}`,
@@ -37,7 +37,7 @@ export async function generateMetadata({ params }: Props) {
     const basicInfo = await getPublicGuildBasicInfo(guildId);
     if (basicInfo) {
         return {
-            title: `${basicInfo.name} (Privé) | SigilOS`,
+            title: { absolute: `${basicInfo.name} (Privé) | SigilOS` },
             description: "Cette guilde est privée.",
             robots: {
                 index: false,
@@ -47,7 +47,7 @@ export async function generateMetadata({ params }: Props) {
     }
 
     return {
-        title: "Guilde non trouvée | SigilOS",
+        title: { absolute: "Guilde non trouvée | SigilOS" },
         robots: {
             index: false,
             follow: false,

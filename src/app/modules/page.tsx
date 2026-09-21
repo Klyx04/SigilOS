@@ -15,7 +15,7 @@ export async function generateMetadata(): Promise<Metadata> {
     const { t, locale } = await getServerI18n();
 
     return {
-        title: t.modulesPage.metaTitle,
+        title: { absolute: t.modulesPage.metaTitle },
         description: t.modulesPage.metaDesc,
         alternates: {
             canonical: `${baseUrl}/modules`,

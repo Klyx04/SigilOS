@@ -19,7 +19,9 @@ export async function generateMetadata(): Promise<Metadata> {
     const dateLocale = locale === "en" ? "en-US" : "fr-FR";
 
     return {
-        title: t.almanaxPage.metaTitle,
+        // `absolute` : ce titre porte déjà la marque — sans lui, le template du layout
+        // racine (`%s | SigilOS`) produirait « … | SigilOS | SigilOS » dans Google.
+        title: { absolute: t.almanaxPage.metaTitle },
         description: t.almanaxPage.metaDesc,
         alternates: {
             canonical: `${getAppBaseUrl()}/almanax`,

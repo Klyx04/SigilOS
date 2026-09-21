@@ -1,8 +1,11 @@
 import { getPlatformConfig } from "@/server/actions/changelog-actions";
 
 export const metadata = {
-    title: "SigilOS — Maintenance",
+    // Le proxy réécrit TOUTES les URL vers /maintenance quand la maintenance est active,
+    // en 200 : sans ce noindex, Google pourrait publier cette page à la place du contenu réel.
+    title: "Maintenance en cours",
     description: "SigilOS est temporairement en maintenance. Nous revenons très vite.",
+    robots: { index: false, follow: false },
 };
 
 export default async function MaintenancePage() {

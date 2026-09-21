@@ -13,7 +13,7 @@ export const revalidate = 86400; // Cache ISR 24h
 const BASE_URL = `${getAppBaseUrl()}/carte-du-monde`;
 
 export const metadata: Metadata = {
-  title: "Carte du Monde Dofus Unity Interactive HD : Zaaps, Donjons, Archimonstres | SigilOS",
+  title: { absolute: "Carte du Monde Dofus Unity Interactive HD : Zaaps, Donjons, Archimonstres | SigilOS" },
   description:
     "Explorez la carte du monde Dofus Unity en haute définition : tous les zaaps, donjons, archimonstres et ressources récoltables, map par map. Gratuit, sans compte, avec overlay détachable.",
   alternates: {

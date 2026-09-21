@@ -3,7 +3,7 @@ import { getAppBaseUrl } from "@/lib/utils";
 import { getServerI18n } from "@/lib/i18n/server";
 
 export const metadata: Metadata = {
-    title: "Mentions Légales | SigilOS",
+    title: { absolute: "Mentions Légales | SigilOS" },
     description: "Mentions légales de SigilOS : éditeur, hébergement OVH, propriété intellectuelle Ankama Games, cookies et droit applicable.",
     alternates: {
         canonical: `${getAppBaseUrl()}/legal/mentions`,

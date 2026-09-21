@@ -15,7 +15,7 @@ import { getServerI18n } from "@/lib/i18n/server";
  * Annuaire public des guildes — registre (refonte anti-slop).
  */
 export const metadata: Metadata = {
-    title: "Annuaire des Guildes Dofus 2026 | SigilOS",
+    title: { absolute: "Annuaire des Guildes Dofus 2026 | SigilOS" },
     description: "Trouvez votre guilde Dofus idéale. Annuaire complet des guildes avec profils, serveurs, recrutement ouvert et statistiques. Comparez les guildes Dofus Unity 2026.",
     alternates: {
         canonical: `${getAppBaseUrl()}/guilds`,

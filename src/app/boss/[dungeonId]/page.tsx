@@ -52,7 +52,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const { t, locale } = await getServerI18n();
 
   if (!dungeon && !titan && !bounty) {
-    return { title: locale === "en" ? "Boss not found — SigilOS" : "Boss introuvable — SigilOS" };
+    return { title: { absolute: locale === "en" ? "Boss not found — SigilOS" : "Boss introuvable — SigilOS" } };
   }
 
   const bossName = dungeon ? dungeon.bossName || dungeon.name : bounty ? bounty.name : titan!.name;
@@ -64,9 +64,12 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const canonicalUrl = `${getAppBaseUrl()}/boss/${canonicalSegment}`;
   if (bounty) {
     return {
-      title: locale === "en"
-        ? `${bossName} (${t.bossPage.levelShort} ${level}) Wanted Bounty: Spells, Hunt Zone & Simulation | SigilOS`
-        : `Avis de recherche ${bossName} (Niveau ${level}) : Sorts, Zone de traque & Simulation | SigilOS`,
+      // `absolute` : le titre porte déjà la marque (sinon le template du layout l'ajoute une 2ᵉ fois).
+      title: {
+        absolute: locale === "en"
+          ? `${bossName} (${t.bossPage.levelShort} ${level}) Wanted Bounty: Spells, Hunt Zone & Simulation | SigilOS`
+          : `Avis de recherche ${bossName} (Niveau ${level}) : Sorts, Zone de traque & Simulation | SigilOS`,
+      },
       description: locale === "en"
         ? `Tactical guide for wanted bounty ${bossName} (${t.bossPage.levelShort.toLowerCase()} ${level}, hunt zone: ${dungeonLabel}): monster spells, ranges, resistances, loot and isometric simulation. 100% free.`
         : `Fiche tactique de l'avis de recherche ${bossName} (niveau ${level}, zone de traque : ${dungeonLabel}) : sorts du monstre, portées, résistances, butin et simulation isométrique. 100% gratuit.`,
@@ -84,9 +87,12 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     };
   }
   return {
-    title: locale === "en"
-      ? `${bossName} (${t.bossPage.levelShort} ${level}): Spells, Ranges & Strategy | SigilOS`
-      : `${bossName} (Niveau ${level}) : Sorts, Portées & Stratégie | SigilOS`,
+    // `absolute` : le titre porte déjà la marque (sinon le template du layout l'ajoute une 2ᵉ fois).
+    title: {
+      absolute: locale === "en"
+        ? `${bossName} (${t.bossPage.levelShort} ${level}): Spells, Ranges & Strategy | SigilOS`
+        : `${bossName} (Niveau ${level}) : Sorts, Portées & Stratégie | SigilOS`,
+    },
     description: locale === "en"
       ? `Complete tactical sheet for ${dungeon ? `boss ${bossName} from dungeon ${dungeonLabel}` : `titan ${bossName} (${dungeonLabel})`}. Isometric spell range simulation, resistances and detachable in-game overlay over Dofus. 100% free.`
       : `Fiche tactique complète pour ${dungeon ? `le boss ${bossName} du donjon ${dungeonLabel}` : `le titan ${bossName} (${dungeonLabel})`}. Simulation isométrique de portée des sorts, résistances et mini-fenêtre overlay détachable par-dessus Dofus. 100% gratuit.`,

@@ -18,6 +18,9 @@
 
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
+import React from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { RushInfoBanner } from "@/components/dofus-quests/rush/RushInfoBanner";
 
 const DASHBOARD = "src/app/dashboard/[guildId]/quetes-dofus/guide/[slug]/RushTimelineClient.tsx";
 const PUBLIC = "src/app/guides/rush-sylvestre/_components/PublicRushGuideClient.tsx";
@@ -71,5 +74,40 @@ describe("Rush — bandeau CONSEIL / TIPS (bloc INFO)", () => {
     const infoBranch = code.indexOf('if (ms.type === "INFO") {');
     expect(infoBranch, "branche INFO absente du guide public").toBeGreaterThan(-1);
     expect(code.slice(infoBranch, infoBranch + 400)).toMatch(/<RushInfoBanner/);
+  });
+});
+
+/** Rendu RÉEL du bandeau (Node + `renderToStaticMarkup` : aucune dépendance ajoutée, pas de DOM). */
+const infoHtml = (props: Record<string, unknown>) =>
+  renderToStaticMarkup(
+    React.createElement(RushInfoBanner, { children: "Lancer Eternelle Moisson dès que possible", ...props } as never)
+  );
+
+describe("RushInfoBanner — le bandeau lui-même", () => {
+  it("loge l'image du bloc à droite, nue et jamais rognée", () => {
+    const out = infoHtml({ imageUrl: "/uploads/guides/tips-moisson.webp", accentColor: "#7c3aed" });
+    expect(out).toContain('src="/uploads/guides/tips-moisson.webp"');
+    expect(out).toContain("object-contain");
+    expect(out).not.toContain("object-cover");
+    expect(out).toContain("Lancer Eternelle Moisson dès que possible");
+  });
+
+  it("URL non sûre ou absent ⇒ aucun <img> (jamais de trou)", () => {
+    expect(infoHtml({ imageUrl: "javascript:alert(1)" })).not.toContain("<img");
+    expect(infoHtml({})).not.toContain("<img");
+  });
+
+  it("l'eyebrow nomme le registre ET porte le picto (plus d'icône isolée)", () => {
+    const warm = infoHtml({ accentColor: "#f59e0b" });
+    expect(warm).toContain("Attention");
+    expect(warm).toContain("⚠️");
+    expect(infoHtml({ accentColor: "#3b82f6" })).toContain("À savoir");
+    expect(infoHtml({ accentColor: "#7c3aed" })).toContain("Astuce");
+    expect(infoHtml({ accentColor: "#10b981" })).toContain("Conseil");
+  });
+
+  it("titre fort quand il est fourni, absent sinon", () => {
+    expect(infoHtml({ title: "Avant le rush" })).toContain("Avant le rush");
+    expect(infoHtml({ accentColor: "#e11d48" })).toContain("background-color:#e11d48");
   });
 });

@@ -313,6 +313,10 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
   const [newDofusId, setNewDofusId] = useState<string | null>(null);
   // Image du bloc (upload scope `guides` — servie aussi aux visiteurs anonymes).
   const [newStepImage, setNewStepImage] = useState("");
+  // Texte du bloc CONSEIL / TIPS : c'est SON contenu (le bandeau le rend tel quel côté
+  // membre). Sans ce champ à la création, il fallait créer le bloc puis le rouvrir en
+  // édition pour écrire le conseil — absurde pour un bloc qui ne porte que ça.
+  const [newStepTips, setNewStepTips] = useState("");
 
   useEffect(() => {
     if (!addingStep) setNewChapterNum(chapterCount + 1);
@@ -450,6 +454,9 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
           order: localMilestones.length,
           type: newStepType,
           dofusId: isSeparator ? null : newDofusId,
+          // Texte du conseil : uniquement pour un bloc Tips (c'est son contenu). Le champ
+          // du modèle est `tips?: string` (pas de null côté action) → undefined si vide.
+          tips: isInfoBlock && newStepTips.trim() ? newStepTips.trim() : undefined,
           // Image du bloc : posée dès la création (le séparateur l'affiche à droite de
           // son bandeau, les autres types dans leur en-tête) — même champ qu'à l'édition.
           imageUrl: newStepImage.trim() || null,
@@ -471,11 +478,11 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
           setExpandedMilestones(prev => new Set(prev).add(created.id));
         }
         toast.success(isSeparator ? "Séparateur ajouté ✓" : isDofusBanner ? "Bannière Dofus ajoutée ✓" : "Étape ajoutée ✓");
-        setNewStepTitle(""); setNewChapterLabel(""); setNewDofusId(null); setNewStepImage(""); setAddingStep(false);
+        setNewStepTitle(""); setNewChapterLabel(""); setNewDofusId(null); setNewStepImage(""); setNewStepTips(""); setAddingStep(false);
         router.refresh();
       } catch (e: any) { toast.error(e.message); }
     });
-  }, [newChapterNum, newChapterLabel, newStepTitle, newStepColor, newStepType, newDofusId, newStepImage, sortedMilestones, router]);
+  }, [newChapterNum, newChapterLabel, newStepTitle, newStepColor, newStepType, newDofusId, newStepImage, newStepTips, sortedMilestones, router]);
 
   const handleSaveMilestone = useCallback((m: Milestone) => {
     startTransition(async () => {
@@ -743,7 +750,7 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
                     )}
                     <div>
                       <label className="text-caption font-black text-zinc-500 uppercase tracking-widest mb-1 block">
-                        {newStepType === "SEPARATEUR" ? "Titre de section *" : "Nom du bloc *"}
+                        {newStepType === "SEPARATEUR" ? "Titre de section *" : newStepType === "INFO" ? "Titre du conseil *" : "Nom du bloc *"}
                       </label>
                       <input value={newStepTitle} onChange={e => setNewStepTitle(e.target.value)}
                         onKeyDown={e => e.key === "Enter" && handleAddStep()}
@@ -752,6 +759,21 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
                         autoFocus
                       />
                     </div>
+
+                    {/* Bloc CONSEIL / TIPS : son TEXTE est tout son contenu — on le saisit
+                        ici (le bandeau membre, public et overlay le rend tel quel). */}
+                    {newStepType === "INFO" && (
+                      <div>
+                        <label className="text-caption font-black text-zinc-500 uppercase tracking-widest mb-1 block">
+                          Conseil / Tips
+                        </label>
+                        <textarea value={newStepTips} onChange={e => setNewStepTips(e.target.value)}
+                          className="w-full bg-black/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-purple-200/90 placeholder:text-zinc-700 focus:outline-none focus:border-purple-500/40 resize-none"
+                          placeholder="ex: Lancer Eternelle Moisson dès que possible pour rendre les captures et faire un Krala sur la première ouverture"
+                          rows={3}
+                        />
+                      </div>
+                    )}
 
                     {/* Dofus selector (si type DOFUS ou DOFUS_OBTAINED) */}
                     {(newStepType === "DOFUS" || newStepType === "DOFUS_OBTAINED") && (

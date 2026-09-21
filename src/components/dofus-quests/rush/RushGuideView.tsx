@@ -11,10 +11,11 @@
  *
  * Ce que cette vue réutilise du module : `buildRushGuideView` (modèle calculé à
  * partir des blocs/dépendances poussés au GOD) et `RushCoordinateChip` (déjà
- * thème-aware, copie `/travel`). Ce qu'elle ne réutilise PAS, volontairement :
- * `RushCurrentObjective` / `RushProgress`, dark-locked (dégradé doré +
- * `animate-pulse`) — l'audit a retiré ces procédés, la vue garde le registre :
- * filet 1px, rayon court, zéro ombre, zéro dégradé, aucune animation infinie.
+ * thème-aware, copie `/w x,y`). Ce qu'elle ne réutilise PAS, volontairement :
+ * les procédés dark-locked (dégradé doré + `animate-pulse`, ex. l'encart
+ * « À FAIRE MAINTENANT » retiré de l'overlay le 21/09/2026) — l'audit a retiré
+ * ces procédés, la vue garde le registre : filet 1px, rayon court, zéro ombre,
+ * zéro dégradé, aucune animation infinie.
  */
 
 import React from "react";

@@ -32,6 +32,17 @@ export function nextBlockIndex(
 }
 
 /**
+ * L'overlay tourne-t-il pour le **guide public** (hors guilde) ?
+ *
+ * SOURCE UNIQUE : la destination des liens de l'overlay en dépend — une fiche donjon vit
+ * `/boss/<slug>` côté public, et `/dashboard/<guildId>/succes?dungeon=…&view=boss` côté
+ * interne. Même convention que le reste du dépôt (`BossOverlayClient`).
+ */
+export function isPublicOverlay(guildId?: string | null): boolean {
+  return !guildId || guildId === "public";
+}
+
+/**
  * Les bannières à afficher AVEC un chapitre — même règle que le dashboard membre
  * (`chapterPages` : « les bannières restent collées au chapitre qui les suit »).
  *

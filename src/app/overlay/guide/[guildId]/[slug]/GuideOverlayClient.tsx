@@ -23,7 +23,6 @@ import { RushOverlayQuestListItem } from "./components/RushOverlayQuestListItem"
 import { RushOverlayQuestDetailModal } from "./components/RushOverlayQuestDetailModal";
 import { RushOverlayFooter } from "./components/RushOverlayFooter";
 import { RushOverlayCompact } from "./components/RushOverlayCompact";
-import { RushCurrentObjective } from "@/components/dofus-quests/rush/RushCurrentObjective";
 import { RushSeparatorBanner } from "@/components/dofus-quests/rush/RushSeparatorBanner";
 import { RushInfoBanner } from "@/components/dofus-quests/rush/RushInfoBanner";
 import { RushRichText } from "@/components/dofus-quests/rush/RushRichText";
@@ -1053,19 +1052,9 @@ export default function GuideOverlayClient({
             </div>
           )}
 
-          {/* ══ OBJECTIF COURANT (épinglé — toujours visible) ══ */}
-          {compactObjective && (
-            <div className="px-3 pt-2">
-              <RushCurrentObjective
-                sequence={compactObjective}
-                milestoneTitle={currentMs?.title}
-                variant="overlay"
-                collapsible
-                defaultCollapsed={overlaySmall}
-                onNavigate={() => handleGoToPrereq(compactObjective.id, currentMs?.id || "")}
-              />
-            </div>
-          )}
+          {/* L'objectif courant (« À FAIRE MAINTENANT ») a été retiré : la liste des quêtes
+              juste en dessous dit déjà quoi faire, avec sa coordonnée et ses donjons —
+              un encart doré qui répète la première ligne ne servait à rien (user, 21/09). */}
 
           {/* ══ PRÉSENCE COMMUNAUTÉ ══ */}
           {chapterMembers.length > 0 && (
@@ -1144,6 +1133,7 @@ export default function GuideOverlayClient({
                       )}
                       <RushOverlayQuestListItem
                         seq={seq}
+                        guildId={guildId}
                         isDone={isSeqDone}
                         isBookmarked={bookmarksByMs.get(ms.id) === seq.id}
                         isLightMode={isLightMode}
@@ -1186,6 +1176,7 @@ export default function GuideOverlayClient({
                   <React.Fragment key={seq.id}>
                     <RushOverlayQuestListItem
                       seq={seq}
+                      guildId={guildId}
                       isDone={isSeqDone}
                       isBookmarked={isBookmarked}
                       isLightMode={isLightMode}

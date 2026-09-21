@@ -1,10 +1,11 @@
 "use client";
 
 import React, { memo } from "react";
-import { Check, Flag, BookmarkCheck, Lock, Info, DoorOpen, Package, Users } from "lucide-react";
+import { Check, Flag, BookmarkCheck, Lock, Info, Package, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { getSequenceCoord, getItemTags, isDungeonSequence } from "./overlay-utils";
+import { getSequenceCoord, getDungeons, getItemTags, isDungeonSequence } from "./overlay-utils";
 import { RushCoordinateChip } from "@/components/dofus-quests/rush/RushCoordinateChip";
+import { RushOverlayDungeonPopover } from "./RushOverlayDungeonPopover";
 import { getAlignmentSet } from "@/lib/rush-helpers";
 import type { RushSequence } from "@/types/rush-guide-types";
 
@@ -26,6 +27,8 @@ interface RushOverlayQuestListItemProps {
   onGoToPrereq?: (seqId: string, milestoneId: string) => void;
   /** Ouvre la modale listant les membres en attente ici (avatars cliquables). */
   onOpenBookmarkers?: () => void;
+  /** Guilde de la surface : sert à construire le lien de la fiche donjon du module. */
+  guildId?: string;
 }
 
 /**
@@ -52,10 +55,13 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
   prereqs = [],
   onGoToPrereq,
   onOpenBookmarkers,
+  guildId,
 }: RushOverlayQuestListItemProps) {
   const parsedCoord = getSequenceCoord(seq);
   const itemTags = getItemTags(seq.activityTags);
   const hasDungeon = isDungeonSequence(seq);
+  // Donjons requis, extraits UNE fois : le badge en affiche le nombre, la popover le détail.
+  const dungeons = React.useMemo(() => (hasDungeon ? getDungeons(seq) : []), [hasDungeon, seq]);
   const name = seq.subGuideName || seq.subGuideRef || "—";
   const alignmentSet = getAlignmentSet(seq);
   const alignLabel = alignmentSet
@@ -180,10 +186,23 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
                 />
               )}
               {hasDungeon && (
-                <span className={cn(chip, "border-warning/40 text-warning")} title="Donjon requis">
-                  <DoorOpen className="h-3 w-3" aria-hidden="true" />
-                  Donjon
-                </span>
+                // Le badge n'était qu'un `title` natif : au survol (ou au clic), on montre les
+                // donjons requis — vignette du boss, nom, badge Ocre — et chaque ligne ouvre sa
+                // fiche (page publique pour l'overlay public, fiche boss du module sinon).
+                <RushOverlayDungeonPopover dungeons={dungeons} guildId={guildId}>
+                  <span className={cn(chip, "border-warning/40 text-warning")} title="Donjon requis — survoler pour le détail">
+                    {/* Picto du donjon : l'asset du jeu, pas un glyphe d'interface. Le
+                        compteur dit combien de donjons la quête demande (×1, ×2…). */}
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src="/assets/dofus-ui/pictos/donjon.png"
+                      alt=""
+                      className="h-3 w-3 shrink-0 object-contain"
+                      aria-hidden="true"
+                    />
+                    Donjon ×{dungeons.length}
+                  </span>
+                </RushOverlayDungeonPopover>
               )}
               {itemTags.length > 0 && (
                 <span className={chip} title={`${itemTags.length} ressource${itemTags.length > 1 ? "s" : ""} à prévoir`}>

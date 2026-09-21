@@ -4,7 +4,6 @@ import React from "react";
 import { Check, ChevronLeft, ChevronRight, Maximize2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { RushMilestone, RushSequence } from "@/types/rush-guide-types";
-import { RushCurrentObjective } from "@/components/dofus-quests/rush/RushCurrentObjective";
 
 interface RushOverlayCompactProps {
   milestone: RushMilestone;
@@ -125,16 +124,16 @@ export function RushOverlayCompact({
         </p>
       )}
 
-      {/* Objectif courant — ou le corps de remplacement (bandeau du séparateur) */}
+      {/* Objectif courant — ou le corps de remplacement (bandeau du séparateur).
+          Pas d'encart doré « À FAIRE MAINTENANT » : le titre ci-dessus EST la quête
+          courante (user, 21/09/2026). */}
       {body ? (
         body
-      ) : objective ? (
-        <RushCurrentObjective sequence={objective} milestoneTitle={milestone.title} variant="overlay" />
-      ) : (
+      ) : !objective ? (
         <p className={cn("text-xs font-semibold", isLightMode ? "text-slate-500" : "text-[#929aa5]")}>
           {isDone ? "✓ Quête terminée" : "Toutes les étapes sont terminées."}
         </p>
-      )}
+      ) : null}
 
       {/* Actions précédent / suivant */}
       <div className="flex items-center justify-between gap-2">

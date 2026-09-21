@@ -14,7 +14,7 @@ import { JsonLd } from "@/components/shared/json-ld";
 import { getServerI18n } from "@/lib/i18n/server";
 
 export const metadata: Metadata = {
-    title: "FAQ & Aide | SigilOS",
+    title: { absolute: "FAQ & Aide | SigilOS" },
     description: "Réponses aux questions fréquentes sur SigilOS : accès via Discord, gestion de guilde Dofus, permissions, modules, données collectées et sécurité.",
     alternates: {
         canonical: `${getAppBaseUrl()}/legal/faq`,

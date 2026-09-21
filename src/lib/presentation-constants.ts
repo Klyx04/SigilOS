@@ -89,6 +89,31 @@ export const MANIFESTO_ASSET = "/assets/dofus/icons/parchment.png";
 export const GUILD_BLASON_ASSET = "/assets/dofus/icons/guild.png";
 
 /**
+ * Segment d'URL de guilde **publiable dans le sitemap**.
+ *
+ * `getGuildSlug` retire les accents et la ponctuation, mais la résolution publique
+ * (`buildGuildLookupConditions` dans `presentation-actions.ts`) compare le nom **tel quel**
+ * (insensible à la casse, mais PAS aux accents ni à la ponctuation). Publier un slug qui ne
+ * « revient pas » sur le nom tel qu'il est stocké produirait une **404** (pire qu'une
+ * redirection) — c'est le cas de « Étoile du Nord » → `etoile-du-nord`.
+ *
+ * On ne publie donc le slug que s'il revient exactement sur le nom (nom déjà sans accent et
+ * sans ponctuation perdue) ; sinon on retombe sur `discordGuildId`, qui **résout toujours**
+ * (au prix d'une redirection 307 vers le slug). Correctif de fond : une colonne `slug`
+ * persistée et unique sur `GuildConfig` (migration) — hors périmètre ici.
+ */
+export function getIndexableGuildSegment(guild: { name?: string | null; discordGuildId?: string | null }): string {
+    const slug = getGuildSlug(guild);
+    const name = (guild.name ?? "").trim();
+    if (slug && name) {
+        const deaccented = name.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        const roundTrip = slug.replace(/-/g, " ").toLowerCase();
+        if (deaccented === name && roundTrip === name.toLowerCase()) return slug;
+    }
+    return guild.discordGuildId || slug;
+}
+
+/**
  * Construit un slug d'URL propre pour une guilde.
  * - Normalise les accents via NFD (é→e, ô→o, ç→c…)
  * - Remplace les espaces/caractères spéciaux par des tirets

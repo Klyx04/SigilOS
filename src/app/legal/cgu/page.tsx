@@ -3,7 +3,7 @@ import { getAppBaseUrl } from "@/lib/utils";
 import { getServerI18n } from "@/lib/i18n/server";
 
 export const metadata: Metadata = {
-    title: "Conditions Générales d'Utilisation | SigilOS",
+    title: { absolute: "Conditions Générales d'Utilisation | SigilOS" },
     description: "CGU de SigilOS : règles d'utilisation, propriété intellectuelle, obligations et limitation de responsabilité.",
     alternates: {
         canonical: `${getAppBaseUrl()}/legal/cgu`,

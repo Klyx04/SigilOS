@@ -2,6 +2,7 @@ import { MetadataRoute } from "next";
 import { db } from "@/lib/prisma";
 import { publishedGuides } from "@/content/guides";
 import { getAppBaseUrl } from "@/lib/utils";
+import { getIndexableGuildSegment } from "@/lib/presentation-constants";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // Base URL résolue selon l'environnement (beta.sigilos.fr sur dev, sigilos.fr en prod)
@@ -55,11 +56,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     try {
         const publicGuilds = await db.guildConfig.findMany({
             where: { isActive: true, presentationEnabled: true },
-            select: { discordGuildId: true, updatedAt: true },
+            select: { discordGuildId: true, name: true, updatedAt: true },
         });
 
         const guildRoutes = publicGuilds.map((guild) => ({
-            url: `${baseUrl}/guilds/${guild.discordGuildId}`,
+            // Le segment publié est celui qui **résout réellement** la page : le snowflake
+            // Discord déclenchait une redirection 307 vers le slug (motif « Page avec
+            // redirection » dans Search Console, constat 21/09/2026).
+            url: `${baseUrl}/guilds/${getIndexableGuildSegment(guild)}`,
             lastModified: guild.updatedAt ?? new Date(),
             changeFrequency: "weekly" as const,
             priority: 0.6,
@@ -82,13 +86,16 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         });
     }
 
-    // #101 — Almanax : pages indexables par date (/almanax/YYYY-MM-DD) sur les
-    // 30 prochains jours. Les offrandes changent chaque jour → priority 0.5,
-    // changeFrequency "daily". Best-effort : si l'API est indisponible, on saute.
+    // #101 — Almanax : pages indexables par date (/almanax/YYYY-MM-DD). Best-effort :
+    // si l'API est indisponible, on saute.
+    // On n'en publie que **7 jours** (constat GSC du 21/09/2026) : les 30 jours du calendrier
+    // produisaient 30 pages « Explorée, actuellement non indexée » (contenu quasi identique —
+    // Google ne les indexe pas) et brouillaient le rapport. 7 jours = découverte utile sans bruit.
+    const ALMANAX_SITEMAP_DAYS = 7;
     try {
         const { getUpcomingAlmanax } = await import("@/server/actions/resources-actions");
         const almanaxItems = await getUpcomingAlmanax();
-        for (const item of almanaxItems) {
+        for (const item of almanaxItems.slice(0, ALMANAX_SITEMAP_DAYS)) {
             const day = item?.date ? item.date.slice(0, 10) : null;
             if (!day) continue;
             routes.push({

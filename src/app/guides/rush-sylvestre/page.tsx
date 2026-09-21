@@ -15,7 +15,7 @@ import { getServerI18n } from "@/lib/i18n/server";
 export const revalidate = 3600; // Cache ISR 1h pour indexation Google rapide
 
 export const metadata: Metadata = {
-  title: "Guide Rush Sylvestre Dofus Unity : Quêtes, Trajets & Overlay In-Game | SigilOS",
+  title: { absolute: "Guide Rush Sylvestre Dofus Unity : Quêtes, Trajets & Overlay In-Game | SigilOS" },
   description:
     "Guide complet étape par étape pour obtenir le Dofus Sylvestre sur Dofus Unity. Coordonnées /travel, liste des ressources, prérequis de quêtes et Overlay In-Game détachable 100% gratuit.",
   alternates: {

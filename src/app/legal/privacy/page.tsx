@@ -4,7 +4,7 @@ import { getAppBaseUrl } from "@/lib/utils";
 import { getServerI18n } from "@/lib/i18n/server";
 
 export const metadata: Metadata = {
-    title: "Politique de Confidentialité | SigilOS",
+    title: { absolute: "Politique de Confidentialité | SigilOS" },
     description: "Politique RGPD de SigilOS : données collectées, finalités, sécurité, hébergement UE et droits des utilisateurs.",
     alternates: {
         canonical: `${getAppBaseUrl()}/legal/privacy`,

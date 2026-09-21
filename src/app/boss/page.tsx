@@ -19,7 +19,9 @@ export async function generateMetadata(): Promise<Metadata> {
   const { t, locale } = await getServerI18n();
 
   return {
-    title: t.bossPage.metaTitle,
+    // `absolute` : ce titre porte déjà la marque — sans lui, le template du layout
+    // racine (`%s | SigilOS`) produirait « … | SigilOS | SigilOS » dans Google.
+    title: { absolute: t.bossPage.metaTitle },
     description: t.bossPage.metaDesc,
     alternates: {
       canonical: `${getAppBaseUrl()}/boss`,

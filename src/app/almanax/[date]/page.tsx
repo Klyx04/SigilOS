@@ -61,7 +61,8 @@ export async function generateMetadata({
         : `${t.almanaxPage.subtitle}`;
 
     return {
-        title,
+        // `absolute` : le titre porte déjà la marque (sinon le template du layout l'ajoute une 2ᵉ fois).
+        title: { absolute: title },
         description,
         alternates: { canonical: `${baseUrl}/almanax/${date}` },
         openGraph: {

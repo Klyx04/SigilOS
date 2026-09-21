@@ -605,7 +605,7 @@ export const en: Translations = {
 
     // Modules Catalog
     modulesPage: {
-        metaTitle: "Guild Modules · SigilOS | Complete Dofus Unity Guild Dashboard",
+        metaTitle: "Guild Modules: Complete Dofus Unity Guild Dashboard | SigilOS",
         metaDesc: "Discover 20+ configurable modules for SigilOS: dungeon runs, Ochre quest, Infinite Dreams, internal marketplace, interactive world map, and Discord sync.",
         badge: "Modular Architecture",
         title: "Every tool in its right place.",

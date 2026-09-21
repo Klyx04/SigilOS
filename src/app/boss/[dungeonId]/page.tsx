@@ -208,6 +208,20 @@ export default async function PublicBossDetailPage({ params }: PageProps) {
   const headersList = await headers();
   const nonce = headersList.get("x-nonce") ?? "";
 
+  /** URL canonique de la fiche (une seule source pour les métadonnées ET le JSON-LD). */
+  const sheetUrl = `${getAppBaseUrl()}/boss/${canonicalSegment ?? key}`;
+  // `level`/`imageUrl` ne sont pris que là où ils existent (le payload d'avis de recherche
+  // ne les expose pas) : le JSON-LD s'adapte, il ne fabrique rien.
+  const sheetLevel = dungeon?.level ?? titan?.level ?? null;
+  const sheetImage = dungeon?.imageUrl ?? titan?.imageUrl ?? null;
+  /**
+   * Résumé « machine » de la fiche, pour le JSON-LD : volontairement **court et factuel** —
+   * la description SERP longue vit dans `generateMetadata` (elle vise le clic humain).
+   */
+  const sheetSummary = locale === "en"
+    ? `Tactical sheet for ${bossName} (${dungeonName})${sheetLevel ? `, level ${sheetLevel}` : ""}: spells, ranges, resistances and in-game overlay.`
+    : `Fiche tactique de ${bossName} (${dungeonName})${sheetLevel ? `, niveau ${sheetLevel}` : ""} : sorts, portées, résistances et overlay en jeu.`;
+
   const jsonLdData = [
     {
       "@context": "https://schema.org",
@@ -219,9 +233,25 @@ export default async function PublicBossDetailPage({ params }: PageProps) {
           "@type": "ListItem",
           position: 3,
           name: bossName,
-          item: `${getAppBaseUrl()}/boss/${canonicalSegment ?? key}`,
+          item: sheetUrl,
         },
       ],
+    },
+    {
+      // Fiche de CONTENU (et non simple page de navigation) : dit à Google **et aux IA** de
+      // quoi parle la page. Constat du 21/09/2026 : les fiches boss n'avaient que le fil
+      // d'Ariane — aucune prise pour une citation, d'où ce bloc `Article`.
+      "@context": "https://schema.org",
+      "@type": "Article",
+      headline: sheetLevel ? `${bossName} (${t.bossPage.levelShort} ${sheetLevel})` : bossName,
+      description: sheetSummary,
+      about: { "@type": "Thing", name: bossName },
+      inLanguage: locale === "en" ? "en" : "fr",
+      url: sheetUrl,
+      mainEntityOfPage: { "@type": "WebPage", "@id": sheetUrl },
+      ...(sheetImage ? { image: [sheetImage] } : {}),
+      isPartOf: { "@type": "WebSite", name: "SigilOS", url: getAppBaseUrl() },
+      publisher: { "@type": "Organization", name: "SigilOS", url: getAppBaseUrl() },
     },
   ];
 

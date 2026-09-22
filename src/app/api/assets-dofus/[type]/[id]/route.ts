@@ -168,8 +168,62 @@ export async function GET(
         let downloaded = false;
         let inputBuffer: Buffer | null = null;
 
+        // ── SORTS : DofusDB est la SEULE autorité de l'icône ────────────────────────────────
+        // L'icône réelle d'un sort est `img/spells/sort_{iconId}.png` (`iconId` ≠ id du sort ; il
+        // vaut **-1** quand le sort n'a PAS d'icône — mesuré le 22/09/2026 : `Ancrépulsion` 15144 →
+        // `iconId: -1`, `img: sort_0.png`). Or le CDN Dofensive renvoie une image **par défaut**
+        // pour tout id inconnu (1 066 octets pour `/spells/15144` COMME pour `/spells/45397`) : le
+        // `?url=` de nos payloads affichait donc une icône étrangère (« icône fausse »).
+        // Ici : pour les sorts, on IGNORE le `?url=`, on résout `iconId`, et sans icône réelle on
+        // sert NOTRE placeholder neutre — jamais l'image d'un autre sort.
+        let spellIconHandled = false;
+        if (isNumericId && assetType === 'spells') {
+            spellIconHandled = true;
+            try {
+                const spellRes = await fetch(`https://api.dofusdb.fr/spells/${safeId}?lang=fr`, {
+                    headers: { 'User-Agent': 'SigilOS/1.0 (+https://sigilos.fr)' },
+                    signal: AbortSignal.timeout(6_000),
+                });
+                if (spellRes.ok) {
+                    const spellData = await spellRes.json();
+                    const directIcon = Number(spellData?.iconId);
+                    const fromImg = Number(String(spellData?.img ?? '').match(/sort_(\d+)\.png/)?.[1]);
+                    const iconId = Number.isFinite(directIcon) && directIcon > 0
+                        ? directIcon
+                        : (Number.isFinite(fromImg) && fromImg > 0 ? fromImg : null);
+                    const candidates = iconId
+                        ? [
+                            `https://api.dofusdb.fr/img/spells/sort_${iconId}.png`,
+                            `https://api.dofusdb.fr/img/spells/${iconId}.png`,
+                        ]
+                        : [];
+                    for (const candidate of candidates) {
+                        try {
+                            const iconRes = await fetch(candidate, {
+                                headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+                                signal: AbortSignal.timeout(6_000),
+                            });
+                            if (!iconRes.ok) continue;
+                            const contentType = iconRes.headers.get('content-type') || '';
+                            if (!contentType.startsWith('image/') && !contentType.startsWith('application/octet-stream')) continue;
+                            const arrayBuffer = await iconRes.arrayBuffer();
+                            if (arrayBuffer.byteLength === 0 || arrayBuffer.byteLength > MAX_IMAGE_BYTES) continue;
+                            inputBuffer = Buffer.from(arrayBuffer);
+                            downloaded = true;
+                            break;
+                        } catch {
+                            // Candidat suivant
+                        }
+                    }
+                }
+            } catch {
+                // Résolution d'icône impossible → placeholder neutre ci-dessous
+            }
+        }
+
         // Tentative 1 : Téléchargement direct depuis remoteUrl (si disponible)
-        if (remoteUrl) {
+        // (jamais pour les sorts : leur icône est résolue ci-dessus, cf. § SORTS.)
+        if (remoteUrl && !spellIconHandled) {
             try {
                 // 🔒 SSRF : re-valide DNS/IP juste avant fetch (anti-rebinding), fail-closed.
                 await assertSafeUrl(remoteUrl);
@@ -233,50 +287,6 @@ export async function GET(
                 }
             } catch {
                 // Échec résolution iconId
-            }
-        }
-
-        // Tentative 2bis : SORTS — DofusDB n'expose PAS `img/spells/{id}.png` pour la
-        // majorité des sorts : l'icône réellement servie est `img/spells/sort_{iconId}.png`
-        // (`iconId` = propriété du sort, différente de son `id`). Sans cette résolution,
-        // le proxy retombait sur le placeholder ⇒ « les icônes des sorts ne chargent pas ».
-        if (!downloaded && isNumericId && assetType === 'spells') {
-            try {
-                const spellRes = await fetch(`https://api.dofusdb.fr/spells/${safeId}?lang=fr`, {
-                    headers: { 'User-Agent': 'SigilOS/1.0 (+https://sigilos.fr)' },
-                    signal: AbortSignal.timeout(6_000),
-                });
-                if (spellRes.ok) {
-                    const spellData = await spellRes.json();
-                    const rawIcon = String(spellData?.iconId ?? spellData?.img ?? '');
-                    const iconId = rawIcon.match(/\d+/)?.[0] ?? null;
-                    const candidates = iconId
-                        ? [
-                            `https://api.dofusdb.fr/img/spells/sort_${iconId}.png`,
-                            `https://api.dofusdb.fr/img/spells/${iconId}.png`,
-                        ]
-                        : [];
-                    for (const candidate of candidates) {
-                        try {
-                            const iconRes = await fetch(candidate, {
-                                headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
-                                signal: AbortSignal.timeout(6_000),
-                            });
-                            if (!iconRes.ok) continue;
-                            const contentType = iconRes.headers.get('content-type') || '';
-                            if (!contentType.startsWith('image/') && !contentType.startsWith('application/octet-stream')) continue;
-                            const arrayBuffer = await iconRes.arrayBuffer();
-                            if (arrayBuffer.byteLength === 0 || arrayBuffer.byteLength > MAX_IMAGE_BYTES) continue;
-                            inputBuffer = Buffer.from(arrayBuffer);
-                            downloaded = true;
-                            break;
-                        } catch {
-                            // Candidat suivant
-                        }
-                    }
-                }
-            } catch {
-                // Échec résolution icône de sort
             }
         }
 

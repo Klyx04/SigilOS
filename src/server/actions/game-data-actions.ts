@@ -12,6 +12,7 @@ import { logger } from "@/lib/logger";
 import { buildBountyBestiaireEntry } from "@/lib/bounty-fiche";
 import { sanitizeHtml } from "@/lib/security";
 import { getLocalMonsterStatAny, persistMonsterStat } from "@/lib/dofensive-sync";
+import { encycloGrade, encycloIdentity, resolveEncycloNames } from "@/lib/dofus-encyclo";
 import { getDofensiveDungeonForBoss } from "@/server/actions/dofensive-actions";
 import { resolveUniqueDungeonSlug } from "@/server/game/dungeon-slug";
 
@@ -1537,6 +1538,17 @@ export async function getMonsterStats(
             } catch (err) { logger.error("Fallback coordinate fetch error:", err); }
         }
 
+        // Fiche encyclopédique (lot « encyclopédie Dofus ») : caractéristiques par
+        // grade + identité (race, zone, agression, restrictions) + noms résolus.
+        // Fail-soft : si DofusDB est injoignable pour les noms, `names` vaut null
+        // et la fiche masque les lignes — jamais de valeur inventée.
+        const encycloId = encycloIdentity(monster);
+        const encycloNames = await resolveEncycloNames(encycloId).catch(() => ({
+            raceName: null,
+            superRaceName: null,
+            zoneName: null,
+        }));
+
         const resultData = {
             id: monster.id,
             name: monster.name?.fr || (typeof monster.name === "string" ? monster.name : ""),
@@ -1544,19 +1556,33 @@ export async function getMonsterStats(
             imageUrl: monster.img || `https://static.ankama.com/dofus/www/game/monsters/${monster.id}.png`,
             familyId: monster.race ?? null,
             coordinates,
-            grades: monster.grades.map((g: any, idx: number) => ({
-                level: g.level,
-                lifePoints: g.lifePoints,
-                actionPoints: g.pa || g.actionPoints,
-                movementPoints: g.pm || g.movementPoints,
-                resists: {
-                    neutral: g.neutralResistance,
-                    earth: g.earthResistance,
-                    fire: g.fireResistance,
-                    water: g.waterResistance,
-                    air: g.airResistance
-                }
-            })),
+            encyclo: { ...encycloId, names: encycloNames },
+            grades: monster.grades.map((g: any, idx: number) => {
+                const carac = encycloGrade(g);
+                return {
+                    level: g.level,
+                    lifePoints: g.lifePoints,
+                    actionPoints: g.pa || g.actionPoints,
+                    movementPoints: g.pm || g.movementPoints,
+                    resists: {
+                        neutral: g.neutralResistance,
+                        earth: g.earthResistance,
+                        fire: g.fireResistance,
+                        water: g.waterResistance,
+                        air: g.airResistance
+                    },
+                    carac: {
+                        wisdom: carac.wisdom,
+                        strength: carac.strength,
+                        intelligence: carac.intelligence,
+                        chance: carac.chance,
+                        agility: carac.agility,
+                        paDodge: carac.paDodge,
+                        pmDodge: carac.pmDodge,
+                        gradeXp: carac.gradeXp,
+                    },
+                };
+            }),
             drops: monster.drops?.map((d: any) => {
                 const item = itemsMap[d.objectId];
                 const iconId = item?.iconId || d.objectId;

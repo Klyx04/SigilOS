@@ -4,6 +4,12 @@ import React from "react";
 import { Check, ChevronLeft, ChevronRight, Maximize2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { RushMilestone, RushSequence } from "@/types/rush-guide-types";
+import { RushOverlayChapterTree } from "./RushOverlayChapterTree";
+import { RushOverlayMemberBubbles, type OverlayBubbleMember } from "./RushOverlayMemberBubbles";
+
+/** Repli **stables** (jamais recréés à chaque rendu) quand l'appelant n'a pas de progression. */
+const EMPTY_MS_IDS: Set<string> = new Set();
+const EMPTY_DONE_BY_MS: Map<string, Set<string>> = new Map();
 
 interface RushOverlayCompactProps {
   milestone: RushMilestone;
@@ -12,6 +18,21 @@ interface RushOverlayCompactProps {
   isLightMode?: boolean;
   /** Corps de remplacement (bannières du chapitre sans objectif restant) : prend la place de l'objectif. */
   body?: React.ReactNode;
+  /**
+   * Navigation chapitres — le sélecteur **partagé** (`RushOverlayChapterTree`, variante
+   * `inline`), monté dans la vue de jeu pour pouvoir **changer de chapitre à tout moment** :
+   * le mode compact n'offre sinon que « Précédent / Suivant », qui **sautent** les chapitres
+   * déjà validés (retour user 21/09/2026 : « pour le chapitre faut pouvoir changer quand on
+   * veut quand même »). Absent ⇒ le titre du bloc reste un simple texte.
+   */
+  chapters?: RushMilestone[];
+  activeMsId?: string;
+  onSelectChapter?: (msId: string) => void;
+  completedMsIds?: Set<string>;
+  doneByMs?: Map<string, Set<string>>;
+  /** Membres ayant posé leur repère sur la quête courante (bulles + mini-modale). */
+  bookmarkers?: OverlayBubbleMember[];
+  onOpenBookmarkers?: () => void;
   onToggle: () => void;
   onPrev: () => void;
   onNext: () => void;
@@ -33,6 +54,13 @@ export function RushOverlayCompact({
   isDone,
   isLightMode = false,
   body,
+  chapters,
+  activeMsId,
+  onSelectChapter,
+  completedMsIds,
+  doneByMs,
+  bookmarkers = [],
+  onOpenBookmarkers,
   onToggle,
   onPrev,
   onNext,
@@ -116,13 +144,39 @@ export function RushOverlayCompact({
         </button>
       </div>
 
-      {/* Métadonnées : Étape n/m · Chapitre (sans objet pour un bandeau de séparateur) */}
-      {!body && (
-        <p className={cn("text-[10px] tabular-nums", isLightMode ? "text-slate-500" : "text-[#929aa5]")}>
-          {stepLabel}
-          {milestone.title ? ` · ${milestone.title}` : ""}
-        </p>
-      )}
+      {/* Métadonnées : CHAPITRE (cliquable — « changer quand on veut ») · Étape n/m ·
+          membres ici. Le chapitre reste affiché même quand un bandeau remplace l'objectif :
+          sinon il ne resterait que Précédent/Suivant, qui sautent les chapitres validés. */}
+      <div className="flex min-w-0 items-center gap-2">
+        {chapters && onSelectChapter ? (
+          <RushOverlayChapterTree
+            variant="inline"
+            chapters={chapters}
+            activeMsId={activeMsId}
+            onSelectChapter={onSelectChapter}
+            completedMsIds={completedMsIds ?? EMPTY_MS_IDS}
+            doneByMs={doneByMs ?? EMPTY_DONE_BY_MS}
+            isLightMode={isLightMode}
+            className="min-w-0 flex-1"
+          />
+        ) : (
+          <p className={cn("min-w-0 flex-1 truncate text-[10px]", isLightMode ? "text-slate-500" : "text-[#929aa5]")}>
+            {milestone.title}
+          </p>
+        )}
+        {!body && stepLabel && (
+          <span className={cn("shrink-0 text-[10px] tabular-nums", isLightMode ? "text-slate-500" : "text-[#929aa5]")}>
+            {stepLabel}
+          </span>
+        )}
+        {!isDone && bookmarkers.length > 0 && (
+          <RushOverlayMemberBubbles
+            members={bookmarkers}
+            onOpen={() => onOpenBookmarkers?.()}
+            size="md"
+          />
+        )}
+      </div>
 
       {/* Objectif courant — ou le corps de remplacement (bandeau du séparateur).
           Pas d'encart doré « À FAIRE MAINTENANT » : le titre ci-dessus EST la quête

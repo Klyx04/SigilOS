@@ -6,6 +6,8 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { getUserTitansData, toggleTitanCompleted } from "@/server/actions/titan-actions";
 import { getMonsterStats, getDungeonMonsters } from "@/server/actions/game-data-actions";
+import { getLinkedQuests } from "@/server/actions/dofus-quest-actions";
+import { SuccesBossQuests, type BossLinkedQuestsData } from "./SuccesBossQuests";
 import { getBossDofensiveSpells, getDofensiveDungeonForBoss, type DofensiveDungeonInfo } from "@/server/actions/dofensive-actions";
 import { mergeDofensiveSpells } from "@/lib/dofensive-spells";
 import { resolveDofusAssetImageUrl } from "@/lib/dofus-image-url";
@@ -102,7 +104,8 @@ export function SuccesTitanTab({ guildId, canEdit }: { guildId: string; canEdit:
     const [stats, setStats] = useState<any>(null);
     const [loadingStats, setLoadingStats] = useState(false);
     const [activeGradeIndex, setActiveGradeIndex] = useState(0);
-    const [detailTab, setDetailTab] = useState<"info" | "sim" | "monsters">("info");
+    const [detailTab, setDetailTab] = useState<"info" | "sim" | "monsters" | "quetes">("info");
+    const [linkedQuests, setLinkedQuests] = useState<BossLinkedQuestsData | null>(null);
     const [activeSpellId, setActiveSpellId] = useState<number | undefined>(undefined);
     const [dungeonMaps, setDungeonMaps] = useState<DofensiveDungeonInfo | null | undefined>(undefined);
     const [family, setFamily] = useState<{ familyId: number | null; monsters: { id: number; name: string; imageUrl: string | null; isBoss: boolean }[] } | null>(null);
@@ -160,6 +163,16 @@ export function SuccesTitanTab({ guildId, canEdit }: { guildId: string; canEdit:
             .finally(() => { if (!cancelled) setLoadingStats(false); });
         return () => { cancelled = true; };
     }, [selected]);
+
+    // Quêtes liées au titan (même source que les fiches boss — affichage partagé).
+    useEffect(() => {
+        if (!selected) { setLinkedQuests(null); return; }
+        let cancelled = false;
+        getLinkedQuests(guildId, selected.name, selected.name, selected.dofusdbId ?? null).then((res) => {
+            if (!cancelled && res.success && res.data) setLinkedQuests(res.data as BossLinkedQuestsData);
+        }).catch(() => {});
+        return () => { cancelled = true; };
+    }, [selected, guildId]);
 
     // Maps Dofensive + monstres de salle du titan (onglet Simulation / Monstres de salle).
     useEffect(() => {
@@ -334,13 +347,15 @@ export function SuccesTitanTab({ guildId, canEdit }: { guildId: string; canEdit:
                         </div>
                     )}
 
-                    {/* Onglets : Stats & Sorts / Simulation / Monstres de salle */}
+                    {/* Onglets : Stats & Sorts / Simulation / Monstres de salle / Quêtes */}
                     {(() => {
                         const roomMonsters = family?.monsters ?? [];
+                        const questCount = linkedQuests?.quests.length ?? 0;
                         const tabList = [
                             { id: "info", label: "Stats & Sorts", icon: Swords },
                             { id: "sim", label: "Simulation", icon: Target },
                             ...(roomMonsters.length > 1 ? [{ id: "monsters", label: `Monstres de salle (${roomMonsters.length})`, icon: Users }] : []),
+                            { id: "quetes", label: `Quêtes (${questCount})`, icon: ScrollText },
                         ];
                         return (
                             <div className="flex items-center gap-1.5 p-1 bg-surface border border-border rounded-xl overflow-x-auto no-scrollbar">
@@ -601,6 +616,21 @@ export function SuccesTitanTab({ guildId, canEdit }: { guildId: string; canEdit:
                                 </div>
                             ) : (
                                 <p className="text-xs text-muted-foreground">Aucun monstre de salle renseigné pour ce titan.</p>
+                            )}
+                        </div>
+                    )}
+
+                    {/* Onglet Quêtes liées */}
+                    {detailTab === "quetes" && (
+                        <div className="space-y-3">
+                            <div className="flex items-center gap-2">
+                                <ScrollText className="w-4 h-4 text-warning" />
+                                <h4 className="text-sm font-bold text-foreground">Quêtes liées</h4>
+                            </div>
+                            {linkedQuests ? (
+                                <SuccesBossQuests guildId={guildId} bossName={selected.name} data={linkedQuests} />
+                            ) : (
+                                <p className="text-xs text-muted-foreground py-4 text-center">Chargement des quêtes liées…</p>
                             )}
                         </div>
                     )}

@@ -30,6 +30,7 @@ import { RushInfoSequenceBanner } from "@/components/dofus-quests/rush/RushInfoS
 import { getNextObjective, aggregateRushResources, nextBlockIndex, bannersForChapter } from "./components/overlay-utils";
 import { RushOverlayResourcesModal } from "./components/RushOverlayResourcesModal";
 import { RushOverlayMembersModal, type OverlayMember } from "./components/RushOverlayMembersModal";
+import { type OverlayBubbleMember } from "./components/RushOverlayMemberBubbles";
 import { RushOverlayOcreModal } from "./components/RushOverlayOcreModal";
 import { buildOcrePlan, type OcrePanelData } from "@/lib/ocre-soul-stones";
 import { RushOverlayTutorialModal } from "./components/RushOverlayTutorialModal";
@@ -419,24 +420,47 @@ export default function GuideOverlayClient({
   // ou overlay) il peut être stocké brut (`seqId`) ou préfixé (`seq:<seqId>`).
   // On normalise puis on compare directement à l'id de séquence (plus de mapping
   // step-keys Ganymède qui ne correspondait jamais → avatars vides).
+  // ⚠️ Les séquences de TOUS les chapitres font foi : une bulle doit s'afficher sur
+  // N'IMPORTE quelle quête affichée (résultats de recherche, chapitre rouvert), pas
+  // seulement sur le chapitre courant (retour user 21/09/2026 : « les bulles profil …
+  // aussi sur l'overlay dans chaque quête »).
   const validSeqIds = useMemo(() => {
-    return new Set(currentMs?.sequences.map((s) => s.id) ?? []);
-  }, [currentMs]);
+    const ids = new Set<string>();
+    for (const ms of milestones) for (const s of ms.sequences) ids.add(s.id);
+    return ids;
+  }, [milestones]);
 
   const bookmarkersBySeq = useMemo(() => {
-    const map = new Map<string, { name: string; avatar?: string }[]>();
-    if (!currentMs) return map;
+    const map = new Map<string, OverlayBubbleMember[]>();
+    // Un membre peut avoir plusieurs emplacements (principal + mule) sur la même quête :
+    // UNE seule bulle par membre et par quête (même règle que le dashboard, qui
+    // déduplique par `profileId || userName`).
+    const seen = new Map<string, Set<string>>();
     for (const row of allProgress) {
-      if (row.milestoneId !== currentMs.id || !row.currentStep) continue;
+      if (!row.currentStep) continue;
       const raw = String(row.currentStep);
       const seqId = raw.startsWith("seq:") ? raw.slice(4) : raw;
       if (!validSeqIds.has(seqId)) continue;
+      const seenForSeq = seen.get(seqId) ?? new Set<string>();
+      const memberKey = row.profileId || row.userName;
+      if (seenForSeq.has(memberKey)) continue;
+      seenForSeq.add(memberKey);
+      seen.set(seqId, seenForSeq);
       const list = map.get(seqId) || [];
       list.push({ name: row.userName, avatar: row.userAvatar });
       map.set(seqId, list);
     }
     return map;
-  }, [allProgress, currentMs, validSeqIds]);
+  }, [allProgress, validSeqIds]);
+
+  /** Bulles « ici » d'une quête → mini-modale des membres (liste défilante). */
+  const openSeqMembers = useCallback(
+    (seq: RushSequence) => {
+      const members = (bookmarkersBySeq.get(seq.id) || []).map((x) => ({ name: x.name, avatar: x.avatar }));
+      setMembersModal({ title: "En attente ici", members });
+    },
+    [bookmarkersBySeq]
+  );
 
   // ─── Prérequis (gating de validation) ─────────────────────────────────────
   // Une quête ne peut être cochée que si toutes ses quêtes prérequis sont validées.
@@ -1166,7 +1190,8 @@ export default function GuideOverlayClient({
                         onToggle={() => handleToggleSeq(ms, seq.id)}
                         onBookmark={() => handleBookmark(ms, seq.id)}
                         onOpenDetail={() => setDetailSeq({ ms, seq })}
-                        bookmarkers={[]}
+                        bookmarkers={bookmarkersBySeq.get(seq.id) || []}
+                        onOpenBookmarkers={() => openSeqMembers(seq)}
                       />
                     </React.Fragment>
                   );
@@ -1210,10 +1235,7 @@ export default function GuideOverlayClient({
                       onBookmark={() => handleBookmark(currentMs, seq.id)}
                       onOpenDetail={() => setDetailSeq({ ms: currentMs, seq })}
                       bookmarkers={bookmarkersBySeq.get(seq.id) || []}
-                      onOpenBookmarkers={() => {
-                        const b = bookmarkersBySeq.get(seq.id) || [];
-                        setMembersModal({ title: "En attente ici", members: b.map((x) => ({ name: x.name, avatar: x.avatar })) });
-                      }}
+                      onOpenBookmarkers={() => openSeqMembers(seq)}
                     />
                   </React.Fragment>
                 );
@@ -1245,6 +1267,15 @@ export default function GuideOverlayClient({
           // l'objectif que s'il n'y a RIEN à faire ici (chapitre sans quête restante) —
           // sinon elles restent lisibles en mode normal, à leur place dans le flux.
           body={!compactObjective && banners.before.length > 0 ? banners.before.map(renderBanner) : undefined}
+          /* Sélecteur de chapitre PARTAGÉ, en ligne : on change de chapitre quand on veut,
+             y compris en combat (retour user 21/09/2026). */
+          chapters={milestones}
+          activeMsId={currentMs.id}
+          onSelectChapter={selectChapter}
+          completedMsIds={completedIds}
+          doneByMs={completedStepsByMs}
+          bookmarkers={compactObjective ? bookmarkersBySeq.get(compactObjective.id) || [] : []}
+          onOpenBookmarkers={() => compactObjective && openSeqMembers(compactObjective)}
           onToggle={() => currentMs && compactObjective && handleToggleSeq(currentMs, compactObjective.id)}
           onPrev={goToPrevMs}
           onNext={goToNextMs}

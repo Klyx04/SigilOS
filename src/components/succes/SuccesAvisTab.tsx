@@ -9,7 +9,7 @@
  * critères de chasse et carte de simulation (grille locale ou **repli déclaré**).
  * Aucune saisie à la main, aucun appel DofusDB/Dofensive à l'ouverture d'une fiche.
  */
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
     ExternalLink,
@@ -20,7 +20,6 @@ import {
     Swords,
     Target,
     Zap,
-    Flame,
     Gem,
     Compass,
     Shield,
@@ -30,6 +29,7 @@ import { cn } from "@/lib/utils";
 import { getBestiaireCatalog, type BestiaireEntry } from "@/server/actions/game-data-actions";
 import { getBountyFiche, type BountyFichePayload } from "@/server/actions/bounty-actions";
 import { SpellRangeGrid } from "@/components/succes/SpellRangeGrid";
+import { SuccesBossEncyclo } from "@/components/succes/SuccesBossEncyclo";
 import { useBossOverlay } from "@/hooks/use-boss-overlay";
 
 type DetailTab = "info" | "sorts" | "sim" | "loot";
@@ -91,6 +91,18 @@ export function SuccesAvisTab({ guildId }: { guildId: string }) {
         return [...list].sort((a, b) => (a.level ?? 0) - (b.level ?? 0) || a.bossName.localeCompare(b.bossName, "fr"));
     }, [catalog, search]);
 
+    // Jamais d'écran vide à l'arrivée : le premier avis (trié par niveau) est
+    // ouvert d'office, une seule fois au chargement (comme « Mes Succès »).
+    const autoSelectedRef = useRef(false);
+    useEffect(() => {
+        if (autoSelectedRef.current || loading || catalog.length === 0) return;
+        autoSelectedRef.current = true;
+        const first = [...catalog].sort(
+            (a, b) => (a.level ?? 0) - (b.level ?? 0) || a.bossName.localeCompare(b.bossName, "fr")
+        )[0];
+        if (first) setSelectedId(first.id);
+    }, [loading, catalog]);
+
     // 2. Fiche locale de l'avis sélectionné (aucun appel sortant).
     useEffect(() => {
         if (!selectedId) {
@@ -105,6 +117,7 @@ export function SuccesAvisTab({ guildId }: { guildId: string }) {
                 setFiche(res.success && res.data ? res.data : null);
                 setActiveGradeIndex(0);
                 setActiveSpellId(undefined);
+                setDetailTab("info");
             })
             .catch(() => {
                 if (!cancelled) setFiche(null);
@@ -118,7 +131,6 @@ export function SuccesAvisTab({ guildId }: { guildId: string }) {
     const selected = filtered.find((e) => e.id === selectedId) ?? catalog.find((e) => e.id === selectedId) ?? null;
     const stats = fiche?.monsterStats ?? null;
     const grades: any[] = Array.isArray(stats?.grades) ? stats.grades : [];
-    const activeGrade = grades[activeGradeIndex] ?? grades[0] ?? null;
     const spells: any[] = Array.isArray(stats?.spells) ? stats.spells : [];
     const drops: any[] = Array.isArray(stats?.drops) ? stats.drops : [];
 
@@ -147,7 +159,7 @@ export function SuccesAvisTab({ guildId }: { guildId: string }) {
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
                         placeholder="Rechercher un avis ou une zone…"
-                        className="w-full rounded-lg border border-border bg-background/60 py-1.5 pl-8 pr-2 text-xs outline-none focus:border-warning/40"
+                        className="w-full rounded-lg border border-border bg-background/60 py-1.5 pl-8 pr-2 text-xs outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     />
                 </div>
                 <div className="max-h-[60vh] space-y-1 overflow-y-auto pr-0.5">
@@ -168,7 +180,7 @@ export function SuccesAvisTab({ guildId }: { guildId: string }) {
                                 className={cn(
                                     "flex w-full items-center gap-2.5 rounded-xl border px-2.5 py-2 text-left transition-colors",
                                     selectedId === e.id
-                                        ? "border-rose-500/40 bg-rose-500/10"
+                                        ? "border-border-strong bg-elevated/90"
                                         : "border-transparent bg-elevated/40 hover:bg-elevated/70"
                                 )}
                             >
@@ -179,7 +191,7 @@ export function SuccesAvisTab({ guildId }: { guildId: string }) {
                                 />
                                 <span className="min-w-0 flex-1">
                                     <span className="block truncate text-xs font-semibold text-foreground">{e.bossName}</span>
-                                    <span className="block truncate text-[10px] text-rose-400/70">{e.name}</span>
+                                    <span className="block truncate text-[10px] text-muted-foreground">{e.name}</span>
                                 </span>
                                 {e.level > 0 && <span className="font-mono text-[10px] text-muted-foreground">niv. {e.level}</span>}
                             </button>
@@ -192,10 +204,10 @@ export function SuccesAvisTab({ guildId }: { guildId: string }) {
             <div className="min-w-0">
                 {!selectedId ? (
                     <div className="flex h-full min-h-[280px] flex-col items-center justify-center rounded-2xl border border-border bg-surface/50 p-8 text-center">
-                        <Target className="mb-3 h-8 w-8 text-rose-400/70" />
-                        <p className="text-sm font-semibold text-foreground">Choisissez un avis de recherche</p>
+                        <Target className="mb-3 h-8 w-8 text-muted-foreground/40" />
+                        <p className="text-sm font-semibold text-foreground">Aucun avis à afficher</p>
                         <p className="mt-1 max-w-md text-xs text-muted-foreground">
-                            Sorts, résistances, butin, zone de traque et simulation — servis depuis la base locale.
+                            Lancez le siphon (God → Données de jeu) pour peupler les avis de recherche.
                         </p>
                     </div>
                 ) : loadingFiche ? (
@@ -217,11 +229,11 @@ export function SuccesAvisTab({ guildId }: { guildId: string }) {
                                 />
                                 <div className="min-w-0">
                                     <p className="flex flex-wrap items-center gap-2 text-[11px] uppercase tracking-wide text-muted-foreground">
-                                        <span className="rounded-full border border-rose-500/40 bg-rose-500/10 px-2 py-0.5 font-semibold normal-case text-rose-300">
+                                        <span className="rounded-full border border-border bg-surface px-2 py-0.5 font-semibold normal-case text-foreground">
                                             {fiche.meta.raceName}
                                         </span>
                                         <span className="font-mono normal-case">niv. {fiche.dungeon.level}</span>
-                                        {fiche.stale && <span className="normal-case text-amber-300/90">données datées</span>}
+                                        {fiche.stale && <span className="normal-case text-muted-foreground">données datées</span>}
                                     </p>
                                     <h2 className="mt-0.5 truncate text-xl font-semibold text-foreground">{fiche.dungeon.bossName}</h2>
                                     <p className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -282,90 +294,38 @@ export function SuccesAvisTab({ guildId }: { guildId: string }) {
                                 </p>
                             )}
                         </div>
-                        {/* Onglets de la fiche */}
-                        <div className="flex flex-wrap items-center gap-1.5 rounded-xl border border-border bg-background/40 p-1">
+                        {/* Onglets de la fiche — même grammaire que les fiches boss.
+                            Les rangs vivent dans la section encyclopédie ci-dessus. */}
+                        <div className="flex items-center gap-1 overflow-x-auto border-b border-border no-scrollbar">
                             {tabs.map((t) => {
                                 const Icon = t.icon;
+                                const active = detailTab === t.id;
                                 return (
                                     <button
                                         key={t.id}
                                         type="button"
                                         onClick={() => setDetailTab(t.id)}
                                         className={cn(
-                                            "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-bold transition-colors",
-                                            detailTab === t.id
-                                                ? "bg-warning/15 text-warning"
-                                                : "text-muted-foreground hover:text-foreground"
+                                            "flex items-center gap-2 border-b-2 -mb-px px-3 py-2 text-xs transition-colors whitespace-nowrap",
+                                            active
+                                                ? "border-foreground/60 text-foreground"
+                                                : "border-transparent text-muted-foreground hover:text-foreground"
                                         )}
                                     >
                                         <Icon className="h-3.5 w-3.5" /> {t.label}
                                     </button>
                                 );
                             })}
-                            {grades.length > 1 && (
-                                <span className="ml-auto flex items-center gap-1 pr-1">
-                                    <Flame className="h-3.5 w-3.5 text-muted-foreground" />
-                                    {grades.map((g: any, i: number) => (
-                                        <button
-                                            key={i}
-                                            type="button"
-                                            onClick={() => setActiveGradeIndex(i)}
-                                            className={cn(
-                                                "rounded-md px-1.5 py-0.5 font-mono text-[10px] transition-colors",
-                                                activeGradeIndex === i
-                                                    ? "bg-warning/20 text-warning"
-                                                    : "text-muted-foreground hover:text-foreground"
-                                            )}
-                                        >
-                                            {g.level}
-                                        </button>
-                                    ))}
-                                </span>
-                            )}
                         </div>
 
                         {detailTab === "info" && (
-                            <div className="space-y-3">
-                                <div className="grid grid-cols-3 gap-2 text-center">
-                                    {[
-                                        { label: "PV", value: activeGrade?.lifePoints },
-                                        { label: "PA", value: activeGrade?.actionPoints },
-                                        { label: "PM", value: activeGrade?.movementPoints },
-                                    ].map((s) => (
-                                        <div key={s.label} className="rounded-xl border border-border bg-background/40 py-2">
-                                            <p className="font-mono text-lg font-semibold text-foreground">{s.value ?? "—"}</p>
-                                            <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{s.label}</p>
-                                        </div>
-                                    ))}
-                                </div>
-                                <div className="space-y-1.5 rounded-xl border border-border bg-background/40 p-3">
-                                    <p className="text-[11px] font-black uppercase tracking-wide text-muted-foreground">Résistances</p>
-                                    {(["neutral", "earth", "fire", "water", "air"] as const).map((k) => {
-                                        const labels: Record<string, string> = {
-                                            neutral: "Neutre",
-                                            earth: "Terre",
-                                            fire: "Feu",
-                                            water: "Eau",
-                                            air: "Air",
-                                        };
-                                        const v = Number(activeGrade?.resists?.[k] ?? 0);
-                                        return (
-                                            <div key={k} className="flex items-center gap-2 text-[11px]">
-                                                <span className="w-14 shrink-0 text-muted-foreground">{labels[k]}</span>
-                                                <span className="h-[3px] flex-1 overflow-hidden rounded-full bg-white/[0.07]">
-                                                    <span
-                                                        className={cn("block h-full rounded-full", v < 0 ? "bg-rose-500/80" : "bg-sky-400/70")}
-                                                        style={{ width: `${Math.min(100, Math.abs(v))}%` }}
-                                                    />
-                                                </span>
-                                                <span className={cn("w-10 shrink-0 text-right font-mono", v < 0 ? "text-rose-400" : "text-foreground/80")}>
-                                                    {v}%
-                                                </span>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            </div>
+                            <SuccesBossEncyclo
+                                level={fiche.dungeon.level}
+                                grades={grades}
+                                encyclo={(stats as any)?.encyclo ?? null}
+                                activeGradeIndex={activeGradeIndex}
+                                onGradeChange={(idx) => setActiveGradeIndex(idx)}
+                            />
                         )}
 
                         {detailTab === "sorts" && (

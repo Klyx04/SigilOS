@@ -14,8 +14,13 @@ const DOFUSDB_HEADERS = {
     "User-Agent": "SigilOS/1.0 (+https://sigilos.fr)",
 };
 
-/** Chemins DofusDB autorisés (lecture). N'accepter que `{collection}/{query}`. */
-const DOFUSDB_PATH_RE = /^\/(?:spells|spell-levels|spell-variants|breeds|items|monsters|monster-races|classes)\??/;
+/**
+ * Chemins DofusDB autorisés (lecture). N'accepter que `{collection}` suivi de
+ * `/`, `?` ou fin de chaîne — un `;` ou autre caractère (ex. `/monsters;DROP`)
+ * est refusé (garde SSRF stricte, pas de préfixe lâche).
+ */
+export const DOFUSDB_PATH_RE =
+    /^\/(?:spells|spell-levels|spell-variants|breeds|items|monsters|monster-races|monster-super-races|subareas|classes)(?:[?/]|$)/;
 
 /**
  * Interrupteur de TEST DE PANNE (D6 de l'amorce « indépendance totale »).

@@ -230,7 +230,16 @@ describe("dofensive-actions — sorts Dofensive (données de combat)", () => {
         // Nouveaux champs enrichis : grade + version structurée des effets.
         expect(starting?.grade).toBe(1);
         expect(starting?.effectDetails).toEqual([
-            { label: "101 dommages Eau", duration: null, triggers: [], masks: [] },
+            {
+                label: "101 dommages Eau",
+                duration: null,
+                triggers: [],
+                masks: [],
+                // Jet numérique extrait de la ligne (params bruts ici : le monstre de test n'a
+                // aucune caractéristique) — c'est la donnée affichée par la prévisu de dégâts.
+                damage: { element: "water", min: 101, max: 101 },
+                pushDistance: null,
+            },
         ]);
         expect(starting?.hasCriticalEffects).toBe(false);
         expect(starting?.criticalEffects).toBeUndefined();
@@ -323,12 +332,17 @@ describe("dofensive-actions — sorts Dofensive (données de combat)", () => {
             duration: "infini",
             triggers: ["L'effet est déclenché lorsque la cible reçoit des dommages d'une invocation"],
             masks: ["Affecte le lanceur (même en-dehors de la zone d'effet)"],
+            // Un état n'inflige aucun dommage : aucune valeur devinée (jamais de chiffre faux).
+            damage: null,
+            pushDistance: null,
         });
         expect(spell?.effectDetails?.[1]).toEqual({
             label: "-10 Fuite",
             duration: "pour 1 tour",
             triggers: ["L'effet est déclenché lorsque la cible reçoit des dommages d'une invocation"],
             masks: [],
+            damage: null,
+            pushDistance: null,
         });
         // Aucun effet critique → « Aucun effet critique » côté UI.
         expect(spell?.hasCriticalEffects).toBe(false);

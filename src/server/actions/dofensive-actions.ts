@@ -23,7 +23,7 @@ import type {
     DofensiveZoneShape,
 } from "@/lib/dofensive-spells";
 import { dofensiveFetch, norm, toSafeId } from "@/lib/dofensive-fetch";
-import { pickMonsterDamageStats, scaleDamageInEffectGroups } from "@/lib/dofus-monster-damage";
+import { damageRangeOfEffect, pickMonsterDamageStats, pushDistanceOfEffect, scaleDamageInEffectGroups } from "@/lib/dofus-monster-damage";
 import { deriveDofensiveMonsterName, pickDofensiveMonsterId } from "@/lib/dofensive-boss";
 import {
     getLocalDofensiveDungeonAny,
@@ -485,7 +485,10 @@ function renderEffectMasks(effect: any): string[] {
     return out;
 }
 
-/** Collecte les effets structurés de tous les GroupEffects (toutes les cibles du sort). */
+/** Collecte les effets structurés de tous les GroupEffects (toutes les cibles du sort).
+ * Le **jet numérique** (`damage`) et la **distance de poussée** (`pushDistance`) sont extraits
+ * ici, sur les effets DÉJÀ calculés : c'est la donnée de la prévisu de dégâts sur la grille
+ * (aucun parsing de texte côté client). */
 function collectEffectDetails(groups: any): DofensiveSpellEffect[] {
     const out: DofensiveSpellEffect[] = [];
     for (const group of Array.isArray(groups) ? groups : []) {
@@ -497,6 +500,8 @@ function collectEffectDetails(groups: any): DofensiveSpellEffect[] {
                 duration: formatEffectDuration(e?.Duration),
                 triggers: renderEffectTriggers(e),
                 masks: renderEffectMasks(e),
+                damage: damageRangeOfEffect(e),
+                pushDistance: pushDistanceOfEffect(e),
             });
         }
     }

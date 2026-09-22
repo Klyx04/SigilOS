@@ -33,6 +33,14 @@ export interface DofensiveSpellEffect {
     triggers: string[];
     /** Masques d'affectation (ex. « Affecte le lanceur (même en-dehors de la zone d'effet) »). */
     masks: string[];
+    /**
+     * **Jet de dégâts numérique** (déjà calculé par les caractéristiques du monstre) — c'est la
+     * donnée de la prévisu sur la grille : `null` pour un effet qui n'inflige pas de dommages
+     * élémentaires (soin, état, poussée, %…). Jamais de chiffre inventé.
+     */
+    damage?: { element: string; min: number; max: number } | null;
+    /** Distance de **poussée** (cases) quand l'effet pousse — affichée telle quelle, aucun dégât calculé. */
+    pushDistance?: number | null;
 }
 
 export interface DofensiveSpellCombat {

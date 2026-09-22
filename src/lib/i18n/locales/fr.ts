@@ -827,6 +827,10 @@ export const fr = {
         emptyMapGrid: "Map vide (Grille 17×17)",
         options: "Options",
         optionsTitle: "Placement, butin & toggles",
+        damageToggle: "Dégâts estimés",
+        damageToggleTitle: "Afficher les jets réels du sort (par élément) sur les cibles visées",
+        damageUnavailable: "Aucun dégât",
+        damagePush: "Pousse {count} case(s)",
         legendTitle: "Légende",
         legendGroups: {
             cells: "Cases",

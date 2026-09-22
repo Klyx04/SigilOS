@@ -150,8 +150,7 @@ export function damageStatsFromDofensiveGrade(grade: any): MonsterDamageStats {
     };
 }
 
-/**
- * Caractéristiques du grade demandé (1-based) — repli sur le **dernier grade** (le plus haut),
+/** Caractéristiques du grade demandé (1-based) — repli sur le **dernier grade** (le plus haut),
  * exactement comme la sélection du niveau de sort (`Levels[grade - 1] ?? dernier`).
  */
 export function pickMonsterDamageStats(grades: any, grade?: number): MonsterDamageStats {
@@ -159,4 +158,47 @@ export function pickMonsterDamageStats(grades: any, grade?: number): MonsterDama
     if (list.length === 0) return NO_DAMAGE_BONUS;
     const idx = typeof grade === "number" && grade >= 1 && grade <= list.length ? grade - 1 : list.length - 1;
     return damageStatsFromDofensiveGrade(list[idx]);
+}
+
+/**
+ * **Jet de dégâts NUMÉRIQUE** d'un effet (`min`-`max` + élément), ou `null` si l'effet n'inflige
+ * pas de dommages élémentaires (soin, état, poussée, %…).
+ *
+ * ⚠️ À appeler sur les effets **déjà calculés** (`scaleDamageInEffectGroups`), pour obtenir les
+ * dégâts réels du grade — c'est la donnée que la prévisu affiche sur la grille. Les paramètres
+ * d'un effet de dommages portent les jets (`Parameters[].Value`) ; quand il y en a plusieurs on
+ * garde le **plus petit** en min et le **plus grand** en max (convention des jets Dofus,
+ * ex. « 666 à 774 »), et un seul paramètre vaut `min === max`.
+ *
+ * 🔒 Aucune valeur n'est inventée : sans paramètre numérique exploitable, on retourne `null`
+ * (l'effet reste affiché en texte, jamais en chiffre faux).
+ */
+export function damageRangeOfEffect(
+    effect: any
+): { element: DamageElement; min: number; max: number } | null {
+    const element = damageElementOfEffect(effect);
+    if (!element) return null;
+    const params: any[] = Array.isArray(effect?.Parameters) ? effect.Parameters : [];
+    const values = params
+        .map((p) => Number(p?.Value ?? p?.Name))
+        .filter((n) => Number.isFinite(n) && n > 0);
+    if (values.length === 0) return null;
+    return { element, min: Math.min(...values), max: Math.max(...values) };
+}
+
+/**
+ * Distance de **poussée** (en cases) d'un effet, ou `null` — mesurée sur les paramètres,
+ * jamais devinée. Utilisée pour l'afficher telle quelle : **aucun dégât de poussée n'est
+ * calculé** (la formule du jeu n'est pas implémentée, cf. `docs/ROADMAP.md` § Bloc B).
+ */
+export function pushDistanceOfEffect(effect: any): number | null {
+    // Le label technique Dofensive est en anglais (`…_PUSH…`), le libellé localisé en français
+    // (« Pousse de N case(s) ») : les deux formes doivent être reconnues.
+    const label = `${effect?.TechnicalLabel ?? ""} ${effect?.Name ?? ""}`;
+    if (!/pouss|push/i.test(label)) return null;
+    const params: any[] = Array.isArray(effect?.Parameters) ? effect.Parameters : [];
+    const values = params
+        .map((p) => Number(p?.Value ?? p?.Name))
+        .filter((n) => Number.isFinite(n) && n > 0);
+    return values.length > 0 ? Math.max(...values) : null;
 }

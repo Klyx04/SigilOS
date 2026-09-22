@@ -799,7 +799,6 @@ export const fr = {
         simulatedSpell: "Sort simulé :",
         selectSpell: "Sélectionner un sort",
         recenter: "Recentrer",
-        combatSpells: "Sorts de combat ({count})",
         entity: "Entité :",
         map: "Carte :",
         tacticalMapName: "Map Tactique Isométrique",

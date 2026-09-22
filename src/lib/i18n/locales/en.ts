@@ -802,7 +802,6 @@ export const en: Translations = {
         simulatedSpell: "Simulated Spell:",
         selectSpell: "Select a spell",
         recenter: "Recenter",
-        combatSpells: "Combat Spells ({count})",
         entity: "Entity:",
         map: "Map:",
         tacticalMapName: "Tactical Isometric Map",

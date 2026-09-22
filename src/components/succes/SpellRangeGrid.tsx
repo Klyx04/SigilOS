@@ -7,7 +7,7 @@ import { useI18n } from "@/lib/i18n/client";
 import { getDofensiveMap, type DofensiveMapData, type DofensiveMapLite } from "@/server/actions/dofensive-actions";
 import { SimulationTacticalLegend } from "@/components/succes/SimulationTacticalLegend";
 import { SimulationSpellPicker } from "@/components/succes/SimulationSpellPicker";
-import { SimulationDamageHud } from "@/components/succes/SimulationDamageHud";
+import { SimulationDamageHud, damageBadgePlacement, damageBadgeWidth } from "@/components/succes/SimulationDamageHud";
 import {
     damageLinesFromEffects,
     formatDamageRange,
@@ -341,10 +341,14 @@ export function SpellRangeGrid({
     // composant, faut un rangement pro »).
     const [showOptions, setShowOptions] = useState<boolean>(false);
     const [showLegend, setShowLegend] = useState<boolean>(false);
-    // Prévisu de DÉGÂTS : une **option** (retour user : « pk afficher les dégâts en preview
-    // (option à activer ?) »). Repliée par défaut — on affiche les jets RÉELS du grade,
-    // calculés côté serveur, jamais une estimation inventée.
-    const [showDamage, setShowDamage] = useState<boolean>(false);
+    // Prévisu de DÉGÂTS : les jets **réels** du grade, calculés côté serveur (ou via
+    // `computeSpellDamage` pour un stuff), jamais une estimation inventée.
+    //
+    // 🔁 22/09/2026 — retour user : « regarde l'ui : c juste catastrophique les entiers on voit rien
+    // au degat sur les autres » + « toggle degat estimé de 0 » ⇒ la prévisu est **allumée par
+    // défaut**, et son interrupteur vit désormais dans la **barre d'outils** des DEUX modes (il
+    // n'était atteignable qu'en dépliant le panneau « Options »). Elle reste débrayable.
+    const [showDamage, setShowDamage] = useState<boolean>(true);
 
     // Illustration titan (galerie God : /game-data/titans/<slug>.webp).
     // Convention + onError : aucune base ni session requise (marche partout,
@@ -1125,21 +1129,39 @@ export function SpellRangeGrid({
      */
     const damageTargets = useMemo(() => {
         if (!showDamage || !zonePreview || !zoneAnchor || damageInfo.lines.length === 0) return [];
-        const keys = new Set<string>();
+        // Repère LISIBLE de chaque cible — le jeu nomme ses cibles dans son infobulle, nous aussi.
+        // 🔁 22/09/2026 : « on voit rien au degat sur les autres » ⇒ le panneau et les badges disent
+        // maintenant QUI encaisse quoi (« Case visée », « Ennemi 2 »…), jamais une case anonyme.
+        const labels = new Map<string, string>();
         if (hoveredCell && zonePreview.has(`${hoveredCell.x},${hoveredCell.y}`)) {
-            keys.add(`${hoveredCell.x},${hoveredCell.y}`);
+            labels.set(`${hoveredCell.x},${hoveredCell.y}`, simT.targetCellShort);
         }
         if (!hideAllies) {
-            for (const ally of allies) if (zonePreview.has(`${ally.x},${ally.y}`)) keys.add(`${ally.x},${ally.y}`);
+            for (const ally of allies) {
+                if (zonePreview.has(`${ally.x},${ally.y}`)) {
+                    labels.set(
+                        `${ally.x},${ally.y}`,
+                        simT.damageTargetAlly.replace("{index}", String(allies.indexOf(ally) + 1))
+                    );
+                }
+            }
         }
         if (enemiesEnabled) {
-            for (const enemy of enemies) if (zonePreview.has(`${enemy.x},${enemy.y}`)) keys.add(`${enemy.x},${enemy.y}`);
+            for (const enemy of enemies) {
+                if (zonePreview.has(`${enemy.x},${enemy.y}`)) {
+                    labels.set(
+                        `${enemy.x},${enemy.y}`,
+                        simT.damageTargetEnemy.replace("{index}", String(enemies.indexOf(enemy) + 1))
+                    );
+                }
+            }
         }
-        return [...keys].map((key) => {
+        return [...labels.entries()].map(([key, label]) => {
             const [x, y] = key.split(",").map(Number);
             const offset = zoneOffsetBetween(zoneAnchor, { x, y }, isRealMap);
             return {
                 key,
+                label,
                 x,
                 y,
                 offset,
@@ -1148,7 +1170,7 @@ export function SpellRangeGrid({
                 total: applyDamageTakenToTotal(zoneTotalAtOffset(damageInfo.lines, offset), damageTakenMultiplier),
             };
         });
-    }, [showDamage, zonePreview, zoneAnchor, damageInfo.lines, hoveredCell, allies, enemies, enemiesEnabled, hideAllies, isRealMap, damageTakenMultiplier]);
+    }, [showDamage, zonePreview, zoneAnchor, damageInfo.lines, hoveredCell, allies, enemies, enemiesEnabled, hideAllies, isRealMap, damageTakenMultiplier, simT]);
 
     /** Dégâts **réellement** infligés sur toute la zone (somme des cibles, dégressivité comprise). */
     const damageZoneTotal = useMemo(
@@ -1192,48 +1214,97 @@ export function SpellRangeGrid({
     );
 
     /**
-     * Interrupteur « Dégâts estimés » — **monté dans les DEUX panneaux Options** (source unique).
-     * `board` = panneau sombre posé **sur le plateau** (vue de jeu) : des jetons de thème y feraient
-     * une tache claire dès que le thème clair est actif.
+     * Interrupteur « Dégâts estimés » — **source unique**, monté dans la barre d'outils des DEUX
+     * modes (vue de jeu compacte = icône + total ; page = vrai interrupteur libellé).
+     *
+     * 🔁 22/09/2026 (retour user « toggle degat estimé de 0 ») : il n'est plus enterré dans le
+     * panneau « Options » replié — la prévisu est **allumée par défaut** et son état se lit d'un
+     * coup d'œil (pastille + total du sort au grade courant).
+     *
+     * `board` = palette du plateau (vue de jeu) : des jetons de thème y feraient une tache claire
+     * dès que le thème clair est actif.
      */
-    const damageToggle = (board: boolean) => (
-        <button
-            type="button"
-            onClick={() => setShowDamage((v) => !v)}
-            aria-pressed={showDamage}
-            disabled={damageInfo.lines.length === 0}
-            title={damageInfo.lines.length === 0 ? simT.damageUnavailable : simT.damageToggleTitle}
-            className={cn(
-                "flex w-full items-center justify-between gap-2 rounded-lg border px-2.5 py-1.5 text-left text-[11px] font-semibold transition-colors",
-                damageInfo.lines.length === 0
-                    ? cn(
-                          "cursor-not-allowed",
-                          board ? "border-white/10 bg-white/[0.03] text-zinc-500" : "border-border bg-surface text-muted-foreground/50"
-                      )
-                    : showDamage
+    const damageToggle = (board: boolean) => {
+        const unavailable = damageInfo.lines.length === 0;
+        const active = showDamage && !unavailable;
+        const totalLabel = unavailable ? simT.damageUnavailable : formatDamageRange(damageTotal.min, damageTotal.max);
+        const title = unavailable ? simT.damageUnavailable : simT.damageToggleTitle;
+
+        // Vue de jeu (overlay PiP) : la place est comptée ⇒ icône + total, rien de plus.
+        if (compact) {
+            return (
+                <button
+                    type="button"
+                    onClick={() => setShowDamage((v) => !v)}
+                    aria-pressed={showDamage}
+                    disabled={unavailable}
+                    aria-label={simT.damageToggle}
+                    title={title}
+                    className={cn(
+                        "inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[10px] font-semibold tabular-nums transition-colors",
+                        unavailable
+                            ? "cursor-not-allowed border-white/10 bg-white/[0.03] text-zinc-500"
+                            : active
+                                ? "cursor-pointer border-warning/40 bg-warning/15 text-white"
+                                : "cursor-pointer border-white/10 bg-zinc-900 text-zinc-400 hover:text-white"
+                    )}
+                >
+                    <Swords className="h-3 w-3 shrink-0" aria-hidden="true" />
+                    {totalLabel}
+                </button>
+            );
+        }
+
+        return (
+            <button
+                type="button"
+                onClick={() => setShowDamage((v) => !v)}
+                aria-pressed={showDamage}
+                disabled={unavailable}
+                title={title}
+                className={cn(
+                    "inline-flex items-center gap-2 rounded-lg border px-2.5 py-1.5 text-xs font-bold transition-all",
+                    unavailable
                         ? cn(
-                              "cursor-pointer",
-                              board ? "border-warning/40 bg-warning/15 text-white" : "border-accent/40 bg-accent/10 text-foreground"
-                          )
-                        : cn(
-                              "cursor-pointer",
+                              "cursor-not-allowed",
                               board
-                                  ? "border-white/15 bg-white/[0.04] text-zinc-300 hover:text-white"
-                                  : "border-border bg-surface text-muted-foreground hover:text-foreground"
+                                  ? "border-white/10 bg-white/[0.03] text-zinc-500"
+                                  : "border-border bg-surface text-muted-foreground/50"
                           )
-            )}
-        >
-            <span className="flex min-w-0 items-center gap-1.5">
-                <Swords className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                        : active
+                            ? cn(
+                                  "cursor-pointer",
+                                  board
+                                      ? "border-warning/40 bg-warning/15 text-white"
+                                      : "border-accent/40 bg-accent/10 text-foreground"
+                              )
+                            : cn(
+                                  "cursor-pointer",
+                                  board
+                                      ? "border-white/15 bg-white/[0.04] text-zinc-300 hover:text-white"
+                                      : "border-border bg-surface text-muted-foreground hover:bg-elevated hover:text-foreground"
+                              )
+                )}
+            >
+                {/* Vrai interrupteur : l'état se lit sans lire le libellé. */}
+                <span
+                    className={cn(
+                        "relative inline-flex h-4 w-7 shrink-0 items-center rounded-full transition-colors",
+                        active ? (board ? "bg-warning/70" : "bg-accent/60") : board ? "bg-white/15" : "bg-border"
+                    )}
+                >
+                    <span
+                        className={cn(
+                            "absolute h-3 w-3 rounded-full bg-white shadow-xs transition-all",
+                            active ? "left-3.5" : "left-0.5"
+                        )}
+                    />
+                </span>
                 <span className="truncate">{simT.damageToggle}</span>
-            </span>
-            <span className="shrink-0 font-mono text-[10px] tabular-nums">
-                {damageInfo.lines.length > 0
-                    ? formatDamageRange(damageTotal.min, damageTotal.max)
-                    : simT.damageUnavailable}
-            </span>
-        </button>
-    );
+                <span className="shrink-0 font-mono text-[11px] font-black tabular-nums">{totalLabel}</span>
+            </button>
+        );
+    };
 
     return (
         <div className={cn(compact ? "flex flex-col h-full space-y-1.5 p-0 bg-transparent border-0 shadow-none min-h-0" : "space-y-3 rounded-2xl bg-surface border border-border p-4 sm:p-5 shadow-xs")}>
@@ -1488,6 +1559,10 @@ export function SpellRangeGrid({
                                 <button type="button" onClick={() => { setZoom(0.6); setPan({ x: 0, y: 0 }); }} className="px-1.5 py-0.5 font-bold text-white/70 hover:text-white" title="Ajuster et recentrer">Fit</button>
                             </div>
 
+                            {/* « Dégâts estimés » : interrupteur VISIBLE (retour user « toggle degat
+                                estimé de 0 ») — plus besoin de déplier « Options » pour l'allumer. */}
+                            {damageToggle(true)}
+
                             {/* Rangement : une seule rangée visible. Le reste est derrière ce
                                 bouton — avec une pastille du nombre de réglages actifs pour ne
                                 rien perdre de vue quand le panneau est replié. */}
@@ -1540,7 +1615,12 @@ export function SpellRangeGrid({
                                         </button>
                                     </div>
 
-                                    {damageToggle(true)}
+                            {/* Sections NOMMÉES : le panneau ne propose plus une liste à plat —
+                                on lit une section avant de la régler (retour user « composant
+                                ultra optimisé ui ux »). */}
+                            <p className="pt-0.5 text-[9px] font-black uppercase tracking-[0.14em] text-white/35">
+                                {simT.optionsSectionPlacement}
+                            </p>
 
                             {/* Placement & Butin : libellés COMPLETS (fini les « P1 » / « B4 »
                                 illisibles) et contrôles alignés sur la palette du plateau. */}
@@ -1589,6 +1669,11 @@ export function SpellRangeGrid({
                                     </label>
                                 </div>
                             )}
+
+                            {/* Personnages & plateau : mêmes réglages que la fiche stuff, en icônes. */}
+                            <p className="pt-0.5 text-[9px] font-black uppercase tracking-[0.14em] text-white/35">
+                                {simT.optionsSectionBoard}
+                            </p>
 
                             {/* Actions rapides icônes */}
                             <div className="inline-flex items-center gap-1">
@@ -1761,6 +1846,10 @@ export function SpellRangeGrid({
                                 <button type="button" onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }); }} className="px-1.5 py-1 rounded-md text-[10px] font-bold text-muted-foreground hover:text-foreground hover:bg-elevated transition-all cursor-pointer" title={locale === "en" ? "1:1 (recenter)" : "1:1 (recentrer)"}>1:1</button>
                             </div>
 
+                            {/* « Dégâts estimés » : interrupteur VISIBLE (retour user « toggle degat
+                                estimé de 0 ») — état du vrai switch + total du sort au grade courant. */}
+                            {damageToggle(false)}
+
                             {/* Rangement : la rangée ne montre plus QUE le zoom et ce bouton.
                                 Le reste (alliés, ennemis, placements de départ, boss libre,
                                 placement, butin, vider) est derrière, avec une pastille du
@@ -1790,7 +1879,12 @@ export function SpellRangeGrid({
                                 <div
                                     data-no-drag
                                     className={cn(
-                                        "absolute right-2 top-full z-50 mt-1.5 w-[19rem] space-y-2 overflow-y-auto rounded-xl border p-2.5 shadow-2xl [scrollbar-width:thin]",
+                                        // 🔁 22/09/2026 (retour user « on voit rien au degat sur les
+                                        // autres ») : il n'est plus posé EN SURIMPRESSION du plateau
+                                        // (il masquait les badges de dégâts des entités) — il
+                                        // s'insère dans le FLUX, sous la rangée d'outils, et la carte
+                                        // descend d'autant.
+                                        "mt-1 w-full space-y-2 overflow-y-auto rounded-xl border p-2.5 [scrollbar-width:thin]",
                                         // Mode complet : panneau clair/sombre selon le THÈME (il est
                                         // posé sur `bg-surface`) — un panneau sombre sous une page
                                         // claire serait un corps étranger.
@@ -1813,7 +1907,11 @@ export function SpellRangeGrid({
                                             <X className="h-3.5 w-3.5" aria-hidden="true" />
                                         </button>
                                     </div>
-                            {damageToggle(false)}
+                            {/* Sections NOMMÉES (retour user « composant ultra optimisé ui ux ») :
+                                personnages & plateau, puis placement, puis butin, puis actions. */}
+                            <p className="pt-0.5 text-[10px] font-black uppercase tracking-[0.14em] text-muted-foreground">
+                                {simT.optionsSectionBoard}
+                            </p>
                             {!hideAllies && (
                                 <button
                                     type="button"
@@ -1876,6 +1974,10 @@ export function SpellRangeGrid({
                                 </button>
                             )}
                             {mapData && totalPlacements > 1 && (
+                                <div className="space-y-1">
+                                    <p className="text-[10px] font-black uppercase tracking-[0.14em] text-muted-foreground">
+                                        {simT.optionsSectionPlacement}
+                                    </p>
                                 <div className="inline-flex items-center gap-1 bg-surface border border-border rounded-lg p-0.5">
                                     <span className="text-[11px] font-bold text-muted-foreground pl-2">{simT.placement}</span>
                                     <select
@@ -1905,8 +2007,13 @@ export function SpellRangeGrid({
                                         <HelpCircle className="w-3.5 h-3.5" />
                                     </button>
                                 </div>
+                                </div>
                             )}
                             {mapData && (
+                                <div className="space-y-1">
+                                    <p className="text-[10px] font-black uppercase tracking-[0.14em] text-muted-foreground">
+                                        {simT.optionsSectionLoot}
+                                    </p>
                                 <div className="inline-flex items-center gap-1 bg-surface border border-border rounded-lg p-0.5">
                                     <span className="text-[11px] font-bold text-muted-foreground pl-2">{simT.loot}</span>
                                     <select
@@ -1927,6 +2034,7 @@ export function SpellRangeGrid({
                                             </option>
                                         ))}
                                     </select>
+                                </div>
                                 </div>
                             )}
                             {(allies.length > 0 || enemies.length > 0) && (
@@ -2455,23 +2563,46 @@ export function SpellRangeGrid({
                                 hasCrit && target.total.critMin !== null && target.total.critMax !== null
                                     ? formatDamageRange(target.total.critMin, target.total.critMax)
                                     : "";
-                            // Lignes empilées : total, puis « −X % » (dégressivité), puis « CC … ».
-                            const totalY = 14;
-                            const falloffY = 25;
-                            const critY = hasFalloff ? 36 : 25;
-                            const rowsTop = 29 + (hasFalloff ? 11 : 0) + (hasCrit ? 11 : 0);
-                            // Le badge s'élargit quand le jet critique est affiché (les deux fourchettes
-                            // tiennent sur la même ligne que le total, forme du jeu « 146–158 (248–259) »).
-                            const boxW = hasCrit ? 104 : 78;
+                            // Lignes empilées : NOM de la cible, son total, puis « −X % »
+                            // (dégressivité), puis « CC … » — la hiérarchie de l'infobulle du jeu.
+                            // 🔁 22/09/2026 : le badge nomme sa cible (« on voit rien au degat sur
+                            // les autres » ⇒ on doit savoir QUI porte la valeur).
+                            const labelY = 10;
+                            const totalY = 24;
+                            const falloffY = 35;
+                            const critY = hasFalloff ? 46 : 35;
+                            const rowsTop = 39 + (hasFalloff ? 11 : 0) + (hasCrit ? 11 : 0);
+                            // Largeur de la **pastille déduite de son contenu** (règle pure
+                            // `damageBadgeWidth`) : la boîte était auparavant figée à 78 px (104 avec
+                            // un jet critique) pour un texte qui va de 5 à 12+ caractères — un pari
+                            // implicite, qui laissait déborder les plus longs jets et laissait du
+                            // vide pour les autres (« les dégâts affichés sortent du composant »).
+                            const boxW = damageBadgeWidth([
+                                { text: target.label, fontSize: 9 },
+                                { text: formatDamageRange(target.total.min, target.total.max), fontSize: 12 },
+                                ...(hasFalloff
+                                    ? [{ text: simT.damageFalloffShort.replace("{percent}", String(100 - target.falloff)), fontSize: 9 }]
+                                    : []),
+                                ...(hasCrit ? [{ text: simT.damageCritShort.replace("{range}", critRange), fontSize: 9 }] : []),
+                                ...target.lines.map((line) => ({
+                                    text: formatDamageRange(line.min, line.max),
+                                    fontSize: 10,
+                                    icon: true,
+                                })),
+                            ]);
                             const boxH = rowsTop + target.lines.length * 13 + 3;
                             const mainHex = target.lines[0] ? elementHex(target.lines[0].element) : GRID_DAMAGE_FALLBACK_COLOR;
+                            // Placement borné au cadre : au-dessus de la case quand il y a la place,
+                            // en dessous sinon — sinon la pastille de la première ligne de cases était
+                            // coupée par le bord du SVG (règle pure `damageBadgePlacement`).
+                            const badge = damageBadgePlacement({ sx, sy, boxW, boxH, viewX, viewY, viewW, viewH });
                             return (
-                                <g key={`dmg-${target.key}`} transform={`translate(${sx - boxW / 2}, ${sy - 26 - boxH})`}>
+                                <g key={`dmg-${target.key}`} transform={`translate(${badge.x}, ${badge.y})`}>
                                     {/* Détail de la cible au survol du badge : éloignement, perte de zone,
                                         jet normal ET jet critique — la même information que la grille montre
                                         à l'œil, mais complète (retour user : « crit ou non crit »). */}
                                     <title>
-                                        {`${simT.damageOffsetShort.replace("{count}", String(target.offset))} · ${simT.damageFalloffShort.replace("{percent}", String(100 - target.falloff))}${
+                                        {`${target.label} · ${simT.damageOffsetShort.replace("{count}", String(target.offset))} · ${simT.damageFalloffShort.replace("{percent}", String(100 - target.falloff))}${
                                             hasCrit ? ` · ${simT.damageCritShort.replace("{range}", critRange)}` : ""
                                         }`}
                                     </title>
@@ -2485,6 +2616,18 @@ export function SpellRangeGrid({
                                         stroke={mainHex}
                                         strokeWidth={1.2}
                                     />
+                                    {/* Nom de la cible : on lit « qui » AVANT « combien ». */}
+                                    <text
+                                        x={boxW / 2}
+                                        y={labelY}
+                                        textAnchor="middle"
+                                        fill="#e4e4e7"
+                                        fontSize={9}
+                                        fontWeight="800"
+                                        className="select-none"
+                                    >
+                                        {target.label}
+                                    </text>
                                     <text
                                         x={boxW / 2}
                                         y={totalY}
@@ -2549,10 +2692,18 @@ export function SpellRangeGrid({
 
                 {/* Légende + prévisu de dégâts **dans le plateau** : l'utilisateur n'a plus à
                     dézoomer ni à sortir du composant pour les atteindre (retour user 21/09/2026).
-                    Deux panneaux flottants bornés, qui ne poussent plus la carte. */}
+                    Deux panneaux flottants bornés, qui ne poussent plus la carte.
+
+                    ⚠️ `inset-2` (et non plus `inset-x-2 bottom-2`) : la rangée couvre maintenant
+                    TOUTE la hauteur du plateau. C'est la référence dont le panneau de prévisu a
+                    besoin (`max-h-full`) pour **ne jamais sortir de la carte** — il atteignait
+                    auparavant sa taille maximale même sur un plateau plus petit que lui (retour
+                    user 22/09/2026 : « les dégâts affichés sortent du composant »).
+                    `flex-wrap` + `min-w-0` : sur un plateau étroit (fenêtre de jeu PiP, mobile) le
+                    panneau **passe à la ligne** au lieu d'être poussé hors de la carte. */}
                 <div
                     data-no-drag
-                    className="pointer-events-none absolute inset-x-2 bottom-2 z-40 flex items-end justify-between gap-2"
+                    className="pointer-events-none absolute inset-2 z-40 flex min-w-0 flex-wrap items-end justify-between gap-2"
                 >
                     <SimulationTacticalLegend
                         variant="board"
@@ -2572,6 +2723,27 @@ export function SpellRangeGrid({
                             push={damageInfo.push}
                             targets={{ count: damageTargets.length, total: damageZoneTotal }}
                             damageTakenPercent={damageTakenPercent}
+                            // Mêmes données que les badges (source unique) : le panneau liste
+                            // maintenant CHAQUE cible (« on voit rien au degat sur les autres »).
+                            perTarget={damageTargets}
+                            spell={
+                                currentSpell
+                                    ? {
+                                          name: currentSpell.name,
+                                          // Icône **interne** (proxy du siphon) : jamais de hotlink
+                                          // DofusDB/Dofensive depuis le navigateur, et aucune icône
+                                          // étrangère (le proxy résout `iconId`).
+                                          imageUrl:
+                                              currentSpell.imageUrl && currentSpell.imageUrl.startsWith("/")
+                                                  ? currentSpell.imageUrl
+                                                  : `/api/assets-dofus/spells/${currentSpell.id}`,
+                                          apCost: currentSpell.apCost,
+                                          minRange,
+                                          maxRange,
+                                      }
+                                    : null
+                            }
+                            onClose={() => setShowDamage(false)}
                         />
                     )}
                 </div>

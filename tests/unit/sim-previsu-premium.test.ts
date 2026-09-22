@@ -34,6 +34,11 @@ import {
 } from "@/lib/dofus-zone-damage";
 import { DOFUSBOOK_COLORS, dofusStatHex, getDofusStatNumberColor } from "@/lib/dofus-stats-theme";
 import type { SpellDamageLine } from "@/lib/dofus-spells";
+import {
+    DAMAGE_BADGE_MIN_WIDTH,
+    damageBadgePlacement,
+    damageBadgeWidth,
+} from "@/components/succes/SimulationDamageHud";
 
 /** Retire les commentaires : on verrouille le code, pas la prose. */
 const codeOf = (p: string) =>
@@ -227,9 +232,12 @@ describe("panneau de prévisu (« Dégâts estimés ») — valeur immédiatemen
 
 describe("légende & prévisu atteignables sans quitter le composant", () => {
     it("les deux panneaux flottent sur le plateau (plus de zoom/défilement à faire)", () => {
-        expect(GRID).toMatch(/absolute inset-x-2 bottom-2 z-40 flex items-end justify-between gap-2/);
+        // 🔁 22/09/2026 : la rangée couvre désormais TOUTE la hauteur du plateau (`inset-2`) — c'est
+        // la référence dont le panneau a besoin (`max-h-full`) pour ne plus sortir de la carte — et
+        // elle se REPLIE (`flex-wrap`, `min-w-0`) au lieu de pousser le panneau hors du plateau.
+        expect(GRID).toMatch(/absolute inset-2 z-40 flex min-w-0 flex-wrap items-end justify-between gap-2/);
         // Le panneau ne doit pas intercepter le pan de la carte…
-        expect(GRID).toMatch(/pointer-events-none absolute inset-x-2 bottom-2/);
+        expect(GRID).toMatch(/pointer-events-none absolute inset-2/);
         // …et la légende reprend la main sur ses propres clics.
         expect(codeOf("src/components/succes/SimulationTacticalLegend.tsx")).toMatch(/relative z-30 shrink-0/);
     });
@@ -283,3 +291,178 @@ describe("libellés — FR et EN", () => {
 });
 
 });
+
+/**
+ * 🔁 22/09/2026 — retour user : « regarde l'ui : c juste catastrophique les entiers on voit rien au
+ * degat sur les autres · refais moi les bloc degat estime et le bloc placement toggle degat estimé de
+ * 0 , je veux une composant ultra optimisé ui ux ».
+ *
+ * Ce que ces gardes verrouillent : ① le panneau de prévisu **liste chaque cible** (repères lisibles,
+ * éloignement, malus, jets) et dit quoi faire quand la zone est vide ; ② sa ligne « {count} cible(s)
+ * dans la zone » ne peut plus écraser sa valeur (libellé tronquable, valeur `shrink-0`) — c'était le
+ * défaut visible en capture (« 4 TARGET(S) IN THE 4348 ZONE (3743) ») ; ③ les badges **nomment** leur
+ * cible ; ④ le panneau « Options » d'une fiche n'est plus posé PAR-DESSUS le plateau (il masquait les
+ * badges de dégâts) : il s'insère dans le flux, découpé en **sections nommées** ; ⑤ l'interrupteur
+ * « Dégâts estimés » est visible dans les DEUX barres d'outils ; ⑥ les clés FR **et** EN existent.
+ */
+describe("blocs « Dégâts estimés » & « Réglages du plateau » — refonte 22/09/2026", () => {
+    it("le panneau liste chaque cible et nomme son repère", () => {
+        expect(GRID).toMatch(/perTarget=\{damageTargets\}/);
+        expect(GRID).toMatch(/const labels = new Map<string, string>\(\)/);
+        expect(GRID).toMatch(/return \[\.\.\.labels\.entries\(\)\]\.map\(\(\[key, label\]\) => \{/);
+        expect(GRID).toMatch(/simT\.damageTargetEnemy\.replace\("\{index\}"/);
+        expect(GRID).toMatch(/simT\.damageTargetAlly\.replace\("\{index\}"/);
+        // Le panneau affiche les données, il n'en invente aucune.
+        expect(HUD).toMatch(/perTarget\.map\(\(target\) => \(/);
+        expect(HUD).toMatch(/\{target\.label\}/);
+    });
+
+    it("un panneau sans cible dit quoi faire (plus de zone muette)", () => {
+        expect(HUD).toMatch(/perTarget\.length === 0 \?/);
+        expect(HUD).toMatch(/simT\.damageHudEmpty/);
+    });
+
+    it("la ligne « cible(s) dans la zone » ne peut plus écraser sa valeur", () => {
+        expect(HUD).toMatch(/const valueLabel = cn\("shrink-0 whitespace-nowrap/);
+        expect(HUD).toMatch(/const rowText = cn\("min-w-0 flex-1 truncate/);
+        expect(HUD).toMatch(/damageHudTargets\.replace\("\{count\}", String\(targets\.count\)\)/);
+    });
+
+    it("les badges nomment leur cible (on sait QUI porte la valeur)", () => {
+        const layer = GRID.slice(
+            GRID.indexOf("{showDamage && damageInfo.lines.length > 0 && zonePreview"),
+            GRID.indexOf("</svg>")
+        );
+        expect(layer).toMatch(/\{target\.label\}/);
+        expect(layer).toMatch(/const labelY = 10;/);
+    });
+
+    it("le panneau d'une fiche n'est plus posé par-dessus le plateau", () => {
+        // Il s'insère dans le FLUX (la carte descend d'autant) : plus aucun badge masqué.
+        expect(GRID).toMatch(/"mt-1 w-full space-y-2 overflow-y-auto rounded-xl border p-2\.5 \[scrollbar-width:thin\]"/);
+        expect(GRID).not.toMatch(/"absolute right-2 top-full z-50 mt-1\.5 w-\[19rem\]/);
+        // La vue de jeu (overlay PiP) garde son panneau flottant borné : la place y est comptée.
+        expect(GRID).toMatch(/absolute right-0 top-full z-50 mt-1\.5 w-\[18rem\]/);
+    });
+
+    it("sections nommées + interrupteur sorti du panneau (barres d'outils)", () => {
+        expect(GRID).toMatch(/\{simT\.optionsSectionBoard\}/);
+        expect(GRID).toMatch(/\{simT\.optionsSectionPlacement\}/);
+        expect(GRID).toMatch(/\{simT\.optionsSectionLoot\}/);
+        // Toujours UN SEUL interrupteur (source unique), monté 1× par mode — désormais dans la
+        // barre d'outils, jamais enterré dans le panneau replié.
+        expect((GRID.match(/\{damageToggle\(/g) || []).length).toBe(2);
+        expect(GRID).toMatch(/\{damageToggle\(true\)\}/);
+        expect(GRID).toMatch(/\{damageToggle\(false\)\}/);
+    });
+
+    it("les libellés de la refonte existent en FR ET en EN", () => {
+        for (const locale of [FR, EN]) {
+            expect(locale).toMatch(/optionsSectionBoard: "/);
+            expect(locale).toMatch(/optionsSectionPlacement: "/);
+            expect(locale).toMatch(/optionsSectionLoot: "/);
+            expect(locale).toMatch(/damageHudClose: "/);
+            expect(locale).toMatch(/damageHudElements: "/);
+            expect(locale).toMatch(/damageHudBreakdown: "/);
+            expect(locale).toMatch(/damageHudEmpty:/);
+            expect(locale).toMatch(/damageTargetEnemy: "/);
+            expect(locale).toMatch(/damageTargetAlly: "/);
+        }
+    });
+});
+
+
+/**
+ * 🔁 22/09/2026 (suite) — retour user : « l'ui encore cassé les degat affiché sortent du composant ·
+ * tout est ai slop partout ».
+ *
+ * 🔍 Mesures (sonde navigateur Playwright sur une fiche boss **publique**, `next dev` en cours —
+ * aucune supposition) :
+ *  ① le panneau de prévisu était borné par **la FENÊTRE** (`max-h-[min(58vh,24rem)]` ⇒ 384 px à
+ *     859 px de haut) alors qu'il vit DANS le plateau : une grille libre 17×17 (tuiles 40×20) ne
+ *     fait que ~370 px de haut ⇒ le panneau **sortait de la carte**, et se faisait rogner dans la
+ *     fenêtre de jeu (plateau en `overflow-hidden`) ;
+ *  ② la rangée qui le porte était ancrée `inset-x-2 bottom-2` (aucune hauteur de référence) et ne
+ *     se repliait pas : sur un plateau étroit (PiP, mobile) le panneau était **poussé hors de la
+ *     carte** par la légende (336 px, `shrink-0`) ;
+ *  ③ la pastille de dégâts avait une largeur **figée** (78 px, 104 px avec le jet critique) ;
+ *  ④ la pastille était posée **systématiquement au-dessus** de sa case : mesuré sur le plateau réel
+ *     (`viewBox = -36 -36 964 692`, case de première ligne à `sy ≈ 16`), l'ancienne formule donnait
+ *     `y = -76` ⇒ **40 px au-dessus du cadre** : la pastille était coupée par le bord du SVG.
+ *
+ * Les deux règles de géométrie sont désormais **pures** et testées ici, et le bornage est celui du
+ * conteneur (le plateau), jamais de l'écran.
+ */
+describe("les dégâts ne sortent plus du composant — bornage par le plateau (22/09/2026)", () => {
+    it("le panneau est borné par le PLATEAU, plus par la fenêtre", () => {
+        expect(HUD).toMatch(/max-h-full/);
+        expect(HUD).not.toMatch(/max-h-\[min\(58vh,24rem\)\]/);
+        // Jamais plus large que le plateau, et jamais poussé dehors par la légende.
+        expect(HUD).toMatch(/ml-auto w-60 min-w-0 max-w-full/);
+        // La rangée porteuse couvre toute la hauteur du plateau ⇒ `max-h-full` a une référence.
+        expect(GRID).toMatch(/pointer-events-none absolute inset-2 z-40 flex min-w-0 flex-wrap/);
+    });
+
+    it("la pastille s'élargit avec son contenu (plus de boîte figée)", () => {
+        // Le cas « normal » (5 caractères à 12 px) tient dans le plancher visuel.
+        expect(
+            damageBadgeWidth([
+                { text: "Case visée", fontSize: 9 },
+                { text: "59–98", fontSize: 12 },
+                { text: "59–98", fontSize: 10, icon: true },
+            ])
+        ).toBe(DAMAGE_BADGE_MIN_WIDTH);
+
+        // Le cas long (critique à 4 chiffres) sort du plancher : la boîte suit le contenu.
+        const rows = [
+            { text: "Ennemi 2", fontSize: 9 },
+            { text: "4348–4521", fontSize: 12 },
+            { text: "−40 %", fontSize: 9 },
+            { text: "CC 3712–3811", fontSize: 9 },
+            { text: "4348–4521", fontSize: 10, icon: true },
+        ];
+        const width = damageBadgeWidth(rows);
+        expect(width).toBeGreaterThan(DAMAGE_BADGE_MIN_WIDTH);
+        // Invariant : la boîte ne peut pas être plus étroite que sa plus longue ligne
+        // (estimation INDÉPENDANTE de la règle : 0,6 em par caractère, en deçà de ses 0,62).
+        const widest = Math.max(...rows.map((r) => r.text.length * r.fontSize * 0.6));
+        expect(width).toBeGreaterThanOrEqual(Math.round(widest));
+        // Monotone : ajouter une ligne plus longue ne peut pas rétrécir la pastille.
+        expect(damageBadgeWidth([...rows, { text: "CC 123456–234567", fontSize: 9 }])).toBeGreaterThan(width);
+        // Le rendu consomme la règle pure, il ne recalcule aucune largeur en dur.
+        expect(GRID).toMatch(/const boxW = damageBadgeWidth\(\[/);
+        expect(GRID).not.toMatch(/const boxW = hasCrit \? 104 : 78;/);
+    });
+
+    it("la pastille reste DANS le cadre du plateau (bascule + recadrage)", () => {
+        // Cadre réel relevé sur la fiche boss « Cache de Kankreblath ».
+        const frame = { viewX: -36, viewY: -36, viewW: 964, viewH: 692 };
+
+        // ⚠️ Le défaut mesuré : case de la première ligne (`sy = 16`) — l'ancienne formule
+        // (`sy - 26 - boxH`) sortait 40 px AU-DESSUS du cadre, donc la pastille était coupée.
+        const legacyY = 16 - 26 - 66;
+        expect(legacyY).toBeLessThan(frame.viewY);
+        const top = damageBadgePlacement({ sx: 480, sy: 16, boxW: 84, boxH: 66, ...frame });
+        expect(top.above).toBe(false);
+        expect(top.y).toBeGreaterThanOrEqual(frame.viewY);
+        expect(top.y + 66).toBeLessThanOrEqual(frame.viewY + frame.viewH);
+
+        // Case au milieu : au-dessus, entièrement dans le cadre.
+        const mid = damageBadgePlacement({ sx: 480, sy: 400, boxW: 84, boxH: 66, ...frame });
+        expect(mid.above).toBe(true);
+        expect(mid.y + 66).toBeLessThanOrEqual(frame.viewY + frame.viewH);
+
+        // Bords : recentrée, jamais coupée (le débordement horizontal était possible aussi).
+        const right = damageBadgePlacement({ sx: 958, sy: 400, boxW: 84, boxH: 66, ...frame });
+        expect(right.x + 84).toBeLessThanOrEqual(frame.viewX + frame.viewW);
+        const left = damageBadgePlacement({ sx: -34, sy: 400, boxW: 84, boxH: 66, ...frame });
+        expect(left.x).toBeGreaterThanOrEqual(frame.viewX);
+
+        // Le rendu consomme la règle pure (plus de formule recopiée dans le JSX).
+        expect(GRID).toMatch(
+            /const badge = damageBadgePlacement\(\{ sx, sy, boxW, boxH, viewX, viewY, viewW, viewH \}\)/
+        );
+        expect(GRID).not.toMatch(/translate\(\$\{sx - boxW \/ 2\}, \$\{sy - 26 - boxH\}\)/);
+    });
+});
+

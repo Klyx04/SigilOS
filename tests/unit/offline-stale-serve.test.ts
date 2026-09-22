@@ -6,13 +6,19 @@
  *   1. une ligne locale **périmée** (> TTL) est **servie** (marquée `stale`, datée) au lieu
  *      d'être transformée en absence ⇒ plus de bascule live silencieuse ;
  *   2. le repli live n'est tenté que quand **aucune** ligne n'existe ;
- *   3. `DOFUSDB_OFFLINE=1` / `DOFENSIVE_OFFLINE=1` coupent **tout** appel sortant (0 fetch).
+ *   3. `DOFUSDB_OFFLINE=1` / `DOFENSIVE_OFFLINE=1` coupent **tout** appel sortant (0 fetch) ;
+ *   4. la **forme** du payload stocké fait partie de la validité : une ligne écrite par une version
+ *      antérieure du code (`spellsVersion` absente, ex. avant la prévisu de dégâts du lot 3a) est
+ *      réparée depuis la source — servie seulement si la source ne répond pas (mesure : 0/256 lignes
+ *      portaient le jet ⇒ « Aucun dégât » partout).
  */
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import { COMBAT_SPELLS_PAYLOAD_VERSION } from "@/lib/dofensive-spells";
 
 // ── Socle : PostgreSQL mocké (aucune base en test) ────────────────────────────
 const monsterStatFindFirst = vi.fn();
 const monsterStatFindUnique = vi.fn();
+const monsterStatUpdate = vi.fn();
 const dofensiveMapFindUnique = vi.fn();
 const dofensiveDungeonFindMany = vi.fn();
 
@@ -21,6 +27,7 @@ vi.mock("@/lib/prisma", () => ({
         monsterStat: {
             findFirst: (...args: any[]) => monsterStatFindFirst(...args),
             findUnique: (...args: any[]) => monsterStatFindUnique(...args),
+            update: (...args: any[]) => monsterStatUpdate(...args),
         },
         dofensiveMap: {
             findUnique: (...args: any[]) => dofensiveMapFindUnique(...args),
@@ -106,6 +113,9 @@ describe("Lot 1 — stale-while-offline (une péremption n'est jamais une absenc
         const hit = await sync.getLocalDofensiveSpellsAny(123);
         expect(hit?.stale).toBe(true);
         expect(hit?.data).toHaveLength(1);
+        // …et la forme du payload voyage avec la ligne : sans estampille, la donnée est v1
+        // (siphon d'avant la prévisu de dégâts) ⇒ à réparer depuis la source, jamais à servir.
+        expect(hit?.payloadOutdated).toBe(true);
         await expect(sync.getLocalDofensiveSpells(123)).resolves.toBeNull();
 
         // Payload DofusDB brut (pas d'`apCost`) : inexploitable pour la simulation → null,
@@ -115,6 +125,18 @@ describe("Lot 1 — stale-while-offline (une péremption n'est jamais une absenc
             lastSyncedAt: FRESH,
         });
         await expect(sync.getLocalDofensiveSpellsAny(123)).resolves.toBeNull();
+
+        // Forme COURANTE (estampillée) : la ligne est valide — `payloadOutdated` est faux.
+        monsterStatFindUnique.mockResolvedValue({
+            stats: {
+                spells: [{ id: 1, name: "Sablier", apCost: 3, effects: ["Dommages Eau"] }],
+                spellsVersion: COMBAT_SPELLS_PAYLOAD_VERSION,
+            },
+            lastSyncedAt: FRESH,
+        });
+        const current = await sync.getLocalDofensiveSpellsAny(123);
+        expect(current?.payloadOutdated).toBe(false);
+        expect(current?.payloadVersion).toBe(COMBAT_SPELLS_PAYLOAD_VERSION);
     });
     it("sert une map PÉRIMÉE sans aucun appel réseau (`/maps/{id}` jamais appelé)", async () => {
         const fetchSpy = forbiddenFetch();
@@ -167,7 +189,12 @@ describe("Lot 1 — stale-while-offline (une péremption n'est jamais une absenc
         const fetchSpy = forbiddenFetch();
         vi.stubGlobal("fetch", fetchSpy);
         monsterStatFindUnique.mockResolvedValue({
-            stats: { spells: [{ id: 1, name: "Sablier", apCost: 3, effects: ["Dommages Eau"] }] },
+            stats: {
+                spells: [{ id: 1, name: "Sablier", apCost: 3, effects: ["Dommages Eau"] }],
+                // Forme COURANTE : c'est elle qui garantit qu'une ligne périmée reste servie
+                // telle quelle (la péremption n'est jamais une absence).
+                spellsVersion: COMBAT_SPELLS_PAYLOAD_VERSION,
+            },
             lastSyncedAt: STALE,
         });
 
@@ -176,6 +203,47 @@ describe("Lot 1 — stale-while-offline (une péremption n'est jamais une absenc
         expect(res.stale).toBe(true);
         expect(res.data).toHaveLength(1);
         expect(fetchSpy).not.toHaveBeenCalled();
+    });
+
+    it("une FORME obsolète n'est plus servie : la source reprend la main et répare la ligne", async () => {
+        // Ligne FRAÎCHE mais d'une forme antérieure (siphon d'avant le lot 3a : `spellsVersion`
+        // absente, donc aucun jet numérique) — le cas exact du « ça marche pas du tout ».
+        monsterStatFindUnique.mockResolvedValue({
+            stats: { spells: [{ id: 1, name: "Sablier", apCost: 3, effects: ["Dommages Eau"] }] },
+            lastSyncedAt: FRESH,
+        });
+        const fetchSpy = vi.fn((input: RequestInfo | URL) => {
+            const url = String(input);
+            if (url.includes("/monsters/123")) {
+                return Promise.resolve(
+                    jsonResponse({
+                        Data: [{ Grades: [{ Grade: 1, SpellGrades: { "7": 1 } }], Spells: [{ Id: 7 }] }],
+                        Errors: [],
+                    })
+                );
+            }
+            return Promise.resolve(
+                jsonResponse({
+                    Data: [{ Id: 7, Name: "Live", Description: "", Levels: [{ Grade: 1, ActionPoints: 3 }] }],
+                    Errors: [],
+                })
+            );
+        });
+        vi.stubGlobal("fetch", fetchSpy);
+
+        const res = await actions.getDofensiveSpells(123);
+        expect(fetchSpy).toHaveBeenCalled();
+        expect(res.success).toBe(true);
+        expect(res.data?.map((s) => s.name)).toEqual(["Live"]);
+
+        // 🔧 L'auto-réparation persiste la forme courante : les lectures suivantes restent locales.
+        expect(monsterStatUpdate).toHaveBeenCalledTimes(1);
+        const patch = monsterStatUpdate.mock.calls[0][0];
+        expect(patch.where).toEqual({ monsterId: 123 });
+        expect(patch.data.stats.spellsVersion).toBe(COMBAT_SPELLS_PAYLOAD_VERSION);
+        expect(patch.data.stats.spells[0].name).toBe("Live");
+        // La fiche DofusDB n'a PAS été re-synchronisée : `lastSyncedAt` n'est pas touché.
+        expect(patch.data.lastSyncedAt).toBeUndefined();
     });
 
     it("sans AUCUNE ligne locale, le repli live reste possible (contrôle)", async () => {

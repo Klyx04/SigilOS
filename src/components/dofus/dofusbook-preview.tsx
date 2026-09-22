@@ -326,6 +326,14 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
     // Item sélectionné pour la modale interne (aucun appel réseau : données du build).
     const [selected, setSelected] = useState<SelectedBuildItem | null>(null);
 
+    /**
+     * Stats du build pour les sorts & la simulation — **instance stable** (`useMemo`) partagée par
+     * les deux onglets. ⚠️ Sans ce mémo, `spellsBuild(data)` fabriquait un NOUVEL objet à chaque
+     * rendu : `build` étant une **dépendance d'effet** de l'onglet Simulation, le chargement des
+     * sorts repartait en boucle (et la prévisu de dégâts ne se stabilisait jamais).
+     */
+    const buildForSpells = useMemo(() => spellsBuild((data ?? {}) as DofusbookPreviewData), [data]);
+
     const idMatch = url.match(/(?:equipement\/(?:[a-z]+\/)?([\d]+)|d-bk\.net\/(?:fr\/)?d\/([a-zA-Z0-9]+))/i);
     const buildId = idMatch ? (idMatch[1] || idMatch[2]) : null;
 
@@ -1096,7 +1104,7 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
                                     <DofusSpellsTab
                                         classId={data?.classId || guessedClassId}
                                         level={data?.level || 200}
-                                        build={spellsBuild(data!)}
+                                        build={buildForSpells}
                                     />
                                 </div>
                             ) : activeTab === "simulation" ? (
@@ -1105,6 +1113,7 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
                                     level={data?.level || 200}
                                     casterName={title || data?.name}
                                     casterIcon={(data?.classId || guessedClassId) > 0 ? `/assets/dofus/classes/${getIconId(data?.classId || guessedClassId)}.png` : undefined}
+                                    build={buildForSpells}
                                 />
                             ) : (
                                 <div className="flex flex-col gap-4">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Check, ChevronDown, Eye, EyeOff, Grid, HelpCircle, Loader2, Map as MapIcon, Move, RotateCcw, SlidersHorizontal, Sparkles, Swords, Users, X, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n/client";
@@ -1056,6 +1056,25 @@ export function SpellRangeGrid({
 
     const freeOriginX = ((gridCols + gridRows) / 2) * tileHalfW;
     const freeOriginY = 20;
+
+    /**
+     * **Position écran d'une case dans LE repère du rendu courant** — source unique des repères
+     * flottants (case visée « cible blanche » + badges de dégâts) **et** des cases elles-mêmes :
+     *   · vraie map → grille « brique » (`cellToScreen`, décalage d'une demi-tuile par ligne impaire) ;
+     *   · grille libre → losange isométrique (`freeOrigin*`).
+     *
+     * 🔍 Bug mesuré le 22/09/2026 (« c'est quoi ce cercle blanc ? ») : les repères flottants
+     * appelaient `cellToScreen` **dans les deux modes** ⇒ sur la grille libre (Map vide, simulation
+     * de stuff, avis/anomalies sans carte) l'anneau blanc et les badges tombaient à ~5 cases de la
+     * case visée, sans aucun rapport avec le survol. Un seul calcul, deux rendus.
+     */
+    const cellScreenPos = useCallback(
+        (x: number, y: number): { sx: number; sy: number } =>
+            isRealMap
+                ? cellToScreen(x, y, tileW, tileH)
+                : { sx: freeOriginX + (x - y) * tileHalfW, sy: freeOriginY + (x + y) * tileHalfH },
+        [isRealMap, tileW, tileH, tileHalfW, tileHalfH, freeOriginX, freeOriginY]
+    );
 
     // Réglages actifs — pastille du panneau « Options » : quand le panneau est replié, on doit
     // continuer à voir QUE quelque chose est actif (boss libre, placements de départ, alliés…).
@@ -2337,11 +2356,30 @@ export function SpellRangeGrid({
                     règles) : elle matérialise la matrice de la zone ET l'origine de la dégressivité.
                     Toujours affichée, même option de dégâts éteinte : on doit voir ce qu'on cible. */}
                 {zoneAnchor && (() => {
-                    const { sx, sy } = cellToScreen(zoneAnchor.x, zoneAnchor.y, tileW, tileH);
+                    const { sx, sy } = cellScreenPos(zoneAnchor.x, zoneAnchor.y);
                     return (
                         <g pointerEvents="none" className="select-none" data-zone-anchor="1">
+                            {/* Rappel natif au survol : ce repère n'est pas décoratif (matrice de la
+                                zone d'effet + origine de la dégressivité des dégâts de zone). */}
+                            <title>{simT.legend.targetCell}</title>
                             <circle cx={sx} cy={sy + tileHalfH} r={11} fill="none" stroke="#ffffff" strokeWidth={1.4} opacity={0.9} />
                             <circle cx={sx} cy={sy + tileHalfH} r={3.4} fill="#ffffff" opacity={0.95} />
+                            {/* « C'est quoi ce cercle blanc ? » (retour user 22/09/2026) : le mot est
+                                écrit À CÔTÉ du repère — plus besoin de déplier la légende pour savoir
+                                ce qu'on regarde. Halo noir (`paintOrder`) pour rester lisible sur le sol. */}
+                            <text
+                                x={sx}
+                                y={sy + tileHalfH + 21}
+                                textAnchor="middle"
+                                fontSize={10}
+                                fontWeight="900"
+                                fill="#ffffff"
+                                stroke="#000000"
+                                strokeWidth={2.6}
+                                paintOrder="stroke"
+                            >
+                                {simT.targetCellShort}
+                            </text>
                         </g>
                     );
                 })()}
@@ -2354,7 +2392,7 @@ export function SpellRangeGrid({
                 {showDamage && damageInfo.lines.length > 0 && zonePreview && (
                     <g pointerEvents="none">
                         {damageTargets.map((target) => {
-                            const { sx, sy } = cellToScreen(target.x, target.y, tileW, tileH);
+                            const { sx, sy } = cellScreenPos(target.x, target.y);
                             const hasFalloff = target.falloff < 100;
                             const rowsTop = hasFalloff ? 40 : 29;
                             const boxW = 78;

@@ -1,5 +1,6 @@
 /**
- * Calcul de dégâts Dofus 2 pour l'onglet « Sorts » d'une fiche stuff.
+ * Calcul de dégâts Dofus 2 — **source unique** de l'onglet « Sorts » d'une fiche stuff ET de la
+ * prévisu de dégâts de la simulation tactique (stuff comme monstres).
  *
  * Module PUR (aucun IO / aucun fetch) : utilisable côté client ET côté serveur,
  * et testable unitairement sans réseau. Il applique les caractéristiques réelles
@@ -328,6 +329,58 @@ export function computeSpellDamage(
         critMult,
         grade: dmg.grade,
     };
+}
+
+/**
+ * **Effets structurés d'un sort de classe appliqué aux stats du build** — même FORME que celle
+ * servie par le serveur pour les monstres (`DofensiveSpellEffect` : `damage` numérique), afin que la
+ * simulation tactique (`SpellRangeGrid`) affiche jets par élément, badges par cible et dégressivité
+ * de zone **sans aucun cas particulier** (une seule source : `damageLinesFromEffects`).
+ *
+ * 🎯 Retour user (22/09/2026) : « où sont les estimations de dégâts par cible posées sur le
+ * simulateur pour les stuff ? » — l'onglet Simulation d'une fiche stuff construisait ses sorts
+ * **sans** `effectDetails` ⇒ aucune ligne de dégâts, option « Dégâts estimés » désactivée.
+ *
+ * Les valeurs viennent **exclusivement** de `computeSpellDamage` (formule du jeu : stat élémentaire
+ * + Puissance + dommages fixes + % dommages) : aucune estimation, aucun parsing de texte. Le libellé
+ * suit le format des libellés Dofensive (« 61 à 70 dommages Terre »).
+ */
+export function spellEffectDetailsFromBuild(
+    damages: SpellBaseDamage[] | undefined | null,
+    build: BuildStatsForSpells,
+    opts: {
+        /** Nature de portée : le `% Dommages` appliqué dépend de la mêlée / distance / sorts. */
+        kind?: "sorts" | "melee" | "distance";
+    } = {}
+): {
+    label: string;
+    duration: null;
+    triggers: string[];
+    masks: string[];
+    damage: { element: string; min: number; max: number } | null;
+}[] {
+    const kind = opts.kind ?? "sorts";
+    return (damages ?? [])
+        .filter(Boolean)
+        .map((dmg) => {
+            // Jets NORMAUX uniquement (`theoMin`/`theoMax`) : le taux de critique n'est pas encore
+            // affiché par la prévisu (reste assumé du chantier — on n'affiche pas deux fourchettes
+            // dans un badge de 78 px sans décision produit).
+            const res = computeSpellDamage(dmg, build, kind);
+            // Élément écrit comme le jeu l'écrit (clé capitalisée : « Terre », « Feu »…) — jamais un
+            // libellé inventé, et aucune table de libellés dupliquée dans ce module sans dépendance.
+            const elementLabel = dmg.element.charAt(0).toUpperCase() + dmg.element.slice(1);
+            return {
+                label: `${res.theoMin} à ${res.theoMax} dommages ${elementLabel}`,
+                duration: null,
+                triggers: [] as string[],
+                masks: [] as string[],
+                // Un sort utilitaire (soin, état, poussée) n'a aucun degré de dégâts ⇒ `null`.
+                damage: res.theoMax > 0
+                    ? { element: String(dmg.element), min: res.theoMin, max: res.theoMax }
+                    : null,
+            };
+        });
 }
 
 /**

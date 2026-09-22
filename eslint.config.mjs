@@ -129,6 +129,11 @@ const eslintConfig = defineConfig([
           // God — console admin dark legacy : chantier dédié (93 fichiers, ~3 500 couleurs)
           "god-sidebar", "god-top-nav", "mobile-god-sidebar", "god-nav-config",
           "\\god\\",
+          // HUD au-dessus du jeu (fenêtre PiP) — palette sombre volontaire, même famille que `rush`
+          "boss-overlay",
+          // maquettes de la vitrine « reproduites au pixel près » (modules de l'app) + prévisualisation
+          // d'un embed Discord : le rendu DOIT ressembler à sa source (les hex Discord sont en allowHex)
+          "landing/registre", "landing\\registre", "discordembedpreview",
           // données de couleur volontaires (config par catégorie / rendu inline)
           "dofus-tags", "mission-config", "profile-activities", "render-inline-content",
         ],

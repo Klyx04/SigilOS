@@ -27,6 +27,25 @@ export interface SpellLineZone {
     size: number;
 }
 
+/**
+ * **Dégressivité des dégâts de zone** telle que la porte la donnée DofusDB depuis la 3.6 :
+ * chaque effet déclare dans son `zoneDescr` la perte par case d'éloignement
+ * (`damageDecreaseStepPercent`) et le nombre maximal d'applications de cette perte
+ * (`maxDamageDecreaseApplyCount`).
+ *
+ * 🔍 Mesuré le 22/09/2026 sur `api.dofusdb.fr` :
+ *   · `spell-levels/42413` (Éther) → `damageDecreaseStepPercent: 10` + `maxDamageDecreaseApplyCount: 4` ;
+ *   · échantillon de **1 200 niveaux / 2 039 effets** → **2 023** effets portent `10 | 4` (4 effets
+ *     sans dégressivité, 1 cas isolé) ⇒ la paire est la valeur par défaut de l'effet, pas un
+ *     réglage par sort. D'où `ZONE_DAMAGE_DECREASE_DEFAULT` (`dofus-zone-damage.ts`).
+ */
+export interface ZoneDamageDecrease {
+    /** Perte de dégâts **par case** d'éloignement, en pourcentage. */
+    stepPercent: number;
+    /** Nombre maximal de fois où cette perte s'applique (au-delà : plafond atteint). */
+    maxApplyCount: number;
+}
+
 export interface SpellBaseDamage {
     /** Dommages de base min (au grade donné). */
     min: number;
@@ -38,6 +57,8 @@ export interface SpellBaseDamage {
     grade: number;
     /** Zone d'effet de CETTE ligne (`zoneDescr` DofusDB, absent = monocible). */
     zone?: SpellLineZone | null;
+    /** Dégressivité de CETTE ligne (`zoneDescr` 3.6) — absente ⇒ défaut mesuré. */
+    decrease?: ZoneDamageDecrease | null;
 }
 
 /**
@@ -106,6 +127,15 @@ export interface SpellDamageLine {
     max: number;
     /** Nombre de jets regroupés (un sort peut porter 2 lignes du même élément, ex. 2× Feu). */
     lines: number;
+    /**
+     * Jet **critique** cumulé de la ligne (`criticalEffect` DofusDB, `GroupCriticalEffects`
+     * Dofensive). `null`/absent quand la source n'en fournit pas : on **n'invente jamais** un
+     * coup critique à partir du jet normal (le multiplicateur 1,5 de `computeSpellDamage` reste
+     * réservé à la fiche d'un sort qui ne publie pas de jet critique).
+     */
+    crit?: { min: number; max: number } | null;
+    /** Dégressivité de la ligne (3.6) — `null`/absent ⇒ `ZONE_DAMAGE_DECREASE_DEFAULT`. */
+    decrease?: ZoneDamageDecrease | null;
 }
 
 /** Alias d'éléments → clés du simulateur (Dofensive dit `earth`, la fiche dit `terre`…). */
@@ -127,10 +157,25 @@ const ELEMENT_ALIASES: Record<string, SpellElementKey> = {
  * @returns `lines` : un jet cumulé par élément (l'ordre suit l'apparition) ; `push` : la distance
  * de poussée (cases) si le sort pousse — **affichée telle quelle**, aucun dégât de poussée n'est
  * calculé (la formule du jeu n'est pas implémentée).
+ *
+ * 🔒 Règle d'agrégation du **critique** : le jet critique (`crit`) n'est cumulé que si CHAQUE jet
+ * de l'élément en porte un — sinon la somme serait partielle, donc fausse. Même règle pour la
+ * dégressivité : elle n'est conservée que si toutes les lignes de l'élément partagent la même
+ * (sinon on retombe sur le défaut mesuré, jamais sur une valeur choisie au hasard).
  */
 export function damageLinesFromEffects(
     effectDetails:
-        | { damage?: { element: string; min: number; max: number } | null; pushDistance?: number | null }[]
+        | {
+              damage?: {
+                  element: string;
+                  min: number;
+                  max: number;
+                  critMin?: number | null;
+                  critMax?: number | null;
+                  decrease?: ZoneDamageDecrease | null;
+              } | null;
+              pushDistance?: number | null;
+          }[]
         | null
         | undefined
 ): { lines: SpellDamageLine[]; push: number | null } {
@@ -149,17 +194,51 @@ export function damageLinesFromEffects(
         const min = Math.max(0, Math.floor(Number(damage.min) || 0));
         const max = Math.max(min, Math.floor(Number(damage.max) || 0));
         if (max <= 0) continue;
+
+        const critMin = toDamageNumber(damage.critMin);
+        const critMax = toDamageNumber(damage.critMax);
+        const crit = critMin !== null && critMax !== null ? { min: critMin, max: Math.max(critMin, critMax) } : null;
+        const decrease = normalizeDecrease(damage.decrease);
+
         const current = byElement.get(element);
         if (current) {
             current.min += min;
             current.max += max;
             current.lines += 1;
+            if (current.crit && crit) {
+                current.crit.min += crit.min;
+                current.crit.max += crit.max;
+            } else {
+                current.crit = null;
+            }
+            if (!sameDecrease(current.decrease, decrease)) current.decrease = null;
         } else {
-            byElement.set(element, { element, min, max, lines: 1 });
+            byElement.set(element, { element, min, max, lines: 1, crit, decrease });
         }
     }
 
     return { lines: [...byElement.values()], push };
+}
+
+/** Nombre exploitables ≥ 0, ou `null` (valeur absente/non finie : on n'invente rien). */
+function toDamageNumber(value: unknown): number | null {
+    if (value === null || value === undefined || value === "") return null;
+    const n = Number(value);
+    return Number.isFinite(n) && n >= 0 ? Math.floor(n) : null;
+}
+
+/** Dégressivité exploitable (au moins une application et une perte non nulle), sinon `null`. */
+export function normalizeDecrease(decrease: ZoneDamageDecrease | null | undefined): ZoneDamageDecrease | null {
+    const stepPercent = Number(decrease?.stepPercent);
+    const maxApplyCount = Number(decrease?.maxApplyCount);
+    if (!Number.isFinite(stepPercent) || !Number.isFinite(maxApplyCount)) return null;
+    if (stepPercent <= 0 || maxApplyCount <= 0) return null;
+    return { stepPercent, maxApplyCount: Math.floor(maxApplyCount) };
+}
+
+/** Deux dégressivités identiques (ou toutes deux absentes) — utilisé pour ne pas mélanger les lignes. */
+function sameDecrease(a: ZoneDamageDecrease | null | undefined, b: ZoneDamageDecrease | null | undefined): boolean {
+    return (a?.stepPercent ?? null) === (b?.stepPercent ?? null) && (a?.maxApplyCount ?? null) === (b?.maxApplyCount ?? null);
 }
 
 /** Dégâts cumulés de toutes les lignes (ce qu'un coup inflige au total à une cible). */
@@ -173,6 +252,22 @@ export function totalDamageRange(lines: SpellDamageLine[]): { min: number; max: 
 /** Affichage d'un jet : `666–774`, ou `666` quand min === max. */
 export function formatDamageRange(min: number, max: number): string {
     return min === max ? String(min) : `${min}–${max}`;
+}
+
+/**
+ * Jet **critique** total des lignes (somme par élément), ou `null` dès qu'une ligne n'en publie
+ * pas : jamais une fourchette partielle présentée comme complète.
+ */
+export function totalCritRange(lines: SpellDamageLine[]): { min: number; max: number } | null {
+    if (!lines || lines.length === 0) return null;
+    let min = 0;
+    let max = 0;
+    for (const line of lines) {
+        if (!line.crit) return null;
+        min += line.crit.min;
+        max += line.crit.max;
+    }
+    return { min, max };
 }
 
 /** Caractéristiques réelles d'un build, issues de `DofusbookPreviewData`. */
@@ -191,6 +286,13 @@ export interface BuildStatsForSpells {
         sorts: number;
         melee: number;
         distance: number;
+        /**
+         * `% Dommages finaux` : multiplicateur appliqué **en dernier**, après tout le reste
+         * (règle du jeu, même famille que les `% Dommages subis` de DPLN qui se multiplient).
+         * Absent des builds Dofusbook actuels ⇒ `0` (aucun effet), et c'est ce champ que
+         * renseignent les boosts de type « +X % Dommages finaux » du panneau Boosts.
+         */
+        finaux?: number;
     };
 }
 
@@ -304,6 +406,9 @@ export function computeSpellDamage(
     const fixedCrit = fixed + (build.damages.critique || 0);
     const pct = percentDamageFor(build.damages, kind);
     const pu = build.elements.pu || 0;
+    // `% Dommages finaux` : appliqué en DERNIER (règle du jeu). Sans valeur ⇒ aucun changement.
+    const finaux = Math.max(0, Number(build.damages.finaux) || 0);
+    const applyFinaux = (v: number) => (finaux > 0 ? Math.floor(v * (1 + finaux / 100)) : v);
 
     const theoMin = applyBuild(dmg.min, elementStat, fixed, pct, pu);
     const theoMax = applyBuild(dmg.max, elementStat, fixed, pct, pu);
@@ -311,20 +416,17 @@ export function computeSpellDamage(
     // Critique : si un jet critique (criticalEffect DofusDB) est fourni, on le calcule
     // avec le jet critique de base + les dommages critiques fixes (stat 86).
     // Sinon, on applique le multiplicateur critique par défaut.
-    const cMin = critBase
-        ? applyBuild(critBase.min, elementStat, fixedCrit, pct, pu)
-        : Math.floor(theoMin * critMult);
-    const cMax = critBase
-        ? applyBuild(critBase.max, elementStat, fixedCrit, pct, pu)
-        : Math.floor(theoMax * critMult);
+    // ⚠️ `% Dommages finaux` s'applique APRÈS, une seule fois (`theo` sert de base au multiplicateur).
+    const cMinRaw = critBase ? applyBuild(critBase.min, elementStat, fixedCrit, pct, pu) : Math.floor(theoMin * critMult);
+    const cMaxRaw = critBase ? applyBuild(critBase.max, elementStat, fixedCrit, pct, pu) : Math.floor(theoMax * critMult);
 
     return {
         baseMin: dmg.min,
         baseMax: dmg.max,
-        theoMin,
-        theoMax,
-        critMin: cMin,
-        critMax: cMax,
+        theoMin: applyFinaux(theoMin),
+        theoMax: applyFinaux(theoMax),
+        critMin: applyFinaux(cMinRaw),
+        critMax: applyFinaux(cMaxRaw),
         elementStat,
         critMult,
         grade: dmg.grade,
@@ -351,22 +453,46 @@ export function spellEffectDetailsFromBuild(
     opts: {
         /** Nature de portée : le `% Dommages` appliqué dépend de la mêlée / distance / sorts. */
         kind?: "sorts" | "melee" | "distance";
+        /**
+         * Jets **critiques** du grade (`criticalEffect` DofusDB). Rattachés à la ligne de **même
+         * élément** : un sort qui ne publie pas de jet critique n'en affiche aucun (jamais le
+         * multiplicateur 1,5, qui n'est pas un jet critique du jeu).
+         */
+        critDamages?: SpellBaseDamage[] | null;
     } = {}
 ): {
     label: string;
     duration: null;
     triggers: string[];
     masks: string[];
-    damage: { element: string; min: number; max: number } | null;
+    damage: {
+        element: string;
+        min: number;
+        max: number;
+        critMin?: number;
+        critMax?: number;
+        decrease?: ZoneDamageDecrease | null;
+    } | null;
 }[] {
     const kind = opts.kind ?? "sorts";
+    const critByElement = new Map<SpellElementKey, SpellBaseDamage>();
+    for (const crit of opts.critDamages ?? []) {
+        if (!crit || critByElement.has(crit.element)) continue;
+        critByElement.set(crit.element, crit);
+    }
     return (damages ?? [])
         .filter(Boolean)
         .map((dmg) => {
-            // Jets NORMAUX uniquement (`theoMin`/`theoMax`) : le taux de critique n'est pas encore
-            // affiché par la prévisu (reste assumé du chantier — on n'affiche pas deux fourchettes
-            // dans un badge de 78 px sans décision produit).
-            const res = computeSpellDamage(dmg, build, kind);
+            // Jets NORMAUX (`theoMin`/`theoMax`) **et** jet critique du même élément quand le sort
+            // en publie un (le taux de critique reste l'affaire du joueur : les deux sont affichés).
+            const critBase = critByElement.get(dmg.element);
+            const res = computeSpellDamage(
+                dmg,
+                build,
+                kind,
+                1.5,
+                critBase ? { min: critBase.min, max: critBase.max } : undefined
+            );
             // Élément écrit comme le jeu l'écrit (clé capitalisée : « Terre », « Feu »…) — jamais un
             // libellé inventé, et aucune table de libellés dupliquée dans ce module sans dépendance.
             const elementLabel = dmg.element.charAt(0).toUpperCase() + dmg.element.slice(1);
@@ -377,7 +503,13 @@ export function spellEffectDetailsFromBuild(
                 masks: [] as string[],
                 // Un sort utilitaire (soin, état, poussée) n'a aucun degré de dégâts ⇒ `null`.
                 damage: res.theoMax > 0
-                    ? { element: String(dmg.element), min: res.theoMin, max: res.theoMax }
+                    ? {
+                          element: String(dmg.element),
+                          min: res.theoMin,
+                          max: res.theoMax,
+                          ...(critBase && res.critMax > 0 ? { critMin: res.critMin, critMax: res.critMax } : {}),
+                          decrease: dmg.decrease ?? null,
+                      }
                     : null,
             };
         });
@@ -567,12 +699,18 @@ export function spellDamageFromEffect(eff: any): SpellBaseDamage | null {
 
     // Zone d'effet de la ligne (`zoneDescr` DofusDB : `shape` = code ASCII du
     // gabarit, `param1` = taille). Absent = monocible (cas nominal).
+    // Le MÊME bloc porte la dégressivité 3.6 (`damageDecreaseStepPercent` /
+    // `maxDamageDecreaseApplyCount`) — lue telle quelle, jamais supposée.
     const zd = (eff as any).zoneDescr;
     const zoneShapeCode = Number(zd?.shape) || 0;
     const zone: SpellLineZone | null =
         zoneShapeCode > 0
             ? { shape: String.fromCharCode(zoneShapeCode), size: Math.max(0, Number(zd?.param1) || 0) }
             : null;
+    const decrease = normalizeDecrease({
+        stepPercent: Number(zd?.damageDecreaseStepPercent),
+        maxApplyCount: Number(zd?.maxDamageDecreaseApplyCount),
+    });
 
     return {
         min,
@@ -580,6 +718,7 @@ export function spellDamageFromEffect(eff: any): SpellBaseDamage | null {
         element: elementFromDofusdb(eff.effectElement ?? (eff as any).effectElementId),
         grade: Number(eff.grade ?? eff.level ?? 0),
         zone,
+        decrease,
     };
 }
 

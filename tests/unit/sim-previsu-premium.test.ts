@@ -24,7 +24,7 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import {
-    ZONE_FALLOFF_RANGE,
+    ZONE_DAMAGE_DECREASE_DEFAULT,
     applyZoneFalloff,
     zoneFalloffFactor,
     zoneFalloffPercent,
@@ -58,37 +58,61 @@ const dmgLine = (element: SpellDamageLine["element"], min: number, max: number):
 });
 
 describe("règle du jeu — dégressivité des dégâts de zone", () => {
-    it("la formule du jeu est citée à la source (aucune règle inventée)", () => {
+    it("les deux sources sont citées (aucune règle inventée)", () => {
+        // ① la formule historique recopiée sans interprétation ;
         expect(LIB_RAW).toMatch(/dofuspourlesnoobs\.com\/les-dommages\.html/);
         expect(LIB_RAW).toMatch(/\(10-Eloignement\)\/10/);
-        expect(ZONE_FALLOFF_RANGE).toBe(10);
+        // ② la donnée DofusDB 3.6 par effet (mesurée : 2 023 / 2 039 effets en `10 | 4`).
+        expect(LIB_RAW).toMatch(/damageDecreaseStepPercent/);
+        expect(LIB_RAW).toMatch(/maxDamageDecreaseApplyCount/);
+        expect(ZONE_DAMAGE_DECREASE_DEFAULT).toEqual({ stepPercent: 10, maxApplyCount: 4 });
     });
 
-    it("le facteur vaut (10 − éloignement)/10, borné à [0, 1]", () => {
+    it("le facteur vaut 1 − 10 %/case, PLAFONNÉ à 4 applications", () => {
         expect(zoneFalloffFactor(0)).toBe(1);
         expect(zoneFalloffFactor(-3)).toBe(1);
         expect(zoneFalloffFactor(1)).toBeCloseTo(0.9, 6);
-        expect(zoneFalloffFactor(5)).toBeCloseTo(0.5, 6);
-        expect(zoneFalloffFactor(9)).toBeCloseTo(0.1, 6);
-        // Au palier 10 la cible ne subit plus rien — et jamais une valeur négative.
-        expect(zoneFalloffFactor(10)).toBe(0);
-        expect(zoneFalloffFactor(25)).toBe(0);
+        expect(zoneFalloffFactor(3)).toBeCloseTo(0.7, 6);
+        // Jusqu'à 4 cases, la donnée 3.6 reproduit EXACTEMENT l'ancienne formule (10 − d)/10 :
+        expect(zoneFalloffFactor(4)).toBeCloseTo(0.6, 6);
+        expect(zoneFalloffFactor(4)).toBeCloseTo((10 - 4) / 10, 6);
+        // Au-delà, la perte ne grandit plus (plafond −40 %) : plus jamais 0 à 10 cases.
+        expect(zoneFalloffFactor(5)).toBeCloseTo(0.6, 6);
+        expect(zoneFalloffFactor(10)).toBeCloseTo(0.6, 6);
+        expect(zoneFalloffFactor(25)).toBeCloseTo(0.6, 6);
         expect(zoneFalloffPercent(3)).toBe(70);
+        expect(zoneFalloffPercent(9)).toBe(60);
+    });
+
+    it("une dégressivité portée par l'effet remplace le défaut (donnée, pas supposition)", () => {
+        expect(zoneFalloffFactor(2, { stepPercent: 25, maxApplyCount: 2 })).toBeCloseTo(0.5, 6);
+        expect(zoneFalloffFactor(9, { stepPercent: 25, maxApplyCount: 2 })).toBeCloseTo(0.5, 6);
+        // Dégressivité nulle (4 effets mesurés) ⇒ aucun malus, quelle que soit la distance.
+        expect(zoneFalloffFactor(7, { stepPercent: 0, maxApplyCount: 0 })).toBe(1);
     });
 
     it("applique la dégressivité en tronquant (convention Dofus)", () => {
         expect(applyZoneFalloff(100, 200, 0)).toEqual({ min: 100, max: 200 });
-        expect(applyZoneFalloff(100, 200, 5)).toEqual({ min: 50, max: 100 });
+        expect(applyZoneFalloff(100, 200, 2)).toEqual({ min: 80, max: 160 });
+        expect(applyZoneFalloff(100, 200, 5)).toEqual({ min: 60, max: 120 });
         expect(applyZoneFalloff(13, 17, 3)).toEqual({ min: 9, max: 11 });
-        expect(applyZoneFalloff(100, 200, 10)).toEqual({ min: 0, max: 0 });
+        // Plafond : la cible garde 60 % même très loin de la case visée.
+        expect(applyZoneFalloff(100, 200, 10)).toEqual({ min: 60, max: 120 });
     });
 
-    it("corrige chaque ligne d'élément et leur total", () => {
+    it("corrige chaque ligne d'élément et leur total (jet critique compris)", () => {
         const lines = [dmgLine("feu", 100, 200), dmgLine("eau", 50, 50)];
         const scaled = zoneLinesAtOffset(lines, 2); // 80 %
         expect(scaled.map((l) => [l.min, l.max])).toEqual([[80, 160], [40, 40]]);
-        expect(zoneTotalAtOffset(lines, 2)).toEqual({ min: 120, max: 200 });
-        expect(zoneTotalAtOffset(lines, 0)).toEqual({ min: 150, max: 250 });
+        expect(zoneTotalAtOffset(lines, 2)).toEqual({ min: 120, max: 200, critMin: null, critMax: null });
+        expect(zoneTotalAtOffset(lines, 0)).toEqual({ min: 150, max: 250, critMin: null, critMax: null });
+
+        // Jet normal ET critique subissent le même facteur, et le total critique suit la même règle.
+        const withCrit = [{ ...dmgLine("air", 100, 200), crit: { min: 150, max: 250 } }];
+        expect(zoneLinesAtOffset(withCrit, 2)[0].crit).toEqual({ min: 120, max: 200 });
+        expect(zoneTotalAtOffset(withCrit, 2)).toEqual({ min: 80, max: 160, critMin: 120, critMax: 200 });
+        // Une seule ligne sans jet critique ⇒ aucun total critique (jamais une somme partielle).
+        expect(zoneTotalAtOffset([...withCrit, dmgLine("eau", 10, 10)], 2).critMin).toBeNull();
     });
 
     it("mesure l'éloignement depuis la case visée, dans le bon repère", () => {
@@ -131,9 +155,13 @@ describe("dégressivité appliquée PAR CIBLE sur la grille", () => {
 
     it("chaque cible reçoit son éloignement, ses lignes et son total corrigés", () => {
         expect(GRID).toMatch(/const offset = zoneOffsetBetween\(zoneAnchor, \{ x, y \}, isRealMap\);/);
-        expect(GRID).toMatch(/falloff: zoneFalloffPercent\(offset\),/);
-        expect(GRID).toMatch(/lines: zoneLinesAtOffset\(damageInfo\.lines, offset\),/);
-        expect(GRID).toMatch(/total: zoneTotalAtOffset\(damageInfo\.lines, offset\),/);
+        expect(GRID).toMatch(/falloff: zoneFalloffPercent\(offset, damageInfo\.lines\[0\]\?\.decrease \?\? null\),/);
+        expect(GRID).toMatch(
+            /lines: applyDamageTakenToLines\(zoneLinesAtOffset\(damageInfo\.lines, offset\), damageTakenMultiplier\),/
+        );
+        expect(GRID).toMatch(
+            /total: applyDamageTakenToTotal\(zoneTotalAtOffset\(damageInfo\.lines, offset\), damageTakenMultiplier\),/
+        );
     });
 
     it("la case visée porte la « cible blanche » du jeu, en permanence", () => {
@@ -151,13 +179,17 @@ describe("dégressivité appliquée PAR CIBLE sur la grille", () => {
         expect(GRID).toMatch(/if \(isInZone\(x, y\) && !isCaster\) \{/);
     });
 
-    it("le badge d'une cible porte son total, son malus de distance et ses lignes d'élément", () => {
+    it("le badge d'une cible porte son total, son malus de distance, son critique et ses lignes d'élément", () => {
         const layer = GRID.slice(
             GRID.indexOf("{showDamage && damageInfo.lines.length > 0 && zonePreview"),
             GRID.indexOf("</svg>")
         );
         expect(layer).toMatch(/formatDamageRange\(target\.total\.min, target\.total\.max\)/);
         expect(layer).toMatch(/damageFalloffShort\.replace\("\{percent\}", String\(100 - target\.falloff\)\)/);
+        // Jet critique par cible (« crit ou non crit ») + détail au survol du badge.
+        expect(layer).toMatch(/damageCritShort\.replace\("\{range\}", critRange\)/);
+        expect(layer).toMatch(/damageOffsetShort\.replace\("\{count\}", String\(target\.offset\)\)/);
+        expect(layer).toMatch(/<title>/);
         expect(layer).toMatch(/elementHex\(line\.element\)/);
         expect(layer).toMatch(/elementIcon\(line\.element\)/);
     });
@@ -168,9 +200,10 @@ describe("panneau de prévisu (« Dégâts estimés ») — valeur immédiatemen
         expect(GRID).toMatch(/<SimulationDamageHud/);
         expect(GRID).toMatch(/variant="board"/);
         expect(GRID).toMatch(/lines=\{damageInfo\.lines\}/);
-        expect(GRID).toMatch(/total=\{damageTotal\}/);
+        expect(GRID).toMatch(/total=\{damageFullTotal\}/);
         expect(GRID).toMatch(/push=\{damageInfo\.push\}/);
         expect(GRID).toMatch(/targets=\{\{ count: damageTargets\.length, total: damageZoneTotal \}\}/);
+        expect(GRID).toMatch(/damageTakenPercent=\{damageTakenPercent\}/);
     });
 
     it("le total sur la zone est la somme des cibles corrigées", () => {
@@ -180,7 +213,9 @@ describe("panneau de prévisu (« Dégâts estimés ») — valeur immédiatemen
 
     it("le panneau montre : jets par élément · total par cible · cibles · poussée · règle", () => {
         expect(HUD).toMatch(/simT\.damageHudTitle/);
-        expect(HUD).toMatch(/formatDamageRange\(line\.min, line\.max\)/);
+        expect(HUD).toMatch(/damageRangeWithCrit\(line, line\.crit\)/);
+        expect(HUD).toMatch(/simT\.damageHudCritNote/);
+        expect(HUD).toMatch(/damageRangeWithCrit\(/);
         expect(HUD).toMatch(/simT\.damageHudPerTarget/);
         expect(HUD).toMatch(/simT\.damageHudTargets\.replace\("\{count\}"/);
         expect(HUD).toMatch(/simT\.damageHudRule/);

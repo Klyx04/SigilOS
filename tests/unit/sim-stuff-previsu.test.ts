@@ -61,7 +61,7 @@ describe("jets du build — formule du jeu, aucune estimation", () => {
         // base 25 : floor(25 × 2) = 50 ; +10 fixes = 60 ; ×1,20 = 72
         // base 28 : floor(28 × 2) = 56 ; +10 fixes = 66 ; ×1,20 = floor(79,2) = 79
         const [line] = spellEffectDetailsFromBuild(ETHER_G3, BUILD, { kind: "distance" });
-        expect(line.damage).toEqual({ element: "air", min: 72, max: 79 });
+        expect(line.damage).toEqual({ element: "air", min: 72, max: 79, decrease: null });
         expect(line.label).toBe("72 à 79 dommages Air");
         expect(line.duration).toBeNull();
         expect(line.triggers).toEqual([]);
@@ -71,7 +71,7 @@ describe("jets du build — formule du jeu, aucune estimation", () => {
     it("le % appliqué suit la portée du sort (mêlée ≠ distance)", () => {
         const [melee] = spellEffectDetailsFromBuild(ETHER_G3, BUILD, { kind: "melee" });
         // Le build de test ne porte que des % Distance ⇒ aucun bonus en mêlée.
-        expect(melee.damage).toEqual({ element: "air", min: 60, max: 66 });
+        expect(melee.damage).toEqual({ element: "air", min: 60, max: 66, decrease: null });
     });
 
     it("un sort utilitaire (aucune ligne de dégâts) ne produit AUCUN effet chiffré", () => {
@@ -87,14 +87,14 @@ describe("jets du build — formule du jeu, aucune estimation", () => {
         );
         const { lines } = damageLinesFromEffects(details);
         // 2ᵉ ligne Air (10-10) : floor(10 × 2) = 20 ; +10 = 30 ; ×1,20 = 36 ⇒ 72+36 / 79+36.
-        expect(lines).toEqual([{ element: "air", min: 108, max: 115, lines: 2 }]);
+        expect(lines).toEqual([{ element: "air", min: 108, max: 115, lines: 2, crit: null, decrease: null }]);
     });
 
-    it("la dégressivité de zone s'applique à ces jets (50 % à 5 cases)", () => {
+    it("la dégressivité de zone s'applique à ces jets (règle 3.6 : 60 % à 4 cases et au-delà)", () => {
         const details = spellEffectDetailsFromBuild(ETHER_G3, BUILD, { kind: "distance" });
         const { lines } = damageLinesFromEffects(details);
-        expect(zoneFalloffPercent(5)).toBe(50);
-        expect(zoneTotalAtOffset(lines, 5)).toEqual({ min: 36, max: 39 });
+        expect(zoneFalloffPercent(5)).toBe(60);
+        expect(zoneTotalAtOffset(lines, 5)).toEqual({ min: 43, max: 47, critMin: null, critMax: null });
     });
 });
 
@@ -103,7 +103,9 @@ describe("câblage — l'onglet Simulation alimente la grille (aucun cas particu
         expect(SIM_TAB).toMatch(
             /import \{ spellEffectDetailsFromBuild, spellZoneFromDamages, type BuildStatsForSpells \} from "@\/lib\/dofus-spells";/
         );
-        expect(SIM_TAB).toMatch(/const effectDetails = spellEffectDetailsFromBuild\(sp\.damages, build, \{ kind \}\);/);
+        expect(SIM_TAB).toMatch(
+            /const effectDetails = spellEffectDetailsFromBuild\(sp\.damages, boostedBuild, \{\s*kind,\s*critDamages: sp\.critDamages,\s*\}\);/
+        );
         expect(SIM_TAB).toMatch(/^\s*effectDetails,$/m);
         // Le taux (%) dépend de la portée du sort, comme l'onglet Sorts.
         expect(SIM_TAB).toMatch(/const kind: "sorts" \| "melee" \| "distance" = sp\.maxRange <= 1 \? "melee" : "distance";/);

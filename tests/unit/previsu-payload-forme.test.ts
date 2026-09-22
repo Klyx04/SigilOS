@@ -42,18 +42,19 @@ describe("version de FORME du payload stocké — règle pure", () => {
     it("la règle et sa raison (0/256 lignes portaient le jet) restent écrites à la source", () => {
         expect(SPELLS_RAW).toMatch(/0 ligne sur 256/);
         expect(SPELLS_RAW).toMatch(/v2\*\* = lot 3a/);
+        expect(SPELLS_RAW).toMatch(/v3\*\* = lot 4/);
     });
 
-    it("la version courante est la v2 (lot 3a : `effectDetails[].damage` + `.pushDistance`)", () => {
-        expect(COMBAT_SPELLS_PAYLOAD_VERSION).toBe(2);
-        expect(SPELLS_RAW).toMatch(/COMBAT_SPELLS_PAYLOAD_VERSION = 2;/);
+    it("la version courante est la v3 (lot 4 : jets critiques par ligne)", () => {
+        expect(COMBAT_SPELLS_PAYLOAD_VERSION).toBe(3);
+        expect(SPELLS_RAW).toMatch(/COMBAT_SPELLS_PAYLOAD_VERSION = 3;/);
     });
 
     it("toute forme antérieure (ou absente) est obsolète — la courante et les suivantes non", () => {
-        for (const version of [undefined, null, "", NaN, 0, 1, 1.9, "1"]) {
+        for (const version of [undefined, null, "", NaN, 0, 1, 1.9, "1", 2, "2"]) {
             expect(isCombatSpellsPayloadOutdated(version)).toBe(true);
         }
-        for (const version of [2, 2.0, "2", 3, 99]) {
+        for (const version of [3, 3.0, "3", 4, 99]) {
             expect(isCombatSpellsPayloadOutdated(version)).toBe(false);
         }
     });
@@ -80,9 +81,9 @@ describe("symptôme exact — une forme v1 n'affiche AUCUN dégât, une forme v2
         expect(damageLinesFromEffects(v1)).toEqual({ lines: [], push: null });
     });
 
-    it("forme v2 : la ligne d'élément est servie telle quelle", () => {
+    it("forme v2 : la ligne d'élément est servie telle quelle (sans critique publié)", () => {
         expect(damageLinesFromEffects(v2).lines).toEqual([
-            { element: "terre", min: 61, max: 70, lines: 1 },
+            { element: "terre", min: 61, max: 70, lines: 1, crit: null, decrease: null },
         ]);
     });
 });

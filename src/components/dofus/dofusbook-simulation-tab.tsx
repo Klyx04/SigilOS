@@ -1,11 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Loader2, Info } from "lucide-react";
 import { SpellRangeGrid, type SpellData } from "@/components/succes/SpellRangeGrid";
+import { SimulationBoostPanel } from "@/components/succes/SimulationBoostPanel";
 import { getClassSpells } from "@/server/actions/dofus-spells-actions";
 import { getClassName } from "@/lib/dofusbook-utils";
 import { spellEffectDetailsFromBuild, spellZoneFromDamages, type BuildStatsForSpells } from "@/lib/dofus-spells";
+import { applyBoosts, targetDamageTakenFactor, type DamageBoost } from "@/lib/dofus-boosts";
 
 interface SimulationTabProps {
     classId: number;
@@ -25,14 +27,22 @@ interface SimulationTabProps {
 /**
  * Onglet « Simulation » d'une fiche stuff : grille isométrique 17×17 (map vide)
  * avec les sorts de la classe au grade du personnage (portée, zone, relance) **et la prévisu de
- * dégâts du build** : jets par élément appliqués aux stats du stuff (`computeSpellDamage`), total
- * par cible et dégressivité de zone — exactement la même source que la simulation des monstres.
- * Aucune dépendance externe côté client (sorts via action serveur cachée 24 h,
+ * dégâts du build** : jets par élément appliqués aux stats du stuff (`computeSpellDamage`), jet
+ * **critique** du grade quand DofusDB en publie un, total par cible, dégressivité de zone (règle
+ * 3.6) et **boosts/malus** choisis par l'utilisateur — exactement la même source que la simulation
+ * des monstres. Aucune dépendance externe côté client (sorts via action serveur cachée 24 h,
  * icônes via le proxy interne d'assets).
  */
 export function DofusbookSimulationTab({ classId, level, casterName, casterIcon, build }: SimulationTabProps) {
     const [spells, setSpells] = useState<SpellData[] | null>(null);
     const [error, setError] = useState<string | null>(null);
+    /** Boosts sélectionnés (presets mesurés + lignes personnalisées) — état local à l'onglet. */
+    const [boosts, setBoosts] = useState<DamageBoost[]>([]);
+
+    // Build **boosté** (jamais le build d'origine muté) et facteur « dommages subis » de la cible :
+    // les deux sont mémoïsés pour ne pas relancer le chargement des sorts à chaque rendu.
+    const boostedBuild = useMemo(() => applyBoosts(build, boosts), [build, boosts]);
+    const damageTakenMultiplier = useMemo(() => targetDamageTakenFactor(boosts), [boosts]);
 
     useEffect(() => {
         let cancelled = false;
@@ -59,7 +69,12 @@ export function DofusbookSimulationTab({ classId, level, casterName, casterIcon,
                         // dépend de la nature du sort (mêlée ≤ 1 PO, sinon distance) — même règle
                         // que l'onglet Sorts, aucune valeur inventée.
                         const kind: "sorts" | "melee" | "distance" = sp.maxRange <= 1 ? "melee" : "distance";
-                        const effectDetails = spellEffectDetailsFromBuild(sp.damages, build, { kind });
+                        // Jet normal ET jet critique du grade (`critDamages` DofusDB) : la prévisu
+                        // affiche les deux, comme l'infobulle du jeu.
+                        const effectDetails = spellEffectDetailsFromBuild(sp.damages, boostedBuild, {
+                            kind,
+                            critDamages: sp.critDamages,
+                        });
                         return {
                             id: sp.id,
                             name: sp.name,
@@ -88,7 +103,7 @@ export function DofusbookSimulationTab({ classId, level, casterName, casterIcon,
         return () => {
             cancelled = true;
         };
-    }, [classId, level, build]);
+    }, [classId, level, boostedBuild]);
 
     if (error) {
         return (
@@ -120,6 +135,7 @@ export function DofusbookSimulationTab({ classId, level, casterName, casterIcon,
                     Grille vide 17×17 — déplacez le lanceur librement, choisissez un sort pour voir sa portée, sa zone et sa ligne de vue.
                 </p>
             </div>
+            <SimulationBoostPanel value={boosts} onChange={setBoosts} />
             <SpellRangeGrid
                 spells={spells}
                 bossName={casterName || getClassName(classId)}
@@ -129,6 +145,7 @@ export function DofusbookSimulationTab({ classId, level, casterName, casterIcon,
                 hideAllies
                 enemyIconUrl="/assets/icons/poutch.png"
                 maxEnemies={4}
+                damageTakenMultiplier={damageTakenMultiplier}
             />
         </div>
     );

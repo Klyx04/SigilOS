@@ -37,8 +37,12 @@ export interface DofensiveSpellEffect {
      * **Jet de dégâts numérique** (déjà calculé par les caractéristiques du monstre) — c'est la
      * donnée de la prévisu sur la grille : `null` pour un effet qui n'inflige pas de dommages
      * élémentaires (soin, état, poussée, %…). Jamais de chiffre inventé.
+     *
+     * `critMin`/`critMax` = jet **du même effet en coup critique** (`GroupCriticalEffects`
+     * Dofensive, caractéristiques du monstre également appliquées) : renseigné seulement quand la
+     * source publie ce jet, jamais déduit du jet normal.
      */
-    damage?: { element: string; min: number; max: number } | null;
+    damage?: { element: string; min: number; max: number; critMin?: number; critMax?: number } | null;
     /** Distance de **poussée** (cases) quand l'effet pousse — affichée telle quelle, aucun dégât calculé. */
     pushDistance?: number | null;
 }
@@ -152,9 +156,11 @@ export function pickSpellLevelForMonster<T extends { Grade?: number | null }>(
  * absence (la règle `stale-while-offline` reste entière : on sert la ligne si la source ne répond pas).
  *
  *   · **v1** = historique (aucun champ de jet) ;
- *   · **v2** = lot 3a « prévisu de dégâts » (`effectDetails[].damage` + `.pushDistance`).
+ *   · **v2** = lot 3a « prévisu de dégâts » (`effectDetails[].damage` + `.pushDistance`) ;
+ *   · **v3** = lot 4 « jets critiques & règle de zone 3.6 » (`effectDetails[].damage.critMin`
+ *     + `.critMax`, rattachés par ÉLÉMENT depuis `GroupCriticalEffects`).
  */
-export const COMBAT_SPELLS_PAYLOAD_VERSION = 2;
+export const COMBAT_SPELLS_PAYLOAD_VERSION = 3;
 
 /** `true` quand le payload stocké n'a pas (ou plus) la forme attendue par le code courant. */
 export function isCombatSpellsPayloadOutdated(payloadVersion: unknown): boolean {

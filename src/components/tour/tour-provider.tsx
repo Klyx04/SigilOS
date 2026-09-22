@@ -1269,8 +1269,15 @@ const PRESENTATION_STEPS: TourStep[] = [
 const SUCCES_STEPS: TourStep[] = [
     {
         target: '[data-tour="succes-views"]',
-        title: "Navigation du Module Succès",
-        description: "Sept vues complémentaires : « Mes Succès » pour cocher ta progression donjon par donjon, « Succès Commun » pour voir qui dans la guilde a validé quoi, « Fiches Boss » pour les sorts et simulations de combat, « Fiches Anomalies » pour les gardiens des anomalies temporelles (siphonnés Dofensive/DofusDB), « Fiches Titans » pour les événements krosmiques, « Quêtes & Succès » pour les quêtes associées, et « Défis » pour les événements et challenges communautaires.",
+        title: "Menu du Module Succès",
+        description: "Quatre blocs : « Mes Succès » pour cocher ta progression donjon par donjon, « Succès Commun » pour voir qui dans la guilde a validé quoi, « Fiches » pour les sorts et simulations de combat, et « Défi » pour les événements et challenges communautaires. Les quêtes de donjons vivent dans l'onglet « Quêtes » de chaque fiche boss ou titan.",
+        placement: "bottom",
+        module: "succes",
+    },
+    {
+        target: '[data-tour="succes-view-fiches"]',
+        title: "Fiches & Quêtes liées",
+        description: "Bloc « Fiches » : boss, anomalies, avis de recherche et titans. Ouvre une fiche (ex. Kardorim) : l'onglet « Quêtes » à côté de « Monstres de la salle » liste les quêtes du donjon, avec guide Dofus et progression de guilde.",
         placement: "bottom",
         module: "succes",
     },

@@ -297,11 +297,11 @@ La revente d'archimonstres capturés en guilde à l'hôtel des ventes est viveme
 </ol>
 
 <h2>3. Les vues du module</h2>
+<p>Le module s'ouvre sur un menu en quatre blocs : <strong>Mes Succès</strong>, <strong>Succès Commun</strong>, <strong>Fiches</strong> et <strong>Défi</strong>.</p>
 <ul>
     <li><strong>Mes Succès :</strong> ta checklist par donjon — recherche, filtre « à faire / finis », tranche de niveau, et une bascule unique pour valider ou décocher toute la tranche.</li>
     <li><strong>Succès Commun :</strong> l'annuaire « qui a quoi », donjon par donjon.</li>
-    <li><strong>Fiches :</strong> boss, anomalies, avis de recherche et titans — quatre sous-vues derrière un seul onglet (sorts, statistiques, cartes et butin).</li>
-    <li><strong>Quêtes &amp; Succès :</strong> les quêtes de donjons rattachées aux fiches.</li>
+    <li><strong>Fiches :</strong> boss, anomalies, avis de recherche et titans — quatre sous-vues derrière un seul bloc. Chaque fiche boss s'ouvre sur une section <strong>encyclopédie</strong> (race, zone, rangs, caractéristiques par grade, résistances et propriétés, siphonnées de DofusDB), suivie des onglets sorts (mécaniques clés + détail en un seul onglet), simulation, butin et monstres de la salle. Chaque fiche boss ou titan porte aussi un onglet <strong>Quêtes</strong> avec les quêtes du donjon, le guide Dofus et la progression de guilde.</li>
     <li><strong>Défi :</strong> les événements et défis one-shot.</li>
 </ul>
 <p>Les coches groupées — un donjon entier ou une tranche de niveau — tiennent dans un seul bouton : il valide ce qui reste à faire, puis propose de décocher une fois que tout est validé.</p>

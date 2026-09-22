@@ -9,6 +9,7 @@ import {
   ChevronUp,
   Compass,
   ExternalLink,
+  Gem,
   Loader2,
   Move,
   Search,
@@ -83,7 +84,7 @@ interface DungeonFamily {
 }
 
 type CatalogFilter = "boss" | "anomalie" | "monstre" | "titan" | "bounty";
-type OverlayTab = "info" | "sorts" | "sim";
+type OverlayTab = "info" | "sorts" | "sim" | "loot";
 
 // ─── MonsterImage ─────────────────────────────────────────────────────────────
 
@@ -167,16 +168,16 @@ function ResistBar({
   const isNeg = value < 0;
   const pct = Math.max(0, Math.min(100, Math.abs(value)));
   return (
-    <div className="flex items-center gap-2.5 text-[11px]">
-      <img src={iconSrc} alt={label} className="w-3.5 h-3.5 object-contain opacity-90 shrink-0" />
-      <span className="w-[52px] shrink-0 text-white/55">{label}</span>
-      <div className="flex-1 h-[3px] rounded-full bg-white/[0.07] overflow-hidden">
+    <div className="flex items-center gap-2.5 text-xs">
+      <img src={iconSrc} alt={label} className="w-4 h-4 object-contain opacity-90 shrink-0" />
+      <span className="w-14 shrink-0 text-white/55">{label}</span>
+      <div className="flex-1 h-1 rounded-full bg-white/[0.07] overflow-hidden">
         <div
           className={cn("h-full rounded-full", isNeg ? "bg-rose-500/80" : barColor)}
           style={{ width: `${pct}%` }}
         />
       </div>
-      <span className={cn("w-10 shrink-0 text-right tabular-nums", isNeg ? "text-rose-400" : "text-white/75")}>
+      <span className={cn("w-12 shrink-0 text-right text-[13px] tabular-nums", isNeg ? "text-rose-400" : "text-white/75")}>
         {value}%
       </span>
     </div>
@@ -542,6 +543,7 @@ export function BossOverlayClient({
     { id: "info" as OverlayTab, label: isEn ? "Stats" : "Stats", Icon: Shield },
     { id: "sorts" as OverlayTab, label: isEn ? "Spells" : "Sorts", Icon: Zap },
     { id: "sim" as OverlayTab, label: isEn ? "Simulation" : "Simulation", Icon: Brain },
+    { id: "loot" as OverlayTab, label: isEn ? "Loot" : "Butin", Icon: Gem },
   ];
 
   return (
@@ -869,12 +871,12 @@ export function BossOverlayClient({
                     { label: t.bossPage.stats.ap, shortLabel: isEn ? "AP" : "PA", value: currentGrade.actionPoints, iconSrc: "/assets/dofus/stats/pa.png" },
                     { label: t.bossPage.stats.mp, shortLabel: isEn ? "MP" : "PM", value: currentGrade.movementPoints, iconSrc: "/assets/dofus/stats/pm.png" },
                   ].map(({ label, shortLabel, value, iconSrc }) => (
-                    <div key={label} className="flex items-center justify-center gap-1.5 py-2">
-                      <img src={iconSrc} alt={label} className="w-3.5 h-3.5 object-contain opacity-90" />
-                      <span className="font-mono text-[12px] text-white/90 tabular-nums">
+                    <div key={label} className="flex items-center justify-center gap-2 py-2.5">
+                      <img src={iconSrc} alt={label} className="w-5 h-5 object-contain opacity-90" />
+                      <span className="font-mono text-[15px] text-white/90 tabular-nums">
                         {value.toLocaleString(locale === "en" ? "en-US" : "fr-FR")}
                       </span>
-                      <span className="text-[10px] text-white/40">{shortLabel}</span>
+                      <span className="text-[11px] text-white/40">{shortLabel}</span>
                     </div>
                   ))}
                 </div>
@@ -918,61 +920,6 @@ export function BossOverlayClient({
                   </div>
                 )}
 
-                {/* Butins — liste dense : filets fins, taux en mono neutre
-                    (+ mini-barre de lecture). Le taux est une **donnée**, pas un accent. */}
-                {stats?.drops && stats.drops.length > 0 && (
-                  <div className="space-y-1.5">
-                    <div className="flex items-baseline justify-between">
-                      <p className="text-[10px] font-semibold text-white/40 uppercase tracking-wide">
-                        {isEn ? "Drops & Loot" : "Butins"}
-                      </p>
-                      <span className="font-mono text-[10px] text-white/40">
-                        {stats.grades && stats.grades.length === 5
-                          ? `${isEn ? "loot" : "butin"} ${4 + activeGradeIndex}`
-                          : `grade ${1 + activeGradeIndex}`}
-                        {currentGrade ? ` · ${t.bossPage.levelShort} ${currentGrade.level}` : ""}
-                      </span>
-                    </div>
-
-                    <div className="max-h-60 overflow-y-auto divide-y divide-white/[0.05] overlay-scroll pr-0.5">
-                      {stats.drops.map((drop) => {
-                        const rawDropPercent =
-                          drop.percentByGrade && drop.percentByGrade[activeGradeIndex] !== undefined
-                            ? drop.percentByGrade[activeGradeIndex]
-                            : drop.percent;
-                        const dropPercent =
-                          rawDropPercent > 0 && rawDropPercent < 0.01
-                            ? parseFloat(rawDropPercent.toFixed(3))
-                            : parseFloat(Number(rawDropPercent || 0).toFixed(2));
-                        return (
-                          <div key={drop.objectId} className="flex items-center gap-2 py-1.5">
-                            <div className="w-6 h-6 flex items-center justify-center overflow-hidden shrink-0">
-                              <img
-                                src={`/api/assets-dofus/items/${drop.objectId}?url=${encodeURIComponent(drop.imageUrl)}`}
-                                alt={drop.name}
-                                className="w-full h-full object-contain"
-                                loading="lazy"
-                                onError={(e) => {
-                                  (e.target as HTMLImageElement).style.display = "none";
-                                }}
-                              />
-                            </div>
-                            <span className="flex-1 truncate text-[11px] text-white/80">{drop.name}</span>
-                            <div className="h-[3px] w-12 shrink-0 rounded-full bg-white/[0.07] overflow-hidden">
-                              <div
-                                className="h-full rounded-full bg-white/40"
-                                style={{ width: `${Math.min(100, dropPercent)}%` }}
-                              />
-                            </div>
-                            <span className="w-12 shrink-0 text-right font-mono text-[11px] text-white/70 tabular-nums">
-                              {dropPercent}%
-                            </span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
               </>
             ) : (
               <div className="flex flex-col items-center justify-center py-10 gap-2 text-white/25">
@@ -1086,6 +1033,75 @@ export function BossOverlayClient({
               <div className="flex flex-col items-center justify-center py-10 gap-2 text-white/25">
                 <Brain className="w-6 h-6" />
                 <span className="text-[11px]">{isEn ? "No spell to simulate" : "Aucun sort à simuler"}</span>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Onglet Butin — sorti de l'onglet Stats pour aérer */}
+        {selected && tab === "loot" && (
+          <div className="p-3">
+            {loadingStats ? (
+              <div className="flex items-center justify-center py-10 text-white/25 gap-2">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span className="text-[11px]">{isEn ? "Loading…" : "Chargement…"}</span>
+              </div>
+            ) : stats?.drops && stats.drops.length > 0 ? (
+              <div className="space-y-1.5">
+                <div className="flex items-baseline justify-between">
+                  <p className="text-[10px] font-semibold text-white/40 uppercase tracking-wide">
+                    {isEn ? "Drops & Loot" : "Butins"}
+                  </p>
+                  <span className="font-mono text-[10px] text-white/40">
+                    {stats.grades && stats.grades.length === 5
+                      ? `${isEn ? "loot" : "butin"} ${4 + activeGradeIndex}`
+                      : `grade ${1 + activeGradeIndex}`}
+                    {currentGrade ? ` · ${t.bossPage.levelShort} ${currentGrade.level}` : ""}
+                  </span>
+                </div>
+
+                <div className="divide-y divide-white/[0.05] pr-0.5">
+                  {stats.drops.map((drop) => {
+                    const rawDropPercent =
+                      drop.percentByGrade && drop.percentByGrade[activeGradeIndex] !== undefined
+                        ? drop.percentByGrade[activeGradeIndex]
+                        : drop.percent;
+                    const dropPercent =
+                      rawDropPercent > 0 && rawDropPercent < 0.01
+                        ? parseFloat(rawDropPercent.toFixed(3))
+                        : parseFloat(Number(rawDropPercent || 0).toFixed(2));
+                    return (
+                      <div key={drop.objectId} className="flex items-center gap-2 py-1.5">
+                        <div className="w-6 h-6 flex items-center justify-center overflow-hidden shrink-0">
+                          <img
+                            src={`/api/assets-dofus/items/${drop.objectId}?url=${encodeURIComponent(drop.imageUrl)}`}
+                            alt={drop.name}
+                            className="w-full h-full object-contain"
+                            loading="lazy"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).style.display = "none";
+                            }}
+                          />
+                        </div>
+                        <span className="flex-1 truncate text-[11px] text-white/80">{drop.name}</span>
+                        <div className="h-[3px] w-12 shrink-0 rounded-full bg-white/[0.07] overflow-hidden">
+                          <div
+                            className="h-full rounded-full bg-white/40"
+                            style={{ width: `${Math.min(100, dropPercent)}%` }}
+                          />
+                        </div>
+                        <span className="w-12 shrink-0 text-right font-mono text-[11px] text-white/70 tabular-nums">
+                          {dropPercent}%
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-10 gap-2 text-white/25">
+                <Gem className="w-6 h-6" />
+                <span className="text-[11px]">{isEn ? "No loot" : "Aucun butin"}</span>
               </div>
             )}
           </div>

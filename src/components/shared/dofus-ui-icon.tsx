@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
  *
  * Le rendu passe par `<img>` (et non `next/image`) : ces PNG font moins de 3 ko et
  * sont déjà à l'échelle 2x, l'optimiseur n'apporte rien et imposerait des
- * dimensions déclaratives partout. Convention du repo (voir `SuccesQuestsTab`).
+ * dimensions déclaratives partout. Convention du repo (voir `SuccesBossQuests`).
  */
 export const DOFUS_UI_ICON_FILES = {
     dungeon: "crossedSwords",

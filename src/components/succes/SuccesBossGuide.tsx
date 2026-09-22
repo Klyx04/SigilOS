@@ -2,10 +2,12 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { Brain, Compass, Crown, ExternalLink, Flame, Info, Loader2, MapPin, PictureInPicture2, ScrollText, Search, Shield, Swords, Target, Users, X, Zap, Gem, ArrowRight } from "lucide-react";
+import { Brain, ChevronDown, Compass, Crown, ExternalLink, Loader2, MapPin, PictureInPicture2, ScrollText, Search, Shield, Swords, Target, Users, X, Zap, Gem } from "lucide-react";
 import { useBossOverlay } from "@/hooks/use-boss-overlay";
 import { getDungeonsWithAchievements, getDungeonMonsters, getMonsterStats } from "@/server/actions/game-data-actions";
 import { getLinkedQuests } from "@/server/actions/dofus-quest-actions";
+import { SuccesBossQuests, type BossLinkedQuestsData } from "./SuccesBossQuests";
+import { SuccesBossEncyclo } from "./SuccesBossEncyclo";
 import { mergeDofensiveSpells } from "@/lib/dofensive-spells";
 import { deriveDofensiveMonsterName } from "@/lib/dofensive-boss";
 import {
@@ -146,24 +148,8 @@ interface DungeonFamily {
     companionHint?: string | null;
 }
 
-interface LinkedQuest {
-    id: string;
-    name: string;
-    isDungeon: boolean;
-    stepOrder: number;
-    zone: string | null;
-    chainName: string | null;
-    isRush: boolean;
-    myStatus: string;
-    guildCompleted: number;
-    guildInProgress: number;
-    memberCount: number;
-}
-
-interface LinkedQuestsData {
-    quests: LinkedQuest[];
-    rushActive: { pseudoDofus: string; dofusClass: string | null; milestoneId: string | null }[];
-}
+/** Données de quêtes liées — forme d'affichage partagée (`SuccesBossQuests`). */
+type LinkedQuestsData = BossLinkedQuestsData;
 
 export function SuccesBossGuide({ guildId, anomalyOnly = false }: { guildId: string; anomalyOnly?: boolean }) {
     const { openBossOverlay, isOpen: isOverlayOpen } = useBossOverlay(guildId);
@@ -184,7 +170,11 @@ export function SuccesBossGuide({ guildId, anomalyOnly = false }: { guildId: str
     const [familyByDungeon, setFamilyByDungeon] = useState<Record<string, DungeonFamily>>({});
     const [activeMonsterName, setActiveMonsterName] = useState<string | null>(null);
     const [activeGradeIndex, setActiveGradeIndex] = useState<number | null>(null);
-    const [detailTab, setDetailTab] = useState<"sorts" | "overview" | "sim" | "grades" | "loot" | "family">("sorts");
+    const [detailTab, setDetailTab] = useState<"sorts" | "sim" | "loot" | "family" | "quetes">("sorts");
+    // Détail complet des sorts : replié par défaut (les mécaniques clés suffisent d'un coup d'œil).
+    const [showAllSpells, setShowAllSpells] = useState(false);
+    // Deep-link `?onglet=quetes` (redirect de l'ancienne vue globale `?view=quetes`).
+    const questTabRequested = searchParams.get("onglet") === "quetes";
     const [linkedQuestsByDungeon, setLinkedQuestsByDungeon] = useState<Record<string, LinkedQuestsData>>({});
     // Maps du donjon (salles réelles) récupérées chez Dofensive pour le boss courant.
     const [dungeonMapsByBoss, setDungeonMapsByBoss] = useState<Record<string, DofensiveDungeonInfo | null>>({});
@@ -279,7 +269,9 @@ export function SuccesBossGuide({ guildId, anomalyOnly = false }: { guildId: str
         }
         setActiveMonsterName(null);
         setActiveGradeIndex(null);
-        setDetailTab("overview");
+        // `?onglet=quetes` (redirect `?view=quetes`) ouvre directement les quêtes — boss classiques uniquement.
+        setDetailTab(!d.isAnomalyBoss && questTabRequested ? "quetes" : "sorts");
+        setShowAllSpells(false);
         setSelectedSpellId(undefined);
         if (!familyByDungeon[d.id]) {
             // 🌀 Boss d'anomalie : la « famille » = les autres gardiens de la MÊME carte
@@ -569,7 +561,8 @@ export function SuccesBossGuide({ guildId, anomalyOnly = false }: { guildId: str
                         })()}
                     </div>
 
-                    {/* 1. Résistances & Vitalité (regroupés et rapprochés, sans vide géant) */}
+                    {/* 1. Encyclopédie (façon encyclopédie Dofus) : identité, rangs,
+                        caractéristiques du grade actif, résistances, propriétés. */}
                     {(() => {
                         const targetKey = activeMonsterName && selected ? `${selected.id}::${activeMonsterName}` : selected?.id;
                         const isLoadingCurrent = targetKey ? loadingStatsByBoss[targetKey] : false;
@@ -584,104 +577,35 @@ export function SuccesBossGuide({ guildId, anomalyOnly = false }: { guildId: str
                             );
                         }
 
-                        const grades = currentStats?.grades;
-                        const gradeIdx = activeGradeIndex ?? (grades ? grades.length - 1 : 0);
-                        const g = grades && grades.length > 0 ? grades[gradeIdx] : null;
-                        const resists = g?.resists || {};
-
                         return (
-                            <div className="space-y-2">
-                                {/* Barre unifiée PV/PA/PM + résistances + grade.
-                                    Avant : 9 « pastilles » bordées (une par valeur, chacune avec sa
-                                    couleur de fond) ⇒ beaucoup de bruit pour une poignée de nombres.
-                                    Une seule barre, trois groupes séparés par des filets : mêmes
-                                    données, mêmes icônes, zéro décoration. La couleur reste sur les
-                                    **icônes** (données de jeu) et sur les valeurs négatives. */}
-                                <div className="my-1 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border border-border bg-surface/40 px-3 py-2.5">
-                                    {/* PV / PA / PM */}
-                                    <div className="flex items-center gap-3">
-                                        <span className="inline-flex items-center gap-1.5" title="Points de Vie">
-                                            <img src="/assets/module-succes/vitalite.png" alt="" className="w-4 h-4 object-contain" />
-                                            <span className="font-mono text-[15px] text-foreground tabular-nums">
-                                                {g ? g.lifePoints?.toLocaleString("fr-FR") : "—"}
-                                            </span>
-                                            <span className="text-[11px] text-muted-foreground">PV</span>
-                                        </span>
-
-                                        <span className="inline-flex items-center gap-1.5" title="Points d'Action">
-                                            <img src="/assets/dofus/stats/pa.png" alt="" className="w-4 h-4 object-contain" />
-                                            <span className="font-mono text-[15px] text-foreground tabular-nums">
-                                                {g?.actionPoints ?? "—"}
-                                            </span>
-                                            <span className="text-[11px] text-muted-foreground">PA</span>
-                                        </span>
-
-                                        <span className="inline-flex items-center gap-1.5" title="Points de Mouvement">
-                                            <img src="/assets/dofus/stats/pm.png" alt="" className="w-4 h-4 object-contain" />
-                                            <span className="font-mono text-[15px] text-foreground tabular-nums">
-                                                {g?.movementPoints ?? "—"}
-                                            </span>
-                                            <span className="text-[11px] text-muted-foreground">PM</span>
-                                        </span>
-                                    </div>
-
-                                    <span className="h-5 w-px bg-border" />
-
-                                    {/* Résistances — libellé discret, valeur mono, négatif coloré */}
-                                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                                        {(
-                                            [
-                                                { key: "neutral", label: "Neutre", icon: "/assets/module-succes/neutre.png", value: resists.neutral ?? 0 },
-                                                { key: "earth", label: "Terre", icon: "/assets/module-succes/terre.png", value: resists.earth ?? 0 },
-                                                { key: "fire", label: "Feu", icon: "/assets/module-succes/Intelligence.png", value: resists.fire ?? 0 },
-                                                { key: "water", label: "Eau", icon: "/assets/module-succes/eau.png", value: resists.water ?? 0 },
-                                                { key: "air", label: "Air", icon: "/assets/module-succes/Agility.png", value: resists.air ?? 0 },
-                                            ] as const
-                                        ).map(({ key, label, icon, value }) => (
-                                            <span key={key} className="inline-flex items-center gap-1.5" title={`Résistance ${label}`}>
-                                                <img src={icon} alt="" className="w-4 h-4 object-contain" />
-                                                <span className={cn("font-mono text-[13px] tabular-nums", value < 0 ? "text-danger" : "text-foreground/85")}>
-                                                    {value}%
-                                                </span>
-                                                <span className="hidden text-[11px] text-muted-foreground sm:inline">{label}</span>
-                                            </span>
-                                        ))}
-                                    </div>
-
-                                    {/* Raccourci vers l'onglet des paliers (même information, un clic) */}
-                                    {grades && grades.length > 1 && (
-                                        <button
-                                            type="button"
-                                            onClick={() => setDetailTab("grades")}
-                                            className="ml-auto inline-flex items-center gap-1.5 text-[11px] text-muted-foreground transition-colors hover:text-foreground"
-                                            title="Ouvrir l'onglet des grades & paliers"
-                                        >
-                                            <Flame className="w-3.5 h-3.5" />
-                                            <span className="font-mono">
-                                                {grades.length === 5 ? `butin ${4 + gradeIdx}` : `grade ${1 + gradeIdx}`}
-                                            </span>
-                                            <ArrowRight className="w-3 h-3" />
-                                        </button>
-                                    )}
-                                </div>
-                            </div>
+                            <SuccesBossEncyclo
+                                level={selected.level}
+                                grades={currentStats?.grades ?? []}
+                                encyclo={(currentStats as any)?.encyclo ?? null}
+                                activeGradeIndex={activeGradeIndex}
+                                onGradeChange={(idx) => setActiveGradeIndex(idx)}
+                                dungeonName={selected.isAnomalyBoss ? null : selected.name}
+                            />
                         );
                     })()}
 
-                    {/* 3. Onglets secondaires épurés avec sous-onglets Grades & Monstres de salle */}
+                    {/* 3. Onglets secondaires : sorts, simulation, butin, salle, quêtes.
+                        Les rangs (grades) vivent dans la section encyclopédie ci-dessus. */}
                     {(() => {
                         const roomMonsters = selected && familyByDungeon[selected.id]?.monsters ? familyByDungeon[selected.id].monsters : [];
                         const hasRoomMonsters = roomMonsters.length > 1;
                         const currentStats = statsOf(selected);
-                        const grades = currentStats?.grades;
+                        // Quêtes liées (boss classiques uniquement — déjà chargées, zéro requête en plus).
+                        const questCount = selected && !selected.isAnomalyBoss ? (linkedQuestsByDungeon[selected.id]?.quests.length ?? 0) : 0;
 
+                        // Un seul onglet Sorts : mécaniques clés + détail complet.
+                        const spellCount = currentStats?.spells?.length ?? 0;
                         const tabs = [
-                            { id: "sorts", label: "Sorts du Boss", icon: Zap },
-                            { id: "overview", label: "Sorts Détaillés", icon: Swords },
+                            { id: "sorts", label: `Sorts (${spellCount})`, icon: Zap },
                             { id: "sim", label: "Simulation Tactique", icon: Target },
-                            ...(grades && grades.length > 1 ? [{ id: "grades", label: `Grades & Paliers (${grades.length})`, icon: Flame }] : []),
                             { id: "loot", label: "Butin & Drops", icon: Gem },
                             ...(hasRoomMonsters ? [{ id: "family", label: `Monstres de la salle (${roomMonsters.length})`, icon: Users }] : []),
+                            ...(!selected?.isAnomalyBoss ? [{ id: "quetes", label: `Quêtes (${questCount})`, icon: ScrollText }] : []),
                         ];
 
                         return (
@@ -709,90 +633,6 @@ export function SuccesBossGuide({ guildId, anomalyOnly = false }: { guildId: str
                             </div>
                         );
                     })()}
-
-                    {/* Onglet dédié : Grades & Paliers de Butin */}
-                    {detailTab === "grades" && (
-                        <div className="space-y-4">
-                            <h4 className="text-sm font-bold text-foreground flex items-center gap-1.5">
-                                <Flame className="w-4 h-4 opacity-70" /> Paliers de Grades & Caractéristiques de Combat
-                            </h4>
-                            <p className="text-xs text-muted-foreground flex items-center gap-1.5">
-                                <Info className="w-3.5 h-3.5" /> Les caractéristiques ci-dessous varient selon le grade sélectionné.
-                            </p>
-                            {(() => {
-                                const grades = statsOf(selected)?.grades || [];
-                                const is5Grades = grades.length === 5;
-                                const activeIdx = activeGradeIndex ?? (grades.length - 1);
-
-                                return (
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-                                        {grades.map((gr, idx) => {
-                                            const isActive = activeIdx === idx;
-                                            const label = is5Grades ? `Butin ${4 + idx}` : `Grade ${idx + 1}`;
-                                            const r = gr.resists || {};
-
-                                            return (
-                                                <div
-                                                    key={idx}
-                                                    className={cn(
-                                                        "p-3.5 rounded-2xl border transition-colors flex flex-col justify-between space-y-3",
-                                                        isActive
-                                                            ? "border-border-strong bg-white/[0.06]"
-                                                            : "border-border bg-surface"
-                                                    )}
-                                                >
-                                                    <div>
-                                                        <div className="flex items-center justify-between gap-1 mb-2">
-                                                            <span className="text-sm font-bold text-foreground">{label}</span>
-                                                            <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-background border border-border text-muted-foreground">
-                                                                Niv. {gr.level}
-                                                            </span>
-                                                        </div>
-
-                                                        {/* Stats vitaux */}
-                                                        <div className="space-y-1 text-xs">
-                                                            <div className="flex items-center justify-between text-muted-foreground">
-                                                                <span>PV :</span>
-                                                                <strong className="text-foreground tabular-nums text-right">{gr.lifePoints?.toLocaleString("fr-FR")}</strong>
-                                                            </div>
-                                                            <div className="flex items-center justify-between text-muted-foreground">
-                                                                <span>PA / PM :</span>
-                                                                <strong className="text-foreground tabular-nums text-right">{gr.actionPoints} / {gr.movementPoints}</strong>
-                                                            </div>
-                                                        </div>
-
-                                                        {/* Résistances élémentaires du grade */}
-                                                        <div className="grid grid-cols-5 gap-1 mt-2.5 pt-2 border-t border-border/60 text-center text-[11px] font-bold tabular-nums">
-                                                            <span title="Neutre" className="text-muted-foreground">{r.neutral ?? 0}%</span>
-                                                            <span title="Terre" className="text-warning">{r.earth ?? 0}%</span>
-                                                            <span title="Feu" className="text-danger">{r.fire ?? 0}%</span>
-                                                            <span title="Eau" className="text-info">{r.water ?? 0}%</span>
-                                                            <span title="Air" className="text-success">{r.air ?? 0}%</span>
-                                                        </div>
-                                                    </div>
-
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => {
-                                                            setActiveGradeIndex(idx);
-                                                        }}
-                                                        className={cn(
-                                                            "w-full py-1.5 rounded-xl text-xs font-bold transition-colors",
-                                                            isActive
-                                                                ? "bg-foreground text-background"
-                                                                : "bg-surface border border-border text-muted-foreground hover:text-foreground hover:bg-elevated"
-                                                        )}
-                                                    >
-                                                        {isActive ? "✓ Grade Actif" : "Sélectionner"}
-                                                    </button>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                );
-                            })()}
-                        </div>
-                    )}
 
                     {/* Onglet dédié : Monstres de la salle + monstres de l'anomalie */}
                     {detailTab === "family" && (() => {
@@ -879,9 +719,9 @@ export function SuccesBossGuide({ guildId, anomalyOnly = false }: { guildId: str
                         );
                     })()}
 
-                    {/* Onglet : Sorts du Boss (Mécaniques clés & sorts principaux) */}
+                    {/* Onglet : Sorts — mécaniques clés PUIS détail complet (un seul onglet). */}
                     {detailTab === "sorts" && (
-                        <div className="space-y-4">
+                        <div className="space-y-6">
                             {(() => {
                                 const spells = statsOf(selected)?.spells ?? [];
                                 if (spells.length === 0) {
@@ -950,18 +790,24 @@ export function SuccesBossGuide({ guildId, anomalyOnly = false }: { guildId: str
                                     </div>
                                 );
                             })()}
-                        </div>
-                    )}
-
-                    {/* Onglet : Sorts détaillés */}
-                    {detailTab === "overview" && (
-                        <div>
-                            <div className="flex items-center gap-2 mb-3">
-                                <Zap className="w-4 h-4 opacity-70" />
-                                <h4 className="text-sm font-bold text-foreground">
-                                    Tous les sorts ({statsOf(selected)?.spells?.length ?? 0})
-                                </h4>
-                            </div>
+                            {(() => {
+                                const spells = statsOf(selected)?.spells ?? [];
+                                if (spells.length === 0) return null;
+                                return (
+                                    <div>
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowAllSpells((v) => !v)}
+                                            aria-expanded={showAllSpells}
+                                            className="w-full flex items-center gap-2 py-1 mb-1 text-left"
+                                        >
+                                            <Zap className="w-4 h-4 opacity-70" />
+                                            <span className="text-sm font-bold text-foreground">
+                                                Sorts détaillés ({spells.length})
+                                            </span>
+                                            <ChevronDown className={cn("w-4 h-4 text-muted-foreground transition-transform", showAllSpells && "rotate-180")} />
+                                        </button>
+                            {showAllSpells && (
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-start">
                                 {(statsOf(selected)?.spells ?? []).map((spell) => (
                                     <div
@@ -1052,9 +898,13 @@ export function SuccesBossGuide({ guildId, anomalyOnly = false }: { guildId: str
                                                 </div>
                                             );
                                         })()}
+                                        </div>
+                                    ))}
                                     </div>
-                                ))}
-                            </div>
+                                    )}
+                                    </div>
+                                );
+                            })()}
                         </div>
                     )}
 
@@ -1147,6 +997,25 @@ export function SuccesBossGuide({ guildId, anomalyOnly = false }: { guildId: str
                                     </button>
                                 ))}
                             </div>
+                        </div>
+                    )}
+
+                    {/* Onglet : Quêtes liées (boss classiques — les succès vivent dans « Mes Succès »). */}
+                    {detailTab === "quetes" && !selected.isAnomalyBoss && (
+                        <div className="space-y-3">
+                            <h4 className="text-sm font-bold text-foreground flex items-center gap-1.5">
+                                <ScrollText className="w-4 h-4 opacity-70" /> Quêtes liées au donjon
+                                {linkedQuestsByDungeon[selected.id] ? (
+                                    <span className="text-[11px] font-bold px-2 py-0.5 rounded-full border border-border text-muted-foreground">
+                                        {linkedQuestsByDungeon[selected.id].quests.length} quête{linkedQuestsByDungeon[selected.id].quests.length > 1 ? "s" : ""}
+                                    </span>
+                                ) : null}
+                            </h4>
+                            {linkedQuestsByDungeon[selected.id] ? (
+                                <SuccesBossQuests guildId={guildId} bossName={selected.bossName} data={linkedQuestsByDungeon[selected.id]} />
+                            ) : (
+                                <p className="text-xs text-muted-foreground py-4 text-center">Chargement des quêtes liées…</p>
+                            )}
                         </div>
                     )}
 

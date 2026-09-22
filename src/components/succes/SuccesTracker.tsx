@@ -13,7 +13,6 @@ import {
     Loader2,
     Users,
     X,
-    Zap,
     CheckCheck,
     RotateCcw,
 } from "lucide-react";
@@ -197,8 +196,8 @@ export function SuccesTracker({ guildId, canEdit }: SuccesTrackerProps) {
             );
             if (fresh.length > 0) {
                 toast.success(
-                    `${fresh.length} succès validé${fresh.length > 1 ? "s" : ""} par un groupe de donjon — ta checklist a été mise à jour. 🏆`
-                );
+                        `${fresh.length} succès validé${fresh.length > 1 ? "s" : ""} par un groupe de donjon — ta checklist a été mise à jour.`
+                    );
             }
             localStorage.setItem(key, String(Date.now()));
         } catch {
@@ -351,17 +350,17 @@ export function SuccesTracker({ guildId, canEdit }: SuccesTrackerProps) {
             {/* Glance compact & épuré : résumé de progression */}
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3.5 p-3.5 rounded-2xl bg-surface/80 border border-border">
                 <div className="flex items-center gap-3.5 flex-1 min-w-0">
-                    <div className="w-10 h-10 rounded-xl bg-warning/10 border border-warning/20 flex items-center justify-center shrink-0">
-                        <Trophy className="w-5 h-5 text-warning" />
+                    <div className="w-10 h-10 rounded-xl bg-background border border-border flex items-center justify-center shrink-0">
+                        <Trophy className="w-5 h-5 text-muted-foreground" />
                     </div>
                     <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-2 mb-1.5">
                             <span className="text-xs font-bold text-foreground truncate">Progression globale des succès</span>
-                            <span className="text-xs font-black text-warning tabular-nums shrink-0">{progressPct}% ({doneCount}/{totalCount})</span>
+                            <span className="text-xs font-black text-foreground tabular-nums shrink-0">{progressPct}% ({doneCount}/{totalCount})</span>
                         </div>
                         <div className="h-2 rounded-full bg-background border border-border/80 overflow-hidden">
                             <div
-                                className="h-full bg-gradient-to-r from-warning/80 to-warning transition-all duration-300"
+                                className="h-full bg-warning transition-all duration-300"
                                 style={{ width: `${progressPct}%` }}
                             />
                         </div>
@@ -387,7 +386,7 @@ export function SuccesTracker({ guildId, canEdit }: SuccesTrackerProps) {
                             updateParam("q", e.target.value || null);
                         }}
                         placeholder="Rechercher un donjon ou un boss…"
-                        className="w-full h-9 pl-9 pr-8 rounded-xl bg-surface/70 border border-border text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-warning/40"
+                        className="w-full h-9 pl-9 pr-8 rounded-xl bg-surface/70 border border-border text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     />
                     {search && (
                         <button
@@ -415,7 +414,7 @@ export function SuccesTracker({ guildId, canEdit }: SuccesTrackerProps) {
                                 className={cn(
                                     "px-3 py-1.5 rounded-lg text-xs font-bold transition-colors",
                                     status === s
-                                        ? "bg-warning/15 text-warning"
+                                        ? "bg-elevated text-foreground"
                                         : "text-muted-foreground hover:text-foreground"
                                 )}
                             >
@@ -437,7 +436,7 @@ export function SuccesTracker({ guildId, canEdit }: SuccesTrackerProps) {
                         className={cn(
                             "inline-flex items-center gap-1.5 px-2.5 h-9 rounded-xl border text-xs font-bold transition-colors shrink-0",
                             anomalyOnly
-                                ? "bg-info/15 border-info/40 text-info"
+                                ? "bg-elevated border-border-strong text-foreground"
                                 : "bg-surface/70 border-border text-muted-foreground hover:text-foreground hover:bg-elevated"
                         )}
                     >
@@ -476,10 +475,8 @@ export function SuccesTracker({ guildId, canEdit }: SuccesTrackerProps) {
                             disabled={bracketLoading}
                             onClick={() => handleToggleLevelBracket(bracketAllDone ? "unvalidate" : "validate")}
                             className={cn(
-                                "inline-flex items-center gap-1.5 px-3 h-9 rounded-xl border text-xs font-black transition-all shrink-0 disabled:opacity-50",
-                                bracketAllDone
-                                    ? "bg-surface/70 border-border text-muted-foreground hover:text-danger hover:border-danger/30"
-                                    : "bg-success/10 border-success/30 hover:bg-success/20 text-success"
+                                "inline-flex items-center gap-1.5 px-3 h-9 rounded-xl border border-border bg-surface/70 text-xs font-black text-foreground hover:bg-elevated transition-all shrink-0 disabled:opacity-50",
+                                bracketAllDone && "text-muted-foreground hover:text-danger"
                             )}
                             title={
                                 bracketAllDone
@@ -522,7 +519,7 @@ export function SuccesTracker({ guildId, canEdit }: SuccesTrackerProps) {
                                     className={cn(
                                         "w-full flex items-center gap-3 p-3 rounded-2xl border text-left transition-colors min-h-16",
                                         active
-                                            ? "bg-elevated/90 border-warning/50"
+                                            ? "bg-elevated/90 border-border-strong"
                                             : "bg-surface/70 border-border hover:bg-elevated/70"
                                     )}
                                 >
@@ -565,13 +562,13 @@ export function SuccesTracker({ guildId, canEdit }: SuccesTrackerProps) {
                                         </p>
                                         <div className="h-1.5 rounded-full bg-background border border-border mt-1.5 overflow-hidden">
                                             <div
-                                                className={cn("h-full transition-all duration-300", complete ? "bg-success" : "bg-warning")}
+                                                className="h-full bg-warning transition-all duration-300"
                                                 style={{ width: `${pct}%` }}
                                             />
                                         </div>
                                     </div>
                                     {complete ? (
-                                        <CheckCircle2 className="w-5 h-5 text-success shrink-0" />
+                                        <CheckCircle2 className="w-5 h-5 text-foreground shrink-0" />
                                     ) : (
                                         <Circle className="w-5 h-5 text-muted-foreground/40 shrink-0" />
                                     )}
@@ -642,9 +639,9 @@ export function SuccesTracker({ guildId, canEdit }: SuccesTrackerProps) {
                                         )}
                                         <Link
                                             href={`/dashboard/${guildId}/donjons-et-quetes?dungeonId=${selectedDungeon.id}`}
-                                            className="inline-flex items-center gap-2 px-4 py-2.5 min-h-11 rounded-xl border border-info/30 bg-info/10 text-info text-xs font-bold uppercase tracking-wide hover:bg-info/20 transition-colors"
+                                            className="inline-flex items-center gap-2 px-4 py-2.5 min-h-11 rounded-xl border border-border bg-surface text-foreground text-xs font-bold uppercase tracking-wide hover:bg-elevated transition-colors"
                                         >
-                                            <Swords className="w-4 h-4" /> Chercher un groupe
+                                            <Swords className="w-4 h-4 text-muted-foreground" /> Chercher un groupe
                                         </Link>
                                     </div>
                                 </div>
@@ -660,10 +657,8 @@ export function SuccesTracker({ guildId, canEdit }: SuccesTrackerProps) {
                                                 onClick={() => toggleAll(!selectedAllDone)}
                                                 title={selectedAllDone ? "Décocher les succès de ce donjon" : "Valider les succès de ce donjon"}
                                                 className={cn(
-                                                    "inline-flex items-center gap-1.5 px-3 py-2 min-h-11 rounded-xl border text-xs font-black uppercase tracking-wide transition-colors shrink-0",
-                                                    selectedAllDone
-                                                        ? "border-border bg-surface text-muted-foreground hover:text-danger hover:border-danger/30"
-                                                        : "border-warning/40 bg-warning/15 text-warning hover:bg-warning/25"
+                                                    "inline-flex items-center gap-1.5 px-3 py-2 min-h-11 rounded-xl border border-border bg-surface text-xs font-black uppercase tracking-wide text-foreground hover:bg-elevated transition-colors shrink-0",
+                                                    selectedAllDone && "text-muted-foreground hover:text-danger"
                                                 )}
                                             >
                                                 {selectedAllDone ? <RotateCcw className="w-3.5 h-3.5" /> : <CheckCheck className="w-3.5 h-3.5" />}
@@ -695,7 +690,7 @@ export function SuccesTracker({ guildId, canEdit }: SuccesTrackerProps) {
                                                 className={cn(
                                                     "flex items-center gap-3 p-3 rounded-xl border text-left transition-all min-h-12 group",
                                                     isDone
-                                                        ? "bg-success/10 border-success/30 shadow-2xs"
+                                                        ? "bg-surface/60 border-border-strong"
                                                         : "bg-surface/60 border-border hover:bg-elevated hover:border-border-strong",
                                                     !canEdit && "cursor-default opacity-80"
                                                 )}
@@ -703,7 +698,7 @@ export function SuccesTracker({ guildId, canEdit }: SuccesTrackerProps) {
                                                 <div
                                                     className={cn(
                                                         "w-5 h-5 rounded-md flex items-center justify-center shrink-0 border transition-all",
-                                                        isDone ? "bg-success border-success text-white shadow-2xs" : "bg-background border-border group-hover:border-warning/50"
+                                                        isDone ? "bg-foreground border-foreground text-background" : "bg-background border-border group-hover:border-border-strong"
                                                     )}
                                                 >
                                                     {isDone && <CheckCircle2 className="w-3.5 h-3.5" />}
@@ -726,7 +721,7 @@ export function SuccesTracker({ guildId, canEdit }: SuccesTrackerProps) {
                                                 </div>
 
                                                 <div className="flex-1 min-w-0">
-                                                    <p className={cn("text-xs font-bold truncate", isDone ? "text-success" : "text-foreground")}>
+                                                    <p className={cn("text-xs font-bold truncate", isDone ? "text-muted-foreground" : "text-foreground")}>
                                                         {a.challenge.name}
                                                     </p>
                                                 </div>
@@ -737,10 +732,10 @@ export function SuccesTracker({ guildId, canEdit }: SuccesTrackerProps) {
 
                                 {/* Hint partenaires — le lien métier avec les posts, sans ouvrir le board ici */}
                                 {selectedPartners && selectedPartners.filter((p) => !completedIds.has(p.achievementId) && p.membersWhoHaveIt.length > 0).length > 0 && (
-                                    <div data-tour="succes-partners" className="mt-5 border border-warning/20 bg-warning/5 rounded-xl p-4">
+                                    <div data-tour="succes-partners" className="mt-5 border border-border bg-surface/60 rounded-xl p-4">
                                         <div className="flex items-center gap-2 mb-3">
-                                            <Users className="w-4 h-4 text-warning" />
-                                            <p className="text-xs font-bold uppercase tracking-widest text-warning">Partenaires potentiels</p>
+                                            <Users className="w-4 h-4 text-muted-foreground" />
+                                            <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Partenaires potentiels</p>
                                         </div>
                                         <div className="space-y-2">
                                             {selectedPartners
@@ -748,7 +743,7 @@ export function SuccesTracker({ guildId, canEdit }: SuccesTrackerProps) {
                                                 .map((p) => (
                                                     <div key={p.achievementId} className="flex items-center justify-between gap-3">
                                                         <span className="text-sm text-foreground truncate">{p.achievementName}</span>
-                                                        <span className="text-xs font-bold text-warning shrink-0">
+                                                        <span className="text-xs font-bold text-foreground shrink-0">
                                                             {p.membersWhoHaveIt.length} membre{p.membersWhoHaveIt.length > 1 ? "s" : ""} l'ont déjà
                                                         </span>
                                                     </div>

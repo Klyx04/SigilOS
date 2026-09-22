@@ -2,29 +2,32 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { ShieldAlert } from "lucide-react";
 
+/**
+ * Refus d'accès **dans une page du dashboard** (les écrans de refus « plein cadre »
+ * — lock / ban / archive / timeout — vivent dans `src/components/layout/access-denied.tsx`).
+ *
+ * Déslop : l'ancienne version posait un halo `bg-red-500/20 blur-3xl` derrière l'icône,
+ * `text-red-500` en dur, `font-extrabold` + `text-4xl` et une animation d'entrée. Ici :
+ * icône de statut nue, jetons de thème, `Button` primitif — rien à habiller.
+ */
 export default function AccessDenied() {
     return (
-        <div className="flex flex-col items-center justify-center min-h-[60vh] gap-6 text-center animate-in fade-in zoom-in duration-300">
-            <div className="relative">
-                <div className="absolute inset-0 bg-red-500/20 blur-3xl rounded-full" />
-                <ShieldAlert className="w-24 h-24 text-red-500 relative z-10" />
-            </div>
+        <div className="flex min-h-[60vh] flex-col items-center justify-center gap-6 text-center">
+            <ShieldAlert className="h-16 w-16 text-danger" aria-hidden="true" />
 
             <div className="space-y-2">
-                <h1 className="text-4xl font-extrabold tracking-tight lg:text-5xl text-red-500 font-serif">
-                    Accès Restreint
+                <h1 className="font-serif text-display-xl font-bold tracking-tight text-foreground">
+                    Accès restreint
                 </h1>
-                <p className="text-xl text-muted-foreground max-w-lg mx-auto">
+                <p className="mx-auto max-w-lg text-body-sm text-muted-foreground">
                     Vous n'avez pas les permissions nécessaires pour accéder à cette fonctionnalité.
                     Contactez un administrateur si vous pensez qu'il s'agit d'une erreur.
                 </p>
             </div>
 
             <div className="flex gap-4">
-                <Button asChild variant="default" className="bg-primary hover:bg-primary/90">
-                    <Link href="/dashboard">
-                        Retourner en lieu sûr
-                    </Link>
+                <Button asChild>
+                    <Link href="/dashboard">Retourner en lieu sûr</Link>
                 </Button>
             </div>
         </div>

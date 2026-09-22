@@ -14,8 +14,9 @@ interface SimulationTacticalLegendProps {
   showAllies: boolean;
   showEnemies: boolean;
   enemyIconUrl: string;
-  /** `compact` = fenêtre de jeu (lignes serrées) · `full` = fiche / landing. */
-  variant?: "compact" | "full";
+  /** `compact` = fenêtre de jeu (lignes serrées) · `full` = fiche / landing · `board` = panneau
+   *  flottant posé **dans** le plateau (palette de jeu, toujours atteignable sans défiler). */
+  variant?: "compact" | "full" | "board";
   /** Rappel du mode « Boss libre » (une ligne) — affiché DANS le corps déplié. */
   freeBossHint: string;
   className?: string;
@@ -28,6 +29,20 @@ function Swatch({ background, border }: { background: string; border?: string })
       className="inline-block h-2.5 w-2.5 shrink-0 rounded-[3px]"
       style={{ background, border: border ? `1px solid ${border}` : undefined }}
     />
+  );
+}
+
+/**
+ * Vignette « **case visée** » : c'est la **cible blanche** du jeu (convention relevée sur la page
+ * de règles des dommages : « la case ciblée, ici matérialisée par une cible blanche »). Elle montre
+ * d'où partent les dégâts de zone — et donc d'où se mesure la dégressivité.
+ */
+function TargetSwatch() {
+  return (
+    <svg viewBox="0 0 12 12" className="h-3 w-3 shrink-0" aria-hidden="true">
+      <circle cx="6" cy="6" r="4.6" fill="none" stroke="#ffffff" strokeWidth="1.4" />
+      <circle cx="6" cy="6" r="1.6" fill="#ffffff" />
+    </svg>
   );
 }
 
@@ -54,7 +69,10 @@ export function SimulationTacticalLegend({
 }: SimulationTacticalLegendProps) {
   const { t } = useI18n();
   const simT = t.tacticalSim;
-  const isCompact = variant === "compact";
+  /** Palette du **plateau de jeu** : la vue de jeu ET l'overlay flottant sont sombres dans les
+   *  deux thèmes (le plateau l'est aussi) — la fiche / landing, elle, suit le thème. */
+  const compactish = variant !== "full";
+  const isBoard = variant === "board";
 
   const groups: { title: string; entries: { label: string; swatch: ReactNode }[] }[] = [
     {
@@ -72,6 +90,7 @@ export function SimulationTacticalLegend({
       entries: [
         { label: simT.legend.spellRange, swatch: <Swatch background="#79b638" /> },
         { label: simT.legend.aoe, swatch: <Swatch background="#e0a320" border="#ffcf5e" /> },
+        { label: simT.legend.targetCell, swatch: <TargetSwatch /> },
       ],
     },
     {
@@ -120,10 +139,16 @@ export function SimulationTacticalLegend({
   return (
     <div
       className={cn(
-        "relative z-30 w-full shrink-0 border-t",
-        // Vue de jeu : palette du plateau (sombre, comme la carte). Fiche / landing : jetons
-        // de thème, pour rester lisible en thème clair.
-        isCompact ? "mt-1.5 border-white/5 bg-[#161614] pt-1" : "mt-2 border-border pt-1.5",
+        "relative z-30 shrink-0",
+        // Overlay posé DANS le plateau (« obligé de dezoomer et de scroller en dehors du composant
+        // pour aller chercher la légende », retour user 21/09/2026) : panneau flottant borné, donc
+        // toujours atteignable, qui ne pousse plus la carte.
+        isBoard
+          ? "w-[min(90vw,21rem)] overflow-hidden rounded-xl border border-white/15 bg-[#121218]/95 shadow-xl backdrop-blur-md pointer-events-auto"
+          : cn(
+              "w-full border-t",
+              compactish ? "mt-1.5 border-white/5 bg-[#161614] pt-1" : "mt-2 border-border pt-1.5"
+            ),
         className
       )}
     >
@@ -134,20 +159,25 @@ export function SimulationTacticalLegend({
         aria-expanded={open}
         className={cn(
           "flex w-full cursor-pointer items-center justify-between rounded-md px-2 py-1 transition-colors",
-          isCompact
+          compactish
             ? "text-[10px] text-zinc-400 hover:bg-white/[0.04] hover:text-white"
             : "text-[11px] text-muted-foreground hover:bg-surface hover:text-foreground"
         )}
       >
         <span className="flex items-center gap-1.5">
-          <HelpCircle className={cn(isCompact ? "h-3.5 w-3.5" : "h-4 w-4")} />
+          <HelpCircle className="h-3.5 w-3.5" />
           {simT.legendTitle}
         </span>
         <ChevronDown className={cn("h-3.5 w-3.5 transition-transform duration-200", open && "rotate-180")} />
       </button>
 
       {open && (
-        <div className="mt-2 space-y-2 px-1">
+        <div
+          className={cn(
+            "mt-2 space-y-2 px-1",
+            isBoard && "max-h-[min(50vh,15rem)] overflow-y-auto pb-2 [scrollbar-width:thin]"
+          )}
+        >
           {groups
             .filter((group) => group.entries.length > 0)
             .map((group) => (
@@ -155,7 +185,7 @@ export function SimulationTacticalLegend({
                 <p
                   className={cn(
                     "text-[9px] font-black uppercase tracking-[0.14em]",
-                    isCompact ? "text-zinc-500" : "text-muted-foreground"
+                    compactish ? "text-zinc-500" : "text-muted-foreground"
                   )}
                 >
                   {group.title}
@@ -163,7 +193,7 @@ export function SimulationTacticalLegend({
                 <div
                   className={cn(
                     "flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[10px]",
-                    isCompact ? "text-zinc-400" : "text-muted-foreground"
+                    compactish ? "text-zinc-400" : "text-muted-foreground"
                   )}
                 >
                   {group.entries.map((entry) => (
@@ -179,7 +209,7 @@ export function SimulationTacticalLegend({
           <p
             className={cn(
               "text-[10px] leading-tight",
-              isCompact ? "text-zinc-500" : "text-muted-foreground"
+              compactish ? "text-zinc-500" : "text-muted-foreground"
             )}
           >
             💡 {freeBossHint}

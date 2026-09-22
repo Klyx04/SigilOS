@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Check, ChevronDown, Eye, EyeOff, Grid, HelpCircle, Loader2, Map as MapIcon, Move, RotateCcw, SlidersHorizontal, Sparkles, Swords, Users, Zap } from "lucide-react";
+import { Check, ChevronDown, Eye, EyeOff, Grid, HelpCircle, Loader2, Map as MapIcon, Move, RotateCcw, SlidersHorizontal, Sparkles, Swords, Users, X, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n/client";
 import { getDofensiveMap, type DofensiveMapData, type DofensiveMapLite } from "@/server/actions/dofensive-actions";
 import { SimulationTacticalLegend } from "@/components/succes/SimulationTacticalLegend";
+import { SimulationSpellPicker } from "@/components/succes/SimulationSpellPicker";
+import { SimulationDamageHud } from "@/components/succes/SimulationDamageHud";
 import {
     damageLinesFromEffects,
     formatDamageRange,
@@ -13,7 +15,13 @@ import {
     type SpellDamageLine,
     type SpellElementKey,
 } from "@/lib/dofus-spells";
-import { DOFUS_STAT_ASSET_BASE, STAT_THEMES } from "@/lib/dofus-stats-theme";
+import {
+    zoneFalloffPercent,
+    zoneLinesAtOffset,
+    zoneOffsetBetween,
+    zoneTotalAtOffset,
+} from "@/lib/dofus-zone-damage";
+import { DOFUS_STAT_ASSET_BASE, STAT_THEMES, dofusStatHex } from "@/lib/dofus-stats-theme";
 import {
     CellState,
     allyStartPositions,
@@ -105,6 +113,17 @@ function elementIcon(element: SpellElementKey): string {
 function elementColor(element: SpellElementKey): string {
     return STAT_THEMES[ELEMENT_STAT_KEY[element]].color;
 }
+
+/**
+ * Couleur **réelle du jeu** d'un élément, pour les rendus **SVG** (badges de dégâts) où une classe
+ * de thème ne s'applique pas. Source unique : la palette DofusBook partagée (`dofusStatHex`).
+ */
+function elementHex(element: SpellElementKey): string {
+    return dofusStatHex(STAT_THEMES[ELEMENT_STAT_KEY[element]].asset);
+}
+
+/** Ambre du plateau — repli d'un badge de dégâts sans ligne exploitable (jamais de valeur inventée). */
+const GRID_DAMAGE_FALLBACK_COLOR = "#e0a320";
 
 interface SpellRangeGridProps {
     spells: SpellData[];
@@ -270,19 +289,16 @@ export function SpellRangeGrid({
     const [mapLoading, setMapLoading] = useState(false);
     const [mapError, setMapError] = useState<string | null>(null);
 
-    // Menus dropdowns personnalisés (remplacement des <select> natifs disgracieux)
+    // Menu déroulant « Salle » (salles du donjon) : état local au composant. Le **sélecteur de
+    // sort** vit désormais dans `SimulationSpellPicker` (source unique des deux modes) : plus de
+    // second menu recopié ici.
     const [isMapMenuOpen, setIsMapMenuOpen] = useState(false);
-    const [isSpellMenuOpen, setIsSpellMenuOpen] = useState(false);
     const mapMenuRef = useRef<HTMLDivElement>(null);
-    const spellMenuRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         const handleClickOutside = (e: MouseEvent | TouchEvent) => {
             if (mapMenuRef.current && !mapMenuRef.current.contains(e.target as Node)) {
                 setIsMapMenuOpen(false);
-            }
-            if (spellMenuRef.current && !spellMenuRef.current.contains(e.target as Node)) {
-                setIsSpellMenuOpen(false);
             }
         };
         document.addEventListener("mousedown", handleClickOutside);
@@ -878,28 +894,34 @@ export function SpellRangeGrid({
         }
     }, [storageKey, selectedMapId, allies, enemies, casterPos, showStartCells]);
 
-    // Prévisu de zone d'effet (AoE) : quand on survole une case en portée (ou autour du lanceur si sort 0 PO)
-    const zonePreview = useMemo(() => {
+    /**
+     * **Case VISÉE** par le sort — la « cible blanche » du jeu. C'est à la fois la **matrice de la
+     * zone d'effet** et l'**origine de la dégressivité** : « l'éloignement est le nombre minimal de
+     * cases entre la case ciblée par le sort et le personnage qui subit les dégâts. Attention, la
+     * case ciblée n'est pas forcément le centre de la zone ! » (règle du jeu).
+     * Sort 0 PO = auto-ciblage ⇒ la case du lanceur ; hors case en portée ⇒ aucune visée.
+     */
+    const zoneAnchor = useMemo<DofusPos | null>(() => {
         const isSelfSpell = currentSpell?.range === 0 && (currentSpell?.minRange ?? 0) === 0;
-        const target = isSelfSpell
-            ? casterPos
-            : hoveredCell && isCellInRange(hoveredCell.x, hoveredCell.y)
-            ? hoveredCell
-            : null;
+        if (isSelfSpell) return casterPos;
+        return hoveredCell && isCellInRange(hoveredCell.x, hoveredCell.y) ? hoveredCell : null;
+    }, [hoveredCell, currentSpell, casterPos, isCellInRange]);
 
-        if (!target || !currentSpell?.zone) return null;
-        const { shape, size } = currentSpell.zone;
+    // Prévisu de zone d'effet (AoE) — bâtie sur la case visée (`zoneAnchor`) : une seule source.
+    const zonePreview = useMemo(() => {
+        if (!zoneAnchor || !currentSpell?.zone) return null;
+        const size = currentSpell.zone.size;
         if (size < 1 || size > 15) return null;
         const cells = spellZoneCells({
             zone: currentSpell.zone,
-            target,
+            target: zoneAnchor,
             caster: casterPos,
             cols: gridCols,
             rows: gridRows,
             isRealMap,
         });
         return new Set(cells.map((c) => `${c.x},${c.y}`));
-    }, [hoveredCell, currentSpell, casterPos, isCellInRange, gridCols, gridRows, isRealMap]);
+    }, [zoneAnchor, currentSpell, casterPos, gridCols, gridRows, isRealMap]);
     const isInZone = (x: number, y: number): boolean => !!zonePreview && zonePreview.has(`${x},${y}`);
 
     // Alliés touchés dans la zone d'impact actuelle
@@ -1050,8 +1072,56 @@ export function SpellRangeGrid({
     const damageInfo = useMemo(() => damageLinesFromEffects(currentSpell?.effectDetails), [currentSpell]);
     const damageTotal = useMemo(() => totalDamageRange(damageInfo.lines), [damageInfo.lines]);
 
-    /** Interrupteur « Dégâts estimés » — monté dans les DEUX panneaux Options (source unique). */
-    const damageToggle = (
+    /**
+     * **Prévisu par cible** — source **unique** des badges posés sur la grille ET du panneau de
+     * prévisu. Pour chaque cible prise dans la zone (la case visée + les personnages qui s'y
+     * trouvent), on applique la **dégressivité du jeu** `dégâts × (10 − éloignement)/10`,
+     * l'éloignement étant mesuré depuis la **case visée** (`zoneAnchor`). Un personnage à 5 cases
+     * de la visée n'affiche donc plus les dégâts pleins : il affiche ce qu'il encaisse vraiment.
+     */
+    const damageTargets = useMemo(() => {
+        if (!showDamage || !zonePreview || !zoneAnchor || damageInfo.lines.length === 0) return [];
+        const keys = new Set<string>();
+        if (hoveredCell && zonePreview.has(`${hoveredCell.x},${hoveredCell.y}`)) {
+            keys.add(`${hoveredCell.x},${hoveredCell.y}`);
+        }
+        if (!hideAllies) {
+            for (const ally of allies) if (zonePreview.has(`${ally.x},${ally.y}`)) keys.add(`${ally.x},${ally.y}`);
+        }
+        if (enemiesEnabled) {
+            for (const enemy of enemies) if (zonePreview.has(`${enemy.x},${enemy.y}`)) keys.add(`${enemy.x},${enemy.y}`);
+        }
+        return [...keys].map((key) => {
+            const [x, y] = key.split(",").map(Number);
+            const offset = zoneOffsetBetween(zoneAnchor, { x, y }, isRealMap);
+            return {
+                key,
+                x,
+                y,
+                offset,
+                falloff: zoneFalloffPercent(offset),
+                lines: zoneLinesAtOffset(damageInfo.lines, offset),
+                total: zoneTotalAtOffset(damageInfo.lines, offset),
+            };
+        });
+    }, [showDamage, zonePreview, zoneAnchor, damageInfo.lines, hoveredCell, allies, enemies, enemiesEnabled, hideAllies, isRealMap]);
+
+    /** Dégâts **réellement** infligés sur toute la zone (somme des cibles, dégressivité comprise). */
+    const damageZoneTotal = useMemo(
+        () =>
+            damageTargets.reduce(
+                (acc, target) => ({ min: acc.min + target.total.min, max: acc.max + target.total.max }),
+                { min: 0, max: 0 }
+            ),
+        [damageTargets]
+    );
+
+    /**
+     * Interrupteur « Dégâts estimés » — **monté dans les DEUX panneaux Options** (source unique).
+     * `board` = panneau sombre posé **sur le plateau** (vue de jeu) : des jetons de thème y feraient
+     * une tache claire dès que le thème clair est actif.
+     */
+    const damageToggle = (board: boolean) => (
         <button
             type="button"
             onClick={() => setShowDamage((v) => !v)}
@@ -1059,12 +1129,23 @@ export function SpellRangeGrid({
             disabled={damageInfo.lines.length === 0}
             title={damageInfo.lines.length === 0 ? simT.damageUnavailable : simT.damageToggleTitle}
             className={cn(
-                "flex w-full items-center justify-between gap-2 rounded-[4px] border px-2.5 py-1.5 text-left text-[11px] font-semibold transition-colors",
+                "flex w-full items-center justify-between gap-2 rounded-lg border px-2.5 py-1.5 text-left text-[11px] font-semibold transition-colors",
                 damageInfo.lines.length === 0
-                    ? "cursor-not-allowed border-border bg-surface text-muted-foreground/50"
+                    ? cn(
+                          "cursor-not-allowed",
+                          board ? "border-white/10 bg-white/[0.03] text-zinc-500" : "border-border bg-surface text-muted-foreground/50"
+                      )
                     : showDamage
-                        ? "cursor-pointer border-accent/40 bg-accent/10 text-foreground"
-                        : "cursor-pointer border-border bg-surface text-muted-foreground hover:text-foreground"
+                        ? cn(
+                              "cursor-pointer",
+                              board ? "border-warning/40 bg-warning/15 text-white" : "border-accent/40 bg-accent/10 text-foreground"
+                          )
+                        : cn(
+                              "cursor-pointer",
+                              board
+                                  ? "border-white/15 bg-white/[0.04] text-zinc-300 hover:text-white"
+                                  : "border-border bg-surface text-muted-foreground hover:text-foreground"
+                          )
             )}
         >
             <span className="flex min-w-0 items-center gap-1.5">
@@ -1112,24 +1193,21 @@ export function SpellRangeGrid({
                             <span className="text-[9px] font-black uppercase tracking-[0.14em] text-muted-foreground">
                                 {simT.simulatedSpell}
                             </span>
-                            <select
-                                value={currentSpell?.id ?? ""}
-                                aria-label={simT.selectSpell}
-                                onChange={(e) => {
-                                    const found = spells.find((s) => s.id === Number(e.target.value));
+                            {/* Sélecteur de sort partagé (`SimulationSpellPicker`) : le `<select>`
+                                natif ne pouvait ni porter l'icône du sort, ni les jets par élément,
+                                ni s'accorder au thème (retour user 21/09/2026). */}
+                            <SimulationSpellPicker
+                                variant="page"
+                                showTriggerIcon={false}
+                                className="max-w-[17rem]"
+                                spells={spells}
+                                activeSpellId={currentSpell?.id ?? null}
+                                onSelect={(spell) => {
+                                    const found = spells.find((s) => s.id === spell.id);
                                     if (found) selectSpell(found);
                                 }}
-                                className="max-w-[17rem] cursor-pointer truncate bg-transparent text-[13px] font-bold text-foreground focus:outline-none"
-                            >
-                                {spells.map((s) => {
-                                    const displayName = locale === "en" ? (s.nameEn || s.name) : s.name;
-                                    return (
-                                        <option key={s.id} value={s.id}>
-                                            {displayName} ({s.apCost ? `${s.apCost} PA · ` : ""}{s.minRange === s.range ? `${s.range} PO` : `${s.minRange ?? 0}-${s.range ?? 0} PO`})
-                                        </option>
-                                    );
-                                })}
-                            </select>
+                                aria-label={simT.selectSpell}
+                            />
                         </div>
 
                         {currentSpell && (
@@ -1211,113 +1289,20 @@ export function SpellRangeGrid({
                     <div className="w-full space-y-1.5 mb-1.5 px-1 relative z-40 shrink-0 bg-[#161614] pb-1.5 border-b border-white/5" data-no-drag>
                         {/* Ligne 1 : Choix du Sort + Choix de la Salle */}
                         <div className="flex items-center gap-1.5 w-full">
-                            {/* Sélecteur de sort stylé */}
-                            <div ref={spellMenuRef} className="relative flex-1 min-w-0">
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        setIsSpellMenuOpen((prev) => !prev);
-                                        setIsMapMenuOpen(false);
-                                    }}
-                                    className={cn(
-                                        "w-full flex items-center justify-between gap-1.5 bg-zinc-900/95 border rounded-lg px-2 py-1 text-[11px] font-bold transition-all",
-                                        isSpellMenuOpen
-                                            ? "border-white/20 bg-white/[0.08] text-white"
-                                            : "border-white/10 hover:border-white/20 text-zinc-200 hover:bg-zinc-800"
-                                    )}
-                                    title={currentSpell ? `${locale === "en" ? (currentSpell.nameEn || currentSpell.name) : currentSpell.name} (${currentSpell.apCost ?? 0} PA · ${currentSpell.minRange === currentSpell.range ? `${currentSpell.range} PO` : `${currentSpell.minRange ?? 0}-${currentSpell.range ?? 0} PO`})` : simT.selectSpell}
-                                >
-                                    <div className="flex items-center gap-1.5 min-w-0 truncate">
-                                        {currentSpell?.imageUrl ? (
-                                            <img
-                                                src={currentSpell.imageUrl}
-                                                alt=""
-                                                className="w-3.5 h-3.5 object-contain rounded shrink-0"
-                                                onError={(e) => {
-                                                    const el = e.target as HTMLImageElement;
-                                                    if (!el.dataset.fb && currentSpell.imageUrl) {
-                                                        el.dataset.fb = "1";
-                                                        el.src = `/api/assets-dofus/spells/${currentSpell.id}?url=${encodeURIComponent(currentSpell.imageUrl)}`;
-                                                    } else {
-                                                        el.style.display = "none";
-                                                    }
-                                                }}
-                                            />
-                                        ) : (
-                                            <Zap className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
-                                        )}
-                                        <span className="truncate">{currentSpell ? (locale === "en" ? (currentSpell.nameEn || currentSpell.name) : currentSpell.name) : (locale === "en" ? "Spell" : "Sort")}</span>
-                                        {currentSpell && (
-                                            <span className="text-[9px] font-semibold text-white/50 shrink-0">
-                                                ({currentSpell.apCost ?? 0} PA · {currentSpell.minRange === currentSpell.range ? `${currentSpell.range} PO` : `${currentSpell.minRange ?? 0}-${currentSpell.range ?? 0} PO`})
-                                            </span>
-                                        )}
-                                    </div>
-                                    <ChevronDown
-                                        className={cn(
-                                            "w-3 h-3 text-zinc-400 transition-transform duration-200 shrink-0",
-                                            isSpellMenuOpen && "rotate-180 text-white/70"
-                                        )}
-                                    />
-                                </button>
-
-                                {isSpellMenuOpen && (
-                                    <div className="absolute left-0 top-full mt-1 w-64 sm:w-72 max-h-56 overflow-y-auto rounded-xl bg-[#121218]/95 backdrop-blur-md border border-white/15 shadow-2xl p-1 z-50 animate-in fade-in zoom-in-95 duration-100 [scrollbar-width:thin] [scrollbar-color:rgba(255,255,255,0.2)_transparent]">
-                                        <div className="px-2 py-1 text-[9px] font-bold text-white/40 uppercase tracking-wider">
-                                            {simT.combatSpells.replace("{count}", String(spells.length))}
-                                        </div>
-                                        {spells.map((s) => {
-                                            const isSelected = currentSpell?.id === s.id;
-                                            const displayName = locale === "en" ? (s.nameEn || s.name) : s.name;
-                                            return (
-                                                <button
-                                                    key={s.id}
-                                                    type="button"
-                                                    onClick={() => {
-                                                        selectSpell(s);
-                                                        setIsSpellMenuOpen(false);
-                                                    }}
-                                                    className={cn(
-                                                        "w-full flex items-center justify-between gap-2 px-2 py-1.5 rounded-lg text-[11px] text-left transition-colors mt-0.5",
-                                                        isSelected
-                                                            ? "bg-white/[0.10] text-white"
-                                                            : "text-zinc-300 hover:text-white hover:bg-white/[0.06]"
-                                                    )}
-                                                >
-                                                    <div className="flex items-center gap-2 min-w-0 flex-1">
-                                                        {s.imageUrl ? (
-                                                            <img
-                                                                src={s.imageUrl}
-                                                                alt=""
-                                                                className="w-4 h-4 object-contain rounded shrink-0"
-                                                                onError={(e) => {
-                                                                    const el = e.target as HTMLImageElement;
-                                                                    if (!el.dataset.fb && s.imageUrl) {
-                                                                        el.dataset.fb = "1";
-                                                                        el.src = `/api/assets-dofus/spells/${s.id}?url=${encodeURIComponent(s.imageUrl)}`;
-                                                                    } else {
-                                                                        el.style.display = "none";
-                                                                    }
-                                                                }}
-                                                            />
-                                                        ) : (
-                                                            <Zap className="w-4 h-4 text-zinc-400 shrink-0" />
-                                                        )}
-                                                        <span className="truncate font-medium">{displayName}</span>
-                                                    </div>
-                                                    <div className="flex items-center gap-1 shrink-0 text-[10px]">
-                                                        <span className="text-white/70">{s.apCost ?? 0} PA</span>
-                                                        <span className="text-white/60">
-                                                            {s.minRange === s.range ? `${s.range} PO` : `${s.minRange ?? 0}-${s.range ?? 0} PO`}
-                                                        </span>
-                                                        {isSelected && <Check className="w-3 h-3 text-white ml-1" />}
-                                                    </div>
-                                                </button>
-                                            );
-                                        })}
-                                    </div>
-                                )}
-                            </div>
+                            {/* Sélecteur de sort partagé (`SimulationSpellPicker`, variante
+                                « plateau ») : le même composant que le mode fiche — une seule
+                                source, donc plus de menu recopié ni de sorts utilitaires. */}
+                            <SimulationSpellPicker
+                                variant="board"
+                                className="flex-1"
+                                spells={spells}
+                                activeSpellId={currentSpell?.id ?? null}
+                                onSelect={(spell) => {
+                                    const found = spells.find((s) => s.id === spell.id);
+                                    if (found) selectSpell(found);
+                                }}
+                                aria-label={simT.selectSpell}
+                            />
 
                             {/* Sélecteur de salle / map stylé */}
                             {shownMaps.length > 0 && (
@@ -1326,7 +1311,6 @@ export function SpellRangeGrid({
                                         type="button"
                                         onClick={() => {
                                             setIsMapMenuOpen((prev) => !prev);
-                                            setIsSpellMenuOpen(false);
                                         }}
                                         className={cn(
                                             "w-full flex items-center justify-between gap-1.5 bg-zinc-900/95 border rounded-lg px-2 py-1 text-[11px] font-medium transition-all",
@@ -1467,46 +1451,67 @@ export function SpellRangeGrid({
                                     className="absolute right-0 top-full z-50 mt-1.5 w-[18rem] space-y-1.5 overflow-y-auto rounded-xl border border-white/15 bg-[#121218]/97 p-2 shadow-2xl backdrop-blur-md [scrollbar-width:thin]"
                                     style={{ maxHeight: "min(60vh, 22rem)" }}
                                 >
-                                    <p className="text-[9px] font-black uppercase tracking-[0.14em] text-white/40">
-                                        {simT.optionsTitle}
-                                    </p>
-
-                                    {damageToggle}
-
-                            {/* Placement & Butin compacts */}
-                            {mapData && (
-                                <div className="inline-flex items-center gap-1">
-                                    {totalPlacements > 1 && (
-                                        <select
-                                            value={placementIndex}
-                                            onChange={(e) => {
-                                                const nextIdx = Number(e.target.value);
-                                                setPlacementIndex(nextIdx);
-                                                setShowStartCells(true);
-                                                applyStartCells(mapData, true, nextIdx);
-                                            }}
-                                            className="bg-zinc-900 border border-white/10 text-zinc-200 text-[10px] rounded-md px-1.5 py-0.5 focus:outline-none"
+                                    <div className="flex items-center justify-between gap-2">
+                                        <p className="text-[9px] font-black uppercase tracking-[0.14em] text-white/40">
+                                            {simT.optionsTitle}
+                                        </p>
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowOptions(false)}
+                                            aria-label={simT.optionsClose}
+                                            className="cursor-pointer p-0.5 text-zinc-400 transition-colors hover:text-white"
                                         >
-                                            {Array.from({ length: totalPlacements }).map((_, i) => (
-                                                <option key={i + 1} value={i + 1}>P{i + 1}</option>
-                                            ))}
-                                        </select>
+                                            <X className="h-3.5 w-3.5" aria-hidden="true" />
+                                        </button>
+                                    </div>
+
+                                    {damageToggle(true)}
+
+                            {/* Placement & Butin : libellés COMPLETS (fini les « P1 » / « B4 »
+                                illisibles) et contrôles alignés sur la palette du plateau. */}
+                            {mapData && (
+                                <div className="space-y-1.5">
+                                    {totalPlacements > 1 && (
+                                        <label className="flex items-center justify-between gap-2 text-[10px] font-bold text-zinc-400">
+                                            {simT.placement}
+                                            <select
+                                                value={placementIndex}
+                                                onChange={(e) => {
+                                                    const nextIdx = Number(e.target.value);
+                                                    setPlacementIndex(nextIdx);
+                                                    setShowStartCells(true);
+                                                    applyStartCells(mapData, true, nextIdx);
+                                                }}
+                                                className="cursor-pointer rounded-md border border-white/10 bg-zinc-900 px-1.5 py-0.5 text-[10px] font-black text-zinc-200 focus:outline-none"
+                                            >
+                                                {Array.from({ length: totalPlacements }).map((_, i) => (
+                                                    <option key={i + 1} value={i + 1}>
+                                                        {i + 1} / {totalPlacements}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </label>
                                     )}
 
-                                    <select
-                                        value={lootCount}
-                                        onChange={(e) => {
-                                            const nextLoot = Number(e.target.value);
-                                            setLootCount(nextLoot);
-                                            setShowStartCells(true);
-                                            applyStartCells(mapData, true, placementIndex);
-                                        }}
-                                        className="bg-zinc-900 border border-white/10 text-zinc-200 text-[10px] rounded-md px-1.5 py-0.5 focus:outline-none"
-                                    >
-                                        {[4, 5, 6, 7, 8].map((b) => (
-                                            <option key={b} value={b}>B{b}</option>
-                                        ))}
-                                    </select>
+                                    <label className="flex items-center justify-between gap-2 text-[10px] font-bold text-zinc-400">
+                                        {simT.loot}
+                                        <select
+                                            value={lootCount}
+                                            onChange={(e) => {
+                                                const nextLoot = Number(e.target.value);
+                                                setLootCount(nextLoot);
+                                                setShowStartCells(true);
+                                                applyStartCells(mapData, true, placementIndex);
+                                            }}
+                                            className="cursor-pointer rounded-md border border-white/10 bg-zinc-900 px-1.5 py-0.5 text-[10px] font-black text-info focus:outline-none"
+                                        >
+                                            {[4, 5, 6, 7, 8].map((b) => (
+                                                <option key={b} value={b}>
+                                                    {simT.lootOption.replace(/\{count\}/g, String(b))}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </label>
                                 </div>
                             )}
 
@@ -1720,15 +1725,20 @@ export function SpellRangeGrid({
                                     )}
                                     style={{ maxHeight: "min(65vh, 24rem)" }}
                                 >
-                                    <p
-                                        className={cn(
-                                            "text-[9px] font-black uppercase tracking-[0.14em]",
-                                            compact ? "text-white/40" : "text-muted-foreground"
-                                        )}
-                                    >
-                                        {simT.optionsTitle}
-                                    </p>
-                            {damageToggle}
+                                    <div className="flex items-center justify-between gap-2">
+                                        <p className="text-[9px] font-black uppercase tracking-[0.14em] text-muted-foreground">
+                                            {simT.optionsTitle}
+                                        </p>
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowOptions(false)}
+                                            aria-label={simT.optionsClose}
+                                            className="cursor-pointer p-0.5 text-muted-foreground transition-colors hover:text-foreground"
+                                        >
+                                            <X className="h-3.5 w-3.5" aria-hidden="true" />
+                                        </button>
+                                    </div>
+                            {damageToggle(false)}
                             {!hideAllies && (
                                 <button
                                     type="button"
@@ -1792,7 +1802,7 @@ export function SpellRangeGrid({
                             )}
                             {mapData && totalPlacements > 1 && (
                                 <div className="inline-flex items-center gap-1 bg-surface border border-border rounded-lg p-0.5">
-                                    <span className="text-[11px] font-bold text-zinc-400 pl-2">{simT.placement}</span>
+                                    <span className="text-[11px] font-bold text-muted-foreground pl-2">{simT.placement}</span>
                                     <select
                                         value={placementIndex}
                                         onChange={(e) => {
@@ -1803,18 +1813,18 @@ export function SpellRangeGrid({
                                                 applyStartCells(mapData, true, nextIdx);
                                             }
                                         }}
-                                        className="bg-zinc-800 border border-white/10 text-zinc-300 text-xs font-black rounded-md px-2 py-1 focus:outline-none cursor-pointer"
+                                        className="bg-surface border border-border text-foreground text-xs font-black rounded-md px-2 py-1 focus:outline-none cursor-pointer"
                                     >
                                         {Array.from({ length: totalPlacements }).map((_, i) => (
                                             <option key={i + 1} value={i + 1}>
-                                                Placement {i + 1} / {totalPlacements}
+                                                {i + 1} / {totalPlacements}
                                             </option>
                                         ))}
                                     </select>
                                     <button
                                         type="button"
                                         onClick={() => setShowRulesModal(true)}
-                                        className="p-1 text-zinc-400 hover:text-zinc-300 transition-colors pr-1.5 cursor-pointer"
+                                        className="p-1 text-muted-foreground hover:text-foreground transition-colors pr-1.5 cursor-pointer"
                                         title={simT.rulesModalTooltip}
                                     >
                                         <HelpCircle className="w-3.5 h-3.5" />
@@ -1822,8 +1832,8 @@ export function SpellRangeGrid({
                                 </div>
                             )}
                             {mapData && (
-                                <div className="inline-flex items-center gap-1 bg-zinc-900 border border-white/10 rounded-lg p-0.5">
-                                    <span className="text-[11px] font-bold text-zinc-400 pl-2">{simT.loot}</span>
+                                <div className="inline-flex items-center gap-1 bg-surface border border-border rounded-lg p-0.5">
+                                    <span className="text-[11px] font-bold text-muted-foreground pl-2">{simT.loot}</span>
                                     <select
                                         value={lootCount}
                                         onChange={(e) => {
@@ -1834,7 +1844,7 @@ export function SpellRangeGrid({
                                                 applyStartCells(mapData, true, placementIndex);
                                             }
                                         }}
-                                        className="bg-zinc-800 border border-white/10 text-sky-400 text-xs font-black rounded-md px-2 py-1 focus:outline-none cursor-pointer"
+                                        className="bg-surface border border-border text-info text-xs font-black rounded-md px-2 py-1 focus:outline-none cursor-pointer"
                                     >
                                         {[4, 5, 6, 7, 8].map((b) => (
                                             <option key={b} value={b}>
@@ -1962,6 +1972,7 @@ export function SpellRangeGrid({
                                 const isTokenCell = isAllyCell || isEnemyCell;
                                 const inRange = !obs && isCellInRange(c, r);
                                 const isHovered = hoveredCell?.x === c && hoveredCell?.y === r;
+                                const isZoneAnchor = zoneAnchor?.x === c && zoneAnchor?.y === r;
 
                                 const points = `
                                     ${sx},${sy}
@@ -2010,11 +2021,20 @@ export function SpellRangeGrid({
                                     fillColor = inRange ? "#9ae44c" : "#a39e90";
                                 }
 
-                                // Prévisu de zone d'effet (AoE) : ambre, prioritaire sur la portée.
-                                if (isInZone(c, r) && !obs && !isCaster && !isTokenCell) {
-                                    fillColor = "#e0a320";
-                                    strokeColor = "#ffcf5e";
-                                    strokeWidth = 1.1;
+                                // Prévisu de zone d'effet (AoE) : ambre, prioritaire sur la portée ET
+                                // sur les jetons — un personnage DANS la zone doit sauter aux yeux
+                                // (retour user 21/09/2026 : « on voit pas quand on touche les cibles »).
+                                if (isInZone(c, r) && !obs && !isCaster) {
+                                    fillColor = isTokenCell ? "#f2b53a" : "#e0a320";
+                                    strokeColor = isTokenCell ? "#ffffff" : "#ffcf5e";
+                                    strokeWidth = isTokenCell ? 1.8 : 1.1;
+                                }
+
+                                // Case VISÉE (la « cible blanche » du jeu) : contour blanc posé en
+                                // dernier pour rester visible par-dessus la zone.
+                                if (isZoneAnchor) {
+                                    strokeColor = "#ffffff";
+                                    strokeWidth = 1.8;
                                 }
 
                                 // Prisme 3D : seules les faces exposées vers le bas (Sud-Ouest et Sud-Est) sont rendues.
@@ -2186,6 +2206,7 @@ export function SpellRangeGrid({
                                 const isTokenCell = isAllyCell || isEnemyCell;
                                 const inRange = isCellInRange(x, y);
                                 const isHovered = hoveredCell?.x === x && hoveredCell?.y === y;
+                                const isZoneAnchor = zoneAnchor?.x === x && zoneAnchor?.y === y;
                                 const isEven = (x + y) % 2 === 0;
 
                                 const points = `
@@ -2219,11 +2240,18 @@ export function SpellRangeGrid({
                                     fillColor = inRange ? "#9ae44c" : "#7c7767";
                                 }
 
-                                // Prévisu de zone d'effet (AoE) : ambre, prioritaire sur la portée.
-                                if (isInZone(x, y) && !isCaster && !isTokenCell) {
-                                    fillColor = "#e0a320";
-                                    strokeColor = "#ffcf5e";
-                                    strokeWidth = 1.2;
+                                // Prévisu de zone d'effet (AoE) : ambre, prioritaire sur la portée ET
+                                // sur les jetons (une cible touchée doit être évidente).
+                                if (isInZone(x, y) && !isCaster) {
+                                    fillColor = isTokenCell ? "#f2b53a" : "#e0a320";
+                                    strokeColor = isTokenCell ? "#ffffff" : "#ffcf5e";
+                                    strokeWidth = isTokenCell ? 1.9 : 1.2;
+                                }
+
+                                // Case VISÉE (« cible blanche » du jeu) : contour blanc prioritaire.
+                                if (isZoneAnchor) {
+                                    strokeColor = "#ffffff";
+                                    strokeWidth = 1.9;
                                 }
 
                                 const sideColor = inRange ? "#4c7a1f" : isCaster ? "#4a1212" : isTokenCell ? (inRange ? "#6f1010" : "#122a4a") : "#3a372e";
@@ -2305,68 +2333,121 @@ export function SpellRangeGrid({
                             })
                         )
                     )}
+                {/* Case VISÉE — la « cible blanche » du jeu (convention relevée sur la page de
+                    règles) : elle matérialise la matrice de la zone ET l'origine de la dégressivité.
+                    Toujours affichée, même option de dégâts éteinte : on doit voir ce qu'on cible. */}
+                {zoneAnchor && (() => {
+                    const { sx, sy } = cellToScreen(zoneAnchor.x, zoneAnchor.y, tileW, tileH);
+                    return (
+                        <g pointerEvents="none" className="select-none" data-zone-anchor="1">
+                            <circle cx={sx} cy={sy + tileHalfH} r={11} fill="none" stroke="#ffffff" strokeWidth={1.4} opacity={0.9} />
+                            <circle cx={sx} cy={sy + tileHalfH} r={3.4} fill="#ffffff" opacity={0.95} />
+                        </g>
+                    );
+                })()}
+
                 {/* Prévisu de DÉGÂTS (option « Dégâts estimés ») : les jets RÉELS du sort sur la
                     cible visée et sur les personnages présents dans la zone — la donnée vient du
-                    serveur (caractéristiques du monstre appliquées), rien n'est estimé ici. */}
+                    serveur (caractéristiques du monstre appliquées), rien n'est estimé ici.
+                    Chaque badge porte la **dégressivité du jeu** propre à SA cible et affiche les
+                    lignes par élément avec les couleurs réelles du jeu. */}
                 {showDamage && damageInfo.lines.length > 0 && zonePreview && (
                     <g pointerEvents="none">
-                        {(() => {
-                            const targets = new Set<string>();
-                            if (hoveredCell && zonePreview.has(`${hoveredCell.x},${hoveredCell.y}`)) {
-                                targets.add(`${hoveredCell.x},${hoveredCell.y}`);
-                            }
-                            if (!hideAllies) {
-                                for (const ally of allies) if (zonePreview.has(`${ally.x},${ally.y}`)) targets.add(`${ally.x},${ally.y}`);
-                            }
-                            if (enemiesEnabled) {
-                                for (const enemy of enemies) if (zonePreview.has(`${enemy.x},${enemy.y}`)) targets.add(`${enemy.x},${enemy.y}`);
-                            }
-                            return [...targets].map((key) => {
-                                const [x, y] = key.split(",").map(Number);
-                                const { sx, sy } = cellToScreen(x, y, tileW, tileH);
-                                return (
-                                    <g key={`dmg-${key}`} transform={`translate(${sx}, ${sy - 30})`}>
-                                        <rect
-                                            x={-25}
-                                            y={-9}
-                                            width={50}
-                                            height={18}
-                                            rx={4}
-                                            fill="rgba(5,5,5,0.88)"
-                                            stroke="#e0a320"
-                                            strokeWidth={1}
-                                        />
+                        {damageTargets.map((target) => {
+                            const { sx, sy } = cellToScreen(target.x, target.y, tileW, tileH);
+                            const hasFalloff = target.falloff < 100;
+                            const rowsTop = hasFalloff ? 40 : 29;
+                            const boxW = 78;
+                            const boxH = rowsTop + target.lines.length * 13 + 3;
+                            const mainHex = target.lines[0] ? elementHex(target.lines[0].element) : GRID_DAMAGE_FALLBACK_COLOR;
+                            return (
+                                <g key={`dmg-${target.key}`} transform={`translate(${sx - boxW / 2}, ${sy - 26 - boxH})`}>
+                                    <rect
+                                        x={0}
+                                        y={0}
+                                        width={boxW}
+                                        height={boxH}
+                                        rx={5}
+                                        fill="rgba(5,5,5,0.92)"
+                                        stroke={mainHex}
+                                        strokeWidth={1.2}
+                                    />
+                                    <text
+                                        x={boxW / 2}
+                                        y={14}
+                                        textAnchor="middle"
+                                        fill="#ffffff"
+                                        fontSize={12}
+                                        fontWeight="900"
+                                        className="select-none"
+                                    >
+                                        {formatDamageRange(target.total.min, target.total.max)}
+                                    </text>
+                                    {hasFalloff && (
                                         <text
-                                            x={0}
-                                            y={4}
+                                            x={boxW / 2}
+                                            y={25}
                                             textAnchor="middle"
-                                            fill="#ffcf5e"
-                                            fontSize={11}
-                                            fontWeight="900"
+                                            fill="#fbbf24"
+                                            fontSize={9}
+                                            fontWeight="800"
                                             className="select-none"
                                         >
-                                            {formatDamageRange(damageTotal.min, damageTotal.max)}
+                                            {simT.damageFalloffShort.replace("{percent}", String(100 - target.falloff))}
                                         </text>
-                                    </g>
-                                );
-                            });
-                        })()}
+                                    )}
+                                    {target.lines.map((line, i) => (
+                                        <g key={line.element} transform={`translate(6, ${rowsTop + i * 13})`}>
+                                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                                            <image href={elementIcon(line.element)} x={0} y={-8} width={10} height={10} />
+                                            <text
+                                                x={13}
+                                                y={0}
+                                                fill={elementHex(line.element)}
+                                                fontSize={10}
+                                                fontWeight="700"
+                                                className="select-none"
+                                            >
+                                                {formatDamageRange(line.min, line.max)}
+                                            </text>
+                                        </g>
+                                    ))}
+                                </g>
+                            );
+                        })}
                     </g>
                 )}
                 </svg>
                 </div>
                 </div>
 
-                <SimulationTacticalLegend
-                    variant={compact ? "compact" : "full"}
-                    open={showLegend}
-                    onToggle={() => setShowLegend((v) => !v)}
-                    isRealMap={!!mapData}
-                    showAllies={!hideAllies}
-                    showEnemies={enemiesEnabled}
-                    enemyIconUrl={enemyIconUrl ?? ""}
-                    freeBossHint={allowFreeCasterMove ? (freeCasterMove ? simT.helpers.freeBossTip : simT.helpers.pinnedBossTip) : simT.helpers.pinnedBossTip}
-                />
+                {/* Légende + prévisu de dégâts **dans le plateau** : l'utilisateur n'a plus à
+                    dézoomer ni à sortir du composant pour les atteindre (retour user 21/09/2026).
+                    Deux panneaux flottants bornés, qui ne poussent plus la carte. */}
+                <div
+                    data-no-drag
+                    className="pointer-events-none absolute inset-x-2 bottom-2 z-40 flex items-end justify-between gap-2"
+                >
+                    <SimulationTacticalLegend
+                        variant="board"
+                        open={showLegend}
+                        onToggle={() => setShowLegend((v) => !v)}
+                        isRealMap={!!mapData}
+                        showAllies={!hideAllies}
+                        showEnemies={enemiesEnabled}
+                        enemyIconUrl={enemyIconUrl ?? ""}
+                        freeBossHint={allowFreeCasterMove ? (freeCasterMove ? simT.helpers.freeBossTip : simT.helpers.pinnedBossTip) : simT.helpers.pinnedBossTip}
+                    />
+                    {showDamage && damageInfo.lines.length > 0 && (
+                        <SimulationDamageHud
+                            variant="board"
+                            lines={damageInfo.lines}
+                            total={damageTotal}
+                            push={damageInfo.push}
+                            targets={{ count: damageTargets.length, total: damageZoneTotal }}
+                        />
+                    )}
+                </div>
             </div>
 
             {/* Modale d'explication des règles de placement Dofus */}

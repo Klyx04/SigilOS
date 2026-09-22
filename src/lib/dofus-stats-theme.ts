@@ -462,7 +462,21 @@ export function getDofusStatNumberColor(
     const theme = resolveDofusStatTheme(characteristicId, effectId, charCode, label);
     if (!theme) return "#a855f7";
 
-    switch (theme.asset) {
+    return dofusStatHex(theme.asset);
+}
+
+/**
+ * Couleur HEX « réelle du jeu » (palette DofusBook) d'un asset de stat.
+ *
+ * **Source unique** des couleurs d'éléments là où une classe de thème ne s'applique pas : rendus
+ * **SVG** (badges de dégâts de la grille tactique), export image, canvas. Les jetons de classe
+ * (`STAT_THEMES[…].color`) restent la voie normale pour du HTML.
+ *
+ * Exemple : `terre.png` → ocre Force · `feu.png` → rouge Intelligence · `eau.png` → bleu Chance ·
+ * `air.png` → vert Agilité · `neutre.png` → gris Neutre. Asset inconnu ⇒ violet historique.
+ */
+export function dofusStatHex(asset: string): string {
+    switch (asset) {
         case "pv.png": return DOFUSBOOK_COLORS.vitalite;
         case "terre.png": return DOFUSBOOK_COLORS.force;
         case "feu.png": return DOFUSBOOK_COLORS.intelligence;

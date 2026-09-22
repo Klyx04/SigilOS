@@ -37,15 +37,15 @@ const STORAGE_KEY = "sigilos_raid_studio_v3";
 
 /* ─── Role meta (emoji + short label + colors) ─── */
 const ROLE_META: Record<RoleKey, { emoji: string; label: string; bg: string; text: string; border: string }> = {
-    tank:        { emoji: "🛡️", label: "Tank",      bg: "bg-blue-500/15",   text: "text-blue-400",   border: "border-blue-500/30" },
-    healer:      { emoji: "💚", label: "Soin",      bg: "bg-emerald-500/15",text: "text-emerald-400",border: "border-emerald-500/30" },
-    "dps-range": { emoji: "🏹", label: "DPS Dist.", bg: "bg-rose-500/15",   text: "text-rose-400",   border: "border-rose-500/30" },
+    tank:        { emoji: "🛡️", label: "Tank",      bg: "bg-info/15",   text: "text-info",   border: "border-info/30" },
+    healer:      { emoji: "💚", label: "Soin",      bg: "bg-success/15",text: "text-success",border: "border-success/30" },
+    "dps-range": { emoji: "🏹", label: "DPS Dist.", bg: "bg-danger/15",   text: "text-danger",   border: "border-danger/30" },
     "dps-melee": { emoji: "⚔️", label: "DPS CaC",  bg: "bg-orange-500/15", text: "text-orange-400", border: "border-orange-500/30" },
     debuff:      { emoji: "🔻", label: "Debuff",    bg: "bg-violet-500/15", text: "text-violet-400", border: "border-violet-500/30" },
     support:     { emoji: "⚡", label: "Support",   bg: "bg-teal-500/15",   text: "text-teal-400",   border: "border-teal-500/30" },
-    placement:   { emoji: "🧱", label: "Placement", bg: "bg-amber-500/15",  text: "text-amber-400",  border: "border-amber-500/30" },
-    control:     { emoji: "🌀", label: "Contrôle",  bg: "bg-cyan-500/15",   text: "text-cyan-400",   border: "border-cyan-500/30" },
-    utility:     { emoji: "📦", label: "Mule",      bg: "bg-slate-500/15",  text: "text-slate-400",  border: "border-slate-500/30" },
+    placement:   { emoji: "🧱", label: "Placement", bg: "bg-warning/15",  text: "text-warning",  border: "border-warning/30" },
+    control:     { emoji: "🌀", label: "Contrôle",  bg: "bg-accent/15",   text: "text-accent",   border: "border-accent/30" },
+    utility:     { emoji: "📦", label: "Mule",      bg: "bg-elevated",  text: "text-muted-foreground",  border: "border-border" },
 };
 
 /* ─── Static raid asset paths (images/icons/banners) ─── */
@@ -430,7 +430,7 @@ function SlotCard({
                 <button
                     onClick={() => onRemove(slot.id)}
                     title={ui.removeSlot}
-                    className="p-1.5 rounded-lg text-muted-foreground/30 hover:text-rose-400 hover:bg-rose-500/10 transition-colors opacity-0 group-hover:opacity-100"
+                    className="p-1.5 rounded-lg text-muted-foreground/30 hover:text-danger hover:bg-danger/10 transition-colors opacity-0 group-hover:opacity-100"
                 >
                     <Trash2 className="w-3.5 h-3.5" />
                 </button>
@@ -635,7 +635,7 @@ export function RaidPlannerClient() {
                             <button
                                 onClick={() => clearWing(wingNum)}
                                 title={l10n.ui.clearWing}
-                                className="p-1 rounded text-muted-foreground/40 hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
+                                className="p-1 rounded text-muted-foreground/40 hover:text-danger hover:bg-danger/10 transition-colors"
                             >
                                 <Trash2 className="w-3.5 h-3.5" />
                             </button>
@@ -764,9 +764,9 @@ export function RaidPlannerClient() {
                     const active = selectedRaid === raidId;
                     const isSanctuaire = raidId === "sanctuaire";
                     const accentGlow = isSanctuaire ? "shadow-emerald-500/15" : "shadow-cyan-500/15";
-                    const accentBorder = isSanctuaire ? "border-emerald-500/60" : "border-cyan-500/60";
-                    const accentText = isSanctuaire ? "text-emerald-400" : "text-cyan-400";
-                    const accentBg = isSanctuaire ? "bg-emerald-500/15" : "bg-cyan-500/15";
+                    const accentBorder = isSanctuaire ? "border-success/60" : "border-accent/60";
+                    const accentText = isSanctuaire ? "text-success" : "text-accent";
+                    const accentBg = isSanctuaire ? "bg-success/15" : "bg-accent/15";
 
                     return (
                         <button
@@ -774,7 +774,7 @@ export function RaidPlannerClient() {
                             onClick={() => handleSwitchRaid(raidId)}
                             className={`relative overflow-hidden rounded-2xl border p-4 text-left transition-all group ${
                                 active
-                                    ? `${accentBorder} shadow-lg ${accentGlow} bg-surface/80 ring-1 ${isSanctuaire ? "ring-emerald-500/40" : "ring-cyan-500/40"}`
+                                    ? `${accentBorder} shadow-lg ${accentGlow} bg-surface/80 ring-1 ${isSanctuaire ? "ring-success/40" : "ring-accent/40"}`
                                     : "border-border/80 bg-surface/30 hover:border-border hover:bg-surface/50 opacity-70 hover:opacity-100"
                             }`}
                         >
@@ -823,7 +823,7 @@ export function RaidPlannerClient() {
                                 </div>
 
                                 {active && (
-                                    <div className={`shrink-0 w-2.5 h-2.5 rounded-full ${isSanctuaire ? "bg-emerald-400" : "bg-cyan-400"} shadow-sm`} />
+                                    <div className={`shrink-0 w-2.5 h-2.5 rounded-full ${isSanctuaire ? "bg-success" : "bg-accent"} shadow-sm`} />
                                 )}
                             </div>
                         </button>
@@ -853,11 +853,11 @@ export function RaidPlannerClient() {
                             title={l10n.ui.enigmesTabTooltip}
                             className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 shrink-0 ${
                                 activeTab === "enigmes"
-                                    ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 shadow-sm"
+                                    ? "bg-success/20 text-success border border-success/40 shadow-sm"
                                     : "text-muted-foreground hover:text-foreground hover:bg-surface"
                             }`}
                         >
-                            <Compass className="w-4 h-4 text-emerald-400" />
+                            <Compass className="w-4 h-4 text-success" />
                             <span>{l10n.tabs.enigmes}</span>
                         </button>
                     )}
@@ -868,11 +868,11 @@ export function RaidPlannerClient() {
                             title={l10n.ui.luminariumTabTooltip}
                             className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 shrink-0 ${
                                 activeTab === "luminarium"
-                                    ? "bg-cyan-500/20 text-cyan-400 border border-cyan-500/40 shadow-sm"
+                                    ? "bg-accent/20 text-accent border border-accent/40 shadow-sm"
                                     : "text-muted-foreground hover:text-foreground hover:bg-surface"
                             }`}
                         >
-                            <Lightbulb className="w-4 h-4 text-cyan-400" />
+                            <Lightbulb className="w-4 h-4 text-accent" />
                             <span>{l10n.tabs.luminarium}</span>
                         </button>
                     )}
@@ -907,7 +907,7 @@ export function RaidPlannerClient() {
                         <span>Init:</span>
                         <span className="font-mono font-bold text-foreground">{averageInitiative || "—"}</span>
                         {isCorridorFastEnough && slots.length > 0 && (
-                            <span className="w-2 h-2 rounded-full bg-emerald-400 ml-0.5" title={l10n.stats.corridorOk} />
+                            <span className="w-2 h-2 rounded-full bg-success ml-0.5" title={l10n.stats.corridorOk} />
                         )}
                     </span>
 
@@ -917,8 +917,8 @@ export function RaidPlannerClient() {
                             className="flex items-center gap-1 bg-background/60 px-2 py-0.5 rounded-lg border border-border/80 cursor-help"
                             title={l10n.ui.raidHpTooltip}
                         >
-                            <Heart className="w-3.5 h-3.5 text-rose-400" />
-                            <span className="text-rose-400 font-bold">{raidHp} / 20</span>
+                            <Heart className="w-3.5 h-3.5 text-danger" />
+                            <span className="text-danger font-bold">{raidHp} / 20</span>
                             <div className="flex items-center ml-1">
                                 <button
                                     onClick={() => setRaidHp((h) => Math.max(0, h - 1))}
@@ -941,7 +941,7 @@ export function RaidPlannerClient() {
                             className="flex items-center gap-1 bg-background/60 px-2.5 py-1 rounded-lg border border-border/80 cursor-help"
                             title="Mureine +1k · Exécrabe +5k · Willorque +10k"
                         >
-                            <Coins className="w-3.5 h-3.5 text-amber-400" />
+                            <Coins className="w-3.5 h-3.5 text-warning" />
                             <span className="text-muted-foreground">Drops:</span>
                             <span className="text-foreground font-mono font-bold">+1k / +5k / +10k</span>
                         </span>
@@ -954,7 +954,7 @@ export function RaidPlannerClient() {
                 <div className="space-y-4">
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
                         {renderWingPanel(wing1Slots, 1, raidI18n.wing1, raidI18n.wing1Desc, "bg-accent", "border-accent/30")}
-                        {renderWingPanel(wing2Slots, 2, raidI18n.wing2, raidI18n.wing2Desc, "bg-amber-400", "border-amber-500/30")}
+                        {renderWingPanel(wing2Slots, 2, raidI18n.wing2, raidI18n.wing2Desc, "bg-warning", "border-warning/30")}
                     </div>
 
                     {/* Guide des 9 rôles repliable (Ne pollue pas l'écran) */}

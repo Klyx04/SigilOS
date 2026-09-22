@@ -10,6 +10,16 @@
 > Réouvrir l'historique en mode plan = gaspillage de tokens.
 
 ---
+## 📌 Session 21/09/2026 (soir, suite UI) — **Overlay du guide : changer de chapitre quand on veut (vue de jeu comprise) · bulles profil sur CHAQUE quête · mini-modale des membres réellement défilante** · branche `fix/overlay-chapitre-bulles`
+> **Demande user (verbatim)** : « ok mais pour le chapitre faut pouvoir changer quand on veut quand même » · « ca serait bien d'avoir les bulles profil avec mini modale scrollable aussi sur l'overlay dans chaque quête non ? ».
+> **Causes racines mesurées** : ① la **vue de jeu compacte** ne portait que « Précédent / Suivant », et `goToNextMs` **saute** les chapitres déjà validés (`nextBlockIndex`) ⇒ plus aucun chemin vers un chapitre terminé pendant un combat ; ② les bulles « qui est ici » ne se calculaient que pour le **chapitre courant** (`if (row.milestoneId !== currentMs.id) continue`) et les **résultats de recherche** passaient `bookmarkers={[]}` ⇒ aucune bulle hors du chapitre ouvert ; ③ la liste de la mini-modale n'avait pas `min-h-0` : dans un flex en hauteur bornée elle **débordait au lieu de défiler** (fenêtre PiP réduite ⇒ modale coupée).
+> **Fait** : ① le **sélecteur de chapitre partagé** (`RushOverlayChapterTree`) reçoit une variante **`inline`** (sans chrome de barre ni barre de progression, déclencheur en chip) et est **monté dans la vue de jeu**, y compris quand un bandeau remplace l'objectif — **une seule source**, aucun `<select>` local, le mode normal conservant sa barre complète ; ② `validSeqIds`/`bookmarkersBySeq` indexés **sur tous les chapitres** (séquences réelles du guide uniquement, **une bulle par membre** — principal + mule ne doublent plus), bulles câblées dans **les deux listes** (recherche ET chapitre courant) + dans la vue de jeu via la nouvelle brique partagée `RushOverlayMemberBubbles` (l'ancienne pile d'avatars recopiée dans `RushOverlayQuestListItem` est supprimée) ; ③ mini-modale bornée (`max-h-[min(70vh,22rem)]`) + liste `min-h-0 flex-1 overflow-y-auto` + en-tête tronquable.
+> **Preuves** : `tests/unit/rush-overlay-chapitre-bulles.test.ts` (**12 cas** : variante `inline` + barre complète conservée, sélecteur inconditionnel au bandeau, câblage compact, indexation tous chapitres — bloc sans `currentMs` —, 2 listes câblées, dédup principal/mule, brique unique, défilement réel, **rendu réel** du chip) · **184 fichiers / 1953 tests** ✓ · `tsc` **0** · `eslint` **0 erreur**.
+> **Reste** : contrôle visuel user (vue de jeu : sélecteur ouvert · bulles + mini-modale défilante avec ≥ 8 membres · overlay étroit) · **chantier Simulation Tactique** consigné au Bloc B.
+
+---
+
+
 ## 📌 Session 21/09/2026 (soir, UI) — **Rush : séparateurs redessinés (plus de barre latérale), flèche de repli réparée sur le guide public, overlay aéré + « mode compact » déplacé dans l'en-tête** · branche `fix/rush-ui`
 > **Demande user (verbatim)** : « modifie les blocs de type "separation" ils n'ont pas à avoir une barre de couleur sur le côté, ils doivent avoir un style entre le texte du milieu, style tougli sans recopier : trouver un style pour nous — valable guide interne externe et overlay interne externe » · « la flèche pour replier un bloc marche pas sur le guide publique » · « est-ce qu'on devrai pas aérer l'overlay […] à quoi sert le mode compact avec le bouton en bas si inutile ».
 > **Cause racine mesurée (flèche)** : `isExpanded = expandedMs.has(ms.id) || isSearching || pagedChapterId === ms.id` (`PublicRushGuideClient.tsx`) — le chapitre de la page courante était **forcé déplié**, donc la flèche de repli était **inerte** (le corps restait visible pendant que la flèche disait « replié »).
@@ -613,6 +623,25 @@
 - **#186a** Optimistic UI (`useOptimistic` sur Rejoindre/Cocher/Toggle) + prefetch routes +
   skeletons + **virtualisation** (ladder, annuaire, galerie).
 - **#129 / #1038** Responsivité : audit composant par composant (sweep à poursuivre).
+- **Simulation tactique des boss (`SpellRangeGrid`, 4 surfaces : landing `/boss/[id]`, interne
+  `SuccesBossGuide`, overlay Bestiaire, onglet Simulation des fiches stuff)** — refonte
+  demandée le 21/09/2026 (verbatim) : « il faut améliorer la simulation tactique des boss
+  (que ce soit interne ou externe) », « le composant complet peut être déplacé en maintenant
+  enfoncé la souris c pas normal », « c trop le bordel et trop slopesque dans tous les boutons
+  au-dessus le composant, faut un rangement pro », « le bandeau sort simulé pas intuitif à
+  l'œil on le perd », « légende bc trop grosse », « il faut revoir les couleurs, les sorts
+  simulés les zones etc », « pk afficher les dégâts en preview (option à activer ?) quand une
+  cible est visée avec un sort boss ? », « les zones, les dégâts dégressifs en zone, calculer
+  les dégâts poussés si y a sorts de poussée », « un meilleur visuel premium ».
+  **Périmètre à mesurer AVANT de coder** (le composant fait ~2 200 lignes et sert 4 surfaces) :
+  ① périmètre du **pan** (aujourd'hui `onPointerDown` sur tout le viewport ⇒ on attrape le
+  grand fond noir, pas seulement la carte) ; ② **rangement** de la barre (une rangée primaire +
+  un panneau « Options » repliable : salle · placement · butin · boss libre · zoom) ;
+  ③ **bandeau « Sort simulé »** (le rendre identifiable sans le chercher des yeux) ; ④ **légende**
+  repliée/compactée ; ⑤ couleurs et lisibilité des zones ; ⑥ **prévisu de dégâts optionnelle**
+  (à activer) sur cible visée ; ⑦ **dégâts dégressifs en zone** et **dégâts de poussée** —
+  ces deux points dépendent des **données d'effets réellement disponibles** (Dofensive/DofusDB) :
+  mesure obligatoire, aucune valeur inventée.
 
 ## 🟠 Retours user (suite #202)
 

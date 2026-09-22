@@ -14,6 +14,14 @@ interface RushOverlayChapterTreeProps {
   doneByMs: Map<string, Set<string>>;
   isLightMode?: boolean;
   className?: string;
+  /**
+   * `panel` (défaut) = barre de navigation complète (chrome + barre de progression),
+   * montée en haut de l'overlay. `inline` = **le même sélecteur** sans le chrome, pour la
+   * vue de jeu compacte : changer de chapitre doit rester possible **à tout moment**,
+   * y compris pendant un combat (retour user 21/09/2026), et le mode compact ne propose
+   * sinon que « Précédent / Suivant » — qui **sautent** les chapitres déjà validés.
+   */
+  variant?: "panel" | "inline";
 }
 
 /**
@@ -38,8 +46,10 @@ export function RushOverlayChapterTree({
   doneByMs,
   isLightMode = false,
   className,
+  variant = "panel",
 }: RushOverlayChapterTreeProps) {
   const [open, setOpen] = useState(false);
+  const isInline = variant === "inline";
   if (chapters.length === 0) return null;
 
   // Les blocs SÉPARATEUR ne sont pas des étapes : ils n'entrent PAS dans la liste des
@@ -64,23 +74,20 @@ export function RushOverlayChapterTree({
         : 0
     : 0;
 
-  return (
-    <nav
-      aria-label="Chapitres du guide"
-      className={cn(
-        "relative shrink-0 px-3 py-2.5 border-b z-30",
-        isLightMode ? "bg-slate-50 border-slate-200" : "bg-[#0d1014] border-[#28303a]/70",
-        className
-      )}
-    >
+  const tree = (
+    <>
       {/* Déclencheur */}
       <button
         type="button"
         aria-haspopup="listbox"
         aria-expanded={open}
+        aria-label="Choisir un chapitre"
         onClick={() => canSelect && setOpen((v) => !v)}
         className={cn(
-          "flex w-full items-center gap-2 rounded-xl border px-2.5 py-2 text-[11px] font-semibold transition-colors cursor-pointer",
+          "flex w-full items-center gap-2 rounded-xl border font-semibold transition-colors cursor-pointer",
+          // En ligne (vue de jeu) le même déclencheur se lit comme un chip : la fenêtre
+          // compacte n'a pas la place d'un contrôle de barre de navigation.
+          isInline ? "px-2 py-1 text-[10px]" : "px-2.5 py-2 text-[11px]",
           isLightMode
             ? "bg-white border-slate-200 text-slate-800 hover:border-slate-300"
             : "bg-[#181c22] border-[#28303a] text-[#f2f0e9] hover:border-[#2a3646]"
@@ -120,7 +127,10 @@ export function RushOverlayChapterTree({
           <ul
             role="listbox"
             className={cn(
-              "absolute left-3 right-3 top-full mt-1.5 z-50 max-h-[42vh] overflow-y-auto rounded-xl border py-1 shadow-2xl",
+              "absolute top-full mt-1.5 z-50 max-h-[42vh] overflow-y-auto rounded-xl border py-1 shadow-2xl",
+              // En ligne (vue de jeu) le déclencheur est déjà dans le cadre : la liste
+              // s'aligne sur lui au lieu de déborder du panneau.
+              isInline ? "left-0 right-0" : "left-3 right-3",
               isLightMode ? "bg-white border-slate-200" : "bg-[#161b21] border-[#2a3646]"
             )}
           >
@@ -200,6 +210,25 @@ export function RushOverlayChapterTree({
           </span>
         </div>
       )}
+    </>
+  );
+
+  // Vue de jeu (compact) : le sélecteur seul, sans chrome de barre ni barre de progression
+  // — la vue compacte affiche déjà « Étape n/m » et doit rester minuscule.
+  if (isInline) {
+    return <div className={cn("relative min-w-0", className)}>{tree}</div>;
+  }
+
+  return (
+    <nav
+      aria-label="Chapitres du guide"
+      className={cn(
+        "relative shrink-0 px-3 py-2.5 border-b z-30",
+        isLightMode ? "bg-slate-50 border-slate-200" : "bg-[#0d1014] border-[#28303a]/70",
+        className
+      )}
+    >
+      {tree}
     </nav>
   );
 }

@@ -1,10 +1,11 @@
 "use client";
 
 import React, { memo } from "react";
-import { Check, Flag, BookmarkCheck, Lock, Info, Package, Users } from "lucide-react";
+import { Check, Flag, BookmarkCheck, Lock, Info, Package } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getSequenceCoord, getDungeons, getItemTags, isDungeonSequence } from "./overlay-utils";
 import { RushCoordinateChip } from "@/components/dofus-quests/rush/RushCoordinateChip";
+import { RushOverlayMemberBubbles, type OverlayBubbleMember } from "./RushOverlayMemberBubbles";
 import { RushOverlayDungeonPopover } from "./RushOverlayDungeonPopover";
 import { getAlignmentSet } from "@/lib/rush-helpers";
 import type { RushSequence } from "@/types/rush-guide-types";
@@ -18,8 +19,9 @@ interface RushOverlayQuestListItemProps {
   onToggle: () => void;
   onBookmark: () => void;
   onOpenDetail: () => void;
-  /** Membres (avatar + nom) qui ont posé le repère sur cette étape */
-  bookmarkers?: { name: string; avatar?: string }[];
+  /** Membres (avatar + nom) qui ont posé le repère sur cette étape — affichés en bulles
+   *  par la **brique partagée** `RushOverlayMemberBubbles` (mêmes bulles en vue de jeu). */
+  bookmarkers?: OverlayBubbleMember[];
   /** Quête verrouillée tant que ses prérequis ne sont pas validés */
   isLocked?: boolean;
   /** Quêtes prérequis (cliquables pour y sauter) */
@@ -214,40 +216,11 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
                 </span>
               )}
               {!isDone && bookmarkers.length > 0 && (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onOpenBookmarkers?.();
-                  }}
-                  title={bookmarkers.map((b) => b.name).join(", ")}
-                  aria-label={`En attente ici : ${bookmarkers.map((b) => b.name).join(", ")}`}
-                  className={cn(chip, "border-warning/40 text-warning transition-colors hover:bg-warning/10")}
-                >
-                  <span className="flex items-center -space-x-1">
-                    {bookmarkers.slice(0, 3).map((b, i) =>
-                      b.avatar ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          key={i}
-                          src={b.avatar}
-                          alt={b.name}
-                          loading="lazy"
-                          className="h-4 w-4 rounded-full border border-warning/40 object-cover"
-                        />
-                      ) : (
-                        <span
-                          key={i}
-                          className="grid h-4 w-4 place-items-center rounded-full border border-warning/40 bg-warning/20 text-[9px] font-semibold text-warning"
-                        >
-                          {b.name.charAt(0) || "?"}
-                        </span>
-                      )
-                    )}
-                  </span>
-                  <Users className="h-3 w-3" aria-hidden="true" />
-                  {bookmarkers.length}
-                </button>
+                <RushOverlayMemberBubbles
+                  members={bookmarkers}
+                  onOpen={() => onOpenBookmarkers?.()}
+                  size="sm"
+                />
               )}
             </div>
           )}

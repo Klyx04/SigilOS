@@ -80,7 +80,7 @@ describe("agrégation par élément (mêmes règles que la fiche Dofus)", () => 
     it("cumule les jets d'un MÊME élément et les compte", () => {
         const { lines } = damageLinesFromEffects(effects);
         const fire = lines.find((l) => l.element === "feu");
-        expect(fire).toEqual({ element: "feu", min: 766, max: 894, lines: 2 });
+        expect(fire).toEqual({ element: "feu", min: 766, max: 894, lines: 2, crit: null, decrease: null });
     });
 
     it("ne mélange jamais deux éléments", () => {

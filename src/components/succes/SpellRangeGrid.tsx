@@ -11,9 +11,11 @@ import { SimulationDamageHud } from "@/components/succes/SimulationDamageHud";
 import {
     damageLinesFromEffects,
     formatDamageRange,
+    totalCritRange,
     totalDamageRange,
     type SpellDamageLine,
     type SpellElementKey,
+    type ZoneDamageDecrease,
 } from "@/lib/dofus-spells";
 import {
     zoneFalloffPercent,
@@ -21,6 +23,11 @@ import {
     zoneOffsetBetween,
     zoneTotalAtOffset,
 } from "@/lib/dofus-zone-damage";
+import {
+    applyDamageTakenToLines,
+    applyDamageTakenToTotal,
+    damageTakenPercentFromFactor,
+} from "@/lib/dofus-boosts";
 import { DOFUS_STAT_ASSET_BASE, STAT_THEMES, dofusStatHex } from "@/lib/dofus-stats-theme";
 import {
     CellState,
@@ -74,7 +81,16 @@ export interface SpellData {
         triggers: string[];
         masks: string[];
         /** Jet de dégâts numérique de la ligne (déjà calculé côté serveur) — prévisu de dégâts. */
-        damage?: { element: string; min: number; max: number } | null;
+        damage?: {
+            element: string;
+            min: number;
+            max: number;
+            /** Jet du **même effet** en coup critique (`GroupCriticalEffects`), si la source en publie un. */
+            critMin?: number | null;
+            critMax?: number | null;
+            /** Dégressivité de la ligne (`zoneDescr` 3.6) — absente ⇒ défaut mesuré. */
+            decrease?: ZoneDamageDecrease | null;
+        } | null;
         /** Distance de poussée (cases) — affichée telle quelle, aucun dégât de poussée calculé. */
         pushDistance?: number | null;
     }[];
@@ -162,6 +178,11 @@ interface SpellRangeGridProps {
     enemyIconUrl?: string;
     /** Plafond d'ennemis posables (défaut 4). */
     maxEnemies?: number;
+    /**
+     * Facteur de **dommages subis** appliqué aux cibles (`1.15` = +15 %, cf. boosts/malus).
+     * Absent ⇒ `1` : aucune modification (les jets restent ceux du sort).
+     */
+    damageTakenMultiplier?: number;
 }
 
 // Ligne de Bresenham entre deux cellules (grille orthogonale) — pour la ligne de vue.
@@ -210,6 +231,7 @@ export function SpellRangeGrid({
     hideAllies = false,
     enemyIconUrl,
     maxEnemies = 4,
+    damageTakenMultiplier = 1,
 }: SpellRangeGridProps) {
     const { t, locale } = useI18n();
     const simT = t.tacticalSim;
@@ -1094,9 +1116,12 @@ export function SpellRangeGrid({
     /**
      * **Prévisu par cible** — source **unique** des badges posés sur la grille ET du panneau de
      * prévisu. Pour chaque cible prise dans la zone (la case visée + les personnages qui s'y
-     * trouvent), on applique la **dégressivité du jeu** `dégâts × (10 − éloignement)/10`,
-     * l'éloignement étant mesuré depuis la **case visée** (`zoneAnchor`). Un personnage à 5 cases
-     * de la visée n'affiche donc plus les dégâts pleins : il affiche ce qu'il encaisse vraiment.
+     * trouvent), on applique la **dégressivité du jeu** (règle 3.6 : `−step%` par case
+     * d'éloignement, plafonnée à `maxApplyCount` applications — voir `dofus-zone-damage`),
+     * l'éloignement étant mesuré depuis la **case visée** (`zoneAnchor`), puis les **dommages
+     * subis** éventuels (boosts/malus de cible, `damageTakenMultiplier`).
+     * Un personnage à 5 cases de la visée affiche ce qu'il encaisse vraiment, jet normal ET
+     * jet critique quand le sort en publie un.
      */
     const damageTargets = useMemo(() => {
         if (!showDamage || !zonePreview || !zoneAnchor || damageInfo.lines.length === 0) return [];
@@ -1118,21 +1143,52 @@ export function SpellRangeGrid({
                 x,
                 y,
                 offset,
-                falloff: zoneFalloffPercent(offset),
-                lines: zoneLinesAtOffset(damageInfo.lines, offset),
-                total: zoneTotalAtOffset(damageInfo.lines, offset),
+                falloff: zoneFalloffPercent(offset, damageInfo.lines[0]?.decrease ?? null),
+                lines: applyDamageTakenToLines(zoneLinesAtOffset(damageInfo.lines, offset), damageTakenMultiplier),
+                total: applyDamageTakenToTotal(zoneTotalAtOffset(damageInfo.lines, offset), damageTakenMultiplier),
             };
         });
-    }, [showDamage, zonePreview, zoneAnchor, damageInfo.lines, hoveredCell, allies, enemies, enemiesEnabled, hideAllies, isRealMap]);
+    }, [showDamage, zonePreview, zoneAnchor, damageInfo.lines, hoveredCell, allies, enemies, enemiesEnabled, hideAllies, isRealMap, damageTakenMultiplier]);
 
     /** Dégâts **réellement** infligés sur toute la zone (somme des cibles, dégressivité comprise). */
     const damageZoneTotal = useMemo(
         () =>
             damageTargets.reduce(
-                (acc, target) => ({ min: acc.min + target.total.min, max: acc.max + target.total.max }),
-                { min: 0, max: 0 }
+                (acc, target) => ({
+                    min: acc.min + target.total.min,
+                    max: acc.max + target.total.max,
+                    critMin:
+                        target.total.critMin !== null && acc.critMin !== null
+                            ? acc.critMin + target.total.critMin
+                            : null,
+                    critMax:
+                        target.total.critMax !== null && acc.critMax !== null
+                            ? acc.critMax + target.total.critMax
+                            : null,
+                }),
+                { min: 0, max: 0, critMin: 0, critMax: 0 } as {
+                    min: number;
+                    max: number;
+                    critMin: number | null;
+                    critMax: number | null;
+                }
             ),
         [damageTargets]
+    );
+
+    /** Total du sort **sans dégressivité** (la cible est sur la case visée), dommages subis compris. */
+    const damageFullTotal = useMemo(() => {
+        const crit = totalCritRange(damageInfo.lines);
+        return applyDamageTakenToTotal(
+            { ...damageTotal, critMin: crit?.min ?? null, critMax: crit?.max ?? null },
+            damageTakenMultiplier
+        );
+    }, [damageTotal, damageInfo.lines, damageTakenMultiplier]);
+
+    /** `% Dommages subis` cumulés, tel qu'affiché par le panneau de prévisu (0 = aucun). */
+    const damageTakenPercent = useMemo(
+        () => damageTakenPercentFromFactor(damageTakenMultiplier),
+        [damageTakenMultiplier]
     );
 
     /**
@@ -2394,12 +2450,31 @@ export function SpellRangeGrid({
                         {damageTargets.map((target) => {
                             const { sx, sy } = cellScreenPos(target.x, target.y);
                             const hasFalloff = target.falloff < 100;
-                            const rowsTop = hasFalloff ? 40 : 29;
-                            const boxW = 78;
+                            const hasCrit = target.total.critMin !== null && target.total.critMax !== null;
+                            const critRange =
+                                hasCrit && target.total.critMin !== null && target.total.critMax !== null
+                                    ? formatDamageRange(target.total.critMin, target.total.critMax)
+                                    : "";
+                            // Lignes empilées : total, puis « −X % » (dégressivité), puis « CC … ».
+                            const totalY = 14;
+                            const falloffY = 25;
+                            const critY = hasFalloff ? 36 : 25;
+                            const rowsTop = 29 + (hasFalloff ? 11 : 0) + (hasCrit ? 11 : 0);
+                            // Le badge s'élargit quand le jet critique est affiché (les deux fourchettes
+                            // tiennent sur la même ligne que le total, forme du jeu « 146–158 (248–259) »).
+                            const boxW = hasCrit ? 104 : 78;
                             const boxH = rowsTop + target.lines.length * 13 + 3;
                             const mainHex = target.lines[0] ? elementHex(target.lines[0].element) : GRID_DAMAGE_FALLBACK_COLOR;
                             return (
                                 <g key={`dmg-${target.key}`} transform={`translate(${sx - boxW / 2}, ${sy - 26 - boxH})`}>
+                                    {/* Détail de la cible au survol du badge : éloignement, perte de zone,
+                                        jet normal ET jet critique — la même information que la grille montre
+                                        à l'œil, mais complète (retour user : « crit ou non crit »). */}
+                                    <title>
+                                        {`${simT.damageOffsetShort.replace("{count}", String(target.offset))} · ${simT.damageFalloffShort.replace("{percent}", String(100 - target.falloff))}${
+                                            hasCrit ? ` · ${simT.damageCritShort.replace("{range}", critRange)}` : ""
+                                        }`}
+                                    </title>
                                     <rect
                                         x={0}
                                         y={0}
@@ -2412,7 +2487,7 @@ export function SpellRangeGrid({
                                     />
                                     <text
                                         x={boxW / 2}
-                                        y={14}
+                                        y={totalY}
                                         textAnchor="middle"
                                         fill="#ffffff"
                                         fontSize={12}
@@ -2424,7 +2499,7 @@ export function SpellRangeGrid({
                                     {hasFalloff && (
                                         <text
                                             x={boxW / 2}
-                                            y={25}
+                                            y={falloffY}
                                             textAnchor="middle"
                                             fill="#fbbf24"
                                             fontSize={9}
@@ -2432,6 +2507,19 @@ export function SpellRangeGrid({
                                             className="select-none"
                                         >
                                             {simT.damageFalloffShort.replace("{percent}", String(100 - target.falloff))}
+                                        </text>
+                                    )}
+                                    {hasCrit && (
+                                        <text
+                                            x={boxW / 2}
+                                            y={critY}
+                                            textAnchor="middle"
+                                            fill="#f0abfc"
+                                            fontSize={9}
+                                            fontWeight="800"
+                                            className="select-none"
+                                        >
+                                            {simT.damageCritShort.replace("{range}", critRange)}
                                         </text>
                                     )}
                                     {target.lines.map((line, i) => (
@@ -2480,9 +2568,10 @@ export function SpellRangeGrid({
                         <SimulationDamageHud
                             variant="board"
                             lines={damageInfo.lines}
-                            total={damageTotal}
+                            total={damageFullTotal}
                             push={damageInfo.push}
                             targets={{ count: damageTargets.length, total: damageZoneTotal }}
+                            damageTakenPercent={damageTakenPercent}
                         />
                     )}
                 </div>

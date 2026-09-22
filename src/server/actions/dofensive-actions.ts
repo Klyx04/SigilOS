@@ -511,6 +511,46 @@ function collectEffectDetails(groups: any): DofensiveSpellEffect[] {
     return out;
 }
 
+/**
+ * Rattaché le **jet critique** au jet normal de MÊME élément (`GroupCriticalEffects` Dofensive).
+ *
+ * 🔒 Règle : les effets critiques sont appariés **dans l'ordre** aux effets normaux de leur
+ * élément (le premier critique de l'élément va au premier normal, etc.). Un doublon (deux lignes
+ * du même élément) reçoit donc SON jet critique, pas la somme ; une ligne sans équivalent critique
+ * reste sans `critMin`/`critMax` ⇒ la prévisu n'affichera aucun coup critique pour cet élément
+ * (jamais une fourchette inventée à partir du jet normal, ni une somme partielle).
+ */
+function attachCriticalDamage(
+    details: DofensiveSpellEffect[],
+    criticals: DofensiveSpellEffect[]
+): DofensiveSpellEffect[] {
+    const queues = new Map<string, { min: number; max: number }[]>();
+    for (const crit of criticals) {
+        const dmg = crit.damage;
+        if (!dmg) continue;
+        const element = String(dmg.element ?? "").toLowerCase();
+        if (!element) continue;
+        const queue = queues.get(element) ?? [];
+        queue.push({ min: dmg.min, max: dmg.max });
+        queues.set(element, queue);
+    }
+    if (queues.size === 0) return details;
+
+    const used = new Map<string, number>();
+    return details.map((d) => {
+        const dmg = d.damage;
+        if (!dmg) return d;
+        const element = String(dmg.element ?? "").toLowerCase();
+        const queue = queues.get(element);
+        if (!queue) return d;
+        const idx = used.get(element) ?? 0;
+        const crit = queue[idx];
+        if (!crit) return d;
+        used.set(element, idx + 1);
+        return { ...d, damage: { ...dmg, critMin: crit.min, critMax: crit.max } };
+    });
+}
+
 /** Aplatit les effets en lignes « label (durée) » + lignes de déclencheurs. */
 function flattenEffectLines(details: DofensiveSpellEffect[]): string[] {
     const lines: string[] = [];
@@ -596,11 +636,15 @@ export async function getDofensiveSpells(
             if (!level) return null;
             const firstEffect = level.GroupEffects?.[0]?.Effects?.[0];
             // Effets détaillés (tous les groupes de cibles) : durées, déclencheurs, masques.
-            // Les jets passent AVANT par le calcul de dégâts (dégâts réels du grade).
-            const effectDetails = collectEffectDetails(scaleDamageInEffectGroups(level.GroupEffects, damageStats));
+            // Les jets passent AVANT par le calcul de dégâts (dégâts réels du grade), puis les
+            // jets CRITIQUES du sort sont rattachés à leur ligne normale (même élément).
+            const criticalDetails = collectEffectDetails(scaleDamageInEffectGroups(level.GroupCriticalEffects, damageStats));
+            const effectDetails = attachCriticalDamage(
+                collectEffectDetails(scaleDamageInEffectGroups(level.GroupEffects, damageStats)),
+                criticalDetails
+            );
             const effects = flattenEffectLines(effectDetails).slice(0, 30);
             // Effets critiques (GroupCriticalEffects) — section séparée (mêmes dégâts calculés).
-            const criticalDetails = collectEffectDetails(scaleDamageInEffectGroups(level.GroupCriticalEffects, damageStats));
             const criticalEffects = flattenEffectLines(criticalDetails).slice(0, 20);
             return {
                 id: Number(spell.Id ?? sid),

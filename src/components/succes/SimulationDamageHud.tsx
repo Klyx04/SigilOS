@@ -35,13 +35,30 @@ interface SimulationDamageHudProps {
     /** Lignes de dégâts du sort, telles que servies par le serveur (une par élément). */
     lines: SpellDamageLine[];
     /** Total des lignes, sans aucun malus (la cible est sur la case visée). */
-    total: { min: number; max: number };
+    total: { min: number; max: number; critMin: number | null; critMax: number | null };
     /** Distance de poussée éventuelle (cases) — affichée telle quelle, jamais convertie. */
     push: number | null;
     /** Cibles prises dans la zone d'effet + le total **dégressif** qu'elles encaissent. */
-    targets: { count: number; total: { min: number; max: number } };
+    targets: {
+        count: number;
+        total: { min: number; max: number; critMin: number | null; critMax: number | null };
+    };
+    /** `% Dommages subis` cumulés (boosts/malus de cible) — `0` quand aucun. */
+    damageTakenPercent?: number;
     /** `board` = posé sur le plateau (palette de jeu) · `page` = surface thémée. */
     variant?: "board" | "page";
+}
+
+/**
+ * Jet **normal**, suivi de son jet **critique** entre parenthèses quand la source en publie un —
+ * exactement la forme de l'infobulle du jeu : `146 – 158 (248 – 259)`.
+ */
+export function damageRangeWithCrit(
+    range: { min: number; max: number },
+    crit?: { min: number; max: number } | null
+): string {
+    const normal = formatDamageRange(range.min, range.max);
+    return crit ? `${normal} (${formatDamageRange(crit.min, crit.max)})` : normal;
 }
 
 export function SimulationDamageHud({
@@ -49,6 +66,7 @@ export function SimulationDamageHud({
     total,
     push,
     targets,
+    damageTakenPercent = 0,
     variant = "board",
 }: SimulationDamageHudProps) {
     const { t } = useI18n();
@@ -80,7 +98,7 @@ export function SimulationDamageHud({
                             {theme.label}
                         </span>
                         <span className="text-[11px] font-black tabular-nums" style={{ color: dofusStatHex(theme.asset) }}>
-                            {formatDamageRange(line.min, line.max)}
+                            {damageRangeWithCrit(line, line.crit)}
                         </span>
                     </div>
                 );
@@ -88,7 +106,14 @@ export function SimulationDamageHud({
 
             <div className={cn("flex items-center justify-between gap-2 border-t pt-1.5", isBoard ? "border-white/10" : "border-border")}>
                 <span className={rowLabel}>{simT.damageHudPerTarget}</span>
-                <span className={valueLabel}>{formatDamageRange(total.min, total.max)}</span>
+                <span className={valueLabel}>
+                    {damageRangeWithCrit(
+                        total,
+                        total.critMin !== null && total.critMax !== null
+                            ? { min: total.critMin, max: total.critMax }
+                            : null
+                    )}
+                </span>
             </div>
 
             <div className={cn("flex items-center justify-between gap-2", isBoard ? "text-zinc-400" : "text-muted-foreground")}>
@@ -97,9 +122,23 @@ export function SimulationDamageHud({
                     {simT.damageHudTargets.replace("{count}", String(targets.count))}
                 </span>
                 <span className={cn(valueLabel, targets.count === 0 && (isBoard ? "text-zinc-500" : "text-muted-foreground"))}>
-                    {formatDamageRange(targets.total.min, targets.total.max)}
+                    {damageRangeWithCrit(
+                        targets.total,
+                        targets.total.critMin !== null && targets.total.critMax !== null
+                            ? { min: targets.total.critMin, max: targets.total.critMax }
+                            : null
+                    )}
                 </span>
             </div>
+
+            {damageTakenPercent > 0 && (
+                <div className={cn("flex items-center justify-between gap-2", isBoard ? "text-amber-300" : "text-warning")}>
+                    <span className={rowLabel}>{simT.damageHudTakenLabel}</span>
+                    <span className={cn(valueLabel, isBoard ? "text-amber-300" : "text-warning")}>
+                        {simT.damageHudTaken.replace("{percent}", String(damageTakenPercent))}
+                    </span>
+                </div>
+            )}
 
             {push !== null && (
                 <div className={cn("flex items-center gap-1.5", isBoard ? "text-zinc-300" : "text-foreground")}>
@@ -108,6 +147,9 @@ export function SimulationDamageHud({
                 </div>
             )}
 
+            <p className={cn("text-[9px] leading-tight", isBoard ? "text-zinc-500" : "text-muted-foreground")}>
+                {simT.damageHudCritNote}
+            </p>
             <p className={cn("text-[9px] leading-tight", isBoard ? "text-zinc-500" : "text-muted-foreground")}>
                 {simT.damageHudRule}
             </p>

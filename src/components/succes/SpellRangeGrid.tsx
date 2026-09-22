@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Check, ChevronDown, Eye, EyeOff, Grid, HelpCircle, Loader2, Map as MapIcon, Move, RotateCcw, Sparkles, Swords, Users, Zap } from "lucide-react";
+import { Check, ChevronDown, Eye, EyeOff, Grid, HelpCircle, Loader2, Map as MapIcon, Move, RotateCcw, SlidersHorizontal, Sparkles, Swords, Users, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n/client";
 import { getDofensiveMap, type DofensiveMapData, type DofensiveMapLite } from "@/server/actions/dofensive-actions";
+import { SimulationTacticalLegend } from "@/components/succes/SimulationTacticalLegend";
 import {
     CellState,
     allyStartPositions,
@@ -254,7 +255,12 @@ export function SpellRangeGrid({
     const [placementIndex, setPlacementIndex] = useState<number>(1);
     const [lootCount, setLootCount] = useState<number>(4);
     const [showRulesModal, setShowRulesModal] = useState<boolean>(false);
-    const [showCompactLegend, setShowCompactLegend] = useState<boolean>(false);
+    // Panneau « Options » (placement, butin, toggles) et légende : **repliés par défaut**.
+    // La simulation n'empile plus 4 à 5 niveaux de chrome au-dessus de la carte (retour user
+    // 21/09/2026 : « c trop le bordel et trop slopesque dans tous les boutons au-dessus le
+    // composant, faut un rangement pro »).
+    const [showOptions, setShowOptions] = useState<boolean>(false);
+    const [showLegend, setShowLegend] = useState<boolean>(false);
 
     // Illustration titan (galerie God : /game-data/titans/<slug>.webp).
     // Convention + onError : aucune base ni session requise (marche partout,
@@ -553,6 +559,12 @@ export function SpellRangeGrid({
         if (e.button !== 0 && e.button !== 1) return;
         const target = e.target as HTMLElement;
         if (target.closest("button") || target.closest("select") || target.closest("input") || target.closest("[data-no-drag]")) return;
+
+        // Sans ce `preventDefault`, le clic-molette déclenche l'**auto-défilement natif** du
+        // navigateur : le panneau se déplaçait TOUT SEUL pendant qu'on croyait déplacer la carte
+        // (retour user 21/09/2026 : « le composant complet peut être déplacé en maintenant
+        // enfoncé la souris c pas normal »). Il coupe aussi la sélection de texte au glisser.
+        e.preventDefault();
 
         isPointerDownRef.current = true;
         isDraggingRef.current = false;
@@ -977,50 +989,85 @@ export function SpellRangeGrid({
     const freeOriginX = ((gridCols + gridRows) / 2) * tileHalfW;
     const freeOriginY = 20;
 
+    // Réglages actifs — pastille du panneau « Options » : quand le panneau est replié, on doit
+    // continuer à voir QUE quelque chose est actif (boss libre, placements de départ, alliés…).
+    const activeOptionCount = [
+        showStartCells,
+        allowFreeCasterMove && freeCasterMove,
+        !hideAllies && allies.length > 0,
+        enemiesEnabled && enemies.length > 0,
+    ].filter(Boolean).length;
+
     return (
         <div className={cn(compact ? "flex flex-col h-full space-y-1.5 p-0 bg-transparent border-0 shadow-none min-h-0" : "space-y-3 rounded-2xl bg-surface border border-border p-4 sm:p-5 shadow-xs")}>
             {/* Toolbar Simulation Compacte : Choix du sort & Paramètres de portée */}
             {!compact && (
                 <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-background border border-border rounded-xl">
-                    <div className="flex flex-wrap items-center gap-2.5">
-                        <span className="text-xs font-bold text-muted-foreground flex items-center gap-1.5 shrink-0">
-                            <Zap className="w-3.5 h-3.5 text-warning" /> {simT.simulatedSpell}
-                        </span>
-                        <select
-                            value={currentSpell?.id ?? ""}
-                            onChange={(e) => {
-                                const found = spells.find((s) => s.id === Number(e.target.value));
-                                if (found) selectSpell(found);
-                            }}
-                            className="bg-surface border border-border text-foreground text-xs font-bold rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-warning/40 max-w-[280px]"
-                        >
-                            {spells.map((s) => {
-                                const displayName = locale === "en" ? (s.nameEn || s.name) : s.name;
-                                return (
-                                    <option key={s.id} value={s.id}>
-                                        {displayName} ({s.apCost ? `${s.apCost} PA · ` : ""}{s.minRange === s.range ? `${s.range} PO` : `${s.minRange ?? 0}-${s.range ?? 0} PO`})
-                                    </option>
-                                );
-                            })}
-                        </select>
+                    {/* Identité du SORT ACTIF : icône + nom + ses propriétés. Avant, c'était un
+                        `<select>` nu collé à un libellé « Sort simulé : » — ni l'icône du sort, ni
+                        une hiérarchie : on « perdait » le bandeau (retour user 21/09/2026). */}
+                    <div className="flex min-w-0 shrink items-center gap-2.5 rounded-xl border border-warning/25 bg-warning/[0.06] px-2.5 py-1.5">
+                        {currentSpell?.imageUrl ? (
+                            /* eslint-disable-next-line @next/next/no-img-element */
+                            <img
+                                src={currentSpell.imageUrl}
+                                alt=""
+                                className="h-7 w-7 shrink-0 rounded-[4px] object-contain"
+                                onError={(e) => {
+                                    const el = e.target as HTMLImageElement;
+                                    if (!el.dataset.fb && currentSpell.imageUrl) {
+                                        el.dataset.fb = "1";
+                                        el.src = `/api/assets-dofus/spells/${currentSpell.id}?url=${encodeURIComponent(currentSpell.imageUrl)}`;
+                                    } else {
+                                        el.style.display = "none";
+                                    }
+                                }}
+                            />
+                        ) : (
+                            <Zap className="h-6 w-6 shrink-0 text-warning" />
+                        )}
 
-                        {/* Badges résumés du sort */}
+                        <div className="flex min-w-0 flex-col">
+                            <span className="text-[9px] font-black uppercase tracking-[0.14em] text-muted-foreground">
+                                {simT.simulatedSpell}
+                            </span>
+                            <select
+                                value={currentSpell?.id ?? ""}
+                                aria-label={simT.selectSpell}
+                                onChange={(e) => {
+                                    const found = spells.find((s) => s.id === Number(e.target.value));
+                                    if (found) selectSpell(found);
+                                }}
+                                className="max-w-[17rem] cursor-pointer truncate bg-transparent text-[13px] font-bold text-foreground focus:outline-none"
+                            >
+                                {spells.map((s) => {
+                                    const displayName = locale === "en" ? (s.nameEn || s.name) : s.name;
+                                    return (
+                                        <option key={s.id} value={s.id}>
+                                            {displayName} ({s.apCost ? `${s.apCost} PA · ` : ""}{s.minRange === s.range ? `${s.range} PO` : `${s.minRange ?? 0}-${s.range ?? 0} PO`})
+                                        </option>
+                                    );
+                                })}
+                            </select>
+                        </div>
+
                         {currentSpell && (
-                            <div className="flex flex-wrap items-center gap-1.5">
-                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-info/10 text-info border border-info/20">
+                            <div className="flex shrink-0 flex-wrap items-center gap-1.5">
+                                <span className="rounded-md border border-info/20 bg-info/10 px-1.5 py-0.5 text-[10px] font-bold text-info">
                                     {currentSpell.apCost || 0} PA
                                 </span>
-                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-accent/10 text-accent border border-accent/20">
+                                <span className="rounded-md border border-border bg-muted/15 px-1.5 py-0.5 text-[10px] font-bold text-muted-foreground">
                                     {minRange === maxRange ? `${maxRange} PO` : `${minRange} à ${maxRange} PO`}
                                 </span>
-                                <span className={cn(
-                                    "text-[10px] font-bold px-2 py-0.5 rounded-md border",
-                                    castTestLos ? "bg-muted/15 text-muted-foreground border-border" : "bg-success/15 text-success border-success/30 font-black"
-                                )}>
-                                    {castTestLos ? simT.los : simT.noLos}
-                                </span>
+                                {/* La ligne de vue est la NORME : on n'affiche que l'exception
+                                    (« Sans Ligne de Vue »), pour que l'information rare se voie. */}
+                                {!castTestLos && (
+                                    <span className="rounded-md border border-success/30 bg-success/15 px-1.5 py-0.5 text-[10px] font-black text-success">
+                                        {simT.noLos}
+                                    </span>
+                                )}
                                 {currentSpell.zone && currentSpell.zone.shape !== "Inconnue" && (
-                                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-warning/10 text-warning border border-warning/20">
+                                    <span className="rounded-md border border-accent/20 bg-accent/10 px-1.5 py-0.5 text-[10px] font-bold text-accent">
                                         {simT.zoneShape.replace("{shape}", currentSpell.zone.shape)}
                                     </span>
                                 )}
@@ -1261,8 +1308,9 @@ export function SpellRangeGrid({
                             {mapLoading && <Loader2 className="w-3.5 h-3.5 animate-spin text-zinc-400 shrink-0" />}
                         </div>
 
-                        {/* Ligne 2 : Zoom + Placement + Butin + Toggles */}
-                        <div className="flex items-center justify-between gap-1 flex-wrap text-[10px]">
+                        {/* Ligne 2 : Zoom + Options + Recentrer. Tout le secondaire (placement,
+                            butin, toggles) vit dans le panneau « Options » replié. */}
+                        <div className="relative flex items-center justify-between gap-1 flex-wrap text-[10px]">
                             {/* Zoom controls */}
                             <div className="inline-flex items-center bg-zinc-900 border border-white/10 rounded-md p-0.5">
                                 <button type="button" onClick={() => setZoom((z) => Math.max(ZOOM_MIN, Number((z - 0.2).toFixed(2))))} className="px-1.5 py-0.5 font-black text-zinc-400 hover:text-white" title="Zoom arrière">−</button>
@@ -1270,6 +1318,48 @@ export function SpellRangeGrid({
                                 <button type="button" onClick={() => setZoom((z) => Math.min(ZOOM_MAX, Number((z + 0.2).toFixed(2))))} className="px-1.5 py-0.5 font-black text-zinc-400 hover:text-white" title="Zoom avant">+</button>
                                 <button type="button" onClick={() => { setZoom(0.6); setPan({ x: 0, y: 0 }); }} className="px-1.5 py-0.5 font-bold text-white/70 hover:text-white" title="Ajuster et recentrer">Fit</button>
                             </div>
+
+                            {/* Rangement : une seule rangée visible. Le reste est derrière ce
+                                bouton — avec une pastille du nombre de réglages actifs pour ne
+                                rien perdre de vue quand le panneau est replié. */}
+                            <div className="flex items-center gap-1">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowOptions((v) => !v)}
+                                    aria-expanded={showOptions}
+                                    title={simT.optionsTitle}
+                                    className={cn(
+                                        "inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[10px] font-semibold transition-colors",
+                                        showOptions ? "bg-white/[0.12] border-white/25 text-white" : "bg-zinc-900 border-white/10 text-zinc-400 hover:text-white"
+                                    )}
+                                >
+                                    <SlidersHorizontal className="w-3 h-3" />
+                                    {simT.options}
+                                    {activeOptionCount > 0 && (
+                                        <span className="rounded-full bg-warning/25 px-1 text-[9px] font-black tabular-nums text-warning">
+                                            {activeOptionCount}
+                                        </span>
+                                    )}
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={recenter}
+                                    className="p-1 rounded-md bg-zinc-900 border border-white/10 text-zinc-400 hover:text-white"
+                                    title="Recentrer le boss"
+                                >
+                                    <RotateCcw className="w-3 h-3" />
+                                </button>
+                            </div>
+
+                            {showOptions && (
+                                <div
+                                    data-no-drag
+                                    className="absolute right-0 top-full z-50 mt-1.5 w-[18rem] space-y-1.5 overflow-y-auto rounded-xl border border-white/15 bg-[#121218]/97 p-2 shadow-2xl backdrop-blur-md [scrollbar-width:thin]"
+                                    style={{ maxHeight: "min(60vh, 22rem)" }}
+                                >
+                                    <p className="text-[9px] font-black uppercase tracking-[0.14em] text-white/40">
+                                        {simT.optionsTitle}
+                                    </p>
 
                             {/* Placement & Butin compacts */}
                             {mapData && (
@@ -1367,16 +1457,9 @@ export function SpellRangeGrid({
                                         <Move className="w-3 h-3" />
                                     </button>
                                 )}
-
-                                <button
-                                    type="button"
-                                    onClick={recenter}
-                                    className="p-1 rounded-md bg-zinc-900 border border-white/10 text-zinc-400 hover:text-white"
-                                    title="Recentrer le boss"
-                                >
-                                    <RotateCcw className="w-3 h-3" />
-                                </button>
                             </div>
+                                </div>
+                            )}
                         </div>
                     </div>
                 ) : (
@@ -1485,6 +1568,41 @@ export function SpellRangeGrid({
                                 <button type="button" onClick={() => setZoom((z) => Math.min(ZOOM_MAX, Number((z + 0.2).toFixed(2))))} className="px-2 py-1 rounded-md text-xs font-black text-muted-foreground hover:text-foreground hover:bg-elevated transition-all cursor-pointer" title={locale === "en" ? "Zoom in" : "Zoom avant"}>+</button>
                                 <button type="button" onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }); }} className="px-1.5 py-1 rounded-md text-[10px] font-bold text-muted-foreground hover:text-foreground hover:bg-elevated transition-all cursor-pointer" title={locale === "en" ? "1:1 (recenter)" : "1:1 (recentrer)"}>1:1</button>
                             </div>
+
+                            {/* Rangement : la rangée ne montre plus QUE le zoom et ce bouton.
+                                Le reste (alliés, ennemis, placements de départ, boss libre,
+                                placement, butin, vider) est derrière, avec une pastille du
+                                nombre de réglages actifs. */}
+                            <button
+                                type="button"
+                                onClick={() => setShowOptions((v) => !v)}
+                                aria-expanded={showOptions}
+                                title={simT.optionsTitle}
+                                className={cn(
+                                    "inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-bold transition-all cursor-pointer",
+                                    showOptions
+                                        ? "border-white/25 bg-white/[0.12] text-white"
+                                        : "border-border bg-surface text-muted-foreground hover:bg-elevated hover:text-foreground"
+                                )}
+                            >
+                                <SlidersHorizontal className="h-3.5 w-3.5" />
+                                {simT.options}
+                                {activeOptionCount > 0 && (
+                                    <span className="rounded-full bg-warning/20 px-1.5 text-[10px] font-black tabular-nums text-warning">
+                                        {activeOptionCount}
+                                    </span>
+                                )}
+                            </button>
+
+                            {showOptions && (
+                                <div
+                                    data-no-drag
+                                    className="absolute right-2 top-full z-50 mt-1.5 w-[19rem] space-y-2 overflow-y-auto rounded-xl border border-white/15 bg-[#121218]/97 p-2.5 shadow-2xl backdrop-blur-md [scrollbar-width:thin]"
+                                    style={{ maxHeight: "min(65vh, 24rem)" }}
+                                >
+                                    <p className="text-[9px] font-black uppercase tracking-[0.14em] text-white/40">
+                                        {simT.optionsTitle}
+                                    </p>
                             {!hideAllies && (
                                 <button
                                     type="button"
@@ -1609,6 +1727,8 @@ export function SpellRangeGrid({
                                     <RotateCcw className="w-3 h-3" /> {simT.clear}
                                 </button>
                             )}
+                                </div>
+                            )}
                         </div>
                     </>
                 )}
@@ -1645,7 +1765,11 @@ export function SpellRangeGrid({
 
                 {/* Viewport pan/zoom isolé : lui seul bouge, le chrome reste fixe. */}
                 <div
-                    className={cn("relative w-full min-h-0", compact ? "flex-1 overflow-hidden" : "overflow-x-auto")}
+                    // ⚠️ Le fond sombre est porté par le CONTENEUR (donc fixe). Avant, il était
+                    // dessiné par un `<rect fill="#050505">` À L'INTÉRIEUR du calque transformé :
+                    // déplacer la carte déplaçait aussi le fond, d'où l'impression que « le
+                    // composant complet » bougeait. Ici, seul le plateau isométrique se déplace.
+                    className={cn("relative w-full min-h-0 bg-[#050505]", compact ? "flex-1 overflow-hidden" : "overflow-x-auto")}
                     onPointerDown={handlePointerDown}
                     onPointerMove={handlePointerMove}
                     onPointerUp={handlePointerUp}
@@ -1667,8 +1791,8 @@ export function SpellRangeGrid({
                     className="w-full h-auto drop-shadow-2xl"
                     style={{ minWidth: compact ? "100%" : "380px" }}
                 >
-                    {/* Fond noir (le vide autour des maps ressort en noir franc) */}
-                    {mapData && <rect x={viewX} y={viewY} width={viewW} height={viewH} fill="#050505" />}
+                    {/* Le fond sombre du plateau est porté par le conteneur (cf. ci-dessus) :
+                        il ne défile pas avec la carte. */}
                     {mapData ? (
                         /* ── MAP RÉELLE : grille en quinconce Dofus (40×14) ── */
                         (() => {
@@ -2059,95 +2183,16 @@ export function SpellRangeGrid({
                 </div>
                 </div>
 
-                {/* Légende & astuces — repliée par défaut, en-tête neutre, aide d'**une
-                    ligne** (l'ancien paragraphe de 3 phrases saturait la fenêtre PiP). */}
-                {compact ? (
-                    <div className="w-full mt-1.5 pt-1 border-t border-white/5 shrink-0 relative z-30 bg-[#161614]">
-                        <button
-                            type="button"
-                            onClick={() => setShowCompactLegend((v) => !v)}
-                            className="w-full flex items-center justify-between px-2 py-1 rounded-md text-[10px] text-zinc-400 hover:text-white hover:bg-white/[0.04] transition-colors"
-                        >
-                            <span className="flex items-center gap-1.5">
-                                <HelpCircle className="w-3.5 h-3.5" />
-                                {showCompactLegend ? "Masquer la légende" : "Légende & astuces"}
-                            </span>
-                            <ChevronDown className={cn("w-3.5 h-3.5 transition-transform duration-200", showCompactLegend && "rotate-180")} />
-                        </button>
-                        {showCompactLegend && (
-                            <div className="mt-2 space-y-2 px-1">
-                                <div className="w-full flex flex-wrap items-center gap-x-2.5 gap-y-1.5 text-[9px] text-zinc-400">
-                                    <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-[2px] inline-block" style={{ background: "#6b1d1d", border: "1px solid #c53030" }} /> Boss (lanceur)</span>
-                                    {!hideAllies && (
-                                        <span className="inline-flex items-center gap-1"><img src="/assets/module-succes/feca.webp" alt="" className="w-3.5 h-3.5 object-contain rounded-[2px]" /> Joueur (allié)</span>
-                                    )}
-                                    {enemiesEnabled && (
-                                        <span className="inline-flex items-center gap-1"><img src={enemyIconUrl} alt="" className="w-3.5 h-3.5 object-contain rounded-[2px]" /> Ennemi</span>
-                                    )}
-                                    <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-[2px] inline-block" style={{ background: "#79b638" }} /> Portée du sort</span>
-                                    <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-[2px] inline-block" style={{ background: "#e0a320", border: "1px solid #ffcf5e" }} /> Zone d'effet / AoE</span>
-                                    <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-[2px] inline-block" style={{ background: "#8a3a30", border: "1px solid #c65a4a" }} /> Départ Joueurs (Rouge)</span>
-                                    <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-[2px] inline-block" style={{ background: "#2e5a8a", border: "1px solid #4a86c4" }} /> Départ Monstres (Bleu)</span>
-                                    <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-[2px] inline-block" style={{ background: "#1e3a5f", border: "1px solid #3b82f6" }} /> Hors portée</span>
-                                    <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-[2px] inline-block" style={{ background: "#a11c1c", border: "1px solid #ef4444" }} /> Touché par zone</span>
-                                    {mapData && (
-                                        <>
-                                            <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-[2px] inline-block" style={{ background: "#8D8A66" }} /> Sol</span>
-                                            <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-[2px] inline-block" style={{ background: "#777358", border: "1px solid #5C5945" }} /> Obstacle</span>
-                                            <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-[2px] inline-block" style={{ background: "#050505", border: "1px solid #3a3a3a" }} /> Trou</span>
-                                        </>
-                                    )}
-                                </div>
-                                <p className="text-[10px] text-zinc-500 leading-tight">
-                                    {allowFreeCasterMove
-                                        ? freeCasterMove
-                                            ? "Boss libre : clique une case marchable pour le déplacer (prévisualisation)."
-                                            : "Boss épinglé sur son placement — active « Boss libre » pour le déplacer."
-                                        : "Boss épinglé sur sa case de placement."}{" "}
-                                    Molette = zoom · clic-glisser = déplacer.{!hideAllies && " Féca : clic pour sélectionner, clic ailleurs pour déplacer, re-clic pour orienter."}{enemiesEnabled && " Ennemi : clic pour sélectionner, clic ailleurs pour déplacer."}
-                                </p>
-                            </div>
-                        )}
-                    </div>
-                ) : (
-                    <>
-                        <div className="w-full flex flex-wrap items-center gap-x-3 gap-y-1.5 mt-3 px-2 text-[10px] font-bold text-zinc-400">
-                            <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-[3px] inline-block" style={{ background: "#6b1d1d", border: "1px solid #c53030" }} /> {simT.legend.boss}</span>
-                            {!hideAllies && (
-                                <span className="inline-flex items-center gap-1.5"><img src="/assets/module-succes/feca.webp" alt="" className="w-4 h-4 object-contain rounded-[3px]" /> {simT.legend.player}</span>
-                            )}
-                            {enemiesEnabled && (
-                                <span className="inline-flex items-center gap-1.5"><img src={enemyIconUrl} alt="" className="w-4 h-4 object-contain rounded-[3px]" /> {simT.legend.enemy}</span>
-                            )}
-                            <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-[3px] inline-block" style={{ background: "#79b638" }} /> {simT.legend.spellRange}</span>
-                            <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-[3px] inline-block" style={{ background: "#e0a320", border: "1px solid #ffcf5e" }} /> {simT.legend.aoe}</span>
-                            <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-[3px] inline-block" style={{ background: "#8a3a30", border: "1px solid #c65a4a" }} /> {simT.legend.startPlayers}</span>
-                            <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-[3px] inline-block" style={{ background: "#2e5a8a", border: "1px solid #4a86c4" }} /> {simT.legend.startMonsters}</span>
-                            {!hideAllies && (
-                                <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-[3px] inline-block" style={{ background: "#1e3a5f", border: "1px solid #3b82f6" }} /> {simT.legend.outOfRange}</span>
-                            )}
-                            {!hideAllies && (
-                                <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-[3px] inline-block" style={{ background: "#a11c1c", border: "1px solid #ef4444" }} /> {simT.legend.hitByZone}</span>
-                            )}
-                            {enemiesEnabled && (
-                                <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-[3px] inline-block" style={{ background: "#a11c1c", border: "1px solid #ef4444" }} /> {simT.legend.enemyHitByZone}</span>
-                            )}
-                            {mapData && (
-                                <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-[3px] inline-block" style={{ background: "#8D8A66" }} /> {simT.legend.walkable}</span>
-                            )}
-                            {mapData && (
-                                <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-[3px] inline-block" style={{ background: "#777358", border: "1px solid #5C5945" }} /> {simT.legend.obstacle}</span>
-                            )}
-                            {mapData && (
-                                <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-[3px] inline-block" style={{ background: "#050505", border: "1px solid #3a3a3a" }} /> {simT.legend.hole}</span>
-                            )}
-                        </div>
-
-                        <p className="text-[11px] text-zinc-400 mt-2 text-center">
-                            💡 {allowFreeCasterMove ? (freeCasterMove ? simT.helpers.freeBossTip : simT.helpers.pinnedBossTip) : simT.helpers.pinnedBossTip}{simT.helpers.mouseControls}
-                        </p>
-                    </>
-                )}
+                <SimulationTacticalLegend
+                    variant={compact ? "compact" : "full"}
+                    open={showLegend}
+                    onToggle={() => setShowLegend((v) => !v)}
+                    isRealMap={!!mapData}
+                    showAllies={!hideAllies}
+                    showEnemies={enemiesEnabled}
+                    enemyIconUrl={enemyIconUrl ?? ""}
+                    freeBossHint={allowFreeCasterMove ? (freeCasterMove ? simT.helpers.freeBossTip : simT.helpers.pinnedBossTip) : simT.helpers.pinnedBossTip}
+                />
             </div>
 
             {/* Modale d'explication des règles de placement Dofus */}

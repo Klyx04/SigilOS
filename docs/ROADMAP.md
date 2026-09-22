@@ -10,6 +10,16 @@
 > Réouvrir l'historique en mode plan = gaspillage de tokens.
 
 ---
+## 📌 Session 21/09/2026 (nuit, UI) — **Simulation tactique, Lot 1 « rangement pro » : une seule rangée de chrome + panneau Options, bandeau du sort actif identifiable, légende repliée en 3 familles, pan au bon périmètre** · branche `fix/sim-tactique-rangement`
+> **Demande user (verbatim)** : « il faut améliorer la simulation tactique des boss (que ce soit interne ou externe) · le composant complet peut être déplacé en maintenant enfoncé la souris c pas normal · c trop le bordel et trop slopesque dans tous les boutons au-dessus le composant, faut un rangement pro · le bandeau sort simulé pas intuitif à l'œil on le perd · légende bc trop grosse · un meilleur visuel premium ». Chantier séquencé en **3 lots** (décision user : « tout, en un seul chantier séquentiel Lot 1 → Lot 2 → Lot 3, avec un point d'étape entre chaque lot »).
+> **Causes racines mesurées** (`src/components/succes/SpellRangeGrid.tsx`, ~2 200 lignes, **4 surfaces** : landing `/boss/[id]`, interne `SuccesBossGuide`, overlay Bestiaire, onglet Simulation des fiches stuff) : ① le fond noir du plateau était un `<rect fill="#050505">` **à l'intérieur du calque transformé** (pan/zoom) ⇒ déplacer la carte déplaçait aussi le fond (« le composant complet bouge »), et le **clic-molette** armait l'**auto-défilement natif** du navigateur (le panneau partait tout seul) ; ② le chrome empilait **5 niveaux** au-dessus de la carte (toolbar du sort · ligne Entité/Carte · sélecteur de salle · rangée zoom/toggles · bandeau « Ordre d'apparition ») avec **les mêmes toggles recopiés en deux versions** (compact = icônes, complet = libellés) ; ③ le sort actif était un `<select>` nu collé à un libellé — **aucune icône** (elle n'existait que dans la liste déroulante) ni hiérarchie ; ④ la légende était **dépliée en permanence** en mode complet (12 entrées + un paragraphe de 3 phrases) et **recopiée en français codé en dur** dans le mode compact.
+> **Fait (Lot 1)** : ① **pan** — le fond sombre passe sur le **conteneur** (fixe) et `e.preventDefault()` coupe l'auto-défilement natif (cursor `grab`/`grabbing` conservé) ; ② **rangement** — une seule rangée visible par mode (zoom · **Options** · Recentrer) et **un panneau `Options` partagé** (placements de départ, boss libre, alliés, ennemis, placement + règles, butin, vider) avec **pastille `activeOptionCount`** ; le `Recentrer` recopié dans le panneau compact est supprimé ; ③ **sort actif** — bloc d'identité (icône du sort + eyebrow « Sort simulé » + nom en gras + chips PA/PO/zone) et la ligne de vue n'apparaît plus que **par exception** (« Sans Ligne de Vue ») ; ④ **légende** — nouveau composant **`SimulationTacticalLegend`** (source unique des 2 modes), **repliée par défaut partout**, en **3 familles** (Cases · Ciblage · Personnages & états), textes **i18n** (fin du français codé en dur du mode compact) et rendu **thème-aware** hors vue de jeu.
+> **Preuves** : `tests/unit/sim-tactique-rangement.test.ts` (**12 cas**) · suite complète ✓ · `tsc` **0** · `eslint` **0 erreur** (les 146 avertissements `sigil/no-hardcoded-colors` du plateau sont **antérieurs** et volontaires : palette de jeu).
+> **Reste** : **contrôle visuel user obligatoire** (4 surfaces : compact + complet, thème clair/sombre, panneau Options ouvert, légende ouverte, glisser sur le fond et clic-molette) · **Lot 2** (mesure des données de dégâts) puis **Lot 3** (prévisu de dégâts, zones, accessibilité, « premium »).
+
+---
+
+
 ## 📌 Session 21/09/2026 (soir, UI) — **Rush : séparateurs redessinés (plus de barre latérale), flèche de repli réparée sur le guide public, overlay aéré + « mode compact » déplacé dans l'en-tête** · branche `fix/rush-ui`
 > **Demande user (verbatim)** : « modifie les blocs de type "separation" ils n'ont pas à avoir une barre de couleur sur le côté, ils doivent avoir un style entre le texte du milieu, style tougli sans recopier : trouver un style pour nous — valable guide interne externe et overlay interne externe » · « la flèche pour replier un bloc marche pas sur le guide publique » · « est-ce qu'on devrai pas aérer l'overlay […] à quoi sert le mode compact avec le bouton en bas si inutile ».
 > **Cause racine mesurée (flèche)** : `isExpanded = expandedMs.has(ms.id) || isSearching || pagedChapterId === ms.id` (`PublicRushGuideClient.tsx`) — le chapitre de la page courante était **forcé déplié**, donc la flèche de repli était **inerte** (le corps restait visible pendant que la flèche disait « replié »).
@@ -613,6 +623,33 @@
 - **#186a** Optimistic UI (`useOptimistic` sur Rejoindre/Cocher/Toggle) + prefetch routes +
   skeletons + **virtualisation** (ladder, annuaire, galerie).
 - **#129 / #1038** Responsivité : audit composant par composant (sweep à poursuivre).
+- **Simulation tactique des boss (`SpellRangeGrid`, 4 surfaces : landing `/boss/[id]`, interne
+  `SuccesBossGuide`, overlay Bestiaire, onglet Simulation des fiches stuff)** — demande user du
+  21/09/2026 (verbatim) : « il faut améliorer la simulation tactique des boss (que ce soit interne
+  ou externe) · le composant complet peut être déplacé en maintenant enfoncé la souris c pas
+  normal · c trop le bordel et trop slopesque dans tous les boutons au-dessus le composant, faut un
+  rangement pro · le bandeau sort simulé pas intuitif à l'œil on le perd · légende bc trop grosse ·
+  il faut revoir les couleurs, les sorts simulés les zones etc · pk afficher les dégâts en preview
+  (option à activer ?) quand une cible est visée avec un sort boss ? · les zones, les dégâts
+  dégressifs en zone, calculer les dégâts poussés si y a sorts de poussée · un meilleur visuel
+  premium ». **Découpage retenu par le user** : « tout, en un seul chantier séquentiel Lot 1 →
+  Lot 2 → Lot 3, avec un point d'étape entre chaque lot ».
+  - **✅ Lot 1 — « rangement pro » (LIVRÉ, branche `fix/sim-tactique-rangement`)** : fond du plateau
+    porté par le conteneur + `preventDefault` sur le pointer-down (fin du « composant complet qui
+    bouge » et de l'auto-défilement au clic-molette) · **une seule rangée** de chrome visible par
+    mode + **panneau `Options` partagé** (placements de départ, boss libre, alliés, ennemis,
+    placement + règles, butin, vider) avec pastille des réglages actifs — les toggles n'existent
+    plus en deux exemplaires · **bloc d'identité du sort** (icône + eyebrow + nom + PA/PO/zone ;
+    « Sans Ligne de Vue » seulement en exception) · **légende partagée `SimulationTacticalLegend`**
+    repliée par défaut, en 3 familles, i18n FR/EN, thème-aware hors vue de jeu.
+  - **Lot 2 — MESURER les données de dégâts** (à faire AVANT toute UI) : ce que Dofensive/DofusDB
+    exposent réellement (dégâts min/max par grade · facteur de **dégressivité en zone** · **dégâts
+    de poussée** en cases) — aujourd'hui `SpellData.effects` n'est qu'un **texte** et
+    `effectDetails` (label/durée/déclencheurs) ne porte **aucune valeur numérique** : aucune valeur
+    ne doit être inventée.
+  - **Lot 3 — visuel premium** : prévisu de dégâts **optionnelle** (à activer) sur cible visée,
+    lisibilité des zones (dégradés/contours, pas seulement la couleur), accessibilité (daltonisme :
+    forme + couleur), palette documentée.
 
 ## 🟠 Retours user (suite #202)
 

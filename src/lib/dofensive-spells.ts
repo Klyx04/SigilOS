@@ -94,6 +94,75 @@ export interface DofensiveMergedSpell extends Omit<DofensiveSpellCombat, "zone">
 }
 
 /**
+ * Grade de monstre réellement utilisé (`Grades[gradeLevel - 1]`, repli sur le **dernier** grade —
+ * même convention que `pickMonsterDamageStats` et que la sélection du niveau de sort).
+ */
+export function pickMonsterGrade(grades: any, gradeLevel?: number): any | null {
+    const list: any[] = Array.isArray(grades) ? grades : [];
+    if (list.length === 0) return null;
+    const idx = typeof gradeLevel === "number" && gradeLevel >= 1 && gradeLevel <= list.length
+        ? gradeLevel - 1
+        : list.length - 1;
+    return list[idx] ?? null;
+}
+
+/**
+ * **Niveau de sort** à utiliser pour un monstre.
+ *
+ * 🔍 Mesure du 22/09/2026 (`Ancrépulsion`, monstre `Armécréante` 5979) : le jeu fixe le niveau du
+ * sort **par grade de monstre** — payload Dofensive `Grades[].SpellGrades = {"15143":1,"15144":1,
+ * "15150":1}` — et **non** « le dernier niveau du sort ». Le sort `15144` a 3 niveaux :
+ *   · `Grade 1` (id 45397) → « Attire de 1 case » + **« 61 à 70 dommages Terre »** ;
+ *   · `Grade 3` (id 45475) → « Repousse de 3 cases (sans dommages) » — **aucun dégât**.
+ * Prendre le dernier niveau affichait donc un sort qui **ne tape pas**, alors que le monstre le
+ * lance au niveau 1 : toute la fiche (mécaniques, prévisu, simulation) était fausse.
+ *
+ * Repli **documenté** : payload sans `SpellGrades` (donnée absente) ⇒ dernier niveau, comportement
+ * historique — jamais un niveau inventé. `null` = aucun niveau exploitable.
+ */
+export function pickSpellLevelForMonster<T extends { Grade?: number | null }>(
+    levels: T[],
+    spellId: number,
+    grade: any
+): T | null {
+    const list = (Array.isArray(levels) ? levels : []).filter(Boolean) as T[];
+    if (list.length === 0) return null;
+    const map = grade?.SpellGrades ?? null;
+    const wanted = Number(map ? map[String(spellId)] ?? map[spellId] : NaN);
+    if (Number.isFinite(wanted) && wanted >= 1) {
+        const byGrade = list.find((l) => Number(l?.Grade) === wanted);
+        if (byGrade) return byGrade;
+        if (wanted <= list.length) return list[wanted - 1];
+    }
+    return list[list.length - 1];
+}
+
+/**
+ * **Version de FORME du payload de sorts stocké** (`MonsterStat.stats.spells`).
+ *
+ * 🔍 Cause racine mesurée le 22/09/2026 (retour user : « les estimations de dégâts ne marchent pas du
+ * tout ») — la lecture locale sert volontairement une ligne **périmée** (`stale-while-offline`), mais
+ * rien ne signalait qu'un payload écrit par une version ANTÉRIEURE du code n'a plus la forme attendue :
+ *   · `SELECT count(*) … WHERE effectDetails[].damage ? 'max'` → **0 ligne sur 256** portait le jet ;
+ *   · l'option « Dégâts estimés » était donc désactivée partout (« Aucun dégât ») alors que le code de
+ *     lecture était juste : **la donnée servie** ne portait pas le champ.
+ *
+ * ⇒ Toute écriture (`persistMonsterStat`) estampille cette version ; toute lecture qui découvre une
+ * forme antérieure (ou absente) la traite comme **à rafraîchir depuis la source** — jamais comme une
+ * absence (la règle `stale-while-offline` reste entière : on sert la ligne si la source ne répond pas).
+ *
+ *   · **v1** = historique (aucun champ de jet) ;
+ *   · **v2** = lot 3a « prévisu de dégâts » (`effectDetails[].damage` + `.pushDistance`).
+ */
+export const COMBAT_SPELLS_PAYLOAD_VERSION = 2;
+
+/** `true` quand le payload stocké n'a pas (ou plus) la forme attendue par le code courant. */
+export function isCombatSpellsPayloadOutdated(payloadVersion: unknown): boolean {
+    const version = Number(payloadVersion);
+    return !Number.isFinite(version) || version < COMBAT_SPELLS_PAYLOAD_VERSION;
+}
+
+/**
  * Fusionne les sorts DofusDB (images/descriptions) avec les données de combat
  * Dofensive (AP/portée/LoS/ligne/diagonale/cooldown/zone). Les champs de combat
  * Dofensive PRIMENT (source de vérité combat) ; les sorts présents uniquement chez

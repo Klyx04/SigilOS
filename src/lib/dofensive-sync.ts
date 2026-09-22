@@ -18,7 +18,11 @@ import { createHash } from "node:crypto";
 import { db } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 import { dofensiveFetch, norm } from "@/lib/dofensive-fetch";
-import type { DofensiveSpellCombat } from "@/lib/dofensive-spells";
+import {
+    COMBAT_SPELLS_PAYLOAD_VERSION,
+    isCombatSpellsPayloadOutdated,
+    type DofensiveSpellCombat,
+} from "@/lib/dofensive-spells";
 import type { DofensiveDungeonInfo, DofensiveMapData } from "@/server/actions/dofensive-actions";
 
 export const SYNC_TTL = 24 * 60 * 60 * 1000; // 24 h — donnée de jeu statique
@@ -69,17 +73,37 @@ export interface LocalStaleResult<T> {
     data: T;
     lastSyncedAt: Date | null;
     stale: boolean;
+    /** Version de FORME du payload stocké (`stats.spellsVersion`) — `null` si inconnue/absente. */
+    payloadVersion: number | null;
+    /**
+     * `true` quand la ligne porte une forme ANTÉRIEURE du payload (siphon d'avant le lot 3a :
+     * aucun `effectDetails[].damage`). Elle est **servie** (jamais transformée en absence) mais
+     * **pas considérée comme valide** : le lecteur la rafraîchit depuis la source quand il le peut.
+     * Cause racine mesurée le 22/09/2026 (0 ligne sur 256 portait le jet ⇒ « Aucun dégât » partout).
+     */
+    payloadOutdated: boolean;
 }
 
-/** Emballage commun : `stale` = ligne présente mais plus vieille que `SYNC_TTL`. */
-export function toStaleResult<T>(data: T, lastSyncedAt: Date | string | null | undefined): LocalStaleResult<T> {
+/**
+ * Emballage commun : `stale` = ligne présente mais plus vieille que `SYNC_TTL` ;
+ * `payloadOutdated` = forme du payload dépassée (voir `COMBAT_SPELLS_PAYLOAD_VERSION`) —
+ * les deux sont **indépendants** (une ligne fraîche peut porter une forme obsolète).
+ */
+export function toStaleResult<T>(
+    data: T,
+    lastSyncedAt: Date | string | null | undefined,
+    payloadVersion: unknown = null
+): LocalStaleResult<T> {
     const at = lastSyncedAt
         ? (typeof lastSyncedAt === "string" ? new Date(lastSyncedAt) : lastSyncedAt)
         : null;
+    const version = Number(payloadVersion);
     return {
         data,
         lastSyncedAt: at instanceof Date && !Number.isNaN(at.getTime()) ? at : null,
         stale: !isFresh(lastSyncedAt),
+        payloadVersion: Number.isFinite(version) ? version : null,
+        payloadOutdated: isCombatSpellsPayloadOutdated(payloadVersion),
     };
 }
 
@@ -282,7 +306,8 @@ export async function getLocalMonsterStatAny(monsterName: string): Promise<Local
             orderBy: { lastSyncedAt: "desc" },
         });
         if (!row) return null;
-        return toStaleResult<any>(row.stats, row.lastSyncedAt);
+        // La forme du payload voyage avec la ligne : « fraîche » ne veut pas dire « à jour ».
+        return toStaleResult<any>(row.stats, row.lastSyncedAt, (row.stats as any)?.spellsVersion);
     } catch (error) {
         logger.warn("[dofensive-sync] getLocalMonsterStatAny échec:", { error: String(error) });
         return null;
@@ -307,7 +332,7 @@ export async function getLocalMonsterStatByIdAny(monsterId: number): Promise<Loc
     try {
         const row = await db.monsterStat.findUnique({ where: { monsterId: id } });
         if (!row) return null;
-        return toStaleResult<any>(row.stats, row.lastSyncedAt);
+        return toStaleResult<any>(row.stats, row.lastSyncedAt, (row.stats as any)?.spellsVersion);
     } catch (error) {
         logger.warn("[dofensive-sync] getLocalMonsterStatByIdAny échec:", { error: String(error) });
         return null;
@@ -328,7 +353,11 @@ export async function getLocalDofensiveSpellsAny(
         if (!row) return null;
         const combat = pickCombatSpells((row.stats as any)?.spells);
         if (!combat) return null;
-        return toStaleResult<DofensiveSpellCombat[]>(combat, row.lastSyncedAt);
+        return toStaleResult<DofensiveSpellCombat[]>(
+            combat,
+            row.lastSyncedAt,
+            (row.stats as any)?.spellsVersion
+        );
     } catch (error) {
         logger.warn("[dofensive-sync] getLocalDofensiveSpellsAny échec:", { error: String(error) });
         return null;
@@ -381,26 +410,69 @@ export async function persistMonsterStat(data: any): Promise<void> {
         if (!Number.isFinite(monsterId) || monsterId <= 0) return;
         const name = String(data.name ?? "");
         if (!name) return;
+        // 🏷️ Estampille de FORME : tout ce qui est écrit ici est lisible par le code courant
+        // (voir `COMBAT_SPELLS_PAYLOAD_VERSION`) — sans quoi un futur ajout de champ rendrait la
+        // ligne « fraîche mais illisible », le bug mesuré du 22/09/2026.
+        const payload = { ...data, spellsVersion: COMBAT_SPELLS_PAYLOAD_VERSION };
         await db.monsterStat.upsert({
             where: { monsterId },
             create: {
                 monsterId,
                 monsterName: name,
-                dungeonName: data.dungeonName ?? null,
-                stats: data,
-                versionHash: hashPayload(data),
+                dungeonName: payload.dungeonName ?? null,
+                stats: payload,
+                versionHash: hashPayload(payload),
                 lastSyncedAt: new Date(),
             },
             update: {
                 monsterName: name,
-                dungeonName: data.dungeonName ?? null,
-                stats: data,
-                versionHash: hashPayload(data),
+                dungeonName: payload.dungeonName ?? null,
+                stats: payload,
+                versionHash: hashPayload(payload),
                 lastSyncedAt: new Date(),
             },
         });
     } catch (error) {
         logger.warn("[dofensive-sync] persistMonsterStat échec:", { error: String(error) });
+    }
+}
+
+/**
+ * 🔧 **Réécrit uniquement les sorts de combat stockés** (+ l'estampille de forme) — auto-réparation
+ * du payload servi par la lecture locale, appelée par `getDofensiveSpells` quand il a dû re-fetcher
+ * la source (forme obsolète : siphon antérieur au lot 3a, aucun jet numérique).
+ *
+ * Sans cela, CHAQUE lecture repaierait 1 + N appels réseau (un par sort) : la réparation est donc
+ * persistée dès la première lecture, et les suivantes restent locales.
+ *
+ * ⚠️ `lastSyncedAt` n'est **pas** touché : seule la partie « sorts » a été re-fetchée, pas la fiche
+ * DofusDB (grades, butin, image). Prétendre le contraire ferait mentir la règle de fraîcheur 24 h.
+ *
+ * Fail-soft : `false` (jamais d'exception) quand la ligne est absente, la DB illisible en test, ou
+ * l'écriture refusée — l'appelant garde alors la donnée live qu'il vient de calculer.
+ */
+export async function persistStoredCombatSpells(
+    monsterId: number,
+    spells: DofensiveSpellCombat[]
+): Promise<boolean> {
+    const id = Math.floor(Number(monsterId) || 0);
+    if (!DB_READABLE || id <= 0 || !Array.isArray(spells) || spells.length === 0) return false;
+    try {
+        const row = await db.monsterStat.findUnique({ where: { monsterId: id }, select: { stats: true } });
+        if (!row) return false;
+        const stats: any = {
+            ...((row.stats as Record<string, unknown>) ?? {}),
+            spells,
+            spellsVersion: COMBAT_SPELLS_PAYLOAD_VERSION,
+        };
+        await db.monsterStat.update({
+            where: { monsterId: id },
+            data: { stats, versionHash: hashPayload(stats) },
+        });
+        return true;
+    } catch (error) {
+        logger.warn("[dofensive-sync] persistStoredCombatSpells échec:", { error: String(error) });
+        return false;
     }
 }
 

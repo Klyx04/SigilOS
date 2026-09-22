@@ -842,6 +842,7 @@ export const fr = {
         damageHudTargets: "{count} cible(s) dans la zone",
         damageHudRule: "Règle du jeu : dégâts réels = dégâts finaux × (10 − éloignement)/10, l'éloignement se mesurant depuis la case visée (cible blanche).",
         damageFalloffShort: "−{percent}%",
+        targetCellShort: "Case visée",
         legendTitle: "Légende",
         legendGroups: {
             cells: "Cases",

@@ -845,6 +845,7 @@ export const en: Translations = {
         damageHudTargets: "{count} target(s) in the zone",
         damageHudRule: "Game rule: real damage = final damage × (10 − distance)/10, the distance being measured from the targeted cell (white target).",
         damageFalloffShort: "−{percent}%",
+        targetCellShort: "Target cell",
         legendTitle: "Legend",
         legendGroups: {
             cells: "Tiles",

@@ -24,6 +24,7 @@ import type {
 } from "@/lib/dofensive-spells";
 import { dofensiveFetch, norm, toSafeId } from "@/lib/dofensive-fetch";
 import { damageRangeOfEffect, pickMonsterDamageStats, pushDistanceOfEffect, scaleDamageInEffectGroups } from "@/lib/dofus-monster-damage";
+import { pickMonsterGrade, pickSpellLevelForMonster } from "@/lib/dofensive-spells";
 import { deriveDofensiveMonsterName, pickDofensiveMonsterId } from "@/lib/dofensive-boss";
 import {
     getLocalDofensiveDungeonAny,
@@ -32,7 +33,9 @@ import {
     // Résolution « par nom » (siphon anomalies/double boss) : aucune variante `…Any` —
     // comportement fraîcheur conservé (la donnée est réécrite au siphon).
     getLocalDofensiveSpellsByName,
+    getLocalMonsterStatAny,
     persistDofensiveMap,
+    persistStoredCombatSpells,
 } from "@/lib/dofensive-sync";
 
 type ActionResponse<T = void> = {
@@ -540,7 +543,13 @@ export async function getDofensiveSpells(
     if (gradeLevel === undefined && !forceRefresh && locale === "fr") {
         try {
             const local = await getLocalDofensiveSpellsAny(id);
-            if (local) return localStaleResponse(local);
+            // 🧯 Une forme de payload ANTÉRIEURE (siphon d'avant le lot 3a : aucun jet numérique,
+            // mesuré 0/256 lignes) n'est **pas** servie : sans cela l'option « Dégâts estimés »
+            // restait désactivée partout (« Aucun dégât ») et rien ne le signalait. On retombe sur
+            // la source, qui recalcule les jets ET répare la ligne locale (`persistStoredCombatSpells`).
+            // La règle `stale-while-offline` reste entière : si la source ne répond pas, la ligne
+            // obsolète est servie telle quelle (jamais une absence).
+            if (local && !local.payloadOutdated) return localStaleResponse(local);
         } catch {
             // Fallback live ci-dessous
         }
@@ -554,6 +563,9 @@ export async function getDofensiveSpells(
     // calcule ici (`floor(jet × (1 + stat/100))`, Neutre non boosté) avec le grade du sort
     // affiché — sinon la fiche annonce « 74 à 86 » là où le combat inflige « 666 à 774 ».
     const damageStats = pickMonsterDamageStats(mon?.Grades, gradeLevel);
+    // Grade de monstre RÉELLEMENT joué : il porte la carte `SpellGrades` (niveau de sort par grade)
+    // — indispensable pour ne pas servir un niveau de sort que le monstre ne lance jamais.
+    const activeGrade = pickMonsterGrade(mon?.Grades, gradeLevel);
 
     // Ordre affiché par Dofensive : sort de démarrage (StartingSpell du Grade) EN PREMIER,
     // puis la liste Spells. Ex. Fuji Givrefoux : Instinct maternel (2676) + ses 3 sorts.
@@ -576,11 +588,11 @@ export async function getDofensiveSpells(
             const spell = Array.isArray(raw) ? raw[0] : raw;
             if (!spell) return null;
             const levels: any[] = Array.isArray(spell.Levels) ? spell.Levels : [];
-            // Sélectionne le niveau correspondant au grade demandé ou le grade maximum
-            const targetIdx = typeof gradeLevel === "number" && gradeLevel >= 1 && gradeLevel <= levels.length
-                ? gradeLevel - 1
-                : levels.length - 1;
-            const level = levels[targetIdx] ?? levels[levels.length - 1] ?? levels[0];
+            // 🔍 Niveau de sort = celui du GRADE DE MONSTRE (`Grades[].SpellGrades`), jamais « le
+            // dernier niveau du sort » : mesuré le 22/09/2026 sur « Ancrépulsion » (15144), dont le
+            // dernier niveau ne porte QUE « Repousse de 3 cases (sans dommages) » alors que le niveau
+            // joué porte « 61 à 70 dommages Terre » ⇒ la fiche annonçait un sort sans dégâts.
+            const level = pickSpellLevelForMonster(levels, sid, activeGrade);
             if (!level) return null;
             const firstEffect = level.GroupEffects?.[0]?.Effects?.[0];
             // Effets détaillés (tous les groupes de cibles) : durées, déclencheurs, masques.
@@ -619,6 +631,14 @@ export async function getDofensiveSpells(
 
     const spells = results.filter((s): s is DofensiveSpellCombat => s !== null);
     if (spells.length === 0) return { success: false, error: "Sorts Dofensive vides" };
+    // 🔧 Auto-réparation bornée du payload stocké : on vient de re-fetcher la source (forme
+    // obsolète), on réécrit donc la ligne locale pour que les lectures suivantes restent locales
+    // (sinon 1 + N appels réseau à chaque ouverture de fiche). Uniquement le payload CANONIQUE
+    // (aucun grade explicite) : une lecture par grade ne doit pas écraser la forme « grade de
+    // monstre » écrite par le siphon. Fail-soft : `false` ⇒ on rend simplement la donnée live.
+    if (gradeLevel === undefined && locale === "fr") {
+        await persistStoredCombatSpells(id, spells);
+    }
     return { success: true, data: spells };
 }
 
@@ -640,8 +660,21 @@ export async function getBossDofensiveSpells(
         // sont stockés par le siphon dans `MonsterStat.stats.spells` → lecture LOCALE par nom,
         // zéro appel réseau. Sans ce repli, la fiche d'un gardien (ex. Qilby, absent de
         // Dofensive) n'aurait aucun sort exploitable par la simulation isométrique.
-        const local = await getLocalDofensiveSpellsByName(opts?.dofensiveMonsterName ?? monsterName);
-        if (local && local.length > 0) return { success: true, data: local };
+        const storedName = opts?.dofensiveMonsterName ?? monsterName;
+        const local = await getLocalDofensiveSpellsByName(storedName);
+        if (local && local.length > 0) {
+            // 🔧 Même règle que la lecture par ID : une **forme obsolète** (siphon antérieur au lot 3a,
+            // donc sans jet numérique) est réparée depuis la source — `getDofensiveSpells` par l'ID
+            // de la ligne locale (`getLocalMonsterStatAny`) réécrit ensuite le payload. Si la source
+            // ne répond pas (ou ignore ce monstre), la ligne locale reste la réponse : jamais d'absence.
+            const stored = await getLocalMonsterStatAny(storedName);
+            const storedId = toSafeId(stored?.data?.id);
+            if (stored?.payloadOutdated && storedId) {
+                const healed = await getDofensiveSpells(storedId, gradeLevel, forceRefresh, locale);
+                if (healed.success && healed.data) return healed;
+            }
+            return { success: true, data: local };
+        }
         return { success: false, error: "Monstre Dofensive introuvable" };
     }
 

@@ -109,7 +109,9 @@ describe("légende — une seule surface, repliée par défaut, i18n", () => {
       /import \{ SimulationTacticalLegend \} from "@\/components\/succes\/SimulationTacticalLegend";/
     );
     expect(GRID).toMatch(/<SimulationTacticalLegend/);
-    expect(GRID).toMatch(/variant=\{compact \? "compact" : "full"\}/);
+    // La légende est montée en **overlay du plateau** (`board`) : elle ne pousse plus la carte et
+    // reste atteignable sans dézoomer ni défiler (retour user 21/09/2026).
+    expect(GRID).toMatch(/variant="board"/);
     expect(GRID).not.toMatch(/setShowCompactLegend/);
   });
 

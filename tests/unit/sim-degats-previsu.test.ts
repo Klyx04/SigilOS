@@ -125,18 +125,27 @@ describe("option « Dégâts estimés » — repliée par défaut, montée dans 
 
     it("un seul interrupteur, monté dans les DEUX panneaux Options", () => {
         expect(GRID).toMatch(/const damageToggle = \(/);
-        expect((GRID.match(/\{damageToggle\}/g) || []).length).toBe(2);
+        // Un seul interrupteur (fonction `damageToggle(board)` : palette du plateau vs thème de page),
+        // monté une fois dans le panneau compact et une fois dans le panneau de fiche.
+        expect((GRID.match(/\{damageToggle\(/g) || []).length).toBe(2);
         expect(GRID).toMatch(/aria-pressed=\{showDamage\}/);
     });
 
     it("aucun badge de dégâts tant que l'option est éteinte", () => {
         // La couche de badges est gardée par l'option ET par l'existence de jets réels.
         expect(GRID).toMatch(/\{showDamage && damageInfo\.lines\.length > 0 && zonePreview && \(/);
-        // …et elle ne cible que la case visée + les personnages présents dans la zone.
+        // …et elle ne rend QUE les cibles calculées par `damageTargets`.
         const layer = GRID.slice(GRID.indexOf("{showDamage && damageInfo.lines.length > 0 && zonePreview"), GRID.indexOf("</svg>"));
-        expect(layer).toMatch(/hoveredCell && zonePreview\.has/);
-        expect(layer).toMatch(/for \(const ally of allies\)/);
-        expect(layer).toMatch(/for \(const enemy of enemies\)/);
+        expect(layer).toMatch(/damageTargets\.map/);
+    });
+
+    it("les cibles ne sont que la case visée + les personnages présents dans la zone", () => {
+        // La liste des cibles vit dans `damageTargets` (source unique des badges ET du panneau de
+        // prévisu) : mêmes garanties qu'avant, un seul endroit à relire.
+        const memo = GRID.slice(GRID.indexOf("const damageTargets = useMemo"), GRID.indexOf("const damageToggle"));
+        expect(memo).toMatch(/hoveredCell && zonePreview\.has/);
+        expect(memo).toMatch(/for \(const ally of allies\)/);
+        expect(memo).toMatch(/for \(const enemy of enemies\)/);
     });
 
     it("les jets affichés viennent du serveur (aucun calcul de dégâts côté client)", () => {
@@ -148,7 +157,7 @@ describe("option « Dégâts estimés » — repliée par défaut, montée dans 
 describe("couleurs & icônes d'éléments — une seule source (thème de stats partagé)", () => {
     it("le thème est exporté par `dofus-stats-theme` et importé par la grille", () => {
         expect(THEME).toMatch(/export const STAT_THEMES = \{/);
-        expect(GRID).toMatch(/import \{ DOFUS_STAT_ASSET_BASE, STAT_THEMES \} from "@\/lib\/dofus-stats-theme";/);
+        expect(GRID).toMatch(/import \{ DOFUS_STAT_ASSET_BASE, STAT_THEMES, dofusStatHex \} from "@\/lib\/dofus-stats-theme";/);
     });
 
     it("les 5 éléments pointent les entrées du thème (Terre/Feu/Eau/Air/Neutre)", () => {

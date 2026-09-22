@@ -1597,10 +1597,23 @@ export function SpellRangeGrid({
                             {showOptions && (
                                 <div
                                     data-no-drag
-                                    className="absolute right-2 top-full z-50 mt-1.5 w-[19rem] space-y-2 overflow-y-auto rounded-xl border border-white/15 bg-[#121218]/97 p-2.5 shadow-2xl backdrop-blur-md [scrollbar-width:thin]"
+                                    className={cn(
+                                        "absolute right-2 top-full z-50 mt-1.5 w-[19rem] space-y-2 overflow-y-auto rounded-xl border p-2.5 shadow-2xl [scrollbar-width:thin]",
+                                        // Mode complet : panneau clair/sombre selon le THÈME (il est
+                                        // posé sur `bg-surface`) — un panneau sombre sous une page
+                                        // claire serait un corps étranger.
+                                        compact
+                                            ? "border-white/15 bg-[#121218]/97 backdrop-blur-md"
+                                            : "border-border bg-elevated"
+                                    )}
                                     style={{ maxHeight: "min(65vh, 24rem)" }}
                                 >
-                                    <p className="text-[9px] font-black uppercase tracking-[0.14em] text-white/40">
+                                    <p
+                                        className={cn(
+                                            "text-[9px] font-black uppercase tracking-[0.14em]",
+                                            compact ? "text-white/40" : "text-muted-foreground"
+                                        )}
+                                    >
                                         {simT.optionsTitle}
                                     </p>
                             {!hideAllies && (

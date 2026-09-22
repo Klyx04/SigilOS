@@ -7,6 +7,14 @@ import { useI18n } from "@/lib/i18n/client";
 import { getDofensiveMap, type DofensiveMapData, type DofensiveMapLite } from "@/server/actions/dofensive-actions";
 import { SimulationTacticalLegend } from "@/components/succes/SimulationTacticalLegend";
 import {
+    damageLinesFromEffects,
+    formatDamageRange,
+    totalDamageRange,
+    type SpellDamageLine,
+    type SpellElementKey,
+} from "@/lib/dofus-spells";
+import { DOFUS_STAT_ASSET_BASE, STAT_THEMES } from "@/lib/dofus-stats-theme";
+import {
     CellState,
     allyStartPositions,
     castRangeDistance,
@@ -52,7 +60,16 @@ export interface SpellData {
     /** Grade/Niveau Dofensive du level utilisé (« Niv. X »). */
     grade?: number;
     /** Effets structurés (durées, déclencheurs, masques) — affichage détaillé. */
-    effectDetails?: { label: string; duration: string | null; triggers: string[]; masks: string[] }[];
+    effectDetails?: {
+        label: string;
+        duration: string | null;
+        triggers: string[];
+        masks: string[];
+        /** Jet de dégâts numérique de la ligne (déjà calculé côté serveur) — prévisu de dégâts. */
+        damage?: { element: string; min: number; max: number } | null;
+        /** Distance de poussée (cases) — affichée telle quelle, aucun dégât de poussée calculé. */
+        pushDistance?: number | null;
+    }[];
     /** Effets critiques (lignes) — section « Effets critiques ». */
     criticalEffects?: string[];
     /** false si le sort n'a aucun effet critique (« Aucun effet critique »). */
@@ -63,6 +80,31 @@ export interface SpellData {
 
 interface DofusPos { x: number; y: number }
 interface AllyToken { x: number; y: number; facing: number }
+
+/**
+ * Élément → entrée de notre thème de stats Dofus (icône **locale** + jeton de couleur).
+ * Une seule source pour les couleurs « réelles du jeu » : `src/lib/dofus-stats-theme.ts`.
+ */
+const ELEMENT_STAT_KEY: Record<SpellElementKey, keyof typeof STAT_THEMES> = {
+    terre: "earthDamage",
+    feu: "fireDamage",
+    eau: "waterDamage",
+    air: "airDamage",
+    neutre: "neutralDamage",
+};
+
+/** Ordre d'affichage des éléments (feu · terre · eau · air · neutre = ordre des fiches Dofus). */
+const ELEMENT_ORDER: SpellElementKey[] = ["feu", "terre", "eau", "air", "neutre"];
+
+/** Icône locale d'un élément (`/assets/dofus/stats/*.png` — aucune dépendance externe). */
+function elementIcon(element: SpellElementKey): string {
+    return `${DOFUS_STAT_ASSET_BASE}/${STAT_THEMES[ELEMENT_STAT_KEY[element]].asset}`;
+}
+
+/** Jeton de couleur d'un élément (thème de stats : Terre=warning, Feu=danger, Eau=info, Air=success). */
+function elementColor(element: SpellElementKey): string {
+    return STAT_THEMES[ELEMENT_STAT_KEY[element]].color;
+}
 
 interface SpellRangeGridProps {
     spells: SpellData[];
@@ -261,6 +303,10 @@ export function SpellRangeGrid({
     // composant, faut un rangement pro »).
     const [showOptions, setShowOptions] = useState<boolean>(false);
     const [showLegend, setShowLegend] = useState<boolean>(false);
+    // Prévisu de DÉGÂTS : une **option** (retour user : « pk afficher les dégâts en preview
+    // (option à activer ?) »). Repliée par défaut — on affiche les jets RÉELS du grade,
+    // calculés côté serveur, jamais une estimation inventée.
+    const [showDamage, setShowDamage] = useState<boolean>(false);
 
     // Illustration titan (galerie God : /game-data/titans/<slug>.webp).
     // Convention + onError : aucune base ni session requise (marche partout,
@@ -996,7 +1042,42 @@ export function SpellRangeGrid({
         allowFreeCasterMove && freeCasterMove,
         !hideAllies && allies.length > 0,
         enemiesEnabled && enemies.length > 0,
+        showDamage,
     ].filter(Boolean).length;
+
+    // Dégâts du sort affiché : jets **réels** du grade, par élément (données déjà calculées par le
+    // serveur) + distance de poussée quand le sort pousse. Rien n'est dérivé du texte des effets.
+    const damageInfo = useMemo(() => damageLinesFromEffects(currentSpell?.effectDetails), [currentSpell]);
+    const damageTotal = useMemo(() => totalDamageRange(damageInfo.lines), [damageInfo.lines]);
+
+    /** Interrupteur « Dégâts estimés » — monté dans les DEUX panneaux Options (source unique). */
+    const damageToggle = (
+        <button
+            type="button"
+            onClick={() => setShowDamage((v) => !v)}
+            aria-pressed={showDamage}
+            disabled={damageInfo.lines.length === 0}
+            title={damageInfo.lines.length === 0 ? simT.damageUnavailable : simT.damageToggleTitle}
+            className={cn(
+                "flex w-full items-center justify-between gap-2 rounded-[4px] border px-2.5 py-1.5 text-left text-[11px] font-semibold transition-colors",
+                damageInfo.lines.length === 0
+                    ? "cursor-not-allowed border-border bg-surface text-muted-foreground/50"
+                    : showDamage
+                        ? "cursor-pointer border-accent/40 bg-accent/10 text-foreground"
+                        : "cursor-pointer border-border bg-surface text-muted-foreground hover:text-foreground"
+            )}
+        >
+            <span className="flex min-w-0 items-center gap-1.5">
+                <Swords className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                <span className="truncate">{simT.damageToggle}</span>
+            </span>
+            <span className="shrink-0 font-mono text-[10px] tabular-nums">
+                {damageInfo.lines.length > 0
+                    ? formatDamageRange(damageTotal.min, damageTotal.max)
+                    : simT.damageUnavailable}
+            </span>
+        </button>
+    );
 
     return (
         <div className={cn(compact ? "flex flex-col h-full space-y-1.5 p-0 bg-transparent border-0 shadow-none min-h-0" : "space-y-3 rounded-2xl bg-surface border border-border p-4 sm:p-5 shadow-xs")}>
@@ -1069,6 +1150,35 @@ export function SpellRangeGrid({
                                 {currentSpell.zone && currentSpell.zone.shape !== "Inconnue" && (
                                     <span className="rounded-md border border-accent/20 bg-accent/10 px-1.5 py-0.5 text-[10px] font-bold text-accent">
                                         {simT.zoneShape.replace("{shape}", currentSpell.zone.shape)}
+                                    </span>
+                                )}
+                                {/* Dégâts estimés (option) : jets RÉELS par élément, avec les icônes et
+                                    les couleurs d'éléments du jeu (thème de stats partagé). */}
+                                {showDamage &&
+                                    ELEMENT_ORDER.filter((el) => damageInfo.lines.some((l) => l.element === el)).map((el) => {
+                                        const line = damageInfo.lines.find((l) => l.element === el) as SpellDamageLine;
+                                        return (
+                                            <span
+                                                key={el}
+                                                title={STAT_THEMES[ELEMENT_STAT_KEY[el]].label}
+                                                className={cn(
+                                                    "inline-flex items-center gap-1 rounded-md border border-border bg-surface px-1.5 py-0.5 text-[10px] font-bold tabular-nums",
+                                                    elementColor(el)
+                                                )}
+                                            >
+                                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                <img src={elementIcon(el)} alt="" className="h-3.5 w-3.5 shrink-0 object-contain" />
+                                                {formatDamageRange(line.min, line.max)}
+                                            </span>
+                                        );
+                                    })}
+                                {showDamage && damageInfo.push !== null && (
+                                    <span
+                                        title={simT.damageToggleTitle}
+                                        className="inline-flex items-center gap-1 rounded-md border border-border bg-surface px-1.5 py-0.5 text-[10px] font-bold text-muted-foreground"
+                                    >
+                                        <Move className="h-3 w-3 shrink-0" aria-hidden="true" />
+                                        {simT.damagePush.replace("{count}", String(damageInfo.push))}
                                     </span>
                                 )}
                             </div>
@@ -1361,6 +1471,8 @@ export function SpellRangeGrid({
                                         {simT.optionsTitle}
                                     </p>
 
+                                    {damageToggle}
+
                             {/* Placement & Butin compacts */}
                             {mapData && (
                                 <div className="inline-flex items-center gap-1">
@@ -1616,6 +1728,7 @@ export function SpellRangeGrid({
                                     >
                                         {simT.optionsTitle}
                                     </p>
+                            {damageToggle}
                             {!hideAllies && (
                                 <button
                                     type="button"
@@ -2192,6 +2305,54 @@ export function SpellRangeGrid({
                             })
                         )
                     )}
+                {/* Prévisu de DÉGÂTS (option « Dégâts estimés ») : les jets RÉELS du sort sur la
+                    cible visée et sur les personnages présents dans la zone — la donnée vient du
+                    serveur (caractéristiques du monstre appliquées), rien n'est estimé ici. */}
+                {showDamage && damageInfo.lines.length > 0 && zonePreview && (
+                    <g pointerEvents="none">
+                        {(() => {
+                            const targets = new Set<string>();
+                            if (hoveredCell && zonePreview.has(`${hoveredCell.x},${hoveredCell.y}`)) {
+                                targets.add(`${hoveredCell.x},${hoveredCell.y}`);
+                            }
+                            if (!hideAllies) {
+                                for (const ally of allies) if (zonePreview.has(`${ally.x},${ally.y}`)) targets.add(`${ally.x},${ally.y}`);
+                            }
+                            if (enemiesEnabled) {
+                                for (const enemy of enemies) if (zonePreview.has(`${enemy.x},${enemy.y}`)) targets.add(`${enemy.x},${enemy.y}`);
+                            }
+                            return [...targets].map((key) => {
+                                const [x, y] = key.split(",").map(Number);
+                                const { sx, sy } = cellToScreen(x, y, tileW, tileH);
+                                return (
+                                    <g key={`dmg-${key}`} transform={`translate(${sx}, ${sy - 30})`}>
+                                        <rect
+                                            x={-25}
+                                            y={-9}
+                                            width={50}
+                                            height={18}
+                                            rx={4}
+                                            fill="rgba(5,5,5,0.88)"
+                                            stroke="#e0a320"
+                                            strokeWidth={1}
+                                        />
+                                        <text
+                                            x={0}
+                                            y={4}
+                                            textAnchor="middle"
+                                            fill="#ffcf5e"
+                                            fontSize={11}
+                                            fontWeight="900"
+                                            className="select-none"
+                                        >
+                                            {formatDamageRange(damageTotal.min, damageTotal.max)}
+                                        </text>
+                                    </g>
+                                );
+                            });
+                        })()}
+                    </g>
+                )}
                 </svg>
                 </div>
                 </div>

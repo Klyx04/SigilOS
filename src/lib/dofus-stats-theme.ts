@@ -77,7 +77,10 @@ export const DOFUSBOOK_COLORS = {
  * ⚠️ Seuls des fichiers **réellement présents** dans `public/assets/dofus/stats/`
  * sont référencés ici (vérifié : 31 PNG).
  */
-const STAT_THEMES = {
+/** Thème d'affichage par statistique Dofus (icône **servie en local** + jeton de couleur).
+ * Exporté : le simulateur tactique réutilise les entrées élémentaires (Terre/Feu/Eau/Air/Neutre)
+ * pour la prévisu de dégâts — couleur et icône réelles du jeu, **source unique**. */
+export const STAT_THEMES = {
     vitality: { asset: "pv.png", label: "Vitalité", color: "text-danger" },
     strength: { asset: "terre.png", label: "Force", color: "text-warning" },
     intelligence: { asset: "feu.png", label: "Intelligence", color: "text-danger" },

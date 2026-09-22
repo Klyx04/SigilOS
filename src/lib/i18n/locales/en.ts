@@ -830,6 +830,10 @@ export const en: Translations = {
         emptyMapGrid: "Empty Map (17×17 Grid)",
         options: "Options",
         optionsTitle: "Placement, loot & toggles",
+        damageToggle: "Estimated damage",
+        damageToggleTitle: "Show the spell's real rolls (per element) on targeted enemies",
+        damageUnavailable: "No damage",
+        damagePush: "Push {count} cell(s)",
         legendTitle: "Legend",
         legendGroups: {
             cells: "Tiles",

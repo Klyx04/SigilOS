@@ -90,6 +90,90 @@ export function spellZoneFromDamages(
     return { shape: "Point", size: 0 };
 }
 
+// ─── Prévisu de DÉGÂTS : les jets par élément d'un sort ──────────────────────
+// Source unique des deux simulateurs (monstres/boss sur la grille tactique, builds de stuff) :
+// les jets numériques viennent des effets DÉJÀ calculés (`DofensiveSpellEffect.damage` côté
+// Dofensive, `spellDamageFromEffect` côté DofusDB) — jamais d'un parsing de texte côté client.
+
+/** Une ligne de dégâts agrégée : un élément, son jet cumulé, et le nombre de jets regroupés. */
+export interface SpellDamageLine {
+    /** Élément de la ligne (`terre` · `feu` · `eau` · `air` · `neutre`). */
+    element: SpellElementKey;
+    /** Jet minimum cumulé (tous les jets de cet élément). */
+    min: number;
+    /** Jet maximum cumulé. */
+    max: number;
+    /** Nombre de jets regroupés (un sort peut porter 2 lignes du même élément, ex. 2× Feu). */
+    lines: number;
+}
+
+/** Alias d'éléments → clés du simulateur (Dofensive dit `earth`, la fiche dit `terre`…). */
+const ELEMENT_ALIASES: Record<string, SpellElementKey> = {
+    earth: "terre",
+    terre: "terre",
+    fire: "feu",
+    feu: "feu",
+    water: "eau",
+    eau: "eau",
+    air: "air",
+    neutral: "neutre",
+    neutre: "neutre",
+};
+
+/**
+ * Dégâts d'un sort, par élément, à partir de ses effets structurés.
+ *
+ * @returns `lines` : un jet cumulé par élément (l'ordre suit l'apparition) ; `push` : la distance
+ * de poussée (cases) si le sort pousse — **affichée telle quelle**, aucun dégât de poussée n'est
+ * calculé (la formule du jeu n'est pas implémentée).
+ */
+export function damageLinesFromEffects(
+    effectDetails:
+        | { damage?: { element: string; min: number; max: number } | null; pushDistance?: number | null }[]
+        | null
+        | undefined
+): { lines: SpellDamageLine[]; push: number | null } {
+    const byElement = new Map<SpellElementKey, SpellDamageLine>();
+    let push: number | null = null;
+
+    for (const effect of effectDetails ?? []) {
+        if (!effect) continue;
+        if (typeof effect.pushDistance === "number" && effect.pushDistance > 0) {
+            push = Math.max(push ?? 0, effect.pushDistance);
+        }
+        const damage = effect.damage;
+        if (!damage) continue;
+        const element = ELEMENT_ALIASES[String(damage.element ?? "").toLowerCase()];
+        if (!element) continue;
+        const min = Math.max(0, Math.floor(Number(damage.min) || 0));
+        const max = Math.max(min, Math.floor(Number(damage.max) || 0));
+        if (max <= 0) continue;
+        const current = byElement.get(element);
+        if (current) {
+            current.min += min;
+            current.max += max;
+            current.lines += 1;
+        } else {
+            byElement.set(element, { element, min, max, lines: 1 });
+        }
+    }
+
+    return { lines: [...byElement.values()], push };
+}
+
+/** Dégâts cumulés de toutes les lignes (ce qu'un coup inflige au total à une cible). */
+export function totalDamageRange(lines: SpellDamageLine[]): { min: number; max: number } {
+    return lines.reduce(
+        (acc, line) => ({ min: acc.min + line.min, max: acc.max + line.max }),
+        { min: 0, max: 0 }
+    );
+}
+
+/** Affichage d'un jet : `666–774`, ou `666` quand min === max. */
+export function formatDamageRange(min: number, max: number): string {
+    return min === max ? String(min) : `${min}–${max}`;
+}
+
 /** Caractéristiques réelles d'un build, issues de `DofusbookPreviewData`. */
 export interface BuildStatsForSpells {
     elements: { fo: number; in: number; ch: number; ag: number; sa: number; pu: number };

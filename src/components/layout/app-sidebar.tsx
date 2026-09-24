@@ -283,7 +283,7 @@ export function AppSidebar({
         { name: "Gestion des Missions", href: `/dashboard/${guildId}/missions/manage`, icon: Swords, color: "emerald", visible: user.canManageMissions && modules.missions },
         { name: "Validation", href: `/dashboard/${guildId}/admin/validation`, icon: CheckCircle, color: "emerald", visible: user.canValidateMissions && modules.missions },
         { name: "Audit & Membres", href: `/dashboard/${guildId}/admin/members`, icon: Users, color: "cyan", visible: user.canManageMembers || user.canManageRelance },
-        { name: "Recrutement & Cycle de Vie", href: `/dashboard/${guildId}/admin/recruitment`, icon: UserCheck, color: "emerald", visible: user.canManageMembers },
+        { name: "Recrutement & Cycle de Vie", href: `/dashboard/${guildId}/admin/members?tab=registre`, icon: UserCheck, color: "emerald", visible: user.canManageMembers },
         { name: "Points de Contribution", href: `/dashboard/${guildId}/admin/points`, icon: Coins, color: "amber", visible: user.canManagePoints },
         { name: "Rôles par Réaction", href: `/dashboard/${guildId}/reaction-roles`, icon: Sparkles, color: "purple", visible: user.canManageReactionRoles && modules.reactionRoles },
         { name: "Bot Tickets & Support", href: `/dashboard/${guildId}/tickets`, icon: Ticket, color: "amber", visible: user.canManageTickets && modules.tickets },

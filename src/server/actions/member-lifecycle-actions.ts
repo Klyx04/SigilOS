@@ -7,6 +7,7 @@ import { getUserContext, type ActionResponse } from "./user-actions";
 import { z } from "zod";
 import { createAuditLog } from "./audit-actions";
 import { differenceInDays } from "date-fns";
+import { ANKAMA_ID_PATTERN } from "@/lib/member-registry";
 
 // ==========================================
 // TYPES
@@ -31,6 +32,8 @@ export interface LifecycleMemberSummary {
     lifecycleStatus: "CANDIDATE" | "ARRIVING" | "TRIAL" | "CONFIRMED";
     createdAt: string;
     joinedAt: string;
+    /** Date d'arrivée manuelle (registre). Null = repli sur createdAt. */
+    guildJoinedAt: string | null;
     seniorityDays: number;
     trialEndsAt: string | null;
     trialRemainingDays: number | null;
@@ -112,6 +115,27 @@ const departureSchema = z.object({
     isBan: z.boolean().default(false),
 });
 
+const registryIdentitySchema = z.object({
+    profileId: z.string().min(1),
+    pseudoDofus: z.string().max(30).nullable().optional(),
+    discordNickname: z.string().max(32).nullable().optional(),
+    ankamaId: z
+        .string()
+        .max(60)
+        .nullable()
+        .optional()
+        .refine((v) => v === null || v === undefined || v === "" || ANKAMA_ID_PATTERN.test(v.trim()), {
+            message: "Tag Ankama invalide (format Nom#0000)",
+        }),
+    guildJoinedAt: z.string().datetime().nullable().optional(),
+    staffNotes: z.string().max(2000).nullable().optional(),
+});
+
+const extendTrialSchema = z.object({
+    profileId: z.string().min(1),
+    additionalDays: z.number().int().min(1).max(60),
+});
+
 const altsSchema = z.object({
     profileId: z.string().min(1),
     alts: z.array(
@@ -175,6 +199,7 @@ export async function getGuildLifecycleData(guildId: string): Promise<ActionResp
                 status: true,
                 lifecycleStatus: true,
                 createdAt: true,
+                guildJoinedAt: true,
                 updatedAt: true,
                 archivedAt: true,
                 departureReason: true,
@@ -211,7 +236,9 @@ export async function getGuildLifecycleData(guildId: string): Promise<ActionResp
         const mappedMembers: LifecycleMemberSummary[] = profiles.map(p => {
             const discordId = p.user?.accounts?.[0]?.providerAccountId || "";
             const displayName = p.pseudoDofus || p.discordNickname || p.user?.name || "Membre";
-            const seniorityDays = differenceInDays(now, p.createdAt);
+            // Registre : la date d'arrivée manuelle prime, repli sur la création du profil.
+            const joinedAtDate = p.guildJoinedAt ?? p.createdAt;
+            const seniorityDays = differenceInDays(now, joinedAtDate);
 
             let trialRemainingDays: number | null = null;
             if (p.trialEndsAt) {
@@ -249,7 +276,8 @@ export async function getGuildLifecycleData(guildId: string): Promise<ActionResp
                 status: p.status as "ACTIVE" | "ARCHIVED" | "BANNED",
                 lifecycleStatus: (p.lifecycleStatus as any) || "CONFIRMED",
                 createdAt: p.createdAt.toISOString(),
-                joinedAt: p.createdAt.toISOString(),
+                joinedAt: joinedAtDate.toISOString(),
+                guildJoinedAt: p.guildJoinedAt ? p.guildJoinedAt.toISOString() : null,
                 seniorityDays: Math.max(0, seniorityDays),
                 trialEndsAt: p.trialEndsAt ? p.trialEndsAt.toISOString() : null,
                 trialRemainingDays,
@@ -448,6 +476,11 @@ export async function extendMemberTrial(
     const ctx = await getUserContext(guildId);
     if (!ctx.isAdmin && !ctx.canManageMembers) {
         return { success: false, error: "Permission 'Gérer les membres' requise" };
+    }
+
+    const validated = extendTrialSchema.safeParse({ profileId, additionalDays });
+    if (!validated.success) {
+        return { success: false, error: "Durée de prolongation invalide (1 à 60 jours)" };
     }
 
     try {
@@ -690,8 +723,22 @@ export async function updateMemberRecruiter(
         });
         if (!guild) return { success: false, error: "Guilde introuvable" };
 
-        await db.userProfile.update({
+        const target = await db.userProfile.findFirst({
             where: { id: profileId, guildId: guild.id },
+            select: { id: true }
+        });
+        if (!target) return { success: false, error: "Profil membre introuvable" };
+
+        if (recruiterProfileId) {
+            const recruiter = await db.userProfile.findFirst({
+                where: { id: recruiterProfileId, guildId: guild.id },
+                select: { id: true }
+            });
+            if (!recruiter) return { success: false, error: "Recruteur invalide pour cette guilde" };
+        }
+
+        await db.userProfile.update({
+            where: { id: target.id },
             data: { recruitedById: recruiterProfileId }
         });
 
@@ -774,6 +821,91 @@ export async function updateMemberStaffNotes(
     } catch (err: any) {
         logger.error("[updateMemberStaffNotes] Erreur:", err);
         return { success: false, error: "Erreur lors de la mise à jour des notes" };
+    }
+}
+
+/**
+ * Édition du registre (une ligne = un membre) : identités saisies à la main,
+ * date d'arrivée manuelle et commentaires staff. L'ancienneté et l'ID Discord
+ * restent calculés / peuplés seuls côté lecture.
+ */
+export async function updateMemberRegistryIdentity(
+    guildId: string,
+    input: z.infer<typeof registryIdentitySchema>
+): Promise<ActionResponse<{ message: string }>> {
+    const session = await auth();
+    if (!session?.user?.id) return { success: false, error: "Non authentifié" };
+
+    const ctx = await getUserContext(guildId);
+    if (!ctx.isAdmin && !ctx.canManageMembers) {
+        return { success: false, error: "Permission 'Gérer les membres' requise" };
+    }
+
+    const validated = registryIdentitySchema.safeParse(input);
+    if (!validated.success) {
+        return { success: false, error: validated.error.errors[0]?.message || "Données invalides" };
+    }
+
+    try {
+        const guild = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { id: true }
+        });
+        if (!guild) return { success: false, error: "Guilde introuvable" };
+
+        const profile = await db.userProfile.findFirst({
+            where: { id: validated.data.profileId, guildId: guild.id },
+            select: { id: true, pseudoDofus: true, discordNickname: true, ankamaId: true, guildJoinedAt: true, staffNotes: true }
+        });
+        if (!profile) return { success: false, error: "Profil membre introuvable" };
+
+        const data: Record<string, unknown> = {};
+        if (validated.data.pseudoDofus !== undefined) {
+            const v = validated.data.pseudoDofus?.trim();
+            data.pseudoDofus = v ? v : null;
+        }
+        if (validated.data.discordNickname !== undefined) {
+            const v = validated.data.discordNickname?.trim();
+            data.discordNickname = v ? v : null;
+        }
+        if (validated.data.ankamaId !== undefined) {
+            const v = validated.data.ankamaId?.trim();
+            data.ankamaId = v ? v : null;
+        }
+        if (validated.data.guildJoinedAt !== undefined) {
+            data.guildJoinedAt = validated.data.guildJoinedAt ? new Date(validated.data.guildJoinedAt) : null;
+        }
+        if (validated.data.staffNotes !== undefined) {
+            data.staffNotes = validated.data.staffNotes ? validated.data.staffNotes.slice(0, 2000) : null;
+        }
+        if (Object.keys(data).length === 0) {
+            return { success: true, data: { message: "Rien à mettre à jour" } };
+        }
+
+        await db.userProfile.update({ where: { id: profile.id }, data: data as never });
+
+        await createAuditLog({
+            guildId: guild.id,
+            actorUserId: session.user.id,
+            actorName: ctx.name || "Staff",
+            action: "SETTINGS_UPDATED",
+            targetType: "USER_PROFILE",
+            targetId: profile.id,
+            oldValue: {
+                pseudoDofus: profile.pseudoDofus,
+                discordNickname: profile.discordNickname,
+                ankamaId: profile.ankamaId,
+                guildJoinedAt: profile.guildJoinedAt,
+                staffNotes: profile.staffNotes,
+            },
+            newValue: data,
+            metadata: { source: "registre" },
+        });
+
+        return { success: true, data: { message: "Ligne du registre mise à jour" } };
+    } catch (err: unknown) {
+        logger.error("[updateMemberRegistryIdentity] Erreur:", err);
+        return { success: false, error: "Erreur lors de la mise à jour du registre" };
     }
 }
 

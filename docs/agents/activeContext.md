@@ -5,6 +5,15 @@
 > **supprimées le 20/09/2026** (`docs/arbo/ARCHIVES-TEMP-2026-09.md`) ; ils restent **intégralement**
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
+## 🧩 Session 24/09/2026 (suite 21) — **Incident prod : `sharp` inliné par esbuild cassait 3 datasets du worker — cause racine prouvée + garde-fou** → branche `fix/esbuild-sharp-external`
+> **Symptôme (bêta)** : « En arrière-plan » ITEMS → Échec en ~40 ms, `The argument 'filename' must be a file URL object… Received undefined`.
+> **Mesures** : repro **locale** du bundle de prod (même erreur) ; le logger jetait la **pile** ⇒ corrigé d'abord, puis pile obtenue : `createRequire (node:internal/modules/cjs/loader) ← sharp/dist/sharp.mjs ← dofus-asset-siphon.ts ← game-items-siphon.ts`.
+> **Cause** : `sharp` est **natif** ; bundlé en CJS, `import.meta.url` est `undefined` ⇒ `createRequire(undefined)` explose. Bundle **14,6 Mo → 1,0 Mo** après `--external:sharp`.
+> **Ampleur** : ITEMS, ANOMALY_BOSSES et BOUNTIES (tous via `dofus-asset-siphon`) — latent depuis la suite 14 ; l'app n'était pas touchée (Next garde sharp externe).
+> **Fait** : `--external:sharp` sur **tous** les bundles esbuild + garde `tests/unit/esbuild-bundles.test.ts` + la pile dans le log d'échec du worker.
+> **Preuves** : repro avant/après (14,6 Mo → 1 Mo, `IMPORT_OK`, veille à 0 item) · `tsc` **0** · **201 fichiers / 2 198 tests** ✓ · `eslint` **0 erreur** · `npm run build` EXIT=0.
+> **Reste** : redéployer la bêta, vérifier `require('sharp')` dans le conteneur worker, relancer la passe ITEMS (amorçage du filigrane).
+
 ## 🧩 Session 23/09/2026 (suite 20) — **Veille DofusDB ciblée (46 items au lieu de 21 776) · hash complet · bilan de passe affiché · auto-mise en file par le cron** → branche `fix/sim-previsu-blocs`
 > **Demandes user (verbatim)** : « et la surveillance pour récupérer les items mis à jour / les nouveaux / les supprimés ? », « ça resiphonne même les présents ? ça détecte les changements (nom, lignes caractéristiques, effets) ? », « on siphonne tout pour l'indépendance totale, avec des notifs god et des lancements auto ? », puis « tout dans l'ordre ».
 > **Mesures (API DofusDB)** : `updatedAt[$gt]` = filtre **réel** (2099 ⇒ 0) → **46 items sur 30 jours** au lieu de 21 776 ; `createdAt[$gt]=2026-09-01` ⇒ **28 nouveaux** (= l'écart exact 21 776 / 21 748) ; `isDeprecated=true` ⇒ 0 ; `$sort`/`$order`/`$select` ⇒ **HTTP 400**. Local : quêtes 1 976 = distant ✅ · `ClassSpellbook` **5/19 classes** · `MonsterStat` 258/5 135 · `GameDataMonster` **0 ligne**.

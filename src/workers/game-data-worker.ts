@@ -238,7 +238,12 @@ export const gameDataWorker = new Worker(
         } catch (e) {
             const message = e instanceof Error ? e.message : String(e);
             await finishGameDataRun(dataset, { ok: false, error: message });
-            logger.error(`[GameData] Siphon en arrière-plan échoué (${dataset}): ${message}`);
+            // ⚠️ La PILE est indispensable : « The argument 'filename' … Received undefined »
+            // ne dit pas QUI passe `undefined` (leçon du 24/09/2026 : l'échec venait d'un appel
+            // interne au bundle esbuild, invisible sans pile). Logs serveur uniquement.
+            logger.error(`[GameData] Siphon en arrière-plan échoué (${dataset}): ${message}`, {
+                stack: e instanceof Error ? e.stack : undefined,
+            });
             throw e; // BullMQ rejoue (attempts/backoff) puis alerte en échec définitif
         }
     },

@@ -6,7 +6,9 @@
  *     plus la relecture d'un ticket (l'ancien moteur clait par libellé) ;
  *   · un « Non » est une **vraie réponse** enregistrée (`no`), pas une case vide ;
  *   · la politique `onNo` (bloquer / revue manuelle / avertir) est décidée **serveur** ;
- *   · la compilation respecte les limites Discord (5 lignes de modale, 25 options).
+ *   · la compilation respecte les limites Discord (5 lignes de modale, 25 options) et
+ *     **pagine** les questions texte : 20 questions = 4 modales, **aucune perdue** ;
+ *     c'était le trou du contrat (les questions 6+ disparaissaient en silence).
  *
  * Pur : aucun import serveur, aucune base, aucun mock.
  */
@@ -14,9 +16,12 @@
 import { describe, it, expect } from "vitest";
 import {
     TICKET_FIELD_CUSTOM_ID_PREFIX,
+    TICKET_FORM_MAX_FIELDS,
     TICKET_FORM_SCHEMA_VERSION,
+    TICKET_MODAL_PAGES_MAX,
     answersFromModalSubmit,
     buildChoiceStep,
+    buildTicketModalPage,
     buildTicketModalRows,
     createEmptyTicketForm,
     evaluateAnswers,
@@ -136,6 +141,68 @@ describe("tickets v2 — compilation Discord", () => {
         const parts = splitTicketForm(parsed.form);
         expect(parts.modalRows).toBe(5);
         expect(parts.modalOverflow).toBe(2);
+        expect(parts.modalPages).toBe(2);
+    });
+
+    it("pagine les questions texte : 20 questions = 4 modales, aucune question perdue", () => {
+        expect(TICKET_FORM_MAX_FIELDS).toBe(20);
+        expect(TICKET_MODAL_PAGES_MAX).toBe(4);
+
+        const parsed = parseTicketForm({
+            schemaVersion: TICKET_FORM_SCHEMA_VERSION,
+            fields: Array.from({ length: TICKET_FORM_MAX_FIELDS }, (_, index) => ({
+                id: `question${index}`,
+                kind: "text_short" as const,
+                label: `Question ${index}`,
+            })),
+        });
+        expect(parsed.ok).toBe(true);
+        if (!parsed.ok) return;
+
+        const parts = splitTicketForm(parsed.form);
+        expect(parts.modalPages).toBe(TICKET_MODAL_PAGES_MAX);
+        expect(parts.textPages.map((page) => page.length)).toEqual([5, 5, 5, 5]);
+        expect(parts.modalOverflow).toBe(15);
+
+        const asked: string[] = [];
+        for (let page = 0; page < parts.modalPages; page += 1) {
+            const compiled = buildTicketModalPage(parsed.form, page);
+            expect(compiled.rows.length).toBeLessThanOrEqual(5);
+            expect(compiled.page).toBe(page);
+            expect(compiled.pageCount).toBe(TICKET_MODAL_PAGES_MAX);
+            expect(compiled.isLast).toBe(page === TICKET_MODAL_PAGES_MAX - 1);
+            asked.push(...compiled.fieldIds);
+        }
+        // Toutes les questions sont posées : rien n'est coupé en silence.
+        expect(asked).toEqual(parsed.form.fields.map((field) => field.id));
+    });
+
+    it("refuse une 21ᵉ question (une borne devient un refus, pas une coupe muette)", () => {
+        const parsed = parseTicketForm({
+            schemaVersion: TICKET_FORM_SCHEMA_VERSION,
+            fields: Array.from({ length: TICKET_FORM_MAX_FIELDS + 1 }, (_, index) => ({
+                id: `q${index}`,
+                kind: "text_short" as const,
+                label: `Question ${index}`,
+            })),
+        });
+        expect(parsed.ok).toBe(false);
+    });
+
+    it("borne une page hors liste et dit `isLast` quand il n'y a qu'une page", () => {
+        const parsed = parseTicketForm(sampleForm); // une seule question texte
+        if (!parsed.ok) throw new Error("formulaire de référence invalide");
+
+        const single = buildTicketModalPage(parsed.form, 7);
+        expect(single.pageCount).toBe(1);
+        expect(single.page).toBe(0);
+        expect(single.isLast).toBe(true);
+        expect(single.fieldIds).toEqual(["pseudo"]);
+
+        const empty = buildTicketModalPage(createEmptyTicketForm(), 3);
+        expect(empty.pageCount).toBe(0);
+        expect(empty.rows).toEqual([]);
+        expect(empty.isLast).toBe(true);
     });
 
     it("compile l'étape choix : boutons Oui/Non puis menu déroulant", () => {

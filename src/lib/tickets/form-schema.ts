@@ -10,7 +10,9 @@
  * Deux natures de champs, deux moments de collecte (contrainte Discord réelle) :
  *   · **choix** (`yes_no`, `select`, `multi_select`) → étape « message éphémère »
  *     AVANT la modale, parce qu'une modale Discord ne transporte que des champs texte ;
- *   · **textes** (`text_short`, `text_long`) → modale, **5 lignes maximum** ;
+ *   · **textes** (`text_short`, `text_long`) → modale, **5 lignes maximum** ⇒ les
+ *     questions texte sont **paginées** (20 questions = 4 modales au plus), chaînées par
+ *     un bouton « Continuer » : une modale soumise ne peut pas en ouvrir une autre ;
  *   · `info` ne consomme aucune réponse : il explique.
  *
  * ⚠️ Une case cochée ne vaut pas un « Non » : `yes_no` produit un booléen **et** le
@@ -52,7 +54,13 @@ export const TICKET_MODAL_LIMITS = {
 } as const;
 
 /** Bornes d'édition du dashboard (au-delà, l'expérience se dégrade). */
-export const TICKET_FORM_MAX_FIELDS = 25;
+export const TICKET_FORM_MAX_FIELDS = 20;
+/**
+ * Les 20 questions ne tiennent **pas** dans une modale (Discord en accepte 5 lignes) :
+ * les questions texte sont donc paginées en **4 modales au plus**. C'est la raison
+ * d'être de `buildTicketModalPage` — et la raison du bouton « Continuer » du tunnel.
+ */
+export const TICKET_MODAL_PAGES_MAX = Math.ceil(TICKET_FORM_MAX_FIELDS / TICKET_MODAL_LIMITS.maxRows);
 export const TICKET_FIELD_LABEL_MAX = 120;
 export const TICKET_FIELD_HELP_MAX = 200;
 
@@ -296,11 +304,24 @@ export function readTicketForm(raw: unknown): TicketFormDefinition {
     return parsed.ok ? parsed.form : createEmptyTicketForm();
 }
 
+/** Découpe une liste en pages (aucun élément perdu, page vide ⇒ aucune page). */
+function chunk<T>(items: T[], size: number): T[][] {
+    if (size <= 0) return items.length > 0 ? [items] : [];
+    const pages: T[][] = [];
+    for (let index = 0; index < items.length; index += size) {
+        pages.push(items.slice(index, index + size));
+    }
+    return pages;
+}
+
 /** Découpe le formulaire selon le moment de collecte (l'ordre du formulaire est respecté). */
 export function splitTicketForm(form: TicketFormDefinition): {
     infos: TicketInfoField[];
     choices: (TicketYesNoField | TicketSelectField | TicketMultiSelectField)[];
     texts: (TicketTextField | TicketParagraphField)[];
+    /** Questions texte réparties en modales de 5 lignes (c'est ce qui permet 20 questions). */
+    textPages: (TicketTextField | TicketParagraphField)[][];
+    modalPages: number;
     modalRows: number;
     modalOverflow: number;
     choiceRows: number;
@@ -315,21 +336,23 @@ export function splitTicketForm(form: TicketFormDefinition): {
         else choices.push(field);
     }
 
+    const textPages = chunk(texts, TICKET_MODAL_LIMITS.maxRows);
+
     return {
         infos,
         choices,
         texts,
+        textPages,
+        modalPages: textPages.length,
         modalRows: Math.min(texts.length, TICKET_MODAL_LIMITS.maxRows),
         modalOverflow: Math.max(0, texts.length - TICKET_MODAL_LIMITS.maxRows),
         choiceRows: choices.length,
     };
 }
 
-/** Modale Discord : **champs texte uniquement**, 5 lignes au plus (limite Discord). */
-export function buildTicketModalRows(form: TicketFormDefinition): DiscordActionRow[] {
-    const { texts } = splitTicketForm(form);
-
-    return texts.slice(0, TICKET_MODAL_LIMITS.maxRows).map((field) => ({
+/** Une ligne de modale = une question texte (libellé, aide, bornes, obligatoire). */
+function buildModalRow(field: TicketTextField | TicketParagraphField): DiscordActionRow {
+    return {
         type: DISCORD_ACTION_ROW,
         components: [
             {
@@ -345,7 +368,35 @@ export function buildTicketModalRows(form: TicketFormDefinition): DiscordActionR
                 max_length: field.maxLength,
             },
         ],
-    }));
+    };
+}
+
+/**
+ * **Une page** de modale : 5 questions texte au plus (ce qui permet d'en poser 20).
+ * `isLast` dit quand toutes les réponses texte sont réunies ; `fieldIds` permet de
+ * prouver qu'aucune question n'a été perdue en route.
+ */
+export function buildTicketModalPage(
+    form: TicketFormDefinition,
+    page = 0
+): { rows: DiscordActionRow[]; fieldIds: string[]; page: number; pageCount: number; isLast: boolean } {
+    const { textPages } = splitTicketForm(form);
+    const pageCount = textPages.length;
+    const index = pageCount === 0 ? 0 : Math.min(Math.max(0, Math.trunc(page)), pageCount - 1);
+    const fields = textPages[index] ?? [];
+
+    return {
+        rows: fields.map(buildModalRow),
+        fieldIds: fields.map((field) => field.id),
+        page: index,
+        pageCount,
+        isLast: pageCount === 0 || index === pageCount - 1,
+    };
+}
+
+/** **Première** page de modale (raccourci : la page 1 des questions texte). */
+export function buildTicketModalRows(form: TicketFormDefinition): DiscordActionRow[] {
+    return buildTicketModalPage(form, 0).rows;
 }
 
 /**

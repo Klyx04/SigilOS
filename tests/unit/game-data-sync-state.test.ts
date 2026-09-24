@@ -232,7 +232,9 @@ describe("game-data — siphons en arrière-plan (file + worker)", () => {
         // Les valeurs vivent dans le module PUR `game-items-cadence` (client-safe), que le
         // cœur réexporte — une seule source, deux étages (voir le build cassé du 23/09).
         const cadence = read("src/lib/game-items-cadence.ts");
-        expect(cadence).toContain("GAME_ITEMS_BATCH_SIZE = 100");
+        // Taille du lot = **plafond réel de l'API** (50, mesuré le 24/09/2026 : demander 100
+        // rend 50) — c'était 100, ce qui faisait s'arrêter la passe complète après 50 items.
+        expect(cadence).toContain("GAME_ITEMS_BATCH_SIZE = DOFUSDB_PAGE_MAX");
         expect(cadence).toContain("GAME_ITEMS_BATCH_PAUSE_MS = 2_100");
         expect(core).toContain("from '@/lib/game-items-cadence'");
     });

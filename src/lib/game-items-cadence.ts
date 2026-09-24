@@ -1,6 +1,5 @@
 /**
  * Cadence du siphon d'items DofusDB — **source unique**, importable **côté client**.
- *
  * ⚠️ Pourquoi ce fichier existe (incident mesuré le 23/09/2026) : le lanceur « dans
  * l'onglet » (`src/components/admin/game-data-inline-runners.ts`) a besoin de la cadence,
  * mais il ne peut PAS importer le cœur `src/lib/game-items-siphon.ts` : celui-ci importe
@@ -10,8 +9,10 @@
  * seule source, deux étages.
  */
 
-/** Taille du lot = plafond serveur (`safeLimit` = 100) : 2× moins d'appels qu'à 50. */
-export const GAME_ITEMS_BATCH_SIZE = 100;
+import { DOFUSDB_PAGE_MAX } from "@/lib/dofusdb-pagination";
+
+/** Taille du lot = **plafond réel** de l'API (`DOFUSDB_PAGE_MAX` = 50, mesuré le 24/09/2026). */
+export const GAME_ITEMS_BATCH_SIZE = DOFUSDB_PAGE_MAX;
 
 /**
  * Pause entre deux lots = **cadence du limiteur partagé** (`dofusDbFetch` : fenêtre Redis

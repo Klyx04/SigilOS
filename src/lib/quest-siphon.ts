@@ -18,6 +18,7 @@
 import { db } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 import { dofusDbFetch } from "@/lib/dofusdb-limiter";
+import { DOFUSDB_PAGE_MAX } from "@/lib/dofusdb-pagination";
 
 const DOFUSDB_API = "https://api.dofusdb.fr";
 
@@ -74,7 +75,9 @@ export async function computeQuestDeltasCore(): Promise<QuestDeltasResult> {
     }
 
     // 3. To find deltas, we fetch all quests lightly using correct FeathersJS $select[] array syntax.
-    const limit = 500;
+    // ⚠️ Plafond d'API mesuré le 24/09/2026 : **50 lignes par page** quel que soit `$limit` ⇒
+    // on page par `$skip` et on ne s'arrête que sur une page **vide** (voir la garde ci-dessous).
+    const limit = DOFUSDB_PAGE_MAX;
     let skip = 0;
     const deltas: QuestDelta[] = [];
 
@@ -125,7 +128,9 @@ export async function computeQuestDeltasCore(): Promise<QuestDeltasResult> {
         }
 
         skip += json.data.length;
-        if (json.data.length < limit) break;
+        // ⚠️ On NE s'arrête PAS sur une page « courte » : l'API rend 50 lignes max, donc une
+        // page de 50 avec `$limit` plus grand est normale. Seule une page vide arrête la
+        // boucle (garde en tête) — sinon le comparateur ne voyait que les 50 premières quêtes.
     }
 
     return {

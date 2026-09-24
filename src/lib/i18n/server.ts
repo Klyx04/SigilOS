@@ -10,9 +10,26 @@ const dictionaries: Record<Locale, Translations> = {
 
 /**
  * Résout la locale active côté serveur :
- * 1. Cookie explicite `sigilos_locale`
- * 2. Header `accept-language` (détection automatique pour les nouveaux visiteurs)
- * 3. Fallback sur `fr`
+ * 1. Header `x-sigilos-locale` (posé par le proxy depuis `?lang=`) ;
+ * 2. Cookie explicite `sigilos_locale` (posé par le sélecteur de langue `LanguageToggle`) ;
+ * 3. Repli historique `?lang=` présent dans l'URL/le referer (appel direct au serveur) ;
+ * 4. `fr` par défaut.
+ *
+ * ⚠️ DÉCISION MESURÉE (25/09/2026) — la détection par `accept-language` a été RETIRÉE.
+ * Googlebot se présente très souvent en `en-US` : il recevait donc la version **anglaise** d'une page
+ * dont le `canonical` désigne l'**URL FR** (il n'existe qu'une seule adresse par page — pas de chemin
+ * `/en/...`). Autrement dit, le contenu servi ne correspondait pas à l'URL déclarée, avec un titre et
+ * un extrait possiblement en anglais pour une audience française.
+ * Relevé Search Console du 25/09/2026 : **aucune requête anglophone** ⇒ on assume le FR par défaut,
+ * proprement :
+ *   • la langue vient d'un choix **explicite** (sélecteur de langue → cookie), jamais de l'en-tête du visiteur ;
+ *   • `?lang=en` continue de fonctionner (le proxy pose `x-sigilos-locale`) ;
+ *   • le sélecteur `LanguageToggle` reste affiché sur toutes les pages publiques (`public-header.tsx`),
+ *     donc l'anglais reste accessible en un clic ;
+ *   • un vrai site bilingue exigerait de vrais chemins `/en/...` + `hreflang` : chantier à part,
+ *     **non rentable aujourd'hui** (cf. `docs/ROADMAP.md`).
+ * ❌ Ne JAMAIS servir une langue différente à un robot (cloaking) — c'est précisément pour l'éviter
+ * qu'on supprime la détection automatique au lieu de la filtrer.
  */
 export async function getServerLocale(): Promise<Locale> {
     try {
@@ -28,11 +45,8 @@ export async function getServerLocale(): Promise<Locale> {
             return cookieLocale;
         }
 
-        const acceptLanguage = headersList.get("accept-language");
-        if (acceptLanguage && acceptLanguage.toLowerCase().startsWith("en")) {
-            return "en";
-        }
-        // Détection additionnelle si x-sigilos-locale n'a pas été posé (ex: fetch direct ou middleware contourné)
+        // Choix explicite porté par l'URL (`?lang=en`) quand le header du proxy n'est pas posé
+        // (ex. fetch direct, contexte contourné).
         const urlStr = headersList.get("x-url") || headersList.get("referer") || "";
         if (urlStr) {
             try {

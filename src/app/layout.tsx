@@ -135,7 +135,10 @@ export default async function RootLayout({
   // [AUDIT 2026] Retrieve nonce from middleware for CSP-compliant script injection
   const headersList = await headers();
   const nonce = headersList.get("x-nonce") ?? "";
-  // Récupération de la locale active (cookie sigilos_locale ou header accept-language)
+  // Récupération de la locale active (choix explicite : `?lang=` via le proxy, ou cookie
+  // `sigilos_locale` posé par le sélecteur de langue). La détection `accept-language` a été
+  // retirée le 25/09/2026 : elle servait la version anglaise à Googlebot (en-US) sur des URL dont
+  // le canonical est FR. Détail et mesures : `src/lib/i18n/server.ts`.
   const { getServerLocale } = await import("@/lib/i18n/server");
   const locale = await getServerLocale();
   const { I18nProvider } = await import("@/lib/i18n/client");

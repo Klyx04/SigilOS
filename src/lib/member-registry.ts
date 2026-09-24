@@ -6,10 +6,33 @@
  * - l'ancienneté en jours (calculée seule),
  * - la décision d'essai `oui | non | prolonge` (dérivée du statut + `trialEndsAt`),
  * - la validation du tag Ankama `Nom#0000`,
+ * - les commentaires du staff (plafond, ordre de lecture),
  * - l'export CSV du registre (séparateur `;`, avec l'ID Discord).
  */
 
 export const ANKAMA_ID_PATTERN = /^[a-zA-Z0-9-]{1,50}#[0-9]{4}$/;
+
+/** Commentaires du registre : plafond par membre et taille d'un commentaire. */
+export const MAX_REGISTRY_COMMENTS = 10;
+export const REGISTRY_COMMENT_MAX_LENGTH = 1000;
+
+export interface RegistryComment {
+    id: string;
+    body: string;
+    authorName: string;
+    authorUserId: string | null;
+    createdAt: string;
+}
+
+/** Ordre de lecture du journal : du plus ancien au plus récent. */
+export function sortRegistryComments(comments: RegistryComment[]): RegistryComment[] {
+    return [...comments].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+}
+
+/** Plafond atteint ? (le staff ne noie pas la fiche sous les commentaires) */
+export function canAddRegistryComment(currentCount: number): boolean {
+    return currentCount < MAX_REGISTRY_COMMENTS;
+}
 
 export function isValidAnkamaId(value: string): boolean {
     return ANKAMA_ID_PATTERN.test(value.trim());
@@ -70,7 +93,7 @@ export interface RegistryCsvRow {
     trialEndsAt: string | null;
     muleCount: number;
     mules: string[];
-    staffNotes: string | null;
+    comments: RegistryComment[];
 }
 
 function csvCell(value: string | number | null | undefined): string {
@@ -94,7 +117,7 @@ export function buildRegistryCsv(rows: RegistryCsvRow[], guildId: string, todayI
         "Fin d'essai",
         "Nombre de mules",
         "Mules",
-        "Notes staff",
+        "Commentaires",
     ];
     const lines = rows.map((r) =>
         [
@@ -111,7 +134,10 @@ export function buildRegistryCsv(rows: RegistryCsvRow[], guildId: string, todayI
             r.trialEndsAt ? r.trialEndsAt.split("T")[0] : "",
             r.muleCount,
             r.mules.join(", "),
-            r.staffNotes,
+            // Journal lisible : « 2026-09-24 18:05 — Wylan : texte », du plus ancien au plus récent.
+            sortRegistryComments(r.comments)
+                .map((c) => `${c.createdAt.slice(0, 16).replace("T", " ")} — ${c.authorName} : ${c.body.replace(/\s+/g, " ")}`)
+                .join(" | "),
         ]
             .map(csvCell)
             .join(";")

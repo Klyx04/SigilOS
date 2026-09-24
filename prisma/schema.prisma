@@ -735,7 +735,6 @@ model UserProfile {
   recruitedById              String?
   departureReason            String?
   departureCategory          String?
-  staffNotes                 String?
   recruitedByProfile         UserProfile?               @relation("RecruiterProfile", fields: [recruitedById], references: [id], onDelete: SetNull)
   recruits                   UserProfile[]              @relation("RecruiterProfile")
   achievementSubmissions     AchievementSubmission[]
@@ -780,10 +779,29 @@ model UserProfile {
   /** Module « Marché » — annonces du vendeur (relation nommée, cf. §6.10). */
   marketListings             MarketListing[]            @relation("MarketListingsAsSeller")
   helpedSubmissions          Submission[]               @relation("SubmissionHelpers")
+  /** Registre : commentaires du staff (10 max, horodatés et signés). */
+  registryComments           MemberRegistryComment[]
 
   @@unique([userId, guildId])
   @@index([guildId])
   @@index([userId])
+}
+
+/// Registre Membres & Recrutement — commentaires du staff : plusieurs par
+/// membre (10 max), horodatés et signés par leur auteur.
+model MemberRegistryComment {
+  id           String      @id @default(cuid())
+  guildId      String
+  profileId    String
+  /// Auteur (compte staff) ; null seulement pour la reprise de l'ancienne note unique.
+  authorUserId String?
+  authorName   String
+  body         String
+  createdAt    DateTime    @default(now())
+  profile      UserProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId, createdAt])
+  @@index([guildId])
 }
 
 model LegendaryItem {

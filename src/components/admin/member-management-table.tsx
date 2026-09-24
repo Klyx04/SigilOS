@@ -106,9 +106,11 @@ interface MemberManagementTableProps {
     isAdmin?: boolean; // Guild admin (canManageMembers) — can delete & reactivate
     ownerId?: string | null;
     currentUserId?: string; // NextAuth user ID of the logged-in admin
+    /** Affiche les colonnes d'ID (Discord / Ankama). Faux quand le Registre les porte déjà. */
+    showIds?: boolean;
 }
 
-export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeName, isSuperAdmin = false, isAdmin = false, ownerId = null, currentUserId = "" }: MemberManagementTableProps) {
+export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeName, isSuperAdmin = false, isAdmin = false, ownerId = null, currentUserId = "", showIds = true }: MemberManagementTableProps) {
     const [search, setSearch] = useState("");
     const [members, setMembers] = useState(initialMembers);
     const [activeTab, setActiveTab] = useState<"ALL" | "ACTIVE" | "ARCHIVED" | "BANNED" | "EXCLUDED">("ACTIVE");
@@ -516,8 +518,12 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
                                 </button>
                             </TableHead>
                             <TableHead className="text-caption font-semibold uppercase tracking-wide text-muted-foreground py-6">Activité</TableHead>
-                            <TableHead className="text-caption font-semibold uppercase tracking-wide text-muted-foreground py-6">Discord ID</TableHead>
-                            <TableHead className="text-caption font-semibold uppercase tracking-wide text-muted-foreground py-6">Ankama ID</TableHead>
+                            {showIds && (
+                                <>
+                                    <TableHead className="text-caption font-semibold uppercase tracking-wide text-muted-foreground py-6">Discord ID</TableHead>
+                                    <TableHead className="text-caption font-semibold uppercase tracking-wide text-muted-foreground py-6">Ankama ID</TableHead>
+                                </>
+                            )}
                             <TableHead className="text-caption font-semibold uppercase tracking-wide text-muted-foreground py-6">Suppression</TableHead>
                             <TableHead className="text-right text-caption font-semibold uppercase tracking-wide text-muted-foreground py-6 pr-8">Actions</TableHead>
                         </TableRow>
@@ -525,7 +531,7 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
                     <TableBody>
                         {paginatedMembers.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={8} className="h-32 text-center text-muted-foreground italic">
+                                    <TableCell colSpan={showIds ? 8 : 6} className="h-32 text-center text-muted-foreground italic">
                                         Aucun membre trouvé pour ces critères.
                                     </TableCell>
                                 </TableRow>
@@ -595,38 +601,42 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
                                 <TableCell className="text-caption text-muted-foreground font-bold uppercase tracking-tight">
                                     {formatDistanceToNow(new Date(member.updatedAt ?? member.archivedAt ?? new Date()), { addSuffix: true, locale: fr })}
                                 </TableCell>
-                                <TableCell>
-                                    <div 
-                                        onClick={() => copyToClipboard(member.user.accounts[0]?.providerAccountId || "", "ID Discord")}
-                                        className="flex items-center gap-2 group/copy cursor-pointer w-fit"
-                                    >
-                                        <code className="text-caption px-2 py-1 rounded bg-elevated text-muted-foreground font-mono border border-border group-hover/copy:border-border-strong transition-all">
-                                            {member.user.accounts[0]?.providerAccountId || "Unknown"}
-                                        </code>
-                                        <Copy className="w-3 h-3 text-muted-foreground group-hover/copy:text-muted-foreground opacity-0 group-hover/copy:opacity-100 transition-all" />
-                                    </div>
-                                </TableCell>
-                                <TableCell>
-                                    {member.ankamaId ? (
+                                {showIds && (
+                                    <TableCell>
                                         <div 
-                                            onClick={() => copyToClipboard(member.ankamaId!, "ID Dofus")}
-                                            className="flex items-center gap-2 group/id relative cursor-pointer w-fit"
+                                            onClick={() => copyToClipboard(member.user.accounts[0]?.providerAccountId || "", "ID Discord")}
+                                            className="flex items-center gap-2 group/copy cursor-pointer w-fit"
                                         >
-                                            <div className="px-2 py-1 rounded bg-info/20 border border-info/40 group-hover/id:border-info transition-all">
-                                                <span className="text-caption font-black text-info font-mono tracking-tight uppercase">{member.ankamaId}</span>
-                                            </div>
-                                            <Copy className="w-3 h-3 text-info group-hover/id:text-info opacity-0 group-hover/id:opacity-100 transition-all" />
+                                            <code className="text-caption px-2 py-1 rounded bg-elevated text-muted-foreground font-mono border border-border group-hover/copy:border-border-strong transition-all">
+                                                {member.user.accounts[0]?.providerAccountId || "Unknown"}
+                                            </code>
+                                            <Copy className="w-3 h-3 text-muted-foreground group-hover/copy:text-muted-foreground opacity-0 group-hover/copy:opacity-100 transition-all" />
                                         </div>
-                                    ) : (
-                                        <button 
-                                            onClick={() => openIdDialog(member)}
-                                            className="text-caption font-black uppercase text-muted-foreground hover:text-muted-foreground transition-colors italic flex items-center gap-1"
-                                        >
-                                            <Edit className="w-3 h-3" />
-                                            Ajouter ID
-                                        </button>
-                                    )}
-                                </TableCell>
+                                    </TableCell>
+                                )}
+                                {showIds && (
+                                    <TableCell>
+                                        {member.ankamaId ? (
+                                            <div 
+                                                onClick={() => copyToClipboard(member.ankamaId!, "ID Dofus")}
+                                                className="flex items-center gap-2 group/id relative cursor-pointer w-fit"
+                                            >
+                                                <div className="px-2 py-1 rounded bg-info/20 border border-info/40 group-hover/id:border-info transition-all">
+                                                    <span className="text-caption font-black text-info font-mono tracking-tight uppercase">{member.ankamaId}</span>
+                                                </div>
+                                                <Copy className="w-3 h-3 text-info group-hover/id:text-info opacity-0 group-hover/id:opacity-100 transition-all" />
+                                            </div>
+                                        ) : (
+                                            <button 
+                                                onClick={() => openIdDialog(member)}
+                                                className="text-caption font-black uppercase text-muted-foreground hover:text-muted-foreground transition-colors italic flex items-center gap-1"
+                                            >
+                                                <Edit className="w-3 h-3" />
+                                                Ajouter ID
+                                            </button>
+                                        )}
+                                    </TableCell>
+                                )}
                                 <TableCell>
                                     {member.scheduledDeletion ? (() => {
                                         const deletionDate = new Date(member.scheduledDeletion);

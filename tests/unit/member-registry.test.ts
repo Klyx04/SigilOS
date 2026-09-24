@@ -5,11 +5,14 @@
 
 import { describe, expect, it } from "vitest";
 import {
+    MAX_REGISTRY_COMMENTS,
     buildRegistryCsv,
+    canAddRegistryComment,
     computeSeniorityDays,
     getTrialDecision,
     isValidAnkamaId,
     resolveJoinedAt,
+    sortRegistryComments,
 } from "@/lib/member-registry";
 
 describe("registre membres — date d'arrivée et ancienneté", () => {
@@ -85,7 +88,22 @@ describe("registre membres — tag Ankama et CSV", () => {
                     trialEndsAt: null,
                     muleCount: 1,
                     mules: ["Mule;A"],
-                    staffNotes: "OK",
+                    comments: [
+                        {
+                            id: "c1",
+                            body: "Essai prolongé : peu de présence en soirée",
+                            authorName: "Wylan",
+                            authorUserId: "u1",
+                            createdAt: "2026-09-20T18:05:00.000Z",
+                        },
+                        {
+                            id: "c2",
+                            body: "Relance faite",
+                            authorName: "Klyx",
+                            authorUserId: "u2",
+                            createdAt: "2026-09-24T09:30:00.000Z",
+                        },
+                    ],
                 },
             ],
             "1290442961380835451",
@@ -95,9 +113,33 @@ describe("registre membres — tag Ankama et CSV", () => {
         const [headers, line] = content.split("\n");
         expect(headers).toContain("ID Discord");
         expect(headers).toContain("Aujourd'hui");
+        expect(headers).toContain("Commentaires");
         expect(line).toContain("403000342167420929");
         expect(line).toContain("2026-09-24");
         // Le ; dans le pseudo de mule est échappé par guillemets.
         expect(line).toContain('"Mule;A"');
+        // Journal horodaté et signé, du plus ancien au plus récent.
+        expect(line).toContain("2026-09-20 18:05 — Wylan : Essai prolongé");
+        expect(line).toContain("2026-09-24 09:30 — Klyx : Relance faite");
+    });
+});
+
+describe("registre membres — commentaires du staff", () => {
+    const comments = [
+        { id: "b", body: "deuxième", authorName: "Klyx", authorUserId: null, createdAt: "2026-09-24T09:00:00.000Z" },
+        { id: "a", body: "premier", authorName: "Wylan", authorUserId: "u1", createdAt: "2026-09-20T18:00:00.000Z" },
+    ];
+
+    it("rend le journal dans l'ordre de lecture, du plus ancien au plus récent", () => {
+        expect(sortRegistryComments(comments).map((c) => c.id)).toEqual(["a", "b"]);
+        // L'ordre reçu n'est jamais muté.
+        expect(comments.map((c) => c.id)).toEqual(["b", "a"]);
+    });
+
+    it("plafonne le journal à 10 entrées", () => {
+        expect(MAX_REGISTRY_COMMENTS).toBe(10);
+        expect(canAddRegistryComment(0)).toBe(true);
+        expect(canAddRegistryComment(9)).toBe(true);
+        expect(canAddRegistryComment(10)).toBe(false);
     });
 });

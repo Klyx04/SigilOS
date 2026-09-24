@@ -26,7 +26,6 @@ import {
     Coins,
     Ticket,
     Key,
-    UserCheck,
     Terminal,
 } from "lucide-react";
 import { AdminCard } from "@/components/admin/admin-card";
@@ -176,24 +175,13 @@ function buildSections(guildId: string): AdminSection[] {
                 {
                     href: `/dashboard/${guildId}/admin/members`,
                     icon: Users,
-                    title: "Audit & Gestion des Membres",
-                    description: "Audit Discord vs Dashboard, synchronisation des pseudos, archivage et relances Discord.",
+                    title: "Membres & Recrutement",
+                    description: "Audit Discord vs Dashboard, registre du staff, essais, mules, archivage et relances Discord.",
                     accent: "cyan",
                     modules: "roster",
                     permission: (u) => u.canManageMembers || u.canManageRelance,
                     tourId: "admin-overview-card-members",
                     dofusAsset: "/assets/dofus/modules/social.png",
-                },
-                {
-                    href: `/dashboard/${guildId}/admin/members?tab=registre`,
-                    icon: UserCheck,
-                    title: "Recrutement & Cycle de Vie",
-                    description: "Registre du staff, périodes d'essai J-X, mules et historique des départs (onglet du module Membres).",
-                    accent: "emerald",
-                    modules: "roster",
-                    permission: (u) => u.canManageMembers,
-                    tourId: "admin-overview-card-recruitment",
-                    dofusAsset: "/assets/dofus/modules/character.png",
                 },
                 {
                     href: `/dashboard/${guildId}/admin/points`,

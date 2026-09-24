@@ -6,6 +6,14 @@ import { DOFUS_JOBS } from "@/lib/dofus-assets";
 import { normSearch, parseAlmanaxDateInput, frenchLongDate } from "@/lib/slash-command-helpers";
 import { PERMISSIONS as PERMISSION_IDS, type PermissionId } from "@/lib/permissions";
 import { resolveInteractionActor } from "@/lib/tickets/interaction-actor";
+import {
+    buildTicketModalSubmittedReply,
+    buildTicketOpenRefusal,
+    buildTicketOpenedContent,
+    buildTicketTunnelReply,
+    type TicketStepReply,
+} from "@/lib/tickets/journey-dispatch";
+import { TICKET_PICK_PREFIX, parseTicketCustomId } from "@/lib/tickets/interaction-routing";
 
 // ============================================
 // DOFUS CLASSES for Modal validation
@@ -134,6 +142,115 @@ async function isDiscordPrefixAuthorized(
         // Fail-closed : Discord/RBAC injoignable ⇒ refus, jamais un accès par défaut.
         return false;
     }
+}
+
+/**
+ * 🆕 Tickets v2 — **avance d'une étape dans un parcours** et rend la réponse Discord.
+ *
+ * La route ne décide rien : elle résout (`advanceTicketJourney` — parcours publié/activé,
+ * formulaire **figé**, brouillon), traduit (`journey-dispatch`) et crée le ticket quand il
+ * n'y a plus rien à demander (`internalHandleTicketCreate`, qui **revalide** les réponses).
+ *
+ * `handled: false` = aucun parcours de cet identifiant : l'appelant peut alors retomber sur
+ * une **catégorie v1**, ce qui garde les panneaux déjà déployés fonctionnels.
+ */
+async function ticketJourneyInteraction(input: {
+    discordGuildId: string;
+    discordUserId: string;
+    discordUserName: string;
+    discordUserAvatar?: string | null;
+    panelId?: string;
+    journeyId: string;
+    advance?: {
+        page?: number;
+        submitted?: Array<{ customId: string; value: string }>;
+        choice?: { fieldId: string; values: unknown };
+        resume?: boolean;
+    };
+    /** Réponse à une **soumission de modale** : Discord interdit d'en ouvrir une autre. */
+    afterModalSubmit?: boolean;
+}): Promise<{ handled: false } | { handled: true; response: NextResponse }> {
+    const { advanceTicketJourney } = await import("@/server/tickets/journey-open");
+
+    const result = await advanceTicketJourney({
+        discordGuildId: input.discordGuildId,
+        journeyId: input.journeyId,
+        discordUserId: input.discordUserId,
+        ...(input.advance ?? {}),
+    });
+
+    if (!result.ok) {
+        // Un identifiant qui n'est pas un parcours : l'appelant essaiera une catégorie v1.
+        if (result.code === "NOT_FOUND") return { handled: false };
+        return { handled: true, response: ephemeralDiscordMessage(buildTicketOpenRefusal(result.reason)) };
+    }
+
+    const { context, step, answers } = result;
+
+    if (step.kind === "open") {
+        const { internalHandleTicketCreate } = await import("@/server/actions/ticket-bot-actions");
+        const created = await internalHandleTicketCreate({
+            discordGuildId: input.discordGuildId,
+            discordUserId: input.discordUserId,
+            discordUserName: input.discordUserName,
+            discordUserAvatar: input.discordUserAvatar,
+            panelId: input.panelId ?? "",
+            journeyId: context.journey.id,
+            formVersionId: context.formVersionId,
+            intakeAnswers: answers,
+        });
+
+        return {
+            handled: true,
+            response: ephemeralDiscordMessage(
+                created.success && created.channelId
+                    ? buildTicketOpenedContent(created.channelId)
+                    : buildTicketOpenRefusal(created.error || "Impossible d'ouvrir le ticket.")
+            ),
+        };
+    }
+
+    const reply: TicketStepReply = input.afterModalSubmit
+        ? buildTicketModalSubmittedReply({
+              step,
+              journeyId: context.journey.id,
+              journeyName: context.journey.name,
+          })
+        : buildTicketTunnelReply({
+              step,
+              panelId: input.panelId,
+              journeyId: context.journey.id,
+              journeyName: context.journey.name,
+          });
+
+    if (reply.kind === "modal") {
+        return {
+            handled: true,
+            response: NextResponse.json({
+                type: 9, // MODAL
+                data: { custom_id: reply.customId, title: reply.title, components: reply.components },
+            }),
+        };
+    }
+
+    if (reply.kind === "open") {
+        // Branche théoriquement inatteignable (l'ouverture est traitée plus haut) : on
+        // n'invente pas de ticket en silence, on demande de recliquer.
+        return {
+            handled: true,
+            response: ephemeralDiscordMessage(
+                buildTicketOpenRefusal("Ta demande est complète : reclique sur le motif pour l'ouvrir.")
+            ),
+        };
+    }
+
+    return {
+        handled: true,
+        response: NextResponse.json({
+            type: 4, // réponse éphémère : visible du seul membre
+            data: { content: reply.content, components: reply.components, flags: 64 },
+        }),
+    };
 }
 
 export async function POST(request: NextRequest) {
@@ -834,6 +951,34 @@ export async function POST(request: NextRequest) {
                     },
                 });
 
+            } else if (prefix === TICKET_PICK_PREFIX) {
+                // =========================================================
+                // 🆕 TICKETS v2 — ÉTAPE DES CHOIX (`tb_pick:{parcours}:{champ}[:yes|no]`)
+                // Une modale Discord ne transporte que des champs texte : les Oui/Non et les
+                // listes se répondent donc **avant**, par des boutons et des menus.
+                // =========================================================
+                const descriptor = parseTicketCustomId(custom_id);
+                if (!descriptor || descriptor.kind !== "pick" || !descriptor.journeyId || !descriptor.fieldId) {
+                    return ephemeralDiscordRefusal("❌ Ce bouton n'est plus valide.");
+                }
+
+                const choice = await ticketJourneyInteraction({
+                    discordGuildId: guild_id,
+                    discordUserId: member.user.id,
+                    discordUserName: member.user.global_name || member.user.username,
+                    discordUserAvatar: member.user.avatar,
+                    journeyId: descriptor.journeyId,
+                    advance: {
+                        choice: {
+                            fieldId: descriptor.fieldId,
+                            // Bouton Oui/Non = une valeur ; menu = les valeurs sélectionnées.
+                            values: descriptor.value ? [descriptor.value] : payload.data?.values ?? [],
+                        },
+                    },
+                });
+
+                if (!choice.handled) return ephemeralDiscordRefusal("❌ Ce parcours n'existe plus.");
+                return choice.response;
             } else if (prefix === "ticket") {
                 // =========================================================
                 // TICKET SYSTEM V2 — 2-step flow: Select Menu → Adapted Modal
@@ -1165,17 +1310,33 @@ export async function POST(request: NextRequest) {
                     internalHandleTicketCsat,
                 } = await import("@/server/actions/ticket-bot-actions");
 
-                if (action === "select_open" || action === "open") {
+                if (action === "select_open" || action === "open" || action === "select_journey") {
                     const panelId = entityId;
-                    const categoryId = action === "select_open" ? payload.data?.values?.[0] : extra;
+                    const categoryId = action === "select_open" || action === "select_journey" ? payload.data?.values?.[0] : extra;
 
                     if (!categoryId) {
                         return NextResponse.json({ type: 4, data: { content: "Catégorie non spécifiée", flags: 64 } });
                     }
 
+                    // 🆕 Tickets v2 — un **parcours** publié et activé prend la main : c'est lui
+                    // qui porte questionnaire, nommage, pings et politique de fermeture. Le
+                    // brouillon (30 min) fait reprendre le membre où il s'était arrêté.
+                    const journey = await ticketJourneyInteraction({
+                        discordGuildId: guild_id,
+                        discordUserId: member.user.id,
+                        discordUserName: member.user.global_name || member.user.username,
+                        discordUserAvatar: member.user.avatar,
+                        panelId,
+                        journeyId: categoryId,
+                        advance: { resume: true },
+                    });
+                    if (journey.handled) return journey.response;
+
+                    // ⚠️ v1 — panneaux déjà déployés : catégorie + modale. La catégorie est
+                    // relue **dans cette guilde** (jamais un identifiant venu d'ailleurs).
                     const { db } = await import("@/lib/prisma");
-                    const category = await db.ticketBotCategory.findUnique({
-                        where: { id: categoryId },
+                    const category = await db.ticketBotCategory.findFirst({
+                        where: { id: categoryId, guild: { discordGuildId: guild_id } },
                     });
 
                     const formSchema = Array.isArray(category?.formSchemaJson) ? (category.formSchemaJson as any[]) : [];
@@ -1234,6 +1395,26 @@ export async function POST(request: NextRequest) {
                             },
                         });
                     }
+                } else if (action === "modal_page") {
+                    // 🆕 « Continuer » : une modale **soumise** ne peut pas en ouvrir une autre,
+                    // c'est donc un clic de bouton qui rouvre la page suivante. Le `custom_id`
+                    // est validé par le routeur (page bornée, parcours authentifié).
+                    const descriptor = parseTicketCustomId(custom_id);
+                    if (!descriptor || descriptor.kind !== "modal_page" || !descriptor.journeyId) {
+                        return ephemeralDiscordRefusal("❌ Ce bouton n'est plus valide.");
+                    }
+
+                    const page = await ticketJourneyInteraction({
+                        discordGuildId: guild_id,
+                        discordUserId: member.user.id,
+                        discordUserName: member.user.global_name || member.user.username,
+                        discordUserAvatar: member.user.avatar,
+                        journeyId: descriptor.journeyId,
+                        advance: { page: descriptor.page ?? 0 },
+                    });
+
+                    if (!page.handled) return ephemeralDiscordRefusal("❌ Ce parcours n'existe plus.");
+                    return page.response;
                 } else if (action === "claim") {
                     const ticketId = entityId;
                     const res = await internalHandleTicketClaim({
@@ -1734,10 +1915,37 @@ export async function POST(request: NextRequest) {
                 };
                 if (action === "modal_open") {
                     const panelId = entityId;
-                    const categoryId = extra;
+                    const targetId = extra;
+
+                    // 🆕 Tickets v2 — parcours : les réponses sont **clés par `id` de champ**
+                    // (`tf_...`) et revalidées plus loin sur la version figée du questionnaire.
+                    const submitted: Array<{ customId: string; value: string }> = [];
+                    for (const row of components) {
+                        for (const comp of row.components) {
+                            submitted.push({
+                                customId: String(comp.custom_id ?? ""),
+                                value: String(comp.value ?? ""),
+                            });
+                        }
+                    }
+
+                    const journey = await ticketJourneyInteraction({
+                        discordGuildId: guild_id,
+                        discordUserId: member.user.id,
+                        discordUserName: member.user.global_name || member.user.username,
+                        discordUserAvatar: member.user.avatar,
+                        panelId,
+                        journeyId: targetId,
+                        advance: { submitted },
+                        afterModalSubmit: true,
+                    });
+                    if (journey.handled) return journey.response;
+
+                    // ⚠️ v1 — catégorie + réponses clés par libellé (panneaux déjà déployés).
+                    const categoryId = targetId;
                     const { db } = await import("@/lib/prisma");
-                    const category = await db.ticketBotCategory.findUnique({
-                        where: { id: categoryId },
+                    const category = await db.ticketBotCategory.findFirst({
+                        where: { id: categoryId, guild: { discordGuildId: guild_id } },
                     });
 
                     const formSchema = Array.isArray(category?.formSchemaJson) ? (category.formSchemaJson as any[]) : [];

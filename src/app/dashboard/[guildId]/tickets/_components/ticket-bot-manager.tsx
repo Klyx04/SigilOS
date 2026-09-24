@@ -10,11 +10,13 @@ import {
     FileText,
     BarChart3,
     Sparkles,
+    Route,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { TicketInboxTab } from "./tabs/ticket-inbox-tab";
 import { TicketPanelsTab } from "./tabs/ticket-panels-tab";
 import { TicketCategoriesTab } from "./tabs/ticket-categories-tab";
+import { TicketJourneysTab } from "./tabs/ticket-journeys-tab";
 import { TicketSettingsTab } from "./tabs/ticket-settings-tab";
 import { TicketTranscriptsTab } from "./tabs/ticket-transcripts-tab";
 import { TicketAnalyticsTab } from "./tabs/ticket-analytics-tab";
@@ -25,22 +27,37 @@ interface TicketBotManagerProps {
     config: any;
     categories: any[];
     panels: any[];
+    /** 🆕 v2 — parcours (onglet « Parcours » et exposition par les panneaux). */
+    journeys: any[];
+    /** 🆕 v2 — formulaires et équipes rattachables à un parcours. */
+    forms: any[];
+    teams: any[];
     tickets: any[];
     stats: any;
 }
+
+type TicketManagerTabId =
+    | "inbox"
+    | "journeys"
+    | "panels"
+    | "categories"
+    | "settings"
+    | "transcripts"
+    | "analytics";
 
 export function TicketBotManager({
     guildId,
     config,
     categories,
     panels,
+    journeys,
+    forms,
+    teams,
     tickets,
     stats,
 }: TicketBotManagerProps) {
     const router = useRouter();
-    const [activeTab, setActiveTab] = useState<
-        "inbox" | "panels" | "categories" | "settings" | "transcripts" | "analytics"
-    >("inbox");
+    const [activeTab, setActiveTab] = useState<TicketManagerTabId>("inbox");
 
     const onRefresh = () => {
         router.refresh();
@@ -51,7 +68,7 @@ export function TicketBotManager({
     ).length;
 
     interface TabItem {
-        id: "inbox" | "panels" | "categories" | "settings" | "transcripts" | "analytics";
+        id: TicketManagerTabId;
         label: string;
         icon: any;
         badge?: number;
@@ -63,6 +80,12 @@ export function TicketBotManager({
             label: "Boîte de Réception",
             icon: Ticket,
             badge: openTicketsCount > 0 ? openTicketsCount : undefined,
+        },
+        {
+            id: "journeys",
+            label: "Parcours",
+            icon: Route,
+            badge: journeys.length > 0 ? journeys.length : undefined,
         },
         {
             id: "panels",
@@ -163,11 +186,21 @@ export function TicketBotManager({
                         onRefresh={onRefresh}
                     />
                 )}
+                {activeTab === "journeys" && (
+                    <TicketJourneysTab
+                        guildId={guildId}
+                        journeys={journeys}
+                        forms={forms}
+                        teams={teams}
+                        onRefresh={onRefresh}
+                    />
+                )}
                 {activeTab === "panels" && (
                     <TicketPanelsTab
                         guildId={guildId}
                         panels={panels}
                         categories={categories}
+                        journeys={journeys}
                         onRefresh={onRefresh}
                     />
                 )}

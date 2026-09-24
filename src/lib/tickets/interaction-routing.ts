@@ -16,6 +16,8 @@
 /** Préfixe des boutons, menus et modales du module (`tb:...`). */
 export const TICKET_PREFIX = "tb";
 
+import { TICKET_MODAL_PAGES_MAX } from "./form-schema";
+
 /** Préfixe de l'étape « choix » (Oui/Non et sélecteurs avant la modale). */
 export const TICKET_PICK_PREFIX = "tb_pick";
 
@@ -28,6 +30,7 @@ export type TicketActionKind =
     | "select_open"
     | "select_journey"
     | "modal_open"
+    | "modal_page"
     | "pick"
     | "claim"
     | "release"
@@ -51,6 +54,8 @@ export type TicketActionDescriptor = {
     journeyId?: string;
     ticketId?: string;
     fieldId?: string;
+    /** Page de modale demandée par le bouton « Continuer » (0 = première). */
+    page?: number;
     /** Valeur d'un choix (`yes` / `no`). */
     value?: string;
     /** Note de CSAT (1-5). */
@@ -64,6 +69,7 @@ const ACTION_ACCESS: Record<TicketActionKind, TicketAccessLevel> = {
     select_open: "public",
     select_journey: "public",
     modal_open: "public",
+    modal_page: "public",
     pick: "public",
     // Actions de staff — vérifiées par `decideTicketAccess`.
     claim: "staff",
@@ -82,6 +88,15 @@ const ACTION_ACCESS: Record<TicketActionKind, TicketAccessLevel> = {
 const FIELD_ID_PATTERN = /^[a-z][a-z0-9_]{0,63}$/;
 
 /**
+ * Segment d'identifiant technique (`journeyId`, `panelId`, `ticketId`) : alphanumérique
+ * borné — aucun caractère de séparation, donc impossible de fabriquer un faux `custom_id`
+ * en collant un « : » dans un identifiant.
+ */
+function isTicketIdSegment(value: string | undefined): value is string {
+    return typeof value === "string" && /^[A-Za-z0-9_-]{6,40}$/.test(value);
+}
+
+/**
  * Analyse un `custom_id` du module. Renvoie `null` si le format est inconnu :
  * l'appelant **doit** refuser (jamais de `catch`-all silencieux).
  */
@@ -93,16 +108,19 @@ export function parseTicketCustomId(customId: string): TicketActionDescriptor | 
     const parts = customId.split(":");
     const [prefix, action, first, second] = parts;
 
-    // Étape « choix » : `tb_pick:<fieldId>` ou `tb_pick:<fieldId>:<yes|no>`.
-    // ⚠️ Ici le segment 1 est l'**identifiant de champ** (il n'y a pas d'« action ») :
-    // compter les segments évite d'accepter un `tb_pick:a:b:c` fantaisiste.
+    // Étape « choix » : `tb_pick:<journeyId>:<fieldId>` ou `...:<fieldId>:<yes|no>`.
+    // ⚠️ Ici le segment 1 est le **parcours** et le segment 2 l'**identifiant de champ**
+    // (il n'y a pas d'« action ») : compter les segments évite d'accepter un
+    // `tb_pick:a:b:c:d` fantaisiste, et le parcours permet de retrouver le brouillon.
     if (prefix === TICKET_PICK_PREFIX) {
-        if (parts.length > 3) return null;
-        const fieldId = action;
+        if (parts.length !== 3 && parts.length !== 4) return null;
+        const journeyId = action;
+        const fieldId = first;
+        if (!isTicketIdSegment(journeyId)) return null;
         if (!fieldId || !FIELD_ID_PATTERN.test(fieldId)) return null;
-        const value = first;
+        const value = second;
         if (value !== undefined && value !== "yes" && value !== "no") return null;
-        return { kind: "pick", access: ACTION_ACCESS.pick, source: "tb_pick", fieldId, value };
+        return { kind: "pick", access: ACTION_ACCESS.pick, source: "tb_pick", journeyId, fieldId, value };
     }
 
     if (prefix !== TICKET_PREFIX || !action) return null;
@@ -117,6 +135,7 @@ export function parseTicketCustomId(customId: string): TicketActionDescriptor | 
     const expectedSegments: Partial<Record<TicketActionKind, number>> = {
         open: 4,
         modal_open: 4,
+        modal_page: 4,
         select_open: 3,
         select_journey: 3,
         claim: 3,
@@ -138,6 +157,15 @@ export function parseTicketCustomId(customId: string): TicketActionDescriptor | 
             if (!first || !second) return null;
             descriptor.panelId = first;
             descriptor.journeyId = second;
+            return descriptor;
+        }
+        case "modal_page": {
+            // `tb:modal_page:{journeyId}:{page}` — la page suivante du questionnaire.
+            if (!isTicketIdSegment(first) || !second) return null;
+            const page = Number.parseInt(second, 10);
+            if (!Number.isInteger(page) || page < 0 || page >= TICKET_MODAL_PAGES_MAX) return null;
+            descriptor.journeyId = first;
+            descriptor.page = page;
             return descriptor;
         }
         case "select_open":
@@ -182,6 +210,7 @@ export const TICKET_ACTION_LABELS: Record<TicketActionKind, string> = {
     select_open: "Ouverture d'un ticket (menu)",
     select_journey: "Ouverture d'un ticket (menu des parcours)",
     modal_open: "Formulaire d'ouverture",
+    modal_page: "Questionnaire (page suivante)",
     pick: "Réponse à un choix",
     claim: "Prise en charge",
     release: "Remise en file",

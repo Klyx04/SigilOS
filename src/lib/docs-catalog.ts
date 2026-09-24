@@ -1172,15 +1172,65 @@ Pour que le bot puisse attribuer un rôle, le rôle du Bot SigilOS dans les para
         category: 'Administration & Staff',
         accessLevel: 'ADMIN' as any,
         content: `
-<h2>Gestion du Support & des Candidatures</h2>
-<p>Le module Tickets permet de remplacer les bots externes par une solution intégrée avec formulaires d'intake personnalisés et transcripts archivés sur le Dashboard.</p>
+<h2>À quoi sert ce module</h2>
+<p>Il remplace les bots de support externes : la configuration, le suivi et les archives restent dans SigilOS, les salons et les notifications restent dans votre Discord. Aucune donnée de guilde ne part chez un tiers.</p>
+<p><strong>Le mot clé, c'est le parcours.</strong> Un parcours est un motif d'ouverture proposé aux membres — « Candidature », « Contacter le staff », « Signaler un problème ». Chaque parcours a son bouton Discord, ses rôles, son questionnaire et son salon.</p>
 
-<h2>1. Fonctionnalités Clés :</h2>
+<h2>1. Ce que voit un membre</h2>
 <ul>
-    <li><strong>Catégories Personnalisées :</strong> Définissez vos propres motifs d'ouverture (Recrutement, Demande d'aide, Litige, Suggestion).</li>
-    <li><strong>Formulaires Préalables (Intake) :</strong> Posez des questions obligatoires avant l'ouverture du salon (pseudo Dofus, niveau, motivations).</li>
-    <li><strong>Notes Internes Staff :</strong> Les officiers peuvent consigner des mémos privés visibles uniquement sur le dashboard.</li>
-    <li><strong>Transcripts Archivés :</strong> À la clôture, l'intégralité de la conversation est sauvegardée et consultable sur le site avec les images et pièces jointes.</li>
+    <li><strong>Un panneau</strong> dans un salon : un message d'accueil et un bouton par parcours publié (ou un menu déroulant, au choix du panneau).</li>
+    <li><strong>Un questionnaire</strong>, facultatif : d'abord les questions à choix (Oui/Non, liste, choix multiples), puis les questions de texte.</li>
+    <li><strong>Son salon de ticket</strong> : créé dans la catégorie Discord du parcours, nommé selon le modèle du parcours (par défaut : ticket-0001), avec un message d'accueil qui rappelle sa demande et ses réponses.</li>
+    <li><strong>Les boutons de staff</strong> ne lui sont jamais montrés : il ne voit « Fermer ma demande » que si le parcours l'y autorise.</li>
+</ul>
+
+<h2>2. Brouillon ou publié</h2>
+<ul>
+    <li><strong>Brouillon</strong> : invisible sur Discord. <strong>Publié</strong> : le bouton existe et ouvre un ticket. Republier incrémente la version (v1, v2…).</li>
+    <li>Un ticket garde toujours la <strong>version du questionnaire</strong> avec laquelle il a été rempli : renommer une question plus tard ne casse pas la relecture.</li>
+    <li><strong>Fermeture</strong> : réservée au staff, ou ouverte au demandeur si tu le décides. Un parcours qui porte déjà des tickets se désactive plutôt que de se supprimer.</li>
+</ul>
+
+<h2>3. Le questionnaire : jusqu'à 20 questions</h2>
+<ul>
+    <li>Six types de champs : réponse courte, paragraphe, Oui/Non, choix unique, choix multiple, et information (qui n'attend aucune réponse).</li>
+    <li>Le <strong>Oui/Non est un vrai refus</strong> : la réponse « Non » est enregistrée, et tu choisis sa conséquence — continuer, avertir le demandeur, bloquer l'envoi, ou envoyer la demande en revue manuelle.</li>
+    <li>20 questions au maximum, réparties automatiquement en pages de 5 (limite imposée par Discord) : le membre enchaîne avec un bouton « Continuer », et une page déjà remplie ne lui est jamais reposée. Un brouillon reste 30 minutes : il peut fermer Discord et reprendre.</li>
+    <li>Un questionnaire doit être <strong>publié avant</strong> d'être rattaché à un parcours : c'est cette version qui est figée.</li>
+</ul>
+
+<h2>4. Qui voit, qui est prévenu</h2>
+<ul>
+    <li>Voyant un ticket : les <strong>rôles staff du parcours</strong>, ceux de son <strong>équipe</strong> (réutilisable par plusieurs parcours) et les membres qui ont la permission « Support & Tickets Discord » sur le site.</li>
+    <li><strong>Rôles mentionnés à l'ouverture</strong> : coche les rôles à prévenir (« @Candidatures ») ; si le parcours n'en définit aucun, le bot reprend ceux de l'équipe. Jamais <strong>@everyone</strong>, et 25 rôles au maximum.</li>
+    <li><strong>Notes internes</strong> : écrites depuis Discord ou le site, visibles par le staff seulement — elles ne sont jamais publiées dans le salon du demandeur.</li>
+</ul>
+
+<h2>5. Le déroulé d'un ticket</h2>
+<ul>
+    <li>Étapes : <strong>en attente</strong> → <strong>pris en charge</strong> → <strong>fermé</strong>. Le demandeur peut noter la prise en charge (avis 1 à 5) à la clôture si l'option est active.</li>
+    <li>Côté staff : prendre en charge ou relâcher, note interne, renommer le salon, fermer. Côté demandeur : écrire dans son salon, et le fermer si le parcours le permet.</li>
+    <li>Après la clôture, le salon reste en place : l'archive est la preuve, la suppression se décide à part.</li>
+</ul>
+
+<h2>6. Archives et rétention</h2>
+<ul>
+    <li>Chaque clôture produit <strong>deux documents</strong> : un <strong>document partageable</strong> (sans les notes internes) et une <strong>annexe interne</strong> réservée au staff.</li>
+    <li>Le lien du document partageable expire selon la rétention configurée et peut être <strong>révoqué</strong> ; chaque accès est compté.</li>
+    <li>Rétention par type de donnée, en jours (0 = illimité) : archives 365, notes 365, journal d'actions 730 par défaut. C'est ce réglage qui est réellement appliqué, à la seconde où l'archive est créée.</li>
+</ul>
+
+<h2>7. Prérequis côté Discord</h2>
+<ul>
+    <li>Le bot doit être présent, avec : voir les salons, gérer les salons, envoyer des messages, joindre des fichiers, et la permission de mentionner les rôles à prévenir.</li>
+    <li>La catégorie choisie dans le parcours doit exister et être accessible au bot — sinon le salon ne peut pas être créé.</li>
+    <li>Les rôles staff doivent être <strong>sous</strong> le rôle du bot dans la hiérarchie, sinon il ne peut ni les mentionner ni leur ouvrir le salon.</li>
+</ul>
+
+<h2>8. Limites connues aujourd'hui</h2>
+<ul>
+    <li>Pas encore actifs : les délais SLA (1ʳᵉ réponse, résolution) et l'auto-fermeture, l'approbation avant création du salon, les tickets en « fil privé », et le quota global de tickets du serveur.</li>
+    <li>L'écran « Parcours » (avec son assistant) n'est pas encore en ligne : la configuration actuelle se fait dans l'onglet « Catégories & Modals ».</li>
 </ul>
         `
     },

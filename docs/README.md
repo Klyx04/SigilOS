@@ -52,6 +52,7 @@ docs/
 │
 ├── plans/                         chantiers produit (en cours / à venir)
 │   ├── PLAN-REFONTE-ONBOARDING.md
+│   ├── PLAN-REFONTE-TICKETS-V2.md  module Tickets : état mesuré + ce qui reste pour le boucler
 │   ├── DECISION-OUVERTURE-LANDING.md
 │   └── SEO_REPRISE.md
 │

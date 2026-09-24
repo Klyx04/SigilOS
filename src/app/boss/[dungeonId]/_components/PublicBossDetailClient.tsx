@@ -340,61 +340,185 @@ export function PublicBossDetailClient({
   const resists = activeGrade?.resists || {};
   const coords = currentStats?.coordinates as { x: number; y: number; worldMapId?: number } | null | undefined;
   const travelCmd = coords ? `/travel ${coords.x} ${coords.y}` : null;
-  const dbLink = currentStats?.id
-    ? `https://dofusdb.fr/${locale === "en" ? "en" : "fr"}/database/monster/${currentStats.id}`
-    : `https://dofusdb.fr/${locale === "en" ? "en" : "fr"}/database/monsters?search=${encodeURIComponent(activeMonsterName ?? bossName)}`;
   const resolvedBossName =
     dungeon.dofensiveMonsterName ?? (activeMonsterName ?? deriveDofensiveMonsterName(bossName) ?? bossName);
 
   return (
     <div className="space-y-6">
-      {/* ── EN-TÊTE : identité, puis actions ── */}
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex items-center gap-4 min-w-0">
-          <div className="w-16 h-16 rounded-lg border border-border bg-background/60 flex items-center justify-center p-1.5 shrink-0 overflow-hidden">
-            <MonsterImage
-              src={currentStats?.imageUrl ?? dungeon.imageUrl}
-              alt={activeMonsterName ?? bossName}
-              monsterId={currentStats?.id}
-              className="max-w-full max-h-full object-contain"
-            />
-          </div>
-          <div className="min-w-0">
-            <p className="flex items-center gap-2 text-[11px] uppercase tracking-wide text-muted-foreground">
-              {isTitan ? "Titan" : isBounty ? (bountyMeta?.raceName ?? (locale === "en" ? "Wanted Bounty" : "Avis de recherche")) : (locale === "en" ? "Dungeon Boss" : "Boss de donjon")}
-              <span className="font-mono normal-case">{t.bossPage.levelShort} {dungeon.level ?? 200}</span>
-            </p>
-            <h1 className="mt-0.5 truncate text-2xl font-semibold text-foreground sm:text-3xl">
-              {activeMonsterName ?? bossName}
-            </h1>
-            <p className="mt-0.5 flex items-center gap-1.5 text-sm text-muted-foreground">
-              <Compass className="w-3.5 h-3.5 opacity-70" />
-              {isBounty ? (locale === "en" ? "Hunt Zone:" : "Zone de traque :") : (locale === "en" ? "Dungeon:" : "Donjon :")}{" "}
-              <span className="text-foreground/90">{dungeon.name}</span>
-            </p>
-          </div>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+      {/* ── EN-TÊTE ──────────────────────────────────────────────────────────
+          Action (overlay) posée à droite, puis deux colonnes qui démarrent sur la
+          même ligne : (1) qui est l’entité — identité, entrée du donjon, PV/PA/PM,
+          résistances ; (2) où se trouve son donjon — carte statique 5×3 cliquable. */}
+      <div className="space-y-4">
+        <div className="flex flex-wrap items-center justify-end gap-x-4 gap-y-2">
           <button
             type="button"
             onClick={() => openBossOverlay({ monsterName: activeMonsterName ?? bossName, dungeonName: dungeon.name })}
-            className="inline-flex items-center gap-2 rounded-lg bg-foreground/90 px-4 py-2.5 text-xs font-semibold text-background transition-colors hover:bg-foreground"
+            className="inline-flex items-center gap-2 rounded-lg bg-foreground/90 px-4 py-2 text-xs font-semibold text-background transition-colors hover:bg-foreground"
             title={locale === "en" ? "Displays a detachable mini-window over your Dofus game" : "Affiche une mini-fenêtre par-dessus votre jeu Dofus"}
           >
             <Sparkles className="w-3.5 h-3.5" />
             <span>{t.bossPage.overlayButton}</span>
           </button>
-          <a
-            href={dbLink}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
-            title="Voir sur DofusDB"
-          >
-            <img src="https://www.google.com/s2/favicons?domain=dofusdb.fr&sz=32" alt="" className="h-3.5 w-3.5 rounded-sm" loading="lazy" />
-            DofusDB
-          </a>
+        </div>
+
+        <div className={cn("grid gap-4", coords && "lg:grid-cols-[minmax(0,1fr)_minmax(0,0.85fr)] lg:items-start")}>
+          {/* ── Colonne gauche : identité, entrée du donjon, caractéristiques ── */}
+          <div className="min-w-0 space-y-3.5">
+            <div className="flex items-center gap-4 min-w-0">
+              <div className="w-16 h-16 rounded-lg border border-border bg-background/60 flex items-center justify-center p-1.5 shrink-0 overflow-hidden">
+                <MonsterImage
+                  src={currentStats?.imageUrl ?? dungeon.imageUrl}
+                  alt={activeMonsterName ?? bossName}
+                  monsterId={currentStats?.id}
+                  className="max-w-full max-h-full object-contain"
+                />
+              </div>
+              <div className="min-w-0">
+                <p className="flex items-center gap-2 text-[11px] uppercase tracking-wide text-muted-foreground">
+                  {isTitan ? "Titan" : isBounty ? (bountyMeta?.raceName ?? (locale === "en" ? "Wanted Bounty" : "Avis de recherche")) : (locale === "en" ? "Dungeon Boss" : "Boss de donjon")}
+                  <span className="font-mono normal-case">{t.bossPage.levelShort} {dungeon.level ?? 200}</span>
+                </p>
+                <h1 className="mt-0.5 truncate text-2xl font-semibold text-foreground sm:text-3xl">
+                  {activeMonsterName ?? bossName}
+                </h1>
+                <p className="mt-0.5 flex items-center gap-1.5 text-sm text-muted-foreground">
+                  <Compass className="w-3.5 h-3.5 opacity-70" />
+                  {isBounty ? (locale === "en" ? "Hunt Zone:" : "Zone de traque :") : (locale === "en" ? "Dungeon:" : "Donjon :")}{" "}
+                  <span className="text-foreground/90">{dungeon.name}</span>
+                </p>
+              </div>
+            </div>
+
+            {/* Entrée du donjon : coordonnées copiables (clic) + zone. */}
+            {coords && (
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-muted-foreground">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!travelCmd) return;
+                    navigator.clipboard.writeText(travelCmd).then(() => {
+                      setCopiedTravel(true);
+                      window.setTimeout(() => setCopiedTravel(false), 2000);
+                    }).catch(() => {});
+                  }}
+                  className="inline-flex items-center gap-2 px-2.5 py-1 rounded-lg bg-surface border border-border hover:border-border-strong text-foreground transition-colors cursor-pointer"
+                  title={t.bossPage.copyTravelTitle}
+                >
+                  <MapPin className="w-3.5 h-3.5 shrink-0 opacity-70" />
+                  <span>
+                    {t.bossPage.dungeonEntrance}{" "}
+                    <strong className="font-mono text-foreground/90">
+                      [{coords.x}, {coords.y}]
+                    </strong>
+                  </span>
+                  {copiedTravel ? (
+                    <Check className="w-3.5 h-3.5 text-emerald-400" />
+                  ) : (
+                    <span className="text-[11px] px-1.5 py-0.5 rounded-md bg-background border border-border text-muted-foreground font-mono">
+                      {travelCmd}
+                    </span>
+                  )}
+                </button>
+                <span className="text-xs font-semibold text-muted-foreground">
+                  {t.bossPage.zoneLabel}{" "}
+                  <strong className="text-foreground">{getWorldName(coords.worldMapId, locale)}</strong>
+                </span>
+              </div>
+            )}
+
+            {/* Caractéristiques : PV / PA / PM en cartes, résistances dans un encadré. */}
+            {isLoadingCurrent ? (
+              <div className="flex items-center gap-3 rounded-lg border border-border bg-surface/60 px-3.5 py-3 text-muted-foreground">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span className="text-xs">Chargement des caractéristiques de {activeMonsterName ?? bossName}…</span>
+              </div>
+            ) : (
+              <>
+                <div className="grid grid-cols-3 gap-2.5">
+                  <div className="rounded-lg border border-border bg-surface/60 px-3.5 py-2" title={t.bossPage.stats.hp}>
+                    <span className="flex items-baseline gap-1.5">
+                      <img src="/assets/dofus/stats/pv.png" alt="" className="w-4 h-4 shrink-0 self-center object-contain" />
+                      <span className="font-mono text-xl font-semibold tabular-nums text-foreground sm:text-2xl">
+                        {activeGrade ? activeGrade.lifePoints?.toLocaleString(locale === "en" ? "en-US" : "fr-FR") : "—"}
+                      </span>
+                      <span className="font-mono text-[11px] text-muted-foreground">{t.bossPage.stats.hpShort}</span>
+                    </span>
+                  </div>
+                  <div className="rounded-lg border border-border bg-surface/60 px-3.5 py-2" title={t.bossPage.stats.ap}>
+                    <span className="flex items-baseline gap-1.5">
+                      <img src="/assets/dofus/stats/pa.png" alt="" className="w-4 h-4 shrink-0 self-center object-contain" />
+                      <span className="font-mono text-xl font-semibold tabular-nums text-foreground sm:text-2xl">{activeGrade?.actionPoints ?? "—"}</span>
+                      <span className="font-mono text-[11px] text-muted-foreground">{t.bossPage.stats.ap}</span>
+                    </span>
+                  </div>
+                  <div className="rounded-lg border border-border bg-surface/60 px-3.5 py-2" title={t.bossPage.stats.mp}>
+                    <span className="flex items-baseline gap-1.5">
+                      <img src="/assets/dofus/stats/pm.png" alt="" className="w-4 h-4 shrink-0 self-center object-contain" />
+                      <span className="font-mono text-xl font-semibold tabular-nums text-foreground sm:text-2xl">{activeGrade?.movementPoints ?? "—"}</span>
+                      <span className="font-mono text-[11px] text-muted-foreground">{t.bossPage.stats.mp}</span>
+                    </span>
+                  </div>
+                </div>
+
+                <div className="rounded-lg border border-border bg-surface/60 px-3.5 py-2.5">
+                  <span className="block text-[11px] uppercase tracking-wide text-muted-foreground">{t.bossPage.resistance}</span>
+                  <div className="mt-1.5 flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5">
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                      {(
+                        [
+                          { key: "neutral", label: t.bossPage.stats.neutral, icon: "/assets/dofus/stats/resNeutre.png", value: resists.neutral ?? 0 },
+                          { key: "earth", label: t.bossPage.stats.earth, icon: "/assets/dofus/stats/resTerre.png", value: resists.earth ?? 0 },
+                          { key: "fire", label: t.bossPage.stats.fire, icon: "/assets/dofus/stats/resFeu.png", value: resists.fire ?? 0 },
+                          { key: "water", label: t.bossPage.stats.water, icon: "/assets/dofus/stats/resEau.png", value: resists.water ?? 0 },
+                          { key: "air", label: t.bossPage.stats.air, icon: "/assets/dofus/stats/resAir.png", value: resists.air ?? 0 },
+                        ] as const
+                      ).map(({ key, label, icon, value }) => (
+                        <span key={key} className="inline-flex items-center gap-1.5" title={label + " %"}>
+                          <img src={icon} alt="" className="w-4 h-4 object-contain" />
+                          <span
+                            className={cn(
+                              "font-mono text-[13px] tabular-nums",
+                              value < 0 ? "text-rose-400" : "text-foreground/85"
+                            )}
+                          >
+                            {value}%
+                          </span>
+                          <span className="hidden text-[11px] text-muted-foreground sm:inline">{label}</span>
+                        </span>
+                      ))}
+                    </div>
+                    {grades.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => setDetailTab("grades")}
+                        className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                        title={locale === "en" ? "Open grades & tiers tab" : "Ouvrir l'onglet des grades & paliers"}
+                      >
+                        <Flame className="w-3.5 h-3.5" />
+                        <span className="font-mono">
+                          {grades.length === 5 ? `${locale === "en" ? "loot" : "butin"} ${4 + gradeIdx}` : `${locale === "en" ? "grade" : "grade"} ${1 + gradeIdx}`}
+                        </span>
+                        <ArrowRight className="w-3 h-3" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* ── Colonne droite : où se trouve le donjon (carte statique 5×3) ── */}
+          {coords && (
+            <DungeonMinimapCard
+              x={coords.x}
+              y={coords.y}
+              worldMapId={coords.worldMapId}
+              title={t.bossPage.minimapTitle}
+              placeName={dungeon.name}
+              openLabel={t.bossPage.minimapOpen}
+            />
+          )}
         </div>
       </div>
 
@@ -457,11 +581,6 @@ export function PublicBossDetailClient({
           )}
 
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-muted-foreground sm:col-span-2">
-            {bountyMeta.dofusdbUrl && (
-              <a href={bountyMeta.dofusdbUrl} target="_blank" rel="noopener noreferrer" className="transition-colors hover:text-foreground">
-                Source DofusDB
-              </a>
-            )}
             {bountyMeta.dofensiveUrl && (
               <a href={bountyMeta.dofensiveUrl} target="_blank" rel="noopener noreferrer" className="transition-colors hover:text-foreground">
                 Source Dofensive
@@ -476,87 +595,6 @@ export function PublicBossDetailClient({
               <span>Données synchronisées le {new Date(bountyMeta.syncedAt).toLocaleDateString("fr-FR")}</span>
             )}
           </div>
-        </div>
-      )}
-
-      {/* ── STATS BAR (PV/PA/PM + résistances, comme le module interne) ── */}
-      {isLoadingCurrent ? (
-        <div className="flex items-center justify-center p-6 rounded-2xl bg-surface border border-white/10 gap-3 text-muted-foreground">
-          <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
-          <span className="text-xs font-bold">Chargement des caractéristiques de {activeMonsterName ?? bossName}…</span>
-        </div>
-      ) : (
-        /* ── BARRE DE CARACTÉRISTIQUES UNIFIÉE ───────────────────────────────
-           Avant : 8 « pastilles » encadrées de couleurs différentes (PV, PA, PM,
-           5 résistances, grade) ⇒ beaucoup de bruit pour 9 nombres. Désormais :
-           **une seule barre** à trois groupes séparés par des filets — mêmes
-           données, mêmes icônes, zéro décoration. Les couleurs restent sur les
-           **icônes** (données de jeu) et sur les valeurs négatives. */
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border border-border bg-surface/40 px-3 py-2.5">
-          {/* Vitals */}
-          <div className="flex items-center gap-3">
-            <span className="inline-flex items-center gap-1.5" title={t.bossPage.stats.hp}>
-              <img src="/assets/dofus/stats/pv.png" alt="" className="w-4 h-4 object-contain" />
-              <span className="font-mono text-[15px] text-foreground tabular-nums">
-                {activeGrade ? activeGrade.lifePoints?.toLocaleString(locale === "en" ? "en-US" : "fr-FR") : "—"}
-              </span>
-              <span className="text-[11px] text-muted-foreground font-mono">{t.bossPage.stats.hp === "Points de vie" ? "PV" : "HP"}</span>
-            </span>
-            <span className="inline-flex items-center gap-1.5" title={t.bossPage.stats.ap}>
-              <img src="/assets/dofus/stats/pa.png" alt="" className="w-4 h-4 object-contain" />
-              <span className="font-mono text-[15px] text-foreground tabular-nums">{activeGrade?.actionPoints ?? "—"}</span>
-              <span className="text-[11px] text-muted-foreground font-mono">{t.bossPage.stats.ap}</span>
-            </span>
-            <span className="inline-flex items-center gap-1.5" title={t.bossPage.stats.mp}>
-              <img src="/assets/dofus/stats/pm.png" alt="" className="w-4 h-4 object-contain" />
-              <span className="font-mono text-[15px] text-foreground tabular-nums">{activeGrade?.movementPoints ?? "—"}</span>
-              <span className="text-[11px] text-muted-foreground font-mono">{t.bossPage.stats.mp}</span>
-            </span>
-          </div>
-
-          <span className="h-5 w-px bg-border" />
-
-          {/* Résistances — vrais assets Dofus res*.png, libellé discret, valeur mono, négatif en rouge */}
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-            {(
-              [
-                { key: "neutral", label: t.bossPage.stats.neutral, icon: "/assets/dofus/stats/resNeutre.png", value: resists.neutral ?? 0 },
-                { key: "earth", label: t.bossPage.stats.earth, icon: "/assets/dofus/stats/resTerre.png", value: resists.earth ?? 0 },
-                { key: "fire", label: t.bossPage.stats.fire, icon: "/assets/dofus/stats/resFeu.png", value: resists.fire ?? 0 },
-                { key: "water", label: t.bossPage.stats.water, icon: "/assets/dofus/stats/resEau.png", value: resists.water ?? 0 },
-                { key: "air", label: t.bossPage.stats.air, icon: "/assets/dofus/stats/resAir.png", value: resists.air ?? 0 },
-              ] as const
-            ).map(({ key, label, icon, value }) => (
-              <span key={key} className="inline-flex items-center gap-1.5" title={`${label} %`}>
-                <img src={icon} alt="" className="w-4 h-4 object-contain" />
-                <span
-                  className={cn(
-                    "font-mono text-[13px] tabular-nums",
-                    value < 0 ? "text-rose-400" : "text-foreground/85"
-                  )}
-                >
-                  {value}%
-                </span>
-                <span className="hidden text-[11px] text-muted-foreground sm:inline">{label}</span>
-              </span>
-            ))}
-          </div>
-
-          {/* Grade / butin : raccourci vers l'onglet des paliers */}
-          {grades.length > 1 && (
-            <button
-              type="button"
-              onClick={() => setDetailTab("grades")}
-              className="ml-auto inline-flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-              title={locale === "en" ? "Open grades & tiers tab" : "Ouvrir l'onglet des grades & paliers"}
-            >
-              <Flame className="w-3.5 h-3.5" />
-              <span className="font-mono">
-                {grades.length === 5 ? `${locale === "en" ? "loot" : "butin"} ${4 + gradeIdx}` : `${locale === "en" ? "grade" : "grade"} ${1 + gradeIdx}`}
-              </span>
-              <ArrowRight className="w-3 h-3" />
-            </button>
-          )}
         </div>
       )}
 
@@ -991,45 +1029,6 @@ export function PublicBossDetailClient({
       })()}
       </div>
 
-      {/* ── COORDONNÉES (entrée donjon + /travel) ── */}
-      {coords && (
-        <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-muted-foreground pt-3 border-t border-border">
-          <button
-            type="button"
-            onClick={() => {
-              if (!travelCmd) return;
-              navigator.clipboard.writeText(travelCmd).then(() => {
-                setCopiedTravel(true);
-                window.setTimeout(() => setCopiedTravel(false), 2000);
-              }).catch(() => {});
-            }}
-            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-surface border border-border hover:border-border-strong text-foreground transition-colors cursor-pointer"
-            title={t.bossPage.copyTravelTitle}
-          >
-            <MapPin className="w-3.5 h-3.5 shrink-0 opacity-70" />
-            <span>{t.bossPage.dungeonEntrance} <strong className="font-mono text-foreground/90">[{coords.x}, {coords.y}]</strong></span>
-            <span className="text-[11px] px-1.5 py-0.5 rounded-md bg-background border border-border text-muted-foreground font-mono">{travelCmd}</span>
-            {copiedTravel && <Check className="w-3.5 h-3.5 text-emerald-400" />}
-          </button>
-          <span className="text-xs font-semibold text-muted-foreground">
-            {t.bossPage.zoneLabel} <strong className="text-foreground">{getWorldName(coords.worldMapId, locale)}</strong>
-          </span>
-        </div>
-      )}
-
-      {/* ── ENCADRÉ CARTE DU MONDE (entrée donjon, statique + cliquable) ── */}
-      {coords && (
-        <div className="max-w-[280px]">
-          <DungeonMinimapCard
-            x={coords.x}
-            y={coords.y}
-            worldMapId={coords.worldMapId}
-            title={t.bossPage.minimapTitle}
-            openLabel={t.bossPage.minimapOpen}
-          />
-        </div>
-      )}
-
       {/* ── PASSAGE À L'ESPACE GUILDE ── */}
       <div className="flex flex-col gap-2 border-t border-border pt-4 sm:flex-row sm:items-center sm:justify-between">
         <p className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -1064,26 +1063,13 @@ export function PublicBossDetailClient({
                 return `${fmt(selectedDrop.percent ?? selectedDrop.dropPercent ?? 0)}%`;
               })()}
             </p>
-            <div className="flex gap-2 mt-5">
-              <button
-                type="button"
-                onClick={() => setSelectedDrop(null)}
-                className="flex-1 px-4 py-2 rounded-lg border border-border bg-surface text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-              >
-                {t.bossPage.closeModal}
-              </button>
-              {(selectedDrop.objectId ?? selectedDrop.id) && (
-                <a
-                  href={`https://dofusdb.fr/${locale === "en" ? "en" : "fr"}/database/item/${selectedDrop.objectId ?? selectedDrop.id}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg border border-border bg-surface text-xs font-semibold text-foreground hover:bg-elevated transition-colors"
-                >
-                  <img src="https://www.google.com/s2/favicons?domain=dofusdb.fr&sz=32" alt="" className="w-3.5 h-3.5 rounded-sm" loading="lazy" />
-                  DofusDB
-                </a>
-              )}
-            </div>
+            <button
+              type="button"
+              onClick={() => setSelectedDrop(null)}
+              className="mt-5 w-full px-4 py-2 rounded-lg border border-border bg-surface text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+            >
+              {t.bossPage.closeModal}
+            </button>
           </div>
         </div>
       )}

@@ -2151,7 +2151,80 @@ export async function deleteChannelDiscord(channelId: string): Promise<{ success
 }
 
 /**
- * Fetch messages from a channel (for transcript generation)
+ * Fetch **toutes** les pages de messages d'un salon (pagination par `before`).
+ *
+ * Pourquoi cette fonction existe (audit du 24/09/2026) : `fetchChannelMessagesDiscord`
+ * borne à 100 messages (`Math.min(limit, 100)`) et l'ancien code de clôture appelait
+ * `fetchChannelMessagesDiscord(channelId, 100)` en annonçant une archive « complète » —
+ * toute conversation de plus de 100 messages était donc silencieusement tronquée.
+ *
+ * Contrat :
+ *   · pagination jusqu'à épuisement **ou** jusqu'à `maxMessages` (plafond dur) ;
+ *   · l'ordre chronologique est rétabli (l'API rend du plus récent au plus ancien) ;
+ *   · `Complete` = `false` dès qu'une page n'est pas rendue en entier, sans lever
+ *     d'exception : l'appelant décide de l'honnêteté du message affiché ;
+ *   · une page en échec **arrête** la pagination (jamais de boucle infinie).
+ */
+export async function fetchChannelMessagesPagedDiscord(
+    channelId: string,
+    maxMessages: number = 5000
+): Promise<{ messages: any[]; complete: boolean }> {
+    const token = process.env.DISCORD_BOT_TOKEN;
+    if (!token) return { messages: [], complete: false };
+
+    const pageSize = 100;
+    const collected: any[] = [];
+    let before: string | undefined;
+    let complete = true;
+
+    try {
+        for (;;) {
+            const remaining = maxMessages - collected.length;
+            if (remaining <= 0) {
+                complete = false;
+                break;
+            }
+
+            const limit = Math.min(pageSize, remaining);
+            const query = `limit=${limit}${before ? `&before=${before}` : ""}`;
+            const res = await fetchWithRetry(`/api/v10/channels/${channelId}/messages?${query}`, {
+                headers: {
+                    Authorization: `Bot ${token}`,
+                    "User-Agent": DISCORD_USER_AGENT,
+                },
+            });
+
+            if (!res.ok) {
+                // Page en échec : on s'arrête avec ce qu'on a, en le disant.
+                complete = false;
+                break;
+            }
+
+            const page = await res.json();
+            if (!Array.isArray(page) || page.length === 0) break;
+
+            collected.push(...page);
+            if (page.length < limit) break;
+
+            before = page[page.length - 1]?.id;
+            if (!before) {
+                complete = false;
+                break;
+            }
+        }
+    } catch (error: any) {
+        logger.error("[Discord] Error paging channel messages:", error);
+        complete = false;
+    }
+
+    // L'API rend du plus récent au plus ancien : on remet dans l'ordre de lecture.
+    return { messages: collected.reverse(), complete };
+}
+
+/**
+ * Fetch **une page** de messages (bornée à 100 par l'API Discord).
+ * ⚠️ Pour une archive, utiliser `fetchChannelMessagesPagedDiscord` : cette fonction
+ * seule tronque silencieusement une conversation longue.
  */
 export async function fetchChannelMessagesDiscord(
     channelId: string,

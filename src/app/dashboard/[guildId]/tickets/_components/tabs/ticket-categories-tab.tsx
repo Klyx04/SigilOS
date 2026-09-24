@@ -20,6 +20,7 @@ import {
     saveTicketCategoryAction,
     deleteTicketCategoryAction,
 } from "@/server/actions/ticket-bot-actions";
+import { TicketCategoryPicker, TicketRolesPicker } from "../ticket-discord-pickers";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -52,7 +53,7 @@ export function TicketCategoriesTab({ guildId, categories, onRefresh }: TicketCa
     const [emoji, setEmoji] = useState("🎫");
     const [buttonStyle, setButtonStyle] = useState<"PRIMARY" | "SECONDARY" | "SUCCESS" | "DANGER">("PRIMARY");
     const [channelParentId, setChannelParentId] = useState("");
-    const [staffRoleIdsText, setStaffRoleIdsText] = useState("");
+    const [staffRoleIds, setStaffRoleIds] = useState<string[]>([]);
     const [namingPattern, setNamingPattern] = useState("ticket-{num}");
     const [slaFirstResponseMin, setSlaFirstResponseMin] = useState<number | "">("");
     const [slaResolutionMin, setSlaResolutionMin] = useState<number | "">("");
@@ -67,7 +68,7 @@ export function TicketCategoriesTab({ guildId, categories, onRefresh }: TicketCa
         setEmoji("🎫");
         setButtonStyle("PRIMARY");
         setChannelParentId("");
-        setStaffRoleIdsText("");
+        setStaffRoleIds([]);
         setNamingPattern("ticket-{num}");
         setSlaFirstResponseMin("");
         setSlaResolutionMin("");
@@ -84,7 +85,7 @@ export function TicketCategoriesTab({ guildId, categories, onRefresh }: TicketCa
         setEmoji(cat.emoji || "🎫");
         setButtonStyle(cat.buttonStyle || "PRIMARY");
         setChannelParentId(cat.channelParentId || "");
-        setStaffRoleIdsText((cat.staffRoleIds || []).join(", "));
+        setStaffRoleIds(cat.staffRoleIds || []);
         setNamingPattern(cat.namingPattern || "ticket-{num}");
         setSlaFirstResponseMin(cat.slaFirstResponseMin ?? "");
         setSlaResolutionMin(cat.slaResolutionMin ?? "");
@@ -117,11 +118,6 @@ export function TicketCategoriesTab({ guildId, categories, onRefresh }: TicketCa
         if (!name.trim()) return toast.error("Nom de la catégorie requis");
         const cleanSlug = slug.trim() || name.toLowerCase().replace(/[^a-z0-9]/g, "-");
 
-        const staffRoles = staffRoleIdsText
-            .split(",")
-            .map((s) => s.trim())
-            .filter(Boolean);
-
         startTransition(async () => {
             const res = await saveTicketCategoryAction(guildId, {
                 id: editingCategory?.id,
@@ -132,7 +128,7 @@ export function TicketCategoriesTab({ guildId, categories, onRefresh }: TicketCa
                 buttonStyle,
                 channelType: "CHANNEL_TEXT",
                 channelParentId: channelParentId.trim() || undefined,
-                staffRoleIds: staffRoles,
+                staffRoleIds,
                 namingPattern: namingPattern.trim() || "ticket-{num}",
                 formSchemaJson: formFields,
                 slaFirstResponseMin: slaFirstResponseMin === "" ? undefined : Number(slaFirstResponseMin),
@@ -347,26 +343,24 @@ export function TicketCategoriesTab({ guildId, categories, onRefresh }: TicketCa
                             </div>
 
                             <div className="space-y-1.5">
-                                <label className="font-semibold text-foreground">
-                                    ID Catégorie Discord parente (optionnel)
-                                </label>
-                                <Input
-                                    placeholder="ex: 123456789012345678"
+                                <label className="font-semibold text-foreground">Catégorie Discord parente</label>
+                                <TicketCategoryPicker
+                                    guildId={guildId}
                                     value={channelParentId}
-                                    onChange={(e) => setChannelParentId(e.target.value)}
-                                    className="text-xs h-8 font-mono"
+                                    onChange={setChannelParentId}
                                 />
+                                <p className="text-[11px] text-muted-foreground">
+                                    Là où les salons de ticket de ce motif seront créés.
+                                </p>
                             </div>
 
                             <div className="space-y-1.5">
-                                <label className="font-semibold text-foreground">
-                                    Rôles Staff autorisés (IDs séparés par virgules)
-                                </label>
-                                <Input
-                                    placeholder="ex: 123456789012345678, 987654321098765432"
-                                    value={staffRoleIdsText}
-                                    onChange={(e) => setStaffRoleIdsText(e.target.value)}
-                                    className="text-xs h-8 font-mono"
+                                <label className="font-semibold text-foreground">Rôles Staff autorisés</label>
+                                <TicketRolesPicker
+                                    guildId={guildId}
+                                    value={staffRoleIds}
+                                    onChange={setStaffRoleIds}
+                                    description="Ces rôles voient et traitent les tickets de ce motif."
                                 />
                             </div>
                         </div>

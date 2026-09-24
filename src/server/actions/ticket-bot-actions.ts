@@ -12,10 +12,16 @@ import {
     setMemberChannelPermissionDiscord,
     renameChannelDiscord,
     deleteChannelDiscord,
-    fetchChannelMessagesDiscord,
     sendChannelMessage,
 } from "@/server/discord";
-import { generateHtmlTranscript } from "@/lib/tickets/transcript-engine";
+import { captureTicketArchives } from "@/server/tickets/archive";
+import { parseTicketForm } from "@/lib/tickets/form-schema";
+import {
+    actorFromAuthorizationContext,
+    decideTicketAccess,
+    mergeStaffRoleIds,
+    type TicketAuthorizationContext,
+} from "@/lib/tickets/access";
 
 export type ActionResponse<T = any> = {
     success: boolean;
@@ -37,6 +43,10 @@ const TicketGuildConfigSchema = z.object({
     enableCsat: z.boolean().default(true),
     enableDmNotifications: z.boolean().default(true),
     enableTranscripts: z.boolean().default(true),
+    /** 🆕 v2 — rétention par type, en jours (0 = illimité). Consommée par la purge. */
+    transcriptRetentionDays: z.number().int().min(0).max(3650).default(365),
+    noteRetentionDays: z.number().int().min(0).max(3650).default(365),
+    auditRetentionDays: z.number().int().min(0).max(3650).default(730),
 });
 
 const TicketCategorySchema = z.object({
@@ -579,7 +589,9 @@ export async function getTicketRecordsAction(
                     category: true,
                     notes: { orderBy: { createdAt: "desc" } },
                     feedback: true,
-                    transcript: true,
+                    // 🆕 v2 — jusqu'à deux archives : partageable + annexe interne.
+                    transcripts: true,
+                    journey: true,
                 },
                 orderBy: { createdAt: "desc" },
                 skip,
@@ -623,7 +635,8 @@ export async function getTicketRecordAction(guildId: string, ticketId: string): 
                 category: true,
                 notes: { orderBy: { createdAt: "asc" } },
                 feedback: true,
-                transcript: true,
+                transcripts: true,
+                journey: true,
                 auditLogs: { orderBy: { createdAt: "desc" } },
             },
         });
@@ -804,7 +817,9 @@ export async function closeTicketAction(
             where: { id: ticketId, guildId: guildConfig.id },
             include: {
                 category: true,
+                journey: true,
                 notes: true,
+                guild: true,
             },
         });
         if (!ticket) return { success: false, error: "Ticket introuvable" };
@@ -813,79 +828,20 @@ export async function closeTicketAction(
             where: { guildId: guildConfig.id },
         });
 
-        // 1. Generate Transcript if enabled
-        if (ticketConfig?.enableTranscripts !== false) {
-            let discordMessages: any[] = [];
-            if (ticket.discordChannelId) {
-                discordMessages = await fetchChannelMessagesDiscord(ticket.discordChannelId, 100);
-            }
-
-            const formattedMessages: any[] = discordMessages.map((m) => ({
-                id: m.id,
-                authorId: m.author.id,
-                authorName: m.author.global_name || m.author.username,
-                authorAvatar: m.author.avatar ? `https://cdn.discordapp.com/avatars/${m.author.id}/${m.author.avatar}.png` : null,
-                isBot: m.author.bot,
-                content: m.content || "",
-                createdAt: m.timestamp,
-                attachments: m.attachments?.map((a: any) => ({
-                    url: a.url,
-                    name: a.filename,
-                    isImage: a.content_type?.startsWith("image/"),
-                })),
-            }));
-
-            // Include internal notes
-            for (const note of ticket.notes) {
-                formattedMessages.push({
-                    id: note.id,
-                    authorId: note.authorDiscordId,
-                    authorName: note.authorName,
-                    authorAvatar: null,
-                    isStaff: true,
-                    isInternalNote: true,
-                    content: note.content,
-                    createdAt: note.createdAt as any,
-                });
-            }
-
-            // Sort chronologically
-            formattedMessages.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-
-            const html = generateHtmlTranscript(
-                {
-                    ticketNumber: ticket.ticketNumber,
-                    categoryName: ticket.category?.name || "Support",
-                    guildName: guildConfig.name,
-                    creatorName: ticket.creatorDiscordName,
-                    creatorId: ticket.creatorDiscordId,
-                    claimedByName: ticket.claimedByName,
-                    openedAt: ticket.createdAt,
-                    closedAt: new Date(),
-                    closedByName: user.name || "Staff",
-                    closedReason: reason,
-                    intakeAnswers: (ticket.intakeAnswersJson as any) || undefined,
-                },
-                formattedMessages
-            );
-
-            await db.ticketTranscript.upsert({
-                where: { ticketId: ticket.id },
-                create: {
-                    ticketId: ticket.id,
-                    guildId: guildConfig.id,
-                    secretToken: crypto.randomUUID().replace(/-/g, ""),
-                    storageRef: html,
-                    messageCount: formattedMessages.length,
-                    sizeBytes: Buffer.byteLength(html, "utf-8"),
-                },
-                update: {
-                    storageRef: html,
-                    messageCount: formattedMessages.length,
-                    sizeBytes: Buffer.byteLength(html, "utf-8"),
-                },
-            });
-        }
+        // 1. Archives — **une seule source de vérité** (`captureTicketArchives`) :
+        // pagination réelle, document partageable sans notes internes, annexe staff
+        // séparée, échéance issue de la rétention de la guilde.
+        const archive = await captureTicketArchives({
+            ticket,
+            config: ticketConfig
+                ? {
+                      enableTranscripts: ticketConfig.enableTranscripts,
+                      transcriptRetentionDays: ticketConfig.transcriptRetentionDays,
+                  }
+                : null,
+            closedByName: user.name || "Staff",
+            closedReason: reason ?? null,
+        });
 
         // 2. Update Ticket record
         const updated = await db.ticketRecord.update({
@@ -906,7 +862,11 @@ export async function closeTicketAction(
                 actorDiscordId: user.id || "unknown",
                 actorName: user.name || "Staff",
                 action: "CLOSE",
-                detailsJson: { reason },
+                // L'archive est traçable : nature, complétude et échéance.
+                detailsJson: {
+                    reason: reason ?? null,
+                    archive: { kinds: archive.kinds, partial: archive.partial, note: archive.note },
+                },
             },
         });
 
@@ -1122,8 +1082,532 @@ export async function toggleGodTicketBotModuleAction(
 }
 
 // =============================================================================
+// 8. TICKETS v2 — PARCOURS, FORMULAIRES, ÉQUIPES (configuration lisible)
+// =============================================================================
+
+/**
+ * Le « parcours » est l'unité que le chef de guilde comprend (« Candidature »,
+ * « Contacter le staff »). Ces actions suppriment la saisie d'identifiants : salons,
+ * catégories et rôles viennent de **sélecteurs alimentés par l'API Discord**
+ * (`DiscordChannelPicker`, `PingRolesSelector`), et le serveur ne croit que ce qu'il
+ * **revalide** (appartenance à la guilde, type de salon, existence de l'objet).
+ */
+
+const TicketJourneySchema = z.object({
+    id: z.string().optional(),
+    name: z.string().min(2, "Nom requis (2 caractères minimum)").max(80),
+    slug: z
+        .string()
+        .min(2, "Identifiant requis")
+        .max(60)
+        .regex(/^[a-z0-9-]+$/, "Identifiant : lettres minuscules, chiffres et tirets"),
+    description: z.string().max(300).nullable().optional(),
+    emoji: z.string().max(8).default("🎫"),
+    buttonStyle: z.enum(["PRIMARY", "SECONDARY", "SUCCESS", "DANGER"]).default("PRIMARY"),
+    channelType: z.enum(["CHANNEL_TEXT", "THREAD_PRIVATE"]).default("CHANNEL_TEXT"),
+    channelParentId: z.string().nullable().optional(),
+    staffRoleIds: z.array(z.string()).max(25).default([]),
+    teamId: z.string().nullable().optional(),
+    formId: z.string().nullable().optional(),
+    namingPattern: z.string().min(1).max(80).default("ticket-{num}"),
+    openMode: z.enum(["INSTANT", "APPROVAL"]).default("INSTANT"),
+    closePolicy: z.enum(["STAFF_ONLY", "STAFF_OR_CREATOR"]).default("STAFF_ONLY"),
+    order: z.number().int().min(0).max(999).default(0),
+    isEnabled: z.boolean().default(true),
+});
+
+const TicketTeamSchema = z.object({
+    id: z.string().optional(),
+    name: z.string().min(2, "Nom requis").max(80),
+    slug: z
+        .string()
+        .min(2, "Identifiant requis")
+        .max(60)
+        .regex(/^[a-z0-9-]+$/, "Identifiant : lettres minuscules, chiffres et tirets"),
+    description: z.string().max(300).nullable().optional(),
+    staffRoleIds: z.array(z.string()).max(25).default([]),
+    notifyRoleIds: z.array(z.string()).max(25).default([]),
+    isEnabled: z.boolean().default(true),
+});
+
+const TicketFormSaveSchema = z.object({
+    id: z.string().optional(),
+    name: z.string().min(2, "Nom requis").max(80),
+    slug: z
+        .string()
+        .min(2, "Identifiant requis")
+        .max(60)
+        .regex(/^[a-z0-9-]+$/, "Identifiant : lettres minuscules, chiffres et tirets"),
+    description: z.string().max(300).nullable().optional(),
+    /** Brouillon : validé par le contrat v2 (`parseTicketForm`) avant écriture. */
+    schema: z.unknown(),
+});
+
+/** Garde commune des actions de configuration : `staff:tickets` (ou admin). */
+async function requireTicketManager(
+    guildId: string
+): Promise<{ ok: true; guildId: string; guildInternalId: string } | { ok: false; error: string }> {
+    const user = await getUserContext(guildId);
+    if (!user.canManageTickets && !user.isAdmin) return { ok: false, error: "Non autorisé" };
+
+    const guildConfig = await db.guildConfig.findUnique({
+        where: { discordGuildId: guildId },
+        select: { id: true },
+    });
+    if (!guildConfig) return { ok: false, error: "Guilde introuvable" };
+
+    return { ok: true, guildId, guildInternalId: guildConfig.id };
+}
+
+/** Un salon parent doit être une **catégorie de cette guilde** (jamais un ID venu d'ailleurs). */
+async function isValidCategoryOfGuild(channelId: string | null | undefined, guildId: string): Promise<boolean> {
+    if (!channelId) return true;
+    const { fetchGuildChannels } = await import("@/server/discord");
+    const channels = await fetchGuildChannels(guildId).catch(() => []);
+    // `type: 4` = GUILD_CATEGORY dans l'API Discord.
+    return channels.some((channel) => channel.id === channelId && channel.type === 4);
+}
+
+// ---------------------------------------------------------------------------
+// 8.1 Équipes
+// ---------------------------------------------------------------------------
+
+export async function listTicketTeamsAction(guildId: string): Promise<ActionResponse> {
+    try {
+        const guard = await requireTicketManager(guildId);
+        if (!guard.ok) return { success: false, error: guard.error };
+
+        const teams = await db.ticketTeam.findMany({
+            where: { guildId: guard.guildInternalId },
+            orderBy: [{ isEnabled: "desc" }, { name: "asc" }],
+        });
+        return { success: true, data: teams };
+    } catch (error: any) {
+        logger.error("[listTicketTeamsAction] Error:", error);
+        return { success: false, error: error?.message || "Erreur récupération des équipes" };
+    }
+}
+
+export async function saveTicketTeamAction(guildId: string, data: unknown): Promise<ActionResponse> {
+    try {
+        const guard = await requireTicketManager(guildId);
+        if (!guard.ok) return { success: false, error: guard.error };
+
+        const parsed = TicketTeamSchema.safeParse(data);
+        if (!parsed.success) {
+            return { success: false, error: parsed.error.issues[0]?.message || "Données invalides" };
+        }
+        const payload = parsed.data;
+
+        const duplicate = await db.ticketTeam.findFirst({
+            where: {
+                guildId: guard.guildInternalId,
+                slug: payload.slug,
+                ...(payload.id ? { NOT: { id: payload.id } } : {}),
+            },
+            select: { id: true },
+        });
+        if (duplicate) return { success: false, error: "Cet identifiant d'équipe est déjà utilisé" };
+
+        const values = {
+            name: payload.name,
+            slug: payload.slug,
+            description: payload.description ?? null,
+            staffRoleIds: payload.staffRoleIds,
+            notifyRoleIds: payload.notifyRoleIds,
+            isEnabled: payload.isEnabled,
+        };
+
+        const team = payload.id
+            ? await db.ticketTeam.update({ where: { id: payload.id, guildId: guard.guildInternalId }, data: values })
+            : await db.ticketTeam.create({ data: { guildId: guard.guildInternalId, ...values } });
+
+        revalidatePath(`/dashboard/${guildId}/tickets`);
+        return { success: true, data: team };
+    } catch (error: any) {
+        logger.error("[saveTicketTeamAction] Error:", error);
+        return { success: false, error: error?.message || "Erreur enregistrement équipe" };
+    }
+}
+
+export async function deleteTicketTeamAction(guildId: string, teamId: string): Promise<ActionResponse> {
+    try {
+        const guard = await requireTicketManager(guildId);
+        if (!guard.ok) return { success: false, error: guard.error };
+
+        // Une équipe utilisée par un parcours ne disparaît pas en silence.
+        const used = await db.ticketJourney.count({ where: { guildId: guard.guildInternalId, teamId } });
+        if (used > 0) return { success: false, error: `Cette équipe est utilisée par ${used} parcours.` };
+
+        await db.ticketTeam.delete({ where: { id: teamId, guildId: guard.guildInternalId } });
+        revalidatePath(`/dashboard/${guildId}/tickets`);
+        return { success: true };
+    } catch (error: any) {
+        logger.error("[deleteTicketTeamAction] Error:", error);
+        return { success: false, error: error?.message || "Erreur suppression équipe" };
+    }
+}
+
+// ---------------------------------------------------------------------------
+// 8.2 Formulaires versionnés
+// ---------------------------------------------------------------------------
+
+export async function listTicketFormsAction(guildId: string): Promise<ActionResponse> {
+    try {
+        const guard = await requireTicketManager(guildId);
+        if (!guard.ok) return { success: false, error: guard.error };
+
+        const forms = await db.ticketForm.findMany({
+            where: { guildId: guard.guildInternalId },
+            orderBy: { updatedAt: "desc" },
+            include: { _count: { select: { versions: true, journeys: true } } },
+        });
+
+        return {
+            success: true,
+            data: forms.map((form) => ({
+                id: form.id,
+                name: form.name,
+                slug: form.slug,
+                description: form.description,
+                status: form.status,
+                currentVersion: form.currentVersion,
+                publishedVersion: form.publishedVersion,
+                draftSchemaJson: form.draftSchemaJson,
+                versionsCount: form._count.versions,
+                journeysCount: form._count.journeys,
+                updatedAt: form.updatedAt,
+            })),
+        };
+    } catch (error: any) {
+        logger.error("[listTicketFormsAction] Error:", error);
+        return { success: false, error: error?.message || "Erreur récupération des formulaires" };
+    }
+}
+
+export async function saveTicketFormAction(guildId: string, data: unknown): Promise<ActionResponse> {
+    try {
+        const guard = await requireTicketManager(guildId);
+        if (!guard.ok) return { success: false, error: guard.error };
+
+        const parsed = TicketFormSaveSchema.safeParse(data);
+        if (!parsed.success) {
+            return { success: false, error: parsed.error.issues[0]?.message || "Données invalides" };
+        }
+        const payload = parsed.data;
+
+        // Le brouillon passe le **contrat v2** : aucune question mal formée n'est stockée.
+        const formCheck = parseTicketForm(payload.schema);
+        if (!formCheck.ok) {
+            return { success: false, error: `Formulaire invalide — ${formCheck.errors.slice(0, 3).join(" · ")}` };
+        }
+
+        const duplicate = await db.ticketForm.findFirst({
+            where: {
+                guildId: guard.guildInternalId,
+                slug: payload.slug,
+                ...(payload.id ? { NOT: { id: payload.id } } : {}),
+            },
+            select: { id: true },
+        });
+        if (duplicate) return { success: false, error: "Cet identifiant de formulaire est déjà utilisé" };
+
+        const values = {
+            name: payload.name,
+            slug: payload.slug,
+            description: payload.description ?? null,
+            draftSchemaJson: formCheck.form as never,
+        };
+
+        const form = payload.id
+            ? await db.ticketForm.update({ where: { id: payload.id, guildId: guard.guildInternalId }, data: values })
+            : await db.ticketForm.create({ data: { guildId: guard.guildInternalId, ...values } });
+
+        revalidatePath(`/dashboard/${guildId}/tickets`);
+        return { success: true, data: { id: form.id, updatedAt: form.updatedAt } };
+    } catch (error: any) {
+        logger.error("[saveTicketFormAction] Error:", error);
+        return { success: false, error: error?.message || "Erreur enregistrement formulaire" };
+    }
+}
+
+export async function publishTicketFormAction(guildId: string, formId: string): Promise<ActionResponse> {
+    try {
+        const guard = await requireTicketManager(guildId);
+        if (!guard.ok) return { success: false, error: guard.error };
+
+        const form = await db.ticketForm.findUnique({
+            where: { id: formId, guildId: guard.guildInternalId },
+        });
+        if (!form) return { success: false, error: "Formulaire introuvable" };
+
+        const check = parseTicketForm(form.draftSchemaJson);
+        if (!check.ok) {
+            return { success: false, error: `Formulaire invalide — ${check.errors.slice(0, 3).join(" · ")}` };
+        }
+
+        const version = form.currentVersion + 1;
+
+        // Version **figée** : c'est elle que les tickets référenceront (réponses relisibles).
+        await db.ticketFormVersion.create({
+            data: {
+                formId: form.id,
+                guildId: guard.guildInternalId,
+                version,
+                schemaJson: check.form as never,
+            },
+        });
+
+        const updated = await db.ticketForm.update({
+            where: { id: form.id },
+            data: { currentVersion: version, publishedVersion: version, status: "PUBLISHED" },
+        });
+
+        revalidatePath(`/dashboard/${guildId}/tickets`);
+        return { success: true, data: { id: updated.id, publishedVersion: version } };
+    } catch (error: any) {
+        logger.error("[publishTicketFormAction] Error:", error);
+        return { success: false, error: error?.message || "Erreur publication formulaire" };
+    }
+}
+
+// ---------------------------------------------------------------------------
+// 8.3 Parcours — l'unité éditable (point d'entrée, formulaire, équipe, règles)
+// ---------------------------------------------------------------------------
+
+export async function listTicketJourneysAction(guildId: string): Promise<ActionResponse> {
+    try {
+        const guard = await requireTicketManager(guildId);
+        if (!guard.ok) return { success: false, error: guard.error };
+
+        const journeys = await db.ticketJourney.findMany({
+            where: { guildId: guard.guildInternalId },
+            orderBy: [{ order: "asc" }, { name: "asc" }],
+            include: {
+                form: { select: { id: true, name: true, publishedVersion: true, currentVersion: true } },
+                team: { select: { id: true, name: true, staffRoleIds: true } },
+                _count: { select: { tickets: true } },
+            },
+        });
+
+        return { success: true, data: journeys };
+    } catch (error: any) {
+        logger.error("[listTicketJourneysAction] Error:", error);
+        return { success: false, error: error?.message || "Erreur récupération des parcours" };
+    }
+}
+
+export async function saveTicketJourneyAction(guildId: string, data: unknown): Promise<ActionResponse> {
+    try {
+        const guard = await requireTicketManager(guildId);
+        if (!guard.ok) return { success: false, error: guard.error };
+
+        const parsed = TicketJourneySchema.safeParse(data);
+        if (!parsed.success) {
+            return { success: false, error: parsed.error.issues[0]?.message || "Données invalides" };
+        }
+        const payload = parsed.data;
+
+        // 1. Le salon parent, s'il est fourni, doit être une **catégorie de cette guilde**.
+        if (!(await isValidCategoryOfGuild(payload.channelParentId, guildId))) {
+            return { success: false, error: "La catégorie choisie n'appartient pas à ce serveur." };
+        }
+
+        // 2. Équipe et formulaire doivent appartenir à la guilde (aucun ID croisé).
+        if (payload.teamId) {
+            const team = await db.ticketTeam.findFirst({
+                where: { id: payload.teamId, guildId: guard.guildInternalId },
+                select: { id: true },
+            });
+            if (!team) return { success: false, error: "Équipe introuvable dans cette guilde." };
+        }
+
+        let formVersion: number | null = null;
+        if (payload.formId) {
+            const form = await db.ticketForm.findFirst({
+                where: { id: payload.formId, guildId: guard.guildInternalId },
+                select: { publishedVersion: true },
+            });
+            if (!form) return { success: false, error: "Formulaire introuvable dans cette guilde." };
+            // Un parcours ne s'appuie que sur une version **publiée** : sinon le membre
+            // remplirait un brouillon. On refuse en disant quoi faire.
+            if (!form.publishedVersion) {
+                return { success: false, error: "Ce formulaire n'est pas publié : publie-le d'abord." };
+            }
+            formVersion = form.publishedVersion;
+        }
+
+        const duplicate = await db.ticketJourney.findFirst({
+            where: {
+                guildId: guard.guildInternalId,
+                slug: payload.slug,
+                ...(payload.id ? { NOT: { id: payload.id } } : {}),
+            },
+            select: { id: true },
+        });
+        if (duplicate) return { success: false, error: "Cet identifiant de parcours est déjà utilisé" };
+
+        const values = {
+            name: payload.name,
+            slug: payload.slug,
+            description: payload.description ?? null,
+            emoji: payload.emoji,
+            buttonStyle: payload.buttonStyle,
+            channelType: payload.channelType,
+            channelParentId: payload.channelParentId || null,
+            staffRoleIds: payload.staffRoleIds,
+            teamId: payload.teamId || null,
+            formId: payload.formId || null,
+            formVersion,
+            namingPattern: payload.namingPattern,
+            openMode: payload.openMode,
+            closePolicy: payload.closePolicy,
+            order: payload.order,
+            isEnabled: payload.isEnabled,
+        };
+
+        const journey = payload.id
+            ? await db.ticketJourney.update({
+                  where: { id: payload.id, guildId: guard.guildInternalId },
+                  data: values,
+              })
+            : await db.ticketJourney.create({ data: { guildId: guard.guildInternalId, ...values } });
+
+        revalidatePath(`/dashboard/${guildId}/tickets`);
+        return { success: true, data: journey };
+    } catch (error: any) {
+        logger.error("[saveTicketJourneyAction] Error:", error);
+        return { success: false, error: error?.message || "Erreur enregistrement parcours" };
+    }
+}
+
+export async function publishTicketJourneyAction(guildId: string, journeyId: string): Promise<ActionResponse> {
+    try {
+        const guard = await requireTicketManager(guildId);
+        if (!guard.ok) return { success: false, error: guard.error };
+
+        const journey = await db.ticketJourney.findUnique({
+            where: { id: journeyId, guildId: guard.guildInternalId },
+            include: { form: { select: { publishedVersion: true, name: true } } },
+        });
+        if (!journey) return { success: false, error: "Parcours introuvable" };
+
+        if (journey.formId && !journey.form?.publishedVersion) {
+            return { success: false, error: `Le formulaire « ${journey.form?.name} » n'est pas publié.` };
+        }
+
+        const updated = await db.ticketJourney.update({
+            where: { id: journey.id },
+            data: {
+                isPublished: true,
+                publishedAt: new Date(),
+                publishedVersion: journey.publishedVersion + 1,
+                // La version du formulaire est **figée** à la publication.
+                formVersion: journey.form?.publishedVersion ?? null,
+            },
+        });
+
+        revalidatePath(`/dashboard/${guildId}/tickets`);
+        return { success: true, data: { id: updated.id, publishedVersion: updated.publishedVersion } };
+    } catch (error: any) {
+        logger.error("[publishTicketJourneyAction] Error:", error);
+        return { success: false, error: error?.message || "Erreur publication parcours" };
+    }
+}
+
+export async function deleteTicketJourneyAction(guildId: string, journeyId: string): Promise<ActionResponse> {
+    try {
+        const guard = await requireTicketManager(guildId);
+        if (!guard.ok) return { success: false, error: guard.error };
+
+        const tickets = await db.ticketRecord.count({ where: { guildId: guard.guildInternalId, journeyId } });
+        if (tickets > 0) {
+            return {
+                success: false,
+                error: `Ce parcours porte ${tickets} ticket(s) : désactive-le plutôt que de le supprimer.`,
+            };
+        }
+
+        await db.ticketJourney.delete({ where: { id: journeyId, guildId: guard.guildInternalId } });
+        revalidatePath(`/dashboard/${guildId}/tickets`);
+        return { success: true };
+    } catch (error: any) {
+        logger.error("[deleteTicketJourneyAction] Error:", error);
+        return { success: false, error: error?.message || "Erreur suppression parcours" };
+    }
+}
+
+// =============================================================================
 // 7. INTERNAL DISCORD INTERACTION ENGINE
 // =============================================================================
+
+
+
+
+
+
+/**
+ * 🔒 Garde **commune** des actions de ticket déclenchées depuis Discord.
+ *
+ * Constat P0-2 de l'audit du 24/09/2026 : aucun des handlers ne vérifiait la guilde,
+ * le rôle ou l'identité. Cette fonction applique **une seule** règle :
+ *   1. le ticket doit exister **et appartenir à la guilde de l'interaction** ;
+ *   2. l'acteur doit avoir le niveau d'accès exigé (`decideTicketAccess`), les rôles
+ *      staff étant la fusion *config guilde + catégorie v1 + parcours + équipe* ;
+ *   3. un refus est **motivé** et n'écrit rien (aucune mutation avant ce point).
+ *
+ * La route fournit le contexte (`TicketAuthorizationContext`) — jamais le client.
+ */
+async function guardTicketAction(input: {
+    ticketId: string;
+    discordGuildId: string;
+    access: "staff" | "creator" | "staff_or_creator";
+    actor: TicketAuthorizationContext;
+}) {
+    const ticket = await db.ticketRecord.findUnique({
+        where: { id: input.ticketId },
+        include: {
+            category: true,
+            journey: { include: { team: true } },
+            guild: true,
+            notes: { orderBy: { createdAt: "asc" } },
+        },
+    });
+
+    if (!ticket) return { ok: false as const, message: "Ticket introuvable" };
+
+    if (ticket.discordGuildId !== input.discordGuildId) {
+        // Isolation multi-tenant : un ticket d'un autre serveur n'est jamais actionnable.
+        return { ok: false as const, message: "Ce ticket n'appartient pas à ce serveur." };
+    }
+
+    const config = await db.ticketGuildConfig.findUnique({ where: { guildId: ticket.guildId } });
+    const staffRoleIds = mergeStaffRoleIds(
+        config?.staffRoleIds,
+        ticket.category?.staffRoleIds,
+        ticket.journey?.staffRoleIds,
+        ticket.journey?.team?.staffRoleIds
+    );
+
+    const decision = decideTicketAccess({
+        access: input.access,
+        actor: actorFromAuthorizationContext(input.actor),
+        staffRoleIds,
+        creatorDiscordId: ticket.creatorDiscordId,
+        closePolicy: ticket.journey?.closePolicy ?? "STAFF_ONLY",
+    });
+
+    if (!decision.allowed) {
+        logger.warn("[tickets] action refusée par le gate d'accès", {
+            ticketId: ticket.id,
+            access: input.access,
+            actor: input.actor.discordUserId,
+        });
+        return { ok: false as const, message: decision.reason };
+    }
+
+    return { ok: true as const, ticket, staffRoleIds, as: decision.as, config };
+}
 
 export async function internalHandleTicketCreate(params: {
     discordGuildId: string;
@@ -1306,13 +1790,22 @@ export async function internalHandleTicketClaim(params: {
     discordUserId: string;
     discordUserName: string;
     ticketId: string;
+    /** Contexte d'autorisation résolu par la route (rôles, rang Discord, `staff:tickets`). */
+    actor: TicketAuthorizationContext;
 }): Promise<{ success: boolean; message: string }> {
     try {
-        const ticket = await db.ticketRecord.findUnique({
-            where: { id: params.ticketId },
-            include: { guild: true },
+        const guard = await guardTicketAction({
+            ticketId: params.ticketId,
+            discordGuildId: params.discordGuildId,
+            access: "staff",
+            actor: params.actor,
         });
-        if (!ticket) return { success: false, message: "Ticket introuvable" };
+        if (!guard.ok) return { success: false, message: guard.message };
+        const { ticket } = guard;
+
+        if (ticket.status === "CLOSED" || ticket.status === "REFUSED") {
+            return { success: false, message: "Ce ticket est clôturé." };
+        }
 
         if (ticket.status === "CLAIMED" && ticket.claimedByDiscordId === params.discordUserId) {
             return { success: true, message: "Vous avez déjà pris en charge ce ticket." };
@@ -1359,12 +1852,21 @@ export async function internalHandleTicketAddNote(params: {
     discordUserName: string;
     ticketId: string;
     content: string;
+    /** Contexte d'autorisation résolu par la route (rôles, rang Discord, `staff:tickets`). */
+    actor: TicketAuthorizationContext;
 }): Promise<{ success: boolean; message: string }> {
     try {
-        const ticket = await db.ticketRecord.findUnique({
-            where: { id: params.ticketId },
+        const guard = await guardTicketAction({
+            ticketId: params.ticketId,
+            discordGuildId: params.discordGuildId,
+            access: "staff",
+            actor: params.actor,
         });
-        if (!ticket) return { success: false, message: "Ticket introuvable" };
+        if (!guard.ok) return { success: false, message: guard.message };
+        const { ticket } = guard;
+
+        const content = (params.content || "").trim();
+        if (!content) return { success: false, message: "Note vide : rien n'a été enregistré." };
 
         await db.ticketNote.create({
             data: {
@@ -1372,7 +1874,7 @@ export async function internalHandleTicketAddNote(params: {
                 guildId: ticket.guildId,
                 authorDiscordId: params.discordUserId,
                 authorName: params.discordUserName,
-                content: params.content.trim(),
+                content,
             },
         });
 
@@ -1386,33 +1888,12 @@ export async function internalHandleTicketAddNote(params: {
             },
         });
 
-        if (ticket.discordChannelId) {
-            const { fetchWithRetry, DISCORD_USER_AGENT } = await import("@/server/discord");
-            const token = process.env.DISCORD_BOT_TOKEN;
-            if (token) {
-                await fetchWithRetry(`/api/v10/channels/${ticket.discordChannelId}/messages`, {
-                    method: "POST",
-                    headers: {
-                        Authorization: `Bot ${token}`,
-                        "Content-Type": "application/json",
-                        "User-Agent": DISCORD_USER_AGENT,
-                    },
-                    body: JSON.stringify({
-                        embeds: [
-                            {
-                                title: "🔒 Note Interne Staff",
-                                description: params.content.trim(),
-                                color: 0xf0b232, // Amber
-                                footer: { text: `Ajoutée par ${params.discordUserName}` },
-                                timestamp: new Date().toISOString(),
-                            },
-                        ],
-                    }),
-                }).catch(() => {});
-            }
-        }
-
-        return { success: true, message: "Note interne enregistrée avec succès." };
+        // 🔒 **La note reste interne.** Elle n'est plus publiée dans le salon du ticket :
+        // le salon autorise le demandeur (`createTicketChannelDiscord`), il lisait donc
+        // la note « interne » — constat P0-1 de l'audit du 24/09/2026. Elle vit dans
+        // l'inbox staff et dans l'annexe interne de l'archive, jamais dans le document
+        // partageable (voir `captureTicketArchives`).
+        return { success: true, message: "🔒 Note interne enregistrée — visible du staff uniquement." };
     } catch (error: any) {
         logger.error("[internalHandleTicketAddNote] Error:", error);
         return { success: false, message: error?.message || "Erreur note interne" };
@@ -1425,93 +1906,38 @@ export async function internalHandleTicketClose(params: {
     discordUserName: string;
     ticketId: string;
     reason?: string;
+    /** Contexte d'autorisation résolu par la route (rôles, rang Discord, `staff:tickets`). */
+    actor: TicketAuthorizationContext;
 }): Promise<{ success: boolean; message: string }> {
     try {
-        const ticket = await db.ticketRecord.findUnique({
-            where: { id: params.ticketId },
-            include: {
-                category: true,
-                notes: true,
-                guild: true,
-            },
+        // Fermeture : staff, **ou** le demandeur si la politique publiée du parcours le
+        // permet (`STAFF_OR_CREATOR`). Le refus est motivé et n'écrit rien.
+        const guard = await guardTicketAction({
+            ticketId: params.ticketId,
+            discordGuildId: params.discordGuildId,
+            access: "staff_or_creator",
+            actor: params.actor,
         });
-        if (!ticket) return { success: false, message: "Ticket introuvable" };
+        if (!guard.ok) return { success: false, message: guard.message };
+        const { ticket, config: ticketConfig } = guard;
 
-        const ticketConfig = await db.ticketGuildConfig.findUnique({
-            where: { guildId: ticket.guildId },
-        });
-
-        // Generate transcript
-        if (ticketConfig?.enableTranscripts !== false) {
-            let discordMessages: any[] = [];
-            if (ticket.discordChannelId) {
-                discordMessages = await fetchChannelMessagesDiscord(ticket.discordChannelId, 100);
-            }
-
-            const formattedMessages: any[] = discordMessages.map((m) => ({
-                id: m.id,
-                authorId: m.author.id,
-                authorName: m.author.global_name || m.author.username,
-                authorAvatar: m.author.avatar ? `https://cdn.discordapp.com/avatars/${m.author.id}/${m.author.avatar}.png` : null,
-                isBot: m.author.bot,
-                content: m.content || "",
-                createdAt: m.timestamp,
-                attachments: m.attachments?.map((a: any) => ({
-                    url: a.url,
-                    name: a.filename,
-                    isImage: a.content_type?.startsWith("image/"),
-                })),
-            }));
-
-            for (const note of ticket.notes) {
-                formattedMessages.push({
-                    id: note.id,
-                    authorId: note.authorDiscordId,
-                    authorName: note.authorName,
-                    authorAvatar: null,
-                    isStaff: true,
-                    isInternalNote: true,
-                    content: note.content,
-                    createdAt: note.createdAt as any,
-                });
-            }
-
-            formattedMessages.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-
-            const html = generateHtmlTranscript(
-                {
-                    ticketNumber: ticket.ticketNumber,
-                    categoryName: ticket.category?.name || "Support",
-                    guildName: ticket.guild.name,
-                    creatorName: ticket.creatorDiscordName,
-                    creatorId: ticket.creatorDiscordId,
-                    claimedByName: ticket.claimedByName,
-                    openedAt: ticket.createdAt,
-                    closedAt: new Date(),
-                    closedByName: params.discordUserName,
-                    closedReason: params.reason,
-                    intakeAnswers: (ticket.intakeAnswersJson as any) || undefined,
-                },
-                formattedMessages
-            );
-
-            await db.ticketTranscript.upsert({
-                where: { ticketId: ticket.id },
-                create: {
-                    ticketId: ticket.id,
-                    guildId: ticket.guildId,
-                    secretToken: crypto.randomUUID().replace(/-/g, ""),
-                    storageRef: html,
-                    messageCount: formattedMessages.length,
-                    sizeBytes: Buffer.byteLength(html, "utf-8"),
-                },
-                update: {
-                    storageRef: html,
-                    messageCount: formattedMessages.length,
-                    sizeBytes: Buffer.byteLength(html, "utf-8"),
-                },
-            });
+        if (ticket.status === "CLOSED") {
+            return { success: true, message: `Le ticket #${ticket.ticketNumber} est déjà clôturé.` };
         }
+
+        // Archives : même service que la fermeture depuis le dashboard (une seule
+        // source de vérité — pagination réelle, partageable / annexe distinctes).
+        const archive = await captureTicketArchives({
+            ticket,
+            config: ticketConfig
+                ? {
+                      enableTranscripts: ticketConfig.enableTranscripts,
+                      transcriptRetentionDays: ticketConfig.transcriptRetentionDays,
+                  }
+                : null,
+            closedByName: params.discordUserName,
+            closedReason: params.reason ?? null,
+        });
 
         // Close ticket in DB
         await db.ticketRecord.update({
@@ -1532,7 +1958,10 @@ export async function internalHandleTicketClose(params: {
                 actorDiscordId: params.discordUserId,
                 actorName: params.discordUserName,
                 action: "CLOSE",
-                detailsJson: { reason: params.reason },
+                detailsJson: {
+                    reason: params.reason ?? null,
+                    archive: { kinds: archive.kinds, partial: archive.partial, note: archive.note },
+                },
             },
         });
 
@@ -1565,7 +1994,7 @@ export async function internalHandleTicketClose(params: {
                             embeds: [
                                 {
                                     title: `⭐ Votre avis sur le Ticket #${ticket.ticketNumber}`,
-                                    description: `Votre ticket concernant **${ticket.category.name}** sur **${ticket.guild.name}** vient d'être clôturé.\n\nComment évaluez-vous la prise en charge de votre demande ?`,
+                                    description: `Votre ticket concernant **${ticket.journey?.name || ticket.category?.name || "Support"}** sur **${ticket.guild.name}** vient d'être clôturé.\n\nComment évaluez-vous la prise en charge de votre demande ?`,
                                     color: 0x5865f2,
                                     footer: { text: "SigilOS Feedback" },
                                 },
@@ -1604,12 +2033,30 @@ export async function internalHandleTicketCsat(params: {
     ticketId: string;
     rating: number;
     comment?: string;
+    /** Contexte d'autorisation résolu par la route (identité normalisée MP **ou** salon). */
+    actor: TicketAuthorizationContext;
 }): Promise<{ success: boolean; message: string }> {
     try {
+        // Le sondage arrive par **message privé** : l'isolation ne peut pas passer par la
+        // guilde de l'interaction (absente), elle passe par l'identité du demandeur.
+        if (params.actor.discordUserId !== params.discordUserId) {
+            return { success: false, message: "Avis non autorisé." };
+        }
+
         const ticket = await db.ticketRecord.findUnique({
             where: { id: params.ticketId },
         });
         if (!ticket) return { success: false, message: "Ticket introuvable" };
+
+        // 🔒 Seul le demandeur du ticket peut noter (constat P0-4 de l'audit).
+        if (ticket.creatorDiscordId !== params.discordUserId) {
+            return { success: false, message: "Seul le demandeur de ce ticket peut donner son avis." };
+        }
+        if (ticket.status !== "CLOSED") {
+            return { success: false, message: "Le ticket n'est pas encore clôturé." };
+        }
+
+        const rating = Math.min(Math.max(Math.trunc(params.rating) || 0, 1), 5);
 
         await db.ticketFeedback.upsert({
             where: { ticketId: ticket.id },
@@ -1617,19 +2064,76 @@ export async function internalHandleTicketCsat(params: {
                 ticketId: ticket.id,
                 guildId: ticket.guildId,
                 creatorDiscordId: params.discordUserId,
-                rating: Math.min(Math.max(params.rating, 1), 5),
+                rating,
                 comment: params.comment,
             },
             update: {
-                rating: Math.min(Math.max(params.rating, 1), 5),
+                rating,
                 comment: params.comment,
             },
         });
 
-        return { success: true, message: `Merci pour votre note de ${params.rating} ⭐ ! Votre avis nous aide à nous améliorer.` };
+        return { success: true, message: `Merci pour votre note de ${rating} ⭐ ! Votre avis nous aide à nous améliorer.` };
     } catch (error: any) {
         logger.error("[internalHandleTicketCsat] Error:", error);
         return { success: false, message: error?.message || "Erreur enregistrement avis" };
+    }
+}
+
+/**
+ * Renommage du salon depuis Discord (bouton « Renommer » → modale).
+ *
+ * ⚠️ L'ancien code appelait `renameTicketAction` — une action **dashboard** qui exige
+ * une session NextAuth, absente dans une interaction : l'appel échouait **toujours**
+ * et la réponse annonçait quand même « ✏️ Salon renommé ». Ici : même gate que les
+ * autres actions de staff, et le **résultat réel** de Discord est renvoyé.
+ */
+export async function internalHandleTicketRename(params: {
+    discordGuildId: string;
+    discordUserId: string;
+    discordUserName: string;
+    ticketId: string;
+    newName: string;
+    actor: TicketAuthorizationContext;
+}): Promise<{ success: boolean; message: string }> {
+    try {
+        const guard = await guardTicketAction({
+            ticketId: params.ticketId,
+            discordGuildId: params.discordGuildId,
+            access: "staff",
+            actor: params.actor,
+        });
+        if (!guard.ok) return { success: false, message: guard.message };
+        const { ticket } = guard;
+
+        const newName = (params.newName || "").trim();
+        if (newName.length < 3) {
+            return { success: false, message: "Nom trop court (3 caractères minimum)." };
+        }
+        if (!ticket.discordChannelId) {
+            return { success: false, message: "Aucun salon Discord à renommer pour ce ticket." };
+        }
+
+        const renamed = await renameChannelDiscord(ticket.discordChannelId, newName);
+        if (!renamed.success) {
+            return { success: false, message: renamed.error || "Le renommage Discord a échoué." };
+        }
+
+        await db.ticketAuditLog.create({
+            data: {
+                ticketId: ticket.id,
+                guildId: ticket.guildId,
+                actorDiscordId: params.discordUserId,
+                actorName: params.discordUserName,
+                action: "RENAME",
+                detailsJson: { newName },
+            },
+        });
+
+        return { success: true, message: `✏️ Salon renommé en **${newName}**.` };
+    } catch (error: any) {
+        logger.error("[internalHandleTicketRename] Error:", error);
+        return { success: false, message: error?.message || "Erreur renommage" };
     }
 }
 

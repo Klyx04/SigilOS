@@ -14,6 +14,8 @@ import {
     AlertTriangle,
 } from "lucide-react";
 import { updateTicketGuildConfigAction } from "@/server/actions/ticket-bot-actions";
+import { DiscordChannelPicker } from "@/components/shared/DiscordChannelPicker";
+import { TicketRolesPicker } from "../ticket-discord-pickers";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -30,9 +32,7 @@ export function TicketSettingsTab({ guildId, config, onRefresh }: TicketSettings
     const [isEnabled, setIsEnabled] = useState<boolean>(config?.isEnabled ?? true);
     const [logChannelId, setLogChannelId] = useState<string>(config?.logChannelId || "");
     const [transcriptsChannelId, setTranscriptsChannelId] = useState<string>(config?.transcriptsChannelId || "");
-    const [staffRoleIdsText, setStaffRoleIdsText] = useState<string>(
-        (config?.staffRoleIds || []).join(", ")
-    );
+    const [staffRoleIds, setStaffRoleIds] = useState<string[]>(config?.staffRoleIds || []);
     const [maxActiveTicketsPerUser, setMaxActiveTicketsPerUser] = useState<number>(
         config?.maxActiveTicketsPerUser ?? 1
     );
@@ -46,24 +46,31 @@ export function TicketSettingsTab({ guildId, config, onRefresh }: TicketSettings
     const [enableTranscripts, setEnableTranscripts] = useState<boolean>(
         config?.enableTranscripts ?? true
     );
+    // 🆕 v2 — rétention : ces valeurs sont **réellement** appliquées à la capture d'archive.
+    const [transcriptRetentionDays, setTranscriptRetentionDays] = useState<number>(
+        config?.transcriptRetentionDays ?? 365
+    );
+    const [noteRetentionDays, setNoteRetentionDays] = useState<number>(config?.noteRetentionDays ?? 365);
+    const [auditRetentionDays, setAuditRetentionDays] = useState<number>(config?.auditRetentionDays ?? 730);
 
     const handleSave = () => {
-        const staffRoles = staffRoleIdsText
-            .split(",")
-            .map((s) => s.trim())
-            .filter(Boolean);
-
         startTransition(async () => {
             const res = await updateTicketGuildConfigAction(guildId, {
                 isEnabled,
                 logChannelId: logChannelId.trim() || undefined,
                 transcriptsChannelId: transcriptsChannelId.trim() || undefined,
-                staffRoleIds: staffRoles,
+                staffRoleIds,
                 maxActiveTicketsPerUser,
                 maxTicketsTotalGuild,
                 enableCsat,
-                enableDmNotifications,
+                // `enableDmNotifications` n'est **plus exposé** : aucun code ne consomme ce
+                // réglage (il n'existe pas d'envoi de MP « réponse du staff »). La colonne
+                // reste en base, sa valeur est simplement conservée telle quelle.
+                enableDmNotifications: config?.enableDmNotifications ?? true,
                 enableTranscripts,
+                transcriptRetentionDays,
+                noteRetentionDays,
+                auditRetentionDays,
             });
 
             if (res.success) {
@@ -123,14 +130,6 @@ export function TicketSettingsTab({ guildId, config, onRefresh }: TicketSettings
                             </div>
                             <Switch checked={enableCsat} onCheckedChange={setEnableCsat} />
                         </div>
-
-                        <div className="flex items-center justify-between pt-3">
-                            <div>
-                                <div className="font-semibold text-foreground">Notifications MP Discord</div>
-                                <div className="text-muted-foreground">Prévient le membre en DM des réponses du staff.</div>
-                            </div>
-                            <Switch checked={enableDmNotifications} onCheckedChange={setEnableDmNotifications} />
-                        </div>
                     </div>
                 </div>
 
@@ -142,16 +141,13 @@ export function TicketSettingsTab({ guildId, config, onRefresh }: TicketSettings
 
                     <div className="space-y-3">
                         <div className="space-y-1">
-                            <label className="font-semibold text-foreground">
-                                Rôles Staff globaux (IDs séparés par virgules)
-                            </label>
-                            <Input
-                                placeholder="ex: 123456789012345678, 987654321098765432"
-                                value={staffRoleIdsText}
-                                onChange={(e) => setStaffRoleIdsText(e.target.value)}
-                                className="text-xs h-8 font-mono"
+                            <label className="font-semibold text-foreground">Rôles Staff globaux</label>
+                            <TicketRolesPicker
+                                guildId={guildId}
+                                value={staffRoleIds}
+                                onChange={setStaffRoleIds}
+                                description="Ces rôles ont accès à tous les tickets ouverts, quel que soit le parcours."
                             />
-                            <p className="text-[11px] text-muted-foreground">Ces rôles ont accès à tous les tickets ouverts.</p>
                         </div>
 
                         <div className="grid grid-cols-2 gap-3">
@@ -180,14 +176,48 @@ export function TicketSettingsTab({ guildId, config, onRefresh }: TicketSettings
                             </div>
                         </div>
 
-                        <div className="space-y-1">
-                            <label className="font-semibold text-foreground">ID Salon Logs de Modération</label>
-                            <Input
-                                placeholder="ex: 123456789012345678"
-                                value={logChannelId}
-                                onChange={(e) => setLogChannelId(e.target.value)}
-                                className="text-xs h-8 font-mono"
-                            />
+                        {/* 🆕 v2 — rétention : ces valeurs SONT appliquées (échéance écrite sur
+                            chaque archive par `captureTicketArchives`). 0 = conservation illimitée. */}
+                        <div className="space-y-2 pt-2 border-t border-border/40">
+                            <label className="font-semibold text-foreground">Durée de conservation (jours)</label>
+                            <div className="grid grid-cols-3 gap-3">
+                                <div className="space-y-1">
+                                    <span className="text-[11px] text-muted-foreground">Archives</span>
+                                    <Input
+                                        type="number"
+                                        min={0}
+                                        max={3650}
+                                        value={transcriptRetentionDays}
+                                        onChange={(e) => setTranscriptRetentionDays(Number(e.target.value))}
+                                        className="text-xs h-8"
+                                    />
+                                </div>
+                                <div className="space-y-1">
+                                    <span className="text-[11px] text-muted-foreground">Notes internes</span>
+                                    <Input
+                                        type="number"
+                                        min={0}
+                                        max={3650}
+                                        value={noteRetentionDays}
+                                        onChange={(e) => setNoteRetentionDays(Number(e.target.value))}
+                                        className="text-xs h-8"
+                                    />
+                                </div>
+                                <div className="space-y-1">
+                                    <span className="text-[11px] text-muted-foreground">Journal d'audit</span>
+                                    <Input
+                                        type="number"
+                                        min={0}
+                                        max={3650}
+                                        value={auditRetentionDays}
+                                        onChange={(e) => setAuditRetentionDays(Number(e.target.value))}
+                                        className="text-xs h-8"
+                                    />
+                                </div>
+                            </div>
+                            <p className="text-[11px] text-muted-foreground">
+                                0 = conservation illimitée. Chaque archive reçoit sa date d'expiration à la clôture.
+                            </p>
                         </div>
                     </div>
                 </div>

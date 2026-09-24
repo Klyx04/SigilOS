@@ -60,7 +60,7 @@ export type GameDataRunStatus = "IDLE" | "RUNNING" | "OK" | "ERROR";
  * Règle : seuls ceux dont le CŒUR vit dans `src/lib` (appelable sans session Next).
  * ⚠️ Ce module est importé par des composants CLIENT : jamais d'import de `bullmq` ici.
  */
-export const GAME_DATA_BACKGROUND_DATASETS = ["CATALOGUE", "ANOMALY_BOSSES", "ZONES", "FAMILIES", "BOUNTIES", "ITEMS", "REFERENTIALS", "QUESTS"] as const;
+export const GAME_DATA_BACKGROUND_DATASETS = ["CATALOGUE", "ANOMALY_BOSSES", "ZONES", "FAMILIES", "BOUNTIES", "ITEMS", "REFERENTIALS", "QUESTS", "CLASS_SPELLS"] as const;
 export type GameDataBackgroundDataset = (typeof GAME_DATA_BACKGROUND_DATASETS)[number];
 
 export function isBackgroundDataset(dataset: GameDataDataset): dataset is GameDataBackgroundDataset {
@@ -86,7 +86,6 @@ export type GameDataLaunchKind = "BACKGROUND" | "INLINE" | "SCRIPT";
 
 /** Datasets sans cœur `src/lib` : lancement **dans l'onglet** (jamais en file). */
 export const GAME_DATA_INLINE_DATASETS: readonly GameDataDataset[] = [
-    "CLASS_SPELLS",
     "ASSETS_WEBP",
 ];
 
@@ -145,6 +144,12 @@ export const GAME_DATA_JOURNAL_DATASETS: readonly GameDataDataset[] = [
     "QUESTS",
     "CLASS_SPELLS",
     "ANOMALY_BOSSES",
+    "FAMILIES",
+    "ZONES",
+    "REFERENTIALS",
+    "CATALOGUE",
+    "ASSETS_WEBP",
+    "BOUNTIES",
 ];
 
 export function isJournalWiredDataset(dataset: GameDataDataset): boolean {

@@ -47,11 +47,14 @@ describe("checkDofusDbDeltas — DofusDB Quest Sync", () => {
         mockIsSuperAdmin.mockResolvedValue(true);
 
         // Quêtes locales existantes
+        // ⚠️ Ordre des lectures de `findMany` : (1) quêtes liées à DofusDB, (2) **rattrapage**
+        // des contenus non stockés (24/09/2026), (3) index par nom.
         mockGameQuest.findMany
             .mockResolvedValueOnce([
                 { dofusDbId: 10, name: "Quête Existante", levelMin: 50, levelMax: 50 },
                 { dofusDbId: 20, name: "Quête Modifiée", levelMin: 60, levelMax: 60 },
             ])
+            .mockResolvedValueOnce([])
             .mockResolvedValueOnce([
                 { id: "q1", dofusDbId: 10, name: "Quête Existante", levelMin: 50, levelMax: 50 },
                 { id: "q2", dofusDbId: 20, name: "Quête Modifiée", levelMin: 60, levelMax: 60 },

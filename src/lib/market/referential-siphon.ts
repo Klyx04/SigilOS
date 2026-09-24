@@ -21,6 +21,7 @@ import { logger } from '@/lib/logger';
 import { collectDofusDbPages } from '@/lib/market/referential-pagination';
 import { resetMarketReferentialCache } from '@/lib/market/referential';
 import { FM_CHARACTERISTIC_KEYS } from '@/lib/market/fm-effects';
+import { diffFields, recordGameDataChanges, type GameDataChangeEntry } from '@/lib/game-data-changelog';
 
 /** Init réseau **par page** (en-têtes + timeout neuf : un signal ne se partage pas). */
 function dofusDbRefInit(): RequestInit {
@@ -37,8 +38,16 @@ async function siphonAllCharacteristics(): Promise<{
     received: number;
     truncated: boolean;
     failedPages: number[];
+    changes: GameDataChangeEntry[];
 }> {
     const names = new Map<number, string>();
+    // 🔍 Journal : image **avant** (une seule lecture) — « libellé/signe/icône qui change ».
+    const known = new Map(
+        (await db.gameCharacteristic.findMany({ select: { id: true, name: true, keyword: true, iconKey: true } })).map(
+            (c) => [c.id, c],
+        ),
+    );
+    const changes: GameDataChangeEntry[] = [];
     const collected = await collectDofusDbPages<any>(
         (skip, limit) => `https://api.dofusdb.fr/characteristics?$limit=${limit}&$skip=${skip}`,
         { initFor: dofusDbRefInit }
@@ -55,6 +64,26 @@ async function siphonAllCharacteristics(): Promise<{
             create: { id, name, keyword, iconKey },
             update: { name, keyword, iconKey },
         });
+        const before = known.get(id);
+        if (!before) {
+            changes.push({
+                entityType: 'characteristic',
+                entityId: String(id),
+                entityName: name,
+                changeType: 'NEW',
+            });
+        } else {
+            const fields = diffFields(before, { name, keyword, iconKey }, ['name', 'keyword', 'iconKey']);
+            if (fields) {
+                changes.push({
+                    entityType: 'characteristic',
+                    entityId: String(id),
+                    entityName: name,
+                    changeType: 'MODIFIED',
+                    fields,
+                });
+            }
+        }
         names.set(id, name);
         count++;
     }
@@ -65,6 +94,7 @@ async function siphonAllCharacteristics(): Promise<{
         received: collected.rows.length,
         truncated: collected.truncated,
         failedPages: collected.failedPages,
+        changes,
     };
 }
 
@@ -77,11 +107,27 @@ async function siphonAllCharacteristics(): Promise<{
  */
 async function siphonAllEffects(
     charNames: Map<number, string>
-): Promise<{ count: number; expected: number; received: number; truncated: boolean; failedPages: number[] }> {
+): Promise<{
+    count: number;
+    expected: number;
+    received: number;
+    truncated: boolean;
+    failedPages: number[];
+    changes: GameDataChangeEntry[];
+}> {
     const collected = await collectDofusDbPages<any>(
         (skip, limit) => `https://api.dofusdb.fr/effects?$limit=${limit}&$skip=${skip}`,
         { initFor: dofusDbRefInit }
     );
+    // 🔍 Journal : image **avant** (une seule lecture) — « libellé, signe, icône ou catégorie ».
+    const known = new Map(
+        (
+            await db.gameEffect.findMany({
+                select: { id: true, name: true, isNegativeValue: true, iconKey: true, category: true },
+            })
+        ).map((e) => [e.id, e]),
+    );
+    const changes: GameDataChangeEntry[] = [];
     let count = 0;
     for (const raw of collected.rows) {
         const id = Number(raw?.id);
@@ -133,6 +179,26 @@ async function siphonAllEffects(
                 isNegativeValue,
             },
         });
+        // 🔍 Journal : un effet qui apparaît, ou dont le libellé/le signe/la catégorie change.
+        const before = known.get(id);
+        if (!before) {
+            changes.push({ entityType: 'effect', entityId: String(id), entityName: name, changeType: 'NEW' });
+        } else {
+            const fields = diffFields(
+                before,
+                { name, isNegativeValue, iconKey, category },
+                ['name', 'isNegativeValue', 'iconKey', 'category'],
+            );
+            if (fields) {
+                changes.push({
+                    entityType: 'effect',
+                    entityId: String(id),
+                    entityName: name,
+                    changeType: 'MODIFIED',
+                    fields,
+                });
+            }
+        }
         count++;
     }
     return {
@@ -141,6 +207,7 @@ async function siphonAllEffects(
         received: collected.rows.length,
         truncated: collected.truncated,
         failedPages: collected.failedPages,
+        changes,
     };
 }
 
@@ -192,6 +259,11 @@ export async function syncMarketReferentialsCore(): Promise<MarketReferentialsSy
     logger.info(
         `[referential-siphon] ${chars.received}/${chars.expected} caractéristique(s) et ${effs.received}/${effs.expected} effet(s) lus ; ${chars.count + effs.count} ligne(s) en base ; ${orphanFmIds.length} orphelin(s) FM.`
     );
+
+    // 🔍 Journal des changements (borné : 500 entrées / dataset, purge à l'écriture) —
+    // non bloquant : le référentiel est écrit même si le journal échoue.
+    await recordGameDataChanges('REFERENTIALS', [...chars.changes, ...effs.changes]);
+
     return {
         characteristics: chars.received,
         characteristicsStored: chars.count,

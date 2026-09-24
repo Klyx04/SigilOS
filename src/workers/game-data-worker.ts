@@ -57,6 +57,26 @@ async function runBackgroundDataset(
         return result;
     }
 
+    if (dataset === "CLASS_SPELLS") {
+        const { siphonClassSpellbooksCore, CLASS_SPELLBOOK_CLASS_IDS } = await import("../lib/class-spells-siphon");
+        await beginGameDataRun("CLASS_SPELLS", { message: "Grimoires de classes (DofusDB, 19 classes)" });
+        const result = await siphonClassSpellbooksCore(async ({ done, total, message }) => {
+            await reportGameDataProgress("CLASS_SPELLS", {
+                done,
+                total,
+                message: message ?? `${done}/${total}`,
+            });
+        });
+        await finishGameDataRun("CLASS_SPELLS", {
+            ok: result.errors.length === 0,
+            message:
+                `${result.classes}/${CLASS_SPELLBOOK_CLASS_IDS.length} grimoire(s) · ${result.spells} sort(s) · ` +
+                `${result.icons} icône(s)${result.failedIcons > 0 ? ` (${result.failedIcons} en échec)` : ""}`,
+            error: result.errors.length > 0 ? result.errors.slice(0, 3).join(" · ") : undefined,
+        });
+        return result;
+    }
+
     // ANOMALY_BOSSES : le cœur vit DÉJÀ dans `src/lib` (`syncAnomalyBosses`) — même
     // passe que le cron `sync-monster-stats`, déclenchable ici sans session Next.
     if (dataset === "ANOMALY_BOSSES") {
@@ -109,23 +129,31 @@ async function runBackgroundDataset(
     if (dataset === "QUESTS") {
         const { computeQuestDeltasCore, syncQuestDeltasCore } = await import("../lib/quest-siphon");
         await beginGameDataRun("QUESTS", { message: "Quêtes (écarts DofusDB)" });
-        const { deltas, totalLocal, totalRemote } = await computeQuestDeltasCore();
-        if (deltas.length === 0) {
+        const { deltas, totalLocal, totalRemote, backfillIds } = await computeQuestDeltasCore();
+        // 📜 Le rattrapage du contenu (quêtes sans résumé stocké) voyage avec les écarts : il est
+        // **borné par passe** (≈10 min à 30 req/min) et reprend à la suivante.
+        const deltaIds = new Set(deltas.map((d) => d.dofusDbId));
+        const idsToSync = [...deltas.map((d) => d.dofusDbId), ...backfillIds.filter((id) => !deltaIds.has(id))];
+        if (idsToSync.length === 0) {
             await finishGameDataRun("QUESTS", {
                 ok: true,
-                message: `Aucune modification (nom/niveaux) — ${totalLocal} en base / ${totalRemote} chez DofusDB`,
+                message: `Aucune modification (nom/niveaux/contenu) — ${totalLocal} en base / ${totalRemote} chez DofusDB`,
             });
             return { totalLocal, totalRemote, synced: 0 };
         }
         await reportGameDataProgress("QUESTS", {
             done: 0,
-            total: deltas.length,
-            message: `${deltas.length} quête(s) à synchroniser`,
+            total: idsToSync.length,
+            message: backfillIds.length > 0
+                ? `${deltas.length} écart(s) + ${backfillIds.length} contenu(s) à rattraper`
+                : `${deltas.length} quête(s) à synchroniser`,
         });
-        const synced = await syncQuestDeltasCore(deltas.map((d) => d.dofusDbId));
+        const synced = await syncQuestDeltasCore(idsToSync);
         await finishGameDataRun("QUESTS", {
             ok: true,
-            message: `${synced} quête(s) synchronisée(s) sur ${deltas.length} détectée(s)`,
+            message:
+                `${synced} quête(s) synchronisée(s) sur ${deltas.length} écart(s) détecté(s)` +
+                (backfillIds.length > 0 ? ` · ${backfillIds.length} contenu(s) rattrapé(s)` : ""),
         });
         return { totalLocal, totalRemote, synced };
     }

@@ -1892,6 +1892,14 @@ model GameQuest {
   description String?
   imageUrl    String?
   category    String?
+  /// 📜 Résumé **canonique** du contenu (étapes, objectifs, récompenses — FR borné) : c'est ce qui
+  /// permet de dire « l'objectif 115 a changé » (`src/lib/quest-content.ts`).
+  contentJson Json?
+  /// Empreinte du résumé (comparaison bon marché, reprise après migration).
+  contentHash String?
+  /// `updatedAt` DofusDB : **détecte tout changement, contenu inclus** (mesuré le 24/09/2026 —
+  /// `/quests` expose `updatedAt`, seul moyen de voir une modification d'étape).
+  dofusDbUpdatedAt DateTime?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

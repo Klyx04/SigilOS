@@ -39,6 +39,7 @@ import { logger } from "@/lib/logger";
 import { dofusdbFetch } from "@/lib/dofusdb-fetch";
 import { dofensiveFetch } from "@/lib/dofensive-fetch";
 import { getIgnoredBountyIds, isIgnoredBounty } from "@/lib/bounty-ignore";
+import { diffFields, recordGameDataChanges } from "@/lib/game-data-changelog";
 import { DB_READABLE, mapWithConcurrency, persistMonsterStat } from "@/lib/dofensive-sync";
 import { mergeDofensiveSpells, type DofensiveSpellCombat } from "@/lib/dofensive-spells";
 import { siphonAndCompressImage } from "@/lib/dofus-asset-siphon";
@@ -412,6 +413,15 @@ async function upsertBountyRow(target: BountyTarget, imageUrl: string | null): P
                 imageUrl: imageUrl ?? null,
             },
         });
+        // 🔍 Journal (dataset BOUNTIES) : avis de recherche nouvellement créé.
+        await recordGameDataChanges('BOUNTIES', [
+            {
+                entityType: 'bounty',
+                entityId: target.slug,
+                entityName: target.name ?? target.slug,
+                changeType: 'NEW',
+            },
+        ]);
         return true;
     }
 
@@ -428,6 +438,32 @@ async function upsertBountyRow(target: BountyTarget, imageUrl: string | null): P
         where: { id: existing.id },
         data: { ...data, zoneName: target.subareaName ?? existing.zoneName },
     });
+
+    // 🔍 Journal : le détail de **ce qui** a changé (niveau, race, carte de combat, zone…).
+    if (changed) {
+        const fields = diffFields(
+            existing as unknown as Record<string, unknown>,
+            {
+                level: target.level,
+                raceId: target.raceId,
+                raceName: target.raceName,
+                battleMapId: storedMapId,
+                battleMapSource: target.mapSource,
+                zoneName: target.subareaName ?? existing.zoneName,
+                subareaIds,
+            },
+            ['name', 'level', 'raceId', 'raceName', 'battleMapId', 'battleMapSource', 'zoneName', 'subareaIds'],
+        );
+        await recordGameDataChanges('BOUNTIES', [
+            {
+                entityType: 'bounty',
+                entityId: existing.id,
+                entityName: target.name ?? target.slug,
+                changeType: 'MODIFIED',
+                fields,
+            },
+        ]);
+    }
     return changed;
 }
 

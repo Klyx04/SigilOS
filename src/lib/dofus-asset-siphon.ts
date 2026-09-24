@@ -3,6 +3,7 @@ import path from 'path';
 import sharp from 'sharp';
 import { logger } from '@/lib/logger';
 import { dofusDbFetch } from '@/lib/dofusdb-limiter';
+import { recordGameDataChanges } from '@/lib/game-data-changelog';
 
 // ─── Répertoires de stockage des assets siphonnés ───────────────────────────
 export const ASSET_DIRS = {
@@ -255,6 +256,16 @@ export async function siphonAndCompressImage(
             .toFile(targetFilePath);
 
         const stat = fs.statSync(targetFilePath);
+        // 🔍 Journal (dataset ASSETS_WEBP) : l'image est **nouvellement** sur disque (les fichiers
+        // déjà présents sortent plus haut, sans téléchargement) ⇒ entrée « Nouveau » assumée.
+        await recordGameDataChanges('ASSETS_WEBP', [
+            {
+                entityType: 'image',
+                entityId: `${targetType}/${cleanId}`,
+                entityName: `${targetType}/${cleanId}.webp`,
+                changeType: 'NEW',
+            },
+        ]);
         return { success: true, localUrl: localPublicUrl, sizeBytes: stat.size };
     } catch (error) {
         logger.warn(`[asset-siphon] Échec du téléchargement (${targetType} #${cleanId}):`, {

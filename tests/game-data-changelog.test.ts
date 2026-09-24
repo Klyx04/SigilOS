@@ -1,4 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
 // ⚠️ Le module importe `@/lib/prisma` (écriture/purge) : on l'isole — les règles testées
 // (`diffFields`, `summarizeValue`, bornes) sont **pures** et ne touchent jamais la base.
@@ -127,12 +129,41 @@ describe("journal des changements game-data — registre des siphons branchés",
     it("déclare branché exactement ce que les cœurs écrivent (sinon l'UI mentirait)", () => {
         expect([...GAME_DATA_JOURNAL_DATASETS].sort()).toEqual([
             "ANOMALY_BOSSES",
+            "ASSETS_WEBP",
+            "BOUNTIES",
+            "CATALOGUE",
             "CLASS_SPELLS",
+            "FAMILIES",
             "ITEMS",
             "QUESTS",
+            "REFERENTIALS",
+            "ZONES",
         ]);
         expect(isJournalWiredDataset("ITEMS")).toBe(true);
-        expect(isJournalWiredDataset("ZONES")).toBe(false);
+        // `HARVEST` est un **script local** (JSON produit hors siphon) : jamais de journal ⇒ la
+        // modale doit le dire, pas afficher un vide trompeur.
+        expect(isJournalWiredDataset("HARVEST")).toBe(false);
+    });
+
+    it("tout dataset branché écrit dans le journal (aucune promesse en l'air)", () => {
+        // Chaque writer est vérifié par un test de source : le registre suit le CODE, jamais l'inverse.
+        const writers: Record<string, string> = {
+            ITEMS: "src/lib/game-items-siphon.ts",
+            QUESTS: "src/lib/quest-siphon.ts",
+            CLASS_SPELLS: "src/lib/class-spells-siphon.ts",
+            FAMILIES: "src/lib/monster-families-siphon.ts",
+            ZONES: "src/lib/zones-siphon.ts",
+            REFERENTIALS: "src/lib/market/referential-siphon.ts",
+            CATALOGUE: "src/lib/dungeon-monsters-siphon.ts",
+            ASSETS_WEBP: "src/lib/dofus-asset-siphon.ts",
+            BOUNTIES: "src/lib/bounty-siphon.ts",
+            ANOMALY_BOSSES: "src/lib/dofensive-sync.ts",
+        };
+        for (const [dataset, file] of Object.entries(writers)) {
+            expect(isJournalWiredDataset(dataset as (typeof GAME_DATA_JOURNAL_DATASETS)[number])).toBe(true);
+            const source = readFileSync(join(process.cwd(), file), "utf-8");
+            expect(source, `${file} doit journaliser ${dataset}`).toContain("recordGameDataChanges");
+        }
     });
 });
 

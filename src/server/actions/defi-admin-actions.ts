@@ -98,34 +98,49 @@ export async function getDefis(): Promise<ActionResponse<any[]>> {
 }
 
 /**
- * Recherche de monstres pour le dropdown « Boss du défi » (catalogue Dofensive siphonné).
- * Retourne [{ value, label, subLabel, imageUrl? }] — `value` = nom du monstre (assaini).
+ * Recherche de monstres pour le dropdown « Boss du défi ».
+ *
+ * ⚠️ Cherche d'abord dans **NOTRE catalogue local** (`dungeon-monsters.json`, ≈800
+ * monstres) — la base maison, lue sur disque, zéro réseau — puis complète avec la BDD
+ * `MonsterStat` (les 141 boss de donjon siphonnés de Dofensive, qui apportent le
+ * donjon). Mesure du 22/09/2026 : ne chercher que dans `MonsterStat` rendait
+ * **invisibles tous les boss hors donjon** (défis, archimonstres, boss nommés) et le
+ * combobox répondait « Aucun monstre trouvé ».
  */
 export async function searchMonstersForDefi(query: string): Promise<ActionResponse<any[]>> {
+    const LIMIT = 40;
     try {
         const q = (query || "").trim();
-        const where: any = q ? { monsterName: { contains: q, mode: "insensitive" } } : {};
-        const found = await db.monsterStat.findMany({
-            where,
-            select: { monsterName: true, dungeonName: true },
-            orderBy: { monsterName: "asc" },
-            take: 40,
-        });
+        const items: Array<{ value: string; label: string; subLabel?: string; imageUrl?: string | null }> = [];
         const seen = new Set<string>();
-        const items = found
-            .filter((m) => {
-                const key = m.monsterName.trim().toLowerCase();
-                if (!key || seen.has(key)) return false;
-                seen.add(key);
-                return true;
-            })
-            .map((m) => ({
-                value: m.monsterName,
-                label: m.monsterName,
-                subLabel: m.dungeonName || undefined,
-                imageUrl: null,
-            }));
-        return { success: true, data: items };
+        const push = (name: string, subLabel?: string, imageUrl?: string | null) => {
+            const clean = (name || "").trim();
+            const key = clean.toLowerCase();
+            if (!clean || seen.has(key)) return;
+            seen.add(key);
+            items.push({ value: clean, label: clean, subLabel, imageUrl: imageUrl ?? null });
+        };
+
+        // 1. Catalogue local (base maison).
+        const { searchLocalMonsters } = await import("@/lib/dungeon-monsters-siphon");
+        for (const monster of searchLocalMonsters(q, LIMIT)) {
+            const prefix = monster.subLabel ? `${monster.subLabel} · ` : "";
+            push(monster.name, monster.level ? `${prefix}Niv. ${monster.level}` : monster.subLabel, monster.imageUrl);
+        }
+
+        // 2. BDD `MonsterStat` (boss de donjon siphonnés) — complète la liste.
+        if (items.length < LIMIT) {
+            const where: any = q ? { monsterName: { contains: q, mode: "insensitive" } } : {};
+            const found = await db.monsterStat.findMany({
+                where,
+                select: { monsterName: true, dungeonName: true },
+                orderBy: { monsterName: "asc" },
+                take: LIMIT,
+            });
+            for (const m of found) push(m.monsterName, m.dungeonName || undefined);
+        }
+
+        return { success: true, data: items.slice(0, LIMIT) };
     } catch (error) {
         logger.error("[searchMonstersForDefi] Error:", error);
         return { success: false, error: "Erreur recherche monstres" };

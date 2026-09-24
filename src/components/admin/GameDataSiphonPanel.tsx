@@ -11,7 +11,6 @@ import {
     Search,
     CheckCircle2,
     AlertTriangle,
-    Layers,
     FileImage,
     Sparkles,
     Swords,
@@ -26,13 +25,10 @@ import {
     getSiphonDashboardStats,
     getSiphonInventory,
     triggerBatchAssetSiphonAction,
-    warmClassSpellbook,
     type SiphonDashboardStats,
     type SiphonInventoryItem,
 } from '@/server/actions/asset-siphon-actions';
-import { siphonDungeonMonstersDatasetAction, siphonBountiesRaceAction } from '@/server/actions/game-data-admin-actions';
-import { BOUNTY_RACE_IDS, BOUNTY_RACE_NAMES } from '@/lib/bounty';
-import { getClassName } from '@/lib/dofusbook-utils';
+import { runInlineGameDataDataset, ASSET_SIPHON_CHUNK_SIZE } from './game-data-inline-runners';
 import { toast } from 'sonner';
 
 /**
@@ -80,151 +76,14 @@ export function GameDataSiphonPanel() {
     // Logs et progression
     const [logs, setLogs] = useState<string[]>([]);
     const [isSiphoning, setIsSiphoning] = useState(false);
-    const [isSiphoningDataset, setIsSiphoningDataset] = useState(false);
-    const [isSiphoningBounties, setIsSiphoningBounties] = useState(false);
-    const [isWarmingSpells, setIsWarmingSpells] = useState(false);
     const [progressValue, setProgressValue] = useState(0);
     // Résumé persistant après la fin du run (la barre ne disparaît plus dans le vide)
     const [siphonSummary, setSiphonSummary] = useState<string | null>(null);
 
-    const handleSiphonDungeonDataset = async () => {
-        setIsSiphoningDataset(true);
-        setLogs((prev) => ['🚀 Siphonnage du catalogue Donjons & Familles DofusDB en cours...', ...prev]);
-        try {
-            const res = await siphonDungeonMonstersDatasetAction();
-            if (res.success && res.data) {
-                const data = res.data;
-                toast.success(`Catalogue synchronisé : ${data.totalDungeons} donjons et ${data.totalMonsters} monstres archivés en local !`);
-                setLogs((prev) => [
-                    `✅ Catalogue 100% à jour : ${data.totalDungeons} donjons, ${data.totalMonsters} monstres (${data.totalBossFamilies} familles).`,
-                    ...prev
-                ]);
-                await loadData();
-            } else {
-                toast.error(res.error || 'Erreur lors du siphon du catalogue');
-            }
-        } catch (e: any) {
-            toast.error(`Erreur : ${e.message}`);
-        } finally {
-            setIsSiphoningDataset(false);
-        }
-    };
-
-    /**
-     * Siphon des **avis de recherche** (96 avis, 5 races) : un appel serveur PAR
-     * RACE plutôt qu'un seul appel de 60 s+ sujet aux coupures/timeout ("An
-     * unexpected response was received from the server"). Chaque race écrit son
-     * résumé dans le journal dès réception ⇒ suivi temps réel + progression.
-     * Idempotent (relançable sans effet de bord).
-     */
-    const handleSiphonBounties = async () => {
-        setIsSiphoningBounties(true);
-        setSiphonSummary(null);
-        setLogs((prev) => ['🚀 Siphonnage des avis de recherche (DofusDB + Dofensive), race par race…', ...prev]);
-        const totals = { synced: 0, unchanged: 0, total: 0, unproven: 0, images: 0, errors: 0 };
-        let failed = false;
-        try {
-            for (let i = 0; i < BOUNTY_RACE_IDS.length; i++) {
-                const raceId = BOUNTY_RACE_IDS[i] as number;
-                const raceName = BOUNTY_RACE_NAMES[raceId] ?? `Race ${raceId}`;
-                setLogs((prev) => [`⏳ Race ${raceName} (${i + 1}/${BOUNTY_RACE_IDS.length}) en cours…`, ...prev]);
-                try {
-                    const res = await siphonBountiesRaceAction(raceId);
-                    if (res.success && res.data) {
-                        const data = res.data;
-                        totals.synced += data.synced;
-                        totals.unchanged += data.unchanged;
-                        totals.total += data.total;
-                        totals.unproven += data.unproven;
-                        totals.images += data.images;
-                        totals.errors += data.errors.length;
-                        setLogs((prev) => [
-                            `✅ ${raceName} : ${data.total} avis (${data.synced} écrits, ${data.unchanged} inchangés, ${data.unproven} non prouvés, ${data.images} icônes)` +
-                            (data.errors.length > 0 ? ` — ${data.errors.length} erreur(s) : ${data.errors.slice(0, 3).join(' · ')}` : ''),
-                            ...prev
-                        ]);
-                    } else {
-                        failed = true;
-                        totals.errors += 1;
-                        setLogs((prev) => [`❌ ${raceName} : ${res.error || 'échec'} — passe suivante conservée.`, ...prev]);
-                    }
-                } catch (e: any) {
-                    failed = true;
-                    totals.errors += 1;
-                    setLogs((prev) => [`❌ ${raceName} : ${e?.message || e} — passe suivante conservée.`, ...prev]);
-                }
-                setProgressValue(Math.round(((i + 1) / BOUNTY_RACE_IDS.length) * 100));
-            }
-            const summary = `Avis de recherche : ${totals.total} avis (${totals.synced} écrits, ${totals.unchanged} inchangés, ${totals.unproven} non prouvés, ${totals.images} icônes, ${totals.errors} erreur(s)).`;
-            setSiphonSummary(summary);
-            setLogs((prev) => [`🎉 ${summary}`, ...prev]);
-            if (!failed) {
-                toast.success(`Avis de recherche : ${totals.total} avis résolus (${totals.synced} écrits, ${totals.images} icônes) !`);
-            } else {
-                toast.error('Siphon terminé avec des erreurs — voir le journal.');
-            }
-            await loadData();
-        } finally {
-            setIsSiphoningBounties(false);
-        }
-    };
-
-    /**
-     * Grimoires des 19 classes (DofusDB → `ClassSpellbook` + icônes WebP disque) :
-     * un appel serveur PAR CLASSE, comme les avis race par race (un appel unique
-     * de ~10 min casserait sur timeout). Idempotent (upsert + skip disque).
-     */
-    const CLASS_IDS = Array.from({ length: 19 }, (_, i) => i + 1);
-
-    const handleWarmClassSpells = async () => {
-        setIsWarmingSpells(true);
-        setSiphonSummary(null);
-        setLogs((prev) => ['🚀 Pré-chauffe des grimoires (DofusDB → BDD + icônes disque), classe par classe…', ...prev]);
-        const totals = { spells: 0, grades: 0, icons: 0, iconErrors: 0, errors: 0 };
-        let failed = false;
-        try {
-            for (let i = 0; i < CLASS_IDS.length; i++) {
-                const classId = CLASS_IDS[i] as number;
-                const label = getClassName(classId);
-                setLogs((prev) => [`⏳ ${label} (${i + 1}/${CLASS_IDS.length}) en cours…`, ...prev]);
-                try {
-                    const res = await warmClassSpellbook(classId);
-                    if (res.success && res.data) {
-                        const d = res.data;
-                        totals.spells += d.spells;
-                        totals.grades += d.grades;
-                        totals.icons += d.iconsSiphoned;
-                        totals.iconErrors += d.iconsFailed;
-                        setLogs((prev) => [
-                            `✅ ${label} : ${d.spells} sorts (${d.grades} grades) persistés, ${d.iconsSiphoned} icônes OK` +
-                            (d.iconsFailed > 0 ? `, ${d.iconsFailed} icône(s) en échec` : ''),
-                            ...prev,
-                        ]);
-                    } else {
-                        failed = true;
-                        totals.errors += 1;
-                        setLogs((prev) => [`❌ ${label} : ${res.error || 'échec'} — passe suivante conservée.`, ...prev]);
-                    }
-                } catch (e: any) {
-                    failed = true;
-                    totals.errors += 1;
-                    setLogs((prev) => [`❌ ${label} : ${e?.message || e} — passe suivante conservée.`, ...prev]);
-                }
-                setProgressValue(Math.round(((i + 1) / CLASS_IDS.length) * 100));
-            }
-            const summary = `Grimoires : ${totals.spells} sorts (${totals.grades} grades) persistés, ${totals.icons} icônes OK, ${totals.errors + totals.iconErrors} erreur(s).`;
-            setSiphonSummary(summary);
-            setLogs((prev) => [`🎉 ${summary}`, ...prev]);
-            if (!failed && totals.iconErrors === 0) {
-                toast.success(`Grimoires : ${totals.spells} sorts persistés, ${totals.icons} icônes sur disque !`);
-            } else {
-                toast.error('Warm terminé avec des erreurs — voir le journal.');
-            }
-            await loadData();
-        } finally {
-            setIsWarmingSpells(false);
-        }
-    };
+    // Les lancements **génériques** (catalogue CATALOGUE, avis BOUNTIES, grimoires
+    // CLASS_SPELLS) sont désormais regroupés dans **📊 Tableau** : une seule porte
+    // d'entrée, une seule implémentation (`game-data-inline-runners.ts`). Ce panneau ne
+    // garde que les actions **contextuelles** (manquants affichés, ligne par ligne).
 
     const loadData = async () => {
         setLoading(true);
@@ -257,6 +116,13 @@ export function GameDataSiphonPanel() {
         loadData();
     };
 
+    /**
+     * ⚠️ Depuis le 23/09/2026, ce panneau **ne lance plus rien de générique** : le
+     * catalogue (CATALOGUE), les avis (BOUNTIES) et les grimoires (CLASS_SPELLS) se
+     * lancent depuis **📊 Tableau** (une seule porte d'entrée). Il ne reste ici que
+     * l'action **contextuelle** : siphonner les manquants **affichés** (filtre ci-dessus),
+     * via le lanceur partagé `runInlineGameDataDataset` (une seule implémentation).
+     */
     const handleSiphonAllMissing = async () => {
         const missingTargets = inventory.filter((i) => !i.hasLocalImage || !i.hasDbStat);
         if (missingTargets.length === 0) {
@@ -267,53 +133,23 @@ export function GameDataSiphonPanel() {
         setIsSiphoning(true);
         setProgressValue(0);
         setSiphonSummary(null);
-        setLogs((prev) => [`🚀 Démarrage du siphon de ${missingTargets.length} éléments par lots de 5...`, ...prev]);
+        setLogs((prev) => [`🚀 Démarrage du siphon de ${missingTargets.length} éléments par lots de ${ASSET_SIPHON_CHUNK_SIZE}...`, ...prev]);
 
         startTransition(async () => {
-            let totalSiphoned = 0;
-            let totalErrors = 0;
-            let totalSkipped = 0;
-            const CHUNK_SIZE = 5;
+            const res = await runInlineGameDataDataset("ASSETS_WEBP", {
+                assetTargets: missingTargets,
+                log: (line) => setLogs((prev) => [line, ...prev]),
+                onProgress: (done, total) => setProgressValue(Math.min(100, Math.round((done / total) * 100))),
+            });
 
-            try {
-                for (let i = 0; i < missingTargets.length; i += CHUNK_SIZE) {
-                    const chunk = missingTargets.slice(i, i + CHUNK_SIZE);
-                    const res = await triggerBatchAssetSiphonAction(
-                        chunk.map((t) => ({
-                            id: t.id,
-                            // Doubles boss : siphonner le vrai monstre (« Klime »), pas le libellé (« Comte et Klime »)
-                            name: t.resolvedMonsterName || t.name,
-                            dungeonName: t.dungeonName,
-                            remoteUrl: t.remoteImageUrl || undefined,
-                        }))
-                    );
-
-                    if (res.success && res.data) {
-                        const batchData = res.data;
-                        totalSiphoned += batchData.siphoned;
-                        totalErrors += batchData.errors;
-                        totalSkipped += batchData.skipped ?? 0;
-                        if (batchData.details && batchData.details.length > 0) {
-                            setLogs((prev) => [...batchData.details, ...prev]);
-                        }
-                    } else if (res.error) {
-                        totalErrors += chunk.length;
-                        setLogs((prev) => [`❌ Erreur sur le lot : ${res.error}`, ...prev]);
-                    }
-
-                    const progress = Math.min(100, Math.round(((i + chunk.length) / missingTargets.length) * 100));
-                    setProgressValue(progress);
-                }
-
-                const summary = `Siphon terminé : ${totalSiphoned} siphonnés, ${totalSkipped} ignorés, ${totalErrors} erreurs.`;
-                setSiphonSummary(summary);
-                setLogs((prev) => [`🎉 ${summary}`, ...prev]);
-            } catch (error) {
-                setLogs((prev) => [`❌ Exception globale : ${String(error)}`, ...prev]);
-            } finally {
-                setIsSiphoning(false);
-                await loadData();
+            setSiphonSummary(res.summary || res.error || null);
+            if (res.ok) {
+                toast.success(res.summary);
+            } else {
+                toast.error(res.error || 'Siphon interrompu — voir le journal.');
             }
+            setIsSiphoning(false);
+            await loadData();
         });
     };
 
@@ -469,37 +305,6 @@ export function GameDataSiphonPanel() {
                     </div>
 
                     <Button
-                        onClick={handleSiphonDungeonDataset}
-                        disabled={isSiphoningDataset || isPending}
-                        variant="secondary"
-                        className="rounded-xl gap-2"
-                        title="Régénère le catalogue JSON local (public/game-data/dungeon-monsters.json) — n'alimente PAS la BDD Donjons (CRUD manuel onglet Donjons)"
-                    >
-                        {isSiphoningDataset ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Layers className="w-4 h-4" />}
-                        Régénérer le catalogue JSON
-                    </Button>
-
-                    <Button
-                        onClick={handleSiphonBounties}
-                        disabled={isSiphoningBounties || isPending}
-                        className="rounded-xl gap-2"
-                        title="Siphonne les 96 avis de recherche race par race (DofusDB monster-races/32|90|127|147|156 + Dofensive /monsters/{id}) : lignes Bounty par dofusdbId, fiches MonsterStat, sorts et icônes"
-                    >
-                        {isSiphoningBounties ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-                        Siphonner les avis de recherche
-                    </Button>
-
-                    <Button
-                        onClick={handleWarmClassSpells}
-                        disabled={isWarmingSpells || isPending}
-                        className="rounded-xl gap-2"
-                        title="Pré-chauffe les 19 grimoires de classes (DofusDB → BDD ClassSpellbook + icônes WebP sur disque), classe par classe. Idempotent."
-                    >
-                        {isWarmingSpells ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-                        Pré-chauffer sorts de classes (19)
-                    </Button>
-
-                    <Button
                         onClick={handleSiphonAllMissing}
                         disabled={isSiphoning || isPending}
                         variant="secondary"
@@ -526,12 +331,12 @@ export function GameDataSiphonPanel() {
             {/* Console de sortie / Logs en direct — EN HAUT, sous les contrôles :
                 visible sans scroller dès qu'un siphon tourne, alimentée au fil
                 de l'eau (une ligne par lot/race dès réception). */}
-            {(logs.length > 0 || isSiphoning || isSiphoningDataset || isSiphoningBounties || isWarmingSpells) && (
+            {(logs.length > 0 || isSiphoning) && (
                 <div className="p-5 rounded-2xl bg-black/80 border border-border/80 font-mono text-xs text-emerald-400 space-y-2 max-h-72 overflow-y-auto">
                     <div className="flex items-center gap-2 text-white font-bold border-b border-white/10 pb-2">
                         <Terminal className="w-4 h-4 text-emerald-400" />
                         <span>Journal de siphonnage en direct</span>
-                        {(isSiphoning || isSiphoningDataset || isSiphoningBounties || isWarmingSpells) && (
+                        {isSiphoning && (
                             <span className="ml-auto flex items-center gap-1.5 text-emerald-400 font-sans font-bold">
                                 <RefreshCw className="w-3 h-3 animate-spin" />
                                 En cours…
@@ -560,7 +365,7 @@ export function GameDataSiphonPanel() {
                                 ? "Siphonnage & compression WebP en cours (concurrence 2 + jitter anti-flag)..."
                                 : siphonSummary}
                         </span>
-                        <span>{isSiphoning ? `${progressValue}%` : "100%"}</span>
+                        <span>{isSiphoning ? (progressValue > 0 ? `${progressValue} %` : "en cours…") : "100 %"}</span>
                     </div>
                     <Progress value={isSiphoning ? progressValue : 100} className="h-2 bg-emerald-950/60" />
                 </div>

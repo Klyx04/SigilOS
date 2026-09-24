@@ -142,13 +142,17 @@ describe("option « Dégâts estimés » — allumée par défaut, interrupteur 
         expect(layer).toMatch(/damageTargets\.map/);
     });
 
-    it("les cibles ne sont que la case visée + les personnages présents dans la zone", () => {
+    it("les cibles sont les ENTITÉS de la zone — une case vide n'affiche rien", () => {
         // La liste des cibles vit dans `damageTargets` (source unique des badges ET du panneau de
-        // prévisu) : mêmes garanties qu'avant, un seul endroit à relire.
+        // prévisu). 🔁 22/09/2026 (verbatim user) : « une case vide visée ne doit rien afficher, on
+        // vise les fécas (simu monstres) et les poutchs (simu stuff) » ⇒ la case survolée n'est plus
+        // une cible : seules les entités réellement présentes dans la zone le sont.
         const memo = GRID.slice(GRID.indexOf("const damageTargets = useMemo"), GRID.indexOf("const damageToggle"));
-        expect(memo).toMatch(/hoveredCell && zonePreview\.has/);
         expect(memo).toMatch(/for \(const ally of allies\)/);
         expect(memo).toMatch(/for \(const enemy of enemies\)/);
+        expect(memo).not.toMatch(/hoveredCell/);
+        // La zone reste mesurée depuis la CASE VISÉE (origine de la dégressivité), jamais d'une entité.
+        expect(memo).toMatch(/zoneOffsetBetween\(zoneAnchor, \{ x, y \}, isRealMap\)/);
     });
 
     it("les jets affichés viennent du serveur (aucun calcul de dégâts côté client)", () => {

@@ -797,11 +797,15 @@ export const en: Translations = {
         completedPercent: "completed",
         remainingSteps: "steps remaining",
         guestProfile: "Guest Profile",
+        underConstructionTitle: "Under construction",
+        underConstructionHint: "The guide is coming in the next few days!",
     },
     tacticalSim: {
         simulatedSpell: "Simulated Spell:",
         selectSpell: "Select a spell",
         recenter: "Recenter",
+        fullscreenTitle: "Full screen",
+        fullscreenExit: "Exit full screen",
         entity: "Entity:",
         map: "Map:",
         tacticalMapName: "Tactical Isometric Map",
@@ -857,7 +861,7 @@ export const en: Translations = {
         damageHudElements: "Spell rolls (per element)",
         damageHudBreakdown: "Damage per target",
         damageHudEmpty:
-            "No target in the area — hover a cell in range (the targeted cell counts) or place an enemy / ally on it.",
+            "No target in the area — an empty cell shows nothing: place an ally (the Feca you are simulating) or an enemy inside the area, or aim at the cell they stand on.",
         damageTargetEnemy: "Enemy {index}",
         damageTargetAlly: "Ally {index}",
         boosts: {

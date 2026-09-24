@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Server, ShieldCheck, Loader2, CheckCircle2, ArrowRight, Rocket, Puzzle, BookOpen, Swords, Check } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Server, ShieldCheck, Loader2, CheckCircle2, ArrowRight, Rocket, Puzzle, BookOpen, Swords, Check, ExternalLink, RefreshCw, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { completeMandatoryOnboarding } from "@/server/actions/admin-actions";
+import { completeMandatoryOnboarding, ensureDashboardAccessRole } from "@/server/actions/admin-actions";
 import { updateMissionNotifySettings } from "@/server/actions/admin-actions";
 import { updateGuildModules } from "@/server/actions/module-actions";
 import { getAdminPresentationData, updateGuildPresentation } from "@/server/actions/presentation-actions";
@@ -13,6 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { getDofusServerImage } from "@/lib/dofus-assets";
 import { MODULE_GROUPS, MODULE_DOFUS_ASSETS } from "@/lib/module-catalog";
 import { DEFAULT_MODULES, type ModuleKey } from "@/lib/module-types";
+import { DASHBOARD_ACCESS_ROLE_NAME, pickDashboardAccessRolePreselect } from "@/lib/onboarding-gating";
 
 export interface OnboardingServerOption {
     id: string;
@@ -68,10 +70,38 @@ export function OnboardingBlockerModal({
 }) {
     const [step, setStep] = useState<Step>(1);
     const [serverId, setServerId] = useState("");
-    const [roleId, setRoleId] = useState("");
+    // Étape 2 : le rôle créé par SigilOS (au déploiement ou via le bouton ci-dessous)
+    // est PRÉ-SÉLECTIONNÉ — l'admin n'a plus qu'à valider, au lieu de tomber sur une
+    // liste vide (cul-de-sac « @everyone seul »).
+    const [roleId, setRoleId] = useState(() => pickDashboardAccessRolePreselect(roles, guildId)?.id ?? "");
     const [error, setError] = useState<string | null>(null);
     const [done, setDone] = useState(false);
     const [isPending, startTransition] = useTransition();
+    // Rechargement des rôles (cul-de-sac « @everyone seul ») : `router.refresh()` relit les listes
+    // servies par le layout (rôles Discord) sans quitter la modale.
+    const router = useRouter();
+    const [isReloading, startReload] = useTransition();
+
+    // Création du rôle d'accès PAR SigilOS : l'admin ne quitte plus Discord pour
+    // fabriquer un rôle à la main. Action serveur idempotente (rôle déjà présent ⇒
+    // renvoyé tel quel), réservée aux admins Discord, rate-limitée.
+    const [isCreatingRole, startCreateRole] = useTransition();
+    const [roleHint, setRoleHint] = useState<string | null>(null);
+    const createAccessRole = () => {
+        startCreateRole(async () => {
+            const res = await ensureDashboardAccessRole(guildId);
+            if (res.success) {
+                if (res.roleId) setRoleId(res.roleId);
+                setRoleHint(
+                    `Rôle « ${DASHBOARD_ACCESS_ROLE_NAME} » prêt — il vous a été attribué sur Discord.`,
+                );
+                // Relit la liste de rôles servie par le layout (rôle tout juste créé).
+                router.refresh();
+            } else {
+                setRoleHint(res.error || "Création impossible — créez le rôle à la main.");
+            }
+        });
+    };
     // Étape 3 — salons (vide = skippé)
     const [lifecycleChannel, setLifecycleChannel] = useState("");
     const [missionChannel, setMissionChannel] = useState("");
@@ -264,9 +294,66 @@ export function OnboardingBlockerModal({
 
                         {step === 2 && (
                             <div className="space-y-2 max-h-[300px] overflow-y-auto custom-scrollbar pr-1">
+                                {/* 🚧 Cul-de-sac « un seul rôle = @everyone » (ou rôles managés
+                                    uniquement) : la liste est VIDE et « Valider » reste désactivé,
+                                    alors que la modale est non fermable et que la gateway redirige
+                                    toute autre page ⇒ le owner n'avait AUCUN chemin. On lui donne
+                                    les 3 gestes exacts + un rechargement + le lien direct. */}
                                 {roles.length === 0 && (
-                                    <p className="text-sm text-warning font-medium p-3 rounded-xl border border-warning/30 bg-warning/10">
-                                        Aucun rôle éligible trouvé sur le serveur. Créez un rôle Discord puis rechargez.
+                                    <div className="space-y-3 rounded-xl border border-warning/30 bg-warning/10 p-3.5">
+                                        <p className="text-sm font-bold text-warning">
+                                            Aucun rôle éligible sur ce serveur
+                                        </p>
+                                        {/* Chemin le PLUS COURT : SigilOS crée le rôle et
+                                            l'attribue au propriétaire. Le mode manuel
+                                            reste disponible juste en dessous. */}
+                                        <button
+                                            type="button"
+                                            onClick={createAccessRole}
+                                            disabled={isCreatingRole}
+                                            className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-success px-3 py-2.5 text-xs font-black uppercase tracking-wider text-success-foreground transition-colors hover:bg-success/90 disabled:opacity-60"
+                                        >
+                                            {isCreatingRole ? (
+                                                <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+                                            ) : (
+                                                <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+                                            )}
+                                            Créer le rôle « {DASHBOARD_ACCESS_ROLE_NAME} »
+                                        </button>
+                                        <p className="text-[11px] text-muted-foreground">Sinon, à la main :</p>
+                                        <ol className="list-decimal space-y-1 pl-4 text-xs text-muted-foreground">
+                                            <li>Ouvrez les rôles du serveur (bouton ci-dessous).</li>
+                                            <li>
+                                                Créez un rôle — par exemple « {DASHBOARD_ACCESS_ROLE_NAME} ». @everyone ne
+                                                convient jamais : il ouvrirait le dashboard à tout le serveur.
+                                            </li>
+                                            <li>Revenez ici et cliquez « Recharger les rôles ».</li>
+                                        </ol>
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            <a
+                                                href={`https://discord.com/channels/${guildId}/settings/roles`}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface px-2.5 py-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:text-foreground"
+                                            >
+                                                <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
+                                                Ouvrir les rôles Discord
+                                            </a>
+                                            <button
+                                                type="button"
+                                                onClick={() => startReload(() => router.refresh())}
+                                                disabled={isReloading}
+                                                className="inline-flex items-center gap-1.5 rounded-lg border border-warning/40 bg-warning/10 px-2.5 py-1.5 text-xs font-semibold text-warning transition-colors hover:bg-warning/20 disabled:opacity-60"
+                                            >
+                                                <RefreshCw className={cn("h-3.5 w-3.5", isReloading && "animate-spin")} aria-hidden="true" />
+                                                Recharger les rôles
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+                                {roleHint && (
+                                    <p className="rounded-lg border border-success/30 bg-success/10 px-3 py-2 text-xs font-semibold text-success">
+                                        {roleHint}
                                     </p>
                                 )}
                                 {roles.map((r) => (

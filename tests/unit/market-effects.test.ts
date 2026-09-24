@@ -13,6 +13,7 @@ import {
     resolveStatLabel,
     getStatLabel,
     isPlaceholderStatLabel,
+    cleanTemplateBraces,
     resolveStoredStatLabel,
     normalizeNativeRange,
     resolveStatIconSpec,
@@ -138,6 +139,21 @@ describe("effects — référentiel pur", () => {
         // Un libellé de référentiel fantôme ne doit jamais gagner.
         expect(getStatLabel({ characteristic: 11 }, { 11: "Effet 11" })).toBe("Vitalité");
         expect(getStatLabel({ characteristic: 11 }, { 11: "Vitalité (base)" })).toBe("Vitalité (base)");
+    });
+
+    it("cleanTemplateBraces récupère un libellé réel et refuse tout gabarit restant", () => {
+        // Mesuré en base (23/09/2026) : 135 des 368 gabarits portent un vrai libellé
+        // sous la ponctuation — récupérables sans rien inventer.
+        expect(cleanTemplateBraces("Vole } PM")).toBe("Vole PM");
+        expect(cleanTemplateBraces("} soins")).toBe("soins");
+        expect(cleanTemplateBraces("Rembourse } PM")).toBe("Rembourse PM");
+        expect(cleanTemplateBraces("Dommages Eau : }% PV du lanceur")).toBe("Dommages Eau : % PV du lanceur");
+        // Refus : marqueur de gabarit encore présent, « Effet N », rien à retirer, rien d'exploitable.
+        expect(cleanTemplateBraces("{~1~2}")).toBeNull();
+        expect(cleanTemplateBraces("#1 dommages")).toBeNull();
+        expect(cleanTemplateBraces("Effet 12}")).toBeNull();
+        expect(cleanTemplateBraces("Effet 11")).toBeNull();
+        expect(cleanTemplateBraces("{}")).toBeNull();
     });
 
     it("resolveStoredStatLabel corrige un libellé figé sans écraser l'inconnu", () => {

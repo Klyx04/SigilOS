@@ -950,8 +950,13 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
           Un seul panneau porte les trois : où en est le joueur, ce qu'il peut
           préparer, et SON personnage. Le bloc d'en-tête qui les répétait au-dessus
           est supprimé (retour user : « supprime le bloc ») — l'alignement et la
-          remise à zéro qu'il portait descendent ICI. */}
-      <div className="sticky top-16 z-30 mb-8 reg-panel bg-background p-4 sm:p-5 space-y-4">
+          remise à zéro qu'il portait descendent ICI.
+          ⚠️ NON collant — mesuré le 22/09 (1291×712) : collant (décalage `top-16`, `z-30`),
+          ce panneau fait 337 px de haut et recouvrait le rail de droite (337 + 596 px de
+          rail pour 712 px de viewport) : le rail devenait invisible dès qu'on
+          scrollait. Le panneau défile donc avec la page ; c'est le rail qui reste
+          affiché pendant la lecture du chapitre. */}
+      <div className="mb-8 reg-panel bg-background p-4 sm:p-5 space-y-4">
         {/* Ligne 1 — progression + actions */}
         <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
           {/* Progress summary */}
@@ -1195,52 +1200,12 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
           quête, chaque étape, ses tags, ses donjons. */}
       <h2 className="reg-eyebrow mb-4" id="guide-detail">Le détail, chapitre par chapitre</h2>
 
-      {/* ── SOMMAIRE — les 59 chapitres restent TOUS dans le HTML (indexation) et
-          chaque titre garde son ancre partageable (#bloc-…) : seul l'affichage est
-          replié, et plafonné (max-h-72 + scroll) quand on l'ouvre. Ouvert d'office,
-          cette liste mangeait ≈680 px avant même le premier chapitre. */}
-      <details className="group/som reg-panel-strong bg-background p-3 mb-5">
-        <summary className="flex cursor-pointer list-none select-none items-center gap-2 text-xs font-semibold text-foreground">
-          <span aria-hidden="true" className="shrink-0 text-muted-foreground transition-transform group-open/som:rotate-90">
-            ▶
-          </span>
-          <span className="shrink-0">
-            Sommaire — {chapterPages.length} chapitres
-          </span>
-          <span className="reg-mono min-w-0 truncate text-[11px] font-normal text-muted-foreground">
-            {chapterPages.filter((p) => completedIds.has(p.ms.id)).length} / {chapterPages.length} blocs terminés
-            {isSearching && " · recherche en cours : tous les chapitres sont ouverts"}
-          </span>
-        </summary>
-        <nav aria-label="Sommaire du guide" className="mt-2">
-          <ul className="grid max-h-72 grid-cols-1 gap-0.5 overflow-y-auto border border-border p-1.5 sm:grid-cols-2 lg:grid-cols-3">
-            {chapterPages.map((p, i) => {
-              const pageSteps = p.ms.sequences.filter((s) => !isInfoSequence(s));
-              const done = pageSteps.filter((s) => (completedStepsByMs.get(p.ms.id) || new Set()).has(s.id)).length;
-              const isCurrent = !isSearching && i === currentPageIndex;
-              return (
-                <li key={p.ms.id} className="min-w-0">
-                  <a
-                    href={`#bloc-${p.ms.id}`}
-                    onClick={(e) => { e.preventDefault(); goToChapterPage(i); }}
-                    aria-current={isCurrent ? "true" : undefined}
-                    className={cn(
-                      "flex items-baseline gap-2 rounded-[4px] px-2 py-1.5 transition-colors",
-                      isCurrent ? "bg-accent/10 text-accent" : "text-muted-foreground hover:bg-elevated hover:text-foreground"
-                    )}
-                  >
-                    <span className="reg-mono shrink-0 text-[11px] tabular-nums">{p.index + 1}</span>
-                    <span className="min-w-0 flex-1 truncate text-xs font-semibold">{p.ms.title}</span>
-                    <span className="reg-mono shrink-0 text-[11px] tabular-nums">
-                      {done}/{pageSteps.length}
-                    </span>
-                  </a>
-                </li>
-              );
-            })}
-          </ul>
-        </nav>
-      </details>
+      {/* ── SOMMAIRE SUPPRIMÉ (retour user 22/09 : « vire aussi le sommaire inutile »).
+          Il ne portait que la liste des chapitres et leur avancement : deux
+          informations déjà rendues par le rail de droite (`RushChapterSidebar` :
+          chapitres, avancement « n/N » par chapitre, clic = navigation) et par le
+          pager haut/bas. Les ancres `#bloc-<id>` restent posées sur chaque bloc de
+          chapitre : les liens partagés continuent de fonctionner. */}
 
       {/* ── PAGER (haut) : on enchaîne les chapitres sans remonter la page. ── */}
       {!isSearching && chapterPages.length > 1 && currentPage && (
@@ -1456,7 +1421,12 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
 
               {/* Chapter Sequences & Quest Blocks */}
               {isExpanded && (
-                <div className="p-4 sm:p-6 space-y-5">
+                // 🔁 22/09/2026 (retour user : « je veux la même largeur pour les quêtes déroulées
+                // d'un bloc que les blocs eux-mêmes »). Mesure navigateur : ce conteneur portait
+                // `p-4 sm:p-6` ⇒ les blocs d'étapes étaient **insetés de 16 à 24 px** de chaque côté
+                // par rapport au panneau du chapitre. On ne garde que l'espace VERTICAL : les blocs
+                // d'étapes épousent désormais exactement la largeur du bloc chapitre.
+                <div className="py-4 sm:py-5 space-y-5">
                   {questBlocks.length === 0 ? (
                     <p className="py-4 text-xs italic text-muted-foreground">
                       Aucune étape correspondante.
@@ -1946,9 +1916,14 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
         </div>
 
         {/* Le panneau de droite suit la page courante : cliquer un chapitre y navigue
-            (même geste que dans le guide interne). */}
+            (même geste que dans le guide interne) ET il reste affiché pendant toute la
+            lecture du chapitre — c'est lui qui porte le repère une fois la barre de
+            contrôle défilée. Mesure du 22/09 (1291×712) : le rail fait 596 px pour
+            616 px disponibles sous l'en-tête public (712 − 80 de décalage `top-20` −
+            16 de marge) → on le borne au viewport et il défile en interne, sinon sa
+            fin (objets requis) restait hors écran. */}
         <RushChapterSidebar
-          className="xl:sticky xl:top-20"
+          className="xl:sticky xl:top-20 xl:max-h-[calc(100vh-6rem)] xl:overflow-y-auto custom-scrollbar"
           milestones={milestones as any}
           completedSeqIds={completedSeqIds}
           selectedChapter={currentPage?.ms.chapter ?? "ALL"}
@@ -1959,7 +1934,7 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
         />
       </div>
 
-      {/* ── PAGER (bas) : enchaîner les chapitres sans remonter au sommaire. ── */}
+      {/* ── PAGER (bas) : enchaîner les chapitres sans remonter en haut de page. ── */}
       {!isSearching && chapterPages.length > 1 && currentPage && (
         <div className="mt-6 flex items-center justify-between gap-3 border-t border-border pt-4">
           <button

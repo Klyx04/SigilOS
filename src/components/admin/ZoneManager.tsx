@@ -20,8 +20,6 @@ import {
 import { 
     getMonsterFamilies, 
     getDungeons, 
-    syncZonesFromDofusDb,
-    autoAssociateAllZoneFamilies,
     getIgnoredZonesAction,
     restoreIgnoredZoneAction,
     clearAllIgnoredZonesAction
@@ -33,13 +31,11 @@ import {
     Plus, 
     Search, 
     MoreHorizontal, 
-    RefreshCw, 
     Loader2, 
     ChevronLeft, 
     ChevronRight,
     RotateCcw,
     ShieldAlert,
-    Link2
 } from "lucide-react";
 import {
     DropdownMenu,
@@ -72,8 +68,6 @@ export default function ZoneManager() {
     const [families, setFamilies] = useState<{ id: string; name: string }[]>([]);
     const [dungeons, setDungeons] = useState<{ id: string; name: string }[]>([]);
     const [loading, setLoading] = useState(true);
-    const [syncingZones, setSyncingZones] = useState(false);
-    const [associatingFamilies, setAssociatingFamilies] = useState(false);
     const [editing, setEditing] = useState<string | null>(null);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
@@ -134,49 +128,6 @@ export default function ZoneManager() {
         setLoading(false);
         setCurrentPage(1);
     }
-
-    const handleSyncDofusDb = async () => {
-        setSyncingZones(true);
-        try {
-            const res = await syncZonesFromDofusDb();
-            if (res.success && res.data) {
-                toast.success(`${res.data.synced} Zones & Sous-zones synchronisées depuis DofusDB !`);
-                await loadData();
-            } else {
-                toast.error(res.error || "Erreur de synchronisation");
-            }
-        } catch {
-            toast.error("Erreur de connexion DofusDB");
-        } finally {
-            setSyncingZones(false);
-        }
-    };
-
-    // #144 : matching strict (nom exact) zones ↔ familles via les archimonstres siphonnés.
-    const handleAssociateFamilies = async () => {
-        setAssociatingFamilies(true);
-        try {
-            const res = await autoAssociateAllZoneFamilies();
-            if (res.success && res.data) {
-                if (res.data.familiesLinked === 0) {
-                    toast.info(
-                        res.data.archisWithZone === 0
-                            ? "Aucun archimonstre siphonné avec zone/sous-zone → rien à associer"
-                            : "Aucune correspondance de noms de zones (les zones gérées ne matchent pas celles des archis)"
-                    );
-                } else {
-                    toast.success(`${res.data.familiesLinked} famille(s) associée(s) sur ${res.data.zonesScanned} zone(s)`);
-                }
-                await loadData();
-            } else {
-                toast.error(res.error || "Erreur lors de l'association");
-            }
-        } catch {
-            toast.error("Erreur serveur");
-        } finally {
-            setAssociatingFamilies(false);
-        }
-    };
 
     async function handleSubmit(e: React.FormEvent) {
         e.preventDefault();
@@ -335,26 +286,6 @@ export default function ZoneManager() {
                                 </SelectContent>
                             </Select>
                         </div>
-
-                        <Button
-                            onClick={handleSyncDofusDb}
-                            disabled={syncingZones}
-                            className="w-full md:w-auto bg-success hover:bg-success/90 text-success-foreground font-bold rounded-xl shadow-sm transition-all"
-                        >
-                            {syncingZones ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-2" />}
-                            <span>{syncingZones ? "Sync en cours…" : "Sync Zones (DofusDB)"}</span>
-                        </Button>
-
-                        {/* #144 : association auto familles ↔ zones (matching strict, sans faux positif) */}
-                        <Button
-                            onClick={handleAssociateFamilies}
-                            disabled={associatingFamilies}
-                            variant="outline"
-                            className="w-full md:w-auto border-fuchsia-500/40 bg-fuchsia-500/5 hover:bg-fuchsia-500/10 text-fuchsia-400 hover:text-fuchsia-300 font-bold rounded-xl shadow-sm transition-all"
-                        >
-                            {associatingFamilies ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Link2 className="w-4 h-4 mr-2" />}
-                            <span>{associatingFamilies ? "Association…" : "Associer familles (auto)"}</span>
-                        </Button>
 
                         <Button
                             onClick={() => { resetForm(); setIsDialogOpen(true); }}

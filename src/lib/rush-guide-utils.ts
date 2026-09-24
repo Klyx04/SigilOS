@@ -170,8 +170,16 @@ export function getGuideMetiersRequires(
 
 /**
  * Détecte si une séquence est purement informative (non cochable, pas de progression)
+ *
+ * Le paramètre est **structurel** (le seul champ lu est `activityTags`) : les surfaces
+ * partagent la règle mais pas leurs types de séquence (le rail `RushChapterSidebar` et
+ * `RushTimelineClient` portent leur propre copie du type, sans `order`). Une signature
+ * `RushSequence` obligerait ces appelants à caster — la règle doit rester la même pour
+ * toutes les surfaces, sans cast.
  */
-export function isInfoSequence(seq: RushSequence | null | undefined): boolean {
+export function isInfoSequence(
+  seq: { activityTags?: ReadonlyArray<{ type?: string | null }> | null } | null | undefined
+): boolean {
   if (!seq) return false;
   if (!Array.isArray(seq.activityTags)) return false;
   return seq.activityTags.some((tag) => tag.type === "info_sequence");

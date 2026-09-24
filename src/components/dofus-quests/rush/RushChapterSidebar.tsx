@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { resolveItemImage, getMetierIconPath } from "@/lib/rush-guide-utils";
+import { resolveItemImage, getMetierIconPath, isInfoSequence } from "@/lib/rush-guide-utils";
 import { copyToClipboard } from "@/lib/clipboard";
 import { ResourceImage } from "@/components/dofus-quests/ResourceImage";
 
@@ -83,7 +83,10 @@ export function RushChapterSidebar({
       if (found) return found.chapter;
     }
     for (const ch of chapters) {
-      const allSeq = ch.milestones.flatMap((m) => m.sequences);
+      // Un chapitre n'est « terminé » que sur ses étapes COCHABLES : un encart
+      // `info_sequence` n'a pas de case, il ne peut donc pas être validé (même règle
+      // que les compteurs du guide public/dashboard/overlay).
+      const allSeq = ch.milestones.flatMap((m) => m.sequences.filter((s) => !isInfoSequence(s)));
       const isDone = allSeq.length > 0 && allSeq.every((s) => completedSeqIds.has(s.id));
       if (!isDone) return ch.chapter;
     }
@@ -115,6 +118,9 @@ export function RushChapterSidebar({
 
     for (const ms of currentMilestones) {
       for (const seq of ms.sequences) {
+        // Encart informatif : aucune case à cocher ⇒ hors compteur (sinon le chapitre
+        // resterait éternellement à « n/N », comme le guide public avant le 21/09).
+        if (isInfoSequence(seq)) continue;
         totalSequences++;
         if (completedSeqIds.has(seq.id)) {
           completedSequences++;
@@ -251,7 +257,7 @@ export function RushChapterSidebar({
       {/* Rail des chapitres (scrollable) */}
       <div className="flex flex-col gap-1 max-h-[340px] overflow-y-auto custom-scrollbar pr-1">
         {chapters.map((ch) => {
-          const allSeq = ch.milestones.flatMap((m) => m.sequences);
+          const allSeq = ch.milestones.flatMap((m) => m.sequences.filter((s) => !isInfoSequence(s)));
           const doneSeq = allSeq.filter((s) => completedSeqIds.has(s.id)).length;
           const pct = allSeq.length > 0 ? Math.round((doneSeq / allSeq.length) * 100) : 0;
           const active = selectedChapter === ch.chapter;

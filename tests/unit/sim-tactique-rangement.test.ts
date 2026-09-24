@@ -82,7 +82,13 @@ describe("sort actif — identifiable d'un coup d'œil", () => {
   /** Bloc du sort actif (markup seul : les commentaires sont retirés en amont). */
   const spellBlock = () => {
     const start = GRID.indexOf("flex min-w-0 shrink items-center gap-2.5 rounded-xl border border-warning/25");
-    const end = GRID.indexOf("<SimulationTacticalLegend", start);
+    // Fin du bloc : la barre d'outils se referme AVANT le plateau. La légende n'est plus un frère
+    // du bandeau (elle vit dans `legendPanel`, source unique partagée avec le rail de la modale
+    // plein écran) ⇒ c'est le plateau qui borne désormais la fin du bloc.
+    const end = GRID.indexOf(
+      "relative rounded-xl bg-[#161614] border border-white/10 flex flex-col items-center select-none shadow-inner",
+      start
+    );
     expect(start).toBeGreaterThan(-1);
     expect(end).toBeGreaterThan(start);
     return GRID.slice(start, end);

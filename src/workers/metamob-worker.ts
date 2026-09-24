@@ -11,6 +11,7 @@ import { sendDailySummaryReport } from "../server/actions/daily-report-actions";
 import { ladderSyncWorker, ladderQueue } from "./ladder-sync-worker";
 // ── Discord Outbox (P3.1) : flush des écritures Discord en mode dégradé ───────
 import { discordOutboxWorker } from "./discord-outbox-worker";
+import { gameDataWorker } from "./game-data-worker";
 
 interface ExchangeJobData {
     guildId: string;
@@ -521,6 +522,7 @@ const shutdown = async () => {
     await ladderSyncWorker.close();
     await ladderQueue.close();
     await discordOutboxWorker.close();
+    await gameDataWorker.close();
     process.exit(0);
 };
 

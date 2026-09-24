@@ -53,13 +53,11 @@ export async function GET(req: Request) {
         let questNew = 0;
         let questModified = 0;
         try {
-            const { computeQuestDeltas } = await import("@/server/actions/game-quest-sync-actions");
-            const deltasRes = await computeQuestDeltas();
-            if (deltasRes.success && deltasRes.data) {
-                const deltas = deltasRes.data.deltas as { type: string }[];
-                questNew = deltas.filter((d) => d.type === "NEW").length;
-                questModified = deltas.filter((d) => d.type === "MODIFIED").length;
-            }
+            // Cœur `src/lib` (23/09/2026) : même logique, exécutable hors session Next.
+            const { computeQuestDeltasCore } = await import("@/lib/quest-siphon");
+            const { deltas } = await computeQuestDeltasCore();
+            questNew = deltas.filter((d) => d.type === "NEW").length;
+            questModified = deltas.filter((d) => d.type === "MODIFIED").length;
         } catch (e) {
             logger.warn("[Cron:DataWatch] Diff quêtes impossible:", { error: String(e) });
         }
@@ -79,14 +77,37 @@ export async function GET(req: Request) {
             ? `Nouveautés détectées : ${parts.join(" · ")}`
             : "Rien à signaler (stocks alignés)";
 
+        // 🔭 Auto-synchronisation CIBLÉE (23/09/2026) : la veille ne se contente plus d'alerter.
+        // Pour les datasets **éligibles** (registre `GAME_DATA_AUTO_SYNC_DATASETS` : cœur `lib`
+        // capable de filtrer par date + passe strictement additive), elle met en file une passe
+        // ciblée `updatedAt[$gt]=filigrane` — mesuré : 46 items au lieu de 21 776. La machine
+        // n'applique **jamais** de suppression : un retrait reste une décision humaine.
+        const autoQueued: string[] = [];
+        const autoUnavailable: string[] = [];
+        if (hasNews) {
+            const { GAME_DATA_AUTO_SYNC_DATASETS, isBackgroundDataset } = await import("@/lib/game-data-sync-state");
+            const { enqueueGameDataSync } = await import("@/lib/queue/game-data-queue");
+            for (const dataset of GAME_DATA_AUTO_SYNC_DATASETS) {
+                if (!isBackgroundDataset(dataset)) continue;
+                const jobId = await enqueueGameDataSync(dataset, { incremental: true });
+                if (jobId) autoQueued.push(dataset);
+                else autoUnavailable.push(dataset);
+            }
+        }
+
         if (hasNews) {
             const { notifyGod } = await import("@/server/actions/god-notif-actions");
+            const auto = autoQueued.length
+                ? ` Veille ciblée mise en file : ${autoQueued.join(", ")} (seuls les changements sont relus).`
+                : autoUnavailable.length
+                ? ` File indisponible : lancer ${autoUnavailable.join(", ")} depuis le Tableau god.`
+                : "";
             await notifyGod({
                 title: "🆕 Nouveautés DofusDB détectées",
-                message: `${summary}. Dry-run hebdo — rien n'a été synchronisé automatiquement : voir onglets Items/Quêtes/Siphon.`,
+                message: `${summary}.${auto} Aucune suppression n'est automatique : voir le Tableau (god → données de jeu).`,
                 type: "SYSTEM",
                 success: true,
-                metadata: { remoteItems, localItems, questNew, questModified, remoteDungeons, localDungeons },
+                metadata: { remoteItems, localItems, questNew, questModified, remoteDungeons, localDungeons, autoQueued, autoUnavailable },
             });
         }
 
@@ -94,11 +115,11 @@ export async function GET(req: Request) {
         await recordCronExecution("data_watch", {
             success: true,
             durationMs: Date.now() - startedAt,
-            summary,
-            details: { remoteItems, localItems, questNew, questModified, remoteDungeons, localDungeons },
+            summary: autoQueued.length ? `${summary} · veille ciblée: ${autoQueued.join(", ")}` : summary,
+            details: { remoteItems, localItems, questNew, questModified, remoteDungeons, localDungeons, autoQueued, autoUnavailable },
         });
 
-        return NextResponse.json({ success: true, hasNews, summary });
+        return NextResponse.json({ success: true, hasNews, summary, autoQueued, autoUnavailable });
     } catch (e: any) {
         logger.error("[Cron:DataWatch] Erreur:", e);
         const { recordCronExecution } = await import("@/lib/cron-telemetry");

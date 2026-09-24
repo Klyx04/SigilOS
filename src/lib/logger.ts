@@ -16,7 +16,10 @@ type LogContext = unknown;
  */
 class Logger {
     private isDevelopment = process.env.NODE_ENV === 'development';
-    private sensitiveKeys = ['password', 'token', 'secret', 'authorization', 'cookie', 'apiKey'];
+    // ⚠️ Ce sont des **motifs en minuscules** : la comparaison se fait sur `key.toLowerCase()`
+    // (constat du 23/09/2026 : `'apiKey'` n'était JAMAIS masqué — la clé normalisée `apikey`
+    // ne contient pas la chaîne `'apiKey'`).
+    private sensitiveKeys = ['password', 'token', 'secret', 'authorization', 'cookie', 'apikey'];
 
     /**
      * Normalise une valeur arbitraire en objet de contexte sûr :
@@ -54,6 +57,20 @@ class Logger {
 
             if (isSensitive) {
                 redacted[key] = '[REDACTED]';
+            } else if (value instanceof Error) {
+                // ⚠️ Un `Error` n'a **aucune propriété énumérable** : la récursion ci-dessous
+                // rendait `{}` ⇒ logs `Error: {}` et message PERDU (constat user du
+                // 23/09/2026 : « pas mal d'erreur encore… on voit rien »). Ici on garde
+                // `name` + `message` (stack en développement seulement).
+                redacted[key] = {
+                    name: value.name,
+                    message: value.message,
+                    ...(this.isDevelopment && value.stack ? { stack: value.stack } : {}),
+                };
+            } else if (Array.isArray(value)) {
+                redacted[key] = value.map((v) =>
+                    v instanceof Error ? { name: v.name, message: v.message } : v
+                );
             } else if (typeof value === 'object' && value !== null) {
                 redacted[key] = this.redact(value as Record<string, unknown>);
             } else {

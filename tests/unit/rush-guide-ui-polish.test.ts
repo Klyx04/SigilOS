@@ -69,3 +69,39 @@ describe("overlay — le mode compact est un réglage d'affichage (en-tête, pas
         expect(codeOf(OVERLAY)).toContain("px-4 py-2.5 border-y");
     });
 });
+
+/**
+ * Guide public — retours user du 22/09/2026 (2 correctifs, dont une cause mesurée) :
+ *
+ *  1. **« le scroll cache le composant de droite »** : la barre de contrôle était collante
+ *     (`sticky top-16 z-30`) et faisait **337 px** de haut. Mesuré au navigateur
+ *     (1291×712) : 337 px de barre + 596 px de rail pour 712 px de viewport ⇒ la barre
+ *     recouvrait le rail (`elementFromPoint` au sommet du rail = un bouton de la barre),
+ *     et le rail sortait de l'écran dès `scrollY ≈ 1140` (course collante = hauteur de
+ *     rangée 880 − hauteur de rail 596). Le panneau défile donc avec la page, et c'est le
+ *     rail qui reste affiché — borné au viewport (616 px disponibles sous l'en-tête
+ *     public) avec défilement interne, sinon sa fin (objets requis) restait hors écran.
+ *  2. **« vire le sommaire inutile »** : le `<details>` « Sommaire — N chapitres »
+ *     doublonnait le rail (liste des chapitres, avancement « n/N », clic = navigation) et
+ *     le pager haut/bas.
+ */
+describe("guide public — le rail de droite reste affiché au scroll (retour user 22/09)", () => {
+    it("la barre de contrôle n'est plus collante (elle recouvrait le rail)", () => {
+        const code = codeOf(PUBLIC);
+        expect(code).not.toContain("sticky top-16 z-30");
+        expect(code).toContain('<div className="mb-8 reg-panel bg-background p-4 sm:p-5 space-y-4">');
+    });
+
+    it("le rail est collant, borné au viewport et défilable en interne", () => {
+        expect(codeOf(PUBLIC)).toContain(
+            'className="xl:sticky xl:top-20 xl:max-h-[calc(100vh-6rem)] xl:overflow-y-auto custom-scrollbar"'
+        );
+    });
+
+    it("le sommaire repliable est supprimé (les ancres partageables restent)", () => {
+        const code = codeOf(PUBLIC);
+        expect(code).not.toContain("group/som");
+        expect(code).not.toContain("Sommaire —");
+        expect(code).toContain("id={`bloc-${ms.id}`}");
+    });
+});

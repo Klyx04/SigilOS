@@ -14,6 +14,77 @@ function norm(str: string | null | undefined): string {
         .trim();
 }
 
+/**
+ * Entrée du catalogue local de monstres (ce que les pickers du dashboard God cherchent).
+ */
+export interface LocalMonsterEntry {
+    name: string;
+    level?: number;
+    subLabel?: string;
+    imageUrl?: string | null;
+}
+
+/**
+ * Lecture du catalogue local `public/game-data/dungeon-monsters.json`
+ * (≈187 donjons, ≈800 monstres) — **la base MAISON**, lue sur disque, sans réseau.
+ *
+ * ⚠️ Source unique : le chemin vit ici (`OUTPUT_PATH`). Les pickers doivent chercher
+ * ICI EN PREMIER. Mesure du 22/09/2026 : `searchMonstersForDefi` (éditeur de Défi)
+ * ne cherchait que dans `MonsterStat` — les **141 boss de donjon** siphonnés de
+ * Dofensive ⇒ tout boss HORS donjon (défis, archimonstres, boss nommés) était
+ * invisible et le combobox affichait « Aucun monstre trouvé ».
+ */
+export function readLocalMonsterCatalogue(): { monsters: LocalMonsterEntry[]; updatedAt?: string } | null {
+    try {
+        if (!fs.existsSync(OUTPUT_PATH)) return null;
+        const parsed = JSON.parse(fs.readFileSync(OUTPUT_PATH, "utf-8")) as {
+            monsters?: Array<Record<string, unknown>>;
+            updatedAt?: string;
+        };
+        const asText = (v: unknown): string | undefined =>
+            typeof v === "string" && v.trim() ? v.trim() : undefined;
+        const asNumber = (v: unknown): number | undefined =>
+            typeof v === "number" && Number.isFinite(v) ? v : undefined;
+
+        const monsters: LocalMonsterEntry[] = [];
+        for (const raw of parsed.monsters ?? []) {
+            const name = asText(raw?.name);
+            if (!name) continue;
+            monsters.push({
+                name,
+                level: asNumber(raw?.level),
+                subLabel: asText(raw?.raceName) ?? asText(raw?.familyName) ?? asText(raw?.dungeonName),
+                imageUrl: asText(raw?.imageUrl) ?? null,
+            });
+        }
+        return { monsters, updatedAt: parsed.updatedAt };
+    } catch (e) {
+        logger.warn("[dungeon-monsters] Catalogue local illisible", e);
+        return null;
+    }
+}
+
+/**
+ * Recherche insensible aux accents/casse dans le catalogue local (limite bornée).
+ * `query` vide = les premiers monstres (ordre du catalogue : niveau puis nom).
+ */
+export function searchLocalMonsters(query: string, limit = 40): LocalMonsterEntry[] {
+    const catalogue = readLocalMonsterCatalogue();
+    if (!catalogue) return [];
+    const q = norm(query);
+    const seen = new Set<string>();
+    const out: LocalMonsterEntry[] = [];
+    for (const monster of catalogue.monsters) {
+        const key = norm(monster.name);
+        if (q && !key.includes(q)) continue;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        out.push(monster);
+        if (out.length >= limit) break;
+    }
+    return out;
+}
+
 async function fetchPaged(baseUrl: string, limit = 50): Promise<any[]> {
     const items: any[] = [];
     let skip = 0;

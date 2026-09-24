@@ -201,6 +201,57 @@ export async function fetchGuildRoles(guildId: string, options: { excludeManaged
     return result.sort((a, b) => b.position - a.position);
 }
 
+/**
+ * Crée un rôle sur la guilde (MANAGE_ROLES) — sert au rôle d'accès au dashboard
+ * quand le serveur n'a AUCUN rôle utilisable : sans ça, l'admin doit QUITTER
+ * SigilOS, créer un rôle à la main sur Discord, revenir (cul-de-sac mesuré).
+ *
+ * `permissions: "0"` : le rôle ne donne AUCUN droit Discord (least privilege) — il
+ * ne porte que `dashboard:login` côté application.
+ * Fail-open assumé : `null` si Discord refuse (le chemin manuel reste), jamais de throw.
+ */
+export async function createGuildRole(
+    guildId: string,
+    options: { name: string; reason?: string }
+): Promise<{ id: string; name: string } | null> {
+    const token = process.env.DISCORD_BOT_TOKEN;
+    if (!token || !guildId || !options?.name) return null;
+
+    try {
+        const res = await fetchWithRetry(`/api/v10/guilds/${guildId}/roles`, {
+            method: "POST",
+            headers: {
+                Authorization: `Bot ${token}`,
+                "Content-Type": "application/json",
+                // Raison d'audit Discord (header officiel, jamais dans le corps).
+                ...(options.reason
+                    ? { "X-Audit-Log-Reason": encodeURIComponent(options.reason).slice(0, 500) }
+                    : {}),
+            },
+            body: JSON.stringify({
+                name: options.name,
+                permissions: "0",
+                mentionable: false,
+            }),
+            cache: "no-store",
+        });
+
+        if (!res.ok) {
+            logger.warn(`[Discord] createGuildRole refusé (${res.status}) sur ${guildId}`);
+            return null;
+        }
+
+        const created = (await res.json()) as { id?: string; name?: string };
+        if (!created?.id) return null;
+        // Le cache des rôles (TTL 15 s) ne doit pas masquer le rôle tout juste créé.
+        invalidateDiscordCache(`roles:${guildId}`);
+        return { id: created.id, name: created.name ?? options.name };
+    } catch (e) {
+        logger.warn(`[Discord] createGuildRole a échoué sur ${guildId}`, e);
+        return null;
+    }
+}
+
 export async function fetchGuild(guildId: string) {
     // In-memory cache — next: { revalidate } is ignored in Server Actions context
     const cacheKey = `guild:${guildId}`;

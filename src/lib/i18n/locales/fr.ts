@@ -794,11 +794,15 @@ export const fr = {
         completedPercent: "accompli",
         remainingSteps: "étapes restantes",
         guestProfile: "Profil invité",
+        underConstructionTitle: "En construction",
+        underConstructionHint: "L'arrivée du guide est prévue dans les jours qui suivent !",
     },
     tacticalSim: {
         simulatedSpell: "Sort simulé :",
         selectSpell: "Sélectionner un sort",
         recenter: "Recentrer",
+        fullscreenTitle: "Plein écran",
+        fullscreenExit: "Réduire",
         entity: "Entité :",
         map: "Carte :",
         tacticalMapName: "Map Tactique Isométrique",
@@ -854,7 +858,7 @@ export const fr = {
         damageHudElements: "Jets du sort (par élément)",
         damageHudBreakdown: "Dégâts par cible",
         damageHudEmpty:
-            "Aucune cible dans la zone — survolez une case en portée (la case visée compte) ou posez un ennemi / allié dessus.",
+            "Aucune cible dans la zone — une case vide n'affiche rien : posez un allié (le Féca que vous simulez) ou un ennemi dans la zone, ou visez une case où ils se trouvent.",
         damageTargetEnemy: "Ennemi {index}",
         damageTargetAlly: "Allié {index}",
         boosts: {

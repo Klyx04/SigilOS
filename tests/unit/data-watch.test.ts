@@ -26,9 +26,19 @@ vi.mock("@/lib/cron-telemetry", () => ({
     recordCronExecution: (...args: any[]) => mockRecordCronExecution(...args),
 }));
 
-const mockComputeQuestDeltas = vi.fn();
-vi.mock("@/server/actions/game-quest-sync-actions", () => ({
-    computeQuestDeltas: (...args: any[]) => mockComputeQuestDeltas(...args),
+const mockComputeQuestDeltasCore = vi.fn();
+vi.mock("@/lib/quest-siphon", () => ({
+    computeQuestDeltasCore: (...args: any[]) => mockComputeQuestDeltasCore(...args),
+}));
+
+/**
+ * 🔭 File des siphons : **mockée** — sans ça le test tentait une vraie connexion Redis
+ * (`bullmq`) et **timeoutait** (mesuré le 23/09/2026, 5 s). Le vrai `enqueueGameDataSync`
+ * est pour sa part borné à 2,5 s (fail-open) pour qu'un cron ne pende jamais.
+ */
+const mockEnqueue = vi.fn();
+vi.mock("@/lib/queue/game-data-queue", () => ({
+    enqueueGameDataSync: (...args: any[]) => mockEnqueue(...args),
 }));
 
 vi.mock("@/lib/logger", () => ({
@@ -57,7 +67,8 @@ beforeEach(() => {
     process.env.CRON_SECRET = "test-cron-secret";
     mockNotifyGod.mockResolvedValue({ success: true });
     mockRecordCronExecution.mockResolvedValue(true);
-    mockComputeQuestDeltas.mockResolvedValue({ success: true, data: { deltas: [] } });
+    mockComputeQuestDeltasCore.mockResolvedValue({ totalLocal: 0, totalRemote: 0, deltas: [] });
+    mockEnqueue.mockResolvedValue("game-data-ITEMS");
     vi.unstubAllGlobals();
 });
 
@@ -78,9 +89,10 @@ describe("GET /api/cron/data-watch", () => {
             .mockResolvedValueOnce(totalsJson(150))); // dungeons
         mockGameItemCount.mockResolvedValue(19000);
         mockDungeonCount.mockResolvedValue(140);
-        mockComputeQuestDeltas.mockResolvedValue({
-            success: true,
-            data: { deltas: [{ type: "NEW" }, { type: "NEW" }, { type: "MODIFIED" }] },
+        mockComputeQuestDeltasCore.mockResolvedValue({
+            totalLocal: 19000,
+            totalRemote: 100,
+            deltas: [{ type: "NEW" }, { type: "NEW" }, { type: "MODIFIED" }],
         });
 
         const res = await GET(authedReq());
@@ -91,10 +103,34 @@ describe("GET /api/cron/data-watch", () => {
         expect(mockNotifyGod).toHaveBeenCalledTimes(1);
         const call = mockNotifyGod.mock.calls[0][0];
         expect(call.title).toContain("Nouveautés");
+        // 🔭 Auto-synchronisation CIBLÉE : la veille ne se contente plus d'alerter.
+        expect(mockEnqueue).toHaveBeenCalledWith("ITEMS", { incremental: true });
+        expect(data.autoQueued).toEqual(["ITEMS"]);
+        expect(call.message).toContain("Veille ciblée mise en file");
+        // La machine ne supprime jamais : c'est écrit noir sur blanc dans la notif.
+        expect(call.message).toContain("Aucune suppression n'est automatique");
         expect(mockRecordCronExecution).toHaveBeenCalledWith(
             "data_watch",
             expect.objectContaining({ success: true })
         );
+    });
+
+    it("file indisponible → l'alerte dit de lancer à la main (jamais de faux « c'est fait »)", async () => {
+        vi.stubGlobal("fetch", vi.fn()
+            .mockResolvedValueOnce(totalsJson(20000))
+            .mockResolvedValueOnce(totalsJson(100))
+            .mockResolvedValueOnce(totalsJson(150)));
+        mockGameItemCount.mockResolvedValue(19000);
+        mockDungeonCount.mockResolvedValue(140);
+        mockEnqueue.mockResolvedValue(null); // Redis/file KO
+
+        const res = await GET(authedReq());
+        const data = await res.json();
+
+        expect(data.hasNews).toBe(true);
+        expect(data.autoQueued).toEqual([]);
+        expect(data.autoUnavailable).toEqual(["ITEMS"]);
+        expect(mockNotifyGod.mock.calls[0][0].message).toContain("File indisponible");
     });
 
     it("stocks alignés → pas d'alerte, télémétrie quand même", async () => {
@@ -112,6 +148,8 @@ describe("GET /api/cron/data-watch", () => {
         expect(data.hasNews).toBe(false);
         expect(data.summary).toContain("Rien à signaler");
         expect(mockNotifyGod).not.toHaveBeenCalled();
+        // Rien à signaler ⇒ aucune passe ciblée en file (on ne réveille pas le worker pour rien).
+        expect(mockEnqueue).not.toHaveBeenCalled();
         expect(mockRecordCronExecution).toHaveBeenCalledTimes(1);
     });
 

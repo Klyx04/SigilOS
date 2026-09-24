@@ -36,6 +36,7 @@ import { DOFUSBOOK_COLORS, dofusStatHex, getDofusStatNumberColor } from "@/lib/d
 import type { SpellDamageLine } from "@/lib/dofus-spells";
 import {
     DAMAGE_BADGE_MIN_WIDTH,
+    damageBadgeLayout,
     damageBadgePlacement,
     damageBadgeWidth,
 } from "@/components/succes/SimulationDamageHud";
@@ -458,11 +459,42 @@ describe("les dégâts ne sortent plus du composant — bornage par le plateau (
         const left = damageBadgePlacement({ sx: -34, sy: 400, boxW: 84, boxH: 66, ...frame });
         expect(left.x).toBeGreaterThanOrEqual(frame.viewX);
 
-        // Le rendu consomme la règle pure (plus de formule recopiée dans le JSX).
-        expect(GRID).toMatch(
-            /const badge = damageBadgePlacement\(\{ sx, sy, boxW, boxH, viewX, viewY, viewW, viewH \}\)/
-        );
+        // Le rendu consomme les règles pures (aucune formule recopiée dans le JSX) : le bornage au
+        // cadre (`damageBadgePlacement`) ET l'anti-chevauchement (`damageBadgeLayout`) vivent dans
+        // `SimulationDamageHud` — la grille ne fait que les appeler.
+        expect(GRID).toMatch(/damageBadgeLayout\(/);
         expect(GRID).not.toMatch(/translate\(\$\{sx - boxW \/ 2\}, \$\{sy - 26 - boxH\}\)/);
+        expect(GRID).toMatch(/transform=\{`translate\(\$\{badge\.x\}, \$\{badge\.y\}\)`\}/);
+    });
+
+    it("deux cibles voisines ne peuvent plus superposer leurs pastilles", () => {
+        // Défaut mesuré en capture (22/09/2026) : la pastille d'un allié et celle de la case visée
+        // se recouvraient — le placement se faisait pastille par pastille, sans vue d'ensemble.
+        const frame = { viewX: -36, viewY: -36, viewW: 964, viewH: 692 };
+        const laid = damageBadgeLayout(
+            [
+                { key: "a", sx: 480, sy: 400, width: 84, height: 66 },
+                { key: "b", sx: 500, sy: 410, width: 84, height: 66 },
+            ],
+            frame
+        );
+        expect(laid).toHaveLength(2);
+        const [a, b] = laid;
+
+        // Invariant : les deux boîtes sont DISJOINTES (aucun recouvrement possible).
+        const disjoint =
+            a.x + a.width <= b.x || b.x + b.width <= a.x || a.y + a.height <= b.y || b.y + b.height <= a.y;
+        expect(disjoint).toBe(true);
+        // …l'une des deux a bien été décalée, et personne ne sort du cadre.
+        expect(Math.abs(a.shifted) + Math.abs(b.shifted)).toBeGreaterThan(0);
+        for (const box of laid) {
+            expect(box.y).toBeGreaterThanOrEqual(frame.viewY);
+            expect(box.y + box.height).toBeLessThanOrEqual(frame.viewY + frame.viewH);
+            expect(box.x).toBeGreaterThanOrEqual(frame.viewX);
+            expect(box.x + box.width).toBeLessThanOrEqual(frame.viewX + frame.viewW);
+        }
+        // Le placement nominal reste celui de la règle bornée au cadre (une seule source).
+        expect(HUD).toMatch(/damageBadgePlacement\(\{/);
     });
 });
 

@@ -11,10 +11,21 @@ import path from 'path';
 import { logger } from "@/lib/logger";
 import { buildBountyBestiaireEntry } from "@/lib/bounty-fiche";
 import { sanitizeHtml } from "@/lib/security";
+import { dofusDbFetch } from "@/lib/dofusdb-limiter";
 import { getLocalMonsterStatAny, persistMonsterStat } from "@/lib/dofensive-sync";
 import { encycloGrade, encycloIdentity, resolveEncycloNames } from "@/lib/dofus-encyclo";
 import { getDofensiveDungeonForBoss } from "@/server/actions/dofensive-actions";
 import { resolveUniqueDungeonSlug } from "@/server/game/dungeon-slug";
+import {
+    getIgnoredFamilies,
+    getIgnoredZones,
+    isIgnoredFamily,
+    isIgnoredZone,
+    IGNORED_FAMILIES_PATH,
+    IGNORED_ZONES_PATH,
+} from "@/lib/game-data-ignores";
+import { syncZonesFromDofusDbCore } from "@/lib/zones-siphon";
+import { syncMonsterFamiliesCore } from "@/lib/monster-families-siphon";
 
 const normStr = (s: string | null | undefined): string =>
     (s ?? "")
@@ -205,11 +216,14 @@ export async function searchZonesDetected(query: string = ""): Promise<ActionRes
                 const areaLimit = q.length > 0 ? 8 : 60;
                 const nameFilter = q.length > 0 ? `&name.fr=${encodeURIComponent(q)}` : "";
                 const [subRes, areaRes] = await Promise.all([
-                    fetch(`https://api.dofusdb.fr/subareas?${nameFilter}&$limit=${subLimit}&lang=fr`, {
+                    // ⚠️ 23/09/2026 — `dofusDbFetch` : ces 2 appels de la recherche de zones
+                    // contournaient eux aussi le limiteur partagé (même famille que les 2 de
+                    // `getMonsterStats`). Un seul chemin réseau poli pour tout le fichier.
+                    dofusDbFetch(`https://api.dofusdb.fr/subareas?${nameFilter}&$limit=${subLimit}&lang=fr`, {
                         headers: { Accept: "application/json" },
                         signal: AbortSignal.timeout(10000),
                     }),
-                    fetch(`https://api.dofusdb.fr/areas?${nameFilter}&$limit=${areaLimit}&lang=fr`, {
+                    dofusDbFetch(`https://api.dofusdb.fr/areas?${nameFilter}&$limit=${areaLimit}&lang=fr`, {
                         headers: { Accept: "application/json" },
                         signal: AbortSignal.timeout(10000),
                     }),
@@ -558,6 +572,10 @@ export async function autoAssociateAllZoneFamilies(): Promise<ActionResponse<{
     familiesLinked: number;
     archisWithZone: number;
     matches: { zoneName: string; familyName: string }[];
+    /** Zones dont le nom correspond à une zone d'archimonstre (mesure « à jour ou non »). */
+    matchedZones: number;
+    /** Parmi elles, celles qui n'avaient **rien** à ajouter (déjà liées). */
+    alreadyUpToDate: number;
 }>> {
     if (!(await canAccessGameData())) return { success: false, error: 'Non autorisé' };
 
@@ -605,6 +623,8 @@ export async function autoAssociateAllZoneFamilies(): Promise<ActionResponse<{
         }
 
         let familiesLinked = 0;
+        let matchedZones = 0;
+        let alreadyUpToDate = 0;
         const matches: { zoneName: string; familyName: string }[] = [];
 
         for (const zone of zones) {
@@ -612,10 +632,14 @@ export async function autoAssociateAllZoneFamilies(): Promise<ActionResponse<{
             const monsterNames = monstersByZone.get(zNorm) ?? [];
             const linkedIds = new Set(zone.families.map(f => f.id));
             const familyIdsToLink = new Set<string>();
+            // « Matchée » = son nom correspond à une zone d'archi (par nom de monstre) OU
+            // contient un nom de famille. C'est CE compteur qui dit si le bouton est à jour.
+            let matched = monsterNames.length > 0;
 
             // 1. Correspondance directe par nom de famille contenue dans la zone (ex: "Porkass" dans "Plaine des Porkass")
             for (const [fNorm, fId] of familyByName.entries()) {
                 if (fNorm.length >= 4 && (zNorm.includes(fNorm) || fNorm.includes(zNorm))) {
+                    matched = true;
                     if (!linkedIds.has(fId)) familyIdsToLink.add(fId);
                 }
             }
@@ -624,6 +648,11 @@ export async function autoAssociateAllZoneFamilies(): Promise<ActionResponse<{
             for (const name of monsterNames) {
                 const fid = familyByMonsterName.get(name);
                 if (fid && !linkedIds.has(fid)) familyIdsToLink.add(fid);
+            }
+
+            if (matched) {
+                matchedZones++;
+                if (familyIdsToLink.size === 0) alreadyUpToDate++;
             }
 
             if (familyIdsToLink.size === 0) continue;
@@ -644,8 +673,13 @@ export async function autoAssociateAllZoneFamilies(): Promise<ActionResponse<{
             for (const f of families) matches.push({ zoneName: zone.name, familyName: f.name });
         }
 
-        logger.info(`[autoAssociateAllZoneFamilies] ${matches.length} familles liées sur ${zones.length} zones`);
-        return { success: true, data: { zonesScanned: zones.length, familiesLinked, archisWithZone, matches } };
+        logger.info(
+            `[autoAssociateAllZoneFamilies] ${matches.length} famille(s) liée(s) · ${matchedZones} zone(s) matchée(s) (${alreadyUpToDate} déjà à jour) sur ${zones.length}`,
+        );
+        return {
+            success: true,
+            data: { zonesScanned: zones.length, familiesLinked, archisWithZone, matches, matchedZones, alreadyUpToDate },
+        };
     } catch (error) {
         logger.error('[autoAssociateAllZoneFamilies] Error:', { error });
         return { success: false, error: 'Erreur lors de l\'association automatique' };
@@ -952,7 +986,7 @@ export async function getBountiesForZone(zoneName: string): Promise<ActionRespon
         // 2. Fetch direct depuis DofusDB avec vérification stricte des sous-zones (subareas)
         let monsters: any[] = [];
         try {
-            const response = await fetch(`https://api.dofusdb.fr/monsters?typeId=23&$limit=100&lang=fr`, {
+            const response = await dofusDbFetch(`https://api.dofusdb.fr/monsters?typeId=23&$limit=100&lang=fr`, {
                 signal: AbortSignal.timeout(5000)
             });
             if (response.ok) {
@@ -1138,7 +1172,7 @@ export async function getMonsterStats(
                             const enItemsMap: Record<number, string> = {};
                             await Promise.all(chunks.map(async (chunk) => {
                                 const q = chunk.map((id: number) => `id[$in][]=${id}`).join("&");
-                                const res = await fetch(`https://api.dofusdb.fr/items?${q}&$limit=50&lang=en`, dofusdbFicheInit());
+                                const res = await dofusDbFetch(`https://api.dofusdb.fr/items?${q}&$limit=50&lang=en`, dofusdbFicheInit());
                                 if (res.ok) {
                                     const data = await res.json();
                                     if (Array.isArray(data?.data)) {
@@ -1171,11 +1205,20 @@ export async function getMonsterStats(
         if (safeId > 0) {
             monsterHeader = { id: safeId };
         } else {
-            const searchRes = await fetch(
+            const searchRes = await dofusDbFetch(
                 `https://api.dofusdb.fr/monsters?name.fr=${encodeURIComponent(monsterName.trim())}&lang=fr&$limit=5`,
                 dofusdbFicheInit()
             );
-            if (!searchRes.ok) throw new Error("DofusDB search failed");
+            if (!searchRes.ok) {
+                // ⚠️ 23/09/2026 — un `throw` ici faisait cascader le siphon d'avis (concurrency 4)
+                // sur la grille vide ET un log opaque : on rend la cause EXPLICITE et on laisse
+                // l'appelant décider (il gère déjà `!res.ok`).
+                const reason = searchRes.status === 429
+                    ? "Quota DofusDB atteint (429) — relancer plus tard"
+                    : `DofusDB HTTP ${searchRes.status}`;
+                logger.warn(`[getMonsterStats] ${monsterName}: ${reason}`);
+                return { success: false, error: reason };
+            }
             const searchData = await searchRes.json();
 
             monsterHeader = searchData.data?.find((m: any) => m.name?.fr?.toLowerCase() === monsterName.toLowerCase().trim()) || searchData.data?.[0];
@@ -1185,7 +1228,7 @@ export async function getMonsterStats(
         if (!monsterHeader && dungeonName && dungeonName.trim()) {
             try {
                 const cleanDungeonQuery = dungeonName.replace(/\s*\(\d+\)$/, "").trim();
-                const djRes = await fetch(
+                const djRes = await dofusDbFetch(
                     `https://api.dofusdb.fr/dungeons?name.fr=${encodeURIComponent(cleanDungeonQuery)}&lang=fr&$limit=5`,
                     dofusdbFicheInit()
                 );
@@ -1194,7 +1237,7 @@ export async function getMonsterStats(
                     const dj = djData.data?.[0];
                     if (dj && Array.isArray(dj.monsters) && dj.monsters.length > 0) {
                         const firstMobId = dj.monsters[0];
-                        const mobRes = await fetch(`https://api.dofusdb.fr/monsters/${firstMobId}?lang=fr`, dofusdbFicheInit());
+                        const mobRes = await dofusDbFetch(`https://api.dofusdb.fr/monsters/${firstMobId}?lang=fr`, dofusdbFicheInit());
                         if (mobRes.ok) {
                             monsterHeader = await mobRes.json();
                         }
@@ -1209,7 +1252,7 @@ export async function getMonsterStats(
                 const dofDungeon = await getDofensiveDungeonForBoss(monsterName, dungeonName);
                 if (dofDungeon.success && dofDungeon.data?.monsters?.length) {
                     const firstMob = dofDungeon.data.monsters[0];
-                    const searchMob = await fetch(
+                    const searchMob = await dofusDbFetch(
                         `https://api.dofusdb.fr/monsters?name.fr=${encodeURIComponent(firstMob.name)}&lang=fr&$limit=5`,
                         dofusdbFicheInit()
                     );
@@ -1224,11 +1267,17 @@ export async function getMonsterStats(
         if (!monsterHeader) return { success: false, error: 'Monstre non trouvé' };
 
         // Fetch FULL details
-        const fullRes = await fetch(
+        const fullRes = await dofusDbFetch(
             `https://api.dofusdb.fr/monsters/${monsterHeader.id}?lang=fr`,
             dofusdbFicheInit()
         );
-        if (!fullRes.ok) throw new Error("DofusDB details failed");
+        if (!fullRes.ok) {
+            const reason = fullRes.status === 429
+                ? "Quota DofusDB atteint (429) — relancer plus tard"
+                : `DofusDB HTTP ${fullRes.status}`;
+            logger.warn(`[getMonsterStats] ${monsterName} (détails): ${reason}`);
+            return { success: false, error: reason };
+        }
         const monster = await fullRes.json();
 
         // Get items and spells mappings in parallel
@@ -1251,28 +1300,32 @@ export async function getMonsterStats(
             const chunk = dropObjectIds.slice(i, i + 40);
             const queryQuery = chunk.map((id: unknown) => `id[$in][]=${id}`).join('&');
             fetchPromises.push(
-                fetch(`https://api.dofusdb.fr/items?${queryQuery}&$limit=50&lang=fr`, dofusdbFicheInit())
-                    .then(res => res.json())
+                // ⚠️ 23/09/2026 — `dofusDbFetch` (et non `fetch` brut) : ces 2 appels étaient les
+                // SEULS de la fiche à contourner le limiteur partagé (30 req/min). Mesure : le
+                // siphon d'avis (concurrency 4 × ~5 requêtes) saturait la fenêtre ⇒ 429 local ⇒
+                // « Error: {} » ×20 et repli sur une grille vide. Le limiteur espace et rejoue.
+                dofusDbFetch(`https://api.dofusdb.fr/items?${queryQuery}&$limit=50&lang=fr`, dofusdbFicheInit())
+                    .then(res => (res.ok ? res.json() : null))
                     .then(data => {
                         if (data && Array.isArray(data.data)) {
                             data.data.forEach((it: any) => { itemsMap[it.id] = it; });
                         }
                     })
-                    .catch(logger.error)
+                    .catch((err) => logger.warn('[getMonsterStats] Items liés indisponibles:', { error: err }))
             );
         }
 
         if (spellIds.length > 0) {
             const spellQuery = spellIds.map((id: unknown) => `id[$in][]=${id}`).join('&');
             fetchPromises.push(
-                fetch(`https://api.dofusdb.fr/spells?${spellQuery}&$limit=50&lang=fr`, dofusdbFicheInit())
-                    .then(res => res.json())
+                dofusDbFetch(`https://api.dofusdb.fr/spells?${spellQuery}&$limit=50&lang=fr`, dofusdbFicheInit())
+                    .then(res => (res.ok ? res.json() : null))
                     .then(data => {
                         if (data && Array.isArray(data.data)) {
                             spellsArr = data.data;
                         }
                     })
-                    .catch(logger.error)
+                    .catch((err) => logger.warn('[getMonsterStats] Sorts indisponibles:', { error: err }))
             );
         }
 
@@ -1289,7 +1342,7 @@ export async function getMonsterStats(
 
             if (requestedLevels.length > 0) {
                 const levelQuery = requestedLevels.map((id: unknown) => `id[$in][]=${id}`).join('&');
-                const levelRes = await fetch(`https://api.dofusdb.fr/spell-levels?${levelQuery}&$limit=50&lang=fr`, dofusdbFicheInit());
+                const levelRes = await dofusDbFetch(`https://api.dofusdb.fr/spell-levels?${levelQuery}&$limit=50&lang=fr`, dofusdbFicheInit());
                 if (levelRes.ok) {
                     const levelData = await levelRes.json();
                     if (levelData && Array.isArray(levelData.data)) {
@@ -1336,7 +1389,7 @@ export async function getMonsterStats(
             try {
                 // Fetch sub-spells
                 const subSpellQuery = uniqueTriggeredIds.map((id: number) => `id[$in][]=${id}`).join('&');
-                const subSpellsRes = await fetch(`https://api.dofusdb.fr/spells?${subSpellQuery}&$limit=50&lang=fr`, dofusdbFicheInit());
+                const subSpellsRes = await dofusDbFetch(`https://api.dofusdb.fr/spells?${subSpellQuery}&$limit=50&lang=fr`, dofusdbFicheInit());
                 if (subSpellsRes.ok) {
                     const subSpellsData = await subSpellsRes.json();
                     const subSpellsArr = subSpellsData.data || [];
@@ -1349,7 +1402,7 @@ export async function getMonsterStats(
 
                     if (subLevelsToFetch.length > 0) {
                         const subLevelQuery = subLevelsToFetch.map((id: any) => `id[$in][]=${id}`).join('&');
-                        const subLevelRes = await fetch(`https://api.dofusdb.fr/spell-levels?${subLevelQuery}&$limit=50&lang=fr`, dofusdbFicheInit());
+                        const subLevelRes = await dofusDbFetch(`https://api.dofusdb.fr/spell-levels?${subLevelQuery}&$limit=50&lang=fr`, dofusdbFicheInit());
                         if (subLevelRes.ok) {
                             const subLevelData = await subLevelRes.json();
                             const subLevelsMap: Record<number, any> = {};
@@ -1770,7 +1823,7 @@ export async function getDungeonMonsters(
     }
 
     try {
-        const searchRes = await fetch(
+        const searchRes = await dofusDbFetch(
             `https://api.dofusdb.fr/monsters?name.fr=${encodeURIComponent(bossName.trim())}&lang=fr&$limit=5`,
             dofusdbFicheInit()
         );
@@ -1779,7 +1832,7 @@ export async function getDungeonMonsters(
         const bossHeader = searchData.data?.find((m: any) => m.name?.fr?.toLowerCase() === bossName.toLowerCase().trim()) || searchData.data?.[0];
         const race = bossHeader?.race ?? null;
         if (race) {
-            const familyRes = await fetch(
+            const familyRes = await dofusDbFetch(
                 `https://api.dofusdb.fr/monsters?race=${race}&lang=fr&$limit=50`,
                 dofusdbFicheInit()
             );
@@ -1803,7 +1856,7 @@ export async function getDungeonMonsters(
         if (dungeonName && dungeonName.trim()) {
             try {
                 const cleanDungeonQuery = dungeonName.replace(/\s*\(\d+\)$/, "").trim();
-                const djRes = await fetch(
+                const djRes = await dofusDbFetch(
                     `https://api.dofusdb.fr/dungeons?name.fr=${encodeURIComponent(cleanDungeonQuery)}&lang=fr&$limit=5`,
                     dofusdbFicheInit()
                 );
@@ -1814,7 +1867,7 @@ export async function getDungeonMonsters(
                         const mobList: { id: number; name: string; imageUrl: string | null; isBoss: boolean }[] = [];
                         for (const mobId of dj.monsters) {
                             try {
-                                const mRes = await fetch(`https://api.dofusdb.fr/monsters/${mobId}?lang=fr`, dofusdbFicheInit());
+                                const mRes = await dofusDbFetch(`https://api.dofusdb.fr/monsters/${mobId}?lang=fr`, dofusdbFicheInit());
                                 if (mRes.ok) {
                                     const m = await mRes.json();
                                     mobList.push({
@@ -1913,7 +1966,7 @@ export async function syncBountiesCompleteFromDofusDb(): Promise<ActionResponse<
     if (!(await canAccessBounties())) return { success: false, error: 'Non autorisé' };
 
     try {
-        const response = await fetch(`https://api.dofusdb.fr/monsters?typeId=23&$limit=150&lang=fr`, {
+        const response = await dofusDbFetch(`https://api.dofusdb.fr/monsters?typeId=23&$limit=150&lang=fr`, {
             headers: { 'Accept': 'application/json' },
             signal: AbortSignal.timeout(15000)
         });
@@ -2515,7 +2568,7 @@ export async function searchArchimonstresForMap(
                 // Le filtre "boss" n'a de sens que sur les boss de donjon DofusDB (typeId=23)
                 const bossOnly = filter === 'boss' ? `&typeId=23` : '';
                 const url = `https://api.dofusdb.fr/monsters?lang=fr&name.fr[$regex]=${encodedQuery}${bossOnly}&$limit=10`;
-                const resp = await fetch(url, {
+                const resp = await dofusDbFetch(url, {
                     headers: { 'Accept': 'application/json' },
                     cache: 'no-store',
                     signal: AbortSignal.timeout(8_000),
@@ -2746,8 +2799,6 @@ export async function getArchimonstres(filter?: { type?: string; search?: string
 }
 
 const IGNORED_MONSTERS_PATH = path.join(process.cwd(), 'public', 'game-data', 'ignored-monsters.json');
-const IGNORED_FAMILIES_PATH = path.join(process.cwd(), 'public', 'game-data', 'ignored-families.json');
-const IGNORED_ZONES_PATH = path.join(process.cwd(), 'public', 'game-data', 'ignored-zones.json');
 
 function getIgnoredMonsters(): { names: string[]; dofusdbIds: number[] } {
     try {
@@ -2793,17 +2844,6 @@ function isIgnoredMonster(name?: string | null, dofusdbId?: number | null): bool
 }
 
 // --- Familles Exclues ---
-function getIgnoredFamilies(): string[] {
-    try {
-        if (fs.existsSync(IGNORED_FAMILIES_PATH)) {
-            const raw = fs.readFileSync(IGNORED_FAMILIES_PATH, 'utf-8');
-            const data = JSON.parse(raw);
-            return Array.isArray(data.names) ? data.names : [];
-        }
-    } catch { }
-    return [];
-}
-
 export async function addIgnoredFamily(name: string) {
     try {
         const current = getIgnoredFamilies();
@@ -2820,32 +2860,6 @@ export async function addIgnoredFamily(name: string) {
     } catch (e) {
         logger.error('[addIgnoredFamily] Error:', { error: e });
     }
-}
-
-const DEFAULT_IGNORED_FAMILY_PATTERNS = [
-    "archimonstres",
-    "archimonstre",
-    "monstres de quête",
-    "monstres de quetes",
-    "alignement",
-    "avis de recherche",
-    "monstre d'alignement",
-    "pnj",
-    "invocation",
-    "garde",
-    "protecteur",
-    "tutorial",
-    "tutoriel",
-];
-
-function isIgnoredFamily(name?: string | null): boolean {
-    if (!name) return false;
-    const lower = name.trim().toLowerCase();
-    if (DEFAULT_IGNORED_FAMILY_PATTERNS.some(pat => lower.includes(pat))) {
-        return true;
-    }
-    const ignored = getIgnoredFamilies();
-    return ignored.includes(lower);
 }
 
 export async function getIgnoredFamiliesAction(): Promise<ActionResponse<string[]>> {
@@ -2884,17 +2898,6 @@ export async function clearAllIgnoredFamiliesAction(): Promise<ActionResponse> {
 }
 
 // --- Zones Exclues ---
-function getIgnoredZones(): string[] {
-    try {
-        if (fs.existsSync(IGNORED_ZONES_PATH)) {
-            const raw = fs.readFileSync(IGNORED_ZONES_PATH, 'utf-8');
-            const data = JSON.parse(raw);
-            return Array.isArray(data.names) ? data.names : [];
-        }
-    } catch { }
-    return [];
-}
-
 export async function addIgnoredZone(name: string) {
     try {
         const current = getIgnoredZones();
@@ -2911,12 +2914,6 @@ export async function addIgnoredZone(name: string) {
     } catch (e) {
         logger.error('[addIgnoredZone] Error:', { error: e });
     }
-}
-
-function isIgnoredZone(name?: string | null): boolean {
-    if (!name) return false;
-    const ignored = getIgnoredZones();
-    return ignored.includes(name.trim().toLowerCase());
 }
 
 export async function getIgnoredZonesAction(): Promise<ActionResponse<string[]>> {
@@ -3086,7 +3083,7 @@ export async function syncOcreArchimonstres(guildId?: string): Promise<ActionRes
         }
 
         const zoneUrl = `https://www.metamob.fr/api/v1/quests/${encodeURIComponent(slug)}/zones?monster_type_id=3`;
-        const zoneRes = await fetch(zoneUrl, { headers, signal: AbortSignal.timeout(30000) });
+        const zoneRes = await dofusDbFetch(zoneUrl, { headers, signal: AbortSignal.timeout(30000) });
         if (!zoneRes.ok) {
             return { success: false, error: `Metamob zones API erreur ${zoneRes.status}. Vérifiez la clé API.` };
         }
@@ -3140,7 +3137,7 @@ export async function syncOcreArchimonstres(guildId?: string): Promise<ActionRes
                     // DofusDB search by exact name
                     const encoded = encodeURIComponent(`(?i)^${monster.name.trim()}$`);
                     const url = `https://api.dofusdb.fr/monsters?lang=fr&name.fr[$regex]=${encoded}&$limit=1`;
-                    const resp = await fetch(url, { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(8000) });
+                    const resp = await dofusDbFetch(url, { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(8000) });
 
                     let imageUrl: string | null = null;
                     let level = 0;
@@ -3322,7 +3319,7 @@ export async function syncWorldMonsters(params?: { skip?: number; batchSize?: nu
 
         // ── 2. Pagination DofusDB (UN batch par appel) ────────────────────
         const url = `https://api.dofusdb.fr/monsters?lang=fr&$limit=${batchSize}&$skip=${skip}`;
-        const resp = await fetch(url, {
+        const resp = await dofusDbFetch(url, {
             headers: { Accept: 'application/json' },
             signal: AbortSignal.timeout(30000)
         });
@@ -3548,7 +3545,7 @@ export async function syncDofusBosses(): Promise<ActionResponse<{ synced: number
         let skip = 0;
         let total = 1;
         while (skip < total) {
-            const res = await fetch(`https://api.dofusdb.fr/monsters?$limit=50&$skip=${skip}&isBoss=true`, {
+            const res = await dofusDbFetch(`https://api.dofusdb.fr/monsters?$limit=50&$skip=${skip}&isBoss=true`, {
                 headers: { 'Accept': 'application/json' },
                 signal: AbortSignal.timeout(15000)
             });
@@ -3726,7 +3723,7 @@ export async function checkDofusDbApiHealth(): Promise<ActionResponse<{
         testUrls.map(async (ep) => {
             const start = performance.now();
             try {
-                const res = await fetch(ep.url, {
+                const res = await dofusDbFetch(ep.url, {
                     headers: { 'Accept': 'application/json', 'User-Agent': 'SigilOS-SyncEngine/2.0' },
                     signal: AbortSignal.timeout(6000)
                 });
@@ -3764,121 +3761,17 @@ export async function checkDofusDbApiHealth(): Promise<ActionResponse<{
 }
 
 /**
- * 🦎 Synchronisation automatique des Familles de Monstres et de leurs Créatures depuis DofusDB.
- * 1. Synchronise les races/familles (/monster-races).
- * 2. Synchronise les monstres individuels (/monsters) rattachés à chaque famille avec niveau et image.
- * Préserve les modifications manuelles existantes.
+ * 🦎 Synchronisation des familles de monstres et de leurs créatures (DofusDB).
+ * Le CŒUR vit dans `src/lib/monster-families-siphon.ts` : il est donc exécutable
+ * par la file d'arrière-plan (fermer l'onglet ne perd plus la passe).
  */
 export async function syncMonsterFamiliesFromDofusDb(): Promise<ActionResponse<{ synced: number; total: number; monstersSynced?: number }>> {
     if (!(await canAccessGameData())) return { success: false, error: 'Accès refusé' };
 
     try {
-        let skip = 0;
-        let total = 1;
-        let synced = 0;
-        const familyRaceIdMap = new Map<number, string>(); // raceId (DofusDB) -> MonsterFamily.id
-
-        // 1. Sync des Familles / Races
-        while (skip < total) {
-            const res = await fetch(`https://api.dofusdb.fr/monster-races?$limit=50&$skip=${skip}`, {
-                headers: { 'Accept': 'application/json' },
-                signal: AbortSignal.timeout(15000)
-            });
-            if (!res.ok) break;
-            const json = await res.json();
-            total = json.total || 0;
-            const items = json.data || [];
-            if (items.length === 0) break;
-
-            for (const item of items) {
-                const nameFr = typeof item.name === 'string' ? item.name : (item.name?.fr || item.name?.en || '');
-                if (!nameFr || !nameFr.trim()) continue;
-                if (isIgnoredFamily(nameFr)) continue;
-
-                const family = await db.monsterFamily.upsert({
-                    where: { name: nameFr.trim() },
-                    update: {}, // Préserve les données manuelles existantes
-                    create: {
-                        name: nameFr.trim(),
-                        level: null,
-                    }
-                });
-                if (typeof item.id === 'number') {
-                    familyRaceIdMap.set(item.id, family.id);
-                }
-                synced++;
-            }
-            skip += items.length;
-        }
-
-        // 2. Sync des Monstres individuels par lots (/monsters)
-        let monsterSkip = 0;
-        let monsterTotal = 1;
-        let monstersSynced = 0;
-
-        while (monsterSkip < monsterTotal) {
-            const mRes = await fetch(`https://api.dofusdb.fr/monsters?$limit=50&$skip=${monsterSkip}`, {
-                headers: { 'Accept': 'application/json' },
-                signal: AbortSignal.timeout(15000)
-            });
-            if (!mRes.ok) break;
-            const mJson = await mRes.json();
-            monsterTotal = mJson.total || 0;
-            const mItems = mJson.data || [];
-            if (mItems.length === 0) break;
-
-            for (const m of mItems) {
-                const mName = typeof m.name === 'string' ? m.name : (m.name?.fr || m.name?.en || '');
-                if (!mName || !mName.trim()) continue;
-                
-                const raceId = m.race?.id || m.raceId || m.race;
-                const familyId = raceId ? familyRaceIdMap.get(raceId) : null;
-                if (!familyId) continue;
-
-                const level = Array.isArray(m.grades) && m.grades.length > 0
-                    ? m.grades[0].level || m.grades[0].grade
-                    : (typeof m.level === 'number' ? m.level : null);
-
-                const imgUrl = m.img || (m.id ? `https://api.dofusdb.fr/img/monsters/${m.id}.png` : null);
-
-                // Upsert du monstre
-                const existingMonster = await db.monster.findFirst({
-                    where: { name: mName.trim(), familyId }
-                });
-
-                if (existingMonster) {
-                    await db.monster.update({
-                        where: { id: existingMonster.id },
-                        data: {
-                            imageUrl: imgUrl || existingMonster.imageUrl,
-                            level: level || existingMonster.level
-                        }
-                    });
-                } else {
-                    await db.monster.create({
-                        data: {
-                            name: mName.trim(),
-                            familyId,
-                            imageUrl: imgUrl,
-                            level
-                        }
-                    });
-                }
-
-                // Si la famille n'a pas encore d'image ou de niveau représentatif, on prend celui du monstre
-                await db.monsterFamily.updateMany({
-                    where: { id: familyId, imageUrl: null },
-                    data: { imageUrl: imgUrl, level: level || undefined }
-                });
-
-                monstersSynced++;
-            }
-
-            monsterSkip += mItems.length;
-        }
-
-        await logGameDataWrite("sync-monster-families", `families-${synced}_monsters-${monstersSynced}`);
-        return { success: true, data: { synced, total, monstersSynced } };
+        const result = await syncMonsterFamiliesCore();
+        await logGameDataWrite("sync-monster-families", `families-${result.synced}_monsters-${result.monstersSynced}`);
+        return { success: true, data: result };
     } catch (e: any) {
         logger.error('[syncMonsterFamiliesFromDofusDb] Error:', { error: e });
         return { success: false, error: 'Erreur lors de la synchronisation des familles' };
@@ -3886,91 +3779,16 @@ export async function syncMonsterFamiliesFromDofusDb(): Promise<ActionResponse<{
 }
 
 /**
- * 🗺️ Synchronisation automatique des Zones & Sous-zones du Monde des Douze depuis DofusDB (/subareas & /areas).
- * Ingestion complète des 562+ sous-zones réelles avec leurs niveaux exacts et des macro-régions.
- * Préserve les zones custom et configurations existantes.
+ * 🗺️ Synchronisation des zones & sous-zones du Monde des Douze (DofusDB `/subareas` & `/areas`).
+ * Le CŒUR vit dans `src/lib/zones-siphon.ts` (exécutable en arrière-plan).
  */
 export async function syncZonesFromDofusDb(): Promise<ActionResponse<{ synced: number; total: number }>> {
     if (!(await canAccessGameData())) return { success: false, error: 'Accès refusé' };
 
     try {
-        let synced = 0;
-        let totalProcessed = 0;
-
-        // 1. Synchronisation des 562 Sous-Zones (lieux réels de présence : Montagne des Craqueleurs, Port de Madrestam...)
-        let subSkip = 0;
-        let subTotal = 1;
-
-        while (subSkip < subTotal) {
-            const res = await fetch(`https://api.dofusdb.fr/subareas?$limit=50&$skip=${subSkip}`, {
-                headers: { 'Accept': 'application/json' },
-                signal: AbortSignal.timeout(15000)
-            });
-            if (!res.ok) break;
-            const json = await res.json();
-            subTotal = json.total || 0;
-            const items = json.data || [];
-            if (items.length === 0) break;
-
-            for (const item of items) {
-                const nameFr = typeof item.name === 'string' ? item.name : (item.name?.fr || item.name?.en || '');
-                if (!nameFr || !nameFr.trim()) continue;
-                if (isIgnoredZone(nameFr)) continue;
-
-                const lvl = typeof item.level === 'number' && item.level > 0 ? item.level : 200;
-
-                await db.zone.upsert({
-                    where: { name: nameFr.trim() },
-                    update: {
-                        // Met à jour le niveau officiel si présent
-                        level: lvl
-                    },
-                    create: {
-                        name: nameFr.trim(),
-                        level: lvl,
-                    }
-                });
-                synced++;
-            }
-            subSkip += items.length;
-            totalProcessed = subTotal;
-        }
-
-        // 2. Synchronisation des 69 Grandes Régions (Amakna, Cania, Frigost...)
-        let areaSkip = 0;
-        let areaTotal = 1;
-
-        while (areaSkip < areaTotal) {
-            const res = await fetch(`https://api.dofusdb.fr/areas?$limit=50&$skip=${areaSkip}`, {
-                headers: { 'Accept': 'application/json' },
-                signal: AbortSignal.timeout(15000)
-            });
-            if (!res.ok) break;
-            const json = await res.json();
-            areaTotal = json.total || 0;
-            const items = json.data || [];
-            if (items.length === 0) break;
-
-            for (const item of items) {
-                const nameFr = typeof item.name === 'string' ? item.name : (item.name?.fr || item.name?.en || '');
-                if (!nameFr || !nameFr.trim()) continue;
-                if (isIgnoredZone(nameFr)) continue;
-
-                await db.zone.upsert({
-                    where: { name: nameFr.trim() },
-                    update: {}, // Préserve les réglages existants
-                    create: {
-                        name: nameFr.trim(),
-                        level: 200,
-                    }
-                });
-                synced++;
-            }
-            areaSkip += items.length;
-        }
-
-        await logGameDataWrite("sync-zones", `synced-${synced}`);
-        return { success: true, data: { synced, total: totalProcessed + areaTotal } };
+        const result = await syncZonesFromDofusDbCore();
+        await logGameDataWrite("sync-zones", `synced-${result.synced}`);
+        return { success: true, data: result };
     } catch (e: any) {
         logger.error('[syncZonesFromDofusDb] Error:', { error: e });
         return { success: false, error: 'Erreur lors de la synchronisation des zones et sous-zones' };

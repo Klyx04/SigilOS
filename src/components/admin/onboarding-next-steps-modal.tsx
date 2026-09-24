@@ -38,12 +38,22 @@ export function OnboardingNextStepsModal({ guildId }: { guildId: string }) {
             className="fixed inset-0 z-[200] flex items-center justify-center bg-black/85 backdrop-blur-sm p-4"
             role="dialog"
             aria-modal="true"
-            aria-label="Prochaines étapes recommandées"
+            aria-labelledby="onboarding-next-steps-title"
         >
-            <div className="w-full max-w-lg rounded-3xl border border-border bg-surface shadow-2xl p-6 md:p-8 space-y-6">
+            <div className="relative w-full max-w-lg rounded-3xl border border-border bg-surface shadow-2xl p-6 md:p-8 space-y-6">
+                {/* Fermeture explicite : même effet que « Plus tard » (la modale ne revient
+                    plus pour ce navigateur). */}
+                <button
+                    type="button"
+                    onClick={() => dismiss(true)}
+                    aria-label="Fermer et ne plus proposer ces étapes"
+                    className="absolute right-3 top-3 rounded-lg p-2 text-muted-foreground transition-colors hover:bg-elevated hover:text-foreground"
+                >
+                    <X className="h-4 w-4" aria-hidden="true" />
+                </button>
                 <div className="space-y-2 text-center">
                     <Rocket className="w-10 h-10 text-success mx-auto" />
-                    <h2 className="text-2xl font-black text-foreground tracking-tight">
+                    <h2 id="onboarding-next-steps-title" className="text-2xl font-black text-foreground tracking-tight">
                         Base activée — et maintenant ?
                     </h2>
                     <p className="text-sm text-muted-foreground leading-relaxed">
@@ -74,14 +84,16 @@ export function OnboardingNextStepsModal({ guildId }: { guildId: string }) {
                     ))}
                 </div>
 
-                <div className="flex items-center gap-3">
+                {/* « Plus tard » est un REFUS, pas une réussite : bouton discret (le vert
+                    primaire est réservé aux 3 vraies portes d'entrée ci-dessus) et sans
+                    croix — la croix est une fermeture, elle vit en haut à droite. */}
+                <div className="flex items-center justify-center pt-1">
                     <button
                         type="button"
                         onClick={() => dismiss(true)}
-                        className="flex-1 h-12 rounded-xl bg-success hover:bg-success text-success-foreground font-black text-sm uppercase tracking-wider transition-colors inline-flex items-center justify-center gap-2"
+                        className="text-xs font-semibold text-muted-foreground transition-colors hover:text-foreground py-1"
                     >
-                        <X className="w-4 h-4" />
-                        Plus tard
+                        Plus tard — ne plus afficher
                     </button>
                 </div>
             </div>

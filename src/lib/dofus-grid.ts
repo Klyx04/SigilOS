@@ -197,9 +197,14 @@ export function losToXY(u: number, v: number): DofusPos {
 }
 
 // ── Zones d'effet (AoE) ──────────────────────────────────────────────────────
-// Formes de zone Dofensive normalisées : Cercle, Croix/Perpend, Ligne, Cône,
-// Rectangle, Point. La zone est centrée sur la CIBLE (case de portée), avec une
-// orientation déduite caster → cible pour Ligne/Cône.
+// Formes de zone normalisées : Cercle, Croix, **Perpend** (ligne perpendiculaire au lancer),
+// Ligne, Cône, Rectangle (carré), Point. La zone est centrée sur la CIBLE (case visée), avec une
+// orientation déduite du lancer caster → cible pour Ligne / Cône / Perpend.
+//
+// 🔍 `Perpend` ≠ `Croix` (mesure du 22/09/2026) : le gabarit DofusDB `T` (84,
+// « Ligne perpendiculaire ») — Vague à Lame 12794 **et** Lame Destructrice 8194 portent
+// `shape: 84 | param1: 1` — touche **3 cases** en jeu (cases visée ± 1 sur l'axe perpendiculaire
+// au lancer), là où le code les dessinait en croix (5 cases) ou, non calibrées, en case unique.
 
 export interface SpellZoneInput {
     shape: "Cercle" | "Croix" | "Ligne" | "Cône" | "Perpend" | "Rectangle" | "Point" | "Inconnue";
@@ -258,12 +263,25 @@ export function spellZoneCells(opts: {
                 }
                 break;
             case "Croix":
-            case "Perpend":
                 for (let i = -size; i <= size; i++) {
                     add(target.x + i, target.y);
                     add(target.x, target.y + i);
                 }
                 break;
+            case "Perpend": {
+                // « Ligne perpendiculaire » : la ligne passe par la case VISÉE et court
+                // perpendiculairement au lancer — axe sur lequel le lancer progresse le moins.
+                // `param1` = 1 ⇒ 3 cases (case visée ± 1), mesure Vague à Lame 12794.
+                const dx = target.x - caster.x;
+                const dy = target.y - caster.y;
+                if (dx === 0 && dy === 0) break; // auto-ciblage : aucune orientation mesurable
+                if (Math.abs(dx) >= Math.abs(dy)) {
+                    for (let i = -size; i <= size; i++) add(target.x, target.y + i);
+                } else {
+                    for (let i = -size; i <= size; i++) add(target.x + i, target.y);
+                }
+                break;
+            }
             case "Ligne":
                 if (dU !== 0 || dV !== 0) {
                     for (let i = 1; i <= size; i++) {
@@ -297,7 +315,6 @@ export function spellZoneCells(opts: {
             }
             break;
         case "Croix":
-        case "Perpend":
             for (let i = -size; i <= size; i++) {
                 const p1 = losToXY(t.x + i, t.y);
                 const p2 = losToXY(t.x, t.y + i);
@@ -305,6 +322,25 @@ export function spellZoneCells(opts: {
                 add(p2.x, p2.y);
             }
             break;
+        case "Perpend": {
+            // Voir `spellZoneCells` (grille libre) : ligne perpendiculaire au lancer, `param1` = 1
+            // ⇒ 3 cases (mesure Vague à Lame 12794, gabarit DofusDB `T` = 84).
+            const dU = t.x - c.x;
+            const dV = t.y - c.y;
+            if (dU === 0 && dV === 0) break;
+            if (Math.abs(dU) >= Math.abs(dV)) {
+                for (let i = -size; i <= size; i++) {
+                    const p = losToXY(t.x, t.y + i);
+                    add(p.x, p.y);
+                }
+            } else {
+                for (let i = -size; i <= size; i++) {
+                    const p = losToXY(t.x + i, t.y);
+                    add(p.x, p.y);
+                }
+            }
+            break;
+        }
         case "Ligne": {
             const dU = t.x - c.x;
             const dV = t.y - c.y;

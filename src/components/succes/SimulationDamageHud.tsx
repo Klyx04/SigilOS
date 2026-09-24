@@ -60,6 +60,83 @@ export interface SimulationDamageHudSpell {
     maxRange?: number;
 }
 
+/**
+ * **Anti-chevauchement des pastilles** de dégâts.
+ *
+ * 🎯 Retour user (22/09/2026, verbatim) : « regarde les bugs d'affichage superposé c bc trop laid ·
+ * j'en ai par dessus la tête · une case vide visée ne doit rien afficher ».
+ *
+ * Les pastilles étaient posées **une par une** (`damageBadgePlacement`, bornée au cadre) : deux
+ * cibles voisines pouvaient donc se recouvrir, et celle de la case visée recouvrait celle de
+ * l'allié (défaut visible en capture). Ici la passe est **globale** et pure : chaque boîte garde son
+ * placement nominal tant qu'elle ne touche personne, sinon elle **glisse vers le haut** (elle reste
+ * au-dessus de sa case), et **vers le bas** seulement si le cadre est déjà plein — jamais dehors.
+ */
+export interface DamageBadgeInput {
+    /** Clé stable de la cible (celle de `damageTargets`). */
+    key: string;
+    /** Position écran de la CASE visée par la pastille (source unique : `cellScreenPos`). */
+    sx: number;
+    sy: number;
+    /** Boîte déduite du contenu (`damageBadgeWidth` + hauteur des lignes). */
+    width: number;
+    height: number;
+}
+
+export interface DamageBadgePlacement extends DamageBadgeInput {
+    /** Coin haut-gauche RÉEL de la pastille (borné au cadre, sans chevauchement). */
+    x: number;
+    y: number;
+    /** Posée au-dessus de sa case (sinon en dessous). */
+    above: boolean;
+    /** Décalage vertical appliqué par l'anti-chevauchement (0 = place nominale). */
+    shifted: number;
+}
+
+export function damageBadgeLayout(
+    boxes: DamageBadgeInput[],
+    frame: { viewX: number; viewY: number; viewW: number; viewH: number },
+    gap = 4
+): DamageBadgePlacement[] {
+    const laid: DamageBadgePlacement[] = boxes.map((box) => {
+        const place = damageBadgePlacement({
+            sx: box.sx,
+            sy: box.sy,
+            boxW: box.width,
+            boxH: box.height,
+            ...frame,
+        });
+        return { ...box, x: place.x, y: place.y, above: place.above, shifted: 0 };
+    });
+
+    /** Deux boîtes se touchent-elles (une `y` candidate pour `a`) ? */
+    const overlaps = (a: DamageBadgePlacement, ay: number, b: DamageBadgePlacement) =>
+        a.x < b.x + b.width + gap &&
+        a.x + a.width + gap > b.x &&
+        ay < b.y + b.height + gap &&
+        ay + a.height + gap > b.y;
+
+    // Pose de haut en bas : la pastille la plus haute garde sa place, les suivantes s'écartent.
+    const placed: DamageBadgePlacement[] = [];
+    for (const box of [...laid].sort((a, b) => a.y - b.y || a.x - b.x)) {
+        let y = box.y;
+        let guard = 0;
+        while (guard++ < 32 && placed.some((p) => overlaps(box, y, p))) y -= box.height + gap;
+        if (y < frame.viewY) {
+            // Plus de place au-dessus : on redescend, en restant DANS le cadre.
+            y = box.y;
+            guard = 0;
+            while (guard++ < 32 && placed.some((p) => overlaps(box, y, p))) y += box.height + gap;
+            y = Math.max(frame.viewY, Math.min(y, frame.viewY + frame.viewH - box.height));
+        }
+        box.shifted = Math.round(y - box.y);
+        box.y = y;
+        placed.push(box);
+    }
+
+    return laid;
+}
+
 interface SimulationDamageHudProps {
     /** Lignes de dégâts du sort, telles que servies par le serveur (une par élément). */
     lines: SpellDamageLine[];
@@ -82,6 +159,12 @@ interface SimulationDamageHudProps {
     spell?: SimulationDamageHudSpell | null;
     /** Fermeture du panneau (l'option « Dégâts estimés » repasse à faux). */
     onClose?: () => void;
+    /**
+     * Classes du conteneur — permet de le poser **dans un rail** (modale plein écran) plutôt que
+     * de le laisser flotter sur le plateau : `w-full max-h-none` remplace alors `w-60 max-h-full`
+     * (mergé par `cn`, donc la dernière classe gagne). Aucune géométrie recopiée.
+     */
+    className?: string;
 }
 
 /**
@@ -204,6 +287,7 @@ export function SimulationDamageHud({
     perTarget = [],
     spell = null,
     onClose,
+    className,
 }: SimulationDamageHudProps) {
     const { t } = useI18n();
     const simT = t.tacticalSim;
@@ -234,7 +318,8 @@ export function SimulationDamageHud({
                 "pointer-events-auto ml-auto w-60 min-w-0 max-w-full space-y-1.5 overflow-y-auto rounded-xl border p-2 shadow-xl",
                 "max-h-full",
                 isBoard ? "border-white/15 bg-[#121218]/95 backdrop-blur-md" : "border-border bg-popover",
-                scroll
+                scroll,
+                className
             )}
         >
             {/* En-tête : identité du panneau + fermeture (l'option « Dégâts estimés » repasse à faux). */}

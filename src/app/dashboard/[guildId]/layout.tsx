@@ -216,20 +216,21 @@ export default async function DashboardLayout({
 
     // 2e modale (optionnel) : onboarding complet mais modules non configurés.
     // Requête légère (1 ligne) uniquement pour les admins concernés.
+    // 🔁 22/09/2026 — la règle vit désormais dans `onboarding-gating` (`shouldPromptOptionalNextSteps`,
+    // testée) : la liste de clés était **recopiée et périmée** ici (14 modules du registre manquants)
+    // et `admin` (panneau de config, actif par construction) faisait échouer la condition, si bien
+    // que la modale ne pouvait jamais s'afficher pour une guilde qui venait d'être activée.
     let showOptionalPrompt = false;
     if (user.isOnboardingComplete && user.isAdmin && !user.isSuperAdmin) {
         try {
+            const { shouldPromptOptionalNextSteps } = await import("@/lib/onboarding-gating");
             const modulesRow = await db.guildConfig.findUnique({
                 where: { discordGuildId: guildId },
                 select: { modules: true },
             });
-            const mods = (modulesRow as any)?.modules as Record<string, unknown> | null;
-            const COUNTED_KEYS = [
-                "presentation", "roster", "stats", "calendar", "missions", "songes",
-                "ocre", "ladder", "services", "donjons", "profile", "docs", "polls",
-                "admin",
-            ];
-            showOptionalPrompt = !!mods && !COUNTED_KEYS.some((k) => (mods as any)[k] === true);
+            showOptionalPrompt = shouldPromptOptionalNextSteps(
+                ((modulesRow as any)?.modules ?? null) as Record<string, unknown> | null,
+            );
         } catch { /* pas de prompt en cas de doute */ }
     }
     const needMandatoryOnboarding = !user.isOnboardingComplete && user.isDiscordAdmin && !user.isSuperAdmin;

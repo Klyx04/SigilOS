@@ -1450,108 +1450,89 @@ export default function LeafletMapCore(props: LeafletMapCoreProps) {
                         }
                     }}
                     className={cn(
-                        "absolute bottom-5 left-1/2 -translate-x-1/2 z-[1000] bg-[#020510]/95 backdrop-blur-2xl border-2 border-white/15 hover:border-white/25 rounded-2xl shadow-[0_24px_60px_rgba(0,0,0,0.95)] pointer-events-auto transition-all duration-200 flex items-center max-w-[96vw]",
-                        isOverlay
-                            ? "p-1.5 px-2 gap-2 scale-[0.82] origin-bottom"
-                            : "p-3 px-4 sm:px-5 gap-4"
+                        "absolute bottom-5 left-1/2 -translate-x-1/2 z-[1000] pointer-events-auto flex max-w-[96vw] items-center gap-2.5 rounded-xl border border-white/10 bg-[#05070f]/95 p-2.5 shadow-[0_16px_40px_rgba(0,0,0,0.85)] backdrop-blur-xl"
                     )}
                 >
-                    {/* 1. Miniature HD de la tuile survolée (agrandie pour bien voir les détails) */}
-                    <div 
-                        className={cn(
-                            "relative rounded-xl overflow-hidden border border-white/20 bg-black/80 shrink-0 shadow-lg group",
-                            isOverlay
-                                ? "w-28 h-20 cursor-default"
-                                : "w-36 h-24 sm:w-48 sm:h-32 cursor-pointer"
-                        )}
-                        title={isOverlay ? "Aperçu HD" : "Cliquer pour analyser cette tuile"}
-                        onClick={isOverlay ? undefined : () => {
+                    {/* 1. Aperçu HD de la tuile survolée (clic = Analyser) */}
+                    <div
+                        className="relative h-24 w-36 shrink-0 cursor-pointer overflow-hidden rounded-lg border border-white/10 bg-black/60 hover:border-white/25 sm:h-28 sm:w-44"
+                        title="Cliquer pour analyser cette tuile"
+                        onClick={() => {
                             const btn = document.getElementById('sigil-map-hover-analyze-btn') as HTMLButtonElement | null;
                             if (btn) btn.click();
                         }}
                     >
-                        <img 
-                            id="sigil-map-hover-img" 
+                        <img
+                            id="sigil-map-hover-img"
                             alt="Aperçu HD"
-                            className={cn(
-                                "w-full h-full object-cover transition-transform duration-300",
-                                !isOverlay && "group-hover:scale-105"
-                            )}
+                            className="h-full w-full object-cover"
                             onError={(e) => {
                                 (e.target as HTMLImageElement).src = '/assets/dofus/map-layers/icon-dungeon-bright.png';
                             }}
                         />
-                        <div className="absolute top-1.5 left-1.5 px-2 py-0.5 rounded-md bg-black/80 backdrop-blur-sm border border-white/20 text-[9px] font-black uppercase text-amber-400 tracking-wider shadow">
-                            HD MAP
-                        </div>
+                        <span className="absolute bottom-1 left-1 rounded bg-black/70 px-1.5 py-0.5 text-[10px] font-medium text-white/70">
+                            Aperçu HD
+                        </span>
                     </div>
 
-                    {/* 2. Zone & Coordonnées (affichage complet sans troncature agressive) */}
-                    <div className="flex flex-col justify-center min-w-[150px] max-w-[320px] shrink-0">
-                        <span id="sigil-map-hover-zone" className="text-white font-black text-sm sm:text-base uppercase tracking-tight leading-snug whitespace-nowrap overflow-hidden text-ellipsis"></span>
-                        <div className="flex items-center gap-2 mt-1 whitespace-nowrap">
-                            <span id="sigil-map-hover-world" className="text-white/50 font-bold text-[10px] uppercase tracking-wider shrink-0"></span>
-                            <span className="w-1 h-1 rounded-full bg-white/20 shrink-0" />
-                            <div className="inline-flex items-center gap-1 bg-emerald-500/10 px-2 py-0.5 rounded-lg border border-emerald-500/30 shadow-sm shrink-0 whitespace-nowrap">
-                                <Rocket size={10} className="text-emerald-400 shrink-0" />
-                                <span id="sigil-map-hover-coords" className="text-emerald-400 font-mono font-black text-xs tracking-tight whitespace-nowrap"></span>
-                            </div>
-                        </div>
-                        {/* Badge Case fixée au clic */}
-                        <div id="sigil-map-hover-pinned-badge" style={{ display: 'none' }} className="items-center gap-1 mt-1.5 px-2 py-0.5 rounded-md bg-amber-500/20 border border-amber-500/40 text-amber-400 text-[10px] font-black uppercase tracking-wider w-fit">
-                            <Pin size={10} />
-                            <span>Case fixée</span>
-                        </div>
-                    </div>
+                    <div className="h-8 w-px shrink-0 bg-white/10" />
 
-                    {/* Séparateur discret */}
-                    <div className="w-px h-14 bg-white/10 shrink-0" />
-
-                    {/* 3. Zaap le plus proche */}
-                    <div id="sigil-map-hover-zaap-container" className="flex items-center gap-2.5 shrink-0">
-                        <div className="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/25 flex items-center justify-center shrink-0 shadow-inner">
-                            <img src="/assets/dofus/map-layers/icon-zaap-bright.png" alt="Zaap" className="w-5 h-5 object-contain drop-shadow-[0_0_8px_rgba(245,158,11,0.6)]" />
-                        </div>
-                        <div className="flex flex-col min-w-0 max-w-[220px]">
-                            <span className="text-[10px] font-black uppercase tracking-wider text-white/40 leading-none">Zaap proche</span>
-                            <div className="flex items-center gap-1.5 mt-1 whitespace-nowrap">
-                                <span id="sigil-map-hover-zaap-name" className="text-white font-bold text-xs truncate max-w-[170px]"></span>
-                                <span id="sigil-map-hover-zaap-dist" className="text-emerald-400/80 font-bold text-[10px] shrink-0"></span>
-                            </div>
-                        </div>
-                        <button
-                            id="sigil-map-hover-zaap-btn"
-                            type="button"
-                            className="px-2.5 py-1.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500 text-emerald-400 hover:text-black border border-emerald-500/40 text-[11px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all active:scale-95 cursor-pointer shrink-0 shadow-sm"
-                            title="Copier la commande /travel vers ce Zaap"
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                const btn = e.currentTarget as HTMLButtonElement;
-                                const zx = btn.dataset.zaapX;
-                                const zy = btn.dataset.zaapY;
-                                if (zx && zy) {
-                                    const cmd = `/travel ${zx} ${zy}`;
-                                    navigator.clipboard.writeText(cmd);
-                                    toast.success(`${cmd} copié !`, { icon: '📍' });
-                                }
-                            }}
+                    {/* 2. Une seule rangée : zone, monde, coordonnées, case fixée, Zaap */}
+                    <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+                        <span id="sigil-map-hover-zone" className="max-w-[220px] truncate text-sm font-semibold text-white" />
+                        <span className="inline-flex h-7 shrink-0 items-center gap-1 rounded-md border border-white/10 bg-white/5 px-2 text-[11px] font-medium text-white/60">
+                            <Compass size={11} className="shrink-0 opacity-70" />
+                            <span id="sigil-map-hover-world" />
+                        </span>
+                        <span className="inline-flex h-7 shrink-0 items-center gap-1 rounded-md border border-white/10 bg-white/5 px-2 text-[11px] font-medium text-white/60">
+                            <Rocket size={11} className="shrink-0 opacity-70" />
+                            <span id="sigil-map-hover-coords" className="font-mono text-white/90" />
+                        </span>
+                        <span
+                            id="sigil-map-hover-pinned-badge"
+                            style={{ display: 'none' }}
+                            className="h-7 shrink-0 items-center gap-1 rounded-md border border-white/15 bg-white/10 px-2 text-[11px] font-medium text-white/80"
                         >
-                            <Copy size={12} />
-                            <span>/travel</span>
-                        </button>
+                            <Pin size={11} className="shrink-0" />
+                            Case fixée
+                        </span>
+                        <div id="sigil-map-hover-zaap-container" className="flex shrink-0 items-center gap-1.5">
+                            <span className="inline-flex h-7 items-center gap-1.5 rounded-md border border-white/10 bg-white/5 px-2 text-[11px] font-medium text-white/60">
+                                <img src="/assets/dofus/map-layers/icon-zaap-bright.png" alt="Zaap" className="h-3.5 w-3.5 shrink-0 object-contain" />
+                                <span className="text-white/45">Zaap</span>
+                                <span id="sigil-map-hover-zaap-name" className="max-w-[160px] truncate text-white/90" />
+                                <span id="sigil-map-hover-zaap-dist" className="text-white/45" />
+                            </span>
+                            <button
+                                id="sigil-map-hover-zaap-btn"
+                                type="button"
+                                className="inline-flex h-7 shrink-0 items-center gap-1 rounded-md border border-white/10 bg-white/5 px-2 text-[11px] font-medium text-white/70 transition-colors hover:bg-white/10 hover:text-white cursor-pointer"
+                                title="Copier la commande /travel vers ce Zaap"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    const btn = e.currentTarget as HTMLButtonElement;
+                                    const zx = btn.dataset.zaapX;
+                                    const zy = btn.dataset.zaapY;
+                                    if (zx && zy) {
+                                        const cmd = `/travel ${zx} ${zy}`;
+                                        navigator.clipboard.writeText(cmd);
+                                        toast.success(`${cmd} copié !`, { icon: '📍' });
+                                    }
+                                }}
+                            >
+                                <Copy size={11} />
+                                /travel
+                            </button>
+                        </div>
                     </div>
 
-                    {/* Séparateur discret */}
-                    <div className="w-px h-14 bg-white/10 shrink-0" />
+                    <div className="h-8 w-px shrink-0 bg-white/10" />
 
-                    {/* 4. Bouton Analyser (grand, visible, attractif) — caché en overlay */}
+                    {/* 3. Action primaire : la seule couleur de l'encart */}
                     <button
                         id="sigil-map-hover-analyze-btn"
                         type="button"
-                        className={cn(
-                            "px-5 py-3 rounded-xl bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 text-black font-black text-xs sm:text-sm uppercase italic tracking-wider flex items-center gap-2 shadow-[0_4px_20px_rgba(245,158,11,0.45)] hover:shadow-[0_6px_28px_rgba(245,158,11,0.65)] active:scale-95 transition-all cursor-pointer shrink-0",
-                            isOverlay && "hidden"
-                        )}
+                        className="inline-flex h-8 shrink-0 items-center gap-2 rounded-lg bg-amber-500 px-4 text-xs font-semibold text-black transition-colors hover:bg-amber-400 active:scale-[0.98] cursor-pointer"
                         title="Analyser les détails de la zone"
                         onClick={(e) => {
                             e.stopPropagation();
@@ -1565,17 +1546,17 @@ export default function LeafletMapCore(props: LeafletMapCoreProps) {
                             }
                         }}
                     >
-                        <Layers size={15} />
-                        <span>Analyser</span>
+                        <Layers size={14} />
+                        Analyser
                     </button>
 
-                    {/* 5. Bouton Fermer / Détacher (croix pour déverrouiller) — masqué en overlay */}
+                    {/* 4. Fermer / détacher la case fixée */}
                     <button
                         id="sigil-map-hover-close-btn"
                         type="button"
                         style={{ display: 'none' }}
                         title="Déverrouiller la case (ou appuyer sur Échap)"
-                        className={cn("w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white/50 hover:text-white flex items-center justify-center transition-colors cursor-pointer shrink-0 ml-1", isOverlay && "!hidden")}
+                        className="ml-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-white/10 text-white/50 transition-colors hover:bg-white/10 hover:text-white cursor-pointer"
                         onClick={(e) => {
                             e.stopPropagation();
                             if (setSelectedPosition) setSelectedPosition(null);

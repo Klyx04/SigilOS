@@ -2,7 +2,7 @@ import { Metadata } from "next";
 import { headers } from "next/headers";
 import Link from "next/link";
 import { notFound, permanentRedirect } from "next/navigation";
-import { ArrowLeft, Swords } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { PublicHeader } from "@/components/layout/public-header";
 import { GalacticFooter } from "@/components/layout/galactic-footer";
 import { JsonLd } from "@/components/shared/json-ld";
@@ -271,10 +271,6 @@ export default async function PublicBossDetailPage({ params }: PageProps) {
             <ArrowLeft className="w-3.5 h-3.5" />
             {locale === "en" ? "All bosses & dungeons" : "Tous les boss & donjons"}
           </Link>
-
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-border bg-surface/60 text-muted-foreground text-[11px] uppercase tracking-wider">
-            <Swords className="w-3.5 h-3.5" /> {locale === "en" ? "Tactical simulation" : "Simulation tactique"}
-          </span>
         </div>
 
         {/* Client Boss Detail Client */}

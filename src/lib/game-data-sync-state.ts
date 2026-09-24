@@ -159,6 +159,40 @@ export interface GameDataRunCounts {
     unchanged: number;
 }
 
+/**
+ * ⏱️ Âge (en minutes) à partir duquel un état `RUNNING` **sans job en file** est déclaré
+ * **périmé**. Marge large à dessein : mieux vaut afficher « En cours » un peu trop longtemps
+ * que d'effacer une passe légitime (la passe ITEMS complète dure 10-20 min).
+ *
+ * Incident mesuré le 24/09/2026 : « En cours · 0 — total inconnu · il y a 1 h » alors
+ * qu'**aucun job ne tournait** (un `jobId` déjà présent avait fait ignorer la mise en file).
+ */
+export const GAME_DATA_STALE_RUN_MINUTES: Record<GameDataDataset, number> = {
+    ITEMS: 45,
+    CATALOGUE: 30,
+    QUESTS: 20,
+    BOUNTIES: 15,
+    ANOMALY_BOSSES: 15,
+    ZONES: 15,
+    FAMILIES: 15,
+    REFERENTIALS: 15,
+    CLASS_SPELLS: 45,
+    ASSETS_WEBP: 45,
+    HARVEST: 15,
+};
+
+/** `true` si un état `RUNNING` est trop vieux pour être crédible (à confronter à la file). */
+export function isStaleRun(state: Pick<GameDataRunState, "dataset" | "status" | "startedAt">, now = Date.now()): boolean {
+    if (state.status !== "RUNNING" || !state.startedAt) return false;
+    const started = Date.parse(state.startedAt);
+    if (Number.isNaN(started)) return false;
+    const limitMs = (GAME_DATA_STALE_RUN_MINUTES[state.dataset] ?? 15) * 60_000;
+    return now - started > limitMs;
+}
+
+/** Message unique affiché quand une passe est déclarée morte (le God comprend quoi faire). */
+export const STALE_RUN_MESSAGE = "Passe interrompue : aucun job en file — relancez le siphon.";
+
 /** Pourcentage borné 0-100, `null` si le total est inconnu ou nul. */
 export function computePercent(done: number, total: number | null | undefined): number | null {
     if (total === null || total === undefined || total <= 0) return null;

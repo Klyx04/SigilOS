@@ -5,6 +5,11 @@
 > **supprimées le 20/09/2026** (`docs/arbo/ARCHIVES-TEMP-2026-09.md`) ; ils restent **intégralement**
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
+## 🧩 Session 24/09/2026 (boss) — **Encart statique « où est le donjon » sur chaque fiche boss publique** → branche `feat/boss-minimap`
+> **Demande** : encart par fiche boss avec la position du dj, image statique cliquable vers la worldmap publique.
+> **Fait** : `dungeon-minimap.ts` (pur, formule renderer à l'identique) · `DungeonMinimapCard` (1 tuile + repère, masquage seul) branché après les coordonnées dans `PublicBossDetailClient` · deep-link `/carte-du-monde` · i18n FR/EN.
+> **Preuves** : `tsc` **0** · **211 fichiers / 2 321 tests** ✓ (+4) · `eslint` **0 erreur**.
+> **Reste** : contrôle visuel bêta · fiches internes (Succès) si voulu · l'autre session (audit Discord) travaille dans le même arbre, non committée — fichiers étrangers non touchés.
 ## 🧩 Session 24/09/2026 — **Diagnostic Discord : onglet `?tab=diagnostic` dans /admin/pilotage — vérification bot, permissions, guide de setup** · branche `feat/discord-guild-audit`
 > **Demande user** : audit automatisé du Discord de la guilde depuis /admin/pilotage — vérifier que le bot a les bons accès/permissions pour chaque module actif, proposer un guide si quelque chose manque.
 > **Fait** : `src/server/actions/discord-guild-audit-actions.ts` (19 capacités, 13 modules) : calcul permissions effectives avec overwrites de canal, check hiérarchie de rôles, check permissions globales du bot (SEND_MESSAGES, EMBED_LINKS, MANAGE_ROLES, MANAGE_CHANNELS), champ `ChannelSuggestion` (type, nom suggéré, étapes) par capacité sans canal ; `src/app/dashboard/[guildId]/admin/pilotage/pilotage-discord-diagnostic.tsx` : cartes setup déroulées (guide inline), rate limit 30s avec compte à rebours, localStorage (rapport restauré), tri bloqués → à configurer → warnings → OK ; 5ème onglet `?tab=diagnostic` dans `pilotage/page.tsx`.

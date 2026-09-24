@@ -67,7 +67,12 @@ export default async function GuidePage({ params }: { params: Promise<{ slug: st
     const meta = getGuideBySlug(slug, locale);
     const content = await getGuideContent(slug, locale);
 
-    if (!meta || !content) {
+    // Un BROUILLON n'est pas une page publique : il doit répondre une **vraie 404**, et non servir
+    // son contenu complet en 200 sous la seule protection d'un `noindex` (un `noindex` n'empêche ni
+    // la lecture ni la copie, et l'URL reste connue de Google — constat du 24/09/2026).
+    // `getGuideContent()` ne filtre pas les brouillons : la garde est donc ici, au même endroit que
+    // la résolution du slug, pour que l'URL directe soit traitée comme inexistante.
+    if (!meta || !content || meta.draft) {
         notFound();
     }
 

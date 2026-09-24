@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { getGuildSlug, getIndexableGuildSegment } from "@/lib/presentation-constants";
+import { resolveAppBaseUrl } from "@/lib/utils";
 
 /**
  * SEO — non-régression des correctifs du 21/09/2026 (constat Search Console) :
@@ -82,6 +83,53 @@ describe("sitemap — segment de guilde indexable", () => {
         expect(code).not.toMatch(/\/guilds\/\$\{guild\.discordGuildId\}/);
         expect(code).toMatch(/almanaxItems\.slice\(0, ALMANAX_SITEMAP_DAYS\)/);
         expect(code).toMatch(/const ALMANAX_SITEMAP_DAYS = 7;/);
+    });
+});
+
+describe("sitemap — les dates de modification sont honnêtes", () => {
+    it("aucune route statique ne publie `lastModified` (plus de `new Date()` par requête)", () => {
+        const src = codeOf(SITEMAP);
+        const start = src.indexOf("const staticRoutes");
+        const end = src.indexOf("];", start);
+        expect(start).toBeGreaterThan(-1);
+        expect(end).toBeGreaterThan(start);
+
+        // Ces 15 routes n'ont pas de date de modification connue : publier `now` faisait croire à
+        // Google qu'elles changeaient à chaque passage du robot (constat 21/09 puis 24/09/2026).
+        expect(src.slice(start, end)).not.toMatch(/lastModified/);
+
+        // Le reste du sitemap continue de publier des dates VRAIES (registre des guides, base).
+        expect(src).toMatch(/lastModified: new Date\(guide\.updatedAt\)/);
+        expect(src).toMatch(/lastModified: guild\.updatedAt/);
+    });
+});
+
+describe("origine publique — la configuration, jamais l'en-tête `Host`", () => {
+    it("priorité : NEXT_PUBLIC_APP_URL > NEXTAUTH_URL > repli prod", () => {
+        expect(resolveAppBaseUrl({
+            NEXT_PUBLIC_APP_URL: "https://exemple.test",
+            NEXTAUTH_URL: "https://beta.sigilos.fr",
+        })).toEqual({ url: "https://exemple.test", configured: true });
+
+        expect(resolveAppBaseUrl({ NEXTAUTH_URL: "https://beta.sigilos.fr" }))
+            .toEqual({ url: "https://beta.sigilos.fr", configured: true });
+
+        // Tout autre environnement (préprod, test) est pris tel quel : c'est ce qui évite qu'un
+        // site annexe publie des canonical vers sigilos.fr.
+        expect(resolveAppBaseUrl({ NEXTAUTH_URL: "https://preprod.exemple.test" }))
+            .toEqual({ url: "https://preprod.exemple.test", configured: true });
+
+        // Aucune configuration : dernier recours explicite, signalé par un `warn` (plus de silence).
+        expect(resolveAppBaseUrl({})).toEqual({ url: "https://sigilos.fr", configured: false });
+    });
+
+    it("une valeur vide (espaces) n'est pas une configuration", () => {
+        expect(resolveAppBaseUrl({ NEXT_PUBLIC_APP_URL: "   " }).configured).toBe(false);
+        expect(resolveAppBaseUrl({ NEXTAUTH_URL: "  " }).configured).toBe(false);
+    });
+
+    it("`utils.ts` ne lit jamais l'en-tête entrant `Host`", () => {
+        expect(codeOf("src/lib/utils.ts")).not.toMatch(/next\/headers|headers\(\)/);
     });
 });
 

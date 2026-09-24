@@ -24,23 +24,29 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const baseUrl = getAppBaseUrl();
     const now = new Date();
 
-    // 1. Static public routes (indexable, 200, pas de zone privée ni 404)
+    // 1. Routes publiques statiques (indexables, 200, aucune zone privée ni 404).
+    // ⚠️ AUCUN `lastModified` sur ces routes : leur date de modification réelle n'est pas connue, et
+    // publier `new Date()` à chaque requête (l'ancien `now`) annonçait une modification **à chaque
+    // passage du robot**, sans qu'une seule ligne de contenu ait bougé. Google finit par ignorer un
+    // `lastmod` non fiable (constat 21/09/2026, reconfirmé le 24/09 : « utiliser leur véritable date
+    // de modification, pas `new Date()` »). Une date n'est publiée que là où elle est **vraie** :
+    // guides (registre), guildes et boss (base), almanax/status (données quotidiennes).
     const staticRoutes: MetadataRoute.Sitemap = [
-        { url: `${baseUrl}/`, lastModified: now, changeFrequency: "weekly", priority: 1 },
-        { url: `${baseUrl}/modules`, lastModified: now, changeFrequency: "weekly", priority: 0.9 },
-        { url: `${baseUrl}/carte-du-monde`, lastModified: now, changeFrequency: "weekly", priority: 0.9 },
-        { url: `${baseUrl}/guides/rush-sylvestre`, lastModified: now, changeFrequency: "weekly", priority: 0.9 },
-        { url: `${baseUrl}/boss`, lastModified: now, changeFrequency: "weekly", priority: 0.8 },
-        { url: `${baseUrl}/almanax`, lastModified: now, changeFrequency: "daily", priority: 0.9 },
-        { url: `${baseUrl}/raids`, lastModified: now, changeFrequency: "weekly", priority: 0.9 },
-        { url: `${baseUrl}/guilds`, lastModified: now, changeFrequency: "weekly", priority: 0.8 },
-        { url: `${baseUrl}/guides`, lastModified: now, changeFrequency: "weekly", priority: 0.8 },
-        { url: `${baseUrl}/changelog`, lastModified: now, changeFrequency: "weekly", priority: 0.5 },
-        { url: `${baseUrl}/status`, lastModified: now, changeFrequency: "daily", priority: 0.3 },
-        { url: `${baseUrl}/legal/faq`, lastModified: now, changeFrequency: "monthly", priority: 0.6 },
-        { url: `${baseUrl}/legal/cgu`, lastModified: now, changeFrequency: "monthly", priority: 0.2 },
-        { url: `${baseUrl}/legal/mentions`, lastModified: now, changeFrequency: "monthly", priority: 0.2 },
-        { url: `${baseUrl}/legal/privacy`, lastModified: now, changeFrequency: "monthly", priority: 0.2 },
+        { url: `${baseUrl}/`, changeFrequency: "weekly", priority: 1 },
+        { url: `${baseUrl}/modules`, changeFrequency: "weekly", priority: 0.9 },
+        { url: `${baseUrl}/carte-du-monde`, changeFrequency: "weekly", priority: 0.9 },
+        { url: `${baseUrl}/guides/rush-sylvestre`, changeFrequency: "weekly", priority: 0.9 },
+        { url: `${baseUrl}/boss`, changeFrequency: "weekly", priority: 0.8 },
+        { url: `${baseUrl}/almanax`, changeFrequency: "daily", priority: 0.9 },
+        { url: `${baseUrl}/raids`, changeFrequency: "weekly", priority: 0.9 },
+        { url: `${baseUrl}/guilds`, changeFrequency: "weekly", priority: 0.8 },
+        { url: `${baseUrl}/guides`, changeFrequency: "weekly", priority: 0.8 },
+        { url: `${baseUrl}/changelog`, changeFrequency: "weekly", priority: 0.5 },
+        { url: `${baseUrl}/status`, changeFrequency: "daily", priority: 0.3 },
+        { url: `${baseUrl}/legal/faq`, changeFrequency: "monthly", priority: 0.6 },
+        { url: `${baseUrl}/legal/cgu`, changeFrequency: "monthly", priority: 0.2 },
+        { url: `${baseUrl}/legal/mentions`, changeFrequency: "monthly", priority: 0.2 },
+        { url: `${baseUrl}/legal/privacy`, changeFrequency: "monthly", priority: 0.2 },
     ];
 
     // 2. Guildes publiques : uniquement celles qui ont explicitement activé

@@ -133,8 +133,16 @@ export async function startGameDataSyncInBackground(
                 error: "Aucun worker en arrière-plan n'écoute la file — utilisez « ▶ Ici » (dans cet onglet) ou démarrez le worker.",
             };
         }
-        const jobId = await enqueueGameDataSync(dataset, { incremental: options.incremental });
-        if (!jobId) {
+        const { jobId, outcome } = await enqueueGameDataSync(dataset, { incremental: options.incremental });
+        if (outcome === "already-running") {
+            // ⚠️ Ne PAS écrire « En cours » ici : ce serait mentir (incident du 24/09/2026 —
+            // un `jobId` déjà présent faisait afficher « En cours » sans qu'aucun job ne tourne).
+            return {
+                success: false,
+                error: "Un siphon tourne déjà pour ce dataset (ou attend en file) — patientez.",
+            };
+        }
+        if (outcome === "unavailable" || !jobId) {
             return { success: false, error: "File indisponible (Redis) — utilisez « ▶ Ici »." };
         }
         await beginGameDataRun(dataset, {

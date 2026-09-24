@@ -114,7 +114,10 @@ describe("game-data — siphons en arrière-plan (file + worker)", () => {
     it("la file est nommée, idempotente par dataset, et n'accepte que les cœurs `lib`", () => {
         const queue = read("src/lib/queue/game-data-queue.ts");
         expect(queue).toContain('GAME_DATA_QUEUE_NAME = "game-data-sync"');
-        expect(queue).toContain("jobId: `game-data-${dataset}`");
+        // Idempotence par dataset : l'id est dérivé du dataset (extrait dans une constante
+        // depuis la session 22, pour pouvoir libérer un id bloqué par un job échoué).
+        expect(queue).toContain("const jobId = `game-data-${dataset}`");
+        expect(queue).toContain("{ jobId }");
         expect(queue).toContain("attempts: 3");
         expect(queue).toContain("backoff");
         const state = read("src/lib/game-data-sync-state.ts");

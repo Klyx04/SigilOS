@@ -7,7 +7,7 @@ import { getUserContext, type ActionResponse } from "./user-actions";
 import { z } from "zod";
 import { createAuditLog } from "./audit-actions";
 import { differenceInDays } from "date-fns";
-import { ANKAMA_ID_PATTERN } from "@/lib/member-registry";
+import { ANKAMA_ID_PATTERN, MAX_REGISTRY_COMMENTS, REGISTRY_COMMENT_MAX_LENGTH, canAddRegistryComment, type RegistryComment } from "@/lib/member-registry";
 
 // ==========================================
 // TYPES
@@ -46,7 +46,8 @@ export interface LifecycleMemberSummary {
     departureReason: string | null;
     departureCategory: string | null;
     archivedAt: string | null;
-    staffNotes: string | null;
+    /** Commentaires du staff, du plus ancien au plus récent (10 max). */
+    comments: RegistryComment[];
     discordMessageCountWeekly: number;
     discordVoiceTimeWeekly: number;
 }
@@ -128,7 +129,11 @@ const registryIdentitySchema = z.object({
             message: "Tag Ankama invalide (format Nom#0000)",
         }),
     guildJoinedAt: z.string().datetime().nullable().optional(),
-    staffNotes: z.string().max(2000).nullable().optional(),
+});
+
+const registryCommentSchema = z.object({
+    profileId: z.string().min(1),
+    body: z.string().trim().min(1, "Commentaire vide").max(REGISTRY_COMMENT_MAX_LENGTH),
 });
 
 const altsSchema = z.object({
@@ -199,7 +204,11 @@ export async function getGuildLifecycleData(guildId: string): Promise<ActionResp
                 archivedAt: true,
                 departureReason: true,
                 departureCategory: true,
-                staffNotes: true,
+                registryComments: {
+                    select: { id: true, body: true, authorName: true, authorUserId: true, createdAt: true },
+                    orderBy: { createdAt: "asc" },
+                    take: MAX_REGISTRY_COMMENTS,
+                },
                 trialEndsAt: true,
                 recruitedById: true,
                 altPseudos: true,
@@ -284,7 +293,13 @@ export async function getGuildLifecycleData(guildId: string): Promise<ActionResp
                 departureReason: p.departureReason,
                 departureCategory: p.departureCategory,
                 archivedAt: p.archivedAt ? p.archivedAt.toISOString() : null,
-                staffNotes: p.staffNotes,
+                comments: p.registryComments.map((c) => ({
+                    id: c.id,
+                    body: c.body,
+                    authorName: c.authorName,
+                    authorUserId: c.authorUserId,
+                    createdAt: c.createdAt.toISOString(),
+                })),
                 discordMessageCountWeekly: p.discordMessageCountWeekly || 0,
                 discordVoiceTimeWeekly: p.discordVoiceTimeWeekly || 0,
             };
@@ -729,19 +744,25 @@ export async function updateMemberAlts(
 }
 
 /**
- * Met à jour les notes privées du staff sur un membre.
+ * Ajoute un commentaire du staff au registre d'un membre : horodaté et signé.
+ * Le plafond (10 par membre) est revérifié en base juste avant l'écriture —
+ * jamais déduit de l'écran.
  */
-export async function updateMemberStaffNotes(
+export async function addMemberRegistryComment(
     guildId: string,
-    profileId: string,
-    staffNotes: string
-): Promise<ActionResponse<{ message: string }>> {
+    input: z.infer<typeof registryCommentSchema>
+): Promise<ActionResponse<{ message: string; comment: RegistryComment }>> {
     const session = await auth();
     if (!session?.user?.id) return { success: false, error: "Non authentifié" };
 
     const ctx = await getUserContext(guildId);
     if (!ctx.isAdmin && !ctx.canManageMembers) {
         return { success: false, error: "Permission 'Gérer les membres' requise" };
+    }
+
+    const validated = registryCommentSchema.safeParse(input);
+    if (!validated.success) {
+        return { success: false, error: validated.error.errors[0]?.message || "Commentaire invalide" };
     }
 
     try {
@@ -751,15 +772,46 @@ export async function updateMemberStaffNotes(
         });
         if (!guild) return { success: false, error: "Guilde introuvable" };
 
-        await db.userProfile.update({
-            where: { id: profileId, guildId: guild.id },
-            data: { staffNotes: staffNotes.slice(0, 2000) }
+        const profile = await db.userProfile.findFirst({
+            where: { id: validated.data.profileId, guildId: guild.id },
+            select: { id: true, _count: { select: { registryComments: true } } }
+        });
+        if (!profile) return { success: false, error: "Profil membre introuvable" };
+        if (!canAddRegistryComment(profile._count.registryComments)) {
+            return { success: false, error: `Maximum ${MAX_REGISTRY_COMMENTS} commentaires par membre` };
+        }
+
+        const created = await db.memberRegistryComment.create({
+            data: {
+                guildId: guild.id,
+                profileId: profile.id,
+                authorUserId: session.user.id,
+                authorName: ctx.name || "Staff",
+                body: validated.data.body,
+            },
+            select: { id: true, body: true, authorName: true, authorUserId: true, createdAt: true }
         });
 
-        return { success: true, data: { message: "Notes enregistrées" } };
-    } catch (err: any) {
-        logger.error("[updateMemberStaffNotes] Erreur:", err);
-        return { success: false, error: "Erreur lors de la mise à jour des notes" };
+        await createAuditLog({
+            guildId: guild.id,
+            actorUserId: session.user.id,
+            actorName: ctx.name || "Staff",
+            action: "SETTINGS_UPDATED",
+            targetType: "USER_PROFILE",
+            targetId: profile.id,
+            metadata: { source: "registre", kind: "registry_comment", commentId: created.id },
+        });
+
+        return {
+            success: true,
+            data: {
+                message: "Commentaire ajouté",
+                comment: { ...created, createdAt: created.createdAt.toISOString() },
+            },
+        };
+    } catch (err: unknown) {
+        logger.error("[addMemberRegistryComment] Erreur:", err);
+        return { success: false, error: "Erreur lors de l'ajout du commentaire" };
     }
 }
 
@@ -794,7 +846,7 @@ export async function updateMemberRegistryIdentity(
 
         const profile = await db.userProfile.findFirst({
             where: { id: validated.data.profileId, guildId: guild.id },
-            select: { id: true, pseudoDofus: true, ankamaId: true, guildJoinedAt: true, staffNotes: true }
+            select: { id: true, pseudoDofus: true, ankamaId: true, guildJoinedAt: true }
         });
         if (!profile) return { success: false, error: "Profil membre introuvable" };
 
@@ -809,9 +861,6 @@ export async function updateMemberRegistryIdentity(
         }
         if (validated.data.guildJoinedAt !== undefined) {
             data.guildJoinedAt = validated.data.guildJoinedAt ? new Date(validated.data.guildJoinedAt) : null;
-        }
-        if (validated.data.staffNotes !== undefined) {
-            data.staffNotes = validated.data.staffNotes ? validated.data.staffNotes.slice(0, 2000) : null;
         }
         if (Object.keys(data).length === 0) {
             return { success: true, data: { message: "Rien à mettre à jour" } };
@@ -830,7 +879,6 @@ export async function updateMemberRegistryIdentity(
                 pseudoDofus: profile.pseudoDofus,
                 ankamaId: profile.ankamaId,
                 guildJoinedAt: profile.guildJoinedAt,
-                staffNotes: profile.staffNotes,
             },
             newValue: data,
             metadata: { source: "registre" },

@@ -4,12 +4,18 @@
  * Registre Membres & Recrutement — le « tableur » du staff dans le module Membres.
  *
  * Une ligne = un membre. Saisie à la main : pseudo membre, pseudo Dofus, date
- * d'arrivée, tag Ankama, recruteur, essai (Oui / Non / Prolongé + date) et
- * commentaires. Calculés seuls : aujourd'hui, ancienneté. Peuplé seul :
- * l'ID Discord. Les mules combinent le déclaré (profils) et la saisie manuelle.
+ * d'arrivée, tag Ankama, recruteur, essai validé (Oui / Non / Prolongé + date).
+ * Les commentaires sont un journal : plusieurs entrées horodatées et signées
+ * (10 max), lues et ajoutées dans une modale dédiée. Calculés seuls :
+ * aujourd'hui, ancienneté. Peuplé seul : l'ID Discord et l'avatar. Les mules
+ * combinent le déclaré (profils) et la saisie manuelle.
  */
-import React, { useEffect, useMemo, useState, useTransition } from "react";
-import { Award, CheckCircle2, Clock, Copy, Download, Pencil, RefreshCw, Search, Trophy } from "lucide-react";
+import React, { useCallback, useEffect, useMemo, useState, useTransition } from "react";
+import { Award, CheckCircle2, Clock, Copy, Download, MessageSquare, Pencil, RefreshCw, Search, Trophy } from "lucide-react";
+import { MemberRegistryCommentsDialog } from "@/components/admin/members/member-registry-comments-dialog";
+import { DiscordAvatarImage } from "@/components/shared/discord-avatar-image";
+import { AsyncCombobox, type ComboboxItem } from "@/components/ui/async-combobox";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,6 +28,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import {
+    MAX_REGISTRY_COMMENTS,
     buildRegistryCsv,
     computeSeniorityDays,
     getTrialDecision,
@@ -72,15 +79,16 @@ export function MemberRegistryTable({ guildId, canManageMembers }: MemberRegistr
     const [formPseudoDofus, setFormPseudoDofus] = useState("");
     const [formAnkama, setFormAnkama] = useState("");
     const [formArrival, setFormArrival] = useState("");
-    const [formNotes, setFormNotes] = useState("");
     const [formRecruiter, setFormRecruiter] = useState("");
-    const [formRecruiterSearch, setFormRecruiterSearch] = useState("");
     const [formTrialValid, setFormTrialValid] = useState<"oui" | "non">("non");
     const [formTrialEnd, setFormTrialEnd] = useState("");
 
     // Mules : une ligne par pseudo
     const [mulesFor, setMulesFor] = useState<LifecycleMemberSummary | null>(null);
     const [mulesText, setMulesText] = useState("");
+
+    /** Commentaires : journal du membre, lu et complété dans sa modale dédiée. */
+    const [commentsFor, setCommentsFor] = useState<LifecycleMemberSummary | null>(null);
 
     const todayIso = useMemo(() => new Date().toISOString(), []);
     const todayLabel = useMemo(() => new Date().toLocaleDateString("fr-FR"), []);
@@ -145,9 +153,7 @@ export function MemberRegistryTable({ guildId, canManageMembers }: MemberRegistr
         setFormPseudoDofus(m.pseudoDofus || "");
         setFormAnkama(m.ankamaId || "");
         setFormArrival(toDateInput(m.guildJoinedAt));
-        setFormNotes(m.staffNotes || "");
         setFormRecruiter(m.recruitedById || "NONE");
-        setFormRecruiterSearch("");
         setFormTrialValid(m.trialValidated ? "oui" : "non");
         setFormTrialEnd(toDateInput(m.trialEndsAt));
     };
@@ -169,7 +175,6 @@ export function MemberRegistryTable({ guildId, canManageMembers }: MemberRegistr
                 pseudoDofus: formPseudoDofus.trim() || null,
                 ankamaId: ankama || null,
                 guildJoinedAt: fromDateInput(formArrival),
-                staffNotes: formNotes.trim() || null,
             });
             if (!res.success) {
                 toast.error(res.error || "Échec de l'enregistrement");
@@ -256,7 +261,7 @@ export function MemberRegistryTable({ guildId, canManageMembers }: MemberRegistr
                 trialEndsAt: m.trialEndsAt,
                 muleCount: m.muleCount,
                 mules: m.mules.map((a) => a.pseudo),
-                staffNotes: m.staffNotes,
+                comments: m.comments,
             })),
             guildId,
             todayIso
@@ -278,6 +283,31 @@ export function MemberRegistryTable({ guildId, canManageMembers }: MemberRegistr
             toast.error("Copie impossible");
         }
     };
+
+    /**
+     * « Recruté par » : liste locale (le registre a déjà tous les membres en
+     * mémoire) servie au combobox partagé — recherche incluse, popover thémé,
+     * pas de menu natif qui déborde de la modale.
+     */
+    const recruiterFetcher = useCallback(
+        async (query: string): Promise<ComboboxItem[]> => {
+            const q = query.trim().toLowerCase();
+            const options: ComboboxItem[] = [
+                { value: "NONE", label: "Non défini" },
+                ...(data?.members ?? [])
+                    .filter((c) => c.id !== editing?.id)
+                    .map((c) => {
+                        const label = c.discordNickname || c.pseudoDofus || c.displayName;
+                        const subLabel = c.pseudoDofus && c.pseudoDofus !== label ? c.pseudoDofus : undefined;
+                        return { value: c.id, label, subLabel };
+                    }),
+            ];
+            return options
+                .filter((o) => !q || `${o.label} ${o.subLabel ?? ""}`.toLowerCase().includes(q))
+                .slice(0, 60);
+        },
+        [data?.members, editing?.id]
+    );
 
     if (loading) return <div className="min-h-[400px] animate-pulse bg-surface/10 rounded-3xl" />;
 
@@ -320,13 +350,13 @@ export function MemberRegistryTable({ guildId, canManageMembers }: MemberRegistr
                 </div>
                 <Select value={trialFilter} onValueChange={(v) => setTrialFilter(v as TrialFilter)}>
                     <SelectTrigger className="w-full lg:w-44">
-                        <SelectValue placeholder="Essai" />
+                        <SelectValue placeholder="Essai validé" />
                     </SelectTrigger>
                     <SelectContent>
-                        <SelectItem value="ALL">Essai : tous</SelectItem>
-                        <SelectItem value="oui">Essai : oui</SelectItem>
-                        <SelectItem value="non">Essai : non</SelectItem>
-                        <SelectItem value="prolonge">Essai : prolongé</SelectItem>
+                        <SelectItem value="ALL">Essai validé : tous</SelectItem>
+                        <SelectItem value="oui">Essai validé : oui</SelectItem>
+                        <SelectItem value="non">Essai validé : non</SelectItem>
+                        <SelectItem value="prolonge">Essai validé : prolongé</SelectItem>
                     </SelectContent>
                 </Select>
                 <Select value={recruiterFilter} onValueChange={setRecruiterFilter}>
@@ -375,8 +405,9 @@ export function MemberRegistryTable({ guildId, canManageMembers }: MemberRegistr
                                 <TableHead>ID Discord</TableHead>
                                 <TableHead>Tag Ankama</TableHead>
                                 <TableHead>Recruté par</TableHead>
-                                <TableHead>Essai</TableHead>
+                                <TableHead>Essai validé</TableHead>
                                 <TableHead>Mules</TableHead>
+                                <TableHead>Commentaires</TableHead>
                                 <TableHead className="text-right">Actions</TableHead>
                             </TableRow>
                         </TableHeader>
@@ -384,10 +415,24 @@ export function MemberRegistryTable({ guildId, canManageMembers }: MemberRegistr
                             {rows.map(({ member: m, joinedAt, seniority, trial }) => (
                                 <TableRow key={m.id}>
                                     <TableCell className="font-semibold">
-                                        {m.discordNickname || m.displayName}
-                                        {m.pseudoDofus && m.pseudoDofus !== (m.discordNickname || m.displayName) && (
-                                            <span className="block text-xs font-normal text-muted-foreground">{m.pseudoDofus}</span>
-                                        )}
+                                        <div className="flex items-center gap-2.5">
+                                            <Avatar className="h-7 w-7 shrink-0 border border-border">
+                                                <DiscordAvatarImage
+                                                    src={m.avatar}
+                                                    alt={m.discordNickname || m.displayName}
+                                                    className="object-cover"
+                                                />
+                                                <AvatarFallback className="bg-elevated text-[10px] font-bold uppercase text-muted-foreground">
+                                                    {(m.discordNickname || m.displayName).slice(0, 1)}
+                                                </AvatarFallback>
+                                            </Avatar>
+                                            <div className="min-w-0">
+                                                <span className="block truncate">{m.discordNickname || m.displayName}</span>
+                                                {m.pseudoDofus && m.pseudoDofus !== (m.discordNickname || m.displayName) && (
+                                                    <span className="block text-xs font-normal text-muted-foreground">{m.pseudoDofus}</span>
+                                                )}
+                                            </div>
+                                        </div>
                                     </TableCell>
                                     <TableCell>{m.pseudoDofus || <span className="text-muted-foreground">—</span>}</TableCell>
                                     <TableCell className="whitespace-nowrap">
@@ -437,6 +482,22 @@ export function MemberRegistryTable({ guildId, canManageMembers }: MemberRegistr
                                             </button>
                                         ) : (
                                             <button onClick={() => openMules(m)} className="text-xs text-muted-foreground hover:underline">
+                                                + Ajouter
+                                            </button>
+                                        )}
+                                    </TableCell>
+                                    <TableCell>
+                                        {m.comments.length > 0 ? (
+                                            <button
+                                                onClick={() => setCommentsFor(m)}
+                                                className="inline-flex items-center gap-1.5 text-sm font-semibold hover:underline"
+                                                title="Lire le journal des commentaires"
+                                            >
+                                                <MessageSquare className="w-3.5 h-3.5" />
+                                                {m.comments.length}
+                                            </button>
+                                        ) : (
+                                            <button onClick={() => setCommentsFor(m)} className="text-xs text-muted-foreground hover:underline">
                                                 + Ajouter
                                             </button>
                                         )}
@@ -503,32 +564,15 @@ export function MemberRegistryTable({ guildId, canManageMembers }: MemberRegistr
                         <div className="grid grid-cols-2 gap-3">
                             <div className="space-y-1.5">
                                 <Label>Recruté par (recherche membre Discord)</Label>
-                                <Input
-                                    value={formRecruiterSearch}
-                                    onChange={(e) => setFormRecruiterSearch(e.target.value)}
-                                    placeholder="Filtrer…"
-                                    className="mb-1.5"
+                                <AsyncCombobox
+                                    value={formRecruiter}
+                                    onSelect={setFormRecruiter}
+                                    fetcher={recruiterFetcher}
+                                    placeholder="Non défini"
+                                    searchPlaceholder="Rechercher un membre…"
+                                    emptyText="Aucun membre trouvé."
+                                    initialLabel={editing?.recruiterName ?? "Non défini"}
                                 />
-                                <Select value={formRecruiter} onValueChange={setFormRecruiter}>
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Non défini" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="NONE">Non défini</SelectItem>
-                                        {data?.members
-                                            .filter((c) =>
-                                                `${c.pseudoDofus || ""} ${c.discordNickname || ""} ${c.displayName}`
-                                                    .toLowerCase()
-                                                    .includes(formRecruiterSearch.toLowerCase())
-                                            )
-                                            .slice(0, 60)
-                                            .map((c) => (
-                                                <SelectItem key={c.id} value={c.id} disabled={c.id === editing?.id}>
-                                                    {c.discordNickname || c.pseudoDofus || c.displayName}
-                                                </SelectItem>
-                                            ))}
-                                    </SelectContent>
-                                </Select>
                                 <p className="text-[11px] text-muted-foreground">
                                     Posé seul si le recruteur utilise /valider-recrue sans préciser ce champ.
                                 </p>
@@ -565,7 +609,21 @@ export function MemberRegistryTable({ guildId, canManageMembers }: MemberRegistr
                         </div>
                         <div className="space-y-1.5">
                             <Label>Commentaires</Label>
-                            <Textarea value={formNotes} onChange={(e) => setFormNotes(e.target.value)} rows={2} maxLength={2000} />
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => editing && setCommentsFor(editing)}
+                                className="w-full justify-start gap-2"
+                                disabled={!editing}
+                            >
+                                <MessageSquare className="w-3.5 h-3.5" />
+                                {editing && editing.comments.length > 0
+                                    ? `Lire le journal (${editing.comments.length}/${MAX_REGISTRY_COMMENTS})`
+                                    : "Ajouter un commentaire"}
+                            </Button>
+                            <p className="text-[11px] text-muted-foreground">
+                                Journal horodaté et signé, {MAX_REGISTRY_COMMENTS} entrées maximum.
+                            </p>
                         </div>
                     </div>
                     <DialogFooter>
@@ -597,6 +655,20 @@ export function MemberRegistryTable({ guildId, canManageMembers }: MemberRegistr
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            {/* Commentaires du registre : journal du membre + ajout (10 max) */}
+            {commentsFor && (
+                <MemberRegistryCommentsDialog
+                    guildId={guildId}
+                    profileId={commentsFor.id}
+                    memberName={commentsFor.displayName}
+                    comments={data?.members.find((m) => m.id === commentsFor.id)?.comments ?? commentsFor.comments}
+                    open
+                    onOpenChange={(open) => !open && setCommentsFor(null)}
+                    onAdded={refresh}
+                    canManageMembers={canManageMembers}
+                />
+            )}
         </div>
     );
 }

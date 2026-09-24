@@ -13,13 +13,11 @@ import {
     Info,
     LayoutGrid,
     Settings2,
-    UserCircle,
     Download,
     UserX,
     CheckCircle2,
     Calendar,
     ChevronRight,
-    ArrowUpRight,
     Trophy,
     ArrowUpDown,
     Bell,
@@ -456,7 +454,6 @@ export default function MemberManagement({
                     <TabsList className="bg-background/80 p-1.5 rounded-xl border border-border w-full sm:w-fit flex flex-wrap sm:flex-nowrap gap-1.5">
                     {[
                         { id: "audit", label: "📊 Audit Discord vs Dashboard", icon: ShieldCheck, requiresFull: true },
-                        { id: "management", label: "👥 Liste Roster & Membres", icon: UserCircle, requiresFull: true },
                         { id: "registre", label: "📋 Registre Recrutement", icon: ClipboardList, requiresFull: true },
                         { id: "blacklist", label: "🚫 Blacklist Guilde", icon: Ban, requiresFull: true },
                     ].map(tab => {
@@ -683,13 +680,12 @@ export default function MemberManagement({
                                                     <ArrowUpDown className={`w-3 h-3 ${sortConfig.key === 'hasDashboardProfile' ? 'text-success' : ''}`} />
                                                 </button>
                                             </TableHead>
-                                            <TableHead className="text-caption font-semibold uppercase text-muted-foreground tracking-wide pr-8 text-right py-6">Actions</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
                                         {loading ? (
                                             <TableRow>
-                                                <TableCell colSpan={5} className="h-96 text-center">
+                                                <TableCell colSpan={4} className="h-96 text-center">
                                                     <div className="flex flex-col items-center gap-6">
                                                         <RefreshCw className="w-10 h-10 text-muted-foreground animate-spin" />
                                                         <div className="space-y-2">
@@ -701,7 +697,7 @@ export default function MemberManagement({
                                             </TableRow>
                                         ) : paginatedAuditMembers.length === 0 ? (
                                             <TableRow>
-                                                <TableCell colSpan={5} className="h-48 text-center">
+                                                <TableCell colSpan={4} className="h-48 text-center">
                                                     <div className="flex flex-col items-center gap-2 opacity-40">
                                                         <Search className="w-8 h-8 text-muted-foreground mb-2" />
                                                         <p className="text-sm font-medium text-muted-foreground uppercase">Aucun membre autorisé trouvé</p>
@@ -792,15 +788,6 @@ export default function MemberManagement({
                                                             </div>
                                                         )}
                                                     </TableCell>
-                                                    <TableCell className="pr-8 text-right">
-                                                         {member.hasDashboardProfile ? (
-                                                             <Button variant="outline" size="sm" className="h-9 rounded-xl border-border bg-surface hover:bg-success hover:text-success-foreground hover:border-success transition-colors text-caption font-semibold uppercase tracking-wide p-0 w-9" asChild>
-                                                                 <a href={`/dashboard/${guildId}/members/${encodeURIComponent(member.slug || member.profileId || "")}`} target="_blank">
-                                                                     <ArrowUpRight className="w-4 h-4" />
-                                                                 </a>
-                                                             </Button>
-                                                         ) : null}
-                                                     </TableCell>
                                                 </TableRow>
                                             ))
                                         )}
@@ -845,30 +832,35 @@ export default function MemberManagement({
                             )}
                         </div>
 
+                        {/* Gestion des membres (ex-onglet « Liste Roster & Membres ») :
+                            la partie action vit ici, là où l’audit la motive. Statut, archivage,
+                            suppression et relances Discord. */}
+                        <div className="space-y-4">
+                            <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                                <h3 className="text-sm font-semibold uppercase tracking-wide text-foreground">Gestion des membres</h3>
+                                <p className="text-xs text-muted-foreground">
+                                    Actifs, archivés, bannis, exclus : statut du profil et actions par membre.
+                                </p>
+                            </div>
+                            <MemberStatsOverview stats={initialStats} />
+                            <div className="p-1 px-3 bg-surface/40 border border-border rounded-3xl backdrop-blur-xl overflow-hidden shadow-2xl">
+                                <MemberManagementTable
+                                    initialMembers={memberList.members}
+                                    guildId={guildId}
+                                    welcomeBadgeName={welcomeBadgeName}
+                                    isSuperAdmin={isSuperAdmin}
+                                    isAdmin={canManageMembers}
+                                    ownerId={memberList.ownerId}
+                                    currentUserId={currentUserId}
+                                    showIds={false}
+                                />
+                            </div>
+                        </div>
 
                     </div>
                 </TabsContent>
 
-                {/* --- TAB 2: MANAGEMENT --- */}
-                <TabsContent value="management" className="space-y-6 animate-in fade-in duration-150 min-h-[600px]">
-                    <p className="text-sm text-muted-foreground -mt-4">
-                        Liste des membres de la guilde : statut, arrivée, présence sur le Dashboard, archivage et relances Discord.
-                    </p>
-                    <MemberStatsOverview stats={initialStats} />
-                    <div className="p-1 px-3 bg-surface/40 border border-border rounded-3xl backdrop-blur-xl overflow-hidden shadow-2xl">
-                        <MemberManagementTable 
-                            initialMembers={memberList.members}
-                            guildId={guildId}
-                            welcomeBadgeName={welcomeBadgeName}
-                            isSuperAdmin={isSuperAdmin}
-                            isAdmin={canManageMembers}
-                            ownerId={memberList.ownerId}
-                            currentUserId={currentUserId}
-                        />
-                    </div>
-                </TabsContent>
-
-                {/* --- TAB 3: REGISTRE RECRUTEMENT (module global Membres) --- */}
+                {/* --- TAB 2: REGISTRE RECRUTEMENT (module global Membres) --- */}
                 <TabsContent value="registre" className="space-y-6 animate-in fade-in duration-150 min-h-[600px]">
                     <p className="text-sm text-muted-foreground -mt-4">
                         Registre du staff : saisie manuelle (pseudos, arrivée, tag Ankama, recruteur, essai, commentaires),
@@ -879,7 +871,7 @@ export default function MemberManagement({
                     )}
                 </TabsContent>
 
-                {/* --- TAB 4: BLACKLIST --- */}
+                {/* --- TAB 3: BLACKLIST --- */}
                 <TabsContent value="blacklist" className="space-y-6 animate-in fade-in duration-150 min-h-[600px]">
                     <p className="text-sm text-muted-foreground -mt-4">
                         Membres exclus de la guilde : blocage Dashboard et Discord, géré depuis les deux côtés.

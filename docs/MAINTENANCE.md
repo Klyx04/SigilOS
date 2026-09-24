@@ -389,6 +389,15 @@ git pull origin main
 ./scripts/deploy.sh prod
 ```
 
+> ⚠️ **AVANT la bascule sur `sigilos.fr` — retirer les 3 verrous d'indexation** (posés le
+> 24/09/2026 pour la phase bêta, où `beta.sigilos.fr` est la seule propriété indexée) :
+> ① `header X-Robots-Tag "noindex, nofollow"` dans le bloc `sigilos.fr` du `Caddyfile` ;
+> ② `<meta name="robots" content="noindex, nofollow">` dans `public/maintenance.html` ;
+> ③ le `handle /sitemap.xml` → `respond 404` du `Caddyfile` (rétablir un vrai sitemap).
+> **Oubliés, ces verrous rendraient `sigilos.fr` invisible pour toujours.** Checklist complète :
+> `docs/plans/SEO_REPRISE.md` § « CHECKLIST … OUVERTURE PROD » (point 1), garde de test :
+> `tests/unit/seo-vitrine-prod.test.ts`.
+
 > ✅ **Rien ne change** dans la façon de déployer — les commandes sont identiques.
 > La sortie est désormais **beaucoup plus claire** : build silencieux (fini les 263s de logs), résumé par étape, vérif de santé auto.
 

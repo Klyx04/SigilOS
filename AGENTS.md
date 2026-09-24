@@ -31,6 +31,7 @@ poste de travail, ni empreinte machine (chemin local, ID Discord, métadonnée d
 | Architecture, modules, pièges | `docs/CONTEXT.md` |
 | Démarrer en local (prérequis, env, commandes) | `docs/DEVELOPPEMENT.md` |
 | Ops : cron, déploiement, incidents | `docs/MAINTENANCE.md` |
+| Indexation, robots, sitemap + **checklist de bascule prod** | `docs/plans/SEO_REPRISE.md` (section « CHECKLIST … OUVERTURE PROD ») |
 | « C'est quoi ce fichier ? » | `docs/arbo/CARTE-DU-PROJET.md` |
 | Procédure ciblée | `docs/agents/` : `git-push` · `prisma-schema-change` · `add-cron-task` · `discord-module` · `dev-local` · `deploy-vps` · `disaster-recovery` · `zone-volatile` |
 | Amorce détaillée (sources, méthode, DoD) | `docs/agents/session-amorce.md` — **à la demande**, pas par défaut |

@@ -6,7 +6,7 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { readFileSync, existsSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { resolveMinimapTile, type MinimapWorld } from "@/lib/dungeon-minimap";
 
 const WORLD_1: MinimapWorld = {
@@ -29,10 +29,15 @@ describe("encart donjon — tuile et repère Bouftou Royal", () => {
         expect(tile?.mapHref).toBe("/carte-du-monde?play=1&x=2&y=-34&zoom=-2&world=1");
     });
 
-    it("la tuile calculée existe sur disque", () => {
+    it("le repère reste dans la tuile (0-100 %) et l'index dans la grille", () => {
         const tile = resolveMinimapTile(WORLD_1, 2, -34);
         expect(tile).not.toBeNull();
-        expect(existsSync(`public${tile!.tileUrl}`)).toBe(true);
+        expect(tile!.leftPct).toBeGreaterThanOrEqual(0);
+        expect(tile!.leftPct).toBeLessThan(100);
+        expect(tile!.topPct).toBeGreaterThanOrEqual(0);
+        expect(tile!.topPct).toBeLessThan(100);
+        // Grille 24×19 à l'échelle 0,6 : index 184/456 — jamais hors borne.
+        expect(tile!.tileUrl).toMatch(/^\/game-data\/tiles\/w1\/0\.6\/\d+\.webp$/);
     });
 
     it("hors grille ou coordonnées invalides = null (encart masqué)", () => {

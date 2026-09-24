@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifyDiscordSignature } from "@/server/discord";
 import { db } from "@/lib/prisma";
 import { getAppBaseUrl } from "@/lib/utils";
-import { DOFUS_JOBS } from "@/lib/dofus-assets";
+import { DOFUS_JOBS, DAYS_OF_WEEK } from "@/lib/dofus-assets";
+import { PREFERRED_ACTIVITIES } from "@/lib/profile-activities";
 import { normSearch, parseAlmanaxDateInput, frenchLongDate } from "@/lib/slash-command-helpers";
 import { PERMISSIONS as PERMISSION_IDS, type PermissionId } from "@/lib/permissions";
 import { resolveInteractionActor } from "@/lib/tickets/interaction-actor";
@@ -2564,7 +2565,13 @@ export async function POST(request: NextRequest) {
                                         pseudoDofus: true,
                                         discordNickname: true,
                                         classe: true,
-                                        dofusLevel: true,
+                                        metiers: true,
+                                        preferredActivities: true,
+                                        altPseudos: true,
+                                        successPoints: true,
+                                        hasLegendaryPrerequisites: true,
+                                        availability: true,
+                                        guildJoinedAt: true,
                                         createdAt: true,
                                     }
                                 }
@@ -2585,12 +2592,117 @@ export async function POST(request: NextRequest) {
                 }
 
                 const displayName = profile.pseudoDofus || profile.discordNickname || discordDisplayName || "Membre SigilOS";
-                const memberSince = profile.createdAt
-                    ? new Date(profile.createdAt).toLocaleDateString("fr-FR", { month: "long", year: "numeric" })
+                const joinedDate = profile.guildJoinedAt || profile.createdAt;
+                const memberSince = joinedDate
+                    ? new Date(joinedDate).toLocaleDateString("fr-FR", { month: "long", year: "numeric" })
                     : null;
                 const profileUrl = guild_id
                     ? `${appBaseUrl}/dashboard/${guild_id}/members/${profile.id}`
                     : undefined;
+
+                // Métiers 200
+                const rawMetiers = Array.isArray(profile.metiers) ? (profile.metiers as any[]) : [];
+                const metiers200: string[] = [];
+                for (const m of rawMetiers) {
+                    if (typeof m === "object" && m !== null) {
+                        if (m.level === 200 && m.name) {
+                            metiers200.push(m.name);
+                        }
+                    } else if (typeof m === "string") {
+                        const match = m.match(/^(.+?)\s+200$/);
+                        if (match) {
+                            metiers200.push(match[1].trim());
+                        }
+                    }
+                }
+                const metiers200Display = metiers200.length > 0
+                    ? metiers200.join(" • ")
+                    : "Aucun";
+
+                // Activités appréciées
+                const rawActivities = Array.isArray(profile.preferredActivities) ? (profile.preferredActivities as string[]) : [];
+                const activityLabels = rawActivities.map((id) => {
+                    const found = PREFERRED_ACTIVITIES.find((a) => a.id === id);
+                    return found ? `${found.icon} ${found.label}` : id;
+                });
+                const activitiesDisplay = activityLabels.length > 0
+                    ? activityLabels.join(" • ")
+                    : "Non renseigné";
+
+                // Mules
+                const rawAlts = Array.isArray(profile.altPseudos) ? (profile.altPseudos as any[]) : [];
+                const mules = rawAlts.map((m) => {
+                    if (typeof m === "string") return m;
+                    if (m && typeof m === "object" && m.pseudo) {
+                        return m.classe ? `${m.pseudo} (${m.classe})` : m.pseudo;
+                    }
+                    return null;
+                }).filter(Boolean);
+                const mulesDisplay = mules.length > 0
+                    ? mules.join(", ")
+                    : "Aucune";
+
+                // Succès
+                const successPointsDisplay = profile.successPoints
+                    ? `${profile.successPoints.toLocaleString("fr-FR")} pts`
+                    : "0 pt";
+
+                // Craft Légendaire (éligibilité si prérequis cochés)
+                const legendaryDisplay = profile.hasLegendaryPrerequisites
+                    ? "✅ Éligible"
+                    : "❌ Non éligible";
+
+                // Planning de la semaine
+                const formatPlanning = (availability: any): string => {
+                    if (!availability || typeof availability !== "object") return "pas renseigné";
+                    const isLegacy = Object.keys(availability).some((k) => DAYS_OF_WEEK.includes(k as any));
+                    const template = isLegacy ? availability : (availability.template || {});
+
+                    const now = new Date();
+                    const target = new Date(now.valueOf());
+                    const dayNr = (now.getDay() + 6) % 7;
+                    target.setDate(target.getDate() - dayNr + 3);
+                    const firstThursday = target.valueOf();
+                    target.setMonth(0, 1);
+                    if (target.getDay() !== 4) {
+                        target.setMonth(0, 1 + ((4 - target.getDay()) + 7) % 7);
+                    }
+                    const weekNum = 1 + Math.ceil((firstThursday - target.valueOf()) / 604800000);
+                    const currentWeekKey = `${now.getFullYear()}-W${weekNum}`;
+
+                    const weekData = (!isLegacy && availability.weeks) ? availability.weeks[currentWeekKey] : null;
+                    const effective = weekData || template;
+
+                    const DAY_NAMES: Record<string, string> = {
+                        lundi: "Lun",
+                        mardi: "Mar",
+                        mercredi: "Mer",
+                        jeudi: "Jeu",
+                        vendredi: "Ven",
+                        samedi: "Sam",
+                        dimanche: "Dim",
+                    };
+                    const SLOT_NAMES: Record<string, string> = {
+                        matin: "Matin",
+                        midi: "Aprem",
+                        soir: "Soir",
+                        nuit: "Nuit",
+                    };
+
+                    const lines: string[] = [];
+                    for (const day of DAYS_OF_WEEK) {
+                        const slots = effective[day];
+                        if (Array.isArray(slots) && slots.length > 0) {
+                            const dayLabel = DAY_NAMES[day] || day;
+                            const slotLabels = slots.map((s: string) => SLOT_NAMES[s] || s).join(", ");
+                            lines.push(`• **${dayLabel} :** ${slotLabels}`);
+                        }
+                    }
+
+                    return lines.length > 0 ? lines.join("\n") : "pas renseigné";
+                };
+
+                const planningDisplay = formatPlanning(profile.availability);
 
                 return NextResponse.json({
                     type: 4,
@@ -2601,8 +2713,13 @@ export async function POST(request: NextRequest) {
                             thumbnail: avatarUrl ? { url: avatarUrl } : undefined,
                             fields: [
                                 { name: "Classe", value: profile.classe || "Non définie", inline: true },
-                                { name: "Niveau", value: profile.dofusLevel ? `${profile.dofusLevel}` : "—", inline: true },
+                                { name: "Points de Succès", value: successPointsDisplay, inline: true },
                                 ...(memberSince ? [{ name: "Membre depuis", value: memberSince, inline: true }] : []),
+                                { name: "Craft Légendaire", value: legendaryDisplay, inline: true },
+                                { name: `🔨 Métiers 200 (${metiers200.length})`, value: metiers200Display, inline: false },
+                                { name: "Activités appréciées", value: activitiesDisplay, inline: false },
+                                { name: `Mules (${mules.length})`, value: mulesDisplay, inline: false },
+                                { name: "Planning de la semaine", value: planningDisplay, inline: false },
                             ],
                             url: profileUrl,
                             footer: { text: "SigilOS • Fiche membre" }
@@ -2854,7 +2971,7 @@ export async function POST(request: NextRequest) {
                             title: `🔨 ${job.name} (${holders.length})`,
                             description: top.map((h) => `• **${h.name}** — Niv. ${h.level ?? "?"}`).join("\n"),
                             color: 0x57F287,
-                            url: `${appBaseUrl}/dashboard/${guild_id}/annuaire-hub`,
+                            url: `${appBaseUrl}/dashboard/${guild_id}/members`,
                             footer: { text: "SigilOS • Métiers de guilde" },
                             timestamp: new Date().toISOString()
                         }],

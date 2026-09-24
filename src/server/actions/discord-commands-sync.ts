@@ -38,7 +38,7 @@ function buildDiscordCommandPayloads() {
         },
         {
             name: "profil",
-            description: "🎖️ Fiche membre : avatar, classe, niveau et lien vers son profil",
+            description: "🎖️ Fiche membre : classe, succès, métiers 200, activités et planning",
             options: [
                 {
                     name: "membre",

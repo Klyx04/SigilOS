@@ -94,4 +94,24 @@ describe("slash commands — périmètre", () => {
             expect(content).not.toContain("CONFIRMED");
         }
     });
+
+    it("/profil enrichi : succès, métiers 200, activités, mules, légendaire, planning, sans niveau", () => {
+        const route = readFileSync("src/app/api/discord/interactions/route.ts", "utf8");
+        expect(route).toContain('name: "Points de Succès"');
+        expect(route).toContain("successPointsDisplay");
+        expect(route).toContain("metiers200");
+        expect(route).toContain('name: "Activités appréciées"');
+        expect(route).toContain('name: "Craft Légendaire"');
+        expect(route).toContain('name: "Planning de la semaine"');
+        expect(route).toContain('"pas renseigné"');
+        // Niveau retiré des fields
+        expect(route).not.toContain('{ name: "Niveau"');
+    });
+
+    it("/metiers pointe vers l'annuaire des membres (/members) et non annuaire-hub", () => {
+        const route = readFileSync("src/app/api/discord/interactions/route.ts", "utf8");
+        expect(route).toContain('url: `${appBaseUrl}/dashboard/${guild_id}/members`');
+        expect(route).not.toContain("annuaire-hub");
+    });
 });
+

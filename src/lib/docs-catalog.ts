@@ -1030,11 +1030,12 @@ Seuls les rôles listés dans « Rôles pinguables » peuvent être mentionnés 
 <ul>
     <li><strong>Synchronisation Globale :</strong> Rapproche les comptes et archive automatiquement les fiches des membres ayant quitté le serveur Discord.</li>
     <li><strong>Relances Groupées Discord :</strong> Envoie une mention ciblée dans le salon d'accueil pour inviter les retardataires à rejoindre le Dashboard.</li>
+    <li><strong>Gestion des membres (actifs, archivés, bannis, exclus) :</strong> Cette page porte aussi le statut du profil — l'ancien onglet « Liste Roster &amp; Membres » a été fusionné ici : archivage, désarchivage, bannissement et relances Discord, avec les compteurs de mules.</li>
     <li><strong>Blacklist de Guilde :</strong> Conserve les identifiants Discord des personnes exclues pour alerter le staff en cas de tentative de réinscription.</li>
 </ul>
 
 <h2>3. Registre Recrutement (remplace le tableur)</h2>
-<p>L'onglet Registre centralise la gestion humaine : une ligne par membre, avec saisie manuelle (pseudo Dofus, date d'arrivée, tag Ankama au format Nom#0000, recruteur avec recherche, essai Oui / Non avec date de reconduction, commentaires) et valeurs automatiques (pseudo serveur rempli et mis à jour seul depuis Discord, ancienneté calculée seule, ID Discord peuplé seul). Les mules combinent le déclaré des profils et la saisie manuelle, et le classement des meilleurs recruteurs est calculé en direct. L'export CSV reprend toutes les colonnes, ID Discord inclus.</p>
+<p>L'onglet Registre centralise la gestion humaine : une ligne par membre, avec saisie manuelle (pseudo Dofus, date d'arrivée, tag Ankama au format Nom#0000, recruteur avec recherche, essai validé Oui / Non avec date de reconduction, commentaires multiples — 10 maximum, horodatés et signés) et valeurs automatiques (pseudo serveur rempli et mis à jour seul depuis Discord, ancienneté calculée seule, ID Discord peuplé seul). Les mules combinent le déclaré des profils et la saisie manuelle, et le classement des meilleurs recruteurs est calculé en direct. L'export CSV reprend toutes les colonnes, ID Discord inclus.</p>
 <div class="callout callout-tip"><strong>💡 Depuis Discord</strong> : la commande staff <strong>/valider-recrue</strong> (mention + pseudo Dofus + tag Ankama + recruteur + date d'arrivée) complète directement la ligne d'une recrue, par exemple dans son ticket de candidature. Elle n'apparaît jamais dans le guide des commandes des membres.</div>
         `
     },

@@ -52,7 +52,7 @@ export const SLASH_COMMANDS_CATALOG: SlashCommandDefinition[] = [
     },
     {
         name: "profil",
-        description: "Affiche la fiche membre : avatar, classe, niveau et lien vers son profil",
+        description: "Affiche la fiche membre : classe, succès, métiers 200, activités et planning",
         usage: "/profil [@membre]",
         category: "PROFIL",
         defaultRoles: ["MEMBER", "OFFICER", "LEADER"]

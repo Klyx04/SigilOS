@@ -458,6 +458,93 @@ health_check() {
 }
 
 # -----------------------------------------------------------------------------
+# Garde-fou proxy Caddy — le conteneur sert-il bien le Caddyfile DU DÉPÔT ?
+# -----------------------------------------------------------------------------
+# Le compose monte UN FICHIER (`./Caddyfile:/etc/caddy/Caddyfile`). Quand git remplace ce
+# fichier, l'inode change : le conteneur reste collé à l'ANCIENNE version jusqu'à sa
+# recréation (un bind-mount de fichier ne suit pas un remplacement). Le correctif est donc
+# silencieusement inerte, parfois pendant des semaines. Deux incidents réels, mêmes
+# symptômes : 23/08/2026 (`handle /assets/*` absent → images de la vitrine cassées) puis
+# 04/09/2026 (`handle /robots.txt` absent → la prod a servi un robots.txt/HTML pendant
+# 20 jours, constaté le 24/09). On compare donc les empreintes, on valide la config AVANT
+# de toucher au proxy, et on ne recrée que si nécessaire.
+caddy_config_check() {
+    local ENV_FILE_C="$1"
+    local CONTAINER="sigilos-gateway" HOST_SUM CONT_SUM
+
+    [[ -f Caddyfile ]] || { dim "   Caddyfile absent du dépôt — contrôle ignoré."; return; }
+    if ! sudo docker ps --format '{{.Names}}' | grep -qx "$CONTAINER"; then
+        warn "Conteneur $CONTAINER absent — contrôle de config ignoré."
+        return
+    fi
+
+    HOST_SUM="$(md5sum Caddyfile | awk '{print $1}')"
+    CONT_SUM="$(sudo docker exec "$CONTAINER" md5sum /etc/caddy/Caddyfile 2>/dev/null | awk '{print $1}')"
+    if [[ -n "$HOST_SUM" && "$HOST_SUM" == "$CONT_SUM" ]]; then
+        ok "Proxy Caddy à jour (config identique au dépôt)."
+        return
+    fi
+
+    warn "Proxy Caddy EN RETARD : le conteneur sert une ancienne config (bind-mount d'un fichier)."
+    local NEXT_CONFIG="/tmp/Caddyfile.next"
+    if ! sudo docker cp Caddyfile "$CONTAINER:$NEXT_CONFIG" >/dev/null 2>&1; then
+        err "Copie de la config impossible — recréation à faire à la main :"
+        dim "   sudo docker compose -f docker-compose.prod.yml --env-file $ENV_FILE_C up -d --force-recreate --no-deps caddy"
+        return
+    fi
+    if ! sudo docker exec "$CONTAINER" caddy validate --config "$NEXT_CONFIG" >/dev/null 2>&1; then
+        err "La config Caddy du dépôt est INVALIDE — proxy non touché (l'ancienne reste en service)."
+        dim "   Détail : sudo docker exec $CONTAINER caddy validate --config $NEXT_CONFIG"
+        return
+    fi
+    ok "Config Caddy du dépôt valide."
+    info "   Recréation du proxy (quelques secondes d'interruption)..."
+    if sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE_C" up -d --force-recreate --no-deps caddy; then
+        ok "Proxy Caddy recréé avec la config du dépôt."
+    else
+        err "Échec de la recréation du proxy — à faire à la main :"
+        dim "   sudo docker compose -f docker-compose.prod.yml --env-file $ENV_FILE_C up -d --force-recreate --no-deps caddy"
+    fi
+}
+
+# -----------------------------------------------------------------------------
+# Contrôle SEO post-déploiement — ce qui est RÉELLEMENT servi (pas ce que dit Git)
+# -----------------------------------------------------------------------------
+# « Un `robots.ts` correct dans Git ne prouve pas ce que le robot reçoit » : le 24/09/2026, la
+# prod renvoyait la vitrine HTML (200 `text/html`) sur `/robots.txt` ET `/sitemap.xml`, ce qui
+# faisait échouer le rapport « Sitemaps » de Search Console. On vérifie donc les deux URL
+# publiques de chaque domaine, après le déploiement (voir aussi docs/agents/deploy-vps.md).
+seo_check() {
+    local URL="$1" CT CODE
+
+    # robots.txt : doit être du TEXTE BRUT sur les deux domaines (jamais du HTML).
+    CT="$(curl -fsS -m 20 -D - -o /dev/null "$URL/robots.txt" 2>/dev/null | tr -d '\r' \
+        | awk 'tolower($1)=="content-type:"{print tolower($2); exit}')"
+    if [[ "$CT" == text/plain* ]]; then
+        ok "$URL/robots.txt → text/plain"
+    else
+        warn "$URL/robots.txt → Content-Type « ${CT:-aucun} » (attendu : text/plain)"
+        dim "   → proxy servie par une ancienne config : voir le contrôle Caddy ci-dessus."
+    fi
+
+    # sitemap.xml : la bêta l'expose (XML), la vitrine répond 404 (hors index pendant la bêta).
+    CODE="$(curl -sS -m 20 -o /dev/null -w '%{http_code}' "$URL/sitemap.xml" 2>/dev/null)"
+    if [[ "$URL" == *beta.* ]]; then
+        if [[ "$CODE" == "200" ]]; then
+            ok "$URL/sitemap.xml → HTTP 200"
+        else
+            warn "$URL/sitemap.xml → HTTP ${CODE:-aucun} (la bêta doit exposer son sitemap)."
+        fi
+    else
+        if [[ "$CODE" == "404" ]]; then
+            ok "$URL/sitemap.xml → HTTP 404 attendu (vitrine hors index)."
+        else
+            warn "$URL/sitemap.xml → HTTP ${CODE:-aucun} (404 attendu : vitrine hors index)."
+        fi
+    fi
+}
+
+# -----------------------------------------------------------------------------
 # Déploiement (beta|prod)
 # -----------------------------------------------------------------------------
 deploy() {
@@ -630,6 +717,12 @@ deploy() {
     printf "${C_DIM}   Rollback  :${C_RESET} ./scripts/rollback.sh %s\n" "$TARGET"
     horiz
 
+    # ── Contrôles post-déploiement ───────────────────────────────────────────
+    # 1) le proxy sert-il la config DU DÉPÔT ? (sinon : il la reprend — inode figé) ;
+    # 2) ce qui est RÉELLEMENT servi aux robots (robots.txt / sitemap.xml) ;
+    # 3) l'application elle-même.
+    caddy_config_check "$ENV_FILE"
+    seo_check "$URL"
     health_check "$URL"
 }
 

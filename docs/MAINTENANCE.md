@@ -502,11 +502,14 @@ git pull origin main
   ./scripts/deploy-cd.sh beta <sha>          # déployer la version <sha> en beta
   ./scripts/deploy-cd.sh beta                # déployer latest
   ```
-- ⚠️ **`deploy-cd.sh` ne recrée PAS le conteneur Caddy** : après toute modification du `Caddyfile` (ex : rate-limit/429, ajout de site), recréer Caddy manuellement :
-  ```bash
-  sudo docker compose -f docker-compose.prod.yml --env-file .env.beta up -d --force-recreate --no-deps caddy   # beta
-  sudo docker compose -f docker-compose.prod.yml --env-file .env.prod  up -d --force-recreate --no-deps caddy   # prod
-  ```
+- ✅ **`deploy-cd.sh` DÉTECTE et corrige désormais le retard du proxy (24/09/2026)** : `caddy_config_check` compare l'empreinte (`md5sum`) du `Caddyfile` du dépôt à celle **vue par le conteneur** ; en cas d'écart, il **valide** la config (`caddy validate --config`) puis recrée `caddy` (`--force-recreate --no-deps`). Une config invalide **ne touche pas** au proxy en service (l'ancienne reste en place, message explicite).
+  - **Pourquoi c'était nécessaire — cause racine mesurée** : le compose monte **un fichier** (`./Caddyfile:/etc/caddy/Caddyfile`). Quand git **remplace** ce fichier, son **inode change** ; un bind-mount de fichier ne suit pas un remplacement et le conteneur reste collé à l'**ancienne** version **jusqu'à sa recréation**. Le correctif est donc **silencieusement inerte**, parfois des semaines. **Deux incidents réels, mêmes symptômes** : 23/08/2026 (`handle /assets/*` absent → images de la vitrine cassées, cf. §3e) puis 04/09 → 24/09/2026 (`handle /robots.txt` absent → la prod a servi la vitrine **HTML** en `200 text/html` sur `/robots.txt` **et** `/sitemap.xml` pendant 20 jours, constaté au `curl` le 24/09).
+  - **Contrôle complémentaire** : `seo_check` vérifie ce qui est **réellement servi** après déploiement — `robots.txt` en `text/plain` sur les deux domaines, `sitemap.xml` en `200` sur la bêta et en **`404` sur la vitrine** (hors index pendant la bêta, cf. `Caddyfile` + `docs/plans/SEO_REPRISE.md`). Garde de non-régression : `tests/unit/seo-vitrine-prod.test.ts`.
+  - **Recréation manuelle** (repli, si le script ne peut pas) :
+    ```bash
+    sudo docker compose -f docker-compose.prod.yml --env-file .env.beta up -d --force-recreate --no-deps caddy   # beta
+    sudo docker compose -f docker-compose.prod.yml --env-file .env.prod  up -d --force-recreate --no-deps caddy   # prod
+    ```
 - ⏱️ **Étape 4/5 muette puis `P1002` (incident beta 19/09/2026 — RÉSOLU, 2 sujets distincts)** — `Application des migrations Prisma...` sans la moindre sortie, puis `Timed out trying to acquire a postgres advisory lock (SELECT pg_advisory_lock(72707369))`.
   - **① La panne : le schema-engine de Prisma 7 part en boucle CPU à 100 %** sur `prisma/migrations/20260919130000_add_dungeon_slug/migration.sql` **écrit avec des instructions sur plusieurs lignes**. Constat : **aucune** instruction exécutée (la colonne `Dungeon.slug` n'existait même pas) mais le **verrou advisory conservé** → `migrate deploy` paraît figé (réflexe Ctrl+C), et la tentative suivante meurt en `P1002` après 10 s. **Preuve** : schema-engine mesuré à 98 % CPU ; le fichier d'origine (multi-lignes) bloque, **le même SQL en « une instruction par ligne » passe** (`nullable=NO`, index unique créé, les 5 instructions exécutées, slugs vérifiés) ⇒ c'est la **mise en forme du fichier**, pas le SQL (les 27 `replace()` imbriqués n'étaient pas le déclencheur : `translate()` fait la même chose en un appel). ⇒ fichier réécrit (**une instruction par ligne, commentaires ASCII**) + **garde de non-régression** (`tests/unit/boss-slug.test.ts` : toute ligne de code se termine par `;`).
   - **② Le confort : plus aucune étape muette** — le CLI Prisma n'étant pas dans l'image runner, `npx --yes prisma@7.10.0` le **retéléchargeait à CHAQUE déploiement** (1 à 3 min) et sa sortie partait dans un fichier temporaire (donc invisible). Désormais le `Dockerfile` embarque le CLI (stage `prisma-cli` → `/opt/prisma-cli`) et `scripts/deploy-cd.sh` affiche la sortie en direct + borne le temps.
@@ -597,6 +600,11 @@ git pull origin main
   ```
 - **Faux positif `/assets/icons/favicon.svg`** : `maintenance.html` ne le référence pas (favicon réel =
   `/assets/ui/logo-v2.png`) ; le chemin n'existe pas → le `404` est **sans impact**.
+- 🔁 **RÉCIDIVE (24/09/2026) — ce n'était pas un cas isolé** : même mécanisme, autre fichier. Le
+  `handle /robots.txt` ajouté au `Caddyfile` le **04/09** n'a jamais été appliqué : pendant **20 jours**,
+  `https://sigilos.fr/robots.txt` **et** `/sitemap.xml` renvoyaient la vitrine en `200 text/html`
+  (mesuré au `curl`), et `sigilos.fr/zzz-inexistant` répondait `200` (soft-404). ⇒ Automatisé :
+  `caddy_config_check` + `seo_check` dans `scripts/deploy-cd.sh` (cf. § « CI/CD » ci-dessus).
 - ⚠️ **MAJ 20/09/2026 — les figures de la landing sont des MOCKUPS** : composants React vectoriels
   `src/components/landing/registre/*-mockup.tsx` (`dashboard-mockup.tsx`, `calendar-mockup.tsx`,
   `guide-mockup.tsx`, `missions-mockup.tsx`). `src/lib/landing-figures.ts`, son test, les 4 visuels

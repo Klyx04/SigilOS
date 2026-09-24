@@ -6,7 +6,11 @@
   <title>SigilOS — Tableau de bord de guilde Dofus · bêta ouverte et gratuite</title>
   <meta name="description" content="La production de SigilOS ouvre bientôt ses portes. En attendant, la bêta est ouverte et gratuite : reliez votre guilde Dofus à Discord (sorties, quêtes, boss, carte du monde) sans mot de passe Ankama ni compte à créer.">
   <link rel="canonical" href="https://sigilos.fr/">
-  <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1">
+  <!-- 🛰️ Vitrine hors index pendant la bêta : `beta.sigilos.fr` est la seule propriété indexée
+       (guides, outils, fiches boss). Double ceinture avec l'en-tête `X-Robots-Tag` posé par Caddy
+       sur tout le domaine `sigilos.fr` — ce fichier peut aussi être servi sans passer par Caddy.
+       🔁 Le jour de la bascule prod : remettre `index, follow` (checklist docs/plans/SEO_REPRISE.md). -->
+  <meta name="robots" content="noindex, nofollow">
   <link rel="icon" href="/assets/ui/logo-v2.png">
 
   <!-- ⚠️ Feuille EXTERNE obligatoire : la CSP de production (`style-src 'self'`) refuse

@@ -171,3 +171,47 @@ npm run lint                     # 0 erreur attendue
 npx prisma generate              # après tout changement de schéma
 npm run seed:docs                # après un changement de docs-catalog.ts (guide in-app)
 ```
+
+## 7. Reprendre la main en local — **la base de dev n'a pas les tables v2**
+
+Mesuré le 24/09/2026 : `information_schema` en base locale ne liste que les tables **v1**
+(`TicketBotCategory`, `TicketBotPanel`, `TicketGuildConfig`, `TicketRecord`, `TicketNote`,
+`TicketTranscript`, `TicketAuditLog`, `TicketFeedback`). **`TicketJourney`, `TicketForm`,
+`TicketFormVersion`, `TicketTeam` et `TicketDraft` n'existent pas** : toute la partie v2 (et
+donc le lot 4.2) plantera en local (`relation does not exist`) tant que ce n'est pas appliqué.
+
+La cause est la dérive préexistante (§5) : deux migrations du dépôt ne sont pas appliquées
+localement (`20260919130000_add_dungeon_slug`, `20261221000000_tickets_v2_refonte`), et une
+migration présente en base n'existe plus dans le dépôt. `prisma migrate deploy` /
+`migrate dev` ne sont donc pas utilisables tels quels.
+
+Procédure **sûre** (les migrations v2 sont additives et idempotentes : `CREATE TABLE IF NOT
+EXISTS`, enums gardés par `DO $$ … duplicate_object`, colonnes `IF NOT EXISTS`) :
+
+```powershell
+# 0. sauvegarde de la base locale (hors dépôt : un dump ne se committe jamais)
+docker exec sigilos-db pg_dump -U user -d sigilos > $env:TEMP\sigilos-local-avant-v2.sql
+
+# 1. appliquer les migrations en attente (PowerShell ne gère pas `<` : on passe par stdin)
+Get-Content -LiteralPath 'prisma\migrations\20261221000000_tickets_v2_refonte\migration.sql' -Raw |
+    docker exec -i sigilos-db psql -U user -d sigilos
+Get-Content -LiteralPath 'prisma\migrations\20261222000000_tickets_journey_notify_roles\migration.sql' -Raw |
+    docker exec -i sigilos-db psql -U user -d sigilos
+
+# 2. les marquer comme appliquées (sinon `migrate status` les redemande)
+npx prisma migrate resolve --applied 20261221000000_tickets_v2_refonte
+npx prisma migrate resolve --applied 20261222000000_tickets_journey_notify_roles
+
+# 3. régénérer le client puis vérifier que les tables sont là
+npx prisma generate
+"SELECT table_name FROM information_schema.tables WHERE table_schema='public' AND table_name LIKE 'Ticket%' ORDER BY 1;" |
+    docker exec -i sigilos-db psql -U user -d sigilos -t
+```
+
+Attendu après l'étape 3 : `TicketBotCategory`, `TicketBotPanel`, `TicketDraft`, `TicketFeedback`,
+`TicketForm`, `TicketFormVersion`, `TicketGuildConfig`, `TicketJourney`, `TicketNote`,
+`TicketRecord`, `TicketTeam`, `TicketTranscript`.
+
+> `20260919130000_add_dungeon_slug` reste en attente : elle **n'appartient pas** à ce chantier
+> (autre sujet) — à appliquer si un test local en a besoin, jamais de « reset » de la base.
+

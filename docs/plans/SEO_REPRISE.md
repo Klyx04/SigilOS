@@ -150,6 +150,11 @@ QUESTION : quel est le plan précis pour cette session ? (attente retour IA → 
 > - [ ] Les zones privées sont déjà bloquées par robots (dashboard/api/god/docs) — à confirmer sur sigilos.fr.
 >
 > **2. Déploiement**
+> - [ ] ⚠️ **Après le merge `dev` → `main` : relire le `Caddyfile` de `main` AVANT de déployer.**
+>   Le merge apporte la version de `dev` — donc **les 3 verrous d'indexation** du point 1 — et
+>   `main` était en retard (`handle /robots.txt` absent depuis le 04/09). Vérifier que les blocs
+>   attendus sont bien présents : `handle /robots.txt`, `handle /sitemap.xml`, `handle /assets/*`,
+>   `handle /game-data/*` (`grep -c` sur chacun, ou `docker exec sigilos-gateway caddy validate`).
 > - [ ] Fusionner `main` (les ~800 commits de dev + tests + migrations)
 > - [ ] `deploy.sh prod` (build + démarrage de sigilos.fr avec la vraie app)
 > - [ ] Caddy : retirer le bloc `rewrite * /maintenance.html` du bloc `sigilos.fr` + rediriger proprement

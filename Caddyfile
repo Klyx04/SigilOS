@@ -77,10 +77,40 @@ sigilos.fr {
         respond "google-site-verification: google77dc76da1868d7bd.html" 200
     }
 
+    # 🛰️ INDEXATION — la vitrine reste VOLONTAIREMENT hors index pendant la bêta (E-INF-01/SEO).
+    # Pendant la bêta, `beta.sigilos.fr` est la SEULE propriété qui doit être indexée (guides,
+    # outils, fiches boss) : cf. `src/app/robots.ts` et `docs/plans/SEO_REPRISE.md` § « À ne PAS
+    # faire — garder les 2 domaines indexés » (dilution / contenu dupliqué).
+    # ⚠️ `noindex` et NON `Disallow:` dans robots.txt : un robots.txt qui bloque le crawl empêche
+    # Google de LIRE le `noindex` — les URL déjà cataloguées y resteraient indéfiniment, sans
+    # description. Ici Google entre, lit « ne garde rien » et retire les URL de son index.
+    # 🔁 Le jour de la bascule prod : retirer CETTE ligne (checklist docs/plans/SEO_REPRISE.md).
+    header X-Robots-Tag "noindex, nofollow"
+
     # 🤖 robots.txt statique (E-INF-01/SEO) — DOIT passer avant le rewrite maintenance.
+    # Pas de ligne `Sitemap:` : la vitrine n'expose aucun contenu indexable ; le sitemap vit sur la
+    # bêta, dans la propriété qui a réellement des pages à faire découvrir. Annoncer ici
+    # `https://sigilos.fr/sitemap.xml` renvoyait le HTML de la vitrine (rewrite maintenance) ⇒
+    # « Impossible de récupérer le sitemap » dans Search Console (constat 21/09 + 24/09/2026).
     handle /robots.txt {
         header Content-Type text/plain
-        respond "User-agent: *\nAllow: /\nDisallow: /api/\nDisallow: /dashboard/\nDisallow: /god/\nSitemap: https://sigilos.fr/sitemap.xml" 200
+        # ⚠️ HEREDOC obligatoire (et non `respond "…\n…"`) : Caddy ne convertit PAS les séquences
+        # `\n` d'une chaîne entre guillemets en retours à la ligne — il les sert LITTÉRALEMENT, sur
+        # une seule ligne. Mesuré le 24/09/2026 (sonde `caddy:alpine` v2.10.2, zone volatile) : la
+        # version entre guillemets produisait un `robots.txt` de 82 o en une seule ligne, illisible
+        # pour Google. Le heredoc produit un vrai fichier (76 o, 5 lignes). Heredoc = Caddy ≥ 2.7.
+        respond <<ROBOTS
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /dashboard/
+Disallow: /god/
+ROBOTS 200
+    }
+
+    # 🗺️ Aucun sitemap côté vitrine — et un 404 franc plutôt qu'une page HTML déguisée en XML.
+    handle /sitemap.xml {
+        respond 404
     }
 
     # 🎨 Assets de la vitrine (fond bg-guild, screenshots, icônes, logo) — file_server

@@ -136,6 +136,13 @@ QUESTION : quel est le plan précis pour cette session ? (attente retour IA → 
 > Quand `main` est prêt à fusionner et que l'app tourne sur sigilos.fr :
 >
 > **1. Préparation code (AVANT le déploiement)**
+> - [ ] `Caddyfile` (bloc `sigilos.fr`) : **retirer** `header X-Robots-Tag "noindex, nofollow"` et
+>   décommenter/reposer l'en-tête d'indexation — sinon `sigilos.fr` **restera hors index à vie**
+>   (posé le 24/09/2026 pour la phase bêta, garde de non-régression `tests/unit/seo-vitrine-prod.test.ts`).
+> - [ ] `Caddyfile` : rétablir un vrai `handle /sitemap.xml` (aujourd'hui `respond 404`, volontaire
+>   pendant la bêta — la vitrine n'expose aucune URL indexable).
+> - [ ] `public/maintenance.html` : remettre `<meta name="robots" content="index, follow…">`
+>   (aujourd'hui `noindex, nofollow`).
 > - [ ] `src/app/robots.ts` : remettre la beta en `Disallow: /` (staging) et sigilos.fr indexable.
 >   (Aujourd'hui `isIndexable` couvre les 2 ; on revient à `isIndexable = baseUrl === 'https://sigilos.fr'`)
 > - [ ] Vérifier que le `sitemap.ts` de sigilos.fr utilise `getAppBaseUrl()` (déjà fait) → URLs sigilos.fr correctes.

@@ -67,7 +67,8 @@ export default async function CommandesBotPage({ params }: Props) {
     const { SLASH_COMMANDS_CATALOG } = await import("@/lib/slash-commands-catalog");
     const permMap = new Map(permissions.map(p => [p.commandName, p]));
 
-    const matrix = SLASH_COMMANDS_CATALOG.map(cmd => {
+    // Guide membres : les commandes réservées au staff n'y apparaissent jamais.
+    const matrix = SLASH_COMMANDS_CATALOG.filter(cmd => !cmd.staffOnly).map(cmd => {
         const existing = permMap.get(cmd.name);
         return {
             command: cmd,

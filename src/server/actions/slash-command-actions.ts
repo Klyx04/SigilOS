@@ -9,12 +9,23 @@ import { z } from "zod";
 import { logger } from "@/lib/logger";
 import { SLASH_COMMANDS_CATALOG } from "@/lib/slash-commands-catalog";
 
+const snowflakeSchema = z.string().regex(/^\d{5,25}$/);
+
+const commandConfigSchema = z
+    .object({
+        addRoleId: snowflakeSchema.nullable(),
+        removeRoleId: snowflakeSchema.nullable(),
+    })
+    .nullable()
+    .optional();
+
 const updateSlashPermSchema = z.object({
     guildId: z.string().min(1),
     commandName: z.string().min(1),
     roleIds: z.array(z.string()),
     channelIds: z.array(z.string()).default([]),
-    isEnabled: z.boolean()
+    isEnabled: z.boolean(),
+    config: commandConfigSchema,
 });
 
 /**
@@ -54,7 +65,8 @@ export async function getGuildSlashCommandPermissionsAction(guildId: string) {
                 command: cmd,
                 isEnabled: existing ? existing.isEnabled : true,
                 roleIds: existing ? existing.roleIds : [],
-                channelIds: existing ? existing.channelIds : []
+                channelIds: existing ? existing.channelIds : [],
+                config: (existing?.config as { addRoleId: string | null; removeRoleId: string | null } | null) ?? null,
             };
         });
 
@@ -78,7 +90,7 @@ export async function updateGuildSlashCommandPermissionAction(input: z.infer<typ
             return { success: false, error: "Validation failed" };
         }
 
-        const { guildId, commandName, roleIds, channelIds, isEnabled } = parsed.data;
+        const { guildId, commandName, roleIds, channelIds, isEnabled, config: commandConfig } = parsed.data;
 
         const config = await db.guildConfig.findFirst({
             where: {
@@ -111,17 +123,21 @@ export async function updateGuildSlashCommandPermissionAction(input: z.infer<typ
                     commandName
                 }
             },
+            // `config` omise quand jamais réglée (null) : Prisma refuse le null
+            // direct sur un Json — un objet `{ addRoleId: null, … }` passe, lui.
             create: {
                 guildId: config.id,
                 commandName,
                 roleIds,
                 channelIds,
-                isEnabled
+                isEnabled,
+                ...(commandConfig ? { config: commandConfig } : {}),
             },
             update: {
                 roleIds,
                 channelIds,
-                isEnabled
+                isEnabled,
+                ...(commandConfig ? { config: commandConfig } : {}),
             }
         });
 
@@ -129,7 +145,7 @@ export async function updateGuildSlashCommandPermissionAction(input: z.infer<typ
             guildId: config.discordGuildId || guildId,
             action: "RBAC_UPDATE",
             targetType: "PERMISSION",
-            newValue: { commandName, roleIdsCount: roleIds.length, channelIdsCount: channelIds.length, isEnabled }
+            newValue: { commandName, roleIdsCount: roleIds.length, channelIdsCount: channelIds.length, isEnabled, hasConfig: !!commandConfig }
         }).catch(() => {});
 
         return { success: true, data: updated };

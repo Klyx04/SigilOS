@@ -727,6 +727,11 @@ model UserProfile {
   // 👥 Cycle de vie membre & Recrutement
   lifecycleStatus            String?                    @default("CONFIRMED")
   trialEndsAt                DateTime?
+  /// Essai validé (Oui) ou non (Non / Prolongé via trialEndsAt).
+  /// Remplace les anciennes étiquettes CANDIDATE / ARRIVING / TRIAL / CONFIRMED.
+  trialValidated             Boolean                    @default(false)
+  /// Date d'arrivée en guilde saisie à la main (registre). Repli = createdAt.
+  guildJoinedAt              DateTime?
   recruitedById              String?
   departureReason            String?
   departureCategory          String?
@@ -3730,6 +3735,8 @@ model GuildSlashCommandPermission {
   roleIds     String[]    @default([])
   channelIds  String[]    @default([])
   isEnabled   Boolean     @default(true)
+  /// Réglages propres à la commande (ex. valider-recrue : rôles à ajouter/retirer par défaut).
+  config      Json?
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 

@@ -1032,6 +1032,10 @@ Seuls les rôles listés dans « Rôles pinguables » peuvent être mentionnés 
     <li><strong>Relances Groupées Discord :</strong> Envoie une mention ciblée dans le salon d'accueil pour inviter les retardataires à rejoindre le Dashboard.</li>
     <li><strong>Blacklist de Guilde :</strong> Conserve les identifiants Discord des personnes exclues pour alerter le staff en cas de tentative de réinscription.</li>
 </ul>
+
+<h2>3. Registre Recrutement (remplace le tableur)</h2>
+<p>L'onglet Registre centralise la gestion humaine : une ligne par membre, avec saisie manuelle (pseudo Dofus, date d'arrivée, tag Ankama au format Nom#0000, recruteur avec recherche, essai Oui / Non avec date de reconduction, commentaires) et valeurs automatiques (pseudo serveur rempli et mis à jour seul depuis Discord, ancienneté calculée seule, ID Discord peuplé seul). Les mules combinent le déclaré des profils et la saisie manuelle, et le classement des meilleurs recruteurs est calculé en direct. L'export CSV reprend toutes les colonnes, ID Discord inclus.</p>
+<div class="callout callout-tip"><strong>💡 Depuis Discord</strong> : la commande staff <strong>/valider-recrue</strong> (mention + pseudo Dofus + tag Ankama + recruteur + date d'arrivée) complète directement la ligne d'une recrue, par exemple dans son ticket de candidature. Elle n'apparaît jamais dans le guide des commandes des membres.</div>
         `
     },
     {
@@ -1041,7 +1045,7 @@ Seuls les rôles listés dans « Rôles pinguables » peuvent être mentionnés 
         accessLevel: 'ADMIN' as any,
         content: `
 <h2>Remplacement Intégral des Tableurs Excel</h2>
-<p>Ce module centralise la gestion humaine de votre guilde en remplaçant définitivement les Google Sheets manuels par un flux temps réel connecté au Ladder Ankama et à Discord.</p>
+<p>Ce module vit désormais dans <strong>Membres &amp; Recrutement</strong>, onglet <strong>Registre</strong> : l'ancienne URL redirige automatiquement vers le registre, qui remplace définitivement les Google Sheets manuels par un flux temps réel connecté au Ladder Ankama et à Discord.</p>
 
 <figure class="my-6">
     <img src="/assets/screenshots/screenshot6.png" alt="Gestion du cycle de vie des membres" class="rounded-2xl border border-white/10 shadow-2xl w-full" />

@@ -29,7 +29,8 @@ import {
     MessageSquare,
     Mic,
     Ban,
-    ChevronLeft
+    ChevronLeft,
+    ClipboardList
 } from "lucide-react";
 import { 
     Card, 
@@ -87,6 +88,7 @@ import { MemberSyncButton } from "@/components/admin/member-sync-button";
 import { DailyReportButton } from "@/components/admin/daily-report-button";
 import { MemberDiscordCharts } from "@/components/admin/members/member-discord-charts";
 import { MemberBlacklist } from "@/components/admin/members/member-blacklist";
+import { MemberRegistryTable } from "@/components/admin/members/member-registry-table";
 import { RelanceModal, type RelanceTarget } from "@/components/admin/members/relance-modal";
 
 // Static color map to avoid Tailwind CSS purging dynamic class names
@@ -169,6 +171,8 @@ interface MemberManagementProps {
     canManageMembers: boolean;
     canManageRelance: boolean;
     currentUserId: string;
+    /** Onglet initial (deep link `?tab=registre` depuis l'ancienne page recrutement). */
+    initialTab?: string;
 }
 
 // Sub-component for individual role audit trigger
@@ -221,10 +225,11 @@ export default function MemberManagement({
     roles,
     canManageMembers,
     canManageRelance,
-    currentUserId
+    currentUserId,
+    initialTab
 }: MemberManagementProps) {
     const [mounted, setMounted] = useState(false);
-    const [activeTab, setActiveTab] = useState("audit");
+    const [activeTab, setActiveTab] = useState(initialTab === "registre" ? "registre" : "audit");
     // #74 — modale dédiée « Relancer » (solo ou bulk)
     const [relanceTargets, setRelanceTargets] = useState<RelanceTarget[] | null>(null);
 
@@ -452,6 +457,7 @@ export default function MemberManagement({
                     {[
                         { id: "audit", label: "📊 Audit Discord vs Dashboard", icon: ShieldCheck, requiresFull: true },
                         { id: "management", label: "👥 Liste Roster & Membres", icon: UserCircle, requiresFull: true },
+                        { id: "registre", label: "📋 Registre Recrutement", icon: ClipboardList, requiresFull: true },
                         { id: "blacklist", label: "🚫 Blacklist Guilde", icon: Ban, requiresFull: true },
                     ].map(tab => {
                         const isDisabled = tab.requiresFull && !canManageMembers;
@@ -862,7 +868,18 @@ export default function MemberManagement({
                     </div>
                 </TabsContent>
 
-                {/* --- TAB 3: BLACKLIST --- */}
+                {/* --- TAB 3: REGISTRE RECRUTEMENT (module global Membres) --- */}
+                <TabsContent value="registre" className="space-y-6 animate-in fade-in duration-150 min-h-[600px]">
+                    <p className="text-sm text-muted-foreground -mt-4">
+                        Registre du staff : saisie manuelle (pseudos, arrivée, tag Ankama, recruteur, essai, commentaires),
+                        ancienneté calculée seule et ID Discord peuplé seul. Remplace l&apos;ancienne page Recrutement.
+                    </p>
+                    {activeTab === "registre" && canManageMembers && (
+                        <MemberRegistryTable guildId={guildId} canManageMembers={canManageMembers} />
+                    )}
+                </TabsContent>
+
+                {/* --- TAB 4: BLACKLIST --- */}
                 <TabsContent value="blacklist" className="space-y-6 animate-in fade-in duration-150 min-h-[600px]">
                     <p className="text-sm text-muted-foreground -mt-4">
                         Membres exclus de la guilde : blocage Dashboard et Discord, géré depuis les deux côtés.

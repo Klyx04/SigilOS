@@ -100,6 +100,54 @@ function buildDiscordCommandPayloads() {
                 }
             ]
         },
+        {
+            name: "valider-recrue",
+            description: "✅ Staff — complète la ligne registre d'une recrue",
+            options: [
+                {
+                    name: "membre",
+                    description: "La recrue (mention Discord, obligatoire)",
+                    type: 6, // USER
+                    required: true
+                },
+                {
+                    name: "pseudo-dofus",
+                    description: "Pseudo Dofus de la recrue",
+                    type: 3, // STRING
+                    required: false
+                },
+                {
+                    name: "tag-ankama",
+                    description: "Tag Ankama au format Nom#0000",
+                    type: 3, // STRING
+                    required: false
+                },
+                {
+                    name: "recruteur",
+                    description: "Qui l'a recruté (défaut : toi)",
+                    type: 6, // USER
+                    required: false
+                },
+                {
+                    name: "arrivee",
+                    description: "Date d'arrivée JJ/MM/AAAA (défaut : aujourd'hui)",
+                    type: 3, // STRING
+                    required: false
+                },
+                {
+                    name: "ajouter-role",
+                    description: "Rôle à ajouter (défaut : réglage dashboard)",
+                    type: 8, // ROLE
+                    required: false
+                },
+                {
+                    name: "retirer-role",
+                    description: "Rôle à retirer (défaut : réglage dashboard)",
+                    type: 8, // ROLE
+                    required: false
+                }
+            ]
+        },
     ];
 
     // Discord API n'accepte pas `options: []` (tableau vide). On ne transmet options que s'il y en a.

@@ -45,7 +45,6 @@ import {
     Map,
     CalendarClock,
     Ticket,
-    UserCheck,
     Terminal,
     Store,
 } from "lucide-react";
@@ -282,8 +281,7 @@ export function AppSidebar({
         { name: "Identité de Guilde", href: `/dashboard/${guildId}/admin/presentation`, icon: BookOpen, color: "emerald", visible: user.canEditPresentation && modules.presentation },
         { name: "Gestion des Missions", href: `/dashboard/${guildId}/missions/manage`, icon: Swords, color: "emerald", visible: user.canManageMissions && modules.missions },
         { name: "Validation", href: `/dashboard/${guildId}/admin/validation`, icon: CheckCircle, color: "emerald", visible: user.canValidateMissions && modules.missions },
-        { name: "Audit & Membres", href: `/dashboard/${guildId}/admin/members`, icon: Users, color: "cyan", visible: user.canManageMembers || user.canManageRelance },
-        { name: "Recrutement & Cycle de Vie", href: `/dashboard/${guildId}/admin/recruitment`, icon: UserCheck, color: "emerald", visible: user.canManageMembers },
+        { name: "Membres & Recrutement", href: `/dashboard/${guildId}/admin/members`, icon: Users, color: "cyan", visible: user.canManageMembers || user.canManageRelance },
         { name: "Points de Contribution", href: `/dashboard/${guildId}/admin/points`, icon: Coins, color: "amber", visible: user.canManagePoints },
         { name: "Rôles par Réaction", href: `/dashboard/${guildId}/reaction-roles`, icon: Sparkles, color: "purple", visible: user.canManageReactionRoles && modules.reactionRoles },
         { name: "Bot Tickets & Support", href: `/dashboard/${guildId}/tickets`, icon: Ticket, color: "amber", visible: user.canManageTickets && modules.tickets },

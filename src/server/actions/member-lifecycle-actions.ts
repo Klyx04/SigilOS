@@ -7,6 +7,7 @@ import { getUserContext, type ActionResponse } from "./user-actions";
 import { z } from "zod";
 import { createAuditLog } from "./audit-actions";
 import { differenceInDays } from "date-fns";
+import { ANKAMA_ID_PATTERN } from "@/lib/member-registry";
 
 // ==========================================
 // TYPES
@@ -28,9 +29,12 @@ export interface LifecycleMemberSummary {
     ankamaId: string | null;
     avatar: string | null;
     status: "ACTIVE" | "ARCHIVED" | "BANNED";
-    lifecycleStatus: "CANDIDATE" | "ARRIVING" | "TRIAL" | "CONFIRMED";
+    /** Essai validé (Oui) ou non (Non / Prolongé via trialEndsAt). */
+    trialValidated: boolean;
     createdAt: string;
     joinedAt: string;
+    /** Date d'arrivée manuelle (registre). Null = repli sur createdAt. */
+    guildJoinedAt: string | null;
     seniorityDays: number;
     trialEndsAt: string | null;
     trialRemainingDays: number | null;
@@ -98,11 +102,10 @@ const updateConfigSchema = z.object({
     recruitmentWelcomeTemplate: z.string().max(2000).nullable().optional(),
 });
 
-const updateStatusSchema = z.object({
+const trialStateSchema = z.object({
     profileId: z.string().min(1),
-    lifecycleStatus: z.enum(["CANDIDATE", "ARRIVING", "TRIAL", "CONFIRMED"]),
+    validated: z.boolean(),
     trialEndsAt: z.string().datetime().nullable().optional(),
-    notes: z.string().max(1000).optional(),
 });
 
 const departureSchema = z.object({
@@ -110,6 +113,22 @@ const departureSchema = z.object({
     reason: z.string().min(1, "Veuillez renseigner un motif").max(500),
     category: z.enum(["VOLUNTARY", "INACTIVITY", "BEHAVIOR", "OTHER"]),
     isBan: z.boolean().default(false),
+});
+
+const registryIdentitySchema = z.object({
+    profileId: z.string().min(1),
+    pseudoDofus: z.string().max(30).nullable().optional(),
+    // Pas de pseudo serveur ici : il se remplit et se met à jour seul depuis Discord.
+    ankamaId: z
+        .string()
+        .max(60)
+        .nullable()
+        .optional()
+        .refine((v) => v === null || v === undefined || v === "" || ANKAMA_ID_PATTERN.test(v.trim()), {
+            message: "Tag Ankama invalide (format Nom#0000)",
+        }),
+    guildJoinedAt: z.string().datetime().nullable().optional(),
+    staffNotes: z.string().max(2000).nullable().optional(),
 });
 
 const altsSchema = z.object({
@@ -173,8 +192,9 @@ export async function getGuildLifecycleData(guildId: string): Promise<ActionResp
                 discordNickname: true,
                 ankamaId: true,
                 status: true,
-                lifecycleStatus: true,
+                trialValidated: true,
                 createdAt: true,
+                guildJoinedAt: true,
                 updatedAt: true,
                 archivedAt: true,
                 departureReason: true,
@@ -211,7 +231,9 @@ export async function getGuildLifecycleData(guildId: string): Promise<ActionResp
         const mappedMembers: LifecycleMemberSummary[] = profiles.map(p => {
             const discordId = p.user?.accounts?.[0]?.providerAccountId || "";
             const displayName = p.pseudoDofus || p.discordNickname || p.user?.name || "Membre";
-            const seniorityDays = differenceInDays(now, p.createdAt);
+            // Registre : la date d'arrivée manuelle prime, repli sur la création du profil.
+            const joinedAtDate = p.guildJoinedAt ?? p.createdAt;
+            const seniorityDays = differenceInDays(now, joinedAtDate);
 
             let trialRemainingDays: number | null = null;
             if (p.trialEndsAt) {
@@ -247,9 +269,10 @@ export async function getGuildLifecycleData(guildId: string): Promise<ActionResp
                 ankamaId: p.ankamaId,
                 avatar: p.user?.image || null,
                 status: p.status as "ACTIVE" | "ARCHIVED" | "BANNED",
-                lifecycleStatus: (p.lifecycleStatus as any) || "CONFIRMED",
+                trialValidated: p.trialValidated ?? false,
                 createdAt: p.createdAt.toISOString(),
-                joinedAt: p.createdAt.toISOString(),
+                joinedAt: joinedAtDate.toISOString(),
+                guildJoinedAt: p.guildJoinedAt ? p.guildJoinedAt.toISOString() : null,
                 seniorityDays: Math.max(0, seniorityDays),
                 trialEndsAt: p.trialEndsAt ? p.trialEndsAt.toISOString() : null,
                 trialRemainingDays,
@@ -269,7 +292,7 @@ export async function getGuildLifecycleData(guildId: string): Promise<ActionResp
 
         // 2. Séparer les listes
         const activeMembers = mappedMembers.filter(m => m.status === "ACTIVE");
-        const trialMembers = mappedMembers.filter(m => m.status === "ACTIVE" && m.lifecycleStatus === "TRIAL");
+        const trialMembers = mappedMembers.filter(m => m.status === "ACTIVE" && !m.trialValidated);
         const departedMembers = mappedMembers.filter(m => m.status !== "ACTIVE" || m.departureReason !== null);
 
         // 3. Calculer les statistiques globales de mules
@@ -302,7 +325,7 @@ export async function getGuildLifecycleData(guildId: string): Promise<ActionResp
             existing.total += 1;
             if (m.status === "ACTIVE") {
                 existing.active += 1;
-                if (m.lifecycleStatus === "CONFIRMED") {
+                if (m.trialValidated) {
                     existing.confirmed += 1;
                 }
             }
@@ -354,13 +377,13 @@ export async function getGuildLifecycleData(guildId: string): Promise<ActionResp
 }
 
 /**
- * Met à jour le statut du cycle de vie d'un membre (ex: valider essai, passer en essai, etc.).
+ * État d'essai d'un membre (registre) : Oui = validé, Non = en essai jusqu'à
+ * la date de reconduction (ou sans fin si null). Source unique d'écriture.
  */
-export async function updateMemberLifecycleStatus(
+export async function setMemberTrialState(
     guildId: string,
     profileId: string,
-    lifecycleStatus: "CANDIDATE" | "ARRIVING" | "TRIAL" | "CONFIRMED",
-    options?: { trialEndsAt?: string | null; notes?: string }
+    input: { validated: boolean; trialEndsAt?: string | null }
 ): Promise<ActionResponse<{ message: string }>> {
     const session = await auth();
     if (!session?.user?.id) return { success: false, error: "Non authentifié" };
@@ -370,84 +393,9 @@ export async function updateMemberLifecycleStatus(
         return { success: false, error: "Permission 'Gérer les membres' requise" };
     }
 
-    const validated = updateStatusSchema.safeParse({ profileId, lifecycleStatus, ...options });
+    const validated = trialStateSchema.safeParse({ profileId, ...input });
     if (!validated.success) {
         return { success: false, error: validated.error.errors[0]?.message || "Données invalides" };
-    }
-
-    try {
-        const guild = await db.guildConfig.findUnique({
-            where: { discordGuildId: guildId },
-            select: { id: true, trialDurationDays: true }
-        });
-        if (!guild) return { success: false, error: "Guilde introuvable" };
-
-        let computedTrialEndsAt = options?.trialEndsAt ? new Date(options.trialEndsAt) : undefined;
-        if (lifecycleStatus === "TRIAL" && !computedTrialEndsAt) {
-            const now = new Date();
-            now.setDate(now.getDate() + (guild.trialDurationDays || 14));
-            computedTrialEndsAt = now;
-        }
-
-        const profile = await db.userProfile.findFirst({
-            where: { id: profileId, guildId: guild.id },
-            select: { id: true, pseudoDofus: true, discordNickname: true, lifecycleStatus: true }
-        });
-
-        if (!profile) return { success: false, error: "Profil membre introuvable" };
-
-        await db.userProfile.update({
-            where: { id: profile.id },
-            data: {
-                lifecycleStatus,
-                trialEndsAt: computedTrialEndsAt ?? null,
-                ...(options?.notes ? { staffNotes: options.notes } : {})
-            }
-        });
-
-        const actorId = session.user.id;
-        await createAuditLog({
-            guildId: guild.id,
-            actorUserId: actorId,
-            actorName: ctx.name || "Staff",
-            action: "SETTINGS_UPDATED",
-            targetType: "USER_PROFILE",
-            targetId: profile.id,
-            oldValue: { status: profile.lifecycleStatus },
-            newValue: { status: lifecycleStatus, trialEndsAt: computedTrialEndsAt },
-            metadata: {
-                memberName: profile.pseudoDofus || profile.discordNickname || "Membre"
-            }
-        });
-
-        return { success: true, data: { message: "Statut mis à jour avec succès" } };
-    } catch (err: any) {
-        logger.error("[updateMemberLifecycleStatus] Erreur:", err);
-        return { success: false, error: "Erreur lors de la mise à jour du statut" };
-    }
-}
-
-/**
- * Valide l'essai d'un membre directement (raccourci 1 clic).
- */
-export async function validateMemberTrial(guildId: string, profileId: string): Promise<ActionResponse<{ message: string }>> {
-    return updateMemberLifecycleStatus(guildId, profileId, "CONFIRMED", { trialEndsAt: null });
-}
-
-/**
- * Prolonge la période d'essai d'un membre de X jours.
- */
-export async function extendMemberTrial(
-    guildId: string,
-    profileId: string,
-    additionalDays: number = 7
-): Promise<ActionResponse<{ message: string }>> {
-    const session = await auth();
-    if (!session?.user?.id) return { success: false, error: "Non authentifié" };
-
-    const ctx = await getUserContext(guildId);
-    if (!ctx.isAdmin && !ctx.canManageMembers) {
-        return { success: false, error: "Permission 'Gérer les membres' requise" };
     }
 
     try {
@@ -458,30 +406,53 @@ export async function extendMemberTrial(
         if (!guild) return { success: false, error: "Guilde introuvable" };
 
         const profile = await db.userProfile.findFirst({
-            where: { id: profileId, guildId: guild.id },
-            select: { id: true, trialEndsAt: true }
+            where: { id: validated.data.profileId, guildId: guild.id },
+            select: { id: true, pseudoDofus: true, discordNickname: true, trialValidated: true, trialEndsAt: true }
         });
 
         if (!profile) return { success: false, error: "Profil membre introuvable" };
 
-        const baseDate = profile.trialEndsAt && profile.trialEndsAt > new Date()
-            ? new Date(profile.trialEndsAt)
-            : new Date();
-        baseDate.setDate(baseDate.getDate() + additionalDays);
+        const trialEndsAt = validated.data.validated
+            ? null
+            : validated.data.trialEndsAt
+              ? new Date(validated.data.trialEndsAt)
+              : null;
 
         await db.userProfile.update({
             where: { id: profile.id },
-            data: {
-                lifecycleStatus: "TRIAL",
-                trialEndsAt: baseDate
+            data: { trialValidated: validated.data.validated, trialEndsAt }
+        });
+
+        await createAuditLog({
+            guildId: guild.id,
+            actorUserId: session.user.id,
+            actorName: ctx.name || "Staff",
+            action: "SETTINGS_UPDATED",
+            targetType: "USER_PROFILE",
+            targetId: profile.id,
+            oldValue: { trialValidated: profile.trialValidated, trialEndsAt: profile.trialEndsAt },
+            newValue: { trialValidated: validated.data.validated, trialEndsAt },
+            metadata: {
+                memberName: profile.pseudoDofus || profile.discordNickname || "Membre",
+                source: "registre",
             }
         });
 
-        return { success: true, data: { message: `Période d'essai prolongée de ${additionalDays} jours` } };
-    } catch (err: any) {
-        logger.error("[extendMemberTrial] Erreur:", err);
-        return { success: false, error: "Erreur lors de la prolongation de l'essai" };
+        return {
+            success: true,
+            data: { message: validated.data.validated ? "Essai validé" : "Essai mis à jour" },
+        };
+    } catch (err: unknown) {
+        logger.error("[setMemberTrialState] Erreur:", err);
+        return { success: false, error: "Erreur lors de la mise à jour de l'essai" };
     }
+}
+
+/**
+ * Valide l'essai d'un membre directement (raccourci 1 clic).
+ */
+export async function validateMemberTrial(guildId: string, profileId: string): Promise<ActionResponse<{ message: string }>> {
+    return setMemberTrialState(guildId, profileId, { validated: true });
 }
 
 /**
@@ -646,7 +617,8 @@ export async function reintegrateMember(guildId: string, profileId: string): Pro
                 where: { id: profile.id },
                 data: {
                     status: "ACTIVE",
-                    lifecycleStatus: "CONFIRMED",
+                    trialValidated: true,
+                    trialEndsAt: null,
                     archivedAt: null,
                     departureReason: null,
                     departureCategory: null,
@@ -690,8 +662,22 @@ export async function updateMemberRecruiter(
         });
         if (!guild) return { success: false, error: "Guilde introuvable" };
 
-        await db.userProfile.update({
+        const target = await db.userProfile.findFirst({
             where: { id: profileId, guildId: guild.id },
+            select: { id: true }
+        });
+        if (!target) return { success: false, error: "Profil membre introuvable" };
+
+        if (recruiterProfileId) {
+            const recruiter = await db.userProfile.findFirst({
+                where: { id: recruiterProfileId, guildId: guild.id },
+                select: { id: true }
+            });
+            if (!recruiter) return { success: false, error: "Recruteur invalide pour cette guilde" };
+        }
+
+        await db.userProfile.update({
+            where: { id: target.id },
             data: { recruitedById: recruiterProfileId }
         });
 
@@ -774,6 +760,86 @@ export async function updateMemberStaffNotes(
     } catch (err: any) {
         logger.error("[updateMemberStaffNotes] Erreur:", err);
         return { success: false, error: "Erreur lors de la mise à jour des notes" };
+    }
+}
+
+/**
+ * Édition du registre (une ligne = un membre) : identités saisies à la main,
+ * date d'arrivée manuelle et commentaires staff. L'ancienneté et l'ID Discord
+ * restent calculés / peuplés seuls côté lecture.
+ */
+export async function updateMemberRegistryIdentity(
+    guildId: string,
+    input: z.infer<typeof registryIdentitySchema>
+): Promise<ActionResponse<{ message: string }>> {
+    const session = await auth();
+    if (!session?.user?.id) return { success: false, error: "Non authentifié" };
+
+    const ctx = await getUserContext(guildId);
+    if (!ctx.isAdmin && !ctx.canManageMembers) {
+        return { success: false, error: "Permission 'Gérer les membres' requise" };
+    }
+
+    const validated = registryIdentitySchema.safeParse(input);
+    if (!validated.success) {
+        return { success: false, error: validated.error.errors[0]?.message || "Données invalides" };
+    }
+
+    try {
+        const guild = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { id: true }
+        });
+        if (!guild) return { success: false, error: "Guilde introuvable" };
+
+        const profile = await db.userProfile.findFirst({
+            where: { id: validated.data.profileId, guildId: guild.id },
+            select: { id: true, pseudoDofus: true, ankamaId: true, guildJoinedAt: true, staffNotes: true }
+        });
+        if (!profile) return { success: false, error: "Profil membre introuvable" };
+
+        const data: Record<string, unknown> = {};
+        if (validated.data.pseudoDofus !== undefined) {
+            const v = validated.data.pseudoDofus?.trim();
+            data.pseudoDofus = v ? v : null;
+        }
+        if (validated.data.ankamaId !== undefined) {
+            const v = validated.data.ankamaId?.trim();
+            data.ankamaId = v ? v : null;
+        }
+        if (validated.data.guildJoinedAt !== undefined) {
+            data.guildJoinedAt = validated.data.guildJoinedAt ? new Date(validated.data.guildJoinedAt) : null;
+        }
+        if (validated.data.staffNotes !== undefined) {
+            data.staffNotes = validated.data.staffNotes ? validated.data.staffNotes.slice(0, 2000) : null;
+        }
+        if (Object.keys(data).length === 0) {
+            return { success: true, data: { message: "Rien à mettre à jour" } };
+        }
+
+        await db.userProfile.update({ where: { id: profile.id }, data: data as never });
+
+        await createAuditLog({
+            guildId: guild.id,
+            actorUserId: session.user.id,
+            actorName: ctx.name || "Staff",
+            action: "SETTINGS_UPDATED",
+            targetType: "USER_PROFILE",
+            targetId: profile.id,
+            oldValue: {
+                pseudoDofus: profile.pseudoDofus,
+                ankamaId: profile.ankamaId,
+                guildJoinedAt: profile.guildJoinedAt,
+                staffNotes: profile.staffNotes,
+            },
+            newValue: data,
+            metadata: { source: "registre" },
+        });
+
+        return { success: true, data: { message: "Ligne du registre mise à jour" } };
+    } catch (err: unknown) {
+        logger.error("[updateMemberRegistryIdentity] Erreur:", err);
+        return { success: false, error: "Erreur lors de la mise à jour du registre" };
     }
 }
 

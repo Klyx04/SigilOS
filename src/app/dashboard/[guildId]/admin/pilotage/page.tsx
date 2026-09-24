@@ -10,9 +10,10 @@ import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
 import { ModuleHelpActions } from "@/components/doc/module-help-actions";
 import { GovernanceWidget } from "@/components/admin/governance-widget";
 import { PilotageCommandsSection } from "./pilotage-commands-section";
+import { PilotageDiscordDiagnostic } from "./pilotage-discord-diagnostic";
 import { ModulesClient } from "../modules/_components/modules-client";
 import { PermissionsManager } from "../_components/permissions-manager";
-import { CheckCircle2, XCircle, Rocket, LayoutDashboard, Puzzle, Shield, Terminal } from "lucide-react";
+import { CheckCircle2, XCircle, Rocket, LayoutDashboard, Puzzle, Shield, Terminal, Activity } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -32,8 +33,8 @@ export default async function PilotagePage({ params, searchParams }: Props) {
 
     const { guildId } = await params;
     const tab = (await searchParams)?.tab;
-    const activeTab: "etat" | "modules" | "acces" | "commandes" =
-        tab === "modules" || tab === "acces" || tab === "commandes" ? tab : "etat";
+    const activeTab: "etat" | "modules" | "acces" | "commandes" | "diagnostic" =
+        tab === "modules" || tab === "acces" || tab === "commandes" || tab === "diagnostic" ? tab : "etat";
 
     const user = await getUserContext(guildId);
     if (!user.isDiscordAdmin) {
@@ -123,6 +124,7 @@ export default async function PilotagePage({ params, searchParams }: Props) {
                     { id: "modules" as const, label: "Modules", icon: Puzzle, href: `/dashboard/${guildId}/admin/pilotage?tab=modules` },
                     { id: "acces" as const, label: "Accès & Rôles", icon: Shield, href: `/dashboard/${guildId}/admin/pilotage?tab=acces` },
                     { id: "commandes" as const, label: "Commandes", icon: Terminal, href: `/dashboard/${guildId}/admin/pilotage?tab=commandes` },
+                    { id: "diagnostic" as const, label: "Diagnostic Discord", icon: Activity, href: `/dashboard/${guildId}/admin/pilotage?tab=diagnostic` },
                 ];
                 return (
                     <nav aria-label="Pilotage" className="flex items-center gap-1.5 flex-wrap">
@@ -223,6 +225,10 @@ export default async function PilotagePage({ params, searchParams }: Props) {
 
             {activeTab === "commandes" && (
                 <PilotageCommandsSection guildId={guildId} />
+            )}
+
+            {activeTab === "diagnostic" && (
+                <PilotageDiscordDiagnostic guildId={guildId} />
             )}
         </div>
     );

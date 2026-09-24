@@ -46,6 +46,7 @@ Appelés depuis le crontab VPS (`crontab -l`) via
 - `/api/cron/sync-dofensive-maps` — **siphon local Dofensive (fiches boss)** : `/dungeons/preview` + `/maps/{id}` → tables `DofensiveDungeon` + `DofensiveMap` (grille `Cells` 40×14, ally/enemyCells, coords). `versionHash` → update auto si changement, salles fraîches (< 24 h) sautées. Fréquence recommandée : quotidien (`30 3 * * *`).
 - `/api/cron/sync-monster-stats` — **siphon local fiches monstres (DofusDB + Dofensive)** : pour chaque boss de donjon, fiche DofusDB (grades/drops/sorts) fusionnée avec les sorts de combat Dofensive (AP/portée/zone/cooldown/maxCast) → table `MonsterStat`. ⚠️ 1er run lourd (10-30 min, ~tous les boss × 6-8 requêtes) — runs suivants rapides (tout déjà frais). Fréquence recommandée : quotidien (`45 3 * * *`).
 - `/api/cron/check-links` — **vérificateur de liens multi-sources (HEAD)** : flague les slugs cassés DofusDB/Dofensive/DPLN (résultat en audit God, rien stocké). Fréquence recommandée : hebdomadaire (`15 4 * * 0`).
+- `/api/cron/discord-channel-watch` — **surveillance des salons Discord** : pour chaque guilde active avec un `systemNotifyChannelId`, compare les IDs de canaux configurés dans `GuildConfig` aux canaux visibles par le bot. Si un canal configuré a disparu, envoie un embed d'alerte dans `systemNotifyChannelId` avec la liste des champs affectés et un lien vers `/admin/pilotage?tab=diagnostic`. Fréquence recommandée : quotidien (`0 7 * * *`).
 
 ### 🛒 Module « Marché » — cron unique des échéances
 

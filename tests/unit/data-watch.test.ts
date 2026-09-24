@@ -68,7 +68,7 @@ beforeEach(() => {
     mockNotifyGod.mockResolvedValue({ success: true });
     mockRecordCronExecution.mockResolvedValue(true);
     mockComputeQuestDeltasCore.mockResolvedValue({ totalLocal: 0, totalRemote: 0, deltas: [] });
-    mockEnqueue.mockResolvedValue("game-data-ITEMS");
+    mockEnqueue.mockResolvedValue({ jobId: "game-data-ITEMS", outcome: "queued" });
     vi.unstubAllGlobals();
 });
 
@@ -122,7 +122,7 @@ describe("GET /api/cron/data-watch", () => {
             .mockResolvedValueOnce(totalsJson(150)));
         mockGameItemCount.mockResolvedValue(19000);
         mockDungeonCount.mockResolvedValue(140);
-        mockEnqueue.mockResolvedValue(null); // Redis/file KO
+        mockEnqueue.mockResolvedValue({ jobId: null, outcome: "unavailable" }); // Redis/file KO
 
         const res = await GET(authedReq());
         const data = await res.json();
@@ -131,6 +131,24 @@ describe("GET /api/cron/data-watch", () => {
         expect(data.autoQueued).toEqual([]);
         expect(data.autoUnavailable).toEqual(["ITEMS"]);
         expect(mockNotifyGod.mock.calls[0][0].message).toContain("File indisponible");
+    });
+
+    it("siphon déjà en cours → la notif le dit (jamais deux passes sur le même dataset)", async () => {
+        vi.stubGlobal("fetch", vi.fn()
+            .mockResolvedValueOnce(totalsJson(20000))
+            .mockResolvedValueOnce(totalsJson(100))
+            .mockResolvedValueOnce(totalsJson(150)));
+        mockGameItemCount.mockResolvedValue(19000);
+        mockDungeonCount.mockResolvedValue(140);
+        mockEnqueue.mockResolvedValue({ jobId: "game-data-ITEMS", outcome: "already-running" });
+
+        const res = await GET(authedReq());
+        const data = await res.json();
+
+        expect(data.autoQueued).toEqual([]);
+        expect(data.autoRunning).toEqual(["ITEMS"]);
+        expect(data.autoUnavailable).toEqual([]);
+        expect(mockNotifyGod.mock.calls[0][0].message).toContain("Veille déjà en cours");
     });
 
     it("stocks alignés → pas d'alerte, télémétrie quand même", async () => {

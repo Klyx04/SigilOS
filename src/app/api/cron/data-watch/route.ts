@@ -84,13 +84,15 @@ export async function GET(req: Request) {
         // n'applique **jamais** de suppression : un retrait reste une décision humaine.
         const autoQueued: string[] = [];
         const autoUnavailable: string[] = [];
+        const autoRunning: string[] = [];
         if (hasNews) {
             const { GAME_DATA_AUTO_SYNC_DATASETS, isBackgroundDataset } = await import("@/lib/game-data-sync-state");
             const { enqueueGameDataSync } = await import("@/lib/queue/game-data-queue");
             for (const dataset of GAME_DATA_AUTO_SYNC_DATASETS) {
                 if (!isBackgroundDataset(dataset)) continue;
-                const jobId = await enqueueGameDataSync(dataset, { incremental: true });
-                if (jobId) autoQueued.push(dataset);
+                const { jobId, outcome } = await enqueueGameDataSync(dataset, { incremental: true });
+                if (outcome === "queued" && jobId) autoQueued.push(dataset);
+                else if (outcome === "already-running") autoRunning.push(dataset);
                 else autoUnavailable.push(dataset);
             }
         }
@@ -99,6 +101,8 @@ export async function GET(req: Request) {
             const { notifyGod } = await import("@/server/actions/god-notif-actions");
             const auto = autoQueued.length
                 ? ` Veille ciblée mise en file : ${autoQueued.join(", ")} (seuls les changements sont relus).`
+                : autoRunning.length
+                ? ` Veille déjà en cours : ${autoRunning.join(", ")}.`
                 : autoUnavailable.length
                 ? ` File indisponible : lancer ${autoUnavailable.join(", ")} depuis le Tableau god.`
                 : "";
@@ -107,7 +111,7 @@ export async function GET(req: Request) {
                 message: `${summary}.${auto} Aucune suppression n'est automatique : voir le Tableau (god → données de jeu).`,
                 type: "SYSTEM",
                 success: true,
-                metadata: { remoteItems, localItems, questNew, questModified, remoteDungeons, localDungeons, autoQueued, autoUnavailable },
+                metadata: { remoteItems, localItems, questNew, questModified, remoteDungeons, localDungeons, autoQueued, autoRunning, autoUnavailable },
             });
         }
 
@@ -116,10 +120,10 @@ export async function GET(req: Request) {
             success: true,
             durationMs: Date.now() - startedAt,
             summary: autoQueued.length ? `${summary} · veille ciblée: ${autoQueued.join(", ")}` : summary,
-            details: { remoteItems, localItems, questNew, questModified, remoteDungeons, localDungeons, autoQueued, autoUnavailable },
+            details: { remoteItems, localItems, questNew, questModified, remoteDungeons, localDungeons, autoQueued, autoRunning, autoUnavailable },
         });
 
-        return NextResponse.json({ success: true, hasNews, summary, autoQueued, autoUnavailable });
+        return NextResponse.json({ success: true, hasNews, summary, autoQueued, autoRunning, autoUnavailable });
     } catch (e: any) {
         logger.error("[Cron:DataWatch] Erreur:", e);
         const { recordCronExecution } = await import("@/lib/cron-telemetry");

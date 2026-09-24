@@ -40,34 +40,68 @@ if (process.env.NODE_ENV !== "production") {
 }
 
 /**
- * Met un siphon en file (idempotent par dataset : un seul job actif à la fois).
+ * États BullMQ qu'un job peut avoir **en cours de traitement** (donc à ne pas doubler).
+ * La règle pure vit dans `game-data-queue-policy.ts` (sans bullmq/Redis ⇒ testable).
+ */
+import {
+    isJobInFlight,
+    type GameDataEnqueueOutcome,
+    type GameDataEnqueueResult,
+} from "@/lib/queue/game-data-queue-policy";
+
+export { isJobInFlight, type GameDataEnqueueOutcome, type GameDataEnqueueResult };
+
+/**
+ * Met un siphon en file (idempotent par dataset : un seul job à la fois).
  *
  * `incremental: true` ⇒ **veille ciblée** (le worker ne demande à DofusDB que ce qui a bougé
- * depuis le filigrane). Le `jobId` reste **le même** que la passe complète : c'est ce qui
- * empêche deux passes de tourner en même temps sur le même dataset.
+ * depuis le filigrane). Le `jobId` reste **volontairement** le même que la passe complète :
+ * c'est ce qui empêche deux passes simultanées sur le même dataset.
  *
- * ⚠️ **Borné** (mesuré : un `add()` peut pendre si Redis ne répond pas — le cron de veille
- * a **timeouté en test** pour cette raison) : au-delà de 2,5 s on rend `null` et l'appelant
- * retombe sur le chemin manuel. Jamais de hang dans un cron.
+ * ⚠️ **Incident mesuré le 24/09/2026** (« ça tourne dans le vide ») : avec un `jobId` fixe,
+ * BullMQ **n'ajoute rien** si un job du même id existe encore — y compris **échoué**
+ * (`removeOnFail` 24 h) — et rend l'id existant **sans erreur**. D'où le nettoyage explicite
+ * ci-dessous :
+ *   · job vivant (actif/en file) ⇒ on ne double pas, et on le DIT (`already-running`) ;
+ *   · job terminé/échoué ⇒ on l'enlève puis on ajoute (sinon le bouton resterait muet 24 h).
+ *
+ * ⚠️ **Borné** (2,5 s) : un `add()` peut pendre si Redis ne répond pas (le cron de veille a
+ * timeouté en test pour cette raison) ⇒ on rend `unavailable`, jamais un hang.
  */
 const ENQUEUE_TIMEOUT_MS = 2_500;
 
 export async function enqueueGameDataSync(
     dataset: GameDataBackgroundDataset,
     opts: { incremental?: boolean } = {},
-): Promise<string | null> {
+): Promise<GameDataEnqueueResult> {
+    const jobId = `game-data-${dataset}`;
     try {
+        const existing = await gameDataQueue.getJob(jobId);
+        if (existing) {
+            const state = await existing.getState();
+            if (isJobInFlight(state)) {
+                return { jobId, outcome: "already-running" };
+            }
+            // Terminé ou échoué : on libère l'id, sinon le nouvel ajout serait ignoré en silence.
+            try {
+                await existing.remove();
+            } catch {
+                // Job verrouillé par un worker : le nouvel ajout sera ignoré, l'appelant le dira.
+            }
+        }
+
         const job = await Promise.race([
             gameDataQueue.add(
                 `sync:${dataset}${opts.incremental ? " (veille)" : ""}`,
                 { dataset, incremental: opts.incremental === true, requestedAt: new Date().toISOString() },
-                { jobId: `game-data-${dataset}` },
+                { jobId },
             ),
             new Promise<null>((resolve) => setTimeout(() => resolve(null), ENQUEUE_TIMEOUT_MS)),
         ]);
-        return job?.id ?? null;
+        if (!job?.id) return { jobId: null, outcome: "unavailable" };
+        return { jobId: job.id, outcome: "queued" };
     } catch {
         // Redis/file indisponible : l'appelant garde le chemin manuel (bouton classique).
-        return null;
+        return { jobId: null, outcome: "unavailable" };
     }
 }

@@ -726,6 +726,8 @@ export const fr = {
         dungeonEntrance: "Entrée du donjon :",
         copyTravelTitle: "Cliquer pour copier la commande /travel",
         zoneLabel: "Zone :",
+        minimapTitle: "Où est le donjon",
+        minimapOpen: "Ouvrir la carte du monde",
         guildBannerDesc: "Préparez ce donjon en guilde : session Discord, inscriptions par classe et succès validés automatiquement.",
         guildBannerCta: "Créer mon espace guilde",
         publicSheetNotice: "Fiche publique — sans suivi de guilde (connexion requise dans le dashboard).",

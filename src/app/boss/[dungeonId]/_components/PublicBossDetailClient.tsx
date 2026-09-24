@@ -36,6 +36,7 @@ import {
 import { mergeDofensiveSpells } from "@/lib/dofensive-spells";
 import { deriveDofensiveMonsterName } from "@/lib/dofensive-boss";
 import { getWorldName } from "@/lib/dofus-assets";
+import { DungeonMinimapCard } from "./DungeonMinimapCard";
 import { getAnomalyBossBattleMap, getAnomalyBossFamily } from "@/server/actions/anomaly-boss-actions";
 import { getBountyBattleMap } from "@/server/actions/bounty-actions";
 import type { BountyPublicMeta } from "@/lib/bounty-fiche";
@@ -1013,6 +1014,19 @@ export function PublicBossDetailClient({
           <span className="text-xs font-semibold text-muted-foreground">
             {t.bossPage.zoneLabel} <strong className="text-foreground">{getWorldName(coords.worldMapId, locale)}</strong>
           </span>
+        </div>
+      )}
+
+      {/* ── ENCADRÉ CARTE DU MONDE (entrée donjon, statique + cliquable) ── */}
+      {coords && (
+        <div className="max-w-[280px]">
+          <DungeonMinimapCard
+            x={coords.x}
+            y={coords.y}
+            worldMapId={coords.worldMapId}
+            title={t.bossPage.minimapTitle}
+            openLabel={t.bossPage.minimapOpen}
+          />
         </div>
       )}
 

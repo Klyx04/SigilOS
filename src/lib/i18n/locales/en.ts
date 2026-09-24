@@ -729,6 +729,8 @@ export const en: Translations = {
         dungeonEntrance: "Dungeon entrance:",
         copyTravelTitle: "Click to copy /travel command",
         zoneLabel: "Zone:",
+        minimapTitle: "Where is the dungeon",
+        minimapOpen: "Open the world map",
         guildBannerDesc: "Prepare this dungeon with your guild: Discord session, class registration, and automatically validated achievements.",
         guildBannerCta: "Create my guild space",
         publicSheetNotice: "Public sheet — no guild tracking (sign-in required in dashboard).",

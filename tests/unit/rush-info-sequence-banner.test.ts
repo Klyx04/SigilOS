@@ -12,7 +12,7 @@
  *   · le câblage des trois surfaces sur ce composant unique ;
  *   · côté guide public : les encarts sont conservés dans le flux, et EXCLUS de tous les
  *     compteurs (progression du guide, du chapitre, du bloc, « valider tout le bloc »,
- *     repère « Je suis ici », sommaire).
+ *     repère « Je suis ici »).
  */
 
 import { describe, it, expect } from "vitest";
@@ -20,6 +20,7 @@ import { readFileSync } from "node:fs";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { RushInfoSequenceBanner } from "@/components/dofus-quests/rush/RushInfoSequenceBanner";
+import { RushChapterSidebar } from "@/components/dofus-quests/rush/RushChapterSidebar";
 import type { RushSequence } from "@/types/rush-guide-types";
 
 const seq = (over: Partial<RushSequence> = {}): RushSequence => ({
@@ -117,7 +118,7 @@ describe("Guide public — les encarts sont dans le flux et hors des compteurs",
     expect(code).toMatch(/sequences: \[\.\.\.pendingInfo, seq\]/);
   });
 
-  it("la progression les exclut partout (guide, chapitre, bloc, sommaire)", () => {
+  it("la progression les exclut partout (guide, chapitre, bloc)", () => {
     // Compteur global du guide.
     expect(code).toMatch(/acc \+ \(ms\.sequences\?\.filter\(\(s\) => !isInfoSequence\(s\)\)\.length \|\| 0\)/);
     // Chapitre (en-tête + pourcentage).
@@ -125,8 +126,8 @@ describe("Guide public — les encarts sont dans le flux et hors des compteurs",
     // Bloc de quête : « n/N », en-tête, « Valider tout le bloc », repère.
     expect(code).toMatch(/const blockSteps = block\.sequences\.filter\(\(s\) => !isInfoSequence\(s\)\);/);
     expect(code).toMatch(/handleToggleBlockSteps\(ms\.id, blockSteps\.map\(\(s\) => s\.id\), true\)/);
-    // Sommaire.
-    expect(code).toMatch(/const pageSteps = p\.ms\.sequences\.filter\(\(s\) => !isInfoSequence\(s\)\);/);
+    // Le sommaire public (qui portait ce compteur) a été supprimé le 22/09 : le
+    // décompte par chapitre est désormais porté par le rail de droite.
     // Milestone terminé / validation globale.
     expect(code).toMatch(/const steps = ms\.sequences\.filter\(\(s\) => !isInfoSequence\(s\)\);/);
     expect(code).toMatch(/ms\.sequences\.filter\(\(s\) => !isInfoSequence\(s\)\)\.forEach/);
@@ -137,4 +138,52 @@ describe("Guide public — les encarts sont dans le flux et hors des compteurs",
     expect(code).toMatch(/\{hasSteps && !isSingleStep && \(/);
     expect(code).toMatch(/const hasSteps = blockSteps\.length > 0;/);
   });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Rail de droite (`RushChapterSidebar`) — même règle, autre surface.
+// 🎯 Mesure du 22/09/2026 : le sommaire repliable du guide public (qui portait, lui, le
+// compteur filtré) a été supprimé — le rail est désormais le SEUL décompte par chapitre
+// visible côté public. Il comptait les encarts `info_sequence` : un chapitre contenant un
+// conseil affichait « n/N+1 » et ne pouvait jamais atteindre 100 %.
+// ─────────────────────────────────────────────────────────────────────────────
+describe("RushChapterSidebar — les encarts ne comptent pas dans la progression", () => {
+  const milestones = [
+    {
+      id: "ms-1",
+      title: "Premier pas",
+      chapter: 1,
+      chapterLabel: "Chapitre 1",
+      sequences: [
+        seq({ id: "s1", activityTags: [] }),
+        seq({ id: "s2", activityTags: [] }),
+        seq({ id: "s3" }), // encart info_sequence : aucune case à cocher
+      ],
+    },
+  ];
+
+  const rail = (completed: string[]) =>
+    renderToStaticMarkup(
+      React.createElement(RushChapterSidebar, {
+        milestones: milestones as never,
+        completedSeqIds: new Set(completed),
+      })
+      // Les marqueurs de séparation de texte du SSR (`<!-- -->`) ne s'affichent pas :
+      // on teste ce que le joueur lit.
+    ).replace(/<!-- -->/g, "");
+
+  it("affiche « n/N » sur les seules étapes cochables", () => {
+    const html = rail([]);
+    expect(html).toContain(">0/2<");
+    expect(html).toContain("0 / 2");
+    expect(html).not.toContain("0/3");
+  });
+
+  it("toutes les étapes cochables faites ⇒ le chapitre est terminé (jamais bloqué par un encart)", () => {
+    const html = rail(["s1", "s2"]);
+    expect(html).toContain(">2/2<");
+    expect(html).toContain("100%");
+    expect(html).not.toContain("2/3");
+  });
+});
+
 });

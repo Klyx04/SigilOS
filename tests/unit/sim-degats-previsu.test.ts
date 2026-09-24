@@ -14,10 +14,11 @@
  *
  * 🛡️ Ce que ce test verrouille : ① l'extraction du **jet numérique** par effet (min/max + élément)
  * et son **agrégation par élément** (mêmes règles que la fiche Dofus) ; ② la **poussée** lue sur les
- * paramètres, jamais calculée (aucune formule inventée) ; ③ l'option « Dégâts estimés » **repliée par
- * défaut**, montée dans les DEUX panneaux Options, et les badges limités à la cible visée + aux
- * personnages dans la zone ; ④ les couleurs/icônes d'éléments viennent du **thème de stats partagé**
- * (aucune couleur d'élément codée en dur) ; ⑤ les libellés existent en FR ET en EN.
+ * paramètres, jamais calculée (aucune formule inventée) ; ③ l'option « Dégâts estimés » **allumée par
+ * défaut** (retour user 22/09/2026 : « on voit rien au degat sur les autres » + « toggle degat estimé
+ * de 0 »), montée dans la **barre d'outils** des DEUX modes, et les badges limités à la cible visée +
+ * aux personnages dans la zone ; ④ les couleurs/icônes d'éléments viennent du **thème de stats
+ * partagé** (aucune couleur d'élément codée en dur) ; ⑤ les libellés existent en FR ET en EN.
  */
 
 import { describe, it, expect } from "vitest";
@@ -117,13 +118,15 @@ const THEME = codeOf("src/lib/dofus-stats-theme.ts");
 const FR = codeOf("src/lib/i18n/locales/fr.ts");
 const EN = codeOf("src/lib/i18n/locales/en.ts");
 
-describe("option « Dégâts estimés » — repliée par défaut, montée dans les deux modes", () => {
-    it("l'état est replié par défaut et compté dans les réglages actifs", () => {
-        expect(GRID).toMatch(/const \[showDamage, setShowDamage\] = useState<boolean>\(false\);/);
+describe("option « Dégâts estimés » — allumée par défaut, interrupteur visible dans les deux modes", () => {
+    it("l'état est ALLUMÉ par défaut et compté dans les réglages actifs", () => {
+        // 🔁 22/09/2026 (retour user) : la prévisu n'est plus repliée — elle est visible d'entrée,
+        // l'utilisateur ne voyait « rien au degat sur les autres ».
+        expect(GRID).toMatch(/const \[showDamage, setShowDamage\] = useState<boolean>\(true\);/);
         expect(GRID).toMatch(/const activeOptionCount = \[[\s\S]{0,220}showDamage,/);
     });
 
-    it("un seul interrupteur, monté dans les DEUX panneaux Options", () => {
+    it("un seul interrupteur, monté dans la barre d'outils des DEUX modes", () => {
         expect(GRID).toMatch(/const damageToggle = \(/);
         // Un seul interrupteur (fonction `damageToggle(board)` : palette du plateau vs thème de page),
         // monté une fois dans le panneau compact et une fois dans le panneau de fiche.
@@ -139,13 +142,17 @@ describe("option « Dégâts estimés » — repliée par défaut, montée dans 
         expect(layer).toMatch(/damageTargets\.map/);
     });
 
-    it("les cibles ne sont que la case visée + les personnages présents dans la zone", () => {
+    it("les cibles sont les ENTITÉS de la zone — une case vide n'affiche rien", () => {
         // La liste des cibles vit dans `damageTargets` (source unique des badges ET du panneau de
-        // prévisu) : mêmes garanties qu'avant, un seul endroit à relire.
+        // prévisu). 🔁 22/09/2026 (verbatim user) : « une case vide visée ne doit rien afficher, on
+        // vise les fécas (simu monstres) et les poutchs (simu stuff) » ⇒ la case survolée n'est plus
+        // une cible : seules les entités réellement présentes dans la zone le sont.
         const memo = GRID.slice(GRID.indexOf("const damageTargets = useMemo"), GRID.indexOf("const damageToggle"));
-        expect(memo).toMatch(/hoveredCell && zonePreview\.has/);
         expect(memo).toMatch(/for \(const ally of allies\)/);
         expect(memo).toMatch(/for \(const enemy of enemies\)/);
+        expect(memo).not.toMatch(/hoveredCell/);
+        // La zone reste mesurée depuis la CASE VISÉE (origine de la dégressivité), jamais d'une entité.
+        expect(memo).toMatch(/zoneOffsetBetween\(zoneAnchor, \{ x, y \}, isRealMap\)/);
     });
 
     it("les jets affichés viennent du serveur (aucun calcul de dégâts côté client)", () => {

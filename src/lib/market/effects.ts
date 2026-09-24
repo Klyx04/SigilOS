@@ -782,6 +782,23 @@ export function isPlaceholderStatLabel(label: string | null | undefined): boolea
     return trimmed.includes("{") || trimmed.includes("}");
 }
 /**
+ * 🧹 Retire la **ponctuation de gabarit** (`{`, `}`) d'un libellé d'effet et **refuse**
+ * tout ce qui ressemble encore à un gabarit (`~`, `#`, « Effet N », moins de 3 lettres) :
+ * aucune invention, on ne fait que dé-punctuariser un libellé réel.
+ *
+ * Sert la purge `GameEffect.name` (S8.5). Mesure du 23/09/2026 en base : **135 des 368**
+ * gabarits sont dans ce cas (« Vole } PM » → « Vole PM », « } soins » → « soins ») ; les
+ * 233 autres sont de vrais « Effet N » que DofusDB ne nomme pas — ils restent tels quels.
+ */
+export function cleanTemplateBraces(name: string): string | null {
+    const cleaned = name.replace(/[{}]/g, " ").replace(/\s{2,}/g, " ").trim();
+    if (!cleaned || cleaned === name) return null;
+    if (/[~#]/.test(cleaned)) return null;
+    if (/^Effet \d+$/.test(cleaned)) return null;
+    if (!/[A-Za-zÀ-ÿ]{3}/.test(cleaned)) return null;
+    return cleaned;
+}
+/**
  * Correction 13/09 (2ᵉ passe) — libellé **curated** d'une ligne, ou `null`.
  *
  * ⚠️ La table `CHAR_NAMES` mélange **deux espaces de clés** (`characteristicId`

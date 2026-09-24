@@ -1,14 +1,10 @@
 'use client';
 
-import { useState, useEffect, useTransition } from 'react';
+import { useState, useEffect } from 'react';
 import {
     Package,
     RefreshCw,
-    Download,
     Search,
-    CheckCircle2,
-    Layers,
-    Sparkles,
     ShieldCheck,
     Scroll,
     Flame,
@@ -16,17 +12,20 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
 import {
     getGameItemsStats,
-    siphonGameItemsBatch,
-    siphonMarketReferentials,
-    backfillNativeEffects,
-    purgePlaceholderEffectLabels,
     searchLocalGameItems,
     type GameItemSearchResult,
 } from '@/server/actions/game-item-actions';
 
+/**
+ * Référentiel local des items (`GameItem`) — **écran de consultation**.
+ *
+ * ⚠️ Les deux lancements (items = ITEMS, référentiels = REFERENTIALS) vivent depuis le
+ * 23/09/2026 dans **📊 Tableau** (`GameDataSyncStatePanel` → `game-data-inline-runners.ts`) :
+ * une seule porte d'entrée, une seule implémentation. Ici : couverture, recettes, WebP,
+ * recherche locale — rien à lancer.
+ */
 export function GameItemSiphonPanel() {
     const [stats, setStats] = useState<{
         totalItems: number;
@@ -37,19 +36,6 @@ export function GameItemSiphonPanel() {
     } | null>(null);
 
     const [loading, setLoading] = useState(true);
-    const [isPending, startTransition] = useTransition();
-
-    // Siphon progress
-    const [isSiphoning, setIsSiphoning] = useState(false);
-    // S2.5bis — siphon des référentiels d'effets & de caractéristiques (marché).
-    const [isSiphoningRefs, setIsSiphoningRefs] = useState(false);
-    // S2.12 — rattrapage local des plages natives (`nativeEffects`) manquantes.
-    const [isBackfilling, setIsBackfilling] = useState(false);
-    // S8.5 — purge des libellés d'effets gabarits (« Effet 63 ») du référentiel.
-    const [isPurgingLabels, setIsPurgingLabels] = useState(false);
-    const [progressValue, setProgressValue] = useState(0);
-    const [siphonStatus, setSiphonStatus] = useState<string | null>(null);
-    const [logs, setLogs] = useState<string[]>([]);
 
     // Search
     const [searchQuery, setSearchQuery] = useState('');
@@ -91,200 +77,9 @@ export function GameItemSiphonPanel() {
         }
     };
 
-    const handleStartSiphon = async () => {
-        setIsSiphoning(true);
-        setProgressValue(0);
-        setLogs((prev) => ['🚀 Démarrage du siphon des items DofusDB par lots de 50...', ...prev]);
-
-        startTransition(async () => {
-            let currentSkip = 0;
-            let totalInserted = 0;
-            let totalUpdated = 0;
-            let hasMore = true;
-            const BATCH_SIZE = 50;
-            // Backoff exponentiel sur 429 : 2s → 4s → 8s → abandon après 3 tentatives
-            const MAX_RETRIES = 3;
-            let consecutiveFailures = 0;
-
-            try {
-                while (hasMore) {
-                    const res = await siphonGameItemsBatch(currentSkip, BATCH_SIZE);
-
-                    if (!res.success || !res.data) {
-                        consecutiveFailures++;
-                        const is429 = res.error?.includes('429');
-                        const waitMs = Math.min(2000 * Math.pow(2, consecutiveFailures - 1), 16_000);
-
-                        if (consecutiveFailures <= MAX_RETRIES) {
-                            setLogs((prev) => [
-                                `⏳ ${is429 ? 'Rate-limit 429' : 'Erreur'} lot skip=${currentSkip} — attente ${waitMs / 1000}s avant retry ${consecutiveFailures}/${MAX_RETRIES}…`,
-                                ...prev,
-                            ]);
-                            await new Promise((r) => setTimeout(r, waitMs));
-                            continue; // rejoue le même skip
-                        }
-
-                        setLogs((prev) => [`❌ Erreur lot skip=${currentSkip} (${MAX_RETRIES} tentatives): ${res.error || 'Inconnue'}`, ...prev]);
-                        break;
-                    }
-
-                    // Lot réussi → réinitialiser le compteur d'échecs
-                    consecutiveFailures = 0;
-                    totalInserted += res.data.inserted;
-                    totalUpdated += res.data.updated;
-                    hasMore = res.data.hasMore;
-                    currentSkip = res.data.nextSkip;
-
-                    const percent = Math.min(Math.round((currentSkip / 20000) * 100), 100);
-                    setProgressValue(percent);
-                    setSiphonStatus(`${currentSkip} items analysés (Nouveaux: ${totalInserted}, Mis à jour: ${totalUpdated})`);
-
-                    // Log ponctuel
-                    if (currentSkip % 250 === 0 || !hasMore) {
-                        setLogs((prev) => [
-                            `📦 Progression: ${currentSkip} items traités (${totalInserted} créés, ${totalUpdated} MAJ)`,
-                            ...prev,
-                        ]);
-                    }
-
-                    // Pause de politesse entre lots (350ms au lieu de 100ms)
-                    await new Promise((r) => setTimeout(r, 350));
-                }
-
-                setLogs((prev) => [
-                    `✅ Synchronisation terminée ! ${totalInserted} items créés, ${totalUpdated} mis à jour.`,
-                    ...prev,
-                ]);
-            } catch (err: any) {
-                setLogs((prev) => [`❌ Exception siphon: ${err?.message}`, ...prev]);
-            } finally {
-                setIsSiphoning(false);
-                loadStats();
-            }
-        });
-    };
-
-    /**
-     * S2.5bis — siphonne les référentiels DofusDB `/effects` + `/characteristics`
-     * (libellés FR, icônes, « % ») qui alimentent l'éditeur de jet et la carte d'item.
-     */
-    const handleSiphonReferentials = async () => {
-        setIsSiphoningRefs(true);
-        setLogs((prev) => ['📚 Siphon des référentiels (effets & caractéristiques)...', ...prev]);
-        startTransition(async () => {
-            try {
-                const res = await siphonMarketReferentials();
-                if (!res.success || !res.data) {
-                    setLogs((prev) => [`❌ Référentiels: ${res.error || 'Inconnue'}`, ...prev]);
-                    return;
-                }
-                const {
-                    characteristics,
-                    characteristicsStored,
-                    characteristicsTotal,
-                    effects,
-                    effectsStored,
-                    effectsTotal,
-                    truncated,
-                    orphanFmIds,
-                } = res.data;
-                setLogs((prev) => [
-                    `✅ Référentiels lus : ${characteristics}/${characteristicsTotal} caractéristique(s) (${characteristicsStored} en base), ${effects}/${effectsTotal} effet(s) (${effectsStored} en base).`,
-                    ...(truncated
-                        ? [
-                              `⚠️ Référentiel INCOMPLET : des pages DofusDB n'ont pas été rendues (page en échec ou plafond atteint) — relancer le siphon pour compléter.`,
-                          ]
-                        : []),
-                    ...(orphanFmIds && orphanFmIds.length > 0
-                        ? [
-                              `⚠️ Mapping FM : ${orphanFmIds.length} id(s) absent(s) du référentiel (${orphanFmIds.join(', ')}) — résolution FM par libellé uniquement.`,
-                          ]
-                        : [`✅ Mapping FM confronté au référentiel : 0 id orphelin.`]),
-                    ...prev,
-                ]);
-            } catch (err: any) {
-                setLogs((prev) => [`❌ Exception référentiels: ${err?.message}`, ...prev]);
-            } finally {
-                setIsSiphoningRefs(false);
-            }
-        });
-    };
-
-    /**
-     * 🩹 S2.12 — rattrape les plages natives (`nativeEffects`) des items
-     * siphonnés AVANT l'ajout de la colonne S2.2. Calcul **local**, sans réseau :
-     * c'est le remède direct au message « aucun effet natif importé ».
-     * Idempotent : relancer ne réécrit que ce qui est encore vide.
-     */
-    const handleBackfillNatives = async () => {
-        setIsBackfilling(true);
-        setLogs((prev) => ['🩹 Rattrapage des effets natifs (calcul local)...', ...prev]);
-        startTransition(async () => {
-            let totalRepaired = 0;
-            let remaining = 0;
-            try {
-                for (let pass = 0; pass < 60; pass++) {
-                    const res = await backfillNativeEffects(1000);
-                    if (!res.success || !res.data) {
-                        setLogs((prev) => [`❌ Rattrapage: ${res.error || 'Inconnue'}`, ...prev]);
-                        break;
-                    }
-                    totalRepaired += res.data.repaired;
-                    remaining = res.data.remaining;
-                    setSiphonStatus(
-                        `Effets natifs rattrapés : ${totalRepaired} (restants: ${remaining})`
-                    );
-                    // Lot sans rien à réparer → inutile d'insister (lignes sans effet).
-                    if (res.data.repaired === 0 || remaining === 0) break;
-                }
-                // Les items sans effet exploitable (ressources, consommables, cosmétiques)
-                // n'ont pas de plages min/max → c'est normal, pas un échec.
-                const suffixNormal = remaining > 0
-                    ? ` — ${remaining} items sans jets (ressources/consommables/cosmétiques, normal \u2705)`
-                    : '';
-                setLogs((prev) => [
-                    `\u2705 Effets natifs : ${totalRepaired} fiche(s) d'\u00e9quipement r\u00e9par\u00e9e(s)${suffixNormal}.`,
-                    ...prev,
-                ]);
-            } catch (err: any) {
-                setLogs((prev) => [`❌ Exception rattrapage: ${err?.message}`, ...prev]);
-            } finally {
-                setIsBackfilling(false);
-                loadStats();
-            }
-        });
-    };
-
-    /**
-     * 🧹 S8.5 — purge les libellés-gabarits `GameEffect.name` (« Effet 63 »,
-     * « }{ soins ») que le siphon `/effects` a ramenés. Idempotent, **aucune
-     * suppression** : les lignes sans source fiable restent comptées « sans source ».
-     */
-    const handlePurgeEffectLabels = async () => {
-        setIsPurgingLabels(true);
-        setLogs((prev) => ['🧹 Purge des libellés d\'effets gabarits...', ...prev]);
-        startTransition(async () => {
-            try {
-                const res = await purgePlaceholderEffectLabels();
-                if (!res.success || !res.data) {
-                    setLogs((prev) => [`❌ Purge: ${res.error || 'Inconnue'}`, ...prev]);
-                    return;
-                }
-                const { scanned, repaired, unresolved } = res.data;
-                setSiphonStatus(`Libellés d'effets : ${repaired}/${scanned} réparés`);
-                setLogs((prev) => [
-                    `✅ Libellés d'effets : ${repaired} réparé(s) sur ${scanned} gabarit(s)` +
-                        (unresolved > 0 ? `, ${unresolved} sans source locale (ignorés à l'affichage).` : '.'),
-                    ...prev,
-                ]);
-            } catch (err: any) {
-                setLogs((prev) => [`❌ Exception purge: ${err?.message}`, ...prev]);
-            } finally {
-                setIsPurgingLabels(false);
-            }
-        });
-    };
-
+    // ── Le lancement GÉNÉRIQUE (items DofusDB = ITEMS) est dans **📊 Tableau** depuis le
+    // 23/09/2026 : une seule porte d'entrée, une seule implémentation
+    // (`game-data-inline-runners.ts`, qui porte la boucle + le backoff 429).
     return (
         <div className="space-y-6">
             {/* Header Cards */}
@@ -330,112 +125,34 @@ export function GameItemSiphonPanel() {
 
                 <div className="p-5 rounded-2xl bg-surface border border-border flex flex-col justify-between">
                     <div className="flex items-center justify-between">
-                        <span className="text-caption font-bold uppercase text-muted-foreground">Action GOD</span>
+                        <span className="text-caption font-bold uppercase text-muted-foreground">Lancement</span>
                         <Flame className="w-5 h-5 text-warning" />
                     </div>
-                    <div className="mt-4">
-                        <Button
-                            onClick={handleStartSiphon}
-                            disabled={isSiphoning || isPending}
-                            className="w-full bg-violet-600 hover:bg-violet-500 text-white font-bold rounded-xl gap-2 shadow-sm"
-                        >
-                            {isSiphoning ? (
-                                <>
-                                    <RefreshCw className="w-4 h-4 animate-spin" />
-                                    Synchronisation...
-                                </>
-                            ) : (
-                                <>
-                                    <Download className="w-4 h-4" />
-                                    Synchroniser DofusDB
-                                </>
-                            )}
-                        </Button>
-                        <Button
-                            onClick={handleSiphonReferentials}
-                            disabled={isSiphoningRefs || isPending}
-                            variant="outline"
-                            className="w-full mt-2 rounded-xl gap-2"
-                        >
-                            {isSiphoningRefs ? (
-                                <>
-                                    <RefreshCw className="w-4 h-4 animate-spin" />
-                                    Référentiels...
-                                </>
-                            ) : (
-                                <>
-                                    <Layers className="w-4 h-4" />
-                                    Synchroniser les référentiels
-                                </>
-                            )}
-                        </Button>
-                        <p className="text-caption text-muted-foreground mt-2">
-                            Effets &amp; caractéristiques DofusDB (libellés FR, icônes, « % ») — requis par
-                            l&apos;éditeur de jet FM du Marché.
+                    <div className="mt-4 space-y-2">
+                        <p className="text-caption text-muted-foreground">
+                            Ce référentiel se lance depuis <strong className="text-foreground">📊 Tableau</strong>
+                            {' '}— une seule porte d&apos;entrée :
                         </p>
-                        <Button
-                            onClick={handleBackfillNatives}
-                            disabled={isBackfilling || isPending}
-                            variant="outline"
-                            className="w-full mt-2 rounded-xl gap-2"
-                        >
-                            {isBackfilling ? (
-                                <>
-                                    <RefreshCw className="w-4 h-4 animate-spin" />
-                                    Rattrapage...
-                                </>
-                            ) : (
-                                <>
-                                    <ShieldCheck className="w-4 h-4" />
-                                    Rattraper les effets natifs
-                                </>
-                            )}
-                        </Button>
-                        <p className="text-caption text-muted-foreground mt-2">
-                            Calcule les plages natives manquantes (colonne ajoutée après le premier
-                            siphon) — local et instantané, sans réseau. Requis pour que
-                            l&apos;éditeur de jet affiche les jets de base de l&apos;objet.
+                        <ul className="text-caption text-muted-foreground space-y-1 list-disc pl-4">
+                            <li>
+                                <strong className="text-foreground">Items &amp; ressources</strong> : bouton
+                                {' '}« ⏳ En arrière-plan » (survit à la fermeture de l&apos;onglet) ou son repli « ▶ Ici ».
+                            </li>
+                            <li>
+                                <strong className="text-foreground">Référentiels</strong> (libellés FR, icônes, « % ») :
+                                bouton « ▶ Lancer ici ».
+                            </li>
+                        </ul>
+                        <p className="text-caption text-muted-foreground">
+                            Ici : consultation (couverture BDD, recettes, WebP, recherche locale).
                         </p>
-                        <Button
-                            onClick={handlePurgeEffectLabels}
-                            disabled={isPurgingLabels || isPending}
-                            variant="outline"
-                            className="w-full mt-2 rounded-xl gap-2"
-                        >
-                            {isPurgingLabels ? (
-                                <>
-                                    <RefreshCw className="w-4 h-4 animate-spin" />
-                                    Purge...
-                                </>
-                            ) : (
-                                <>
-                                    <Flame className="w-4 h-4" />
-                                    Purger les libellés d&apos;effets gabarits
-                                </>
-                            )}
-                        </Button>
-                        <p className="text-caption text-muted-foreground mt-2">
-                            Réécrit les noms « Effet 63 » et les gabarits à accolades ramenés par le
-                            siphon /effects à partir de la caractéristique jointe. Idempotent,
-                            aucune suppression : les lignes sans source locale restent inchangées et
-                            sont ignorées à l&apos;affichage (repli sur la table codée).
+                        <p className="text-caption text-warning/90">
+                            Les retouches <strong>sans réseau</strong> (effets natifs manquants, libellés
+                            d&apos;effets gabarits) sont dans l&apos;onglet <strong>🧰 Outils locaux</strong>.
                         </p>
                     </div>
                 </div>
             </div>
-
-            {/* Siphon progress bar */}
-            {isSiphoning && (
-                <div className="p-5 rounded-2xl bg-surface border border-violet-500/30 space-y-3 animate-in fade-in duration-200">
-                    <div className="flex items-center justify-between text-sm">
-                        <span className="font-bold text-violet-400 flex items-center gap-2">
-                            <RefreshCw className="w-4 h-4 animate-spin" /> {siphonStatus || 'Traitement en cours...'}
-                        </span>
-                        <span className="font-mono text-xs text-muted-foreground">{progressValue}%</span>
-                    </div>
-                    <Progress value={progressValue} className="h-2" />
-                </div>
-            )}
 
             {/* Local Search Test & Preview */}
             <div className="p-6 rounded-2xl bg-surface border border-border space-y-4">
@@ -495,28 +212,6 @@ export function GameItemSiphonPanel() {
                     </div>
                 )}
             </div>
-
-            {/* Terminal logs */}
-            {logs.length > 0 && (
-                <div className="p-4 rounded-2xl bg-black/80 border border-border space-y-2">
-                    <div className="flex items-center justify-between text-xs font-mono text-muted-foreground">
-                        <span>Journal d&apos;activité du Siphon</span>
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setLogs([])}
-                            className="h-6 text-[10px] text-muted-foreground hover:text-foreground"
-                        >
-                            Effacer
-                        </Button>
-                    </div>
-                    <div className="max-h-48 overflow-y-auto font-mono text-xs text-foreground/80 space-y-1 custom-scrollbar">
-                        {logs.map((log, idx) => (
-                            <div key={idx}>{log}</div>
-                        ))}
-                    </div>
-                </div>
-            )}
         </div>
     );
 }

@@ -2969,6 +2969,9 @@ export async function updateRushSylvestreSettings(data: {
 
   revalidatePath("/god/rush-sylvestre");
   revalidatePath("/dashboard");
+  // La page **publique** `/guides/rush-sylvestre` lit le même `isUnderConstruction` (ISR 1 h) :
+  // sans cette invalidation, le toggle God mettrait jusqu'à une heure à s'y voir.
+  revalidatePath("/guides/rush-sylvestre");
   return { success: true, guide };
 }
 

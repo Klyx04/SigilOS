@@ -857,57 +857,7 @@ async function requireGameDataBounties(): Promise<string | null> {
     if (await canAccessBrick("game-data-bounties")) return session.user.id;
 
     return null;
-}
-
-/**
- * Action d'administration (GOD) — **siphon des avis de recherche**.
- *
- * Source de vérité : DofusDB (`monster-races/32|90|127|147|156` = 96 avis) + Dofensive
- * (`/monsters/{id}` : preuve d'appartenance, zone de traque, sorts de combat). Écrit la ligne
- * `Bounty` (**par `dofusdbId`**), la fiche `MonsterStat` et les icônes. Idempotent : relançable.
- */
-export async function siphonBountiesAction(): Promise<ActionResponse<{
-    synced: number;
-    unchanged: number;
-    total: number;
-    unproven: number;
-    images: number;
-    errors: number;
-    perRace: Record<string, number>;
-}>> {
-    // Garde DANS le try (voir siphonDungeonMonstersDatasetAction).
-    try {
-        const userId = await requireGameDataBounties();
-        if (!userId) return { success: false, error: "Accès refusé" };
-
-        const { syncBounties } = await import("@/lib/bounty-siphon");
-        const result = await syncBounties();
-        await logGameDataWrite("siphon-bounties", `synced-${result.synced}`, {
-            total: result.entries.length,
-            unproven: result.unproven,
-            errors: result.errors.length,
-        });
-        revalidatePath('/god/game-data');
-        revalidatePath('/god/game-data/bounties');
-        return {
-            success: true,
-            data: {
-                synced: result.synced,
-                unchanged: result.unchanged,
-                total: result.entries.length,
-                unproven: result.unproven,
-                images: result.imagesSiphoned,
-                errors: result.errors.length,
-                perRace: result.perRace,
-            },
-        };
-    } catch (error: any) {
-        logger.error('[siphonBountiesAction] Error:', error);
-        return { success: false, error: error?.message || 'Erreur lors du siphon des avis de recherche' };
-    }
-}
-
-/**
+}/**
  * Siphon d'UNE race d'avis (journal temps réel côté God : 5 appels courts au
  * lieu d'un seul appel de 60 s+ sujet aux coupures/timeout). Même garde et
  * même idempotence que la passe complète.
@@ -1031,78 +981,6 @@ export async function restoreBountyAction(dofusdbId: number): Promise<ActionResp
     } catch (error: any) {
         logger.error('[restoreBountyAction] Error:', error);
         return { success: false, error: error?.message || 'Erreur lors de la réintégration' };
-    }
-}
-
-
-// ===========================
-// DUNGEON ACHIEVEMENTS (Manual management)
-// ===========================
-
-export async function addDungeonAchievement(
-    dungeonId: string,
-    challengeId: string,
-    points: number = 10
-): Promise<ActionResponse<any>> {
-    const userId = await requireSuperAdmin();
-    if (!userId) return { success: false, error: "Accès refusé" };
-
-    try {
-        const achievement = await db.dungeonAchievement.create({
-            data: { dungeonId, challengeId, points },
-            include: { challenge: true, dungeon: true }
-        });
-
-        revalidatePath('/god/game-data');
-        return { success: true, data: achievement };
-    } catch (error: any) {
-        logger.error('[addDungeonAchievement] Error:', error);
-        if (error.code === 'P2002') {
-            return { success: false, error: 'Ce succès est déjà associé à ce donjon' };
-        }
-        return { success: false, error: 'Erreur lors de l\'ajout' };
-    }
-}
-
-export async function removeDungeonAchievement(
-    dungeonId: string,
-    challengeId: string
-): Promise<ActionResponse> {
-    const userId = await requireSuperAdmin();
-    if (!userId) return { success: false, error: "Accès refusé" };
-
-    try {
-        await db.dungeonAchievement.delete({
-            where: { dungeonId_challengeId: { dungeonId, challengeId } }
-        });
-
-        revalidatePath('/god/game-data');
-        return { success: true };
-    } catch (error) {
-        logger.error('[removeDungeonAchievement] Error:', error);
-        return { success: false, error: 'Erreur lors de la suppression' };
-    }
-}
-
-export async function updateDungeonAchievementPoints(
-    dungeonId: string,
-    challengeId: string,
-    points: number
-): Promise<ActionResponse<any>> {
-    const userId = await requireSuperAdmin();
-    if (!userId) return { success: false, error: "Accès refusé" };
-
-    try {
-        const achievement = await db.dungeonAchievement.update({
-            where: { dungeonId_challengeId: { dungeonId, challengeId } },
-            data: { points }
-        });
-
-        revalidatePath('/god/game-data');
-        return { success: true, data: achievement };
-    } catch (error) {
-        logger.error('[updateDungeonAchievementPoints] Error:', error);
-        return { success: false, error: 'Erreur lors de la mise à jour' };
     }
 }
 

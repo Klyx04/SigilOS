@@ -68,7 +68,15 @@ export interface SpellBaseDamage {
  * `'+'` (43, observé sur des effets monocibles, ex. Somnolence) vaut Point ;
  * les gabarits non calibrés (`'Q'`, `'O'`…) restent « Inconnue » : on n'invente rien.
  */
-export type SpellZoneShape = "Point" | "Cercle" | "Croix" | "Ligne" | "Cône" | "Inconnue";
+export type SpellZoneShape =
+    | "Point"
+    | "Cercle"
+    | "Croix"
+    | "Ligne"
+    | "Cône"
+    | "Perpend"
+    | "Rectangle"
+    | "Inconnue";
 
 export interface SpellZoneSummary {
     shape: SpellZoneShape;
@@ -76,7 +84,11 @@ export interface SpellZoneSummary {
 }
 
 export function spellZoneShapeFromLetter(letter: string): SpellZoneShape {
-    switch (String(letter || "").toUpperCase()) {
+    const raw = String(letter || "");
+    // ⚠️ `l` (108) = « Ligne partant du lanceur » est un gabarit NON calibré : sans ce test il
+    // serait promu « Ligne » par la normalisation en majuscules (`L` = 76) — une zone inventée.
+    if (raw === "l") return "Inconnue";
+    switch (raw.toUpperCase()) {
         case "P":
         case "+":
             return "Point";
@@ -88,6 +100,15 @@ export function spellZoneShapeFromLetter(letter: string): SpellZoneShape {
             return "Ligne";
         case "V":
             return "Cône";
+        // 🔍 Table GABARIT → forme, mesurée sur `api.dofusdb.fr` (22/09/2026) : `T` (84) =
+        // « Ligne perpendiculaire » (Vague à Lame 12794 : `shape: 84 | param1: 1` ⇒ **3 cases**
+        // en jeu, Lame Destructrice 8194) · `G` (71) = « Carré » (Aquatruc 11437 :
+        // `shape: 71 | param1: 1`). Les gabarits non calibrés (`U`, `I`, `;`, `l`, `O`, `Q`, `B`,
+        // `A`/`a`…) restent « Inconnue » : on n'invente pas une géométrie.
+        case "T":
+            return "Perpend";
+        case "G":
+            return "Rectangle";
         default:
             return "Inconnue";
     }

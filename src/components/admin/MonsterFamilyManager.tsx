@@ -19,7 +19,6 @@ import {
     getAdminZones,
 } from "@/server/actions/game-data-admin-actions";
 import { 
-    syncMonsterFamiliesFromDofusDb,
     getIgnoredFamiliesAction,
     restoreIgnoredFamilyAction,
     clearAllIgnoredFamiliesAction
@@ -32,7 +31,6 @@ import {
     Trash2, 
     MapPin, 
     ImageIcon, 
-    RefreshCw, 
     Loader2, 
     ChevronLeft, 
     ChevronRight,
@@ -73,7 +71,6 @@ export default function MonsterFamilyManager() {
     const [ignoredFamilies, setIgnoredFamilies] = useState<string[]>([]);
     const [zones, setZones] = useState<{ id: string; name: string }[]>([]);
     const [loading, setLoading] = useState(true);
-    const [syncingFamilies, setSyncingFamilies] = useState(false);
     const [editing, setEditing] = useState<string | null>(null);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
@@ -143,24 +140,6 @@ export default function MonsterFamilyManager() {
         }
         await loadIgnored();
     }
-
-    const handleSyncDofusDb = async () => {
-        setSyncingFamilies(true);
-        try {
-            const res = await syncMonsterFamiliesFromDofusDb();
-            if (res.success && res.data) {
-                const monsterInfo = res.data.monstersSynced ? ` et ${res.data.monstersSynced} monstres` : '';
-                toast.success(`${res.data.synced} Familles${monsterInfo} synchronisées depuis DofusDB !`);
-                await loadFamilies();
-            } else {
-                toast.error(res.error || "Erreur de synchronisation");
-            }
-        } catch {
-            toast.error("Erreur de connexion DofusDB");
-        } finally {
-            setSyncingFamilies(false);
-        }
-    };
 
     const resetForm = () => {
         setEditing(null);
@@ -353,15 +332,6 @@ export default function MonsterFamilyManager() {
                                 </SelectContent>
                             </Select>
                         </div>
-
-                        <Button
-                            onClick={handleSyncDofusDb}
-                            disabled={syncingFamilies}
-                            className="w-full md:w-auto bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl shadow-sm transition-all"
-                        >
-                            {syncingFamilies ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-2" />}
-                            <span>{syncingFamilies ? "Sync…" : "Sync Familles (DofusDB)"}</span>
-                        </Button>
 
                         <Button
                             onClick={() => { resetForm(); setIsDialogOpen(true); }}

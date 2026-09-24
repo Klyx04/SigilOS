@@ -48,9 +48,15 @@ export function QuestSiphonPanel() {
                     </h3>
                     <p className="text-xs text-muted-foreground max-w-2xl leading-relaxed">
                         <strong className="text-foreground">Étape 1</strong> · importe EN MASSE des quêtes depuis DofusDB dans la base locale <strong className="text-foreground">GameQuest</strong>.
-                        Une fois importées, elles deviennent proposables dans les posts Donjons/Quêtes (recherche locale d'abord,
-                        fallback DofusDB si absentes) ; le panneau « Synchronisation » ci-dessous suit ensuite leurs modifications.
-                        Les doublons (par ID ou par nom) sont ignorés.
+                        Une fois importées, elles deviennent proposables dans les posts Donjons/Quêtes (recherche locale d&apos;abord,
+                        fallback DofusDB si absentes). Les doublons (par ID ou par nom) sont ignorés.
+                    </p>
+                    <p className="text-xs text-muted-foreground max-w-2xl leading-relaxed">
+                        ℹ️ Cet <strong className="text-foreground">import initial</strong> (avec plafond) ne se confond pas avec le
+                        suivi des <strong className="text-foreground">écarts</strong> DofusDB : celui-ci se lance depuis
+                        {' '}<strong className="text-foreground">📊 Tableau</strong> (dataset « Quêtes » — nouvelles/modifiées, en
+                        arrière-plan), et la synchro <strong className="text-foreground">sélective</strong> quête par quête vit dans
+                        l&apos;onglet <strong className="text-foreground">🛰️ Siphons DofusDB</strong>.
                     </p>
                 </div>
                 <div className="flex items-center gap-2">

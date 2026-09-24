@@ -275,6 +275,18 @@ export default function ArchimonstreManager() {
                 </div>
             </div>
 
+            {/* ⚠️ 23/09/2026 — ces 3 apports restent ICI (et n'ont pas de bouton au Tableau) :
+                ce sont 3 sources distinctes propres à cet éditeur — Metamob (zones des
+                archimonstres), DofusDB (boss Dofus), catalogue des monstres du monde —,
+                qu'aucun des 11 datasets du 📊 Tableau ne couvre. À l'inverse, « Siphonner
+                les boss d'anomalie » a été retiré de l'éditeur Donjons : c'était le dataset
+                ANOMALY_BOSSES (doublon). */}
+            <p className="text-[11px] text-muted-foreground leading-relaxed">
+                Sources de cet éditeur (aucune n&apos;est un dataset du 📊 Tableau) : <strong className="text-foreground">Sync Boss (DofusDB)</strong> ·
+                {' '}<strong className="text-foreground">Sync depuis Metamob</strong> (zones/coords des archimonstres) ·
+                {' '}<strong className="text-foreground">Sync Catalogue Dofus</strong> (monstres du monde, par lots).
+            </p>
+
             {/* Catalogue sync progress banner */}
             {catalogSync.status !== 'idle' && catalogSync.status !== 'done' && (
                 <div className={`flex items-center gap-3 px-4 py-3 rounded-xl border text-sm ${

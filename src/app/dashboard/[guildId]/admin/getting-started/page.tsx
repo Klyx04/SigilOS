@@ -221,6 +221,44 @@ export default async function GettingStartedPage({
                     </div>
                 )}
 
+                {/* CTA unique — « votre prochaine action ». La page alignait 7 cartes
+                    équivalentes : l'admin ne savait pas par où commencer. Une seule
+                    action, calculée CÔTÉ SERVEUR (`getNextOnboardingAction`) :
+                    obligatoires d'abord, puis l'étape entamée, puis la 1re recommandée. */}
+                {progress.nextAction && (
+                    <div className="mx-1 relative group">
+                        <div className="absolute -inset-px bg-gradient-to-r from-info/30 to-success/30 rounded-xl blur-sm opacity-60" />
+                        <div className="relative flex flex-col gap-4 bg-surface border border-info/30 rounded-xl p-5 sm:flex-row sm:items-center sm:justify-between">
+                            <div className="flex items-start gap-4 min-w-0">
+                                <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-info/15 flex items-center justify-center text-info">
+                                    <Sparkles className="w-5 h-5" />
+                                </div>
+                                <div className="min-w-0 space-y-1">
+                                    <p className="text-caption font-black text-info uppercase tracking-wider">
+                                        Votre prochaine action
+                                    </p>
+                                    <p className="text-sm font-black text-foreground">
+                                        Étape {progress.steps.indexOf(progress.nextAction) + 1} ·{" "}
+                                        {progress.nextAction.title}
+                                    </p>
+                                    <p className="max-w-[70ch] text-sm text-muted-foreground font-medium leading-relaxed">
+                                        {progress.nextAction.description}
+                                    </p>
+                                </div>
+                            </div>
+                            <Button
+                                asChild
+                                className="shrink-0 font-black uppercase tracking-widest text-caption px-6 h-10"
+                            >
+                                <Link href={progress.nextAction.href}>
+                                    {progress.nextAction.mandatory ? "Débloquer maintenant" : "Configurer maintenant"}
+                                    <ArrowRight className="ml-2 w-3 h-3" />
+                                </Link>
+                            </Button>
+                        </div>
+                    </div>
+                )}
+
                 {/* Main Progress Card */}
                 <div className="relative group mx-1">
                     <div className="absolute -inset-1 bg-gradient-to-r from-info/20 via-info/20 to-success/20 rounded-2xl blur-xl opacity-50" />

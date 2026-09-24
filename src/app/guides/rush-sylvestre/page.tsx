@@ -1,8 +1,9 @@
 import { Metadata } from "next";
+import { cache } from "react";
 import { headers } from "next/headers";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Clock, ShieldCheck } from "lucide-react";
+import { Clock, Construction, ShieldCheck } from "lucide-react";
 import { PublicHeader } from "@/components/layout/public-header";
 import { GalacticFooter } from "@/components/layout/galactic-footer";
 import { JsonLd } from "@/components/shared/json-ld";
@@ -14,7 +15,19 @@ import { getServerI18n } from "@/lib/i18n/server";
 
 export const revalidate = 3600; // Cache ISR 1h pour indexation Google rapide
 
-export const metadata: Metadata = {
+/**
+ * Lecture du guide **une seule fois par requête** : l'état « En construction » est lu par les
+ * métadonnées (⇒ `noindex`) **et** par la page — on ne paie pas deux fois les chapitres et leurs
+ * quêtes. Source de vérité : `OptimizedGuide.isUnderConstruction`, le **même** champ que le toggle
+ * « Mode Construction » de l'éditeur God (`/god/rush-sylvestre`).
+ */
+const getRushGuide = cache(() => getPublicGuideDetail("rush-sylvestre"));
+
+export async function generateMetadata(): Promise<Metadata> {
+  const res = await getRushGuide();
+  const underConstruction = !!res.success && !!res.guide?.isUnderConstruction;
+
+  return {
   title: { absolute: "Guide Rush Sylvestre Dofus Unity : Quêtes, Trajets & Overlay In-Game | SigilOS" },
   description:
     "Guide complet étape par étape pour obtenir le Dofus Sylvestre sur Dofus Unity. Coordonnées /travel, liste des ressources, prérequis de quêtes et Overlay In-Game détachable 100% gratuit.",
@@ -42,19 +55,32 @@ export const metadata: Metadata = {
     description: "Quêtes, coordonnées /travel, ressources et overlay in-game gratuit.",
     images: [`${getAppBaseUrl()}/api/og?title=${encodeURIComponent("Guide Rush Sylvestre Dofus")}&subtitle=${encodeURIComponent("Quêtes, Trajets & Overlay In-Game")}`],
   },
-};
+    // 🚧 Tant que le toggle God « Mode Construction » est actif, la page n'est qu'un avis de
+    // chantier : Google ne doit pas l'indexer comme le guide complet (`follow` conservé pour le
+    // maillage interne). Le toggle s'applique tout de suite — la Server Action revalide la route,
+    // sans attendre l'ISR d'une heure.
+    robots: underConstruction ? { index: false, follow: true } : { index: true, follow: true },
+  };
+}
 
 export default async function PublicRushSylvestrePage() {
   const session = await auth();
   const { getUserContext } = await import("@/server/actions/user-actions");
   const [userContext, { t, locale }] = await Promise.all([getUserContext(), getServerI18n()]);
 
-  const guideRes = await getPublicGuideDetail("rush-sylvestre");
+  const guideRes = await getRushGuide();
   if (!guideRes.success || !guideRes.guide) {
     notFound();
   }
 
   const guide = guideRes.guide as any;
+  /**
+   * 🚧 Toggle God « Mode Construction » (`/god/rush-sylvestre`) : la page PUBLIQUE n'affiche plus
+   * le guide interactif mais l'avis « En construction — l'arrivée du guide est prévue dans les
+   * jours qui suivent ! ». Même champ que la vue membres (`OptimizedGuide.isUnderConstruction`) :
+   * une seule source de vérité, aucun second drapeau à maintenir.
+   */
+  const isUnderConstruction = !!guide.isUnderConstruction;
   const milestones = guide.milestones as any[];
 
   // Nonce pour inline scripts de sécurité
@@ -77,20 +103,26 @@ export default async function PublicRushSylvestrePage() {
         },
       ],
     },
-    {
-      "@context": "https://schema.org",
-      "@type": "HowTo",
-      name: locale === "en" ? "How to obtain the Sylvan Dofus in Dofus Unity" : "Comment obtenir le Dofus Sylvestre sur Dofus Unity",
-      description: locale === "en" ? "Complete step-by-step guide to complete quests and obtain the Sylvan Dofus." : "Guide complet étape par étape pour accomplir les quêtes et obtenir le Dofus Sylvestre.",
-      image: `${getAppBaseUrl()}/module-dofus/Dofus_Sylvestre.png`,
-      totalTime: "PT24H",
-      step: milestones.slice(0, 15).map((ms, idx) => ({
-        "@type": "HowToStep",
-        position: idx + 1,
-        name: ms.title,
-        text: `Accomplir les quêtes et étapes du chapitre : ${ms.title}`,
-      })),
-    },
+    // Le `HowTo` ne décrit que ce qui est réellement disponible : une page « En construction »
+    // n'annonce pas 370 étapes (le BreadcrumbList, lui, reste pour le maillage).
+    ...(isUnderConstruction
+      ? []
+      : [
+          {
+            "@context": "https://schema.org",
+            "@type": "HowTo",
+            name: locale === "en" ? "How to obtain the Sylvan Dofus in Dofus Unity" : "Comment obtenir le Dofus Sylvestre sur Dofus Unity",
+            description: locale === "en" ? "Complete step-by-step guide to complete quests and obtain the Sylvan Dofus." : "Guide complet étape par étape pour accomplir les quêtes et obtenir le Dofus Sylvestre.",
+            image: `${getAppBaseUrl()}/module-dofus/Dofus_Sylvestre.png`,
+            totalTime: "PT24H",
+            step: milestones.slice(0, 15).map((ms, idx) => ({
+              "@type": "HowToStep",
+              position: idx + 1,
+              name: ms.title,
+              text: `Accomplir les quêtes et étapes du chapitre : ${ms.title}`,
+            })),
+          },
+        ]),
   ];
 
   return (
@@ -118,16 +150,20 @@ export default async function PublicRushSylvestrePage() {
               <p className="mt-4 text-sm text-muted-foreground leading-relaxed">
                 {t.rushGuide.subtitle}
               </p>
-              <p className="reg-mono mt-4 flex flex-wrap items-center gap-x-5 gap-y-1 text-xs text-muted-foreground">
-                <span className="inline-flex items-center gap-1.5">
-                  <Clock className="h-3.5 w-3.5" aria-hidden="true" />
-                  {locale === "en" ? "~370 optimized steps" : "~370 étapes optimisées"}
-                </span>
-                <span className="inline-flex items-center gap-1.5">
-                  <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
-                  {locale === "en" ? "Free · Local autosave" : "Gratuit · sauvegarde locale"}
-                </span>
-              </p>
+              {/* Les promesses de contenu (« ~370 étapes ») disparaissent tant que le guide est
+                  en construction : on n'annonce que ce qui est disponible. */}
+              {!isUnderConstruction && (
+                <p className="reg-mono mt-4 flex flex-wrap items-center gap-x-5 gap-y-1 text-xs text-muted-foreground">
+                  <span className="inline-flex items-center gap-1.5">
+                    <Clock className="h-3.5 w-3.5" aria-hidden="true" />
+                    {locale === "en" ? "~370 optimized steps" : "~370 étapes optimisées"}
+                  </span>
+                  <span className="inline-flex items-center gap-1.5">
+                    <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
+                    {locale === "en" ? "Free · Local autosave" : "Gratuit · sauvegarde locale"}
+                  </span>
+                </p>
+              )}
             </div>
 
             <div className="h-24 w-24 shrink-0 sm:h-28 sm:w-28">
@@ -142,12 +178,31 @@ export default async function PublicRushSylvestrePage() {
             </div>
           </header>
 
-          {/* Client Interactive Guide & Overlay Launcher */}
+          {/* 🚧 Guide en construction (toggle God `/god/rush-sylvestre` → « Mode Construction ») :
+              le guide interactif est remplacé par l'avis d'arrivée — aucun contenu incomplet servi,
+              aucun overlay proposé, la page reste accessible et lisible. */}
           <div className="mt-10">
-            <PublicRushGuideClient guide={guide} milestones={milestones} />
+            {isUnderConstruction ? (
+              <div className="flex flex-col items-start gap-4 rounded-2xl border border-warning/30 bg-warning/10 p-6 sm:flex-row sm:items-center sm:gap-5">
+                <span
+                  className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-warning/30 bg-warning/15"
+                  aria-hidden="true"
+                >
+                  <Construction className="h-6 w-6 text-warning" />
+                </span>
+                <div>
+                  <p className="text-lg font-bold text-foreground">{t.rushGuide.underConstructionTitle}</p>
+                  <p className="mt-1 text-sm text-muted-foreground">{t.rushGuide.underConstructionHint}</p>
+                </div>
+              </div>
+            ) : (
+              <PublicRushGuideClient guide={guide} milestones={milestones} />
+            )}
           </div>
 
-          {/* Questions fréquentes */}
+          {/* Questions fréquentes — masquées tant que le guide n'est pas disponible (elles
+              décrivent l'overlay et le suivi de guilde, donc des fonctions pas encore ouvertes). */}
+          {!isUnderConstruction && (
           <section aria-labelledby="faq-rush" className="mt-14 border-t border-border pt-10">
             <h2 id="faq-rush" className="reg-eyebrow">
               {locale === "en" ? "Frequently Asked Questions about Sylvan Dofus" : "Questions fréquentes sur le Dofus Sylvestre"}
@@ -207,6 +262,7 @@ export default async function PublicRushSylvestrePage() {
               </details>
             </div>
           </section>
+          )}
         </div>
       </main>
 

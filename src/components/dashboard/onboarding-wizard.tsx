@@ -32,6 +32,11 @@ export function OnboardingWizard({ guildId, userName, show, initialStep = 1, ini
     const [isOpen, setIsOpen] = useState(false);
     const [step, setStep] = useState(initialStep);
     const [pseudo, setPseudo] = useState(initialPseudo);
+    // Pseudo déjà validé côté serveur : soit l'entrée se fait à l'étape 2+ (pseudo en
+    // base), soit l'étape 1 vient de réussir. Dans les deux cas on ne le renvoie PLUS
+    // (`updateUserProfile` rejoue sinon la vérification du ladder Ankama — 2ᵉ appel
+    // inutile, et une panne du ladder bloquait une étape pourtant déjà validée).
+    const [pseudoSaved, setPseudoSaved] = useState(initialStep !== 1);
     const [selectedClass, setSelectedClass] = useState("");
     const [selectedActivities, setSelectedActivities] = useState<string[]>([]);
     const [loading, setLoading] = useState(false);
@@ -75,6 +80,8 @@ export function OnboardingWizard({ guildId, userName, show, initialStep = 1, ini
             });
 
             if (res.success) {
+                // Le pseudo vient d'être validé côté serveur : l'étape 2 ne le renverra pas.
+                setPseudoSaved(true);
                 setStep(2);
             } else {
                 setError(res.error || "Pseudo invalide ou introuvable sur le ladder officiel Ankama.");
@@ -100,7 +107,7 @@ export function OnboardingWizard({ guildId, userName, show, initialStep = 1, ini
             const payload: Parameters<typeof updateUserProfile>[0] = {
                 guildId,
                 classe: selectedClass,
-                ...(pseudo.trim() !== initialPseudo ? { pseudoDofus: pseudo.trim() } : {})
+                ...(pseudoSaved ? {} : { pseudoDofus: pseudo.trim() })
             };
             const res = await updateUserProfile(payload);
 

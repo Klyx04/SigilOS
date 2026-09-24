@@ -361,36 +361,7 @@ export async function getDofensiveMap(mapId: number | string): Promise<ActionRes
     persistDofensiveMap(data).catch(() => {});
 
     return { success: true, data };
-}
-
-/** Charge un monstre Dofensive (maps préférées + donjons + sorts). */
-export async function getDofensiveMonster(monsterId: number): Promise<ActionResponse<DofensiveMonsterData>> {
-    const id = toSafeId(monsterId);
-    if (!id) return { success: false, error: "ID de monstre invalide" };
-
-    const raw = await dofensiveFetch<any>(`/monsters/${id}?lang=fr`, `dofensive-monster-${id}`);
-    const item = Array.isArray(raw) ? raw[0] : raw;
-    if (!item) return { success: false, error: "Monstre introuvable chez Dofensive" };
-
-    return {
-        success: true,
-        data: {
-            id: item.Id as number,
-            name: String(item.Name ?? ""),
-            preferredMaps: Array.isArray(item.PreferredMaps)
-                ? item.PreferredMaps.map((m: any) => ({ id: m.Id as number, name: String(m.Name ?? "") }))
-                : [],
-            dungeons: Array.isArray(item.Dungeons)
-                ? item.Dungeons.map((d: any) => ({ id: d.Id as number, name: String(d.Name ?? "") }))
-                : [],
-            spells: Array.isArray(item.Spells)
-                ? item.Spells.map((s: any) => ({ id: s.Id as number, name: String(s.Name ?? "") }))
-                : [],
-        },
-    };
-}
-
-// ─── Sorts Dofensive (données de combat riches) ─────────────────────────────
+}// ─── Sorts Dofensive (données de combat riches) ─────────────────────────────
 // Dofensive expose /spells/{id} avec les données de combat PAR GRADE (ActionPoints,
 // MinRange/Range, CastInLine/CastInDiagonal/CastLineOfSight, MaxCastPerTurn,
 // MinCastInterval, StateCriteria, zone AoE des effets). Source de vérité pour la

@@ -2,7 +2,6 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { mergeDofensiveSpells } from "@/lib/dofensive-spells";
 import {
     getDofensiveMap,
-    getDofensiveMonster,
     getDofensiveSpells,
     getDofensiveDungeonForBoss,
 } from "@/server/actions/dofensive-actions";
@@ -48,14 +47,6 @@ describe("dofensive-actions — garde anti-SSRF", () => {
         expect(res.success).toBe(true);
         expect(fetchMock).toHaveBeenCalledTimes(1);
         expect(String(fetchMock.mock.calls[0][0])).toBe(`${BASE}/maps/236716546?lang=fr`);
-    });
-
-    it("getDofensiveMonster refuse un ID invalide sans fetch", async () => {
-        const fetchMock = vi.fn();
-        vi.stubGlobal("fetch", fetchMock);
-        expect((await getDofensiveMonster(-5)).success).toBe(false);
-        expect((await getDofensiveMonster(Number.NaN)).success).toBe(false);
-        expect(fetchMock).not.toHaveBeenCalled();
     });
 });
 

@@ -72,6 +72,11 @@ const ZONE_SHAPE_BY_CODE: Record<string, DofensiveZoneShape> = {
     L: "Ligne",
     C: "Cercle",
     X: "Croix",
+    // Mesure du 22/09/2026 (`api.dofusdb.fr`, table gabarit → nom Dofensive) : `T` (84) = 7
+    // « Ligne perpendiculaire » (Vague à Lame 12794, `param1: 1` ⇒ 3 cases) · `G` (71) = 11
+    // « Carré » (Aquatruc 11437, `param1: 1`). Les autres codes restent « Inconnue ».
+    T: "Perpend",
+    G: "Rectangle",
 };
 
 /** Convertit un `zoneDescr` DofusDB en zone Dofensive (null si aucune zone exploitable). */

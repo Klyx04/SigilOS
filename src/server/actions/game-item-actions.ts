@@ -3,18 +3,19 @@
 import { db } from '@/lib/prisma';
 import { isSuperAdmin, canAccessBrick } from '@/server/actions/super-admin-actions';
 import { logger } from '@/lib/logger';
-import { siphonAndCompressImage } from '@/lib/dofus-asset-siphon';
 import { dofusDbFetch } from '@/lib/dofusdb-limiter';
-import { resolveNativeEffects, toNativeEffects, enrichNativeEffects, isPlaceholderStatLabel, type MarketNativeEffect } from '@/lib/market/effects';
+// Le CŒUR du siphon d'items (item DofusDB → `GameItem`, hash MD5, upsert par `ankamaId`)
+// vit dans `src/lib` : la file BullMQ + le worker l'exécutent sans session Next.
+import { siphonGameItemsBatchCore } from '@/lib/game-items-siphon';
+import { syncMarketReferentialsCore } from '@/lib/market/referential-siphon';
+import { resolveNativeEffects, toNativeEffects, enrichNativeEffects, isPlaceholderStatLabel, cleanTemplateBraces, type MarketNativeEffect } from '@/lib/market/effects';
 import {
     loadMarketReferential,
-    resetMarketReferentialCache,
     toMarketStatReferentialInput,
 } from '@/lib/market/referential';
 // Correction 13/09 — le référentiel de marché est mis en cache 5 min : le siphon
 // God doit le purger pour que les libellés/signes fraîchement lus soient visibles.
-import { FM_CHARACTERISTIC_KEYS } from '@/lib/market/fm-effects';
-import { collectDofusDbPages } from '@/lib/market/referential-pagination';
+// (La purge vit désormais dans le cœur `@/lib/market/referential-siphon`.)
 import { normalizeItemIconUrl } from '@/lib/market/item-image';
 import {
     MARKET_COSMETIC_SUPERTYPE_IDS,
@@ -23,7 +24,6 @@ import {
     MARKET_EQUIPMENT_SUPERTYPE_IDS,
     MARKET_EQUIPMENT_TYPE_IDS,
     MARKET_EQUIPMENT_TYPE_NAMES,
-    resolveMarketItemFamily,
 } from '@/lib/market/item-families';
 import { buildMarketFamilyWhere } from '@/lib/market/family-where';
 import { Prisma } from '@prisma/client';
@@ -382,7 +382,7 @@ export async function backfillNativeEffects(limit = 500): Promise<
  *   table codée.
  */
 export async function purgePlaceholderEffectLabels(): Promise<
-    ActionResponse<{ scanned: number; repaired: number; unresolved: number }>
+    ActionResponse<{ scanned: number; repaired: number; cleaned: number; unresolved: number }>
 > {
     try {
         if (!(await canManageGameItems())) return { success: false, error: 'Non autorisé' };
@@ -401,7 +401,7 @@ export async function purgePlaceholderEffectLabels(): Promise<
 
         const scanned = placeholders.length;
         if (scanned === 0) {
-            return { success: true, data: { scanned: 0, repaired: 0, unresolved: 0 } };
+            return { success: true, data: { scanned: 0, repaired: 0, cleaned: 0, unresolved: 0 } };
         }
 
         // Seule source **fiable** : le libellé de la caractéristique jointe.
@@ -411,22 +411,31 @@ export async function purgePlaceholderEffectLabels(): Promise<
         const characteristicNames = new Map(characteristics.map((row) => [row.id, row.name]));
 
         let repaired = 0;
+        let cleaned = 0;
         let unresolved = 0;
         for (const effect of placeholders) {
             const candidate =
                 effect.characteristic != null
                     ? characteristicNames.get(effect.characteristic)
                     : undefined;
-            if (!candidate || isPlaceholderStatLabel(candidate)) {
-                unresolved++;
+            if (candidate && !isPlaceholderStatLabel(candidate)) {
+                await db.gameEffect.update({ where: { id: effect.id }, data: { name: candidate } });
+                repaired++;
                 continue;
             }
-            await db.gameEffect.update({ where: { id: effect.id }, data: { name: candidate } });
-            repaired++;
+            // 2ᵉ voie, TOUJOURS sans invention : un libellé réel noyé dans la ponctuation de
+            // gabarit (« Vole } PM », « } soins »). Mesuré en base : 135 des 368 gabarits.
+            const stripped = cleanTemplateBraces(effect.name);
+            if (stripped && !isPlaceholderStatLabel(stripped)) {
+                await db.gameEffect.update({ where: { id: effect.id }, data: { name: stripped } });
+                cleaned++;
+                continue;
+            }
+            unresolved++;
         }
 
-        logger.info('[purgePlaceholderEffectLabels] terminé', { scanned, repaired, unresolved });
-        return { success: true, data: { scanned, repaired, unresolved } };
+        logger.info('[purgePlaceholderEffectLabels] terminé', { scanned, repaired, cleaned, unresolved });
+        return { success: true, data: { scanned, repaired, cleaned, unresolved } };
     } catch (error: any) {
         logger.error('[purgePlaceholderEffectLabels] Error:', { error: error?.message });
         return { success: false, error: 'Purge impossible' };
@@ -434,7 +443,13 @@ export async function purgePlaceholderEffectLabels(): Promise<
 }
 
 /**
- * 🔄 Siphon par lot d'items depuis DofusDB avec détection différentielle (Hash)
+ * 🔄 Siphon par lot d'items depuis DofusDB avec détection différentielle (Hash).
+ *
+ * ⚠️ Enveloppe MINCE depuis le 23/09/2026 : le cœur vit dans
+ * `src/lib/game-items-siphon.ts`, où la file BullMQ + le worker l'exécutent **sans
+ * session Next** (la passe des 21 776 items survit à la fermeture de l'onglet). Ici ne
+ * restent que la garde fail-closed et la traduction du résultat en `ActionResponse` —
+ * signature et retour **inchangés** (le panneau boucle dessus).
  */
 export async function siphonGameItemsBatch(skip = 0, limit = 50): Promise<
     ActionResponse<{
@@ -450,198 +465,16 @@ export async function siphonGameItemsBatch(skip = 0, limit = 50): Promise<
     }
 
     try {
-        const safeLimit = Math.min(Math.max(limit, 10), 100);
-        const url = `https://api.dofusdb.fr/items?$limit=${safeLimit}&$skip=${skip}`;
-
-        const res = await dofusDbFetch(url, {
-            headers: {
-                Accept: 'application/json',
-                'User-Agent': 'SigilOS/1.0 (+https://sigilos.fr)',
-            },
-            signal: AbortSignal.timeout(15_000),
-        });
-
-        if (!res.ok) {
-            return { success: false, error: `DofusDB a renvoyé HTTP ${res.status}` };
-        }
-
-        const json = await res.json();
-        const rawItems: any[] = Array.isArray(json?.data) ? json.data : [];
-        const totalInDofusDB = Number(json?.total ?? 0);
-
-        if (rawItems.length === 0) {
-            return {
-                success: true,
-                data: { inserted: 0, updated: 0, totalProcessed: 0, hasMore: false, nextSkip: skip },
-            };
-        }
-
-        let inserted = 0;
-        let updated = 0;
-
-        for (const raw of rawItems) {
-            const ankamaId = Number(raw.id);
-            if (!ankamaId || isNaN(ankamaId) || ankamaId <= 0) continue;
-
-            const name = typeof raw.name?.fr === 'string' ? raw.name.fr : String(raw.name || 'Objet');
-            const level = Number(raw.level || 1);
-            const typeId =
-                raw.typeId != null
-                    ? Number(raw.typeId)
-                    : raw.type?.id != null
-                    ? Number(raw.type.id)
-                    : null;
-            const typeName = typeof raw.type?.name?.fr === 'string' ? raw.type.name.fr : 'Équipement';
-            const description = typeof raw.description?.fr === 'string' ? raw.description.fr : null;
-            const effects = Array.isArray(raw.possibleEffects)
-                ? raw.possibleEffects
-                : Array.isArray(raw.effects)
-                ? raw.effects
-                : null;
-            const hasRecipe = Boolean(raw.hasRecipe || raw.is_recipe_item);
-
-            // ── S2 (chantier Marché) — champs DofusDB jusqu'ici non stockés (§6.11) ──
-            const realWeight = raw.realWeight != null ? Number(raw.realWeight) : null;
-            const priceNpc = raw.price != null ? Number(raw.price) : null;
-            const itemSetId =
-                raw.itemSetId != null
-                    ? Number(raw.itemSetId)
-                    : raw.itemSet?.id != null
-                    ? Number(raw.itemSet.id)
-                    : null;
-            const itemSetName = typeof raw.itemSet?.name?.fr === 'string' ? raw.itemSet.name.fr : null;
-            const isLegendary = Boolean(raw.isLegendary);
-            const isSaleable = raw.isSaleable === undefined ? true : Boolean(raw.isSaleable);
-            // BUG-11 — DofusDB expose la famille dans `type.superTypeId` (et non
-            // à la racine) : sans ce repli, `superTypeId` restait **NULL** en base
-            // et la résolution de famille retombait sur le seul `typeName`.
-            const superTypeId =
-                raw.superTypeId != null
-                    ? Number(raw.superTypeId)
-                    : raw.type?.superTypeId != null
-                    ? Number(raw.type.superTypeId)
-                    : null;
-            const superTypeName =
-                typeof raw.superType?.name?.fr === 'string'
-                    ? raw.superType.name.fr
-                    : typeof raw.type?.superTypeName?.fr === 'string'
-                    ? raw.type.superTypeName.fr
-                    : null;
-            // Version LÉGÈRE des effets natifs (plages min–max) : source serveur de l'éditeur FM
-            // et de la carte d'item. `effects` (lourd, possibleEffects) est CONSERVÉ tel quel.
-            const nativeEffects = toNativeEffects(raw);
-
-            // Déterminer la catégorie principale.
-            // ⚠️ Constat beta du 13/09 : l'ancien heuristique sur le libellé de
-            // type classait « Bois », « Minerai », « Clef »… en `equipment` ⇒ la
-            // recherche « Ressources » ne renvoyait rien. On dérive désormais la
-            // catégorie de la **famille** (typeId / superTypeId / typeName), avec
-            // le seau `consumables` conservé pour les consommables.
-            const typeLower = typeName.toLowerCase();
-            const isConsumable =
-                typeLower.includes('consommable') ||
-                typeLower.includes('potion') ||
-                typeLower.includes('pain') ||
-                typeLower.includes('viande') ||
-                typeLower.includes('bière') ||
-                typeLower.includes('boisson') ||
-                typeLower.includes('friandise') ||
-                typeLower.includes('nourriture');
-            const family = resolveMarketItemFamily({ typeId, superTypeId, typeName });
-            let category =
-                family === 'EQUIPMENT'
-                    ? 'equipment'
-                    : family === 'COSMETIC'
-                    ? 'cosmetics'
-                    : isConsumable
-                    ? 'consumables'
-                    : 'resources';
-
-            // Calcul du Hash MD5 pour détecter les modifications réelles
-            // (inclut les champs S2 : les items existants se COMPLÈTENT au prochain passage)
-            const hashPayload = JSON.stringify({
-                name, level, typeName, effects, hasRecipe,
-                realWeight, priceNpc, itemSetId, itemSetName,
-                isLegendary, isSaleable, superTypeId, superTypeName, nativeEffects,
-            });
-            const dataHash = crypto.createHash('md5').update(hashPayload).digest('hex');
-
-            const existing = await db.gameItem.findUnique({
-                where: { ankamaId },
-                select: { id: true, dataHash: true },
-            });
-
-            const localIconUrl = `/uploads/assets-dofus/items/${ankamaId}.webp`;
-
-            // Champs communs create/update (évite toute divergence entre les deux branches)
-            const enrichi = {
-                realWeight,
-                priceNpc,
-                itemSetId,
-                itemSetName,
-                isLegendary,
-                isSaleable,
-                superTypeId,
-                superTypeName,
-                nativeEffects: (nativeEffects ?? undefined) as any,
-            };
-
-            if (!existing) {
-                await db.gameItem.create({
-                    data: {
-                        ankamaId,
-                        name,
-                        level,
-                        typeId,
-                        typeName,
-                        category,
-                        description,
-                        effects: effects as any,
-                        hasRecipe,
-                        iconUrl: localIconUrl,
-                        dataHash,
-                        isDeprecated: false,
-                        ...enrichi,
-                    },
-                });
-                inserted++;
-
-                // Siphon WebP de l'image en asynchrone non-bloquant
-                const remoteImg = raw.imgset?.[0]?.sd || raw.imgset?.[0]?.icon || raw.img;
-                siphonAndCompressImage(remoteImg, 'items', ankamaId).catch(() => {});
-            } else if (existing.dataHash !== dataHash) {
-                await db.gameItem.update({
-                    where: { ankamaId },
-                    data: {
-                        name,
-                        level,
-                        typeId,
-                        typeName,
-                        category,
-                        description,
-                        effects: effects as any,
-                        hasRecipe,
-                        iconUrl: localIconUrl,
-                        dataHash,
-                        isDeprecated: false,
-                        ...enrichi,
-                    },
-                });
-                updated++;
-            }
-        }
-
-        const nextSkip = skip + rawItems.length;
-        const hasMore = nextSkip < totalInDofusDB && rawItems.length === safeLimit;
+        const batch = await siphonGameItemsBatchCore(skip, limit);
 
         return {
             success: true,
             data: {
-                inserted,
-                updated,
-                totalProcessed: rawItems.length,
-                hasMore,
-                nextSkip,
+                inserted: batch.inserted,
+                updated: batch.updated,
+                totalProcessed: batch.totalProcessed,
+                hasMore: batch.hasMore,
+                nextSkip: batch.nextSkip,
             },
         };
     } catch (error: any) {
@@ -651,153 +484,16 @@ export async function siphonGameItemsBatch(skip = 0, limit = 50): Promise<
 }
 
 // ─── S2.5bis — Siphon des référentiels d'effets & de caractéristiques ───────
-// Rend les libellés FR, les icônes et le « % » **data-driven** (remplace les
-// maps codées en dur de `ItemSearchPanel`). Idempotent (upsert), jamais destructif.
+// Rend les libellés FR, les icônes et le « % » **data-driven**.
+// ⚠️ Le CŒUR (pagination `collectDofusDbPages`, upsert idempotent, purge du cache du
+// référentiel, confrontation du mapping FM) vit depuis le 23/09/2026 dans
+// `src/lib/market/referential-siphon.ts` : la file BullMQ + le worker l'exécutent donc
+// **sans session Next**, et l'action n'est plus qu'une enveloppe.
 
 /**
- * Récupère toutes les caractéristiques DofusDB (≈123) → GameCharacteristic.
- *
- * ⚠️ S4.0b — l'API **plafonne à 50 résultats par appel** quel que soit `$limit`
- * demandé : la pagination doit se caler sur la taille de page **réellement
- * retournée** (`json.limit`) : correctif **insuffisant**, l'API peut rendre
- * **moins** de lignes que `$limit` ⇒ la boucle coupait encore après la 1re page
- * (base constatée : **48** lignes pour **123** exposées).
- *
- * 🧪 S7.18 — la pagination est désormais déléguée à `collectDofusDbPages`, qui
- * se cale sur le **`total` exposé par l'API** (`skip < total`) au lieu de la
- * taille de la page reçue : c'est la seule source de vérité fiable.
- */
-/** Init réseau **par page** (en-têtes + timeout neuf : un signal ne se partage pas). */
-function dofusDbRefInit(): RequestInit {
-    return {
-        headers: { Accept: 'application/json', 'User-Agent': 'SigilOS/1.0 (+https://sigilos.fr)' },
-        signal: AbortSignal.timeout(15_000),
-    };
-}
-
-async function siphonAllCharacteristics(): Promise<{
-    count: number;
-    names: Map<number, string>;
-    expected: number;
-    received: number;
-    truncated: boolean;
-    failedPages: number[];
-}> {
-    const names = new Map<number, string>();
-    const collected = await collectDofusDbPages<any>(
-        (skip, limit) => `https://api.dofusdb.fr/characteristics?$limit=${limit}&$skip=${skip}`,
-        { initFor: dofusDbRefInit }
-    );
-    let count = 0;
-    for (const raw of collected.rows) {
-        const id = Number(raw?.id);
-        if (!Number.isInteger(id) || id <= 0) continue;
-        const name = typeof raw?.name?.fr === 'string' ? raw.name.fr : String(raw?.name ?? `Caractéristique ${id}`);
-        const keyword = typeof raw?.keyword === 'string' ? raw.keyword : null;
-        const iconKey = typeof raw?.asset === 'string' ? raw.asset : null;
-        await db.gameCharacteristic.upsert({
-            where: { id },
-            create: { id, name, keyword, iconKey },
-            update: { name, keyword, iconKey },
-        });
-        names.set(id, name);
-        count++;
-    }
-    return {
-        count,
-        names,
-        expected: collected.expected,
-        received: collected.rows.length,
-        truncated: collected.truncated,
-        failedPages: collected.failedPages,
-    };
-}
-
-/**
- * Récupère tous les effets DofusDB (≈872) → GameEffect.
- * ⚠️ S4.0b — même plafond à 50/appel : la borne de pages couvre les ≈18 pages
- * nécessaires (l'ancienne borne de 10 tronquait le référentiel).
- * 🧪 S7.18 — pagination déléguée à `collectDofusDbPages` (pilotée par le `total`
- * de l'API) : la base était restée à **49** effets sur **872**.
- */
-async function siphonAllEffects(
-    charNames: Map<number, string>
-): Promise<{ count: number; expected: number; received: number; truncated: boolean; failedPages: number[] }> {
-    const collected = await collectDofusDbPages<any>(
-        (skip, limit) => `https://api.dofusdb.fr/effects?$limit=${limit}&$skip=${skip}`,
-        { initFor: dofusDbRefInit }
-    );
-    let count = 0;
-    for (const raw of collected.rows) {
-        const id = Number(raw?.id);
-        if (!Number.isInteger(id) || id <= 0) continue;
-        const characteristic = raw?.characteristic != null ? Number(raw.characteristic) : null;
-        // Libellé : libellé de la caractéristique associée sinon description nettoyée.
-        const fromChar = characteristic != null ? charNames.get(characteristic) : undefined;
-        const rawDescription =
-            typeof raw?.description?.fr === 'string'
-                ? raw.description.fr
-                : typeof raw?.theoreticalDescription?.fr === 'string'
-                ? raw.theoreticalDescription.fr
-                : null;
-        const cleanDescription = rawDescription
-            ? rawDescription.replace(/\{[^}]*\}/g, '').replace(/#\d+(~\d+)?/g, '').replace(/\s{2,}/g, ' ').trim()
-            : null;
-        const name = fromChar || cleanDescription || `Effet ${id}`;
-        const isInPercent = Boolean(raw?.isInPercent);
-        const category = raw?.category != null ? Number(raw.category) : null;
-        const iconKey = raw?.iconId != null ? String(raw.iconId) : null;
-        // Correction 13/09 — fidélité du SIGNE. DofusDB porte le sens de la
-        // ligne dans deux champs : `characteristicOperator` (« + » / « - ») et
-        // surtout le **gabarit de description**, qui préfixe le signe
-        // (« -#1{{~1~2 à -}}#2 Esquive PA »). Les dés bruts d'un objet
-        // (`possibleEffects`) étant toujours positifs, c'est le SEUL moyen de
-        // restituer « -6 à -8 » au lieu de « +6 à +8 ».
-        const characteristicOperator =
-            typeof raw?.characteristicOperator === 'string' ? raw.characteristicOperator : null;
-        const isNegativeValue = rawDescription ? rawDescription.trim().startsWith('-') : false;
-        await db.gameEffect.upsert({
-            where: { id },
-            create: {
-                id,
-                name,
-                characteristic,
-                isInPercent,
-                category,
-                iconKey,
-                characteristicOperator,
-                isNegativeValue,
-            },
-            update: {
-                name,
-                characteristic,
-                isInPercent,
-                category,
-                iconKey,
-                characteristicOperator,
-                isNegativeValue,
-            },
-        });
-        count++;
-    }
-    return {
-        count,
-        expected: collected.expected,
-        received: collected.rows.length,
-        truncated: collected.truncated,
-        failedPages: collected.failedPages,
-    };
-}
-
-/**
- * 📚 S2.5bis — Siphonne `/effects` + `/characteristics` (≈20 requêtes, conforme
- * DofusDB). Réservé au God / PIM. Fail-soft : une page en échec n'invalide pas
- * les précédentes.
- *
- * 🧪 S4.0b / D39 — le mapping FM (`FM_CHARACTERISTIC_KEYS`) est **confronté** au
- * référentiel fraîchement siphonné : tout id du mapping absent de
- * `GameCharacteristic` (DofusDB a renommé/retiré la caractéristique) est
- * **signalé** au God sans jamais échouer (la résolution retombe sur le libellé).
+ * 📚 S2.5bis — Enveloppe du siphon `/effects` + `/characteristics` (≈20 requêtes).
+ * Le CŒUR vit dans `src/lib/market/referential-siphon.ts` : la file d'arrière-plan
+ * (worker) l'exécute **sans session Next**. Contrat inchangé pour l'UI.
  */
 export async function siphonMarketReferentials(): Promise<
     ActionResponse<{
@@ -815,48 +511,7 @@ export async function siphonMarketReferentials(): Promise<
         return { success: false, error: 'Non autorisé' };
     }
     try {
-        // 🧪 S7.18 — pagination pilotée par le `total` de l'API (`collectDofusDbPages`) :
-        // la base était restée à 48/123 caractéristiques et 49/872 effets, car
-        // l'ancienne boucle s'arrêtait dès qu'une page revenait plus courte que `$limit`.
-        const chars = await siphonAllCharacteristics();
-        const effs = await siphonAllEffects(chars.names);
-        // Correction 13/09 — purge le cache court du référentiel de marché : les
-        // libellés exacts et les drapeaux de malus (`isNegativeValue`) sont
-        // immédiatement visibles dans l'écran de déclaration.
-        resetMarketReferentialCache();
-        const names = chars.names;
-        const truncated = chars.truncated || effs.truncated;
-        const failedPages = [...chars.failedPages, ...effs.failedPages];
-        const orphanFmIds = Object.keys(FM_CHARACTERISTIC_KEYS)
-            .map(Number)
-            .filter((id) => !names.has(id))
-            .sort((a, b) => a - b);
-        if (orphanFmIds.length > 0) {
-            logger.warn('[siphonMarketReferentials] Mapping FM orphelin (id absent du référentiel):', {
-                orphanFmIds,
-            });
-        }
-        if (truncated) {
-            logger.warn(
-                `[siphonMarketReferentials] Référentiel INCOMPLET : ${chars.received}/${chars.expected} caractéristique(s), ${effs.received}/${effs.expected} effet(s) lus — page(s) en échec : ${failedPages.join(', ') || 'aucune'} (relancer le siphon).`
-            );
-        }
-        logger.info(
-            `[siphonMarketReferentials] ${chars.received}/${chars.expected} caractéristique(s) et ${effs.received}/${effs.expected} effet(s) lus ; ${chars.count + effs.count} ligne(s) en base ; ${orphanFmIds.length} orphelin(s) FM.`
-        );
-        return {
-            success: true,
-            data: {
-                characteristics: chars.received,
-                characteristicsStored: chars.count,
-                characteristicsTotal: chars.expected,
-                effects: effs.received,
-                effectsStored: effs.count,
-                effectsTotal: effs.expected,
-                truncated,
-                orphanFmIds,
-            },
-        };
+        return { success: true, data: await syncMarketReferentialsCore() };
     } catch (error: any) {
         logger.error('[siphonMarketReferentials] Error:', { error: error?.message });
         return { success: false, error: 'Siphon des référentiels impossible' };

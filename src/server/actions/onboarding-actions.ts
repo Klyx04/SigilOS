@@ -5,6 +5,7 @@ import { db } from "@/lib/prisma";
 import { getUserContext } from "./user-actions";
 import { revalidatePath } from "next/cache";
 import { getDofusWeek } from "@/lib/date-utils";
+import { COUNTED_MODULE_KEYS, getNextOnboardingAction } from "@/lib/onboarding-gating";
 
 export type OnboardingProgress = {
     steps: {
@@ -20,6 +21,8 @@ export type OnboardingProgress = {
     maxPoints: number;
     isFinished: boolean;
     mandatoryComplete: boolean;
+    /** CTA unique « prochaine action » (obligatoires d'abord) — `null` = tout est fait. */
+    nextAction: OnboardingProgress["steps"][number] | null;
 };
 
 export async function getGettingStartedProgress(guildId: string): Promise<OnboardingProgress> {
@@ -66,6 +69,12 @@ export async function getGettingStartedProgress(guildId: string): Promise<Onboar
     // Sans ligne modules en BDD, getGuildModules retombe sur DEFAULT_MODULES
     // (tout OFF sauf admin) — même règle ici pour rester cohérent.
     const missionsModuleOn = modulesState ? modulesState.missions !== false : false;
+    // « Modules configurés » = au moins un module du REGISTRE réellement actif
+    // (`COUNTED_MODULE_KEYS`, `admin` exclu). La liste locale de 14 clés qui vivait
+    // ici avait dérivé (27 au registre) : une guilde n'activant que `tickets`, `logs`
+    // ou `marche` restait bloquée à « non configuré » pour toujours, et `admin`
+    // (actif par construction) validait l'étape sans qu'AUCUN module ne soit choisi.
+    const modulesConfigured = !!modulesState && COUNTED_MODULE_KEYS.some((key) => modulesState[key] === true);
 
     const steps: OnboardingProgress["steps"] = [
         {
@@ -100,9 +109,9 @@ export async function getGettingStartedProgress(guildId: string): Promise<Onboar
             title: "Configurer les Modules",
             description: "Activez les fonctionnalités dont votre guilde a besoin (Missions, Songes, Ocre...).",
             // Step "modules" complète SEULEMENT si une VRAIE config existe en BDD
-            // (>= 1 module actif). Depuis l'état vierge (aucun module actif par
-            // défaut), la step reste IN_PROGRESS jusqu'à activation explicite.
-            status: guild.modules && countEnabledModules(guild.modules) >= 1 ? "COMPLETED" : "IN_PROGRESS",
+            // (>= 1 module du registre actif). Depuis l'état vierge (aucun module actif
+            // par défaut), la step reste IN_PROGRESS jusqu'à activation explicite.
+            status: modulesConfigured ? "COMPLETED" : "IN_PROGRESS",
             mandatory: false,
             points: 15,
             href: `/dashboard/${guildId}/admin/modules`,
@@ -143,6 +152,8 @@ export async function getGettingStartedProgress(guildId: string): Promise<Onboar
         maxPoints,
         isFinished: totalPoints === maxPoints,
         mandatoryComplete,
+        // CTA unique : la page getting-started s'ouvre sur UNE action, pas sur 7 cartes.
+        nextAction: getNextOnboardingAction(steps),
     };
 }
 
@@ -181,16 +192,6 @@ export async function markWelcomeAsSeen(guildId: string) {
         return { success: false, error: "Database error" };
     }
 }
-
-function countEnabledModules(modules: any): number {
-    let count = 0;
-    const keys = ["presentation", "roster", "stats", "calendar", "missions", "songes", "ocre", "ladder", "services", "donjons", "profile", "docs", "polls", "admin"];
-    for (const key of keys) {
-        if (modules[key] === true) count++;
-    }
-    return count;
-}
-
 
 export async function sendWelcomeNotifications(guildConfig: any, profileId: string, displayName: string) {
     if (!guildConfig) return;

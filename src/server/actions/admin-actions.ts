@@ -183,6 +183,16 @@ export async function onboardGuild(guildId: string): Promise<ActionResponse> {
             metadata: { operation: "ONBOARD_GUILD", guildName: guildInfo.name, isAutonomous }
         });
 
+        // Rôle d'accès au dashboard : sans lui, un serveur qui n'a AUCUN rôle
+        // utilisable bloque l'admin à l'étape 2 (il doit créer un rôle sur Discord
+        // puis revenir). On le crée ici, une fois, et on l'attribue au propriétaire.
+        // Fail-open : un rôle ne doit jamais faire échouer un déploiement.
+        try {
+            await ensureDashboardAccessRoleCore(guildId, discordUserId);
+        } catch (roleErr) {
+            logger.warn("[Onboard] ensureDashboardAccessRole a échoué:", roleErr);
+        }
+
         return { success: true };
     } catch (error) {
         logger.error("Failed to onboard guild:", error);
@@ -217,6 +227,114 @@ export async function onboardGuild(guildId: string): Promise<ActionResponse> {
     } catch {
         return none;
     }
+}
+
+/**
+ * Cœur du « rôle d'accès » : crée le rôle `Accès Dashboard` quand la guilde n'a
+ * AUCUN rôle utilisable, puis l'attribue à l'acteur.
+ *
+ * ⚠️ Placé ici (et **pas** dans `services/discord-bot`) à dessein : le service bot est
+ * autonome (son image Docker ne copie que `services/discord-bot/`, et l'alias `@/`
+ * n'est pas résolu au runtime) — y dupliquer la règle en ferait un doublon
+ * invérifiable. La décision et le nom du rôle vivent dans `src/lib/onboarding-gating`.
+ * Appelé (a) à l'activation de la guilde, (b) par le bouton de la modale (guilde
+ * déployée avant cette fonctionnalité, ou rôle supprimé depuis).
+ *
+ * Fail-open : Discord injoignable ⇒ l'appelant garde le chemin manuel.
+ */
+async function ensureDashboardAccessRoleCore(
+    guildId: string,
+    actorDiscordId?: string,
+): Promise<{ ok: boolean; roleId?: string; created?: boolean; error?: string }> {
+    const {
+        pickDashboardAccessRolePreselect,
+        shouldCreateDashboardAccessRole,
+        DASHBOARD_ACCESS_ROLE_NAME,
+    } = await import("@/lib/onboarding-gating");
+    const { fetchGuildRoles, createGuildRole, addGuildMemberRole } = await import("@/server/discord");
+
+    let roles: Awaited<ReturnType<typeof fetchGuildRoles>>;
+    try {
+        roles = await fetchGuildRoles(guildId, { excludeManaged: false });
+    } catch {
+        return { ok: false, error: "Rôles Discord injoignables, réessayez." };
+    }
+
+    const existing = pickDashboardAccessRolePreselect(roles, guildId);
+    if (existing) return { ok: true, roleId: existing.id, created: false };
+
+    if (!shouldCreateDashboardAccessRole(roles, guildId)) {
+        return {
+            ok: false,
+            error: "Votre serveur a déjà des rôles utilisables — choisissez-en un dans la liste.",
+        };
+    }
+
+    const created = await createGuildRole(guildId, {
+        name: DASHBOARD_ACCESS_ROLE_NAME,
+        reason: "SigilOS — rôle d'accès au dashboard (aucun rôle utilisable sur ce serveur)",
+    });
+    if (!created) {
+        return {
+            ok: false,
+            error: "Discord a refusé la création du rôle (permission « Gérer les rôles »). Créez-le à la main.",
+        };
+    }
+
+    if (actorDiscordId) {
+        // Confort (jamais un prérequis) : le propriétaire voit la porte ouverte.
+        // `addGuildMemberRole` (existant) est idempotent et renvoie son état — on ne
+        // bloque jamais l'onboarding dessus.
+        const granted = await addGuildMemberRole(
+            guildId,
+            actorDiscordId,
+            created.id,
+            "SigilOS — rôle d'accès au dashboard attribué au propriétaire",
+        );
+        if (!granted.success) {
+            logger.warn(`[Onboarding] Rôle d'accès non attribué à l'admin : ${granted.error}`);
+        }
+    }
+
+    logger.info(`[Onboarding] Rôle « ${DASHBOARD_ACCESS_ROLE_NAME} » créé sur ${guildId}`);
+    return { ok: true, roleId: created.id, created: true };
+}
+
+/**
+ * Action (admin Discord) : crée le rôle d'accès au dashboard si le serveur n'en a
+ * aucun d'utilisable. Idempotente (renvoie le rôle existant s'il est déjà là).
+ */
+export async function ensureDashboardAccessRole(
+    guildId: string,
+): Promise<ActionResponse & { roleId?: string; created?: boolean }> {
+    const session = await auth();
+    if (!session?.user?.id) return { success: false, error: "Non authentifié." };
+
+    const { requireGuildAdmin } = await import("./guards");
+    const guard = await requireGuildAdmin(guildId, "Création du rôle d'accès au dashboard", {
+        allowOnboarding: true,
+    });
+    if (!guard.isAuthorized) {
+        return { success: false, error: "Réservé aux administrateurs Discord du serveur." };
+    }
+
+    // 5 créations / 10 min : un clic en boucle ne doit pas spammer l'API Discord.
+    const limited = await rateLimit(`ensureAccessRole:${session.user.id}`, 5, 600000);
+    if (!limited.success) {
+        return { success: false, error: "Trop de tentatives — réessayez dans quelques minutes." };
+    }
+
+    const res = await ensureDashboardAccessRoleCore(guildId, guard.discordUserId);
+    if (!res.ok) return { success: false, error: res.error };
+
+    await logAction({
+        guildId,
+        action: "WEBHOOK_GUILD_CREATE",
+        targetType: "GUILD",
+        targetId: guildId,
+        metadata: { operation: "ENSURE_DASHBOARD_ACCESS_ROLE", roleId: res.roleId, created: res.created },
+    });
+    return { success: true, roleId: res.roleId, created: res.created };
 }
 
 /**

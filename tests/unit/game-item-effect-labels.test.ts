@@ -1,11 +1,13 @@
 /**
  * Purge des libellés d'effets gabarits (`purgePlaceholderEffectLabels`, S8.5).
  *
- * Le siphon `/effects` ramène **231** gabarits (« Effet 63 », « }{ soins ») sur
- * **871** effets. La purge doit être **idempotente**, **sans suppression**, et
- * **sans invention** : seule la caractéristique jointe (`GameCharacteristic`) est
- * une source fiable — et en base, les 231 gabarits portent `characteristic = 0`,
- * donc la purge ne répare rien tant que le siphon n'apporte pas mieux.
+ * Le siphon `/effects` ramène des gabarits (« Effet 63 », « }{ soins ») sur **871** effets.
+ * La purge doit être **idempotente**, **sans suppression**, et **sans invention** :
+ * - 1ʳᵉ voie : la caractéristique jointe (`GameCharacteristic.name`) — mais en base les
+ *   gabarits portent `characteristic = 0` (inexploitable), donc elle ne suffit pas ;
+ * - 2ᵉ voie (mesurée le 23/09/2026 : **135 des 368** gabarits) : retirer la ponctuation de
+ *   gabarit d'un libellé réel (« Vole } PM » → « Vole PM »), en refusant tout ce qui
+ *   ressemble encore à un gabarit.
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
@@ -69,7 +71,7 @@ describe("purgePlaceholderEffectLabels — ciblage", () => {
 
         const res = await purgePlaceholderEffectLabels();
 
-        expect(res).toMatchObject({ success: true, data: { scanned: 0, repaired: 0, unresolved: 0 } });
+        expect(res).toMatchObject({ success: true, data: { scanned: 0, repaired: 0, cleaned: 0, unresolved: 0 } });
         const args = mockEffectFindMany.mock.calls[0][0];
         expect(args.where.OR).toEqual([
             { name: { startsWith: "Effet " } },
@@ -82,7 +84,7 @@ describe("purgePlaceholderEffectLabels — ciblage", () => {
 });
 
 describe("purgePlaceholderEffectLabels — idempotence & sûreté", () => {
-    it("répare depuis la caractéristique jointe et ne supprime jamais rien", async () => {
+    it("répare depuis la caractéristique jointe, nettoie les accolades, puis ne supprime jamais rien", async () => {
         mockEffectFindMany.mockResolvedValue([
             { id: 11, name: "Effet 11", characteristic: 10 },
             { id: 63, name: "Effet 63", characteristic: 0 },
@@ -96,23 +98,29 @@ describe("purgePlaceholderEffectLabels — idempotence & sûreté", () => {
         const res = await purgePlaceholderEffectLabels();
 
         expect(res.success).toBe(true);
-        expect(res.data).toEqual({ scanned: 3, repaired: 1, unresolved: 2 });
-        expect(mockEffectUpdate).toHaveBeenCalledTimes(1);
+        // 1 réparé (caractéristique « Force »), 1 nettoyé (« }{ soins » → « soins »),
+        // 1 laissé tel quel (« Effet 63 » : ni caractéristique exploitable, ni ponctuation).
+        expect(res.data).toEqual({ scanned: 3, repaired: 1, cleaned: 1, unresolved: 1 });
+        expect(mockEffectUpdate).toHaveBeenCalledTimes(2);
         expect(mockEffectUpdate.mock.calls[0][0]).toEqual({
             where: { id: 11 },
             data: { name: "Force" },
+        });
+        expect(mockEffectUpdate.mock.calls[1][0]).toEqual({
+            where: { id: 72 },
+            data: { name: "soins" },
         });
         // La purge est purement additive : jamais de `delete`.
         expect(mockEffectDelete).not.toHaveBeenCalled();
     });
 
-    it("relancer la purge est sans effet une fois les lignes réparées", async () => {
-        // 2ᵉ passe : le gabarit réparé n'est plus renvoyé par la requête.
+    it("relancer la purge est sans effet une fois les lignes réglées", async () => {
+        // 2ᵉ passe : le gabarit réglé n'est plus renvoyé par la requête.
         mockEffectFindMany.mockResolvedValue([]);
 
         const res = await purgePlaceholderEffectLabels();
 
-        expect(res.data).toEqual({ scanned: 0, repaired: 0, unresolved: 0 });
+        expect(res.data).toEqual({ scanned: 0, repaired: 0, cleaned: 0, unresolved: 0 });
         expect(mockEffectUpdate).not.toHaveBeenCalled();
     });
 
@@ -122,7 +130,8 @@ describe("purgePlaceholderEffectLabels — idempotence & sûreté", () => {
 
         const res = await purgePlaceholderEffectLabels();
 
-        expect(res.data).toEqual({ scanned: 1, repaired: 0, unresolved: 1 });
+        expect(res.data).toEqual({ scanned: 1, repaired: 0, cleaned: 0, unresolved: 1 });
         expect(mockEffectUpdate).not.toHaveBeenCalled();
     });
 });
+

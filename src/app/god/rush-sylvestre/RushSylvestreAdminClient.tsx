@@ -943,12 +943,28 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
               <h2 className="text-sm font-black text-white uppercase tracking-wider">Paramètres du guide</h2>
               <ToggleRow label="Guide actif" description="Rend le guide visible aux membres" value={isActive} onToggle={() => handleToggle("isActive")} disabled={isPending} color="emerald" />
               <div className="h-px bg-white/5" />
-              <ToggleRow label="Mode Construction" description='Affiche le badge "En construction"' value={isUnderConstruction} onToggle={() => handleToggle("isUnderConstruction")} disabled={isPending} color="amber" />
+              <ToggleRow label="Mode Construction" description='Affiche « En construction » : guide membres ET page publique /guides/rush-sylvestre (le guide interactif y est remplacé par l&apos;avis d&apos;arrivée)' value={isUnderConstruction} onToggle={() => handleToggle("isUnderConstruction")} disabled={isPending} color="amber" />
               <div className="h-px bg-white/5" />
               <div className="p-3 bg-zinc-800/60 rounded-xl text-caption text-zinc-500 space-y-1">
                 <p><span className="text-zinc-400 font-bold">Slug :</span> rush-sylvestre</p>
                 <p><span className="text-zinc-400 font-bold">Mode :</span> TIMELINE</p>
                 <p><span className="text-zinc-400 font-bold">URL membres :</span> /dashboard/[guildId]/quetes-dofus/guide/rush-sylvestre</p>
+                {/* La page PUBLIQUE lit le même `isUnderConstruction` : on donne le lien direct
+                    (et son état) pour contrôler le rendu sans chercher l'URL. */}
+                <p>
+                  <span className="text-zinc-400 font-bold">URL publique :</span>{" "}
+                  <a
+                    href="/guides/rush-sylvestre"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-emerald-400 underline decoration-dotted underline-offset-2 hover:text-emerald-300"
+                  >
+                    /guides/rush-sylvestre
+                  </a>
+                  <span className={isUnderConstruction ? "text-amber-400" : "text-zinc-500"}>
+                    {isUnderConstruction ? " · en construction" : " · publiée"}
+                  </span>
+                </p>
               </div>
             </div>
           </motion.div>

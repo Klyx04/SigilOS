@@ -107,3 +107,25 @@ describe("déploiement — le proxy ne peut plus rester en retard en silence", (
         expect(code).toMatch(/seo_check "\$URL"/);
     });
 });
+
+describe("contrôle post-déploiement — pages clés", () => {
+    it("vérifie le statut HTTP des pages publiques qui portent le trafic", () => {
+        const code = deployCd();
+        // Une app « healthy » peut servir des 500/404 sur ses pages : le contrôle post-déploiement
+        // interroge donc aussi les 4 pages publiques (aucune écriture, simple lecture HTTP).
+        expect(code).toMatch(/PAGES=\("\/" "\/guides" "\/guides\/rush-sylvestre" "\/boss"\)/);
+        expect(code).toMatch(/for PAGE in "\$\{PAGES\[@\]\}"/);
+    });
+});
+
+describe("hreflang — pas de promesse de bilinguisme sans chemins dédiés", () => {
+    it("le layout ne déclare pas `languages` (canonical identique ⇒ hreflang ignoré)", () => {
+        const layout = readFileSync("src/app/layout.tsx", "utf8");
+        // `?lang=en` reste servi en anglais (proxy), mais son canonical est `/` : déclarer fr/en/
+        // x-default promettait à Google deux versions qu'on ne peut pas tenir (seuls les guides sont
+        // traduits). Retiré le 25/09/2026 — à rétablir seulement avec de vrais chemins `/en/…`.
+        expect(layout).toMatch(/canonical: getAppBaseUrl\(\)/);
+        expect(layout).not.toMatch(/^\s*languages:\s*\{/m);
+    });
+});
+

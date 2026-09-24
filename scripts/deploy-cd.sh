@@ -542,6 +542,26 @@ seo_check() {
             warn "$URL/sitemap.xml → HTTP ${CODE:-aucun} (404 attendu : vitrine hors index)."
         fi
     fi
+
+    # Pages clés : une application « healthy » peut quand même servir des 500/404 sur ses pages
+    # (erreur de rendu, données manquantes, redirection cassée). On interroge donc les 4 pages
+    # publiques qui portent le trafic — un `curl` de statut coûte 30 ms et évite de découvrir la
+    # panne par un joueur. Aucune écriture, aucune donnée touchée : simple lecture HTTP.
+    local PAGES
+    if [[ "$URL" == *beta.* ]]; then
+        PAGES=("/" "/guides" "/guides/rush-sylvestre" "/boss")
+    else
+        PAGES=("/")
+    fi
+    local PAGE
+    for PAGE in "${PAGES[@]}"; do
+        CODE="$(curl -sS -m 20 -o /dev/null -w '%{http_code}' "${URL}${PAGE}" 2>/dev/null)"
+        if [[ "$CODE" == "200" ]]; then
+            ok "  ${PAGE} → HTTP 200"
+        else
+            warn "  ${PAGE} → HTTP ${CODE:-aucun} (attendu 200 — vérifier les logs de l'app)."
+        fi
+    done
 }
 
 # -----------------------------------------------------------------------------

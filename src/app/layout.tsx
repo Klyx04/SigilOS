@@ -51,11 +51,15 @@ export const metadata: Metadata = {
   metadataBase: new URL(getAppBaseUrl()),
   alternates: {
     canonical: getAppBaseUrl(),
-    languages: {
-      "fr": getAppBaseUrl(),
-      "en": `${getAppBaseUrl()}?lang=en`,
-      "x-default": getAppBaseUrl(),
-    },
+    // ⚠️ AUCUN `languages` (hreflang) ici — décision du 25/09/2026, mesurée avant d'être prise :
+    // `/?lang=en` est bien servi en anglais (le proxy lit `?lang=`, cf. `src/proxy.ts`), MAIS son
+    // canonical reste `/` → Google canonicalisait `?lang=en` vers `/`, donc un hreflang pointant
+    // vers une URL canonicalisée ailleurs est **ignoré** (signal contradictoire, zéro bénéfice).
+    // Déclarer `fr`/`en`/`x-default` faisait donc croire à un site bilingue qui n'en est pas un :
+    // seul le contenu des guides existe en anglais, le reste du site (boss, almanax, guildes) est
+    // FR. Le sélecteur de langue côté visiteur **continue de fonctionner** ; on cesse simplement de
+    // promettre à Google deux versions qu'on ne peut pas tenir. Un vrai i18n (`/en/…` + contenu
+    // complet + sitemap par langue) serait un chantier à part, à rouvrir si une audience EN apparaît.
   },
   manifest: "/manifest.webmanifest", // Next.js generates this from manifest.ts
   title: {

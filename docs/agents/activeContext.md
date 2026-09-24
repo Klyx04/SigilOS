@@ -5,6 +5,15 @@
 > **supprimées le 20/09/2026** (`docs/arbo/ARCHIVES-TEMP-2026-09.md`) ; ils restent **intégralement**
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
+## 🧩 Session 24/09/2026 (suite 23) — **API DofusDB = 50 lignes/page : la passe ITEMS s'arrêtait après 50 items, le diff quêtes ne voyait que 50 quêtes · images : 21 échecs = timeout < attente du limiteur** → branche `fix/pagination-50-et-images`
+> **Déclencheurs** : « le tableau a des incohérences non ? les quêtes pk 1939 ? » + « 78 siphonnées / 21 erreurs, c'est normal ? ».
+> **Mesures (API, une par une)** : `/items?$limit=100` → 50 · `/quests?$limit=500` → 50 · `/monsters?$limit=200` → 50 · `/effects?$limit=500` → 50 · `/characteristics?$limit=500` → 50 ⇒ **50 max par page**.
+> **Conséquences** : ① la passe ITEMS croyait « page de 50 = fin » ⇒ **s'arrêtait après 50 items** ; ② le diff quêtes demandait 500 et s'arrêtait pareil ⇒ **50 quêtes sur 1976** ; ③ « 1939/1976 à jour » comparait un **stock local** à un **total distant**, et le comparateur ne lit que **nom + niveaux** (jamais le contenu d'une quête).
+> **Images (78 ✓ / 21 ✗)** : pas des images manquantes (`img/monsters/827.png` = 200 image/png) ⇒ **timeout de 12 s plus court que l'attente limiteur (60 s)** pendant une rafale de 143.
+> **Fait** : `dofusdb-pagination.ts` (pur : `DOFUSDB_PAGE_MAX`, `hasMorePages`) ; items + quêtes corrigés ; message du worker honnête ; timeout images 70 s + message d'échec nommant les URL ; garde `dofusdb-pagination.test.ts`.
+> **Preuves** : `tsc` **0** · **203 fichiers / 2 209 tests** ✓ · `eslint` **0 erreur** · `npm run build` EXIT=0.
+> **Reste** : panneau de couverture (« Images 0/143 » non rechargé, « Récoltables 0 » = JSON non généré, « 721 vs 800 monstres »), 20 fiches boss > 24 h, audit « page courte » d'`anomaly-boss-siphon`.
+
 ## 🧩 Session 24/09/2026 (suite 22) — **« ça tourne dans le vide » : un `jobId` fixe faisait ignorer le nouveau job par BullMQ (même échoué) — l'enfileur dit maintenant la vérité** → branche `fix/queue-dedup-verite`
 > **Symptôme (bêta)** : Tableau → *Items & ressources* = « En cours · 0 — total inconnu · En file d'attente (worker) · il y a 36 min » alors que rien ne tournait, même après redéploiement.
 > **Mesure** : 2ᵉ enfilage ⇒ id rendu **et aucune ligne du worker** ⇒ BullMQ **n'ajoute rien** si un job du même `jobId` existe (même **échoué**, `removeOnFail` 24 h) et rend l'id **sans erreur** ; l'action écrivait `RUNNING` avant de vérifier ⇒ état faux et bloqué (Redis survit au déploiement).

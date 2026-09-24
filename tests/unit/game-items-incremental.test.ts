@@ -74,7 +74,8 @@ describe("veille ciblée ITEMS — filtre par date", () => {
         const res = await siphonGameItemsIncrementalCore(0, "2026-09-01T00:00:00.000Z");
 
         const url = String(mockDofusDbFetch.mock.calls[0][0]);
-        expect(url).toContain("https://api.dofusdb.fr/items?$limit=100&$skip=0");
+        // ⚠️ `$limit=50` : plafond réel de l'API (mesuré le 24/09/2026 — demander 100 rend 50).
+        expect(url).toContain("https://api.dofusdb.fr/items?$limit=50&$skip=0");
         expect(url).toContain("updatedAt[$gt]=2026-09-01T00%3A00%3A00.000Z");
         expect(res).toMatchObject({
             inserted: 1,

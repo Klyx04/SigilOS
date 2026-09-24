@@ -113,7 +113,7 @@ async function runBackgroundDataset(
         if (deltas.length === 0) {
             await finishGameDataRun("QUESTS", {
                 ok: true,
-                message: `Aucune modification (${totalLocal}/${totalRemote} à jour)`,
+                message: `Aucune modification (nom/niveaux) — ${totalLocal} en base / ${totalRemote} chez DofusDB`,
             });
             return { totalLocal, totalRemote, synced: 0 };
         }

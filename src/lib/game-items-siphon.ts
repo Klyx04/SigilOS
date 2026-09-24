@@ -21,6 +21,7 @@ import { logger } from '@/lib/logger';
 import { dofusDbFetch } from '@/lib/dofusdb-limiter';
 import { siphonAndCompressImage } from '@/lib/dofus-asset-siphon';
 import { GAME_ITEMS_BATCH_PAUSE_MS, GAME_ITEMS_BATCH_SIZE, GAME_ITEMS_INCREMENTAL_MAX_ITEMS } from '@/lib/game-items-cadence';
+import { DOFUSDB_PAGE_MAX, hasMorePages } from '@/lib/dofusdb-pagination';
 import { toNativeEffects } from '@/lib/market/effects';
 import { resolveMarketItemFamily } from '@/lib/market/item-families';
 
@@ -71,7 +72,7 @@ export async function siphonGameItemsBatchCore(
     limit = GAME_ITEMS_BATCH_SIZE,
     since: string | null = null,
 ): Promise<GameItemsBatchResult> {
-    const safeLimit = Math.min(Math.max(limit, 10), 100);
+    const safeLimit = Math.min(Math.max(limit, 10), DOFUSDB_PAGE_MAX);
     const baseUrl = `https://api.dofusdb.fr/items?$limit=${safeLimit}&$skip=${skip}`;
     // Veille ciblée (mesurée le 23/09/2026) : `updatedAt[$gt]=<date>` est un filtre RÉEL
     // côté DofusDB (futur ⇒ 0 résultat) ⇒ une passe incrémentale ramène les quelques items
@@ -281,7 +282,11 @@ export async function siphonGameItemsBatchCore(
     }
 
     const nextSkip = skip + rawItems.length;
-    const hasMore = nextSkip < totalInDofusDB && rawItems.length === safeLimit;
+    // ⚠️ Fin de pagination = plus rien lu OU tout le `total` distant couvert. **Jamais**
+    // « la page est plus courte que demandé » : l'API plafonne à 50 par page (mesuré le
+    // 24/09/2026), donc une page de 50 avec `$limit=100` est NORMALE — c'est ce qui faisait
+    // s'arrêter la passe complète après 50 items.
+    const hasMore = hasMorePages(skip, rawItems.length, totalInDofusDB);
 
     return {
         inserted,

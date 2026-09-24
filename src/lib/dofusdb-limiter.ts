@@ -7,6 +7,14 @@
  * appelant ne doit JAMAIS crasher à cause du limiteur.
  */
 
+/**
+ * Plafond de pagination de l'API DofusDB (source : `@/lib/dofusdb-pagination`, module PUR).
+ * ⚠️ 50 lignes maximum par page, quel que soit `$limit` (mesuré le 24/09/2026) — et donc :
+ * **une page courte ne signifie jamais la fin**. Réexporté ici parce que ce module est celui
+ * qui porte la politique d'accès à l'API.
+ */
+export { DOFUSDB_PAGE_MAX, hasMorePages } from "@/lib/dofusdb-pagination";
+
 const DEFAULT_LIMIT = 30; // requêtes / minute / hôte
 const DEFAULT_WINDOW_MS = 60_000;
 const MAX_WAIT_MS = 60_000; // Retry-After jusqu'à 60s (DofusDB peut demander 30-60s)

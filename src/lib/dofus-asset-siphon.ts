@@ -78,6 +78,18 @@ export function isSafeAssetUrl(rawUrl: string): boolean {
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
+ * ⏱️ Délai maximal d'un téléchargement d'asset — **volontairement supérieur à l'attente
+ * maximale du limiteur partagé** (60 s, `dofusdb-limiter`) : sinon la requête est avortée
+ * *pendant qu'elle attend son tour de fenêtre*.
+ *
+ * Mesure du 24/09/2026 (bouton « Siphonner manquants » du panneau de couverture) : une rafale
+ * de 143 images sur une API limitée à 30 req/min donnait **21 échecs** avec l'ancien timeout de
+ * 12 s — alors que ces images **existaient** (`/img/monsters/827.png` → `200 image/png`, vérifié).
+ * Les succès étaient ceux dont le tour venait immédiatement ; les échecs, ceux qui patientaient.
+ */
+const ASSET_FETCH_TIMEOUT_MS = 70_000;
+
+/**
  * Télécharge une image distante, la compresse en WebP (85% qualité, lossless optionnel)
  * et l'enregistre sur le disque local si elle n'existe pas encore.
  * Idempotent : si le fichier existe déjà, aucun appel réseau n'est effectué.
@@ -126,7 +138,7 @@ export async function siphonAndCompressImage(
             try {
                 const providedRes = await dofusDbFetch(validatedRemoteUrl, {
                     headers: DEFAULT_HEADERS,
-                    signal: AbortSignal.timeout(12_000),
+                    signal: AbortSignal.timeout(ASSET_FETCH_TIMEOUT_MS),
                     cache: 'no-store',
                 });
                 if (providedRes.ok) {
@@ -149,7 +161,7 @@ export async function siphonAndCompressImage(
             try {
                 const response = await dofusDbFetch(targetUrl.toString(), {
                     headers: DEFAULT_HEADERS,
-                    signal: AbortSignal.timeout(12_000),
+                    signal: AbortSignal.timeout(ASSET_FETCH_TIMEOUT_MS),
                     cache: 'no-store',
                 });
                 if (response.ok) {
@@ -166,7 +178,7 @@ export async function siphonAndCompressImage(
                 monsterApiUrl.pathname = `/monsters/${cleanId}`;
                 const monsterRes = await dofusDbFetch(monsterApiUrl.toString(), {
                     headers: { 'User-Agent': 'SigilOS/1.0 (+https://sigilos.fr)' },
-                    signal: AbortSignal.timeout(8_000),
+                    signal: AbortSignal.timeout(ASSET_FETCH_TIMEOUT_MS),
                 });
                 if (monsterRes.ok) {
                     const monsterData = await monsterRes.json();
@@ -179,7 +191,7 @@ export async function siphonAndCompressImage(
                             safeImgUrl.pathname = cleanImgPath;
                             const imgRes = await dofusDbFetch(safeImgUrl.toString(), {
                                 headers: DEFAULT_HEADERS,
-                                signal: AbortSignal.timeout(12_000),
+                                signal: AbortSignal.timeout(ASSET_FETCH_TIMEOUT_MS),
                             });
                             if (imgRes.ok) {
                                 const arrayBuffer = await imgRes.arrayBuffer();
@@ -198,7 +210,7 @@ export async function siphonAndCompressImage(
                 itemApiUrl.pathname = `/items/${cleanId}`;
                 const itemRes = await dofusDbFetch(itemApiUrl.toString(), {
                     headers: { 'User-Agent': 'SigilOS/1.0 (+https://sigilos.fr)' },
-                    signal: AbortSignal.timeout(8_000),
+                    signal: AbortSignal.timeout(ASSET_FETCH_TIMEOUT_MS),
                 });
                 if (itemRes.ok) {
                     const itemData = await itemRes.json();
@@ -213,7 +225,7 @@ export async function siphonAndCompressImage(
                             directItemUrl.pathname = `/img/items/${iconId}.png`;
                             const imgRes = await dofusDbFetch(directItemUrl.toString(), {
                                 headers: DEFAULT_HEADERS,
-                                signal: AbortSignal.timeout(12_000),
+                                signal: AbortSignal.timeout(ASSET_FETCH_TIMEOUT_MS),
                             });
                             if (imgRes.ok) {
                                 const arrayBuffer = await imgRes.arrayBuffer();
@@ -226,7 +238,15 @@ export async function siphonAndCompressImage(
         }
 
         if (!downloadedBuffer) {
-            throw new Error(`Impossible de récupérer l'image pour ${targetType} #${cleanId}`);
+        // ⚠️ On nomme les URL essayées : « impossible de récupérer » sans URL est
+        // indiagnosticable (leçon du 24/09/2026, 21 échecs inexpliqués sur 143 images).
+        const triedDetail =
+            targetType === 'items'
+                ? `essayé : img/items/${cleanId}.png puis la fiche /items/${cleanId} → imgset`
+                : targetType === 'spells'
+                ? `essayé : img/spells/${cleanId}.png`
+                : `essayé : img/monsters/${cleanId}.png puis la fiche /monsters/${cleanId} → img`;
+        throw new Error(`Impossible de récupérer l'image pour ${targetType} #${cleanId} (${triedDetail})`);
         }
 
         // Compression WebP via Sharp avec suppression des métadonnées superflues

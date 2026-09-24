@@ -727,6 +727,8 @@ model UserProfile {
   // 👥 Cycle de vie membre & Recrutement
   lifecycleStatus            String?                    @default("CONFIRMED")
   trialEndsAt                DateTime?
+  /// Date d'arrivée en guilde saisie à la main (registre). Repli = createdAt.
+  guildJoinedAt              DateTime?
   recruitedById              String?
   departureReason            String?
   departureCategory          String?

@@ -185,10 +185,10 @@ function buildSections(guildId: string): AdminSection[] {
                     dofusAsset: "/assets/dofus/modules/social.png",
                 },
                 {
-                    href: `/dashboard/${guildId}/admin/recruitment`,
+                    href: `/dashboard/${guildId}/admin/members?tab=registre`,
                     icon: UserCheck,
                     title: "Recrutement & Cycle de Vie",
-                    description: "Périodes d'essai J-X, annuaire guilde, gestion des mules et historique des départs.",
+                    description: "Registre du staff, périodes d'essai J-X, mules et historique des départs (onglet du module Membres).",
                     accent: "emerald",
                     modules: "roster",
                     permission: (u) => u.canManageMembers,

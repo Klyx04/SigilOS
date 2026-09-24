@@ -42,7 +42,7 @@ const MODULE_ROUTES: Record<string, { label: string; href: string }> = {
     "admin-missions":                  { label: "Gestion des Missions",        href: "/missions/manage" },
     "admin-validation":                { label: "File de Validation OCR",      href: "/admin/validation" },
     "admin-members":                   { label: "Audit Roster Discord",        href: "/admin/members" },
-    "module-recrutement-cycle-de-vie": { label: "Recrutement & Cycle de Vie", href: "/admin/recruitment" },
+    "module-recrutement-cycle-de-vie": { label: "Recrutement & Cycle de Vie", href: "/admin/members" },
     "admin-points":                    { label: "Points & Économie Guilde",    href: "/admin/points" },
     "admin-logs":                      { label: "Logs d'Audit Staff",          href: "/admin/logs" },
     "admin-api-keys":                  { label: "Clés d'API Rest",             href: "/admin/api-keys" },

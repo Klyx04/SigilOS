@@ -20,6 +20,8 @@ import { bossMatchKey } from '@/lib/data-health';
 import { deriveDofensiveMonsterName, resolveMonsterKey } from '@/lib/dofensive-boss';
 import { fetchClassSpellsFull } from '@/server/actions/dofus-spells-actions';
 import { getClassName } from '@/lib/dofusbook-utils';
+import { SPELL_CHANGE_KEYS } from '@/lib/dofus-spells';
+import { diffCollection, recordGameDataChanges } from '@/lib/game-data-changelog';
 
 type ActionResponse<T = void> = {
     success: boolean;
@@ -386,11 +388,26 @@ export async function warmClassSpellbook(classId: number): Promise<ActionRespons
             return { success: false, error: `Aucun sort récupéré pour ${className} (DofusDB injoignable ?)` };
         }
 
+        // 🔍 Image **avant** du grimoire, pour le journal des changements (une seule lecture).
+        const previous = await db.classSpellbook
+            .findUnique({ where: { classId }, select: { spells: true } })
+            .catch(() => null);
+
         await db.classSpellbook.upsert({
             where: { classId },
             create: { classId, className, spells: full as unknown as object, spellCount: full.length },
             update: { className, spells: full as unknown as object, spellCount: full.length },
         });
+
+        // 🔍 Journal : quel sort a changé, et **sur quoi** (dégâts, PA, portée, crit…).
+        await recordGameDataChanges(
+            "CLASS_SPELLS",
+            diffCollection(
+                (previous?.spells ?? null) as unknown as Record<string, unknown>[] | null,
+                full as unknown as Record<string, unknown>[],
+                { entityType: "spell", labelPrefix: className, keys: SPELL_CHANGE_KEYS },
+            ),
+        );
 
         let iconsSiphoned = 0;
         let iconsSkipped = 0;

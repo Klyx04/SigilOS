@@ -12,6 +12,8 @@ import { logger } from "@/lib/logger";
 import { db } from "@/lib/prisma";
 import { dofusdbFetch } from "@/lib/dofusdb-fetch";
 import { getClassName } from "@/lib/dofusbook-utils";
+import { SPELL_CHANGE_KEYS } from "@/lib/dofus-spells";
+import { diffCollection, recordGameDataChanges } from "@/lib/game-data-changelog";
 import {
     applyCharLevelToSpells,
     spellDamageFromEffect,
@@ -377,6 +379,16 @@ export async function getClassSpells(classId: number, charLevel: number = 200): 
                     create: { classId, className, spells: full as unknown as object, spellCount: full.length },
                     update: { className, spells: full as unknown as object, spellCount: full.length },
                 });
+                // 🔍 Journal : « quel sort a changé, et sur quoi » (dégâts, PA, portée, crit…).
+                // `stored` (lu plus haut) sert d'image **avant** : aucune requête supplémentaire.
+                await recordGameDataChanges(
+                    "CLASS_SPELLS",
+                    diffCollection(
+                        (stored?.spells ?? null) as unknown as Record<string, unknown>[] | null,
+                        full as unknown as Record<string, unknown>[],
+                        { entityType: "spell", labelPrefix: className, keys: SPELL_CHANGE_KEYS },
+                    ),
+                );
             } catch {
                 // Persistance optionnelle : la réponse reste servie même sans DB.
             }

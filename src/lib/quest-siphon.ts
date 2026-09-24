@@ -19,6 +19,15 @@ import { db } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 import { dofusDbFetch } from "@/lib/dofusdb-limiter";
 import { DOFUSDB_PAGE_MAX } from "@/lib/dofusdb-pagination";
+import { diffFields, recordGameDataChanges, type GameDataChangeEntry } from "@/lib/game-data-changelog";
+
+/**
+ * 🔍 Champs de quête comparés par le journal des changements. On journalise ce qui est
+ * **écrit** (nom, niveaux, catégorie) : la détection en amont ne compare que nom + niveaux,
+ * donc la catégorie est un écart qu'aucun autre écran ne montrait.
+ * (Le contenu de quête — étapes, récompenses — n'est pas stocké : voir ROADMAP.)
+ */
+const QUEST_CHANGE_KEYS = ["name", "levelMin", "levelMax", "category"] as const;
 
 const DOFUSDB_API = "https://api.dofusdb.fr";
 
@@ -162,6 +171,9 @@ export async function syncQuestDeltasCore(selectedIds: number[]): Promise<number
 
     let syncedCount = 0;
     const batchSize = 15;
+    // 🔍 Journal : ce qui est **réellement appliqué** (et non ce qui est seulement détecté) —
+    // un seul point d'écriture ⇒ tous les déclencheurs (worker, action, cron) sont couverts.
+    const changes: GameDataChangeEntry[] = [];
 
     // 2. Fetch specific quests from DofusDB and upsert in parallel batches
     for (let i = 0; i < selectedIds.length; i += batchSize) {
@@ -198,35 +210,53 @@ export async function syncQuestDeltasCore(selectedIds: number[]): Promise<number
                     // Upsert by dofusDbId if possible, or by name if dofusDbId isn't there yet
                     const existingById = await db.gameQuest.findFirst({
                         where: { dofusDbId: id },
-                        select: { id: true }
+                        select: { id: true, name: true, levelMin: true, levelMax: true, category: true }
                     });
+
+                    const remoteValues = {
+                        name: finalName,
+                        levelMin: remoteQuest.levelMin ?? null,
+                        levelMax: remoteQuest.levelMax ?? null,
+                        category: categoryName,
+                    };
 
                     if (existingById) {
                         await db.gameQuest.update({
                             where: { id: existingById.id },
-                            data: {
-                                name: finalName,
-                                levelMin: remoteQuest.levelMin ?? null,
-                                levelMax: remoteQuest.levelMax ?? null,
-                                category: categoryName
-                            }
+                            data: remoteValues,
                         });
+                        const changed = diffFields(existingById, remoteValues, QUEST_CHANGE_KEYS);
+                        if (changed) {
+                            changes.push({
+                                entityType: "quest",
+                                entityId: String(id),
+                                entityName: finalName,
+                                changeType: "MODIFIED",
+                                fields: changed,
+                            });
+                        }
                     } else {
                         await db.gameQuest.upsert({
                             where: { name: finalName },
                             update: {
                                 dofusDbId: id,
-                                levelMin: remoteQuest.levelMin ?? null,
-                                levelMax: remoteQuest.levelMax ?? null,
-                                category: categoryName
+                                levelMin: remoteValues.levelMin,
+                                levelMax: remoteValues.levelMax,
+                                category: remoteValues.category,
                             },
                             create: {
                                 name: finalName,
                                 dofusDbId: id,
-                                levelMin: remoteQuest.levelMin ?? null,
-                                levelMax: remoteQuest.levelMax ?? null,
-                                category: categoryName
+                                levelMin: remoteValues.levelMin,
+                                levelMax: remoteValues.levelMax,
+                                category: remoteValues.category,
                             }
+                        });
+                        changes.push({
+                            entityType: "quest",
+                            entityId: String(id),
+                            entityName: finalName,
+                            changeType: "NEW",
                         });
                     }
 
@@ -237,6 +267,9 @@ export async function syncQuestDeltasCore(selectedIds: number[]): Promise<number
             })
         );
     }
+
+    // 🔍 Journal des changements réellement appliqués (borné : 500 / dataset, purge à l'écriture).
+    await recordGameDataChanges("QUESTS", changes);
 
     return syncedCount;
 }

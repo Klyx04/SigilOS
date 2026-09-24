@@ -134,6 +134,23 @@ export function isAutoSyncDataset(dataset: GameDataDataset): boolean {
     return (GAME_DATA_AUTO_SYNC_DATASETS as readonly string[]).includes(dataset);
 }
 
+/**
+ * 🔍 Datasets dont les siphons **écrivent réellement** dans le journal des changements
+ * (`GameDataChangeLog`). Le bouton « Journal » existe sur **toutes** les lignes du Tableau :
+ * sans ce registre, une ligne non branchée afficherait un vide **trompeur** (« lancez une
+ * passe ») alors qu'aucune passe ne la remplira. Le branchement d'un dataset = ajouter ici.
+ */
+export const GAME_DATA_JOURNAL_DATASETS: readonly GameDataDataset[] = [
+    "ITEMS",
+    "QUESTS",
+    "CLASS_SPELLS",
+    "ANOMALY_BOSSES",
+];
+
+export function isJournalWiredDataset(dataset: GameDataDataset): boolean {
+    return (GAME_DATA_JOURNAL_DATASETS as readonly string[]).includes(dataset);
+}
+
 export interface GameDataRunState {
     dataset: GameDataDataset;
     status: GameDataRunStatus;

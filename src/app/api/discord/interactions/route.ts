@@ -2708,6 +2708,212 @@ export async function POST(request: NextRequest) {
                 });
             }
 
+            // ── /valider-recrue (STAFF — complète la ligne registre) ──
+            if (commandName === "valider-recrue") {
+                // Gate staff : permission dashboard, fail-closed (pas de session ici).
+                const { internalCheckPermission } = await import("@/server/actions/user-actions");
+                let isStaff = false;
+                try {
+                    isStaff = guild_id
+                        ? await internalCheckPermission(guild_id, discordUserId, PERMISSION_IDS.STAFF_MEMBER_MGMT)
+                        : false;
+                } catch {
+                    isStaff = false;
+                }
+                if (!isStaff) {
+                    return ephemeralDiscordRefusal("🚫 `/valider-recrue` est réservée au staff (permission « Ressources Humaines »).");
+                }
+
+                const opt = (name: string): string | undefined =>
+                    payload.data?.options?.find((o: any) => o.name === name)?.value;
+                const targetId: string | undefined = opt("membre");
+                if (!targetId || !guild_id) {
+                    return ephemeralDiscordMessage("❌ Utilise `/valider-recrue membre:@pseudo` dans un serveur lié à SigilOS.");
+                }
+
+                const guildConfig = await db.guildConfig.findUnique({
+                    where: { discordGuildId: guild_id },
+                    select: { id: true, trialDurationDays: true },
+                });
+                if (!guildConfig) {
+                    return ephemeralDiscordMessage("❌ Ce serveur n'est pas lié à SigilOS.");
+                }
+
+                const findGuildProfile = async (discordId: string) => {
+                    const account = await db.account.findFirst({
+                        where: { provider: "discord", providerAccountId: discordId },
+                        include: {
+                            user: {
+                                include: {
+                                    profiles: {
+                                        where: { guildId: guildConfig.id },
+                                        take: 1,
+                                        select: {
+                                            id: true,
+                                            pseudoDofus: true,
+                                            discordNickname: true,
+                                            ankamaId: true,
+                                            trialValidated: true,
+                                            trialEndsAt: true,
+                                            guildJoinedAt: true,
+                                            recruitedById: true,
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                    });
+                    return account?.user?.profiles?.[0] ?? null;
+                };
+
+                const profile = await findGuildProfile(targetId);
+                if (!profile) {
+                    return ephemeralDiscordMessage(`❌ <@${targetId}> n'a pas encore de profil SigilOS dans cette guilde : il doit se connecter au dashboard (ou être synchronisé), puis relance la commande.`);
+                }
+
+                const { ANKAMA_ID_PATTERN } = await import("@/lib/member-registry");
+                const rawAnkama = opt("tag-ankama")?.trim();
+                if (rawAnkama && !ANKAMA_ID_PATTERN.test(rawAnkama)) {
+                    return ephemeralDiscordMessage("❌ Tag Ankama invalide — format attendu : `Nom#0000`.");
+                }
+                const rawPseudo = opt("pseudo-dofus")?.trim().slice(0, 30) || null;
+                const rawArrivee = opt("arrivee")?.trim();
+                let arrivalDate: Date | null = null;
+                if (rawArrivee) {
+                    const ymd = parseAlmanaxDateInput(rawArrivee);
+                    if (!ymd) {
+                        return ephemeralDiscordMessage("❌ Date d'arrivée invalide — format attendu : `JJ/MM/AAAA`.");
+                    }
+                    arrivalDate = new Date(`${ymd}T12:00:00`);
+                }
+
+                // Recruteur : celui précisé, sinon l'auteur de la commande (si la ligne n'en a pas).
+                const recruiterOpt = opt("recruteur");
+                let recruiterProfileId: string | null = null;
+                let recruiterLabel: string | null = null;
+                if (recruiterOpt) {
+                    const recruiterProfile = await findGuildProfile(recruiterOpt);
+                    if (!recruiterProfile) {
+                        return ephemeralDiscordMessage(`❌ <@${recruiterOpt}> n'a pas de profil SigilOS dans cette guilde.`);
+                    }
+                    recruiterProfileId = recruiterProfile.id;
+                    recruiterLabel = recruiterProfile.pseudoDofus || recruiterProfile.discordNickname || "Recruteur";
+                } else if (!profile.recruitedById) {
+                    const authorProfile = await findGuildProfile(discordUserId);
+                    recruiterProfileId = authorProfile?.id ?? null;
+                    recruiterLabel = authorProfile
+                        ? authorProfile.pseudoDofus || authorProfile.discordNickname || "Toi"
+                        : null;
+                }
+
+                // Mise en essai si la recrue n'est ni validée ni déjà en essai daté.
+                const needsTrial = !profile.trialValidated && !profile.trialEndsAt;
+                const trialBase = arrivalDate ?? new Date();
+                const trialEndsAt = needsTrial
+                    ? new Date(trialBase.getTime() + Math.max(1, guildConfig.trialDurationDays) * 86_400_000)
+                    : undefined;
+
+                // Rôles : choix de la commande, sinon réglages dashboard. Jamais de noms, que des IDs.
+                const { parseValiderRecrueConfig } = await import("@/lib/slash-commands-catalog");
+                const permRow = await db.guildSlashCommandPermission.findUnique({
+                    where: { guildId_commandName: { guildId: guildConfig.id, commandName: "valider-recrue" } },
+                    select: { config: true },
+                });
+                const dashboardRoles = parseValiderRecrueConfig(permRow?.config);
+                const snowflake = (v: string | undefined): string | null =>
+                    v && /^\d{5,25}$/.test(v) ? v : null;
+                const addRoleId = snowflake(opt("ajouter-role")) ?? dashboardRoles.addRoleId;
+                const removeRoleId = snowflake(opt("retirer-role")) ?? dashboardRoles.removeRoleId;
+                if (addRoleId && addRoleId === removeRoleId) {
+                    return ephemeralDiscordMessage("❌ Le rôle à ajouter et celui à retirer doivent être différents.");
+                }
+
+                await db.userProfile.update({
+                    where: { id: profile.id },
+                    data: {
+                        ...(rawPseudo ? { pseudoDofus: rawPseudo } : {}),
+                        ...(rawAnkama ? { ankamaId: rawAnkama } : {}),
+                        ...(arrivalDate ? { guildJoinedAt: arrivalDate } : {}),
+                        ...(recruiterProfileId ? { recruitedById: recruiterProfileId } : {}),
+                        ...(needsTrial ? { trialValidated: false, trialEndsAt } : {}),
+                    },
+                });
+
+                // Rôles Discord après l'écriture registre (résultat rapporté, jamais silencieux).
+                const { addGuildMemberRole, removeGuildMemberRole } = await import("@/server/discord");
+                const roleOutcomes: string[] = [];
+                if (addRoleId) {
+                    const r = await addGuildMemberRole(guild_id, targetId, addRoleId, "SigilOS /valider-recrue");
+                    roleOutcomes.push(r.success ? `+ <@&${addRoleId}>` : `⚠️ ajout <@&${addRoleId}> : ${r.error}`);
+                }
+                if (removeRoleId) {
+                    const r = await removeGuildMemberRole(guild_id, targetId, removeRoleId, "SigilOS /valider-recrue");
+                    roleOutcomes.push(r.success ? `− <@&${removeRoleId}>` : `⚠️ retrait <@&${removeRoleId}> : ${r.error}`);
+                }
+
+                const { createAuditLog } = await import("@/server/actions/audit-actions");
+                await createAuditLog({
+                    guildId: guildConfig.id,
+                    actorUserId: `discord:${discordUserId}`,
+                    actorName: "Discord /valider-recrue",
+                    action: "SETTINGS_UPDATED",
+                    targetType: "USER_PROFILE",
+                    targetId: profile.id,
+                    newValue: {
+                        pseudoDofus: rawPseudo,
+                        ankamaId: rawAnkama,
+                        guildJoinedAt: arrivalDate,
+                        recruitedById: recruiterProfileId,
+                        addRoleId,
+                        removeRoleId,
+                    },
+                    metadata: { source: "slash-valider-recrue", channelId: payload.channel_id ?? null },
+                }).catch(() => null);
+
+                const appBaseUrl = getAppBaseUrl();
+                const fields: { name: string; value: string; inline?: boolean }[] = [
+                    { name: "Pseudo Dofus", value: rawPseudo || profile.pseudoDofus || "—", inline: true },
+                    { name: "Tag Ankama", value: rawAnkama || profile.ankamaId || "—", inline: true },
+                    {
+                        name: "Recruté par",
+                        value: recruiterLabel || "—",
+                        inline: true,
+                    },
+                    {
+                        name: "Arrivée",
+                        value: (arrivalDate ?? profile.guildJoinedAt ?? null)
+                            ? new Date((arrivalDate ?? profile.guildJoinedAt) as Date).toLocaleDateString("fr-FR")
+                            : "aujourd'hui (défaut)",
+                        inline: true,
+                    },
+                    {
+                        name: "Essai",
+                        value: needsTrial
+                            ? `démarré (${guildConfig.trialDurationDays} j)`
+                            : profile.trialValidated
+                              ? "déjà validé"
+                              : "en cours",
+                        inline: true,
+                    },
+                    ...(roleOutcomes.length > 0
+                        ? [{ name: "Rôles Discord", value: roleOutcomes.join("\n"), inline: false }]
+                        : []),
+                ];
+                return NextResponse.json({
+                    type: 4,
+                    data: {
+                        embeds: [{
+                            title: `✅ Ligne registre complétée — <@${targetId}>`,
+                            color: 0x22C55E,
+                            fields,
+                            url: `${appBaseUrl}/dashboard/${guild_id}/admin/members?tab=registre`,
+                            footer: { text: "SigilOS • Registre staff (réponse visible par toi seul)" },
+                        }],
+                        flags: 64,
+                    },
+                });
+            }
+
             return NextResponse.json({ type: 4, data: { content: "Commande inconnue.", flags: 64 } });
         }
 

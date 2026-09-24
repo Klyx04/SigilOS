@@ -64,10 +64,11 @@ export default async function AdminCommandesPage({ params }: Props) {
     const slashPerms = SLASH_COMMANDS_CATALOG.map(cmd => {
         const existing = permMap.get(cmd.name);
         return {
-            command: cmd,
+            command: { ...cmd, staffOnly: cmd.staffOnly ?? false },
             isEnabled: existing ? existing.isEnabled : true,
             roleIds: existing ? existing.roleIds : [],
-            channelIds: existing ? existing.channelIds : []
+            channelIds: existing ? existing.channelIds : [],
+            config: (existing?.config as { addRoleId: string | null; removeRoleId: string | null } | null) ?? null,
         };
     });
 

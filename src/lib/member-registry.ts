@@ -35,19 +35,19 @@ export function computeSeniorityDays(joinedAtIso: string, now: Date = new Date()
 export type TrialDecision = "oui" | "non" | "prolonge";
 
 /**
- * Décision d'essai dérivée, sans nouveau champ en base :
- * - `CONFIRMED` → `oui`
+ * Décision d'essai dérivée :
+ * - essai validé → `oui`
  * - sinon, `trialEndsAt` au-delà de `arrivée + durée par défaut` → `prolonge`
  * - sinon → `non` (en essai, pas encore validé)
  */
 export function getTrialDecision(input: {
-    lifecycleStatus: string | null | undefined;
+    trialValidated: boolean;
     trialEndsAt?: string | null;
     joinedAtIso: string;
     trialDurationDays: number;
     now?: Date;
 }): TrialDecision {
-    if ((input.lifecycleStatus ?? "CONFIRMED") === "CONFIRMED") return "oui";
+    if (input.trialValidated) return "oui";
     if (!input.trialEndsAt) return "non";
     const ends = new Date(input.trialEndsAt).getTime();
     const joined = new Date(input.joinedAtIso).getTime();

@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
+import { readFileSync } from "node:fs";
 import { normSearch, parisCivilDate, parseAlmanaxDateInput, frenchLongDate } from "@/lib/slash-command-helpers";
-import { SLASH_COMMANDS_CATALOG } from "@/lib/slash-commands-catalog";
+import { SLASH_COMMANDS_CATALOG, parseValiderRecrueConfig } from "@/lib/slash-commands-catalog";
 
 describe("slash-command-helpers", () => {
     it("normSearch neutralise casse et accents", () => {
@@ -41,13 +42,56 @@ describe("slash-command-helpers", () => {
 describe("slash commands — périmètre", () => {
     const names = SLASH_COMMANDS_CATALOG.map((c) => c.name);
 
-    it("contient exactement les 6 commandes gardées", () => {
-        expect(names).toEqual(["almanax", "profil", "boss", "monstre", "metiers", "ocre"]);
+    it("contient exactement les 6 commandes membres + valider-recrue (staff)", () => {
+        expect(names).toEqual(["almanax", "profil", "boss", "monstre", "metiers", "ocre", "valider-recrue"]);
+    });
+
+    it("valider-recrue est staffOnly et masquée du guide membres", () => {
+        const valider = SLASH_COMMANDS_CATALOG.find((c) => c.name === "valider-recrue");
+        expect(valider?.staffOnly).toBe(true);
+        expect(valider?.category).toBe("STAFF");
+        expect(SLASH_COMMANDS_CATALOG.filter((c) => !c.staffOnly)).toHaveLength(6);
     });
 
     it("ne contient plus les commandes supprimées", () => {
         for (const dead of ["defi", "dofus", "sorties", "stats", "artisan", "ladder"]) {
             expect(names).not.toContain(dead);
+        }
+    });
+
+    it("valider-recrue est déployée sur Discord et gardée côté route", () => {
+        const sync = readFileSync("src/server/actions/discord-commands-sync.ts", "utf8");
+        for (const option of ['"membre"', '"pseudo-dofus"', '"tag-ankama"', '"recruteur"', '"arrivee"', '"ajouter-role"', '"retirer-role"']) {
+            expect(sync).toContain(option);
+        }
+        const route = readFileSync("src/app/api/discord/interactions/route.ts", "utf8");
+        expect(route).toContain('commandName === "valider-recrue"');
+        expect(route).toContain("PERMISSION_IDS.STAFF_MEMBER_MGMT");
+        expect(route).toContain("addGuildMemberRole");
+        expect(route).toContain("removeGuildMemberRole");
+        expect(route).toContain("trialValidated");
+        expect(route).not.toContain("CANDIDATE");
+    });
+
+    it("parseValiderRecrueConfig est fail-closed (IDs uniquement)", () => {
+        expect(parseValiderRecrueConfig(null)).toEqual({ addRoleId: null, removeRoleId: null });
+        expect(parseValiderRecrueConfig("Membres")).toEqual({ addRoleId: null, removeRoleId: null });
+        expect(parseValiderRecrueConfig({ addRoleId: "123456789012345678", removeRoleId: "@everyone" })).toEqual({
+            addRoleId: "123456789012345678",
+            removeRoleId: null,
+        });
+    });
+
+    it("les étiquettes de cycle de vie ont disparu du nouveau code", () => {
+        for (const file of [
+            "src/lib/member-registry.ts",
+            "src/components/admin/members/member-registry-table.tsx",
+            "src/server/actions/member-lifecycle-actions.ts",
+        ]) {
+            const content = readFileSync(file, "utf8");
+            expect(content).not.toContain("CANDIDATE");
+            expect(content).not.toContain("ARRIVING");
+            expect(content).not.toContain("CONFIRMED");
         }
     });
 });

@@ -133,6 +133,18 @@ function buildDiscordCommandPayloads() {
                     description: "Date d'arrivée JJ/MM/AAAA (défaut : aujourd'hui)",
                     type: 3, // STRING
                     required: false
+                },
+                {
+                    name: "ajouter-role",
+                    description: "Rôle à ajouter (défaut : réglage dashboard)",
+                    type: 8, // ROLE
+                    required: false
+                },
+                {
+                    name: "retirer-role",
+                    description: "Rôle à retirer (défaut : réglage dashboard)",
+                    type: 8, // ROLE
+                    required: false
                 }
             ]
         },

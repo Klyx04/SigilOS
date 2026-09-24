@@ -14,6 +14,34 @@ export interface SlashCommandDefinition {
     staffOnly?: boolean;
 }
 
+/**
+ * Réglages dashboard de `/valider-recrue` : rôles Discord appliqués par défaut
+ * (sauf choix explicite dans la commande). Snowflakes uniquement, jamais de noms.
+ */
+export interface ValiderRecrueConfig {
+    addRoleId: string | null;
+    removeRoleId: string | null;
+}
+
+const SNOWFLAKE_PATTERN = /^\d{5,25}$/;
+
+function cleanRoleId(value: unknown): string | null {
+    if (typeof value !== "string") return null;
+    const v = value.trim();
+    return SNOWFLAKE_PATTERN.test(v) ? v : null;
+}
+
+/** Parse fail-closed de la config dashboard (JSONB) : tout ce qui est douteux devient null. */
+export function parseValiderRecrueConfig(raw: unknown): ValiderRecrueConfig {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+        return { addRoleId: null, removeRoleId: null };
+    }
+    return {
+        addRoleId: cleanRoleId((raw as Record<string, unknown>).addRoleId),
+        removeRoleId: cleanRoleId((raw as Record<string, unknown>).removeRoleId),
+    };
+}
+
 export const SLASH_COMMANDS_CATALOG: SlashCommandDefinition[] = [
     {
         name: "almanax",
@@ -60,7 +88,7 @@ export const SLASH_COMMANDS_CATALOG: SlashCommandDefinition[] = [
     {
         name: "valider-recrue",
         description: "Staff — complète la ligne registre d'une recrue (pseudo Dofus, tag Ankama, recruteur, arrivée)",
-        usage: "/valider-recrue @membre [pseudo-dofus] [tag-ankama] [recruteur] [arrivee]",
+        usage: "/valider-recrue @membre [pseudo-dofus] [tag-ankama] [recruteur] [arrivee] [ajouter-role] [retirer-role]",
         category: "STAFF",
         defaultRoles: ["OFFICER", "LEADER"],
         staffOnly: true

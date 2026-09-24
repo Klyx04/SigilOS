@@ -31,20 +31,20 @@ describe("registre membres — date d'arrivée et ancienneté", () => {
 describe("registre membres — décision d'essai", () => {
     const joined = "2026-09-01T00:00:00.000Z";
 
-    it("CONFIRMED donne oui", () => {
-        expect(getTrialDecision({ lifecycleStatus: "CONFIRMED", joinedAtIso: joined, trialDurationDays: 15 })).toBe("oui");
+    it("validé donne oui", () => {
+        expect(getTrialDecision({ trialValidated: true, joinedAtIso: joined, trialDurationDays: 15 })).toBe("oui");
     });
 
-    it("TRIAL sans fin posée donne non", () => {
-        expect(getTrialDecision({ lifecycleStatus: "TRIAL", trialEndsAt: null, joinedAtIso: joined, trialDurationDays: 15 })).toBe(
+    it("non validé sans fin posée donne non", () => {
+        expect(getTrialDecision({ trialValidated: false, trialEndsAt: null, joinedAtIso: joined, trialDurationDays: 15 })).toBe(
             "non"
         );
     });
 
-    it("TRIAL à durée par défaut donne non, repoussé donne prolonge", () => {
+    it("non validé à durée par défaut donne non, repoussé donne prolonge", () => {
         expect(
             getTrialDecision({
-                lifecycleStatus: "TRIAL",
+                trialValidated: false,
                 trialEndsAt: "2026-09-16T00:00:00.000Z",
                 joinedAtIso: joined,
                 trialDurationDays: 15,
@@ -52,7 +52,7 @@ describe("registre membres — décision d'essai", () => {
         ).toBe("non");
         expect(
             getTrialDecision({
-                lifecycleStatus: "TRIAL",
+                trialValidated: false,
                 trialEndsAt: "2026-10-15T00:00:00.000Z",
                 joinedAtIso: joined,
                 trialDurationDays: 15,

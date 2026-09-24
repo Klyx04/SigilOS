@@ -31,8 +31,8 @@ import {
 } from "@/lib/member-registry";
 import {
     getGuildLifecycleData,
+    setMemberTrialState,
     updateMemberAlts,
-    updateMemberLifecycleStatus,
     updateMemberRecruiter,
     updateMemberRegistryIdentity,
     validateMemberTrial,
@@ -118,7 +118,7 @@ export function MemberRegistryTable({ guildId, canManageMembers }: MemberRegistr
                     joinedAt,
                     seniority: computeSeniorityDays(joinedAt),
                     trial: getTrialDecision({
-                        lifecycleStatus: m.lifecycleStatus,
+                        trialValidated: m.trialValidated,
                         trialEndsAt: m.trialEndsAt,
                         joinedAtIso: joinedAt,
                         trialDurationDays: data.config.trialDurationDays,
@@ -148,7 +148,7 @@ export function MemberRegistryTable({ guildId, canManageMembers }: MemberRegistr
         setFormNotes(m.staffNotes || "");
         setFormRecruiter(m.recruitedById || "NONE");
         setFormRecruiterSearch("");
-        setFormTrialValid(m.lifecycleStatus === "CONFIRMED" ? "oui" : "non");
+        setFormTrialValid(m.trialValidated ? "oui" : "non");
         setFormTrialEnd(toDateInput(m.trialEndsAt));
     };
 
@@ -184,22 +184,19 @@ export function MemberRegistryTable({ guildId, canManageMembers }: MemberRegistr
                 }
             }
             // Essai : Oui = validé, Non = en essai jusqu'à la date de reconduction (ou sans fin).
-            if (formTrialValid === "oui" && editing.lifecycleStatus !== "CONFIRMED") {
-                const resTrial = await validateMemberTrial(guildId, editing.id);
+            const wantValidated = formTrialValid === "oui";
+            const wantTrialEnd = wantValidated ? null : fromDateInput(formTrialEnd);
+            const trialChanged =
+                wantValidated !== editing.trialValidated ||
+                (!wantValidated && (wantTrialEnd || null) !== (editing.trialEndsAt || null));
+            if (trialChanged) {
+                const resTrial = await setMemberTrialState(guildId, editing.id, {
+                    validated: wantValidated,
+                    trialEndsAt: wantTrialEnd,
+                });
                 if (!resTrial.success) {
                     toast.error(resTrial.error || "Essai non enregistré");
                     return;
-                }
-            } else if (formTrialValid === "non") {
-                const trialEnd = fromDateInput(formTrialEnd);
-                const trialEndChanged = (trialEnd || null) !== (editing.trialEndsAt || null);
-                const statusChanged = editing.lifecycleStatus === "CONFIRMED";
-                if (trialEndChanged || statusChanged) {
-                    const resTrial = await updateMemberLifecycleStatus(guildId, editing.id, "TRIAL", { trialEndsAt: trialEnd });
-                    if (!resTrial.success) {
-                        toast.error(resTrial.error || "Essai non enregistré");
-                        return;
-                    }
                 }
             }
             toast.success("Ligne du registre mise à jour");

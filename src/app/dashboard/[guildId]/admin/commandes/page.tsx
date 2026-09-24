@@ -67,7 +67,8 @@ export default async function AdminCommandesPage({ params }: Props) {
             command: { ...cmd, staffOnly: cmd.staffOnly ?? false },
             isEnabled: existing ? existing.isEnabled : true,
             roleIds: existing ? existing.roleIds : [],
-            channelIds: existing ? existing.channelIds : []
+            channelIds: existing ? existing.channelIds : [],
+            config: (existing?.config as { addRoleId: string | null; removeRoleId: string | null } | null) ?? null,
         };
     });
 

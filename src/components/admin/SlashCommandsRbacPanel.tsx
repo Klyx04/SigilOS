@@ -24,6 +24,7 @@ interface CommandItem {
     isEnabled: boolean;
     roleIds: string[];
     channelIds?: string[];
+    config?: { addRoleId: string | null; removeRoleId: string | null } | null;
 }
 
 export function SlashCommandsRbacPanel({
@@ -38,9 +39,17 @@ export function SlashCommandsRbacPanel({
     discordChannels?: { id: string; name: string }[];
 }) {
     const [matrix, setMatrix] = useState<CommandItem[]>(
-        initialMatrix.map(m => ({ ...m, channelIds: m.channelIds || [] }))
+        initialMatrix.map(m => ({ ...m, channelIds: m.channelIds || [], config: m.config ?? null }))
     );
     const [isSaving, setIsSaving] = useState<string | null>(null);
+
+    const handleConfigChange = (commandName: string, patch: { addRoleId?: string | null; removeRoleId?: string | null }) => {
+        setMatrix(prev => prev.map(item => {
+            if (item.command.name !== commandName) return item;
+            const current = item.config ?? { addRoleId: null, removeRoleId: null };
+            return { ...item, config: { ...current, ...patch } };
+        }));
+    };
 
     // Helper sécurisé pour parser la couleur Discord (nombre entier ou hex string)
     const parseRoleColor = (rawColor: unknown): number | undefined => {
@@ -107,7 +116,8 @@ export function SlashCommandsRbacPanel({
                 commandName,
                 roleIds: item.roleIds,
                 channelIds: item.channelIds || [],
-                isEnabled: item.isEnabled
+                isEnabled: item.isEnabled,
+                config: item.config ?? null,
             });
 
             if (res.success) {
@@ -207,6 +217,47 @@ export function SlashCommandsRbacPanel({
                                     className="bg-muted/40 border-border hover:border-border-strong text-foreground text-xs min-h-[38px]"
                                 />
                             </div>
+
+                            {/* Rôles +/− par défaut — /valider-recrue uniquement */}
+                            {item.command.name === "valider-recrue" && (
+                                <div className="space-y-1.5 pt-2 border-t border-border/60">
+                                    <label className="font-bold text-muted-foreground flex items-center gap-1.5 text-[11px]">
+                                        <ShieldCheck className="w-3.5 h-3.5 text-accent" />
+                                        Rôles appliqués par défaut
+                                    </label>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <label className="space-y-1 text-[11px] text-muted-foreground">
+                                            Ajouter
+                                            <select
+                                                value={item.config?.addRoleId || ""}
+                                                onChange={(e) => handleConfigChange(item.command.name, { addRoleId: e.target.value || null })}
+                                                className="w-full bg-muted/40 border border-border rounded-lg px-2 py-2 text-xs text-foreground"
+                                            >
+                                                <option value="">Aucun</option>
+                                                {discordRoles.map((r) => (
+                                                    <option key={r.id} value={r.id}>{r.name}</option>
+                                                ))}
+                                            </select>
+                                        </label>
+                                        <label className="space-y-1 text-[11px] text-muted-foreground">
+                                            Retirer
+                                            <select
+                                                value={item.config?.removeRoleId || ""}
+                                                onChange={(e) => handleConfigChange(item.command.name, { removeRoleId: e.target.value || null })}
+                                                className="w-full bg-muted/40 border border-border rounded-lg px-2 py-2 text-xs text-foreground"
+                                            >
+                                                <option value="">Aucun</option>
+                                                {discordRoles.map((r) => (
+                                                    <option key={r.id} value={r.id}>{r.name}</option>
+                                                ))}
+                                            </select>
+                                        </label>
+                                    </div>
+                                    <p className="text-[10px] text-muted-foreground">
+                                        Appliqués à chaque `/valider-recrue`, sauf rôles précisés dans la commande.
+                                    </p>
+                                </div>
+                            )}
 
                             {/* Dropdown Salons Discord */}
                             <div className="space-y-1.5 pt-2 border-t border-border/60">

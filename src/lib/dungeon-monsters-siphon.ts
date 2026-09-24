@@ -2,6 +2,7 @@ import * as fs from "fs";
 import * as path from "path";
 import { logger } from "@/lib/logger";
 import { dofusDbFetch } from "@/lib/dofusdb-limiter";
+import { diffCollection, recordGameDataChanges } from "@/lib/game-data-changelog";
 
 const OUTPUT_PATH = path.join(process.cwd(), "public", "game-data", "dungeon-monsters.json");
 
@@ -359,9 +360,10 @@ export async function siphonDungeonMonstersDataset(): Promise<SiphonResult> {
     };
 
     // Garde anti-écrasement partiel AVANT écriture (le bon fichier reste en place si throw).
+    const previousDataset = readPreviousDataset();
     assertDatasetCoherent(
         { dungeons: compiledDungeons, monsters: allMonstersList },
-        readPreviousDataset()
+        previousDataset
     );
 
     // Assurer le répertoire parent
@@ -370,6 +372,30 @@ export async function siphonDungeonMonstersDataset(): Promise<SiphonResult> {
 
     fs.writeFileSync(OUTPUT_PATH, JSON.stringify(outputData, null, 2), "utf-8");
     logger.info(`✅ [siphonDungeonMonstersDataset] Terminé avec succès : ${compiledDungeons.length} donjons, ${allMonstersList.length} monstres.`);
+
+    // 🔍 Journal des changements : pour ce dataset, la « base » est le **fichier** JSON ⇒ on
+    // compare avec la version précédente (déjà lue pour la garde de cohérence : aucune lecture
+    // supplémentaire). Les listes de monstres d'un donjon sont résumées (`[N : …]`), jamais recopiées.
+    if (previousDataset) {
+        await recordGameDataChanges("CATALOGUE", [
+            ...diffCollection(
+                previousDataset.dungeons as unknown as Record<string, unknown>[],
+                compiledDungeons as unknown as Record<string, unknown>[],
+                {
+                    entityType: "dungeon",
+                    keys: ["name", "raceName", "monsters", "bosses", "familyMonsters"],
+                },
+            ),
+            ...diffCollection(
+                previousDataset.monsters as unknown as Record<string, unknown>[],
+                allMonstersList as unknown as Record<string, unknown>[],
+                {
+                    entityType: "monster",
+                    keys: ["name", "level", "isBoss", "raceName", "imageUrl"],
+                },
+            ),
+        ]);
+    }
 
     return {
         totalDungeons: compiledDungeons.length,

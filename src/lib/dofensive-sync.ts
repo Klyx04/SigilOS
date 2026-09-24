@@ -17,6 +17,7 @@
 import { createHash } from "node:crypto";
 import { db } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
+import { diffFields, recordGameDataChanges } from "@/lib/game-data-changelog";
 import { dofensiveFetch, norm } from "@/lib/dofensive-fetch";
 import {
     COMBAT_SPELLS_PAYLOAD_VERSION,
@@ -24,6 +25,22 @@ import {
     type DofensiveSpellCombat,
 } from "@/lib/dofensive-spells";
 import type { DofensiveDungeonInfo, DofensiveMapData } from "@/server/actions/dofensive-actions";
+
+/**
+ * 🔍 Blocs d'une fiche monstre/boss suivis par le **journal des changements** (dataset
+ * `ANOMALY_BOSSES`). `versionHash` détecte « la fiche a changé » ; ces clés donnent le **détail**.
+ * Les blocs volumineux (`grades`, `drops`, `spells`) sont bornés à l'écriture (`summarizeValue`).
+ */
+const MONSTER_CHANGE_KEYS = [
+    "name",
+    "level",
+    "dungeonName",
+    "grades",
+    "drops",
+    "spells",
+    "resistances",
+    "isBoss",
+] as const;
 
 export const SYNC_TTL = 24 * 60 * 60 * 1000; // 24 h — donnée de jeu statique
 /** Les tests vitest ne doivent jamais toucher PostgreSQL (les stubs fetch font foi). */
@@ -410,10 +427,16 @@ export async function persistMonsterStat(data: any): Promise<void> {
         if (!Number.isFinite(monsterId) || monsterId <= 0) return;
         const name = String(data.name ?? "");
         if (!name) return;
+
         // 🏷️ Estampille de FORME : tout ce qui est écrit ici est lisible par le code courant
         // (voir `COMBAT_SPELLS_PAYLOAD_VERSION`) — sans quoi un futur ajout de champ rendrait la
         // ligne « fraîche mais illisible », le bug mesuré du 22/09/2026.
         const payload = { ...data, spellsVersion: COMBAT_SPELLS_PAYLOAD_VERSION };
+        const nextHash = hashPayload(payload);
+        // 🔍 Image **avant** de la fiche (une seule lecture) — sert au journal des changements.
+        const previous = await db.monsterStat
+            .findUnique({ where: { monsterId }, select: { versionHash: true, stats: true } })
+            .catch(() => null);
         await db.monsterStat.upsert({
             where: { monsterId },
             create: {
@@ -421,17 +444,39 @@ export async function persistMonsterStat(data: any): Promise<void> {
                 monsterName: name,
                 dungeonName: payload.dungeonName ?? null,
                 stats: payload,
-                versionHash: hashPayload(payload),
+                versionHash: nextHash,
                 lastSyncedAt: new Date(),
             },
             update: {
                 monsterName: name,
                 dungeonName: payload.dungeonName ?? null,
                 stats: payload,
-                versionHash: hashPayload(payload),
+                versionHash: nextHash,
                 lastSyncedAt: new Date(),
             },
         });
+
+        // 🔍 Journal (dataset ANOMALY_BOSSES = fiches monstres/boss) : on ne journalise que si la
+        // fiche a **réellement changé** (`versionHash`), et on détaille les blocs lisibles —
+        // jamais le payload complet (grades/drops/sorts sont bornés par `summarizeValue`).
+        if (previous && previous.versionHash !== nextHash) {
+            const changed = diffFields(
+                (previous.stats ?? null) as Record<string, unknown> | null,
+                payload as Record<string, unknown>,
+                MONSTER_CHANGE_KEYS,
+            );
+            if (changed) {
+                await recordGameDataChanges("ANOMALY_BOSSES", [
+                    {
+                        entityType: "monster",
+                        entityId: String(monsterId),
+                        entityName: name,
+                        changeType: "MODIFIED",
+                        fields: changed,
+                    },
+                ]);
+            }
+        }
     } catch (error) {
         logger.warn("[dofensive-sync] persistMonsterStat échec:", { error: String(error) });
     }

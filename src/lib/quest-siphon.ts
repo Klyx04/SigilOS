@@ -19,6 +19,20 @@ import { db } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 import { dofusDbFetch } from "@/lib/dofusdb-limiter";
 import { DOFUSDB_PAGE_MAX } from "@/lib/dofusdb-pagination";
+import { diffFields, diffCollection, recordGameDataChanges, type GameDataChangeEntry } from "@/lib/game-data-changelog";
+import {
+    buildQuestContentDigest,
+    questContentHash,
+    readQuestContentDigest,
+} from "@/lib/quest-content";
+
+/**
+ * 🔍 Champs de quête comparés par le journal des changements. On journalise ce qui est
+ * **écrit** (nom, niveaux, catégorie) : la détection en amont ne compare que nom + niveaux,
+ * donc la catégorie est un écart qu'aucun autre écran ne montrait.
+ * (Le contenu de quête — étapes, récompenses — n'est pas stocké : voir ROADMAP.)
+ */
+const QUEST_CHANGE_KEYS = ["name", "levelMin", "levelMax", "category"] as const;
 
 const DOFUSDB_API = "https://api.dofusdb.fr";
 
@@ -36,7 +50,16 @@ export interface QuestDeltasResult {
     totalLocal: number;
     totalRemote: number;
     deltas: QuestDelta[];
+    /**
+     * 📜 Quêtes dont le **contenu n'est pas encore stocké** (`contentHash` nul — migration du
+     * 24/09/2026) : rattrapage **borné** (`QUEST_CONTENT_BACKFILL_PER_PASS`) pour ne pas lancer
+     * 1976 requêtes d'un coup (30 req/min ⇒ ≈ 66 min). Chaque passe en rattrape une tranche.
+     */
+    backfillIds: number[];
 }
+
+/** Nombre de contenus de quêtes rattrapés par passe (≈ 10 min à 30 req/min). */
+export const QUEST_CONTENT_BACKFILL_PER_PASS = 300;
 
 
 /**
@@ -55,21 +78,33 @@ export async function computeQuestDeltasCore(): Promise<QuestDeltasResult> {
     // 2. Load local quests that have a dofusDbId
     const localQuests = await db.gameQuest.findMany({
         where: { dofusDbId: { not: null } },
-        select: { dofusDbId: true, name: true, levelMin: true, levelMax: true }
+        select: { dofusDbId: true, name: true, levelMin: true, levelMax: true, dofusDbUpdatedAt: true }
     });
 
-    const localMap = new Map<number, { dofusDbId: number | null; name: string; levelMin: number | null; levelMax: number | null }>();
+    const localMap = new Map<number, { dofusDbId: number | null; name: string; levelMin: number | null; levelMax: number | null; dofusDbUpdatedAt: Date | null }>();
     for (const q of localQuests) {
         if (q.dofusDbId !== null) {
             localMap.set(q.dofusDbId, q);
         }
     }
 
+    // 📜 Rattrapage **borné** du contenu des quêtes déjà en base (migration du 24/09/2026) :
+    // on ne peut pas montrer « ce qui a changé » dans une quête sans son résumé d'avant.
+    // Fail-soft : une lecture en échec ne doit pas empêcher la détection des écarts.
+    const backfill = await db.gameQuest
+        .findMany({
+            where: { contentHash: null, dofusDbId: { not: null } },
+            select: { dofusDbId: true },
+            orderBy: { dofusDbId: "asc" },
+            take: QUEST_CONTENT_BACKFILL_PER_PASS,
+        })
+        .catch(() => [] as { dofusDbId: number | null }[]);
+
     // Also index by name to avoid false "NEW" if dofusDbId wasn't set on some local quests
     const allLocalQuests = await db.gameQuest.findMany({
-        select: { id: true, dofusDbId: true, name: true, levelMin: true, levelMax: true }
+        select: { id: true, dofusDbId: true, name: true, levelMin: true, levelMax: true, dofusDbUpdatedAt: true }
     });
-    const localByNameMap = new Map<string, { id: string; dofusDbId: number | null; name: string; levelMin: number | null; levelMax: number | null }>();
+    const localByNameMap = new Map<string, { id: string; dofusDbId: number | null; name: string; levelMin: number | null; levelMax: number | null; dofusDbUpdatedAt: Date | null }>();
     for (const q of allLocalQuests) {
         localByNameMap.set(q.name.trim().toLowerCase(), q);
     }
@@ -82,7 +117,7 @@ export async function computeQuestDeltasCore(): Promise<QuestDeltasResult> {
     const deltas: QuestDelta[] = [];
 
     while (skip < totalRemote) {
-        const res = await dofusDbFetch(`${DOFUSDB_API}/quests?$limit=${limit}&$skip=${skip}&$select[]=id&$select[]=name&$select[]=levelMin&$select[]=levelMax&$select[]=categoryId`, {
+        const res = await dofusDbFetch(`${DOFUSDB_API}/quests?$limit=${limit}&$skip=${skip}&$select[]=id&$select[]=name&$select[]=levelMin&$select[]=levelMax&$select[]=categoryId&$select[]=updatedAt`, {
             headers: { Accept: "application/json" },
             signal: AbortSignal.timeout(15000),
         });
@@ -108,12 +143,21 @@ export async function computeQuestDeltasCore(): Promise<QuestDeltasResult> {
                     type: "NEW"
                 });
             } else {
-                // Check for modification (name or levels)
+                // Check for modification (name, levels **ou contenu**)
                 const nameChanged = localQuest.name !== remoteName && !localQuest.name.startsWith(remoteName + " (#");
                 const levelMinChanged = localQuest.levelMin !== (remoteQuest.levelMin ?? null);
                 const levelMaxChanged = localQuest.levelMax !== (remoteQuest.levelMax ?? null);
+                // 📜 Le contenu d'une quête (étapes/objectifs/récompenses) change sans que le nom ni
+                // les niveaux bougent : `updatedAt` DofusDB est le SEUL signal (mesuré le 24/09/2026).
+                // Une quête dont l'`updatedAt` n'est pas encore stocké n'est pas « modifiée » (sinon
+                // la 1ʳᵉ passe annoncerait 1976 changements) : elle part au rattrapage borné.
+                const remoteUpdatedAt = typeof remoteQuest.updatedAt === "string" ? new Date(remoteQuest.updatedAt) : null;
+                const contentChanged =
+                    localQuest.dofusDbUpdatedAt !== null &&
+                    remoteUpdatedAt !== null &&
+                    localQuest.dofusDbUpdatedAt.getTime() !== remoteUpdatedAt.getTime();
 
-                if (nameChanged || levelMinChanged || levelMaxChanged) {
+                if (nameChanged || levelMinChanged || levelMaxChanged || contentChanged) {
                     deltas.push({
                         dofusDbId: id,
                         name: remoteName,
@@ -137,6 +181,9 @@ export async function computeQuestDeltasCore(): Promise<QuestDeltasResult> {
         totalLocal: allLocalQuests.length,
         totalRemote,
         deltas,
+        backfillIds: (Array.isArray(backfill) ? backfill : [])
+            .map((q) => q.dofusDbId)
+            .filter((id): id is number => typeof id === "number"),
     };
 }
 
@@ -162,6 +209,9 @@ export async function syncQuestDeltasCore(selectedIds: number[]): Promise<number
 
     let syncedCount = 0;
     const batchSize = 15;
+    // 🔍 Journal : ce qui est **réellement appliqué** (et non ce qui est seulement détecté) —
+    // un seul point d'écriture ⇒ tous les déclencheurs (worker, action, cron) sont couverts.
+    const changes: GameDataChangeEntry[] = [];
 
     // 2. Fetch specific quests from DofusDB and upsert in parallel batches
     for (let i = 0; i < selectedIds.length; i += batchSize) {
@@ -198,35 +248,98 @@ export async function syncQuestDeltasCore(selectedIds: number[]): Promise<number
                     // Upsert by dofusDbId if possible, or by name if dofusDbId isn't there yet
                     const existingById = await db.gameQuest.findFirst({
                         where: { dofusDbId: id },
-                        select: { id: true }
+                        select: {
+                            id: true, name: true, levelMin: true, levelMax: true, category: true,
+                            contentJson: true, contentHash: true, dofusDbUpdatedAt: true,
+                        }
                     });
+
+                    // 📜 Résumé **canonique** du contenu (FR borné) + empreinte : c'est ce qui permet
+                    // de dire « l'objectif 115 a changé » sans stocker les 10 Ko multilingues.
+                    const digest = buildQuestContentDigest(remoteQuest);
+                    const contentHash = questContentHash(digest);
+                    const remoteUpdatedAt =
+                        typeof remoteQuest.updatedAt === "string" ? new Date(remoteQuest.updatedAt) : null;
+
+                    const remoteValues = {
+                        name: finalName,
+                        levelMin: remoteQuest.levelMin ?? null,
+                        levelMax: remoteQuest.levelMax ?? null,
+                        category: categoryName,
+                        contentJson: digest as unknown as object,
+                        contentHash,
+                        dofusDbUpdatedAt: remoteUpdatedAt,
+                    };
 
                     if (existingById) {
                         await db.gameQuest.update({
                             where: { id: existingById.id },
-                            data: {
-                                name: finalName,
-                                levelMin: remoteQuest.levelMin ?? null,
-                                levelMax: remoteQuest.levelMax ?? null,
-                                category: categoryName
-                            }
+                            data: remoteValues,
                         });
+                        const changed = diffFields(existingById, remoteValues, QUEST_CHANGE_KEYS);
+                        if (changed) {
+                            changes.push({
+                                entityType: "quest",
+                                entityId: String(id),
+                                entityName: finalName,
+                                changeType: "MODIFIED",
+                                fields: changed,
+                            });
+                        }
+                        // 📜 Détail du contenu modifié : par **étape** puis par **objectif** (borné).
+                        const previousContent = readQuestContentDigest(existingById.contentJson);
+                        if (previousContent && existingById.contentHash !== contentHash) {
+                            changes.push(
+                                ...diffCollection(
+                                    previousContent.steps as unknown as Record<string, unknown>[],
+                                    digest.steps as unknown as Record<string, unknown>[],
+                                    {
+                                        entityType: "quest-step",
+                                        keys: ["name", "rewards", "objectives"],
+                                        labelPrefix: finalName,
+                                    },
+                                ),
+                                ...diffCollection(
+                                    previousContent.steps.flatMap((s) =>
+                                        s.objectives.map((o) => ({ ...o, stepId: s.id })),
+                                    ) as unknown as Record<string, unknown>[],
+                                    digest.steps.flatMap((s) => s.objectives.map((o) => ({ ...o, stepId: s.id }))) as unknown as Record<string, unknown>[],
+                                    {
+                                        entityType: "quest-objective",
+                                        keys: ["text", "type", "mapId", "stepId"],
+                                        labelPrefix: finalName,
+                                    },
+                                ),
+                            );
+                        }
                     } else {
                         await db.gameQuest.upsert({
                             where: { name: finalName },
                             update: {
                                 dofusDbId: id,
-                                levelMin: remoteQuest.levelMin ?? null,
-                                levelMax: remoteQuest.levelMax ?? null,
-                                category: categoryName
+                                levelMin: remoteValues.levelMin,
+                                levelMax: remoteValues.levelMax,
+                                category: remoteValues.category,
+                                contentJson: remoteValues.contentJson,
+                                contentHash,
+                                dofusDbUpdatedAt: remoteUpdatedAt,
                             },
                             create: {
                                 name: finalName,
                                 dofusDbId: id,
-                                levelMin: remoteQuest.levelMin ?? null,
-                                levelMax: remoteQuest.levelMax ?? null,
-                                category: categoryName
+                                levelMin: remoteValues.levelMin,
+                                levelMax: remoteValues.levelMax,
+                                category: remoteValues.category,
+                                contentJson: remoteValues.contentJson,
+                                contentHash,
+                                dofusDbUpdatedAt: remoteUpdatedAt,
                             }
+                        });
+                        changes.push({
+                            entityType: "quest",
+                            entityId: String(id),
+                            entityName: finalName,
+                            changeType: "NEW",
                         });
                     }
 
@@ -237,6 +350,9 @@ export async function syncQuestDeltasCore(selectedIds: number[]): Promise<number
             })
         );
     }
+
+    // 🔍 Journal des changements réellement appliqués (borné : 500 / dataset, purge à l'écriture).
+    await recordGameDataChanges("QUESTS", changes);
 
     return syncedCount;
 }

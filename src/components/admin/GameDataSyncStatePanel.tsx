@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { RefreshCw, Play, Loader2, CheckCircle2, AlertTriangle, Clock, ServerCog } from "lucide-react";
+import { RefreshCw, Play, Loader2, CheckCircle2, AlertTriangle, Clock, ServerCog, ScrollText } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
     getGameDataSyncStates,
@@ -13,10 +13,12 @@ import {
     gameDataLaunchKind,
     isBackgroundDataset,
     isWatchedDataset,
+    type GameDataDataset,
     type GameDataRunState,
 } from "@/lib/game-data-sync-state";
 import { isInlineRunnable, runInlineGameDataDataset } from "./game-data-inline-runners";
 import { DataHealthPanel } from "./DataHealthPanel";
+import { GameDataChangeLogModal } from "./GameDataChangeLogModal";
 
 /**
  * Tableau d'état des datasets game-data — **ce qui se lit AVANT de cliquer**, et le
@@ -56,6 +58,8 @@ export function GameDataSyncStatePanel({ onGo }: { onGo?: (target: string) => vo
      * s'empilaient dans le terminal du serveur et l'écran God ne montrait rien.
      */
     const [journal, setJournal] = useState<{ dataset: string; lines: string[] } | null>(null);
+    /** 🔍 Dataset dont le **journal des changements** est ouvert dans la modale (`null` = fermé). */
+    const [changeLogDataset, setChangeLogDataset] = useState<GameDataDataset | null>(null);
 
     const load = useCallback(async () => {
         const res = await getGameDataSyncStates();
@@ -314,6 +318,17 @@ export function GameDataSyncStatePanel({ onGo }: { onGo?: (target: string) => vo
                                                 ) : null}
                                             </>
                                         )}
+                                        {/* 🔍 Journal : « quoi a changé » sur ce dataset (modale) —
+                                            le Tableau disait *combien*, jamais *quoi*. */}
+                                        <button
+                                            type="button"
+                                            onClick={() => setChangeLogDataset(state.dataset as GameDataDataset)}
+                                            className="ml-2 inline-flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-[11px] font-bold text-muted-foreground transition-colors hover:text-foreground"
+                                            title="Derniers changements de ce siphon : chaque fiche créée/modifiée, champ par champ (avant → après)"
+                                        >
+                                            <ScrollText className="h-3 w-3" aria-hidden="true" />
+                                            Journal
+                                        </button>
                                         {onGo && GO_TARGET[state.dataset] ? (
                                             <button
                                                 type="button"
@@ -369,6 +384,16 @@ export function GameDataSyncStatePanel({ onGo }: { onGo?: (target: string) => vo
                         </div>
                     ))}
                 </div>
+            ) : null}
+
+            {/* 🔍 Journal des changements (modale) — « quoi a changé » sur ce siphon, champ par
+                champ. Ouverte depuis le bouton « Journal » de la ligne concernée. */}
+            {changeLogDataset ? (
+                <GameDataChangeLogModal
+                    dataset={changeLogDataset}
+                    label={GAME_DATA_DATASET_LABEL[changeLogDataset] ?? changeLogDataset}
+                    onClose={() => setChangeLogDataset(null)}
+                />
             ) : null}
 
             {/* Couverture par source → cible + dry-runs : replié ici (une seule carte dans le

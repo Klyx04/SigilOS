@@ -12,6 +12,7 @@ import { logger } from "@/lib/logger";
 import { buildBountyBestiaireEntry } from "@/lib/bounty-fiche";
 import { sanitizeHtml } from "@/lib/security";
 import { dofusDbFetch } from "@/lib/dofusdb-limiter";
+import { diffFields, recordGameDataChanges } from "@/lib/game-data-changelog";
 import { getLocalMonsterStatAny, persistMonsterStat } from "@/lib/dofensive-sync";
 import { encycloGrade, encycloIdentity, resolveEncycloNames } from "@/lib/dofus-encyclo";
 import { getDofensiveDungeonForBoss } from "@/server/actions/dofensive-actions";
@@ -3192,7 +3193,7 @@ export async function syncOcreArchimonstres(guildId?: string): Promise<ActionRes
                     // B2 — Détecter si c'est une nouvelle entrée Ocre (absent avant upsert)
                     const existingOcre = await db.archimonstre.findFirst({
                         where: { name: monster.name, type: ocreType },
-                        select: { id: true },
+                        select: { id: true, imageUrl: true, level: true, dofusdbId: true, zone: true, isOcre: true },
                     });
                     if (!existingOcre) {
                         newOcreMonsters.push({ name: monster.name, type: ocreType, zone: monster.zone || '' });
@@ -3228,6 +3229,29 @@ export async function syncOcreArchimonstres(guildId?: string): Promise<ActionRes
                             centerY,
                         },
                     });
+
+                    // 🔍 Journal (fiches éditoriales Ocre) : nouvelle fiche ou détail du changement.
+                    await recordGameDataChanges('ANOMALY_BOSSES', [
+                        {
+                            entityType: 'archimonstre',
+                            entityId: existingOcre?.id ?? `ocre:${dofusdbId}`,
+                            entityName: monster.name,
+                            changeType: existingOcre ? 'MODIFIED' : 'NEW',
+                            fields: existingOcre
+                                ? diffFields(
+                                      existingOcre as unknown as Record<string, unknown>,
+                                      {
+                                          imageUrl,
+                                          level,
+                                          dofusdbId,
+                                          zone: monster.zone || null,
+                                          isOcre: true,
+                                      },
+                                      ['imageUrl', 'level', 'dofusdbId', 'zone', 'isOcre'],
+                                  )
+                                : null,
+                        },
+                    ]);
                     synced++;
                 } catch (err) {
                     logger.error('[syncOcreArchimonstres] Error for monster:', { name: monster.name, error: err });
@@ -3600,6 +3624,14 @@ export async function syncDofusBosses(): Promise<ActionResponse<{ synced: number
                 where: { name: nameFr, type: { not: 'boss' } }
             });
 
+            // 🔍 Image **avant** (fiche éditoriale « boss ») : permet de journaliser *quoi* a changé.
+            const previousBoss = await db.archimonstre
+                .findFirst({
+                    where: { name: nameFr, type: 'boss' },
+                    select: { id: true, imageUrl: true, level: true, dofusdbId: true, zone: true, centerX: true, centerY: true },
+                })
+                .catch(() => null);
+
             await db.archimonstre.upsert({
                 where: { name_type: { name: nameFr, type: 'boss' } },
                 update: {
@@ -3626,6 +3658,30 @@ export async function syncDofusBosses(): Promise<ActionResponse<{ synced: number
                     centerY
                 }
             });
+
+            // 🔍 Journal (dataset ANOMALY_BOSSES = fiches monstres/boss) : création ou détail du change.
+            await recordGameDataChanges('ANOMALY_BOSSES', [
+                {
+                    entityType: 'boss',
+                    entityId: previousBoss?.id ?? `boss:${b.id}`,
+                    entityName: nameFr,
+                    changeType: previousBoss ? 'MODIFIED' : 'NEW',
+                    fields: previousBoss
+                        ? diffFields(
+                              previousBoss as unknown as Record<string, unknown>,
+                              {
+                                  imageUrl: b.img || null,
+                                  level: b.grades?.[0]?.level ?? 0,
+                                  dofusdbId: b.id,
+                                  zone: zoneName,
+                                  centerX,
+                                  centerY,
+                              },
+                              ['imageUrl', 'level', 'dofusdbId', 'zone', 'centerX', 'centerY'],
+                          )
+                        : null,
+                },
+            ]);
             synced++;
         }
 

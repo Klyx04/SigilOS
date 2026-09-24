@@ -24,6 +24,17 @@ import { GAME_ITEMS_BATCH_PAUSE_MS, GAME_ITEMS_BATCH_SIZE, GAME_ITEMS_INCREMENTA
 import { DOFUSDB_PAGE_MAX, hasMorePages } from '@/lib/dofusdb-pagination';
 import { toNativeEffects } from '@/lib/market/effects';
 import { resolveMarketItemFamily } from '@/lib/market/item-families';
+import { diffFields, recordGameDataChanges, type GameDataChangeEntry } from '@/lib/game-data-changelog';
+
+/**
+ * 🔍 Champs d'item comparés par le **journal des changements** (`diffFields`) : répond à
+ * « qu'est-ce qui a changé sur cette fiche ? » (nom, niveau, description, type, effets…).
+ */
+const ITEM_CHANGE_KEYS = [
+    'name', 'level', 'description', 'typeId', 'typeName', 'category', 'hasRecipe',
+    'realWeight', 'priceNpc', 'itemSetId', 'itemSetName', 'isLegendary', 'isSaleable',
+    'superTypeId', 'superTypeName', 'effects',
+] as const;
 
 // La cadence vit dans `@/lib/game-items-cadence` (module PUR, client-safe) : ce cœur
 // importe `sharp`/`fs` via `dofus-asset-siphon` et ne doit donc jamais être tiré par un
@@ -111,6 +122,8 @@ export async function siphonGameItemsBatchCore(
     let inserted = 0;
     let updated = 0;
     let maxUpdatedAt: string | null = null;
+    // 🔍 Journal : une entrée par fiche créée/modifiée, écrite en **un seul** `createMany` par lot.
+    const changes: GameDataChangeEntry[] = [];
 
     for (const raw of rawItems) {
         // Filigrane : horodatage distant le plus récent du lot (les ISO se comparent
@@ -219,7 +232,15 @@ export async function siphonGameItemsBatchCore(
 
         const existing = await db.gameItem.findUnique({
             where: { ankamaId },
-            select: { id: true, dataHash: true },
+            select: {
+                id: true,
+                dataHash: true,
+                // 🔍 Champs comparés pour le journal des changements (« avant → après »).
+                name: true, level: true, description: true, typeId: true, typeName: true,
+                category: true, hasRecipe: true, realWeight: true, priceNpc: true,
+                itemSetId: true, itemSetName: true, isLegendary: true, isSaleable: true,
+                superTypeId: true, superTypeName: true, effects: true,
+            },
         });
 
         const localIconUrl = `/uploads/assets-dofus/items/${ankamaId}.webp`;
@@ -256,6 +277,7 @@ export async function siphonGameItemsBatchCore(
                 },
             });
             inserted++;
+            changes.push({ entityType: 'item', entityId: String(ankamaId), entityName: name, changeType: 'NEW' });
 
             // Siphon WebP de l'image en asynchrone non-bloquant
             siphonAndCompressImage(imageSrc, 'items', ankamaId).catch(() => {});
@@ -278,8 +300,25 @@ export async function siphonGameItemsBatchCore(
                 },
             });
             updated++;
+            // 🔍 Détail du changement : « nom : avant → après », « level : … », etc.
+            const changedFields = diffFields(existing, {
+                name, level, description, typeId, typeName, category, hasRecipe,
+                realWeight, priceNpc, itemSetId, itemSetName, isLegendary, isSaleable,
+                superTypeId, superTypeName, effects,
+            }, ITEM_CHANGE_KEYS);
+            changes.push({
+                entityType: 'item',
+                entityId: String(ankamaId),
+                entityName: name,
+                changeType: 'MODIFIED',
+                fields: changedFields,
+            });
         }
     }
+
+    // 🔍 Journal des changements (borné : 500 entrées / dataset, purge à l'écriture) —
+    // non bloquant : une panne du journal ne casse jamais le siphon.
+    await recordGameDataChanges('ITEMS', changes);
 
     const nextSkip = skip + rawItems.length;
     // ⚠️ Fin de pagination = plus rien lu OU tout le `total` distant couvert. **Jamais**

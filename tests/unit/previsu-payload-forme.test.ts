@@ -96,7 +96,10 @@ describe("écriture — toute ligne persistée est estampillée", () => {
         );
         expect(fn).toMatch(/spellsVersion: COMBAT_SPELLS_PAYLOAD_VERSION/);
         expect(fn).toMatch(/stats: payload,/);
-        expect(fn).toMatch(/versionHash: hashPayload\(payload\)/);
+        // Le hash doit porter sur le payload ESTAMPILLÉ (et non sur `data`) — il est calculé
+        // une seule fois (`nextHash`) puisqu'il sert aussi au journal des changements.
+        expect(fn).toMatch(/const nextHash = hashPayload\(payload\)/);
+        expect(fn).toMatch(/versionHash: nextHash,/);
         // Aucune écriture ne doit passer le payload brut (sinon la forme v1 revient).
         expect(fn).not.toMatch(/stats: data,/);
     });

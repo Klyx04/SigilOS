@@ -1040,6 +1040,32 @@ model MonsterFamily {
 
 /// Monstres spéciaux gérés par les super-admins (GOD) pour les missions événement.
 /// Contiennent les infos affichées dans le flow d'édition de mission (sélecteur "Monstre Spécial").
+/// 🔍 **Journal des changements** détectés par les siphons game-data — « quoi a changé, sur
+/// quelle fiche, avant → après ». C'est ce qui manquait : les cœurs calculaient des écarts
+/// (items par hash, quêtes NEW/MODIFIED) puis **les oubliaient**.
+///
+/// ⚠️ **Borné par construction** (demande user : « faut pas remplir le VPS à l'infini ») :
+/// rétention appliquée **à chaque écriture** — 30 jours + 500 entrées par dataset
+/// (`GAME_DATA_CHANGELOG_*` dans `src/lib/game-data-changelog.ts`). Un journal qui remplit le
+/// disque serait un bug, pas une fonctionnalité. Purge manuelle possible via le cron
+/// `cleanup-logs` si besoin.
+model GameDataChangeLog {
+  id         String   @id @default(cuid())
+  dataset    String   // GameDataDataset : ITEMS, QUESTS, FAMILIES, CLASS_SPELLS…
+  entityType String   // item | quest | spell | monster | zone | family | boss | bounty
+  entityId   String   // id Ankama / DofusDB / slug (jamais un id interne)
+  entityName String?
+  changeType String   // NEW | MODIFIED | REMOVED
+  /// Détail des champs modifiés : `{ champ: { before, after } }` — **jamais** le payload entier.
+  fields     Json?
+  runId      String?
+  createdAt  DateTime @default(now())
+
+  @@index([dataset, createdAt])
+  @@index([dataset, entityId])
+  @@index([createdAt])
+}
+
 /// `zone` est un libellé libre (comme Archimonstre) — pas de relation stricte pour couvrir
 /// les événements (zones non répertoriées, monstres d'event, etc.).
 model GameDataMonster {
@@ -1866,6 +1892,14 @@ model GameQuest {
   description String?
   imageUrl    String?
   category    String?
+  /// 📜 Résumé **canonique** du contenu (étapes, objectifs, récompenses — FR borné) : c'est ce qui
+  /// permet de dire « l'objectif 115 a changé » (`src/lib/quest-content.ts`).
+  contentJson Json?
+  /// Empreinte du résumé (comparaison bon marché, reprise après migration).
+  contentHash String?
+  /// `updatedAt` DofusDB : **détecte tout changement, contenu inclus** (mesuré le 24/09/2026 —
+  /// `/quests` expose `updatedAt`, seul moyen de voir une modification d'étape).
+  dofusDbUpdatedAt DateTime?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

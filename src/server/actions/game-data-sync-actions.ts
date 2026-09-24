@@ -45,6 +45,13 @@ import {
     gameDataQueue,
 } from "@/lib/queue/game-data-queue";
 import { logger } from "@/lib/logger";
+import {
+    GAME_DATA_CHANGELOG_RETENTION_LABEL,
+    getGameDataChangeCounts,
+    getGameDataChangeLog as readGameDataChangeLog,
+    type GameDataChangeRow,
+    type GameDataChangeType,
+} from "@/lib/game-data-changelog";
 
 /** Même garde que le module game-data (super-admin OU brique `game-data`). */
 async function canAccessGameData(): Promise<boolean> {
@@ -89,6 +96,44 @@ export async function getGameDataSyncStates(): Promise<ActionResponse<GameDataRu
     } catch (error) {
         logger.error("[game-data-sync] getGameDataSyncStates:", error);
         return { success: false, error: "État indisponible" };
+    }
+}
+
+/**
+ * 🔍 **Journal des changements** d'un dataset — « quoi a changé, sur quelle fiche, avant → après ».
+ *
+ * C'est la réponse à « si une quête/fiche a été modifiée, je veux savoir **quoi** » : les cœurs
+ * écrivent une entrée par fiche créée/modifiée (`recordGameDataChanges`), et cette action ne
+ * fait que **lire** (rétention bornée : 30 j / 500 entrées par dataset).
+ */
+export async function getGameDataChangeLogAction(
+    dataset: string,
+    opts: { limit?: number; changeType?: GameDataChangeType | "ALL" } = {},
+): Promise<ActionResponse<{ rows: GameDataChangeRow[]; retention: string }>> {
+    if (!(await canAccessGameData())) return { success: false, error: "Non autorisé" };
+    if (!isDataset(dataset)) return { success: false, error: "Dataset inconnu" };
+    const changeType = opts.changeType ?? "ALL";
+    if (!["ALL", "NEW", "MODIFIED", "REMOVED"].includes(changeType)) {
+        return { success: false, error: "Filtre inconnu" };
+    }
+    try {
+        const rows = await readGameDataChangeLog(dataset, { limit: opts.limit, changeType });
+        // La rétention vient du **serveur** : une seule source de vérité, jamais recopiée dans l'UI.
+        return { success: true, data: { rows, retention: GAME_DATA_CHANGELOG_RETENTION_LABEL } };
+    } catch (error) {
+        logger.error("[game-data-changelog] lecture:", error);
+        return { success: false, error: "Journal indisponible" };
+    }
+}
+
+/** Compteurs par dataset (badge du bouton « Journal ») — une seule requête groupée. */
+export async function getGameDataChangeSummary(): Promise<ActionResponse<Record<string, number>>> {
+    if (!(await canAccessGameData())) return { success: false, error: "Non autorisé" };
+    try {
+        return { success: true, data: await getGameDataChangeCounts() };
+    } catch (error) {
+        logger.error("[game-data-changelog] compteurs:", error);
+        return { success: false, error: "Journal indisponible" };
     }
 }
 

@@ -18,8 +18,8 @@ import { getMonsterStats } from '@/server/actions/game-data-actions';
 import { persistMonsterStat } from '@/lib/dofensive-sync';
 import { bossMatchKey } from '@/lib/data-health';
 import { deriveDofensiveMonsterName, resolveMonsterKey } from '@/lib/dofensive-boss';
-import { fetchClassSpellsFull } from '@/server/actions/dofus-spells-actions';
 import { getClassName } from '@/lib/dofusbook-utils';
+import { upsertClassSpellbookWithJournal, fetchClassSpellsFull } from '@/lib/class-spells-siphon';
 
 type ActionResponse<T = void> = {
     success: boolean;
@@ -386,11 +386,8 @@ export async function warmClassSpellbook(classId: number): Promise<ActionRespons
             return { success: false, error: `Aucun sort récupéré pour ${className} (DofusDB injoignable ?)` };
         }
 
-        await db.classSpellbook.upsert({
-            where: { classId },
-            create: { classId, className, spells: full as unknown as object, spellCount: full.length },
-            update: { className, spells: full as unknown as object, spellCount: full.length },
-        });
+        // 🔁 Écriture + **journal des changements** par une seule porte (règle non dupliquée).
+        await upsertClassSpellbookWithJournal(classId, className, full);
 
         let iconsSiphoned = 0;
         let iconsSkipped = 0;

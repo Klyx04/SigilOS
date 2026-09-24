@@ -19,6 +19,27 @@
 
 export type SpellElementKey = "terre" | "feu" | "eau" | "air" | "neutre";
 
+/**
+ * 🔍 Champs d'un sort suivis par le **journal des changements** (dégâts, coûts, portée, crit…).
+ * Source de vérité côté domaine : le siphon des sorts (`dofus-spells-actions`) *et* le siphon
+ * d'assets (`asset-siphon-actions`) journalisent avec cette même liste.
+ */
+export const SPELL_CHANGE_KEYS = [
+    "name",
+    "apCost",
+    "minRange",
+    "maxRange",
+    "criticalChance",
+    "critMult",
+    "maxCastPerTurn",
+    "maxCastPerTarget",
+    "minCastInterval",
+    "zone",
+    "grade",
+    "damages",
+    "minPlayerLevel",
+] as const;
+
 /** Zone d'effet brute portée par une ligne de dégâts (issue de `zoneDescr` DofusDB). */
 export interface SpellLineZone {
     /** Lettre de gabarit Ankama (`P`, `C`, `X`, `L`, `V`, `+`…). */

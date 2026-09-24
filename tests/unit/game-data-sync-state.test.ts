@@ -122,7 +122,7 @@ describe("game-data — siphons en arrière-plan (file + worker)", () => {
         expect(queue).toContain("backoff");
         const state = read("src/lib/game-data-sync-state.ts");
         expect(state).toContain(
-            'GAME_DATA_BACKGROUND_DATASETS = ["CATALOGUE", "ANOMALY_BOSSES", "ZONES", "FAMILIES", "BOUNTIES", "ITEMS", "REFERENTIALS", "QUESTS"] as const',
+            'GAME_DATA_BACKGROUND_DATASETS = ["CATALOGUE", "ANOMALY_BOSSES", "ZONES", "FAMILIES", "BOUNTIES", "ITEMS", "REFERENTIALS", "QUESTS", "CLASS_SPELLS"] as const',
         );
         // ⚠️ Garde anti-régression (incident du 22/09/2026 : `Can't resolve 'dns'`) :
         // ce module est importé par un composant CLIENT ⇒ il ne doit tirer NI `bullmq`
@@ -246,7 +246,9 @@ describe("game-data — siphons en arrière-plan (file + worker)", () => {
         ).toBe(GAME_DATA_DATASETS.length);
         expect(gameDataLaunchKind("CATALOGUE")).toBe("BACKGROUND");
         expect(gameDataLaunchKind("ITEMS")).toBe("BACKGROUND");
-        expect(gameDataLaunchKind("CLASS_SPELLS")).toBe("INLINE");
+        // 🧙 CLASS_SPELLS est passé en arrière-plan le 24/09/2026 (cœur descendu en `src/lib`) :
+        // c'est ce qui permet de remplir les 19 grimoires **sans onglet ouvert**.
+        expect(gameDataLaunchKind("CLASS_SPELLS")).toBe("BACKGROUND");
         expect(gameDataLaunchKind("ASSETS_WEBP")).toBe("INLINE");
         // Cœurs descendus en `lib` le 23/09/2026 : ces siphons partent en file.
         expect(gameDataLaunchKind("REFERENTIALS")).toBe("BACKGROUND");

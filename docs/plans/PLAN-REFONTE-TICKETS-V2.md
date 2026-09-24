@@ -15,16 +15,24 @@
 | Règles de l'assistant « Parcours » | ✅ écrit + testé (36 cas) | PR **#725** (**brouillon**) · `journey-wizard.ts` |
 | Tunnel d'ouverture : choix → modales → bouton « Continuer » | ✅ écrit + testé (14 cas) | PR #725 · `journey-tunnel.ts` |
 | Ping de rôles à l'ouverture (parcours, repli équipe) | ✅ écrit + testé (10 cas) | PR #725 · `notifications.ts` + migration `20261222000000_tickets_journey_notify_roles` |
-| **Écran « Parcours »** (onglet + assistant) | ❌ **non écrit** | règles prêtes, aucun composant |
-| **Branchement Discord** (panneaux + route + création depuis un parcours) | ❌ **non fait** | `tb:open` ne résout que `TicketBotCategory` (v1) |
+| **Écran « Parcours »** (onglet + assistant) | ✅ **écrit** (PR #725) | `_components/tabs/ticket-journeys-tab.tsx` (règles : `journey-wizard.ts`, 38 cas) |
+| **Branchement Discord** (panneaux + route + création depuis un parcours) | ✅ **fait** (PR #725) | `journey-dispatch.ts` · `src/server/tickets/journey-open.ts` · route d'interactions · `internalHandleTicketCreate` |
 | Onglets Formulaires (T2) / Équipe (T3) | ❌ | actions serveur livrées (10) |
 | SLA, auto-fermeture, purge, quota serveur | ❌ | réglages **encore affichés**, aucun exécutant |
 | Participants (`$add`/`$remove`), `THREAD_PRIVATE`, suppression de salon observée | ❌ | `setMemberChannelPermissionDiscord` importé, jamais appelé |
 
-⚠️ **Tant que le lot « branchement » n'est pas fait, « Publier » un parcours n'a aucun effet
-observable** (l'`isPublished` n'est lu par rien) et **le ping de rôles n'est pas envoyé**.
-C'est la raison pour laquelle les règles ont été livrées **avant** l'écran : l'écran ne doit
-pas promettre ce que le bot ne fait pas encore.
+✅ Depuis la suite 27 (PR #725), le branchement est **fait** : `isPublished` est lu par le
+déploiement des panneaux (`deployTicketPanelAction` → `buildPanelRows`, parcours publiés
+d'abord, repli catégories v1) **et** par le tunnel d'ouverture (`journey-open.ts` refuse un
+parcours brouillon, désactivé, ou dont le questionnaire n'est pas figé). « Publier » a donc un
+**effet observable** : le bouton apparaît, les questions se posent (choix → modales paginées →
+« Continuer »), le salon naît avec le nom et l'embed du parcours, le brouillon est supprimé, et
+les `notifyRoleIds` sont **mentionnés** (jamais `@everyone`).
+
+Ce qui **n'est pas** promis pour autant : `APPROVAL` et `THREAD_PRIVATE` ne sont ni proposés ni
+enregistrés (aucun exécutant), les boutons de staff ne sont **jamais** publiés dans le salon du
+demandeur (invariant #1 — le staff agit depuis la boîte de réception), et les réglages
+SLA/auto-fermeture/purge restent sans exécutant.
 
 ## 2. Le modèle de données (v2)
 
@@ -64,39 +72,39 @@ pas promettre ce que le bot ne fait pas encore.
 
 ## 4. Ce qui reste, dans l'ordre (fichiers exacts)
 
-### 4.1 Écran « Parcours » — l'onglet et son assistant
+### 4.1 Écran « Parcours » — l'onglet et son assistant ✅ **LIVRÉ (PR #725)**
 
-- **Créer** `src/app/dashboard/[guildId]/tickets/_components/tabs/ticket-journeys-tab.tsx` :
-  liste des parcours + assistant à 5 étapes (Identité → Ouverture → Équipe → Questionnaire →
-  Résumé), publié/brouillon, suppression, activation/désactivation.
-- **Brancher** l'onglet dans `ticket-bot-manager.tsx` (entrée + badge) et charger les données
-  dans `page.tsx` (`listTicketJourneysAction`, `listTicketFormsAction`, `listTicketTeamsAction`).
-- Toute la logique est **déjà écrite et testée** dans `src/lib/tickets/journey-wizard.ts` :
-  identifiant dérivé du nom sans collision, erreurs (bloquantes) vs avertissements, charge
-  utile au format exact de `saveTicketJourneyAction`, état `Brouillon` / `Publié (vN)` /
-  « modifications non publiées ».
-- Aucune saisie d'identifiant : `TicketCategoryPicker`, `TicketRolesPicker`,
-  `DiscordChannelPicker` (`ticket-discord-pickers.tsx`).
+- ✅ `src/app/dashboard/[guildId]/tickets/_components/tabs/ticket-journeys-tab.tsx` : liste des
+  parcours + assistant 5 étapes (Identité → Ouverture → Équipe → Questionnaire → Résumé),
+  publier / activer / supprimer, état `Brouillon` / `Publié (vN)` / « modifications non publiées ».
+- ✅ Branché dans `ticket-bot-manager.tsx` (onglet « Parcours » + badge) et `page.tsx`
+  (`listTicketJourneysAction`, `listTicketFormsAction`, `listTicketTeamsAction`).
+- ✅ Aucune saisie d'identifiant : `TicketCategoryPicker` / `TicketRolesPicker`
+  (`ticket-discord-pickers.tsx`) ; ce qui n'a **pas** d'exécutant (fils privés, approbation) est
+  **dit** au lieu d'être proposé.
+- Reste dans cet écran : la sélection d'un formulaire dépend du constructeur (T2) — l'étape
+  « Questionnaire » le dit explicitement quand aucun formulaire n'existe.
 
-### 4.2 Branchement Discord de l'ouverture — **le lot qui rend le reste réel**
+### 4.2 Branchement Discord de l'ouverture — **le lot qui rend le reste réel** ✅ **FAIT (PR #725)**
 
-Sans lui : pas de bouton de parcours sur Discord, pas de ping, pas de questionnaire posé.
-
-- `saveTicketPanelAction` / `deployTicketPanelAction` (`src/server/actions/ticket-bot-actions.ts`)
-  et `ticket-panels-tab.tsx` : exposer **`TicketBotPanel.journeyIds`** (écrit par l'écran, lu au
-  déploiement). `buildPanelRows` (`src/lib/tickets/embeds.ts`) gère déjà les parcours et produit
-  `tb:open:<panneau>:<parcours>` / `tb:select_journey:<panneau>`.
-- `src/app/api/discord/interactions/route.ts` : implémenter les branches `tb_pick` (étape des
-  choix), `open`/`select_journey` (résoudre un parcours **publié et activé**), `modal_open` /
-  `modal_page` (pages de modale), en s'appuyant sur `nextTicketTunnelStep`, `applyTicketChoice`
-  et `answersFromModalSubmit` ; persister le `TicketDraft` entre deux interactions et le
-  **supprimer** après création.
-- `internalHandleTicketCreate` : accepter `journeyId` + `formVersionId` + réponses normalisées,
-  utiliser la configuration du parcours (`formatTicketChannelName`, `buildTicketWelcomeEmbed`,
-  `buildActionRows`), écrire `journeyId`/`formVersionId` sur le `TicketRecord` et envoyer le
-  **ping** (`resolveTicketNotifyRoleIds` + `buildTicketNotifyContent`).
-- Honnêteté : un parcours **brouillon** ou **désactivé**, une catégorie Discord inaccessible ou
-  un bot sans permission doivent **refuser** l'ouverture avec un message lisible (fail-closed).
+- ✅ `journeyIds` exposé : `TicketPanelSchema` + `saveTicketPanelAction` (appartenance à la
+  guilde vérifiée) + `deployTicketPanelAction` (`buildPanelRows` : parcours publiés d'abord,
+  repli catégories v1, `buildPanelEmbed`) + `ticket-panels-tab.tsx`.
+- ✅ `src/lib/tickets/journey-dispatch.ts` (pur, testé) : une étape du tunnel → une réponse
+  Discord — éphémère des choix, **modale au `custom_id` routable**, bouton « Continuer » après
+  une soumission (Discord interdit une modale dans une modale), refus motivé.
+- ✅ `src/server/tickets/journey-open.ts` : parcours **publié et activé**, questionnaire **figé**
+  relu par sa version, `TicketDraft` (TTL 30 min, reprise à la page mémorisée) lu / écrit / purgé,
+  `advanceTicketJourney` (choix et champs de modale revalidés, brouillon jamais pollué).
+- ✅ `route.ts` : `tb_pick`, `open`/`select_journey`, `modal_open`, `modal_page` — fail-closed via
+  `parseTicketCustomId`, **repli v1 conservé** (catégorie relue **dans la guilde**).
+- ✅ `internalHandleTicketCreate` : `journeyId` + `formVersionId` + réponses clés par `id` de
+  champ, **revalidation** (`evaluateAnswers` sur la version figée), `formatTicketChannelName`,
+  `buildTicketWelcomeEmbed`, `buildActionRows` (**vue du demandeur**, invariant #1),
+  `journeyId`/`formVersionId` écrits sur le `TicketRecord`, **ping** `notifyRoleIds` avec un
+  `allowed_mentions` explicite, puis **suppression du brouillon**.
+- ⏳ Reste : `APPROVAL` (aucun handler `approve`/`refuse`), `THREAD_PRIVATE`, et un **préflight des
+  permissions Discord** du bot (le refus est aujourd'hui rendu par l'API Discord, message compris).
 
 ### 4.3 Onglet Formulaires (chantier T2)
 
@@ -165,25 +173,31 @@ compteur d'accès et date d'expiration — les colonnes existent (`kind`, `revok
 ## 6. Commandes utiles
 
 ```bash
-npm run test:run                 # suite complète (~2 345 cas)
+npm run test:run                 # suite complète (~2 360 cas)
 npx tsc --noEmit                 # types
 npm run lint                     # 0 erreur attendue
 npx prisma generate              # après tout changement de schéma
 npm run seed:docs                # après un changement de docs-catalog.ts (guide in-app)
 ```
 
-## 7. Reprendre la main en local — **la base de dev n'a pas les tables v2**
+## 7. Base locale : appliquer les tables v2 (état au 24/09/2026, suite 27 : ✅ **déjà appliqué**)
 
-Mesuré le 24/09/2026 : `information_schema` en base locale ne liste que les tables **v1**
-(`TicketBotCategory`, `TicketBotPanel`, `TicketGuildConfig`, `TicketRecord`, `TicketNote`,
-`TicketTranscript`, `TicketAuditLog`, `TicketFeedback`). **`TicketJourney`, `TicketForm`,
-`TicketFormVersion`, `TicketTeam` et `TicketDraft` n'existent pas** : toute la partie v2 (et
-donc le lot 4.2) plantera en local (`relation does not exist`) tant que ce n'est pas appliqué.
+**Mesuré le 24/09/2026 (suite 27) : les tables v2 sont présentes en base locale** — `TicketDraft`,
+`TicketForm`, `TicketFormVersion`, `TicketJourney`, `TicketTeam` **plus** les 8 tables v1
+(13 tables `Ticket*`), et les colonnes `TicketBotPanel.journeyIds` /
+`TicketJourney.notifyRoleIds` **vérifiées par `information_schema`**. Un test fonctionnel du
+tunnel (sonde de la suite 27) a tourné **sur la base réelle**.
 
-La cause est la dérive préexistante (§5) : deux migrations du dépôt ne sont pas appliquées
-localement (`20260919130000_add_dungeon_slug`, `20261221000000_tickets_v2_refonte`), et une
-migration présente en base n'existe plus dans le dépôt. `prisma migrate deploy` /
-`migrate dev` ne sont donc pas utilisables tels quels.
+Historique (à lire **avant** de conclure que ça ne marche pas) : au 24/09/2026 (suite 26),
+`information_schema` ne listait que les tables **v1** (`TicketBotCategory`, `TicketBotPanel`,
+`TicketGuildConfig`, `TicketRecord`, `TicketNote`, `TicketTranscript`, `TicketAuditLog`,
+`TicketFeedback`) ; `TicketJourney`, `TicketForm`, `TicketFormVersion`, `TicketTeam` et
+`TicketDraft` n'existaient pas, d'où des `relation does not exist` sur toute la partie v2.
+
+La cause est la dérive **préexistante** (§5) : `20260919130000_add_dungeon_slug` n'est toujours
+pas appliquée localement, et une migration présente en base n'existe plus dans le dépôt.
+`prisma migrate deploy` / `migrate dev` ne sont donc pas utilisables tels quels — et
+`migrate dev` propose un **reset** (perte de données) : **ne pas le lancer**.
 
 Procédure **sûre** (les migrations v2 sont additives et idempotentes : `CREATE TABLE IF NOT
 EXISTS`, enums gardés par `DO $$ … duplicate_object`, colonnes `IF NOT EXISTS`) :

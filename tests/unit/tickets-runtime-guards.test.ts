@@ -24,6 +24,7 @@ const ACTIONS = "src/server/actions/ticket-bot-actions.ts";
 const TRANSCRIPT_ROUTE = "src/app/api/tickets/transcript/[secretToken]/route.ts";
 const ARCHIVE = "src/server/tickets/archive.ts";
 const ACTOR = "src/lib/tickets/interaction-actor.ts";
+const PANELS_TAB = "src/app/dashboard/[guildId]/tickets/_components/tabs/ticket-panels-tab.tsx";
 
 const read = (path: string) => readFileSync(path, "utf8").replace(/\r\n/g, "\n");
 
@@ -140,6 +141,60 @@ describe("tickets v2 — archive honnête et jeton non public", () => {
         expect(route).toContain("evaluateArchiveAccess(");
         expect(route).toContain('"Cache-Control": "no-store"');
         expect(route).toMatch(/generateHtmlTranscript\([\s\S]{0,1500}?\[\]\s*\)/);
+    });
+});
+
+describe("tickets v2 — le branchement Discord de l'ouverture (parcours réels)", () => {
+    it("la route implémente les quatre branches du tunnel (`pick`, `open`, `modal_open`, `modal_page`)", () => {
+        const code = codeOnly(read(ROUTE));
+        expect(code).toContain("prefix === TICKET_PICK_PREFIX");
+        expect(code).toContain('descriptor.kind !== "pick"');
+        expect(code).toContain('descriptor.kind !== "modal_page"');
+        expect(code).toContain("await ticketJourneyInteraction(");
+        // La résolution des `custom_id` passe par le routeur (fail-closed), jamais par un split.
+        expect(code).toContain("parseTicketCustomId(custom_id)");
+        expect(code).toContain('action === "open" || action === "select_journey"');
+    });
+
+    it("un parcours prend la main et retombe sur une catégorie v1 seulement s'il n'existe pas", () => {
+        const code = codeOnly(read(ROUTE));
+        expect(code).toContain('if (result.code === "NOT_FOUND") return { handled: false };');
+        // La catégorie v1 est relue **dans la guilde** (aucun identifiant venu d'ailleurs).
+        expect(code).toContain("guild: { discordGuildId: guild_id }");
+    });
+
+    it("la création est revalidée puis écrite avec `journeyId` et la version figée du formulaire", () => {
+        const actions = codeOnly(read(ACTIONS));
+        expect(actions).toContain("async function createTicketFromJourney");
+        expect(actions).toContain("await clearTicketDraft(");
+        expect(actions).toContain("journeyId: journey.id,");
+        expect(actions).toContain("formVersionId,");
+        expect(actions).toContain("const verdict = evaluateAnswers(form, params.intakeAnswers);");
+        expect(actions).toContain("if (!verdict.ok)");
+
+        const create = functionBody(actions, "createTicketFromJourney");
+        expect(create, "le nom du salon vient du parcours").toContain("formatTicketChannelName(");
+        expect(create).toContain("buildTicketWelcomeEmbed(");
+        expect(create).toContain("buildActionRows(");
+        // Invariant #1 : le demandeur ne reçoit jamais les boutons de staff.
+        expect(create).toContain("viewerIsStaff: false");
+        // Ping : seuls les rôles choisis, jamais `@everyone`, et un `allowed_mentions` explicite.
+        expect(create).toContain("resolveTicketNotifyRoleIds(");
+        expect(actions).toContain("buildTicketNotifyContent(");
+        expect(actions).toContain("allowed_mentions:");
+    });
+
+    it("« Publier » un parcours a un effet observable : le déploiement lit `isPublished`", () => {
+        const actions = codeOnly(read(ACTIONS));
+        const deploy = functionBody(actions, "deployTicketPanelAction");
+        expect(deploy, "les parcours publiés sont exposés").toContain("isPublished: true");
+        expect(deploy).toContain('targetKey: "journey"');
+        expect(deploy, "les panneaux existants gardent leurs catégories").toContain('targetKey: "category"');
+        expect(deploy).toContain("buildPanelRows(");
+
+        const panels = codeOnly(read(PANELS_TAB));
+        expect(panels).toContain("journeyIds: selectedJourneyIds");
+        expect(panels).toContain("panel.journeyIds");
     });
 });
 

@@ -17,9 +17,12 @@ import {
     TICKET_DRAFT_STEP_CHOICES,
     applyTicketChoice,
     buildTicketModalContinueRows,
+    isTicketDraftExpired,
     nextTicketTunnelStep,
     parseTicketDraftStep,
+    pruneTicketTunnelAnswers,
     serializeTicketDraftStep,
+    ticketDraftExpiresAt,
     ticketTunnelState,
 } from "@/lib/tickets/journey-tunnel";
 import { TICKET_FORM_SCHEMA_VERSION, parseTicketForm, type TicketFormDefinition } from "@/lib/tickets/form-schema";
@@ -205,6 +208,30 @@ describe("tunnel d'ouverture — la prochaine interaction à montrer", () => {
 
         const step = nextTicketTunnelStep({ form, journeyId: JOURNEY, answers, page: 1 });
         expect(step.kind === "modal" && step.page).toBe(1);
+    });
+});
+
+describe("tunnel d'ouverture — brouillon : durée de vie et hygiène des réponses", () => {
+    it("expire au bout de 30 minutes et traite toute date douteuse comme périmée", () => {
+        const now = new Date("2026-09-24T12:00:00.000Z");
+        expect(ticketDraftExpiresAt(now).toISOString()).toBe("2026-09-24T12:30:00.000Z");
+        expect(isTicketDraftExpired(ticketDraftExpiresAt(now), now)).toBe(false);
+        expect(isTicketDraftExpired(new Date(now.getTime() - 1), now)).toBe(true);
+        expect(isTicketDraftExpired(null, now)).toBe(true);
+        expect(isTicketDraftExpired("pas une date", now)).toBe(true);
+    });
+
+    it("ne garde que les réponses des champs du formulaire, normalisées en tableaux", () => {
+        const form = buildForm([textField(0), yesNoField("reglement")]);
+        expect(
+            pruneTicketTunnelAnswers(form, {
+                q0: "  ma réponse  ",
+                reglement: ["yes"],
+                champ_supprime: ["valeur"],
+                vide: "   ",
+            })
+        ).toEqual({ q0: ["ma réponse"], reglement: ["yes"] });
+        expect(pruneTicketTunnelAnswers(form, null)).toEqual({});
     });
 });
 

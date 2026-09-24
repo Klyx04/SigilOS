@@ -37,6 +37,55 @@ import {
 export const TICKET_DRAFT_STEP_CHOICES = "CHOICES";
 export const TICKET_DRAFT_STEP_TEXTS = "TEXTS";
 
+/**
+ * Durée de vie d'un brouillon d'ouverture : **30 minutes**. Un membre qui ferme Discord au
+ * milieu d'un questionnaire de 20 questions reprend sa demande ; au-delà, le brouillon est
+ * périmé (il repart d'un questionnaire propre plutôt que de rouvrir un ticket fantôme).
+ */
+export const TICKET_DRAFT_TTL_MS = 30 * 60 * 1000;
+
+/** Expiration d'un brouillon créé maintenant (persistée dans `TicketDraft.expiresAt`). */
+export function ticketDraftExpiresAt(now: Date = new Date()): Date {
+    return new Date(now.getTime() + TICKET_DRAFT_TTL_MS);
+}
+
+/** Un brouillon périmé (ou sans date lisible) est traité comme **absent** : jamais « au cas où ». */
+export function isTicketDraftExpired(
+    expiresAt: Date | string | null | undefined,
+    now: Date = new Date()
+): boolean {
+    if (!expiresAt) return true;
+    const time = expiresAt instanceof Date ? expiresAt.getTime() : Date.parse(String(expiresAt));
+    if (!Number.isFinite(time)) return true;
+    return time <= now.getTime();
+}
+
+/** Réponses d'un brouillon **avant** normalisation (ce que contient `TicketDraft.answersJson`). */
+export type TicketDraftAnswers = Record<string, unknown>;
+
+/**
+ * Ne garde que les réponses des champs de **ce** formulaire, normalisées en `string[]`.
+ * Un brouillon ne peut donc pas grossir avec des clés inventées (ni survivre à un champ
+ * supprimé du formulaire), et tout ce qui est relu est déjà au format du tunnel.
+ */
+export function pruneTicketTunnelAnswers(
+    form: TicketFormDefinition,
+    answers: TicketDraftAnswers | null | undefined
+): Record<string, string[]> {
+    const pruned: Record<string, string[]> = {};
+    const source = answers ?? {};
+
+    for (const field of form.fields) {
+        const value = source[field.id];
+        if (value === undefined || value === null) continue;
+        const values = Array.isArray(value) ? value.map((item) => String(item)) : [String(value)];
+        const cleaned = values.map((item) => item.trim()).filter((item) => item.length > 0);
+        if (cleaned.length > 0) pruned[field.id] = cleaned;
+    }
+
+    return pruned;
+}
+
 export type TicketDraftStage = "CHOICES" | "TEXTS";
 export type TicketDraftStep = { stage: TicketDraftStage; page: number };
 

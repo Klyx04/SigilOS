@@ -32,10 +32,12 @@ interface TicketPanelsTabProps {
     guildId: string;
     panels: any[];
     categories: any[];
+    /** 🆕 v2 — parcours disponibles (publiés ou brouillons) : ce sont eux qu'on expose. */
+    journeys: any[];
     onRefresh: () => void;
 }
 
-export function TicketPanelsTab({ guildId, panels, categories, onRefresh }: TicketPanelsTabProps) {
+export function TicketPanelsTab({ guildId, panels, categories, journeys, onRefresh }: TicketPanelsTabProps) {
     const [modalOpen, setModalOpen] = useState(false);
     const [editingPanel, setEditingPanel] = useState<any | null>(null);
     const [isPending, startTransition] = useTransition();
@@ -53,6 +55,10 @@ export function TicketPanelsTab({ guildId, panels, categories, onRefresh }: Tick
     const [embedFooter, setEmbedFooter] = useState("SigilOS Tickets");
     const [style, setStyle] = useState<"BUTTONS" | "SELECT_MENU">("BUTTONS");
     const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
+    const [selectedJourneyIds, setSelectedJourneyIds] = useState<string[]>([]);
+
+    /** Les parcours publiés et activés : ce qu'un panneau peut réellement exposer. */
+    const exposableJourneys = journeys.filter((journey) => journey.isPublished && journey.isEnabled);
 
     const openCreateModal = () => {
         setEditingPanel(null);
@@ -65,7 +71,9 @@ export function TicketPanelsTab({ guildId, panels, categories, onRefresh }: Tick
         setEmbedImage("");
         setEmbedFooter("SigilOS Tickets");
         setStyle("BUTTONS");
-        setSelectedCategoryIds(categories.map((c) => c.id));
+        setSelectedCategoryIds([]);
+        // Par défaut : tous les parcours publiés (un panneau vide n'afficherait rien).
+        setSelectedJourneyIds(exposableJourneys.map((journey) => journey.id));
         setModalOpen(true);
     };
 
@@ -81,13 +89,16 @@ export function TicketPanelsTab({ guildId, panels, categories, onRefresh }: Tick
         setEmbedFooter(panel.embedFooter || "SigilOS Tickets");
         setStyle(panel.style || "BUTTONS");
         setSelectedCategoryIds(panel.categoryIds || []);
+        setSelectedJourneyIds(panel.journeyIds || []);
         setModalOpen(true);
     };
 
     const handleSave = () => {
         if (!name.trim()) return toast.error("Nom du panneau requis");
         if (!channelId.trim()) return toast.error("ID de salon Discord requis");
-        if (selectedCategoryIds.length === 0) return toast.error("Sélectionnez au moins une catégorie");
+        if (selectedJourneyIds.length === 0 && selectedCategoryIds.length === 0) {
+            return toast.error("Sélectionne au moins un parcours (ou une catégorie existante)");
+        }
 
         startTransition(async () => {
             const res = await saveTicketPanelAction(guildId, {
@@ -102,6 +113,7 @@ export function TicketPanelsTab({ guildId, panels, categories, onRefresh }: Tick
                 embedFooter: embedFooter.trim() || undefined,
                 style,
                 categoryIds: selectedCategoryIds,
+                journeyIds: selectedJourneyIds,
                 isActive: true,
             });
 
@@ -143,6 +155,12 @@ export function TicketPanelsTab({ guildId, panels, categories, onRefresh }: Tick
     const toggleCategory = (catId: string) => {
         setSelectedCategoryIds((prev) =>
             prev.includes(catId) ? prev.filter((id) => id !== catId) : [...prev, catId]
+        );
+    };
+
+    const toggleJourney = (journeyId: string) => {
+        setSelectedJourneyIds((prev) =>
+            prev.includes(journeyId) ? prev.filter((id) => id !== journeyId) : [...prev, journeyId]
         );
     };
 
@@ -205,11 +223,19 @@ export function TicketPanelsTab({ guildId, panels, categories, onRefresh }: Tick
                                     <div className="text-muted-foreground line-clamp-2">{panel.embedDescription}</div>
                                 </div>
 
-                                <div className="text-xs text-muted-foreground">
-                                    <span className="font-semibold text-foreground">
-                                        {(panel.categoryIds || []).length}
-                                    </span>{" "}
-                                    catégorie(s) liée(s)
+                                <div className="text-xs text-muted-foreground space-y-0.5">
+                                    <div>
+                                        <span className="font-semibold text-foreground">
+                                            {(panel.journeyIds || []).length}
+                                        </span>{" "}
+                                        parcours ouvert(s)
+                                    </div>
+                                    <div>
+                                        <span className="font-semibold text-foreground">
+                                            {(panel.categoryIds || []).length}
+                                        </span>{" "}
+                                        catégorie(s) (anciens panneaux)
+                                    </div>
                                 </div>
                             </div>
 
@@ -333,7 +359,55 @@ export function TicketPanelsTab({ guildId, panels, categories, onRefresh }: Tick
 
                             <div className="space-y-2 pt-2">
                                 <label className="font-semibold text-foreground">
-                                    Catégories affichées sur ce panneau :
+                                    Parcours affichés sur ce panneau :
+                                </label>
+                                <div className="space-y-1.5 max-h-44 overflow-y-auto border border-border rounded-lg p-2 bg-surface/30">
+                                    {journeys.length === 0 ? (
+                                        <p className="text-[11px] text-muted-foreground p-1">
+                                            Aucun parcours pour l'instant : crée-en un dans l'onglet « Parcours »,
+                                            puis publie-le pour qu'il apparaisse ici.
+                                        </p>
+                                    ) : (
+                                        journeys.map((journey) => {
+                                            const isChecked = selectedJourneyIds.includes(journey.id);
+                                            const exposable = journey.isPublished && journey.isEnabled;
+                                            return (
+                                                <div
+                                                    key={journey.id}
+                                                    onClick={() => exposable && toggleJourney(journey.id)}
+                                                    className={`flex items-center justify-between p-2 rounded-md text-xs border ${
+                                                        exposable ? "cursor-pointer" : "cursor-not-allowed opacity-60"
+                                                    } ${
+                                                        isChecked
+                                                            ? "border-amber-500/50 bg-amber-500/10 text-foreground"
+                                                            : "border-transparent text-muted-foreground hover:bg-surface/50"
+                                                    }`}
+                                                >
+                                                    <span className="flex items-center gap-2">
+                                                        <span>{journey.emoji || "🎫"}</span>
+                                                        <span>{journey.name}</span>
+                                                        {!journey.isPublished && (
+                                                            <span className="text-[10px] text-muted-foreground">
+                                                                (brouillon — publie-le pour l'exposer)
+                                                            </span>
+                                                        )}
+                                                        {journey.isPublished && !journey.isEnabled && (
+                                                            <span className="text-[10px] text-muted-foreground">
+                                                                (désactivé)
+                                                            </span>
+                                                        )}
+                                                    </span>
+                                                    {isChecked && <Check className="h-3.5 w-3.5 text-amber-400" />}
+                                                </div>
+                                            );
+                                        })
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="space-y-2 pt-2">
+                                <label className="font-semibold text-foreground">
+                                    Catégories (panneaux existants) :
                                 </label>
                                 <div className="space-y-1.5 max-h-36 overflow-y-auto border border-border rounded-lg p-2 bg-surface/30">
                                     {categories.map((c) => {
@@ -397,6 +471,20 @@ export function TicketPanelsTab({ guildId, panels, categories, onRefresh }: Tick
                                     </div>
                                 ) : (
                                     <div className="flex flex-wrap gap-2 pt-1">
+                                        {selectedJourneyIds.map((jId) => {
+                                            const journey = journeys.find((candidate) => candidate.id === jId);
+                                            if (!journey) return null;
+                                            return (
+                                                <button
+                                                    key={journey.id}
+                                                    type="button"
+                                                    className="px-3 py-1.5 rounded bg-[#5865f2] hover:bg-[#4752c4] text-white text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-sm"
+                                                >
+                                                    <span>{journey.emoji || "🎫"}</span>
+                                                    <span>{journey.name}</span>
+                                                </button>
+                                            );
+                                        })}
                                         {selectedCategoryIds.map((cId) => {
                                             const cat = categories.find((c) => c.id === cId);
                                             if (!cat) return null;
@@ -404,7 +492,7 @@ export function TicketPanelsTab({ guildId, panels, categories, onRefresh }: Tick
                                                 <button
                                                     key={cat.id}
                                                     type="button"
-                                                    className="px-3 py-1.5 rounded bg-[#5865f2] hover:bg-[#4752c4] text-white text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-sm"
+                                                    className="px-3 py-1.5 rounded bg-[#4e5058] hover:bg-[#5c5f66] text-white text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-sm"
                                                 >
                                                     <span>{cat.emoji || "🎫"}</span>
                                                     <span>{cat.name}</span>

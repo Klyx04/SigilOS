@@ -15,7 +15,24 @@ import {
     sendChannelMessage,
 } from "@/server/discord";
 import { captureTicketArchives } from "@/server/tickets/archive";
-import { parseTicketForm } from "@/lib/tickets/form-schema";
+import { clearTicketDraft } from "@/server/tickets/journey-open";
+import {
+    evaluateAnswers,
+    parseTicketForm,
+    type DiscordActionRow,
+    type TicketFormDefinition,
+} from "@/lib/tickets/form-schema";
+import {
+    buildActionRows,
+    buildPanelEmbed,
+    buildPanelRows,
+    buildTicketWelcomeEmbed,
+    formatTicketChannelName,
+} from "@/lib/tickets/embeds";
+import {
+    buildTicketNotifyContent,
+    resolveTicketNotifyRoleIds,
+} from "@/lib/tickets/notifications";
 import {
     actorFromAuthorizationContext,
     decideTicketAccess,
@@ -80,7 +97,10 @@ const TicketPanelSchema = z.object({
     embedImage: z.string().nullable().optional(),
     embedFooter: z.string().nullable().optional(),
     style: z.enum(["BUTTONS", "SELECT_MENU"]).default("BUTTONS"),
-    categoryIds: z.array(z.string()).min(1, "Au moins une catégorie requise"),
+    /** ⚠️ v1 — conservé : les panneaux déjà déployés exposent des **catégories**. */
+    categoryIds: z.array(z.string()).default([]),
+    /** 🆕 v2 — parcours exposés par ce message Discord (l'ordre = celui des boutons). */
+    journeyIds: z.array(z.string()).max(25).default([]),
     isActive: z.boolean().default(true),
 });
 
@@ -339,6 +359,20 @@ export async function saveTicketPanelAction(
 
         const payload = parsed.data;
 
+        if (payload.categoryIds.length === 0 && payload.journeyIds.length === 0) {
+            return { success: false, error: "Expose au moins un parcours (ou une catégorie existante)." };
+        }
+
+        // Les parcours choisis doivent appartenir à **cette** guilde (aucun ID croisé).
+        if (payload.journeyIds.length > 0) {
+            const owned = await db.ticketJourney.count({
+                where: { id: { in: payload.journeyIds }, guildId: guildConfig.id },
+            });
+            if (owned !== new Set(payload.journeyIds).size) {
+                return { success: false, error: "Un parcours choisi n'appartient pas à ce serveur." };
+            }
+        }
+
         let panel;
         if (payload.id) {
             panel = await db.ticketBotPanel.update({
@@ -354,6 +388,7 @@ export async function saveTicketPanelAction(
                     embedFooter: payload.embedFooter,
                     style: payload.style,
                     categoryIds: payload.categoryIds,
+                    journeyIds: payload.journeyIds,
                     isActive: payload.isActive,
                 },
             });
@@ -371,6 +406,7 @@ export async function saveTicketPanelAction(
                     embedFooter: payload.embedFooter,
                     style: payload.style,
                     categoryIds: payload.categoryIds,
+                    journeyIds: payload.journeyIds,
                     isActive: payload.isActive,
                 },
             });
@@ -427,87 +463,71 @@ export async function deployTicketPanelAction(guildId: string, panelId: string):
         });
         if (!panel) return { success: false, error: "Panneau introuvable" };
 
-        const categories = await db.ticketBotCategory.findMany({
+        // 🆕 v2 — un panneau expose les **parcours** publiés et activés qu'il référence.
+        // `isPublished` n'était lu par personne : « Publier » un parcours n'avait aucun
+        // effet observable, et le ping des rôles n'était jamais envoyé.
+        const journeys = await db.ticketJourney.findMany({
             where: {
-                id: { in: panel.categoryIds },
+                id: { in: panel.journeyIds },
                 guildId: guildConfig.id,
                 isEnabled: true,
+                isPublished: true,
             },
-            orderBy: { order: "asc" },
+            orderBy: [{ order: "asc" }, { name: "asc" }],
         });
 
-        if (categories.length === 0) {
-            return { success: false, error: "Aucune catégorie active associée à ce panneau" };
+        let components = buildPanelRows({
+            panelId: panel.id,
+            style: panel.style,
+            targetKey: "journey",
+            targets: journeys.map((journey) => ({
+                id: journey.id,
+                label: journey.name,
+                emoji: journey.emoji,
+                style: journey.buttonStyle,
+            })),
+        });
+
+        // Repli v1 : les panneaux déjà déployés continuent d'ouvrir leurs **catégories**
+        // (même message, mêmes boutons — seuls les parcours publiés sont ajoutés au-dessus).
+        if (components.length === 0) {
+            const categories = await db.ticketBotCategory.findMany({
+                where: {
+                    id: { in: panel.categoryIds },
+                    guildId: guildConfig.id,
+                    isEnabled: true,
+                },
+                orderBy: { order: "asc" },
+            });
+
+            components = buildPanelRows({
+                panelId: panel.id,
+                style: panel.style,
+                targetKey: "category",
+                targets: categories.map((category) => ({
+                    id: category.id,
+                    label: category.name,
+                    emoji: category.emoji,
+                    style: category.buttonStyle,
+                })),
+            });
         }
 
-        // Build Discord embed
-        const hexColor = parseInt(panel.embedColor.replace("#", ""), 16) || 0x6366f1;
-        const embed: any = {
+        if (components.length === 0) {
+            return {
+                success: false,
+                error: "Aucun parcours publié ni catégorie active : ce panneau n'afficherait aucun bouton",
+            };
+        }
+
+        const embed = buildPanelEmbed({
             title: panel.embedTitle,
             description: panel.embedDescription,
-            color: hexColor,
-            footer: panel.embedFooter ? { text: panel.embedFooter } : { text: "SigilOS Tickets" },
-            timestamp: new Date().toISOString(),
-        };
-
-        if (panel.embedThumbnail) embed.thumbnail = { url: panel.embedThumbnail };
-        if (panel.embedImage) embed.image = { url: panel.embedImage };
-
-        // Build components (Buttons or Select Menu)
-        let components: any[] = [];
-        if (panel.style === "SELECT_MENU") {
-            const options = categories.map((c) => ({
-                label: c.name,
-                value: c.id,
-                description: c.description ? c.description.slice(0, 100) : undefined,
-                emoji: c.emoji ? { name: c.emoji } : undefined,
-            }));
-
-            components = [
-                {
-                    type: 1, // ACTION_ROW
-                    components: [
-                        {
-                            type: 3, // STRING_SELECT
-                            custom_id: `tb:select_open:${panel.id}`,
-                            placeholder: "Sélectionnez le motif de votre ticket...",
-                            options,
-                        },
-                    ],
-                },
-            ];
-        } else {
-            // BUTTONS (Max 5 buttons per action row)
-            const rows: any[] = [];
-            let currentRow: any[] = [];
-
-            const styleMap: Record<string, number> = {
-                PRIMARY: 1,
-                SECONDARY: 2,
-                SUCCESS: 3,
-                DANGER: 4,
-            };
-
-            for (const c of categories) {
-                const btn: any = {
-                    type: 2, // BUTTON
-                    style: styleMap[c.buttonStyle] || 1,
-                    label: c.name,
-                    custom_id: `tb:open:${panel.id}:${c.id}`,
-                };
-                if (c.emoji) btn.emoji = { name: c.emoji };
-
-                currentRow.push(btn);
-                if (currentRow.length === 5) {
-                    rows.push({ type: 1, components: currentRow });
-                    currentRow = [];
-                }
-            }
-            if (currentRow.length > 0) {
-                rows.push({ type: 1, components: currentRow });
-            }
-            components = rows;
-        }
+            color: panel.embedColor,
+            footer: panel.embedFooter,
+            thumbnail: panel.embedThumbnail,
+            image: panel.embedImage,
+        });
 
         const deployRes = await deployTicketPanelMessage(guildId, panel.channelId, {
             messageId: panel.messageId,
@@ -1612,13 +1632,245 @@ async function guardTicketAction(input: {
     return { ok: true as const, ticket, staffRoleIds, as: decision.as, config };
 }
 
+/**
+ * 🆕 v2 — **ouverture d'un ticket depuis un parcours**.
+ *
+ * Tout ce que la route a collecté est **revalidé ici** (`evaluateAnswers` sur la version
+ * figée du questionnaire) : la route ne décide pas de ce qui est complet, et un appel
+ * forgé ne peut pas ouvrir un ticket aux réponses inventées. Fail-closed sur tout le
+ * reste : parcours non publié, désactivé, formulaire non figé, salon Discord refusé.
+ */
+async function createTicketFromJourney(input: {
+    guildInternalId: string;
+    guildStaffRoleIds: string[];
+    maxActiveTicketsPerUser: number;
+    params: {
+        discordGuildId: string;
+        discordUserId: string;
+        discordUserName: string;
+        discordUserAvatar?: string | null;
+        journeyId: string;
+        formVersionId: string | null;
+        intakeAnswers: Record<string, unknown>;
+    };
+}): Promise<{ success: boolean; channelId?: string; error?: string }> {
+    const { params } = input;
+
+    const journey = await db.ticketJourney.findFirst({
+        where: { id: params.journeyId, guildId: input.guildInternalId },
+        include: { team: { select: { staffRoleIds: true, notifyRoleIds: true } } },
+    });
+    if (!journey) return { success: false, error: "Ce motif de ticket n'existe plus." };
+    if (!journey.isPublished) return { success: false, error: "Ce motif n'est pas encore ouvert." };
+    if (!journey.isEnabled) return { success: false, error: "Ce motif est temporairement fermé." };
+
+    // 1. Questionnaire **figé** → réponses revalidées (types, bornes, politique du « Non »).
+    let form: TicketFormDefinition | null = null;
+    let formVersionId: string | null = null;
+    let intake: Record<string, string[]> = {};
+    let notice: string | null = null;
+
+    if (journey.formId) {
+        if (!journey.formVersion) {
+            return { success: false, error: "Le questionnaire de ce motif n'est pas publié." };
+        }
+        const version = await db.ticketFormVersion.findFirst({
+            where: { formId: journey.formId, version: journey.formVersion, guildId: input.guildInternalId },
+            select: { id: true, schemaJson: true },
+        });
+        if (!version) return { success: false, error: "La version du questionnaire est introuvable." };
+
+        const parsed = parseTicketForm(version.schemaJson);
+        if (!parsed.ok) return { success: false, error: "Le questionnaire de ce motif est invalide." };
+        form = parsed.form;
+        formVersionId = version.id;
+
+        const verdict = evaluateAnswers(form, params.intakeAnswers);
+        if (!verdict.ok) {
+            const details = [...verdict.errors, ...verdict.missing].slice(0, 3).join(" · ");
+            return {
+                success: false,
+                error:
+                    verdict.decision.kind === "blocked"
+                        ? verdict.decision.message
+                        : details || "Réponses incomplètes : rouvre le formulaire.",
+            };
+        }
+        intake = verdict.answers;
+        if (verdict.decision.kind === "warn" || verdict.decision.kind === "manual_review") {
+            // Le membre est prévenu dans l'embed : la file d'approbation n'existe pas encore
+            // (aucun handler `approve`/`refuse`), on ne promet donc rien d'autre.
+            notice = verdict.decision.message;
+        }
+    }
+
+    // 2. Quota par membre (le quota serveur `maxTicketsTotalGuild` reste sans exécutant : §4.6).
+    const activeUserTickets = await db.ticketRecord.count({
+        where: {
+            guildId: input.guildInternalId,
+            creatorDiscordId: params.discordUserId,
+            status: { in: ["OPEN", "CLAIMED", "PENDING_USER"] },
+        },
+    });
+    if (activeUserTickets >= input.maxActiveTicketsPerUser) {
+        return {
+            success: false,
+            error: `Tu as déjà ${activeUserTickets} ticket(s) ouvert(s). Attends leur résolution avant d'en ouvrir un nouveau.`,
+        };
+    }
+
+    // 3. Rôles staff : parcours **+** équipe **+** configuration de la guilde (une seule règle).
+    const staffRoles = mergeStaffRoleIds(
+        input.guildStaffRoleIds,
+        journey.staffRoleIds,
+        journey.team?.staffRoleIds
+    );
+
+    const record = await db.ticketRecord.create({
+        data: {
+            guildId: input.guildInternalId,
+            journeyId: journey.id,
+            formVersionId,
+            discordGuildId: params.discordGuildId,
+            creatorDiscordId: params.discordUserId,
+            creatorDiscordName: params.discordUserName,
+            creatorAvatarUrl: params.discordUserAvatar,
+            status: "OPEN",
+            intakeAnswersJson: intake,
+        },
+    });
+
+    const channelName = formatTicketChannelName(journey.namingPattern, {
+        number: record.ticketNumber,
+        user: params.discordUserName,
+        journey: journey.name,
+    });
+
+    const channelRes = await createTicketChannelDiscord(params.discordGuildId, channelName, {
+        parentId: journey.channelParentId,
+        creatorDiscordId: params.discordUserId,
+        staffRoleIds: staffRoles,
+        topic: `Ticket #${record.ticketNumber} — ${journey.name} | Demandeur: @${params.discordUserName}`,
+    });
+
+    if (!channelRes.success || !channelRes.channelId) {
+        // Aucun ticket fantôme : l'enregistrement est retiré si le salon n'a pas pu naître.
+        await db.ticketRecord.delete({ where: { id: record.id } }).catch(() => {});
+        return { success: false, error: channelRes.error || "Impossible de créer le salon Discord" };
+    }
+
+    await db.ticketRecord.update({
+        where: { id: record.id },
+        data: { discordChannelId: channelRes.channelId },
+    });
+
+    // 4. Le brouillon a rempli son rôle : il ne survit jamais à la création du ticket.
+    await clearTicketDraft({
+        guildId: input.guildInternalId,
+        journeyId: journey.id,
+        discordUserId: params.discordUserId,
+    });
+
+    // 5. Message d'accueil : embed du parcours, **vue du demandeur** (jamais les boutons de
+    // staff : invariant #1), et ping des seuls rôles choisis par le parcours.
+    const welcomeEmbed = buildTicketWelcomeEmbed({
+        ticketNumber: record.ticketNumber,
+        journeyName: journey.name,
+        emoji: journey.emoji,
+        creatorDiscordId: params.discordUserId,
+        statusLabel: "🟡 En attente de prise en charge",
+        form,
+        answers: intake,
+        description: notice,
+    });
+
+    const notifyRoleIds = resolveTicketNotifyRoleIds({
+        journeyRoleIds: journey.notifyRoleIds,
+        teamRoleIds: journey.team?.notifyRoleIds,
+    }).roleIds;
+
+    await postTicketWelcomeMessage({
+        channelId: channelRes.channelId,
+        embed: welcomeEmbed,
+        components: buildActionRows({
+            ticketId: record.id,
+            status: record.status,
+            viewerIsStaff: false,
+            viewerIsCreator: true,
+            closePolicy: journey.closePolicy,
+        }),
+        notifyRoleIds,
+    });
+
+    return { success: true, channelId: channelRes.channelId };
+}
+/**
+ * Poste le message d'accueil du ticket. `allowed_mentions` est **explicite** : seuls les
+ * rôles configurés sont notifiés (`roles` et `parse: ["roles"]` sont exclusifs côté
+ * Discord), donc jamais `@everyone` et jamais de ping subi par le demandeur.
+ */
+async function postTicketWelcomeMessage(input: {
+    channelId: string;
+    embed: Record<string, unknown>;
+    components: DiscordActionRow[];
+    notifyRoleIds: string[];
+}): Promise<void> {
+    const token = process.env.DISCORD_BOT_TOKEN;
+    if (!token) {
+        logger.warn("[tickets] message d'accueil non envoyé : DISCORD_BOT_TOKEN absent");
+        return;
+    }
+
+    const { fetchWithRetry, DISCORD_USER_AGENT } = await import("@/server/discord");
+    const content = buildTicketNotifyContent(input.notifyRoleIds);
+
+    await fetchWithRetry(`/api/v10/channels/${input.channelId}/messages`, {
+        method: "POST",
+        headers: {
+            Authorization: `Bot ${token}`,
+            "Content-Type": "application/json",
+            "User-Agent": DISCORD_USER_AGENT,
+        },
+        body: JSON.stringify({
+            content: content ?? undefined,
+            embeds: [input.embed],
+            components: input.components,
+            allowed_mentions:
+                input.notifyRoleIds.length > 0 ? { parse: [], roles: input.notifyRoleIds } : { parse: [] },
+        }),
+    }).catch((error) => {
+        // L'ouverture du ticket n'échoue pas sur un message d'accueil : on le dit.
+        logger.warn("[tickets] message d'accueil non envoyé", { error });
+    });
+}
+
+
+
+/**
+ * Ouvre un ticket — **deux chemins, une seule porte**.
+ *
+ * · **v2 (parcours)** : `journeyId` + `formVersionId` + réponses clés par `id` de champ.
+ *   Le questionnaire **figé** est relu ici et revalidé (`evaluateAnswers`) : la route ne
+ *   décide jamais de ce qui est complet. Le salon porte le nom, l'embed et la politique de
+ *   fermeture du parcours, et les rôles `notifyRoleIds` sont mentionnés.
+ * · **v1 (catégorie)** : comportement conservé à l'identique pour les panneaux **déjà
+ *   déployés** (réponses clés par libellé, boutons de staff dans le salon).
+ */
 export async function internalHandleTicketCreate(params: {
     discordGuildId: string;
     discordUserId: string;
     discordUserName: string;
     discordUserAvatar?: string | null;
     panelId: string;
-    categoryId: string;
+    /** v1 — catégorie d'origine (panneaux déjà déployés). */
+    categoryId?: string;
+    /** 🆕 v2 — parcours d'origine : il porte questionnaire, nommage, pings et fermeture. */
+    journeyId?: string;
+    /** 🆕 v2 — version de questionnaire **figée** (celle que le ticket référencera). */
+    formVersionId?: string | null;
+    /** 🆕 v2 — réponses **clés par `id` de champ** (revalidées ici, jamais côté client). */
+    intakeAnswers?: Record<string, unknown>;
+    /** v1 — réponses clés par libellé de question. */
     answers?: Record<string, string>;
 }): Promise<{ success: boolean; channelId?: string; error?: string }> {
     try {
@@ -1633,6 +1885,28 @@ export async function internalHandleTicketCreate(params: {
         const config = guildConfig.ticketConfig;
         if (!config || !config.isEnabled) {
             return { success: false, error: "Le module de support n'est pas activé sur ce serveur." };
+        }
+
+        // 🆕 v2 — le parcours est le chemin nominal dès qu'il est fourni.
+        if (params.journeyId) {
+            return await createTicketFromJourney({
+                guildInternalId: guildConfig.id,
+                guildStaffRoleIds: config.staffRoleIds,
+                maxActiveTicketsPerUser: config.maxActiveTicketsPerUser,
+                params: {
+                    discordGuildId: params.discordGuildId,
+                    discordUserId: params.discordUserId,
+                    discordUserName: params.discordUserName,
+                    discordUserAvatar: params.discordUserAvatar,
+                    journeyId: params.journeyId,
+                    formVersionId: params.formVersionId ?? null,
+                    intakeAnswers: params.intakeAnswers ?? {},
+                },
+            });
+        }
+
+        if (!params.categoryId) {
+            return { success: false, error: "Motif de ticket non spécifié." };
         }
 
         const category = await db.ticketBotCategory.findUnique({

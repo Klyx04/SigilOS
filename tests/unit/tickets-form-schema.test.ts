@@ -209,14 +209,14 @@ describe("tickets v2 — compilation Discord", () => {
         const parsed = parseTicketForm(sampleForm);
         if (!parsed.ok) throw new Error("formulaire de référence invalide");
 
-        const step = buildChoiceStep(parsed.form);
+        const step = buildChoiceStep(parsed.form, { journeyId: "journey1" });
         expect(step.fieldIds).toEqual(["reglement", "classe"]);
         expect(step.remainingFieldIds).toEqual([]);
 
         const [yesNoRow, selectRow] = step.rows;
         expect(yesNoRow.components.map((component) => component.custom_id)).toEqual([
-            "tb_pick:reglement:yes",
-            "tb_pick:reglement:no",
+            "tb_pick:journey1:reglement:yes",
+            "tb_pick:journey1:reglement:no",
         ]);
         expect(selectRow.components[0].type).toBe(3);
         const options = selectRow.components[0].options as Array<{ value: string }>;
@@ -235,12 +235,15 @@ describe("tickets v2 — compilation Discord", () => {
         if (!parsed.ok) throw new Error("formulaire invalide");
 
         // 6 choix pour 5 lignes par message : le 6ᵉ est annoncé, jamais perdu en silence.
-        const first = buildChoiceStep(parsed.form);
+        const first = buildChoiceStep(parsed.form, { journeyId: "journey1" });
         expect(first.fieldIds).toHaveLength(5);
         expect(first.remainingFieldIds).toEqual(["choix5"]);
 
         // Les choix déjà répondus sortent de la file, le reste tient en un message.
-        const second = buildChoiceStep(parsed.form, { choix0: ["yes"], choix5: ["no"] });
+        const second = buildChoiceStep(parsed.form, {
+            journeyId: "journey1",
+            answers: { choix0: ["yes"], choix5: ["no"] },
+        });
         expect(second.fieldIds).toEqual(["choix1", "choix2", "choix3", "choix4"]);
         expect(second.remainingFieldIds).toEqual([]);
     });

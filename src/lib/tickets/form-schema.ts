@@ -403,11 +403,17 @@ export function buildTicketModalRows(form: TicketFormDefinition): DiscordActionR
  * Étape « choix » (message éphémère **avant** la modale) : Oui/Non en boutons,
  * sélections en menu. 5 lignes au plus par message — `remainingFieldIds` dit
  * combien de choix restent à demander (jamais de réponse perdue en silence).
+ *
+ * ⚠️ Le `custom_id` porte le **parcours** (`tb_pick:<journeyId>:<fieldId>`) : c'est lui
+ * qui permet de retrouver le brouillon du membre au clic, sans jamais faire confiance à
+ * un identifiant venu du client.
  */
 export function buildChoiceStep(
     form: TicketFormDefinition,
-    answers: Record<string, unknown> = {}
+    options: { journeyId: string; answers?: Record<string, unknown> }
 ): { rows: DiscordActionRow[]; fieldIds: string[]; remainingFieldIds: string[] } {
+    const journeyId = options.journeyId;
+    const answers = options.answers ?? {};
     const { choices } = splitTicketForm(form);
     const pending = choices.filter((field) => answers[field.id] === undefined || answers[field.id] === null);
     const covered = pending.slice(0, TICKET_MODAL_LIMITS.maxRows);
@@ -422,13 +428,13 @@ export function buildChoiceStep(
                         type: DISCORD_BUTTON,
                         style: 3,
                         label: field.yesLabel.slice(0, 80),
-                        custom_id: `tb_pick:${field.id}:${TICKET_YES_VALUE}`,
+                        custom_id: `tb_pick:${journeyId}:${field.id}:${TICKET_YES_VALUE}`,
                     },
                     {
                         type: DISCORD_BUTTON,
                         style: 4,
                         label: field.noLabel.slice(0, 80),
-                        custom_id: `tb_pick:${field.id}:${TICKET_NO_VALUE}`,
+                        custom_id: `tb_pick:${journeyId}:${field.id}:${TICKET_NO_VALUE}`,
                     },
                 ],
             };
@@ -440,7 +446,7 @@ export function buildChoiceStep(
             components: [
                 {
                     type: DISCORD_STRING_SELECT,
-                    custom_id: `tb_pick:${field.id}`,
+                    custom_id: `tb_pick:${journeyId}:${field.id}`,
                     placeholder: field.label.slice(0, TICKET_MODAL_LIMITS.placeholderMax),
                     min_values: isMulti ? (field.required ? 1 : 0) : 1,
                     max_values: isMulti ? field.maxChoices : 1,

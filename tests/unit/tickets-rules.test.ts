@@ -43,11 +43,12 @@ import { parseTicketForm, TICKET_FORM_SCHEMA_VERSION } from "@/lib/tickets/form-
 describe("tickets v2 — routage des interactions", () => {
     it("reconnaît chaque action du module (table exhaustive, aucune oubliée)", () => {
         const canonical: Record<TicketActionKind, string> = {
-            open: "tb:open:panel1:target1",
+            open: "tb:open:panel1:journey1",
             select_open: "tb:select_open:panel1",
             select_journey: "tb:select_journey:panel1",
-            modal_open: "tb:modal_open:panel1:target1",
-            pick: "tb_pick:reglement:yes",
+            modal_open: "tb:modal_open:panel1:journey1",
+            modal_page: "tb:modal_page:journey1:1",
+            pick: "tb_pick:journey1:reglement:yes",
             claim: "tb:claim:ticket1",
             release: "tb:release:ticket1",
             note: "tb:note:ticket1",
@@ -69,7 +70,8 @@ describe("tickets v2 — routage des interactions", () => {
     it("applique le bon niveau d'accès par action", () => {
         expect(resolveTicketAccessLevel("tb:open:panel1:target1")).toBe("public");
         expect(resolveTicketAccessLevel("tb:modal_open:panel1:target1")).toBe("public");
-        expect(resolveTicketAccessLevel("tb_pick:reglement:no")).toBe("public");
+        expect(resolveTicketAccessLevel("tb:modal_page:journey1:2")).toBe("public");
+        expect(resolveTicketAccessLevel("tb_pick:journey1:reglement:no")).toBe("public");
         expect(resolveTicketAccessLevel("tb:claim:ticket1")).toBe("staff");
         expect(resolveTicketAccessLevel("tb:note:ticket1")).toBe("staff");
         expect(resolveTicketAccessLevel("tb:csat:ticket1:3")).toBe("creator");
@@ -91,8 +93,9 @@ describe("tickets v2 — routage des interactions", () => {
             "tb:csat:ticket1:0",
             "tb:csat:ticket1:9",
             "tb:csat:ticket1:abc",
-            "tb_pick:Reglement",
-            "tb_pick:reglement:peut_etre",
+            "tb_pick:journey1:Reglement",
+            "tb_pick:journey1:reglement:peut_etre",
+            "tb_pick:court:reglement",
             `tb:claim:${"x".repeat(120)}`,
             "rr:btn:group1:option1",
         ]) {

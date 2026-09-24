@@ -134,6 +134,11 @@ export const KNOWN_CRON_TASKS: Record<string, { name: string; schedule: string; 
         schedule: "Toutes les 10 min",
         logFile: "raid-reminders.log",
     },
+    discord_channel_watch: {
+        name: "Surveillance Salons Discord",
+        schedule: "Quotidien 07h00",
+        logFile: "discord-channel-watch.log",
+    },
 };
 
 const REDIS_PREFIX = "cron:telemetry:";

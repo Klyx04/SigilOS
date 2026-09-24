@@ -70,11 +70,12 @@ export function MemberRegistryTable({ guildId, canManageMembers }: MemberRegistr
     // Édition d'une ligne
     const [editing, setEditing] = useState<LifecycleMemberSummary | null>(null);
     const [formPseudoDofus, setFormPseudoDofus] = useState("");
-    const [formNickname, setFormNickname] = useState("");
     const [formAnkama, setFormAnkama] = useState("");
     const [formArrival, setFormArrival] = useState("");
     const [formNotes, setFormNotes] = useState("");
     const [formRecruiter, setFormRecruiter] = useState("");
+    const [formRecruiterSearch, setFormRecruiterSearch] = useState("");
+    const [formTrialValid, setFormTrialValid] = useState<"oui" | "non">("non");
     const [formTrialEnd, setFormTrialEnd] = useState("");
 
     // Mules : une ligne par pseudo
@@ -142,11 +143,12 @@ export function MemberRegistryTable({ guildId, canManageMembers }: MemberRegistr
     const openEdit = (m: LifecycleMemberSummary) => {
         setEditing(m);
         setFormPseudoDofus(m.pseudoDofus || "");
-        setFormNickname(m.discordNickname || "");
         setFormAnkama(m.ankamaId || "");
         setFormArrival(toDateInput(m.guildJoinedAt));
         setFormNotes(m.staffNotes || "");
         setFormRecruiter(m.recruitedById || "NONE");
+        setFormRecruiterSearch("");
+        setFormTrialValid(m.lifecycleStatus === "CONFIRMED" ? "oui" : "non");
         setFormTrialEnd(toDateInput(m.trialEndsAt));
     };
 
@@ -157,11 +159,14 @@ export function MemberRegistryTable({ guildId, canManageMembers }: MemberRegistr
             toast.error("Tag Ankama invalide (format Nom#0000)");
             return;
         }
+        if (formTrialValid === "non" && formTrialEnd && !fromDateInput(formTrialEnd)) {
+            toast.error("Date de reconduction invalide");
+            return;
+        }
         startTransition(async () => {
             const res = await updateMemberRegistryIdentity(guildId, {
                 profileId: editing.id,
                 pseudoDofus: formPseudoDofus.trim() || null,
-                discordNickname: formNickname.trim() || null,
                 ankamaId: ankama || null,
                 guildJoinedAt: fromDateInput(formArrival),
                 staffNotes: formNotes.trim() || null,
@@ -178,14 +183,23 @@ export function MemberRegistryTable({ guildId, canManageMembers }: MemberRegistr
                     return;
                 }
             }
-            // Essai : la date posée (ou retirée) décide de Oui / Non / Prolongé.
-            const trialEnd = fromDateInput(formTrialEnd);
-            const trialEndChanged = (trialEnd || null) !== (editing.trialEndsAt || null);
-            if (trialEndChanged) {
-                const resTrial = await updateMemberLifecycleStatus(guildId, editing.id, "TRIAL", { trialEndsAt: trialEnd });
+            // Essai : Oui = validé, Non = en essai jusqu'à la date de reconduction (ou sans fin).
+            if (formTrialValid === "oui" && editing.lifecycleStatus !== "CONFIRMED") {
+                const resTrial = await validateMemberTrial(guildId, editing.id);
                 if (!resTrial.success) {
                     toast.error(resTrial.error || "Essai non enregistré");
                     return;
+                }
+            } else if (formTrialValid === "non") {
+                const trialEnd = fromDateInput(formTrialEnd);
+                const trialEndChanged = (trialEnd || null) !== (editing.trialEndsAt || null);
+                const statusChanged = editing.lifecycleStatus === "CONFIRMED";
+                if (trialEndChanged || statusChanged) {
+                    const resTrial = await updateMemberLifecycleStatus(guildId, editing.id, "TRIAL", { trialEndsAt: trialEnd });
+                    if (!resTrial.success) {
+                        toast.error(resTrial.error || "Essai non enregistré");
+                        return;
+                    }
                 }
             }
             toast.success("Ligne du registre mise à jour");
@@ -357,7 +371,7 @@ export function MemberRegistryTable({ guildId, canManageMembers }: MemberRegistr
                     <Table>
                         <TableHeader>
                             <TableRow>
-                                <TableHead>Pseudo membre</TableHead>
+                                <TableHead>Pseudo serveur (auto)</TableHead>
                                 <TableHead>Pseudo Dofus</TableHead>
                                 <TableHead>Arrivée</TableHead>
                                 <TableHead>Ancienneté</TableHead>
@@ -373,9 +387,9 @@ export function MemberRegistryTable({ guildId, canManageMembers }: MemberRegistr
                             {rows.map(({ member: m, joinedAt, seniority, trial }) => (
                                 <TableRow key={m.id}>
                                     <TableCell className="font-semibold">
-                                        {m.displayName}
-                                        {m.discordNickname && m.discordNickname !== m.displayName && (
-                                            <span className="block text-xs font-normal text-muted-foreground">{m.discordNickname}</span>
+                                        {m.discordNickname || m.displayName}
+                                        {m.pseudoDofus && m.pseudoDofus !== (m.discordNickname || m.displayName) && (
+                                            <span className="block text-xs font-normal text-muted-foreground">{m.pseudoDofus}</span>
                                         )}
                                     </TableCell>
                                     <TableCell>{m.pseudoDofus || <span className="text-muted-foreground">—</span>}</TableCell>
@@ -469,46 +483,87 @@ export function MemberRegistryTable({ guildId, canManageMembers }: MemberRegistr
                         </DialogDescription>
                     </DialogHeader>
                     <div className="grid gap-4 py-2">
+                        <div className="rounded-xl bg-surface/60 border border-border px-3 py-2 text-sm">
+                            Pseudo serveur : <span className="font-semibold">{editing?.discordNickname || "—"}</span>
+                            <span className="block text-xs text-muted-foreground">
+                                Rempli et mis à jour seul depuis Discord (bouton Actualiser / connexion du membre).
+                            </span>
+                        </div>
                         <div className="grid grid-cols-2 gap-3">
                             <div className="space-y-1.5">
                                 <Label>Pseudo Dofus (à la main)</Label>
                                 <Input value={formPseudoDofus} onChange={(e) => setFormPseudoDofus(e.target.value)} maxLength={30} />
                             </div>
                             <div className="space-y-1.5">
-                                <Label>Pseudo membre (à la main)</Label>
-                                <Input value={formNickname} onChange={(e) => setFormNickname(e.target.value)} maxLength={32} />
-                            </div>
-                        </div>
-                        <div className="grid grid-cols-2 gap-3">
-                            <div className="space-y-1.5">
                                 <Label>Date d&apos;arrivée (à la main)</Label>
                                 <Input type="date" value={formArrival} onChange={(e) => setFormArrival(e.target.value)} />
                             </div>
-                            <div className="space-y-1.5">
-                                <Label>Tag Ankama (Nom#0000)</Label>
-                                <Input value={formAnkama} onChange={(e) => setFormAnkama(e.target.value)} maxLength={60} />
-                            </div>
+                        </div>
+                        <div className="space-y-1.5">
+                            <Label>Tag Ankama (Nom#0000, aussi renseignable via /valider-recrue)</Label>
+                            <Input value={formAnkama} onChange={(e) => setFormAnkama(e.target.value)} maxLength={60} />
                         </div>
                         <div className="grid grid-cols-2 gap-3">
                             <div className="space-y-1.5">
-                                <Label>Recruté par</Label>
+                                <Label>Recruté par (recherche membre Discord)</Label>
+                                <Input
+                                    value={formRecruiterSearch}
+                                    onChange={(e) => setFormRecruiterSearch(e.target.value)}
+                                    placeholder="Filtrer…"
+                                    className="mb-1.5"
+                                />
                                 <Select value={formRecruiter} onValueChange={setFormRecruiter}>
                                     <SelectTrigger>
                                         <SelectValue placeholder="Non défini" />
                                     </SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="NONE">Non défini</SelectItem>
-                                        {data?.members.map((c) => (
-                                            <SelectItem key={c.id} value={c.id} disabled={c.id === editing?.id}>
-                                                {c.pseudoDofus || c.discordNickname || c.displayName}
-                                            </SelectItem>
-                                        ))}
+                                        {data?.members
+                                            .filter((c) =>
+                                                `${c.pseudoDofus || ""} ${c.discordNickname || ""} ${c.displayName}`
+                                                    .toLowerCase()
+                                                    .includes(formRecruiterSearch.toLowerCase())
+                                            )
+                                            .slice(0, 60)
+                                            .map((c) => (
+                                                <SelectItem key={c.id} value={c.id} disabled={c.id === editing?.id}>
+                                                    {c.discordNickname || c.pseudoDofus || c.displayName}
+                                                </SelectItem>
+                                            ))}
                                     </SelectContent>
                                 </Select>
+                                <p className="text-[11px] text-muted-foreground">
+                                    Posé seul si le recruteur utilise /valider-recrue sans préciser ce champ.
+                                </p>
                             </div>
                             <div className="space-y-1.5">
-                                <Label>Fin d&apos;essai (vide = valider / non)</Label>
-                                <Input type="date" value={formTrialEnd} onChange={(e) => setFormTrialEnd(e.target.value)} />
+                                <Label>Essai validé</Label>
+                                <div className="flex gap-2">
+                                    <Button
+                                        type="button"
+                                        variant={formTrialValid === "oui" ? "default" : "outline"}
+                                        size="sm"
+                                        onClick={() => setFormTrialValid("oui")}
+                                        className="flex-1"
+                                    >
+                                        Oui
+                                    </Button>
+                                    <Button
+                                        type="button"
+                                        variant={formTrialValid === "non" ? "default" : "outline"}
+                                        size="sm"
+                                        onClick={() => setFormTrialValid("non")}
+                                        className="flex-1"
+                                    >
+                                        Non
+                                    </Button>
+                                </div>
+                                {formTrialValid === "non" && (
+                                    <>
+                                        <Label className="pt-1">Reconduction jusqu&apos;au (vide = sans fin)</Label>
+                                        <Input type="date" value={formTrialEnd} onChange={(e) => setFormTrialEnd(e.target.value)} />
+                                    </>
+                                )}
                             </div>
                         </div>
                         <div className="space-y-1.5">

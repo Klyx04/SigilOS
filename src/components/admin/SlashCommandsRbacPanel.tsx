@@ -19,6 +19,7 @@ interface CommandItem {
         description: string;
         usage: string;
         category: string;
+        staffOnly?: boolean;
     };
     isEnabled: boolean;
     roleIds: string[];
@@ -158,6 +159,11 @@ export function SlashCommandsRbacPanel({
                                         <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
                                             {item.command.category}
                                         </span>
+                                        {item.command.staffOnly && (
+                                            <span className="text-[10px] font-black uppercase tracking-wider text-warning border border-warning/40 bg-warning/10 px-1.5 py-0.5 rounded-md">
+                                                Staff
+                                            </span>
+                                        )}
                                     </div>
                                     <p className="text-xs text-muted-foreground font-medium">
                                         {item.command.description}

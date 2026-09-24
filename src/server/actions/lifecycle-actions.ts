@@ -818,10 +818,27 @@ export async function syncGuildMembers(discordGuildId: string) {
 
         let archivedCount = 0;
         let bannedCount = 0;
+        let nicknamesRefreshed = 0;
+
+        // Pseudo serveur (nick Discord) par compte, pour rafraîchir le registre.
+        const nickByDiscordId = new Map(discordMembers.map((m) => [m.user.id, m.nick ?? null]));
 
         // 4. Compare and archive/anonymize
         for (const profile of profiles) {
             const discordId = profile.user.accounts[0]?.providerAccountId;
+
+            if (discordId && discordUserIds.has(discordId)) {
+                // Registre : le pseudo serveur se remplit et se met à jour seul.
+                // On n'écrase que si Discord a un nick différent (NULL = pas de nick → on garde).
+                const serverNick = nickByDiscordId.get(discordId) ?? null;
+                if (serverNick && serverNick !== profile.discordNickname) {
+                    await db.userProfile.update({
+                        where: { id: profile.id },
+                        data: { discordNickname: serverNick.slice(0, 32) },
+                    });
+                    nicknamesRefreshed++;
+                }
+            }
 
             if (discordId && !discordUserIds.has(discordId)) {
                 // Check if they are banned or just left
@@ -971,7 +988,7 @@ export async function syncGuildMembers(discordGuildId: string) {
         revalidatePath(`/dashboard/${discordGuildId}/admin`);
         return {
             success: true,
-            message: `${archivedCount} archivés et ${bannedCount} nettoyés (bans) sur ${profiles.length} vérifiés.`,
+            message: `${archivedCount} archivés et ${bannedCount} nettoyés (bans) sur ${profiles.length} vérifiés, ${nicknamesRefreshed} pseudo(s) serveur actualisé(s).`,
             count: archivedCount + bannedCount
         };
     } catch (error) {

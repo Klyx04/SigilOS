@@ -5,8 +5,13 @@ export interface SlashCommandDefinition {
     name: string;
     description: string;
     usage: string;
-    category: "DONJONS_QUETES" | "COMMUNAUTE" | "PROFIL" | "UTILITAIRE";
+    category: "DONJONS_QUETES" | "COMMUNAUTE" | "PROFIL" | "UTILITAIRE" | "STAFF";
     defaultRoles: ("MEMBER" | "OFFICER" | "LEADER")[];
+    /**
+     * Commande réservée au staff : masquée du guide membres (`/commandes`),
+     * gate `staff:member_mgmt` côté route en plus de la matrice RBAC par guilde.
+     */
+    staffOnly?: boolean;
 }
 
 export const SLASH_COMMANDS_CATALOG: SlashCommandDefinition[] = [
@@ -51,6 +56,14 @@ export const SLASH_COMMANDS_CATALOG: SlashCommandDefinition[] = [
         usage: "/ocre <archimonstre>",
         category: "DONJONS_QUETES",
         defaultRoles: ["MEMBER", "OFFICER", "LEADER"]
+    },
+    {
+        name: "valider-recrue",
+        description: "Staff — complète la ligne registre d'une recrue (pseudo Dofus, tag Ankama, recruteur, arrivée)",
+        usage: "/valider-recrue @membre [pseudo-dofus] [tag-ankama] [recruteur] [arrivee]",
+        category: "STAFF",
+        defaultRoles: ["OFFICER", "LEADER"],
+        staffOnly: true
     }
 ];
 

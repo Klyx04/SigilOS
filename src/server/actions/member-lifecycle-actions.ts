@@ -118,7 +118,7 @@ const departureSchema = z.object({
 const registryIdentitySchema = z.object({
     profileId: z.string().min(1),
     pseudoDofus: z.string().max(30).nullable().optional(),
-    discordNickname: z.string().max(32).nullable().optional(),
+    // Pas de pseudo serveur ici : il se remplit et se met à jour seul depuis Discord.
     ankamaId: z
         .string()
         .max(60)
@@ -855,7 +855,7 @@ export async function updateMemberRegistryIdentity(
 
         const profile = await db.userProfile.findFirst({
             where: { id: validated.data.profileId, guildId: guild.id },
-            select: { id: true, pseudoDofus: true, discordNickname: true, ankamaId: true, guildJoinedAt: true, staffNotes: true }
+            select: { id: true, pseudoDofus: true, ankamaId: true, guildJoinedAt: true, staffNotes: true }
         });
         if (!profile) return { success: false, error: "Profil membre introuvable" };
 
@@ -863,10 +863,6 @@ export async function updateMemberRegistryIdentity(
         if (validated.data.pseudoDofus !== undefined) {
             const v = validated.data.pseudoDofus?.trim();
             data.pseudoDofus = v ? v : null;
-        }
-        if (validated.data.discordNickname !== undefined) {
-            const v = validated.data.discordNickname?.trim();
-            data.discordNickname = v ? v : null;
         }
         if (validated.data.ankamaId !== undefined) {
             const v = validated.data.ankamaId?.trim();
@@ -893,7 +889,6 @@ export async function updateMemberRegistryIdentity(
             targetId: profile.id,
             oldValue: {
                 pseudoDofus: profile.pseudoDofus,
-                discordNickname: profile.discordNickname,
                 ankamaId: profile.ankamaId,
                 guildJoinedAt: profile.guildJoinedAt,
                 staffNotes: profile.staffNotes,

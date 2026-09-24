@@ -3526,6 +3526,10 @@ model TicketJourney {
   channelParentId String?
   /// Rôles staff **du parcours** (s'ajoutent à ceux de l'équipe et de la config guilde).
   staffRoleIds    String[]          @default([])
+  /// 🆕 Rôles **mentionnés à l'ouverture** du ticket (« @Candidatures »). Vide = on
+  /// reprend ceux de l'équipe (`TicketTeam.notifyRoleIds`) ; jamais `@everyone` par défaut.
+  /// Résolution : `resolveTicketNotifyRoleIds` (`src/lib/tickets/notifications.ts`).
+  notifyRoleIds   String[]          @default([])
   teamId          String?
   formId          String?
   /// Version du formulaire **figée** à la publication (les réponses sont relues avec).

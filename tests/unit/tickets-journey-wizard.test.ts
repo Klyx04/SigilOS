@@ -41,6 +41,10 @@ const draft = (over: Partial<TicketJourneyDraft> = {}): TicketJourneyDraft => ({
 
 const errorsOf = (issues: TicketJourneyIssue[]) => issues.filter((issue) => issue.severity === "error");
 const warningsOf = (issues: TicketJourneyIssue[]) => issues.filter((issue) => issue.severity === "warning");
+
+/** Flocons réalistes : les rôles à mentionner sont validés (jamais un champ libre). */
+const ROLE_A = "111111111111111111";
+const ROLE_B = "222222222222222222";
 const textOf = (issues: TicketJourneyIssue[]) => issues.map((issue) => issue.message).join(" | ");
 
 describe("assistant de parcours — identifiant dérivé du nom", () => {
@@ -193,6 +197,17 @@ describe("assistant de parcours — ce qui bloque et ce qui se dit", () => {
         expect(textOf(warningsOf(disabled))).toContain("désactivée");
     });
 
+    it("dit quels rôles à mentionner sont ignorés, et refuse au-delà de 25", () => {
+        const ignored = validateTicketJourneyDraft(draft({ notifyRoleIds: ["pas-un-role"] }));
+        expect(errorsOf(ignored)).toHaveLength(0);
+        expect(textOf(warningsOf(ignored))).toContain("ignorés");
+
+        const tooMany = validateTicketJourneyDraft(
+            draft({ notifyRoleIds: Array.from({ length: 26 }, (_, index) => String(index + 1).padStart(18, "0")) })
+        );
+        expect(textOf(errorsOf(tooMany))).toContain("rôles à mentionner au maximum");
+    });
+
     it("un formulaire non publié bloque l'étape « Questionnaire »", () => {
         const issues = validateTicketJourneyDraft(draft({ formId: "form-1" }), {
             forms: [{ id: "form-1", name: "Intake", publishedVersion: null }],
@@ -228,6 +243,7 @@ describe("assistant de parcours — charge utile envoyée au serveur", () => {
             "isEnabled",
             "name",
             "namingPattern",
+            "notifyRoleIds",
             "openMode",
             "order",
             "slug",
@@ -262,6 +278,13 @@ describe("assistant de parcours — charge utile envoyée au serveur", () => {
     it("force un salon texte : un fil privé n'est jamais enregistré (rien ne l'exécute encore)", () => {
         const payload = buildTicketJourneyPayload(draft({ channelType: "THREAD_PRIVATE" }));
         expect(payload.channelType).toBe("CHANNEL_TEXT");
+    });
+
+    it("n'envoie que des mentions de rôle valides (jamais un champ libre)", () => {
+        const payload = buildTicketJourneyPayload(
+            draft({ notifyRoleIds: [ROLE_A, "@everyone", ROLE_B] })
+        );
+        expect(payload.notifyRoleIds).toEqual([ROLE_A, ROLE_B]);
     });
 
     it("n'envoie pas `formVersion` : c'est le serveur qui la fige à la publication", () => {
@@ -366,6 +389,7 @@ describe("assistant de parcours — ouverture d'un parcours existant", () => {
             channelType: "CHANNEL_TEXT",
             channelParentId: "",
             staffRoleIds: [],
+            notifyRoleIds: [],
             teamId: "",
             formId: "",
             namingPattern: "ticket-{num}",

@@ -1107,6 +1107,8 @@ const TicketJourneySchema = z.object({
     channelType: z.enum(["CHANNEL_TEXT", "THREAD_PRIVATE"]).default("CHANNEL_TEXT"),
     channelParentId: z.string().nullable().optional(),
     staffRoleIds: z.array(z.string()).max(25).default([]),
+    /** Rôles mentionnés à l'ouverture ; vide = on reprend ceux de l'équipe du parcours. */
+    notifyRoleIds: z.array(z.string()).max(25).default([]),
     teamId: z.string().nullable().optional(),
     formId: z.string().nullable().optional(),
     namingPattern: z.string().min(1).max(80).default("ticket-{num}"),
@@ -1456,6 +1458,7 @@ export async function saveTicketJourneyAction(guildId: string, data: unknown): P
             channelType: payload.channelType,
             channelParentId: payload.channelParentId || null,
             staffRoleIds: payload.staffRoleIds,
+            notifyRoleIds: payload.notifyRoleIds,
             teamId: payload.teamId || null,
             formId: payload.formId || null,
             formVersion,

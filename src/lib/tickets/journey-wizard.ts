@@ -17,6 +17,7 @@
  */
 
 import { formatTicketChannelName } from "./embeds";
+import { TICKET_NOTIFY_ROLES_MAX, sanitizeTicketNotifyRoleIds } from "./notifications";
 
 export const TICKET_JOURNEY_NAME_MAX = 80;
 export const TICKET_JOURNEY_SLUG_MAX = 60;
@@ -112,6 +113,8 @@ export type TicketJourneyDraft = {
     channelType: TicketJourneyChannelType;
     channelParentId: string;
     staffRoleIds: string[];
+    /** Rôles mentionnés à l'ouverture (« @Candidatures ») ; vide = ceux de l'équipe. */
+    notifyRoleIds: string[];
     teamId: string;
     formId: string;
     namingPattern: string;
@@ -153,6 +156,7 @@ export type TicketJourneyRecordLike = {
     channelType?: string | null;
     channelParentId?: string | null;
     staffRoleIds?: string[] | null;
+    notifyRoleIds?: string[] | null;
     teamId?: string | null;
     formId?: string | null;
     namingPattern?: string | null;
@@ -202,6 +206,7 @@ export function createEmptyTicketJourneyDraft(order = 0): TicketJourneyDraft {
         channelType: "CHANNEL_TEXT",
         channelParentId: "",
         staffRoleIds: [],
+        notifyRoleIds: [],
         teamId: "",
         formId: "",
         namingPattern: "ticket-{num}",
@@ -224,6 +229,7 @@ export function ticketJourneyDraftFromRecord(record: TicketJourneyRecordLike): T
         channelType: coerceChannelType(record.channelType),
         channelParentId: record.channelParentId ?? "",
         staffRoleIds: record.staffRoleIds ?? [],
+        notifyRoleIds: record.notifyRoleIds ?? [],
         teamId: record.teamId ?? "",
         formId: record.formId ?? "",
         namingPattern: record.namingPattern || "ticket-{num}",
@@ -366,6 +372,15 @@ export function validateTicketJourneyDraft(
     if (draft.staffRoleIds.length > TICKET_JOURNEY_STAFF_ROLES_MAX) {
         add("team", "error", `${TICKET_JOURNEY_STAFF_ROLES_MAX} rôles staff au maximum.`);
     }
+    if (draft.notifyRoleIds.length > TICKET_NOTIFY_ROLES_MAX) {
+        add("team", "error", `${TICKET_NOTIFY_ROLES_MAX} rôles à mentionner au maximum.`);
+    } else if (sanitizeTicketNotifyRoleIds(draft.notifyRoleIds).length !== draft.notifyRoleIds.length) {
+        add(
+            "team",
+            "warning",
+            "Certains identifiants de rôle à mentionner ne sont pas valides : ils seront ignorés."
+        );
+    }
     if (draft.teamId) {
         const team = (context.teams ?? []).find((candidate) => candidate.id === draft.teamId);
         if (!team) add("team", "error", "Équipe introuvable dans cette guilde.");
@@ -424,6 +439,8 @@ export function buildTicketJourneyPayload(draft: TicketJourneyDraft): Record<str
         channelType: "CHANNEL_TEXT",
         channelParentId: draft.channelParentId || null,
         staffRoleIds: draft.staffRoleIds,
+        // Seuls des flocons valides partent en base : le service ne revalide pas moins.
+        notifyRoleIds: sanitizeTicketNotifyRoleIds(draft.notifyRoleIds),
         teamId: draft.teamId || null,
         formId: draft.formId || null,
         namingPattern: draft.namingPattern.trim() || "ticket-{num}",

@@ -24,7 +24,9 @@ type ActionResponse<T = void> = {
 
 import {
     GAME_DATA_DATASETS,
+    isStaleRun,
     isWatchedDataset,
+    STALE_RUN_MESSAGE,
     type GameDataDataset,
     type GameDataRunState,
 } from "@/lib/game-data-sync-state";
@@ -33,9 +35,15 @@ import {
     finishGameDataRun,
     getGameDataRunStates,
     getGameDataWatchState,
+    markGameDataRunStale,
     reportGameDataProgress,
 } from "@/server/game-data-sync-state-store";
-import { enqueueGameDataSync, isBackgroundDataset, gameDataQueue } from "@/lib/queue/game-data-queue";
+import {
+    enqueueGameDataSync,
+    isBackgroundDataset,
+    isJobInFlight,
+    gameDataQueue,
+} from "@/lib/queue/game-data-queue";
 import { logger } from "@/lib/logger";
 
 /** Même garde que le module game-data (super-admin OU brique `game-data`). */
@@ -48,11 +56,36 @@ function isDataset(value: unknown): value is GameDataDataset {
     return typeof value === "string" && (GAME_DATA_DATASETS as readonly string[]).includes(value);
 }
 
-/** État de tous les datasets (jamais `null` : un dataset jamais lancé est `IDLE`). */
+/**
+ * État de tous les datasets (jamais `null` : un dataset jamais lancé est `IDLE`).
+ *
+ * 🔭 **Auto-réparation** (incident du 24/09/2026 : « En cours · il y a 1 h » alors que rien
+ * ne tournait) : un état `RUNNING` **trop vieux** est confronté à la file — s'il n'y a
+ * aucun job en vol, la passe est morte et on le **dit** (et on l'écrit, pour que le mensonge
+ * ne réapparaisse pas au rafraîchissement suivant). Les datasets lancés « dans l'onglet »
+ * (sans file) ne sont jamais contredits par ce contrôle.
+ */
 export async function getGameDataSyncStates(): Promise<ActionResponse<GameDataRunState[]>> {
     if (!(await canAccessGameData())) return { success: false, error: "Non autorisé" };
     try {
-        return { success: true, data: await getGameDataRunStates() };
+        const states = await getGameDataRunStates();
+        const reconciled = await Promise.all(
+            states.map(async (state) => {
+                if (!isBackgroundDataset(state.dataset) || !isStaleRun(state)) return state;
+                const job = await gameDataQueue.getJob(`game-data-${state.dataset}`).catch(() => null);
+                const inFlight = job ? isJobInFlight(await job.getState().catch(() => null)) : false;
+                if (inFlight) return state;
+                await markGameDataRunStale(state.dataset);
+                return {
+                    ...state,
+                    status: "ERROR" as const,
+                    message: STALE_RUN_MESSAGE,
+                    finishedAt: new Date().toISOString(),
+                    lastError: "État périmé : aucun job en file (passe interrompue).",
+                };
+            }),
+        );
+        return { success: true, data: reconciled };
     } catch (error) {
         logger.error("[game-data-sync] getGameDataSyncStates:", error);
         return { success: false, error: "État indisponible" };

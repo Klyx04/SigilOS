@@ -8,8 +8,8 @@
 ## 🧩 Session 24/09/2026 (suite 22) — **« ça tourne dans le vide » : un `jobId` fixe faisait ignorer le nouveau job par BullMQ (même échoué) — l'enfileur dit maintenant la vérité** → branche `fix/queue-dedup-verite`
 > **Symptôme (bêta)** : Tableau → *Items & ressources* = « En cours · 0 — total inconnu · En file d'attente (worker) · il y a 36 min » alors que rien ne tournait, même après redéploiement.
 > **Mesure** : 2ᵉ enfilage ⇒ id rendu **et aucune ligne du worker** ⇒ BullMQ **n'ajoute rien** si un job du même `jobId` existe (même **échoué**, `removeOnFail` 24 h) et rend l'id **sans erreur** ; l'action écrivait `RUNNING` avant de vérifier ⇒ état faux et bloqué (Redis survit au déploiement).
-> **Fait** : `game-data-queue-policy.ts` (pur : `isJobInFlight` + verdict) ; `enqueueGameDataSync` rend `queued` / `already-running` / `unavailable` après avoir **libéré** l'id d'un job mort ; l'action n'écrit plus `RUNNING` sans mise en file réelle ; le cron distingue `autoQueued` / `autoRunning` / `autoUnavailable` ; garde `game-data-queue-dedup.test.ts`.
-> **Preuves** : `tsc` **0** · **202 fichiers / 2 203 tests** ✓ · `eslint` **0 erreur** · `npm run build` EXIT=0.
+> **Fait** : `game-data-queue-policy.ts` (pur : `isJobInFlight` + verdict) ; `enqueueGameDataSync` rend `queued` / `already-running` / `unavailable` après avoir **libéré** l'id d'un job mort ; l'action n'écrit plus `RUNNING` sans mise en file réelle ; le cron distingue `autoQueued` / `autoRunning` / `autoUnavailable` ; **auto-réparation du Tableau** (état `RUNNING` trop vieux + aucun job en file ⇒ « passe interrompue », état réécrit ; seuils par dataset) ; garde `game-data-queue-dedup.test.ts`.
+> **Preuves** : `tsc` **0** · **202 fichiers / 2 205 tests** ✓ · `eslint` **0 erreur** · `npm run build` EXIT=0.
 > **Reste** : redéployer la bêta et relancer « En arrière-plan » (ITEMS) — le job échoué est purgé, l'état périmé écrasé par le vrai run.
 
 ## 🧩 Session 24/09/2026 (suite 21) — **Incident prod : `sharp` inliné par esbuild cassait 3 datasets du worker — cause racine prouvée + garde-fou** → branche `fix/esbuild-sharp-external`

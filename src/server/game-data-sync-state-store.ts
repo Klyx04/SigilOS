@@ -19,6 +19,7 @@ import {
     computePercent,
     emptyGameDataRunState,
     GAME_DATA_DATASETS,
+    STALE_RUN_MESSAGE,
     type GameDataDataset,
     type GameDataRunCounts,
     type GameDataRunState,
@@ -112,6 +113,24 @@ export async function finishGameDataRun(
         // Bilan chiffré : écrit seulement quand la passe en fournit un (sinon on conserve le
         // précédent — un échec ne doit pas effacer « 46 modifiés » de la veille réussie).
         counts: opts.ok && opts.counts !== undefined ? opts.counts : current.counts,
+    });
+}
+
+/**
+ * Marque une passe **morte** (état `RUNNING` sans aucun job en file) : le Tableau ne doit
+ * jamais afficher « En cours » pour un travail qui n'existe pas (incident du 24/09/2026).
+ * Auto-réparation : la correction est **écrite**, donc le mensonge ne réapparaît pas au
+ * prochain rafraîchissement.
+ */
+export async function markGameDataRunStale(dataset: GameDataDataset): Promise<void> {
+    const current = await readState(dataset);
+    await writeState({
+        ...current,
+        status: "ERROR",
+        percent: current.percent,
+        message: STALE_RUN_MESSAGE,
+        finishedAt: new Date().toISOString(),
+        lastError: "État périmé : aucun job en file (passe interrompue).",
     });
 }
 

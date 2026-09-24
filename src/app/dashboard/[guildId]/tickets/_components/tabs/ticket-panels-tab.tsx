@@ -16,6 +16,7 @@ import {
     Hash,
     ExternalLink,
 } from "lucide-react";
+import { DiscordChannelPicker } from "@/components/shared/DiscordChannelPicker";
 import {
     saveTicketPanelAction,
     deleteTicketPanelAction,
@@ -269,13 +270,15 @@ export function TicketPanelsTab({ guildId, panels, categories, onRefresh }: Tick
                             </div>
 
                             <div className="space-y-1.5">
-                                <label className="font-semibold text-foreground">ID du salon Discord où poster</label>
-                                <Input
-                                    placeholder="ex: 123456789012345678"
+                                <label className="font-semibold text-foreground">Salon Discord où publier le panneau</label>
+                                <DiscordChannelPicker
+                                    guildId={guildId}
                                     value={channelId}
-                                    onChange={(e) => setChannelId(e.target.value)}
-                                    className="text-xs h-8 font-mono"
+                                    onChange={setChannelId}
                                 />
+                                <p className="text-[11px] text-muted-foreground">
+                                    Le bot doit pouvoir <strong>voir</strong> ce salon et y <strong>écrire</strong>.
+                                </p>
                             </div>
 
                             <div className="space-y-1.5">

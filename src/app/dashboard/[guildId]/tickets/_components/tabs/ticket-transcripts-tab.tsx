@@ -22,15 +22,15 @@ interface TicketTranscriptsTabProps {
 export function TicketTranscriptsTab({ guildId, tickets }: TicketTranscriptsTabProps) {
     const [search, setSearch] = useState("");
 
-    const transcripts = tickets
-        .filter((t) => t.transcript)
+    const archiveRows = tickets
+        .filter((t) => Array.isArray(t.transcripts) && t.transcripts.length > 0)
         .filter((t) => {
             if (!search) return true;
             const s = search.toLowerCase();
             return (
-                t.creatorDiscordName.toLowerCase().includes(s) ||
+                String(t.creatorDiscordName || "").toLowerCase().includes(s) ||
                 String(t.ticketNumber).includes(s) ||
-                t.category?.name?.toLowerCase().includes(s)
+                String(t.journey?.name || t.category?.name || "").toLowerCase().includes(s)
             );
         });
 
@@ -39,10 +39,11 @@ export function TicketTranscriptsTab({ guildId, tickets }: TicketTranscriptsTabP
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                     <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
-                        <FileText className="h-5 w-5 text-amber-400" /> Archives des Transcripts HTML
+                        <FileText className="h-5 w-5 text-amber-400" /> Archives des tickets
                     </h2>
                     <p className="text-xs text-muted-foreground">
-                        Historique horodaté et inaltérable des conversations Discord et notes staff.
+                        Deux documents par ticket : une archive <strong>partageable</strong> (conversation seule) et une{" "}
+                        <strong>annexe interne</strong> (notes du staff), jamais exposée par un lien public.
                     </p>
                 </div>
 
@@ -71,17 +72,19 @@ export function TicketTranscriptsTab({ guildId, tickets }: TicketTranscriptsTabP
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-border/40 text-xs">
-                            {transcripts.length === 0 ? (
+                            {archiveRows.length === 0 ? (
                                 <tr>
                                     <td colSpan={6} className="py-8 text-center text-muted-foreground">
-                                        Aucun transcript archivé pour le moment.
+                                        Aucune archive pour le moment — elle est écrite à la fermeture d'un ticket.
                                     </td>
                                 </tr>
                             ) : (
-                                transcripts.map((t) => {
-                                    const transcript = t.transcript;
+                                archiveRows.map((t) => {
+                                    const shareable = (t.transcripts as any[]).find((a) => a.kind === "SHAREABLE");
+                                    const internal = (t.transcripts as any[]).find((a) => a.kind === "INTERNAL");
+                                    const reference = shareable || internal;
                                     return (
-                                        <tr key={transcript.id} className="hover:bg-surface/30 transition-colors">
+                                        <tr key={t.id} className="hover:bg-surface/30 transition-colors">
                                             <td className="py-3.5 px-4 font-bold text-amber-400 font-mono">
                                                 #{t.ticketNumber}
                                             </td>
@@ -92,7 +95,7 @@ export function TicketTranscriptsTab({ guildId, tickets }: TicketTranscriptsTabP
 
                                             <td className="py-3.5 px-4 text-muted-foreground">
                                                 <Badge variant="outline" className="text-[10px]">
-                                                    {t.category?.name}
+                                                    {t.journey?.name || t.category?.name || "—"}
                                                 </Badge>
                                             </td>
 
@@ -100,32 +103,59 @@ export function TicketTranscriptsTab({ guildId, tickets }: TicketTranscriptsTabP
                                                 {t.closedAt ? new Date(t.closedAt).toLocaleDateString("fr-FR") : "—"}
                                             </td>
 
-                                            <td className="py-3.5 px-4 text-muted-foreground">
-                                                <span className="font-semibold text-foreground">
-                                                    {transcript.messageCount}
-                                                </span>{" "}
-                                                messages
+                                            <td className="py-3.5 px-4 text-muted-foreground space-y-1">
+                                                <div>
+                                                    <span className="font-semibold text-foreground">
+                                                        {reference?.messageCount ?? 0}
+                                                    </span>{" "}
+                                                    messages
+                                                </div>
+                                                {reference?.partial && (
+                                                    <Badge variant="outline" className="text-[10px]">
+                                                        ⚠️ Archive partielle
+                                                    </Badge>
+                                                )}
+                                                {reference?.expiresAt && (
+                                                    <div className="text-[10px]">
+                                                        Expire le{" "}
+                                                        {new Date(reference.expiresAt).toLocaleDateString("fr-FR")}
+                                                    </div>
+                                                )}
                                             </td>
 
                                             <td className="py-3.5 px-4 text-right">
                                                 <div className="flex items-center justify-end gap-2">
-                                                    <a
-                                                        href={`/api/tickets/transcript/${transcript.secretToken}`}
-                                                        target="_blank"
-                                                        rel="noreferrer"
-                                                    >
-                                                        <Button size="sm" variant="outline" className="h-7 text-xs px-2.5">
-                                                            <ExternalLink className="h-3 w-3 mr-1" /> Voir
-                                                        </Button>
-                                                    </a>
+                                                    {shareable && (
+                                                        <>
+                                                            <a
+                                                                href={`/api/tickets/transcript/${shareable.secretToken}`}
+                                                                target="_blank"
+                                                                rel="noreferrer"
+                                                            >
+                                                                <Button size="sm" variant="outline" className="h-7 text-xs px-2.5">
+                                                                    <ExternalLink className="h-3 w-3 mr-1" /> Voir
+                                                                </Button>
+                                                            </a>
 
-                                                    <a
-                                                        href={`/api/tickets/transcript/${transcript.secretToken}?download=1`}
-                                                    >
-                                                        <Button size="sm" variant="ghost" className="h-7 text-xs px-2">
-                                                            <Download className="h-3 w-3" />
-                                                        </Button>
-                                                    </a>
+                                                            <a
+                                                                href={`/api/tickets/transcript/${shareable.secretToken}?download=1`}
+                                                            >
+                                                                <Button size="sm" variant="ghost" className="h-7 text-xs px-2">
+                                                                    <Download className="h-3 w-3" />
+                                                                </Button>
+                                                            </a>
+                                                        </>
+                                                    )}
+
+                                                    {internal && (
+                                                        <Badge
+                                                            variant="outline"
+                                                            className="text-[10px]"
+                                                            title="Contient les notes internes : réservé au staff, jamais servi par un lien public."
+                                                        >
+                                                            🔒 Annexe staff
+                                                        </Badge>
+                                                    )}
                                                 </div>
                                             </td>
                                         </tr>

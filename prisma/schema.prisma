@@ -459,6 +459,12 @@ model GuildConfig {
   ticketTranscripts                TicketTranscript[]
   ticketFeedbacks                  TicketFeedback[]
   ticketAuditLogs                  TicketAuditLog[]
+  // 🆕 Tickets v2 — parcours, formulaires versionnés, équipes
+  ticketJourneys                   TicketJourney[]
+  ticketForms                      TicketForm[]
+  ticketFormVersions               TicketFormVersion[]
+  ticketTeams                      TicketTeam[]
+  ticketDrafts                     TicketDraft[]
   apiKeys                          GuildApiKey[]
   slashCommandPermissions          GuildSlashCommandPermission[]
   // 👥 Module Cycle de vie des membres & Recrutement
@@ -3285,6 +3291,12 @@ enum TicketBotStatus {
   PENDING_USER
   RESOLVED
   CLOSED
+  /// 🆕 v2 — demande d'ouverture en attente d'approbation staff (avant création du salon)
+  REQUESTED
+  /// 🆕 v2 — le salon a été supprimé mais l'archive/le nettoyage a échoué (rejouable)
+  ARCHIVE_FAILED
+  /// 🆕 v2 — demande d'ouverture refusée par le staff : aucun salon n'a jamais existé
+  REFUSED
 }
 
 enum TicketChannelType {
@@ -3297,6 +3309,31 @@ enum TicketButtonStyle {
   SECONDARY
   SUCCESS
   DANGER
+}
+
+/// 🆕 v2 — cycle de vie d'un formulaire (brouillon éditable / version publiée figée).
+enum TicketFormStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+/// 🆕 v2 — immédiat ou file d'approbation (le salon n'existe qu'après acceptation).
+enum TicketOpenMode {
+  INSTANT
+  APPROVAL
+}
+
+/// 🆕 v2 — qui peut fermer un ticket (politique publiée du parcours).
+enum TicketClosePolicy {
+  STAFF_ONLY
+  STAFF_OR_CREATOR
+}
+
+/// 🆕 v2 — deux archives distinctes : partageable (sans notes) et annexe interne.
+enum TicketArchiveKind {
+  SHAREABLE
+  INTERNAL
 }
 
 model TicketGuildConfig {
@@ -3313,6 +3350,11 @@ model TicketGuildConfig {
   enableCsat              Boolean             @default(true)
   enableDmNotifications   Boolean             @default(true)
   enableTranscripts       Boolean             @default(true)
+  /// 🆕 v2 — rétention par type de donnée, en jours (0 = illimité). Consommée par
+  /// la purge (`src/server/tickets/archive.ts`), jamais affichée sans mécanisme.
+  transcriptRetentionDays Int                 @default(365)
+  noteRetentionDays       Int                 @default(365)
+  auditRetentionDays      Int                 @default(730)
   settingsJson            Json?               @default("{}")
   createdAt               DateTime            @default(now())
   updatedAt               DateTime            @updatedAt
@@ -3364,7 +3406,10 @@ model TicketBotPanel {
   embedImage       String?
   embedFooter      String?           @default("SigilOS Tickets")
   style            String            @default("BUTTONS") // BUTTONS, SELECT_MENU
+  /// ⚠️ v1 — conservé en lecture (panneaux déjà déployés). Les parcours v2 utilisent `journeyIds`.
   categoryIds      String[]          @default([])
+  /// 🆕 v2 — parcours exposés par ce message Discord (l'ordre = celui des boutons).
+  journeyIds       String[]          @default([])
   isActive         Boolean           @default(true)
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
@@ -3374,11 +3419,150 @@ model TicketBotPanel {
   @@index([guildId])
 }
 
+/// 🆕 v2 — équipe répondante réutilisable (rôles Discord staff + rôles à notifier).
+model TicketTeam {
+  id            String          @id @default(cuid())
+  guildId       String
+  name          String
+  slug          String
+  description   String?
+  /// Rôles Discord considérés comme **staff de cette équipe** (voient et traitent).
+  staffRoleIds  String[]        @default([])
+  /// Rôles mentionnés à l'ouverture. Vide par défaut : jamais `@everyone` implicitement.
+  notifyRoleIds String[]        @default([])
+  isEnabled     Boolean         @default(true)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  guild         GuildConfig     @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  journeys      TicketJourney[]
+
+  @@unique([guildId, slug])
+  @@index([guildId, isEnabled])
+}
+
+/// 🆕 v2 — formulaire réutilisable. Le brouillon est éditable ; publier crée une
+/// `TicketFormVersion` **figée** que les tickets référencent ⇒ une réponse reste
+/// relisible même si la question est renommée plus tard.
+model TicketForm {
+  id               String             @id @default(cuid())
+  guildId          String
+  name             String
+  slug             String
+  description      String?
+  status           TicketFormStatus   @default(DRAFT)
+  /// Version courante (incrémentée à chaque publication).
+  currentVersion   Int                @default(0)
+  /// Version publiée (null = jamais publié ⇒ aucun parcours ne peut la référencer).
+  publishedVersion Int?
+  /// Brouillon éditable — validé par `parseFormSchema` (`src/lib/tickets/form-schema.ts`).
+  draftSchemaJson  Json               @default("[]")
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+
+  guild            GuildConfig        @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  versions         TicketFormVersion[]
+  journeys         TicketJourney[]
+
+  @@unique([guildId, slug])
+  @@index([guildId, status])
+}
+
+/// 🆕 v2 — version **figée** d'un formulaire (jamais modifiée après publication).
+model TicketFormVersion {
+  id            String      @id @default(cuid())
+  formId        String
+  guildId       String
+  version       Int
+  schemaJson    Json
+  publishedById String?
+  createdAt     DateTime    @default(now())
+
+  guild         GuildConfig @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  form          TicketForm  @relation(fields: [formId], references: [id], onDelete: Cascade)
+  tickets       TicketRecord[]
+
+  @@unique([formId, version])
+  @@index([guildId])
+  @@index([formId, createdAt])
+}
+
+/// 🆕 v2 — brouillon d'ouverture : les réponses déjà données avant la création du ticket
+/// (étape « choix » Oui/Non & sélecteurs, puis modale des textes). TTL court, supprimé
+/// à la création réussie ou par la purge — jamais affiché comme un ticket.
+model TicketDraft {
+  id            String        @id @default(cuid())
+  guildId       String
+  journeyId     String
+  formVersionId String?
+  discordUserId String
+  /// Réponses déjà collectées, clés par `id` de champ (jamais par libellé).
+  answersJson   Json          @default("{}")
+  /// `CHOICES` = en attente de choix ; `TEXTS` = en attente de la modale.
+  step          String        @default("CHOICES")
+  expiresAt     DateTime
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  guild         GuildConfig   @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  journey       TicketJourney @relation(fields: [journeyId], references: [id], onDelete: Cascade)
+
+  @@unique([guildId, journeyId, discordUserId])
+  @@index([guildId, expiresAt])
+}
+
+/// 🆕 v2 — **le parcours** : l'unité éditable que comprend le chef de guilde
+/// (« Candidature », « Contacter le staff », « Signaler »). Il remplace la catégorie
+/// v1 (`TicketBotCategory`, conservée en lecture pour les tickets déjà ouverts).
+model TicketJourney {
+  id              String            @id @default(cuid())
+  guildId         String
+  name            String
+  slug            String
+  description     String?
+  emoji           String            @default("🎫")
+  buttonStyle     TicketButtonStyle @default(PRIMARY)
+  channelType     TicketChannelType @default(CHANNEL_TEXT)
+  channelParentId String?
+  /// Rôles staff **du parcours** (s'ajoutent à ceux de l'équipe et de la config guilde).
+  staffRoleIds    String[]          @default([])
+  teamId          String?
+  formId          String?
+  /// Version du formulaire **figée** à la publication (les réponses sont relues avec).
+  formVersion     Int?
+  namingPattern   String            @default("ticket-{num}")
+  openMode        TicketOpenMode    @default(INSTANT)
+  closePolicy     TicketClosePolicy @default(STAFF_ONLY)
+  order           Int               @default(0)
+  isEnabled       Boolean           @default(true)
+  isPublished     Boolean           @default(false)
+  publishedAt     DateTime?
+  publishedVersion Int              @default(0)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  guild           GuildConfig       @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  team            TicketTeam?       @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  form            TicketForm?       @relation(fields: [formId], references: [id], onDelete: SetNull)
+  tickets         TicketRecord[]
+  drafts          TicketDraft[]
+
+  @@unique([guildId, slug])
+  @@index([guildId, isEnabled, order])
+  @@index([guildId, isPublished])
+}
+
 model TicketRecord {
   id                   String            @id @default(cuid())
   ticketNumber         Int               @default(autoincrement())
   guildId              String
-  categoryId           String
+  /// ⚠️ v1 — catégorie d'origine. `null` pour un ticket v2 ouvert via un parcours.
+  categoryId           String?
+  /// 🆕 v2 — parcours d'origine (`null` pour un ticket v1).
+  journeyId            String?
+  /// 🆕 v2 — version de formulaire **figée** à l'ouverture : les réponses restent
+  /// relisibles et validables même si le formulaire change ensuite.
+  formVersionId        String?
   discordGuildId       String
   discordChannelId     String?           @unique
   discordThreadId      String?           @unique
@@ -3387,6 +3571,12 @@ model TicketRecord {
   creatorAvatarUrl     String?
   creatorProfileId     String?
   status               TicketBotStatus   @default(OPEN)
+  /// 🆕 v2 — file d'approbation (`REQUESTED` → `OPEN` ou `REFUSED`), avant tout salon.
+  approvedByDiscordId  String?
+  approvedAt           DateTime?
+  refusedByDiscordId   String?
+  refusedAt            DateTime?
+  refusalReason        String?
   claimedByDiscordId   String?
   claimedByName        String?
   claimedAt            DateTime?
@@ -3399,20 +3589,27 @@ model TicketRecord {
   closedByDiscordId    String?
   closedByName         String?
   closedReason         String?
+  /// 🆕 v2 — étiquettes libres (bornées côté service) et priorité (0 normale, 2 urgente).
+  tags                 String[]          @default([])
+  priority             Int               @default(0)
   intakeAnswersJson    Json?             @default("{}")
   metadataJson         Json?             @default("{}")
   createdAt            DateTime          @default(now())
   updatedAt            DateTime          @updatedAt
 
   guild                GuildConfig       @relation(fields: [guildId], references: [id], onDelete: Cascade)
-  category             TicketBotCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  category             TicketBotCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  journey              TicketJourney?    @relation(fields: [journeyId], references: [id], onDelete: SetNull)
+  formVersion          TicketFormVersion? @relation(fields: [formVersionId], references: [id], onDelete: SetNull)
   notes                TicketNote[]
-  transcript           TicketTranscript?
+  /// 🆕 v2 — jusqu'à deux archives : `SHAREABLE` (sans notes) et `INTERNAL` (annexe staff).
+  transcripts          TicketTranscript[]
   feedback             TicketFeedback?
   auditLogs            TicketAuditLog[]
 
   @@index([guildId, status])
   @@index([guildId, categoryId])
+  @@index([guildId, journeyId])
   @@index([creatorDiscordId, status])
   @@index([discordChannelId])
   @@index([discordThreadId])
@@ -3435,19 +3632,35 @@ model TicketNote {
 }
 
 model TicketTranscript {
-  id           String       @id @default(cuid())
-  ticketId     String       @unique
-  guildId      String
-  storageRef   String
-  messageCount Int          @default(0)
-  sizeBytes    Int          @default(0)
-  secretToken  String       @unique @default(cuid())
-  createdAt    DateTime     @default(now())
+  id             String            @id @default(cuid())
+  ticketId       String
+  guildId        String
+  /// 🆕 v2 — `SHAREABLE` (sans notes internes) ou `INTERNAL` (annexe staff).
+  kind           TicketArchiveKind @default(SHAREABLE)
+  /// Contenu HTML complet, ou chemin de fichier si la valeur ne commence pas par `<!DOCTYPE`.
+  storageRef     String
+  /// Messages **réellement capturés** (jamais gonflé : voir `partial`).
+  messageCount   Int               @default(0)
+  sizeBytes      Int               @default(0)
+  /// 🆕 v2 — messages présents dans le salon, si la pagination a pu les compter.
+  totalCount     Int?
+  /// 🆕 v2 — `true` = la capture est incomplète : jamais présentée comme « archive complète ».
+  partial        Boolean           @default(false)
+  secretToken    String            @unique @default(cuid())
+  /// 🆕 v2 — expiration (`null` = jamais) et révocation ; l'accès est journalisé.
+  expiresAt      DateTime?
+  revokedAt      DateTime?
+  accessCount    Int               @default(0)
+  lastAccessedAt DateTime?
+  createdAt      DateTime          @default(now())
 
-  guild        GuildConfig  @relation(fields: [guildId], references: [id], onDelete: Cascade)
-  ticket       TicketRecord @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  guild          GuildConfig       @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  ticket         TicketRecord      @relation(fields: [ticketId], references: [id], onDelete: Cascade)
 
+  @@unique([ticketId, kind])
   @@index([guildId])
+  @@index([guildId, kind])
+  @@index([expiresAt])
 }
 
 model TicketFeedback {

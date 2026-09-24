@@ -5,6 +5,7 @@ import { getAppBaseUrl } from "@/lib/utils";
 import { DOFUS_JOBS } from "@/lib/dofus-assets";
 import { normSearch, parseAlmanaxDateInput, frenchLongDate } from "@/lib/slash-command-helpers";
 import { PERMISSIONS as PERMISSION_IDS, type PermissionId } from "@/lib/permissions";
+import { resolveInteractionActor } from "@/lib/tickets/interaction-actor";
 
 // ============================================
 // DOFUS CLASSES for Modal validation
@@ -154,10 +155,31 @@ export async function POST(request: NextRequest) {
         // 2. Handle Component Interaction (Button click)
         if (payload.type === 3) {
             const { custom_id } = payload.data;
-            const { member, guild_id } = payload;
+            const { guild_id } = payload;
+
+            // 🆕 Refonte Tickets v2 — le sondage CSAT arrive par **message privé** : Discord
+            // n'envoie alors **pas** `member` (doc : `user` = « *if invoked in a DM* »).
+            // L'ancien code lisait `member.user.id` sans repli ⇒ `TypeError` ⇒ HTTP 500.
+            // On normalise l'acteur **avant tout usage**, puis on garde un `member` de
+            // repli pour le reste de la route (rôles vides, aucune permission devinée).
+            const actor = resolveInteractionActor(payload as never);
+            if (!actor) {
+                return ephemeralDiscordMessage("❌ Interaction non identifiable.");
+            }
+            const discordUserId = actor.discordUserId;
+            const member = payload.member ?? {
+                user: {
+                    id: actor.discordUserId,
+                    username: actor.displayName,
+                    global_name: actor.displayName,
+                    avatar: actor.avatar,
+                },
+                roles: [],
+                permissions: null,
+            };
 
             // Rate limit: 10 interactions per 60s per discord user
-            if (!checkRateLimit(`interaction:${member.user.id}`, 10, 60_000)) {
+            if (!checkRateLimit(`interaction:${discordUserId}`, 10, 60_000)) {
                 return NextResponse.json({
                     type: 4,
                     data: { content: "⏳ Tu fais trop de requêtes. Réessaie dans quelques secondes.", flags: 64 },
@@ -1115,14 +1137,28 @@ export async function POST(request: NextRequest) {
             } else if (prefix === "tb") {
                 // =========================================================
                 // TICKET BOT INTERACTION (Buttons, Select Menus)
-                // custom_id = tb:open:{panelId}:{categoryId}
+                // custom_id = tb:open:{panelId}:{journeyOuCategorieId}
                 // custom_id = tb:select_open:{panelId}
-                // custom_id = tb:claim:{ticketId}
-                // custom_id = tb:note:{ticketId}
-                // custom_id = tb:rename:{ticketId}
-                // custom_id = tb:close:{ticketId}
+                // custom_id = tb:claim:{ticketId} · tb:note: · tb:rename: · tb:close:
                 // custom_id = tb:csat:{ticketId}:{rating}
+                //
+                // 🆕 Refonte v2 — le préfixe `tb` n'est **pas** dans `DISCORD_PERM_MAP`
+                // (une carte par préfixe ne sait pas distinguer « ouvrir » de « fermer ») :
+                // l'autorisation est donc construite **ici**, une fois, puis vérifiée par
+                // chaque handler via `decideTicketAccess` (fail-closed).
                 // =========================================================
+                const { internalCheckPermission } = await import("@/server/actions/user-actions");
+                const ticketActorContext = {
+                    discordUserId: actor.discordUserId,
+                    discordUserName: actor.displayName,
+                    discordUserRoleIds: actor.roleIds,
+                    discordUserIsAdmin: actor.isGuildAdmin,
+                    hasStaffPermission: await internalCheckPermission(
+                        guild_id,
+                        actor.discordUserId,
+                        PERMISSION_IDS.STAFF_TICKETS
+                    ),
+                };
                 const {
                     internalHandleTicketCreate,
                     internalHandleTicketClaim,
@@ -1205,6 +1241,7 @@ export async function POST(request: NextRequest) {
                         discordUserId: member.user.id,
                         discordUserName: member.user.global_name || member.user.username,
                         ticketId,
+                        actor: ticketActorContext,
                     });
                     return NextResponse.json({
                         type: 4,
@@ -1292,6 +1329,7 @@ export async function POST(request: NextRequest) {
                         discordUserId: member.user.id,
                         ticketId,
                         rating,
+                        actor: ticketActorContext,
                     });
                     return NextResponse.json({
                         type: 4,
@@ -1349,7 +1387,23 @@ export async function POST(request: NextRequest) {
         // 3. Handle Modal Submit (Songes candidature form)
         if (payload.type === 5) {
             const { custom_id, components } = payload.data;
-            const { member, guild_id } = payload;
+            const { guild_id } = payload;
+
+            // 🆕 même normalisation que pour les boutons : jamais `member` en aveugle.
+            const modalActor = resolveInteractionActor(payload as never);
+            if (!modalActor) {
+                return ephemeralDiscordMessage("❌ Interaction non identifiable.");
+            }
+            const member = payload.member ?? {
+                user: {
+                    id: modalActor.discordUserId,
+                    username: modalActor.displayName,
+                    global_name: modalActor.displayName,
+                    avatar: modalActor.avatar,
+                },
+                roles: [],
+                permissions: null,
+            };
 
             const [prefix, action, entityId, extra] = custom_id.split(":");
 
@@ -1662,6 +1716,22 @@ export async function POST(request: NextRequest) {
                 // custom_id = tb:modal_rename:{ticketId}
                 // custom_id = tb:modal_close:{ticketId}
                 // =========================================================
+                // 🆕 v2 — même contexte d'autorisation que la branche boutons : une seule
+                // règle, résolue serveur (identité, rôles, rang Discord, `staff:tickets`).
+                const { internalCheckPermission: modalCheckPermission } = await import(
+                    "@/server/actions/user-actions"
+                );
+                const modalTicketActorContext = {
+                    discordUserId: modalActor.discordUserId,
+                    discordUserName: modalActor.displayName,
+                    discordUserRoleIds: modalActor.roleIds,
+                    discordUserIsAdmin: modalActor.isGuildAdmin,
+                    hasStaffPermission: await modalCheckPermission(
+                        guild_id,
+                        modalActor.discordUserId,
+                        PERMISSION_IDS.STAFF_TICKETS
+                    ),
+                };
                 if (action === "modal_open") {
                     const panelId = entityId;
                     const categoryId = extra;
@@ -1726,6 +1796,7 @@ export async function POST(request: NextRequest) {
                         discordUserName: member.user.global_name || member.user.username,
                         ticketId,
                         content,
+                        actor: modalTicketActorContext,
                     });
                     return NextResponse.json({
                         type: 4,
@@ -1739,11 +1810,21 @@ export async function POST(request: NextRequest) {
                             if (comp.custom_id === "new_name") newName = comp.value?.trim() || "";
                         }
                     }
-                    const { renameTicketAction } = await import("@/server/actions/ticket-bot-actions");
-                    await renameTicketAction(guild_id, ticketId, newName);
+                    // Le renommage passe par la **même** autorisation que les autres actions
+                    // de staff (l'appel direct à l'action dashboard exigeait une session
+                    // NextAuth absente ici ⇒ il échouait en silence en annonçant un succès).
+                    const { internalHandleTicketRename } = await import("@/server/actions/ticket-bot-actions");
+                    const res = await internalHandleTicketRename({
+                        discordGuildId: guild_id,
+                        discordUserId: member.user.id,
+                        discordUserName: member.user.global_name || member.user.username,
+                        ticketId,
+                        newName,
+                        actor: modalTicketActorContext,
+                    });
                     return NextResponse.json({
                         type: 4,
-                        data: { content: `✏️ Salon renommé en **${newName}**`, flags: 64 },
+                        data: { content: res.message, flags: 64 },
                     });
                 } else if (action === "modal_close") {
                     const ticketId = entityId;
@@ -1760,6 +1841,7 @@ export async function POST(request: NextRequest) {
                         discordUserName: member.user.global_name || member.user.username,
                         ticketId,
                         reason,
+                        actor: modalTicketActorContext,
                     });
                     return NextResponse.json({
                         type: 4,

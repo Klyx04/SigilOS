@@ -22,6 +22,13 @@
 9. « moi le God je comprends pas, **il y a des guildes où je n'ai pas les droits**, c'est pas normal je suis le dev du produit »
 10. « les guildes **ne doivent pas savoir que le God a accès à leurs logs** — pas de trace God dans le module logs des guildes »
 11. « accès & RBAC idem **on comprend rien**, ça manque d'**icônes** »
+12. « **idem pour les logs** » (2ᵉ passe du 25/09 au soir, capture de `/god?tab=security` : journal
+    `GOD_MODULE_LOCK` / `GOD_DASHBOARD_ACCESS`, **831** entrées).
+13. « “*Le Lifecycle Server est désormais intégré à l'onglet Guildes via LifecyclePanel pour plus de clarté.*”
+    **c quoi ?** »
+14. « **Comptes (Plateforme) ✓ Aucune** … **Soft-delete — suppression définitive exécutée par le Janitor au-delà du
+    délai de rétention** → **c quoi ce truc c utile ca marche ? c dla merde non** »
+15. « **mutualiser, refonte etc** » — les **deux** écrans de logs (`/god?tab=security` et `/god/logs`).
 
 ## 1. Ce qui vient d'être livré juste avant (à ne pas refaire)
 
@@ -44,6 +51,12 @@
 | **⚠️ À surveiller** | Guilde **active** mais **≤ 3 profils** : installation neuve ou abandonnée. **Ce n'est pas une sanction**, c'est un radar. | `guild-table.tsx` |
 | **❄️ Gelée / Off** | Accès **coupé** (`AllowedGuild.isActive === false` ou `GuildConfig.deletedAt`) : le portail ne la propose plus, les membres sont bloqués. | `toggleGuildActive` |
 | **SATIN** | Badge **esthétique** de guilde (thème « satiné »), **pas un statut**. | `welcomeBadgeName` |
+| **Soft-delete** | La donnée **reste en base**, marquée supprimée (`deletedAt`, `scheduledDeletion`) jusqu'à la purge. Ce n'est **pas** une suppression. | colonnes `deletedAt` / `scheduledDeletion` |
+| **Janitor** | Script VPS `scripts/database-janitor.ts` lancé par `scripts/maintenance.sh` (~04h00, `--execute` **dans le conteneur app**) : orphelins `User` > 7 j sans profil, `AuditLog` (30 j guilde / 90 j God), `GuildConfig` + `UserProfile` dont `scheduledDeletion` est échue. **Il ne purge jamais un `User`.** | `scripts/database-janitor.ts` |
+| **Journal plateforme** | Onglet « Journal d'audit » de `/god/logs` : table `AuditLog` globale (avec les lignes `isGodLog`, sans guilde). | `getGlobalAuditLogs` |
+| **Journal de sécurité** | **Extrait du même flux** (`/god?tab=security`, `category: "security"`, 200 max) — ce n'est pas un autre journal. | `audit-feed-panel.tsx` |
+| **Accès refusés** | Onglet de `/god/logs` : table `AccessAttempt` (clic « Se connecter » **sans** guilde gérée). Écrite, affichée, purgée à 90 j par le Janitor. | `getRecentAccessAttempts` |
+| **Comptes (Plateforme)** | Carte listant les `User` avec `deletionRequestedAt`/`scheduledDeletion` non nuls. **Aucun code n'écrit ces colonnes** → voir **D2** (§4bis). | `deletion-pending-panel.tsx` |
 
 → **G1** : ces définitions doivent vivre dans l'UI (légende dépliable + `title` sur chaque badge), pas dans un doc.
 
@@ -57,6 +70,9 @@
 | **A4** | Les actions du God sur un membre (ban, purge depuis la fiche guilde) : **visibles** dans le journal de la guilde ? | **Non** (verbatim 10) : toute action d'un God part dans le **journal God** (`isGodLog: true`, sans `guildId`). |
 | **A5** | Le God voit-il **toutes** les guildes sans condition (verbatim 9) ? | **Oui** : `isSuperAdmin()` ⇒ lecture **toujours** accordée (le « pas la permission » actuel est un défaut). |
 | **A6** | La tour de contrôle : combien d'actions visibles ? | **1 action primaire par bloc** + un menu « ⋯ » pour le reste ; les actions destructrices passent en **zone danger** confirmée. |
+| **A7** | Carte **« Comptes (Plateforme) »** (D2) : on la **branche** (créer l'action « demander la suppression de mon compte » qui écrit `User.deletionRequestedAt` + `scheduledDeletion`) ou on la **supprime** ? | **Supprimer maintenant** : le panneau ne peut rien montrer (aucun écrivain), et la suppression de compte n'existe pas côté membre. Le jour où ce flux produit est décidé, panneau **et** action se codent dans le **même chantier**. Interdiction de laisser un vert « La plateforme est propre » qui ne prouve rien. |
+| **A8** | Le **cycle de vie** (D1 : `LifecyclePanel` mort, `GhostRadarPanel`/`JanitorButton` importés mais non montés) : on le **ressuscite** dans la fiche guilde ou on le **supprime** ? | **Supprimer** les 3 composants orphelins + `LifecycleServer` (le message menteur) ; **garder** `god-lifecycle-actions.ts` (les actions geler/dégeler vivent dans `guild-table.tsx`). Si le God a besoin de voir le soft-delete, il le voit dans **un onglet de `/god/logs`** (G11), pas dans un panneau séparé. |
+| **A9** | `AuditLog.GOD_DASHBOARD_ACCESS` (72 % du journal mesuré en dev) **et** `GodSessionLog` qui doublonne : on garde quoi ? | **Une seule source** : la **session** (`GodSessionLog`) reste, la **navigation** ne produit plus une ligne d'audit unitaire — le journal affiche un **compteur d'accès God agrégé** par jour. Règle générale : *une visite n'est pas un événement de sécurité*. |
 
 
 ## 4. Chantiers (1 chantier = 1 branche = 1 PR → `dev`)
@@ -149,12 +165,45 @@
 - La garde `tests/unit/god-deslop.test.ts` empêche toute régression sur les surfaces refondues et **plafonne** le
   reste : ce plafond doit **descendre** à chaque PR.
 
+### G11 — Sécurité & Logs : **une seule porte**, un journal lisible (verbatims 12 & 15)
+- **Douleur mesurée** : deux entrées de nav pour **un seul** flux (`god-nav-config.ts:65` « Sécurité & Logs » →
+  `/god?tab=security` **et** `:66` « Audit Logs » → `/god/logs`), et `AuditLog` **1032** lignes en dev dont
+  **748** `GOD_DASHBOARD_ACCESS` (**72 %**) → l'écran affiche un mur de lignes de navigation et « Page 1 / 17 ».
+- **Correctif** : ① **une** entrée de nav (« Sécurité & Logs » → `/god/logs`), `?tab=security` renvoyant un
+  `redirect()` (les liens existants ne cassent pas) ; ② cinq onglets : **Journal plateforme** · **Journal de
+  guilde** · **Accès refusés** · **Marché** · **Comptes & cycle de vie** (A7/A8) ; ③ **presets de période**
+  (24 h / 7 j / 30 j / 90 j), recherche et filtre acteur **en base**, compteur **par famille** ; ④
+  `GOD_DASHBOARD_ACCESS` **agrégé** (A9) au lieu d'une ligne par visite ; ⑤ l'onglet Sécurité cesse d'être un
+  écran **hybride** (aujourd'hui : un extrait du journal + un placeholder mort + une carte morte).
+- **Contraintes** : `god-bricks.ts:30-31` — les deux briques (`security`, `logs`) sont `subGodAccess: false` et le
+  **restent** ; `TAB_TO_BRICK` (`page.tsx:146`) ; les filtres restent **en base** (jamais un filtre client sur
+  200 lignes).
+- **Recette** : une seule entrée de nav ; plus aucun écran affichant des centaines de lignes de navigation ; la
+  pagination est **numérotée** (G6) ; « qui a verrouillé ce module et quand » se trouve en **2 clics**.
+
+## 4bis. Dette mesurée le 25/09 au soir — l'onglet **Sécurité** (`/god?tab=security`)
+
+> Mesures faites en **lecture seule** sur la base locale (`docker exec sigilos-db psql`). L'équivalent doit être
+> joué sur la bêta avant correctif. Ce sont les réponses **vérifiées** aux verbatims 13, 14 et 15 — pas des
+> suppositions : chaque ligne cite le fichier ou la requête qui la prouve.
+
+| # | Défaut mesuré | Preuve | Sort |
+|---|---|---|---|
+| **D1** | L'onglet Sécurité affiche « *Le Lifecycle Server est désormais intégré à l'onglet Guildes via LifecyclePanel pour plus de clarté.* » — un **placeholder de refactor jamais terminé**, et **faux** : le composant n'est monté nulle part. Le cycle de vie (guildes/profils soft-deleted, fantômes, bannis, suspects) n'est donc **plus accessible** dans la console. | `page.tsx:573-579` (`LifecycleServer`), monté en `page.tsx:311-316` ; `git grep LifecyclePanel` ⇒ **aucun import** hors de sa propre définition (`components/lifecycle-panel.tsx`, ~800 lignes) ; `GhostRadarPanel` et `JanitorButton` sont **importés mais jamais rendus** (`page.tsx:37,40`). | **A8** → suppression du placeholder et des composants orphelins (ou résurrection explicite, **décidée**) ; les actions serveur utiles (`god-lifecycle-actions.ts`) restent. |
+| **D2** | Carte **« Comptes (Plateforme) »** : « ✓ Aucune / La plateforme est propre » s'affiche **par construction** — c'est un **faux positif** de sécurité, pas un résultat. La légende est **inexacte** : elle attribue la suppression définitive au *Janitor*, qui ne touche **jamais** un `User` (il ne purge que les orphelins > 7 j, `GuildConfig` et `UserProfile`). | `deletion-pending-panel.tsx:1-118` + `super-admin-actions.ts:1146` ; **aucune écriture** de `User.deletionRequestedAt` dans tout `src/` (3 occurrences : 1 migration + le schema + la lecture) ; mesures locales : `User` en attente **0**, `GuildConfig` soft-delete **0**, `UserProfile` soft-delete **0** ; la vraie purge des comptes = `/api/cron/account-retention` → `purgeOrphanAccountsCore` (90 j, `profiles: none ACTIVE`, gardes super-admin + `guildEvents`). | **A7** → suppression maintenant ; le jour où un membre peut **demander** la suppression de son compte, l'action et le panneau se codent **ensemble**. |
+| **D3** | **Mutualisation absente** : `/god?tab=security` (`GlobalLogsServer`, 200 lignes, `category: "security"`) et `/god/logs` (`LogViewer`, 50/page) affichent **le même `AuditLog`** ; la navigation du God est journalisée **deux fois** et **noye** le journal (sur la capture bêta : 831 entrées, majoritairement des visites). | `page.tsx:296-324` vs `logs/page.tsx` ; `god-nav-config.ts:65-66` ; mesures locales : `AuditLog` **1032** (dont **867** `isGodLog`), `GOD_DASHBOARD_ACCESS` **748**, `GodSessionLog` **490**, `AccessAttempt` **1**, `GodAccessLog` **55** (écrit, **jamais** exposé), `GodNotification` **78**. | **G11** (+ **A9**) : un seul écran, accès God agrégé, `GodAccessLog` soit exposé soit arrêté. |
+
 ## 5. Ordre conseillé (dépendances)
 
-1. **A1/A5 tranchés** (décisions, pas de code) → sinon G8 repart en arrière.
-2. **G7** (bug bloquant pour toi, 1 fichier) → **G8** (verrou visible/rebouclage + message maintenance) → **G4** (cartes modules).
-3. **G1** (langage/légende) → **G2** (tour de contrôle) → **G6** (logs) → **G3** (roster) → **G5** (RBAC) → **G9** (users).
-4. **G10** (déslop/responsive) se fait **par lots**, en même temps que chaque écran touché — jamais un « big bang ».
+1. **A1/A5 tranchés** (décisions, pas de code) → sinon G8 repart en arrière. **A7/A8/A9** se tranchent avec le lot 0
+   ci-dessous (ce sont des suppressions, pas des refontes).
+2. **Lot 0 — le mort d'abord** (2 fichiers, aucune surface refondue) : **G11-①/⑤** (une seule porte de nav, suppression
+   du placeholder `LifecycleServer` + carte « Comptes (Plateforme) » + composants orphelins *selon A7/A8*), puis
+   **A9** (accès God agrégé). C'est ce qui rend l'onglet **Sécurité** crédible **avant** toute refonte visuelle.
+3. **G7** (bug bloquant pour toi, 1 fichier) → **G8** (verrou visible/rebouclage + message maintenance) → **G4** (cartes modules).
+4. **G1** (langage/légende) → **G2** (tour de contrôle) → **G6 + G11-②③④** (le journal : pagination + onglets
+   mutualisés — même composant, un seul lot) → **G3** (roster) → **G5** (RBAC) → **G9** (users).
+5. **G10** (déslop/responsive) se fait **par lots**, en même temps que chaque écran touché — jamais un « big bang ».
 
 ## 6. Recette globale (DoD de la refonte)
 
@@ -163,6 +212,9 @@
       **message « maintenance »** visible côté guilde (et **aucune** mention « staff »).
 - [ ] Aucune action God visible dans le journal de la guilde (verbatim 10) — vérifier **après** une action God sur un membre.
 - [ ] Chaque badge de statut a un `title` + une légende accessible (verbatim 2).
+- [ ] **Une seule** entrée de nav pour les logs (`/god/logs`), `?tab=security` redirigé, **aucun** placeholder ni
+      carte alimentée par une colonne que personne n'écrit (verbatims 13/14, D1/D2).
+- [ ] Le journal n'affiche **plus** une ligne par visite du God (A9) et chaque ligne affichée veut dire quelque chose.
 
 ## 8. Directives de design — **IMPÉRATIF** (anti-slop, alignement, interface d'admin)
 
@@ -224,6 +276,8 @@ git fetch origin dev && git switch dev && git pull            # dev contient #73
 npm run test:run && npx tsc --noEmit                          # état de départ attendu : vert
 ```
 **À lire** : ce fichier + `docs/agents/activeContext.md` (bloc « Session 25/09/2026 (God, refonte) ») + le verbatim §0.
+**À trancher AVANT tout commit** : **A1-A9** (§3) — en particulier **A7/A8** (supprimer la carte « Comptes
+(Plateforme) » et le placeholder `LifecycleServer` ? → lot 0 de l'ordre §5).
 **À ne pas relire** : les 3 audits de `temp/` (arbitrés), le mémo externe (corrigé le 25/09).
 **Pièges connus** : `src/app/god/**` est allowlisté dans `sigil/no-hardcoded-colors` (le déslop ne casse pas le lint,
 il n'est donc **pas** détecté) · `moduleCache` (30 s) et le cache Redis du contexte (`user:ctx:*`) peuvent masquer un

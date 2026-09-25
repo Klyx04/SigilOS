@@ -61,6 +61,9 @@
 
 ## 4. Chantiers (1 chantier = 1 branche = 1 PR → `dev`)
 
+> ⚠️ **Tous les chantiers ci-dessous obéissent aux directives de design du §8** (anti-slop, alignement sur le
+> standard existant, logique d'**interface d'admin**). Un chantier « fonctionnel » qui ignore le §8 est refusé en revue.
+
 ### G1 — Langage : arrêter le jargon (verbatim 2)
 - **Douleur** : « c'est quoi autonome / pré-approuvé / à surveiller / gelée-off ». Aucun de ces mots n'est expliqué
   dans l'écran ; pire, « À surveiller » ressemble à une sanction alors que c'est un **radar** (≤ 3 profils).
@@ -160,6 +163,58 @@
       **message « maintenance »** visible côté guilde (et **aucune** mention « staff »).
 - [ ] Aucune action God visible dans le journal de la guilde (verbatim 10) — vérifier **après** une action God sur un membre.
 - [ ] Chaque badge de statut a un `title` + une légende accessible (verbatim 2).
+
+## 8. Directives de design — **IMPÉRATIF** (anti-slop, alignement, interface d'admin)
+
+> Verbatim user, 25/09 : « **aucun AI slop**, on s'aligne avec les standards actuels (landing etc.) »
+> puis « je rappelle que **c'est une interface admin de gestion** ».
+
+### 8.1 Le standard auquel on s'aligne (il existe — ne rien inventer)
+
+| Source | Ce qu'on y prend |
+|---|---|
+| **Couche `.reg-*` / `.registre`** de la landing (`src/app/globals.css`, **129 règles**) | La direction retenue le 16/09 (« **montrer davantage SigilOS, montrer moins la landing** », PR #683, branche `feat/refonte-landing-anti-slop`). **Interdiction d'ouvrir une 2ᵉ direction visuelle.** |
+| **Jetons sémantiques** (`bg-card`, `text-muted-foreground`, `border-border`, `bg-info/15 text-info`, `bg-warning/10`) | L'admin **client** les consomme déjà (`admin/pilotage`, modules) ; le **God** ne les consomme pas (palettes `zinc-*`/`violet-*` en dur + allowlist ESLint) → **c'est exactement l'écart à combler**. |
+| **Kit God existant** `src/app/god/ui/*` (`GodCard`, `GodPanel`, `GodSectionHeader`, `GodBadge`, `GodStatCard`, `GodEmptyState`, `GodLoadingSkeleton`) | La base : on l'**étend** (`GodTable`, `GodToolbar`, `GodPagination`, `GodTabs`, `GodTooltip`) au lieu de réinventer un composant par écran. |
+| **Assets** `public/assets/nav/*` (icônes de modules déjà utilisées par la navbar), `public/assets/landing/*` | Icônes des modules (verbatim 5) — **les mêmes** que côté client. |
+
+### 8.2 Interdits = ce que le user appelle « AI slop »
+
+| Motif banni | Remplacement |
+|---|---|
+| Dégradés **violet/glow** décoratifs (signature actuelle du God : `from-violet-500 to-violet-700`, halos `blur-2xl`) | `bg-card` + **un seul** accent par écran (couleur de marque ou statut) |
+| `backdrop-blur-xl` sur **chaque** carte | Réservé aux surfaces flottantes (modale, popover, barre collante) |
+| **Emojis dans les libellés structurants** (« 🔒 Verrouillé », « 🚀 Autonome », « 👑 VIP ») | Icône **lucide** + texte ; emoji toléré **uniquement** dans les notifications Discord |
+| Vocabulaire marketing dans un écran interne (« Premium guild management », « Inspection God Mode ») | Libellé **fonctionnel** (« Fiche guilde », « Modules ») |
+| Animation décorative (`animate-pulse` partout, `framer-motion` sur du contenu statique) | Aucune — au plus une transition ≤ 150 ms sur un **changement d'état** |
+| Rayons et espacements improvisés (`rounded-2xl`/`rounded-3xl`/`p-5`/`p-8` au hasard) | **3 rayons max** (carte / contrôle / pastille) et une échelle d'espacement unique (4/8/12/16/24) |
+| 6 à 8 tailles de police différentes | Échelle fermée (12 / 13 / 14 / 16 / 20 / 24) |
+| Faux compteurs, faux pourcentages, fausses barres de progression décoratives | Un chiffre = **une requête mesurée** (sinon il n'est pas affiché) |
+| Pavé d'avertissement orange qui crie (« NOTE : en tant que Super-Admin… », « ⚠️ Ce serveur n'est pas dans la whitelist ») | Information **discrète** (`bg-info/10`, `text-muted-foreground`) ou tooltip |
+| Tableau à colonnes vides / cellules `-` / `AJOUTER ID` | Colonne **supprimée** si elle n'a rien à dire |
+
+### 8.3 C'est une **interface d'administration** — règles de densité et d'efficacité
+
+- **La donnée d'abord** : tableaux alignés, chiffres en `tabular-nums`, colonnes **triables**, pagination **numérotée**
+  (pas « Page 1 / 2 »), densité constante d'un écran à l'autre.
+- **Une action primaire par bloc** (le reste en `⋯`) ; toute action destructrice = **zone danger** + confirmation explicite.
+- **4 états obligatoires par bloc** : vide (message + action), chargement (`GodLoadingSkeleton`), erreur (avec cause),
+  refus (avec la raison). Jamais d'écran muet, jamais un message d'erreur qui ressemble à un refus de droits.
+- **Responsive à 4 paliers** : 1440 (dense), 1280 (référence), 1024 (sidebar repliée), 768/390 (**tableau → cartes**).
+  Aucun `overflow-x` horizontal : on repense la ligne, on ne scrolle pas.
+- **FR partout** : libellés, dates (`jj/mm/aaaa` ou relatif), unités, messages d'erreur. Aucun slug technique
+  (`system:god`, `MODULE_GOD_LOCK`) visible par un humain.
+- **Accessibilité minimale** : `title`/`aria-label` sur les icônes seules, focus visible, contrastes ≥ 4.5:1 sur le texte.
+
+### 8.4 Gardes mesurables (pour que ça ne re-dérive pas)
+
+- `tests/unit/god-deslop.test.ts` (existant) : le **plafond** d'écrans God « en dur » doit **baisser** à chaque PR ;
+  on y ajoute une garde « aucun emoji dans un libellé de `src/app/god/**` » et « aucune nouvelle couleur en dur hors jetons ».
+- **Aucune** nouvelle entrée dans l'`allowFiles` de `sigil/no-hardcoded-colors` (une exemption sans raison = dette) ;
+  objectif final : **retirer le God de l'allowlist**.
+- **Recette visuelle obligatoire** : 3 captures **1440 / 1024 / 390** (avant/après) par écran refondu — zone volatile
+  `temp/` (jamais versionnée, cf. `docs/agents/zone-volatile.md`), et vérification que rien ne casse en mobile.
+
 - [ ] `npm run test:run` + `npx tsc --noEmit` + `npm run lint` verts, `git status --short` propre, plafond déslop ↓.
 
 ## 7. Protocole de reprise (pour la prochaine session)

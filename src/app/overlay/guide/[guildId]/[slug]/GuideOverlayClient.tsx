@@ -918,15 +918,17 @@ export default function GuideOverlayClient({
       );
     }
     if (ms.type === "INFO") {
+      const infoText = ms.tips || ms.description || ms.title || "";
+      const infoTitle = ms.title && !infoText.startsWith(ms.title) ? ms.title : null;
       return (
         <RushInfoBanner
           key={ms.id}
-          title={ms.description && ms.title && !ms.description.startsWith(ms.title) ? ms.title : null}
+          title={infoTitle}
           imageUrl={ms.imageUrl}
           accentColor={ms.accentColor}
           className="my-3"
         >
-          <RushRichText text={ms.tips || ms.description || ms.title} />
+          <RushRichText text={infoText} normalizeMeta />
         </RushInfoBanner>
       );
     }

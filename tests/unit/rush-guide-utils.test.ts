@@ -27,7 +27,7 @@ describe("rush-guide-utils", () => {
       expect(res?.y).toBe(2);
       expect(res?.worldId).toBeUndefined();
       expect(res?.raw).toBe("[-1, 2]");
-      expect(res?.travelCommand).toBe("/w -1,2");
+      expect(res?.travelCommand).toBe("/travel -1,2");
     });
 
     it("extrait les coordonnées avec worldId [x, y, worldId]", () => {
@@ -36,7 +36,7 @@ describe("rush-guide-utils", () => {
       expect(res?.x).toBe(15);
       expect(res?.y).toBe(-28);
       expect(res?.worldId).toBe(1);
-      expect(res?.travelCommand).toBe("/w 15,-28,1");
+      expect(res?.travelCommand).toBe("/travel 15 -28 1");
     });
 
     it("renvoie null si aucune coordonnée n'est présente", () => {
@@ -50,7 +50,7 @@ describe("rush-guide-utils", () => {
       expect(res?.x).toBe(-81);
       expect(res?.y).toBe(-37);
       expect(res?.worldId).toBeUndefined();
-      expect(res?.travelCommand).toBe("/w -81,-37");
+      expect(res?.travelCommand).toBe("/travel -81,-37");
     });
 
     it("extrait la première coordonnée d'une liste pos_tags multi-points", () => {
@@ -66,15 +66,15 @@ describe("rush-guide-utils", () => {
       expect(res?.y).toBe(15);
       // Ce qu'on AFFICHE reste la position entre crochets — jamais la commande crue.
       expect(res?.raw).toBe("[-55, 15]");
-      // Ce qu'on COPIE est la commande du Dofus actuel.
-      expect(res?.travelCommand).toBe("/w -55,15");
+      // Ce qu'on COPIE est la commande de déplacement demandée.
+      expect(res?.travelCommand).toBe("/travel -55,15");
     });
 
-    it("reconnaît encore l'ancienne écriture /travel (compatibilité de saisie)", () => {
+    it("reconnaît encore l'écriture /travel (compatibilité de saisie)", () => {
       const res = parseCoordinates("Allez en /travel -55 15");
       expect(res?.x).toBe(-55);
       expect(res?.y).toBe(15);
-      expect(res?.travelCommand).toBe("/w -55,15");
+      expect(res?.travelCommand).toBe("/travel -55,15");
     });
   });
 

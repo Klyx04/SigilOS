@@ -102,49 +102,21 @@ function buildDiscordCommandPayloads() {
         },
         {
             name: "valider-recrue",
-            description: "✅ Staff — complète la ligne registre d'une recrue",
+            // 🧭 La commande n'a plus qu'**une** option : la recrue visée. Les six autres
+            // (`pseudo-dofus`, `tag-ankama`, `recruteur`, `arrivee`, `ajouter-role`,
+            // `retirer-role`) sont devenues des **champs de formulaire** : la commande ouvre
+            // une **modale** préremplie (pseudo et tag Ankama lus du profil, date du jour,
+            // recruteur = auteur de l'interaction) et les rôles appliqués viennent du réglage
+            // RBAC de la guilde (`/dashboard/[guildId]/admin/slash-commands`). Les options
+            // héritées restaient affichées par Discord (« membre » + « + 6 en plus ») alors
+            // qu'elles n'étaient plus utilisées.
+            description: "✅ Staff — ouvre le formulaire de validation d'une recrue (registre)",
             options: [
                 {
                     name: "membre",
-                    description: "La recrue (mention Discord, obligatoire)",
+                    description: "La recrue à valider — le reste se remplit dans le formulaire",
                     type: 6, // USER
                     required: true
-                },
-                {
-                    name: "pseudo-dofus",
-                    description: "Pseudo Dofus de la recrue",
-                    type: 3, // STRING
-                    required: false
-                },
-                {
-                    name: "tag-ankama",
-                    description: "Tag Ankama au format Nom#0000",
-                    type: 3, // STRING
-                    required: false
-                },
-                {
-                    name: "recruteur",
-                    description: "Qui l'a recruté (défaut : toi)",
-                    type: 6, // USER
-                    required: false
-                },
-                {
-                    name: "arrivee",
-                    description: "Date d'arrivée JJ/MM/AAAA (défaut : aujourd'hui)",
-                    type: 3, // STRING
-                    required: false
-                },
-                {
-                    name: "ajouter-role",
-                    description: "Rôle à ajouter (défaut : réglage dashboard)",
-                    type: 8, // ROLE
-                    required: false
-                },
-                {
-                    name: "retirer-role",
-                    description: "Rôle à retirer (défaut : réglage dashboard)",
-                    type: 8, // ROLE
-                    required: false
                 }
             ]
         },

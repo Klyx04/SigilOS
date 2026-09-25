@@ -3365,7 +3365,7 @@ export async function POST(request: NextRequest) {
                                         required: true,
                                         min_length: 2,
                                         max_length: 30,
-                                        value: opt("pseudo-dofus") || profile.pseudoDofus || "",
+                                        value: profile.pseudoDofus || "",
                                     },
                                 ],
                             },
@@ -3380,7 +3380,7 @@ export async function POST(request: NextRequest) {
                                         placeholder: "Ex: Michmich#4777",
                                         required: false,
                                         max_length: 60,
-                                        value: opt("tag-ankama") || profile.ankamaId || "",
+                                        value: profile.ankamaId || "",
                                     },
                                 ],
                             },
@@ -3410,7 +3410,10 @@ export async function POST(request: NextRequest) {
                                         placeholder: "Pseudo ou mention Discord (vide = toi)",
                                         required: false,
                                         max_length: 50,
-                                        value: opt("recruteur") ? `<@${opt("recruteur")}>` : "",
+                                        // Vide par défaut : le recruteur est **l'auteur de
+                                        // l'interaction** (le champ reste éditable pour un
+                                        // autre pseudo), il n'est plus passé en option.
+                                        value: "",
                                     },
                                 ],
                             },

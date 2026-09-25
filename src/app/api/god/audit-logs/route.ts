@@ -21,6 +21,7 @@ export async function GET(request: Request) {
     const limit = parseInt(searchParams.get("limit") || "50");
     const action = searchParams.get("action") || undefined;
     const search = searchParams.get("search") || undefined;
+    const actor = searchParams.get("actor") || undefined;
     // 🔎 Paramètres bornés par liste blanche (une valeur inconnue est ignorée par la
     // route, jamais transmise au schéma Zod : sinon l'action retombait sur ses défauts).
     const rawCategory = searchParams.get("category");
@@ -40,16 +41,21 @@ export async function GET(request: Request) {
     const rawDateFrom = searchParams.get("dateFrom");
     const parsedDateFrom = rawDateFrom ? new Date(rawDateFrom) : null;
     const dateFrom = parsedDateFrom && !Number.isNaN(parsedDateFrom.getTime()) ? parsedDateFrom : undefined;
+    const rawDateTo = searchParams.get("dateTo");
+    const parsedDateTo = rawDateTo ? new Date(rawDateTo) : null;
+    const dateTo = parsedDateTo && !Number.isNaN(parsedDateTo.getTime()) ? parsedDateTo : undefined;
 
     const result = await getGlobalAuditLogs({
         page,
         limit,
         actionFilter: action,
+        actorFilter: actor,
         search,
         category,
         scope,
         guildConfigId,
         dateFrom,
+        dateTo,
     });
 
     if (!result.success) {

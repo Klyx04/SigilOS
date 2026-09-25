@@ -244,6 +244,35 @@ export async function createAuditLog({
             return { success: false, error: "Guild not found" };
         }
 
+        // 🛡️ A4 (verbatim 10 : « les guildes ne doivent pas savoir que le God a accès à
+        // leurs logs — pas de trace God dans le module logs des guildes »).
+        //
+        // Une action menée par un super-admin **sans autorité dans cette guilde** est une
+        // action **God** : elle part au journal plateforme (`isGodLog: true`, **sans**
+        // `guildId`) et **jamais** au journal de la guilde. La règle est posée **ici, une
+        // seule fois** : tous les appelants (purge/ban/déblocage de membre, pseudo, ID
+        // Ankama, transfert de propriété, `logAction`…) en héritent, sans un seul `if`
+        // dupliqué dans les écrans — et aucun drapeau ne vient du client.
+        if (await isGodActorWithoutGuildAuthority(guildId)) {
+            const godLog = await createGodAuditLog({
+                action,
+                targetType,
+                targetId,
+                oldValue,
+                newValue,
+                // `metadata` est `unknown` ici (les appelants envoient des objets Json) :
+                // on ne le transmet au journal God que s'il a bien cette forme.
+                metadata: metadata && typeof metadata === "object"
+                    ? (metadata as Record<string, unknown>)
+                    : undefined,
+                guildId,
+            });
+            return {
+                success: godLog.success,
+                data: godLog.logId ? { logId: godLog.logId } : undefined,
+            };
+        }
+
         // Import Prisma for JsonNull handling
         const { Prisma } = await import("@prisma/client");
 
@@ -562,6 +591,37 @@ export async function createGodAuditLog({
     } catch (error) {
         logger.error("[createGodAuditLog] Error:", { error });
         return { success: false };
+    }
+}
+
+/**
+ * A4 — Cet acteur agit-il en **God** (et non en admin de cette guilde) ?
+ *
+ * Un super-admin **qui n'a aucune autorité dans la guilde ciblée** (ni `isAdmin`, ni
+ * `canManageMembers` — un God n'est pas forcément membre) est en train d'agir depuis la
+ * console God. Toutes ses écritures doivent aller au **journal plateforme**, jamais au
+ * journal de la guilde.
+ *
+ * Fail-safe : sans session (bot, cron) on ne route **jamais** vers le journal God — le
+ * comportement historique est conservé. Un super-admin qui EST admin de la guilde écrit
+ * dans **son** journal de guilde (il agit alors comme admin de sa guilde, pas en God).
+ */
+async function isGodActorWithoutGuildAuthority(guildDiscordId: string): Promise<boolean> {
+    try {
+        const session = await auth();
+        if (!session?.user?.id) return false;
+
+        const { isSuperAdmin } = await import("./super-admin-actions");
+        if (!(await isSuperAdmin())) return false;
+
+        const ctx = await getUserContext(guildDiscordId).catch(() => null);
+        return !ctx?.isAdmin && !ctx?.canManageMembers;
+    } catch (error) {
+        // Fail-safe **vers le journal de guilde** : le routage God est une exception, pas
+        // un défaut. Un bot ou un cron ne doit jamais écrire dans le journal plateforme
+        // par accident (l'événement disparaîtrait du journal de la guilde).
+        logger.error("[isGodActorWithoutGuildAuthority] Error:", { error });
+        return false;
     }
 }
 

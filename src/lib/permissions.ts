@@ -41,6 +41,8 @@ export const PERMISSIONS = {
     MARKET_MODERATE: "market:moderate",
 } as const;
 
+export const PERMISSION_IDS = PERMISSIONS;
+
 export type PermissionId = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
 
 export type PermissionModule = "access" | "admin" | "missions" | "game" | "community" | "info";

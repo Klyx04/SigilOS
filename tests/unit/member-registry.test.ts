@@ -11,6 +11,8 @@ import {
     computeSeniorityDays,
     getTrialDecision,
     isValidAnkamaId,
+    parseAnkamaTag,
+    hasPseudoDiscordMismatch,
     resolveJoinedAt,
     sortRegistryComments,
 } from "@/lib/member-registry";
@@ -136,10 +138,25 @@ describe("registre membres — commentaires du staff", () => {
         expect(comments.map((c) => c.id)).toEqual(["b", "a"]);
     });
 
-    it("plafonne le journal à 10 entrées", () => {
-        expect(MAX_REGISTRY_COMMENTS).toBe(10);
+    it("plafonne le journal à 20 entrées", () => {
+        expect(MAX_REGISTRY_COMMENTS).toBe(20);
         expect(canAddRegistryComment(0)).toBe(true);
-        expect(canAddRegistryComment(9)).toBe(true);
-        expect(canAddRegistryComment(10)).toBe(false);
+        expect(canAddRegistryComment(19)).toBe(true);
+        expect(canAddRegistryComment(20)).toBe(false);
+    });
+});
+
+describe("Ankama Tag Helpers", () => {
+    it("décompose correctement le tag Nom#0000", () => {
+        expect(parseAnkamaTag("Michmich#4777")).toEqual({ name: "Michmich", discriminator: "4777" });
+        expect(parseAnkamaTag(null)).toBeNull();
+        expect(parseAnkamaTag("SansTag")).toEqual({ name: "SansTag", discriminator: "" });
+    });
+
+    it("détecte une divergence entre pseudo Discord et tag Ankama", () => {
+        expect(hasPseudoDiscordMismatch("Wylan 👑 (LEAD)", "michmich8956392#4777")).toBe(true);
+        expect(hasPseudoDiscordMismatch("Michmich", "Michmich#4777")).toBe(false);
+        expect(hasPseudoDiscordMismatch("Mich-Mich", "michmich#4777")).toBe(false);
+        expect(hasPseudoDiscordMismatch(null, "Michmich#4777")).toBe(false);
     });
 });

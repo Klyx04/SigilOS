@@ -227,7 +227,10 @@ export default function MemberManagement({
     initialTab
 }: MemberManagementProps) {
     const [mounted, setMounted] = useState(false);
-    const [activeTab, setActiveTab] = useState(initialTab === "registre" ? "registre" : "audit");
+    const [activeTab, setActiveTab] = useState(initialTab === "blacklist" ? "blacklist" : "audit");
+    const [subView, setSubView] = useState<"roster" | "registre" | "audit">(
+        initialTab === "registre" ? "registre" : "roster"
+    );
     // #74 — modale dédiée « Relancer » (solo ou bulk)
     const [relanceTargets, setRelanceTargets] = useState<RelanceTarget[] | null>(null);
 
@@ -409,52 +412,12 @@ export default function MemberManagement({
                 </div>
             </div>
 
-            {/* Unified Summary Statistics */}
-            {canManageMembers && (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    {[
-                        { label: "Total Discord", value: data?.members.length || "...", sub: "Membres humains détectés", icon: Users, progress: false },
-                        { label: "Inscrits Dashboard", value: data?.members.filter(m => m.hasDashboardProfile).length || 0, sub: `${(data && data.members.length > 0) ? Math.round((data.members.filter(m => m.hasDashboardProfile).length / data.members.length) * 100) : 0}% de couverture`, icon: CheckCircle2, progress: true },
-                        { label: "Manquants Dashboard", value: missingMebersCount, sub: "Membres à inviter sur le site", icon: ShieldAlert, progress: false },
-                        { label: "Rôles Actifs", value: data?.stats.length || 0, sub: "Rôles mappés sur le Dashboard", icon: Trophy, progress: false }
-                    ].map((stat, i) => {
-                        const colors = STAT_COLORS[i];
-                        return (
-                            <Card key={i} className="bg-surface/30 border-border rounded-xl relative overflow-hidden">
-                                <CardHeader className="pb-3">
-                                    <CardDescription className={`flex items-center gap-2 ${colors.label} font-semibold uppercase text-caption tracking-wide`}>
-                                        <stat.icon className="w-3 h-3" />
-                                        {stat.label}
-                                    </CardDescription>
-                                    <CardTitle className="text-3xl font-bold text-foreground">{stat.value}</CardTitle>
-                                </CardHeader>
-                                <CardContent className="space-y-3">
-                                    {stat.progress ? (
-                                        <div className="space-y-1.5">
-                                            <Progress 
-                                                value={data ? (data.members.filter(m => m.hasDashboardProfile).length / data.members.length) * 100 : 0} 
-                                                className="h-1.5 bg-surface"
-                                                indicatorClassName={colors.indicator}
-                                            />
-                                            <p className={`text-caption ${colors.sublabel} font-medium uppercase tracking-wide`}>{stat.sub}</p>
-                                        </div>
-                                    ) : (
-                                        <p className="text-caption text-muted-foreground font-medium uppercase tracking-wide">{stat.sub}</p>
-                                    )}
-                                </CardContent>
-                            </Card>
-                        );
-                    })}
-                </div>
-            )}
-
             <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
                 {/* Tabs with scroll on mobile */}
                 <div className="overflow-x-auto no-scrollbar -mx-2 px-2 pb-2">
                     <TabsList className="bg-background/80 p-1.5 rounded-xl border border-border w-full sm:w-fit flex flex-wrap sm:flex-nowrap gap-1.5">
                     {[
-                        { id: "audit", label: "📊 Audit Discord vs Dashboard", icon: ShieldCheck, requiresFull: true },
-                        { id: "registre", label: "📋 Registre Recrutement", icon: ClipboardList, requiresFull: true },
+                        { id: "audit", label: "👥 Membres & Roster", icon: Users, requiresFull: true },
                         { id: "blacklist", label: "🚫 Blacklist Guilde", icon: Ban, requiresFull: true },
                     ].map(tab => {
                         const isDisabled = tab.requiresFull && !canManageMembers;
@@ -486,14 +449,142 @@ export default function MemberManagement({
                 </TabsList>
                 </div>
 
-                {/* --- TAB 1: AUDIT --- */}
-                <TabsContent value="audit" className="space-y-8 animate-in fade-in duration-150 min-h-[600px]">
-                    <p className="text-sm text-muted-foreground -mt-4">
-                        Compare les membres présents sur Discord avec les profils enregistrés sur le Dashboard : couverture, rôles mappés et profils manquants.
-                    </p>
-                    <div className="space-y-8">
-                        {/* Bottom Utility Cards */}
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* --- TAB 1: MEMBRES & ROSTER (Profils, Registre RH, Audit Discord) --- */}
+                <TabsContent value="audit" className="space-y-6 animate-in fade-in duration-150 min-h-[600px]">
+                    {/* Switcher de sous-vue moderne & responsive (3 vues en 1) */}
+                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 p-2 bg-surface/30 border border-border rounded-2xl backdrop-blur-xl">
+                        <div className="flex items-center gap-1.5 p-1 bg-background/80 rounded-xl border border-border w-full lg:w-auto overflow-x-auto no-scrollbar">
+                            <button
+                                type="button"
+                                onClick={() => setSubView("roster")}
+                                className={cn(
+                                    "flex-1 sm:flex-initial flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap",
+                                    subView === "roster"
+                                        ? "bg-surface text-foreground shadow-sm border border-border"
+                                        : "text-muted-foreground hover:text-foreground"
+                                )}
+                            >
+                                <Users className="w-4 h-4 text-violet-400" />
+                                <span>Profils & Actions</span>
+                                <span className="ml-1 px-1.5 py-0.5 rounded-full text-[10px] bg-violet-500/20 text-violet-300 font-black">
+                                    {initialStats?.total ?? memberList.members.length}
+                                </span>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setSubView("registre")}
+                                className={cn(
+                                    "flex-1 sm:flex-initial flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap",
+                                    subView === "registre"
+                                        ? "bg-surface text-foreground shadow-sm border border-border"
+                                        : "text-muted-foreground hover:text-foreground"
+                                )}
+                            >
+                                <ClipboardList className="w-4 h-4 text-amber-400" />
+                                <span>Registre Recrutement</span>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setSubView("audit")}
+                                className={cn(
+                                    "flex-1 sm:flex-initial flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap",
+                                    subView === "audit"
+                                        ? "bg-surface text-foreground shadow-sm border border-border"
+                                        : "text-muted-foreground hover:text-foreground"
+                                )}
+                            >
+                                <ShieldCheck className="w-4 h-4 text-success" />
+                                <span>Audit Discord & Sync</span>
+                                <span className="ml-1 px-1.5 py-0.5 rounded-full text-[10px] bg-success/20 text-success font-black">
+                                    {data?.members.length ?? "..."}
+                                </span>
+                            </button>
+                        </div>
+                        <p className="text-xs text-muted-foreground px-2">
+                            {subView === "roster"
+                                ? "Statut du profil, congés / vacances, archivage, bannissement et actions par membre."
+                                : subView === "registre"
+                                ? "Registre du staff : arrivée, tag Ankama colorisé, mules vérifiées ladder et avis."
+                                : "Couverture Discord vs Dashboard, rôles mappés et réconciliation."}
+                        </p>
+                    </div>
+
+                    {/* VUE 1 : GESTION DES PROFILS & ACTIONS (ROSTER) */}
+                    {subView === "roster" && (
+                        <div className="space-y-6 animate-in fade-in duration-150">
+                            <MemberStatsOverview stats={initialStats} />
+                            <div className="p-1 px-3 bg-surface/40 border border-border rounded-3xl backdrop-blur-xl overflow-hidden shadow-2xl">
+                                <MemberManagementTable
+                                    initialMembers={memberList.members}
+                                    guildId={guildId}
+                                    welcomeBadgeName={welcomeBadgeName}
+                                    isSuperAdmin={isSuperAdmin}
+                                    isAdmin={canManageMembers}
+                                    ownerId={memberList.ownerId}
+                                    currentUserId={currentUserId}
+                                    showIds={false}
+                                />
+                            </div>
+                        </div>
+                    )}
+
+                    {/* VUE 2 : REGISTRE RECRUTEMENT (STAFF & RH) */}
+                    {subView === "registre" && (
+                        <div className="space-y-6 animate-in fade-in duration-150">
+                            {canManageMembers ? (
+                                <MemberRegistryTable guildId={guildId} canManageMembers={canManageMembers} />
+                            ) : (
+                                <div className="p-8 text-center bg-surface/30 border border-border rounded-2xl">
+                                    <p className="text-sm font-semibold text-warning">Permission &quot;Gestion des Membres&quot; requise pour accéder au registre de recrutement.</p>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {/* VUE 3 : AUDIT DISCORD & SYNCHRO */}
+                    {subView === "audit" && (
+                        <div className="space-y-8 animate-in fade-in duration-150">
+                            {/* Summary Statistics Discord */}
+                            {canManageMembers && (
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                                    {[
+                                        { label: "Total Discord", value: data?.members.length || "...", sub: "Membres humains détectés", icon: Users, progress: false },
+                                        { label: "Inscrits Dashboard", value: data?.members.filter(m => m.hasDashboardProfile).length || 0, sub: `${(data && data.members.length > 0) ? Math.round((data.members.filter(m => m.hasDashboardProfile).length / data.members.length) * 100) : 0}% de couverture`, icon: CheckCircle2, progress: true },
+                                        { label: "Manquants Dashboard", value: missingMebersCount, sub: "Membres à inviter sur le site", icon: ShieldAlert, progress: false },
+                                        { label: "Rôles Actifs", value: data?.stats.length || 0, sub: "Rôles mappés sur le Dashboard", icon: Trophy, progress: false }
+                                    ].map((stat, i) => {
+                                        const colors = STAT_COLORS[i];
+                                        return (
+                                            <Card key={i} className="bg-surface/30 border-border rounded-xl relative overflow-hidden">
+                                                <CardHeader className="pb-3">
+                                                    <CardDescription className={`flex items-center gap-2 ${colors.label} font-semibold uppercase text-caption tracking-wide`}>
+                                                        <stat.icon className="w-3 h-3" />
+                                                        {stat.label}
+                                                    </CardDescription>
+                                                    <CardTitle className="text-3xl font-bold text-foreground">{stat.value}</CardTitle>
+                                                </CardHeader>
+                                                <CardContent className="space-y-3">
+                                                    {stat.progress ? (
+                                                        <div className="space-y-1.5">
+                                                            <Progress 
+                                                                value={data ? (data.members.filter(m => m.hasDashboardProfile).length / data.members.length) * 100 : 0} 
+                                                                className="h-1.5 bg-surface"
+                                                                indicatorClassName={colors.indicator}
+                                                            />
+                                                            <p className={`text-caption ${colors.sublabel} font-medium uppercase tracking-wide`}>{stat.sub}</p>
+                                                        </div>
+                                                    ) : (
+                                                        <p className="text-caption text-muted-foreground font-medium uppercase tracking-wide">{stat.sub}</p>
+                                                    )}
+                                                </CardContent>
+                                            </Card>
+                                        );
+                                    })}
+                                </div>
+                            )}
+
+                            {/* Bottom Utility Cards */}
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                             {/* Embedded Sync Card */}
                             <Card className="bg-surface/40 border-border rounded-2xl overflow-hidden">
                                 <CardHeader className="bg-surface py-5 border-b border-border px-6">
@@ -832,46 +923,11 @@ export default function MemberManagement({
                             )}
                         </div>
 
-                        {/* Gestion des membres (ex-onglet « Liste Roster & Membres ») :
-                            la partie action vit ici, là où l’audit la motive. Statut, archivage,
-                            suppression et relances Discord. */}
-                        <div className="space-y-4">
-                            <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                                <h3 className="text-sm font-semibold uppercase tracking-wide text-foreground">Gestion des membres</h3>
-                                <p className="text-xs text-muted-foreground">
-                                    Actifs, archivés, bannis, exclus : statut du profil et actions par membre.
-                                </p>
-                            </div>
-                            <MemberStatsOverview stats={initialStats} />
-                            <div className="p-1 px-3 bg-surface/40 border border-border rounded-3xl backdrop-blur-xl overflow-hidden shadow-2xl">
-                                <MemberManagementTable
-                                    initialMembers={memberList.members}
-                                    guildId={guildId}
-                                    welcomeBadgeName={welcomeBadgeName}
-                                    isSuperAdmin={isSuperAdmin}
-                                    isAdmin={canManageMembers}
-                                    ownerId={memberList.ownerId}
-                                    currentUserId={currentUserId}
-                                    showIds={false}
-                                />
-                            </div>
                         </div>
-
-                    </div>
-                </TabsContent>
-
-                {/* --- TAB 2: REGISTRE RECRUTEMENT (module global Membres) --- */}
-                <TabsContent value="registre" className="space-y-6 animate-in fade-in duration-150 min-h-[600px]">
-                    <p className="text-sm text-muted-foreground -mt-4">
-                        Registre du staff : saisie manuelle (pseudos, arrivée, tag Ankama, recruteur, essai, commentaires),
-                        ancienneté calculée seule et ID Discord peuplé seul. Remplace l&apos;ancienne page Recrutement.
-                    </p>
-                    {activeTab === "registre" && canManageMembers && (
-                        <MemberRegistryTable guildId={guildId} canManageMembers={canManageMembers} />
                     )}
                 </TabsContent>
 
-                {/* --- TAB 3: BLACKLIST --- */}
+                {/* --- TAB 2: BLACKLIST --- */}
                 <TabsContent value="blacklist" className="space-y-6 animate-in fade-in duration-150 min-h-[600px]">
                     <p className="text-sm text-muted-foreground -mt-4">
                         Membres exclus de la guilde : blocage Dashboard et Discord, géré depuis les deux côtés.

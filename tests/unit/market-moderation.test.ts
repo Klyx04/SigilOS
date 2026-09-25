@@ -9,7 +9,10 @@
  *      d'un dossier `OPEN` (`REPORT_REVIEWED`) ;
  *   4. S5.8 : annonces **retirées** (origine relue du journal, échéance,
  *      signalements ouverts, pseudo vendeur) et **historique d'audit** par
- *      annonce relu à la demande, toujours borné et isolé par guilde.
+ *      annonce relu à la demande, toujours borné et isolé par guilde ;
+ *   5. retrait modérateur : toute **réservation active** ou **offre en attente**
+ *      de l'annonce est **annulée immédiatement** (`CANCELLED_BY_SELLER` /
+ *      `CANCELLED`) — une annonce retirée ne laisse personne en suspens.
  *
  * Les server actions sont testées **de bout en bout** (contexte serveur +
  * Prisma simulés) : ce que voit le panneau et ce qui est écrit en base.
@@ -34,6 +37,8 @@ const { mockDb } = vi.hoisted(() => ({
         guildConfig: { findUnique: vi.fn() },
         marketListing: { findFirst: vi.fn(), findMany: vi.fn(), updateMany: vi.fn() },
         marketReport: { findFirst: vi.fn(), findMany: vi.fn(), create: vi.fn(), updateMany: vi.fn() },
+        marketReservation: { updateMany: vi.fn() },
+        marketOffer: { updateMany: vi.fn() },
         marketAuditLog: { create: vi.fn(), findMany: vi.fn() },
         userProfile: { findMany: vi.fn() },
     },
@@ -220,6 +225,16 @@ describe("marché — retrait et restauration par la modération (S4.11)", () =>
         expect(audit.action).toBe("LISTING_TAKEN_DOWN");
         expect(audit.actorUserId).toBe(BUYER_USER_ID);
         expect(syncListingMessage).toHaveBeenCalledWith(LISTING_ID);
+        // Une annonce retirée ne laisse **personne** en suspens : réservations actives
+        // et offres en attente sont annulées dans la même passe.
+        expect(mockDb.marketReservation.updateMany).toHaveBeenCalledWith({
+            where: { listingId: LISTING_ID, status: "ACTIVE" },
+            data: { status: "CANCELLED_BY_SELLER" },
+        });
+        expect(mockDb.marketOffer.updateMany.mock.calls[0][0]).toMatchObject({
+            where: { listingId: LISTING_ID, status: "PENDING" },
+            data: { status: "CANCELLED" },
+        });
     });
 
     it("statut incompatible (déjà vendue) ⇒ aucun retrait, aucun journal", async () => {
@@ -231,6 +246,9 @@ describe("marché — retrait et restauration par la modération (S4.11)", () =>
         expect(res.success).toBe(false);
         expect(mockDb.marketAuditLog.create).not.toHaveBeenCalled();
         expect(syncListingMessage).not.toHaveBeenCalled();
+        // Rien n'a été retiré ⇒ rien n'est annulé (aucun effet de bord silencieux).
+        expect(mockDb.marketReservation.updateMany).not.toHaveBeenCalled();
+        expect(mockDb.marketOffer.updateMany).not.toHaveBeenCalled();
     });
 
     it("restaure une annonce retirée et efface la note de modération", async () => {

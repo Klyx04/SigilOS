@@ -13,7 +13,7 @@
 export const ANKAMA_ID_PATTERN = /^[a-zA-Z0-9-]{1,50}#[0-9]{4}$/;
 
 /** Commentaires du registre : plafond par membre et taille d'un commentaire. */
-export const MAX_REGISTRY_COMMENTS = 10;
+export const MAX_REGISTRY_COMMENTS = 20;
 export const REGISTRY_COMMENT_MAX_LENGTH = 1000;
 
 export interface RegistryComment {
@@ -36,6 +36,41 @@ export function canAddRegistryComment(currentCount: number): boolean {
 
 export function isValidAnkamaId(value: string): boolean {
     return ANKAMA_ID_PATTERN.test(value.trim());
+}
+
+/** Décompose un tag Ankama au format Nom#0000 en nom et discriminant */
+export function parseAnkamaTag(tag: string | null | undefined): { name: string; discriminator: string } | null {
+    if (!tag) return null;
+    const trimmed = tag.trim();
+    const hashIndex = trimmed.indexOf("#");
+    if (hashIndex === -1) return { name: trimmed, discriminator: "" };
+    return {
+        name: trimmed.slice(0, hashIndex),
+        discriminator: trimmed.slice(hashIndex + 1),
+    };
+}
+
+/** Normalise un pseudo pour comparaison tolérante (retire parenthèses/crochets/emojis/espaces) */
+export function normalizePseudoForComparison(val: string | null | undefined): string {
+    if (!val) return "";
+    return val
+        .toLowerCase()
+        .replace(/[\(\[\{].*?[\)\]\}]/g, "")
+        .replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F1E0}-\u{1F1FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, "")
+        .replace(/[^a-z0-9]/g, "");
+}
+
+/** Vérifie s'il y a une divergence notable entre le pseudo Discord et le pseudo Ankama */
+export function hasPseudoDiscordMismatch(
+    discordName: string | null | undefined,
+    ankamaId: string | null | undefined
+): boolean {
+    const ankama = parseAnkamaTag(ankamaId);
+    if (!ankama || !ankama.name) return false;
+    const normDiscord = normalizePseudoForComparison(discordName);
+    const normAnkama = normalizePseudoForComparison(ankama.name);
+    if (!normDiscord || !normAnkama) return false;
+    return normDiscord !== normAnkama;
 }
 
 const DAY_MS = 86_400_000;

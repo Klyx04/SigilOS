@@ -9,8 +9,17 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { rateLimit } from "@/lib/ratelimit";
 import { type ModuleKey, type GuildModulesState, DEFAULT_MODULES } from "@/lib/module-types";
-import { applyGodLocks, isGodLockableModule, normalizeGodLocks, resolveModuleGrid, type ModuleLockState } from "@/lib/module-lock";
-import { getPlatformModuleState } from "@/server/platform-module-state";
+import {
+    MODULE_NOTICE_MAX_LENGTH,
+    applyGodLocks,
+    isGodLockableModule,
+    normalizeGodLocks,
+    normalizePlatformLocks,
+    normalizePlatformNotices,
+    resolveModuleGrid,
+    type ModuleLockState,
+} from "@/lib/module-lock";
+import { getPlatformModuleState, invalidatePlatformModuleStateCache } from "@/server/platform-module-state";
 
 const UpdateModulesSchema = z.object({
     // Général
@@ -72,6 +81,15 @@ const MODULE_CACHE_TTL = 30_000;
  */
 export async function invalidateModuleCache(discordGuildId: string) {
     moduleCache.delete(discordGuildId);
+}
+
+/**
+ * Vide le cache des modules de **toutes** les guildes. Réservé aux écritures
+ * d'un verrou **plateforme** (`setPlatformModuleLock`) : une coupure globale
+ * change l'état de chaque guilde, un cache par guilde ne suffirait pas.
+ */
+export async function invalidateAllModuleCaches(): Promise<void> {
+    moduleCache.clear();
 }
 
 /** Lecture unique de la guilde : toggles **bruts** + verrou de guilde, cache 30 s. */
@@ -441,3 +459,161 @@ export async function setModuleGodLock(
         return { success: false, error: "Erreur serveur" };
     }
 }
+
+// ============================================================================
+// VERROU PLATEFORME DES MODULES (A2 · A3 · G12) — God uniquement
+// ============================================================================
+
+/** Entrée bornée du verrou plateforme (mêmes exigences que le verrou de guilde). */
+const PlatformModuleLockSchema = z.object({
+    moduleKey: z.string().min(1).max(40),
+    locked: z.boolean(),
+    notice: z.string().max(MODULE_NOTICE_MAX_LENGTH).optional(),
+});
+
+export interface PlatformModuleOverview {
+    /** Modules coupés pour TOUTES les guildes. */
+    locks: ModuleKey[];
+    /** Message de maintenance libre par module. */
+    notices: Partial<Record<ModuleKey, string>>;
+    /** Nombre de guildes où le God a verrouillé ce module (verrou de guilde). */
+    guildLockCounts: Partial<Record<ModuleKey, number>>;
+    updatedAt: string | null;
+    updatedBy: string | null;
+}
+
+/**
+ * Vue God « Modules » : verrou plateforme + compteur de guildes verrouillées par
+ * module. Super-admin uniquement (brique `modules` en `subGodAccess: false`).
+ */
+export async function getPlatformModuleOverview(): Promise<PlatformModuleOverview> {
+    const { isSuperAdmin } = await import("./super-admin-actions");
+    if (!(await isSuperAdmin())) throw new Error("Non autorisé");
+
+    const [state, rows] = await Promise.all([
+        getPlatformModuleState(),
+        db.guildModules.findMany({
+            where: { disabledByGod: { isEmpty: false } },
+            select: { disabledByGod: true },
+        }).catch(() => [] as Array<{ disabledByGod: unknown }>),
+    ]);
+
+    const guildLockCounts: Partial<Record<ModuleKey, number>> = {};
+    for (const row of rows) {
+        for (const key of normalizeGodLocks((row as { disabledByGod?: unknown }).disabledByGod)) {
+            guildLockCounts[key] = (guildLockCounts[key] ?? 0) + 1;
+        }
+    }
+
+    const meta = await db.platformConfig.findUnique({ where: { id: "singleton" } })
+        .catch(() => null) as unknown as {
+            disabledModulesUpdatedAt?: Date | null;
+            disabledModulesUpdatedBy?: string | null;
+        } | null;
+
+    return {
+        locks: state.locks,
+        notices: state.notices,
+        guildLockCounts,
+        updatedAt: meta?.disabledModulesUpdatedAt?.toISOString() ?? null,
+        updatedBy: meta?.disabledModulesUpdatedBy ?? null,
+    };
+}
+
+/**
+ * Coupe (ou rétablit) un module pour **toutes** les guildes, avec un message de
+ * maintenance libre affiché sur la carte du module côté guilde.
+ *
+ * Durcissements (mêmes règles que `setModuleGodLock`) : `isSuperAdmin()`,
+ * **Zod borné**, **rate-limit** 10/min, **garde d'état** (`WHERE disabledModules
+ * equals <valeur lue>` : deux Gods simultanés ne s'écrasent plus), journal **God**
+ * (`createGodAuditLog`, jamais le journal d'une guilde), invalidation des caches
+ * (plateforme, modules de **toutes** les guildes, contexte utilisateur par guilde).
+ */
+export async function setPlatformModuleLock(
+    moduleKey: string,
+    locked: boolean,
+    notice?: string,
+): Promise<ActionResponse> {
+    const session = await auth();
+    if (!session?.user?.id) return { success: false, error: "Non authentifié" };
+    const { isSuperAdmin } = await import("./super-admin-actions");
+    if (!(await isSuperAdmin())) return { success: false, error: "Non autorisé" };
+
+    const parsed = PlatformModuleLockSchema.safeParse({ moduleKey, locked, notice });
+    if (!parsed.success) return { success: false, error: "Requête invalide" };
+    if (!isGodLockableModule(parsed.data.moduleKey)) {
+        return { success: false, error: "Module non verrouillable" };
+    }
+
+    const limited = await rateLimit(`god:module-platform-lock:${session.user.id}`, 10, 60_000);
+    if (!limited.success) {
+        return { success: false, error: "Trop de modifications rapprochées — patiente une minute." };
+    }
+
+    const key = parsed.data.moduleKey;
+    const wantedNotice = parsed.data.notice?.trim().slice(0, MODULE_NOTICE_MAX_LENGTH) ?? "";
+
+    try {
+        // `upsert` : la ligne singleton peut manquer sur une base neuve.
+        await db.platformConfig.upsert({ where: { id: "singleton" }, create: { id: "singleton" }, update: {} });
+        const row = await db.platformConfig.findUnique({ where: { id: "singleton" } }) as unknown as {
+            disabledModules?: unknown;
+            moduleNotices?: unknown;
+        } | null;
+
+        const current = normalizePlatformLocks(row?.disabledModules);
+        const next: ModuleKey[] = parsed.data.locked
+            ? Array.from(new Set([...current, key]))
+            : current.filter((k) => k !== key);
+
+        const nextNotices: Partial<Record<ModuleKey, string>> = { ...normalizePlatformNotices(row?.moduleNotices) };
+        if (parsed.data.locked && wantedNotice) nextNotices[key] = wantedNotice;
+        else delete nextNotices[key];
+
+        // Garde d'état : la valeur lue doit être encore celle en base.
+        const updated = await db.platformConfig.updateMany({
+            where: { id: "singleton", disabledModules: { equals: current } },
+            data: {
+                disabledModules: { set: next },
+                moduleNotices: nextNotices as never,
+                disabledModulesUpdatedAt: new Date(),
+                disabledModulesUpdatedBy: session.user.id,
+            },
+        });
+        if (updated.count === 0) {
+            return { success: false, error: "Verrou modifié entre-temps — recharge la page." };
+        }
+
+        await invalidateAllModuleCaches();
+        invalidatePlatformModuleStateCache();
+        const { invalidateGuildCache, flushGuildUserContextCache } = await import("./user-actions");
+        const guilds = await db.guildConfig.findMany({ select: { discordGuildId: true } }).catch(() => []);
+        await Promise.all(guilds.map(async (g) => {
+            await invalidateGuildCache(g.discordGuildId);
+            await flushGuildUserContextCache(g.discordGuildId);
+        }));
+
+        await createGodAuditLog({
+            action: "GOD_MODULE_LOCK",
+            targetType: "CONFIG",
+            targetId: `MODULE_PLATFORM_LOCK:${key}`,
+            oldValue: current,
+            newValue: next,
+            metadata: {
+                operation: "SET_PLATFORM_MODULE_LOCK",
+                moduleKey: key,
+                locked: parsed.data.locked,
+                hasNotice: Boolean(wantedNotice),
+            },
+        });
+
+        revalidatePath("/god");
+        revalidatePath("/dashboard/[guildId]", "layout");
+        return { success: true };
+    } catch (error) {
+        logger.error("[setPlatformModuleLock] Error:", error);
+        return { success: false, error: "Erreur serveur" };
+    }
+}
+

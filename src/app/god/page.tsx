@@ -71,6 +71,7 @@ export default async function SuperAdminPage(props: {
         telemetry: "telemetry",
         "game-data": "game-data",
         "mini-games": "mini-games",
+        modules: "modules",
         guilds: "guilds",
         infrastructure: "infrastructure",
         "cron-status": "infrastructure",
@@ -365,6 +366,12 @@ export default async function SuperAdminPage(props: {
                         </div>
                     )}
 
+                    {tab === "modules" && (
+                        <Suspense fallback={<GodLoadingSkeleton rows={4} />}>
+                            <PlatformModulesServer />
+                        </Suspense>
+                    )}
+
                     {tab === "badges" && (
                         <div className="space-y-8">
                             <Suspense fallback={<div className="animate-pulse bg-surface h-96 rounded-3xl border border-border" />}>
@@ -576,6 +583,22 @@ async function LifecycleServer() {
             Le Lifecycle Server est désormais intégré à l'onglet Guildes via LifecyclePanel pour plus de clarté.
         </div>
     );
+}
+
+/**
+ * Vue God « Modules » (A2 · G12) : coupure globale des modules de la plateforme.
+ * `getPlatformModuleOverview` est gardée super-admin (fail-closed) — l'erreur est
+ * affichée telle quelle, jamais un refus déguisé.
+ */
+async function PlatformModulesServer() {
+    try {
+        const { getPlatformModuleOverview } = await import("@/server/actions/module-actions");
+        const { PlatformModulesPanel } = await import("./components/platform-modules-panel");
+        const overview = await getPlatformModuleOverview();
+        return <PlatformModulesPanel overview={overview} />;
+    } catch {
+        return <div className="p-8 text-center text-muted-foreground text-xs">Erreur de chargement des modules.</div>;
+    }
 }
 
 function StatsLoading() { return <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 animate-pulse">{[...Array(5)].map((_, i) => <div key={i} className="bg-zinc-900/50 h-32 rounded-3xl" />)}</div>; }

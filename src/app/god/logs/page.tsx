@@ -4,9 +4,9 @@ import { redirect } from "next/navigation";
 import { getGlobalAuditLogs } from "@/server/actions/audit-actions";
 import { getRecentAccessAttempts } from "@/server/actions/super-admin-actions";
 import { listGodMarketAuditLogs, listGodMarketGuilds } from "@/server/actions/god-market-actions";
-import { Shield } from "lucide-react";
 import { LogsTabs } from "./logs-tabs";
 import { AUDIT_RETENTION_DAYS } from "@/lib/audit-retention-policy";
+import { GodBadge, GodSectionHeader } from "@/app/god/ui";
 
 export default async function GodLogsPage() {
     const isAdmin = await isSuperAdmin();
@@ -33,17 +33,11 @@ export default async function GodLogsPage() {
     return (
         <div className="space-y-8 py-8">
             <div className="flex flex-col gap-4">
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-caption font-semibold text-emerald-400 uppercase tracking-wider w-fit">
-                    <Shield className="w-3 h-3" />
-                    Journal plateforme
-                </div>
-                <h1 className="text-2xl md:text-3xl font-bold text-white tracking-tight">
-                    Audit Logs
-                </h1>
-                <p className="text-zinc-500 max-w-2xl font-medium">
-                    Historique complet des actions administratives et des événements de sécurité sur l'ensemble de la
-                    plateforme, y compris le journal d'audit du Marché (annonces, réservations, offres, signalements).
-                </p>
+                <GodBadge variant="success">Journal plateforme</GodBadge>
+                <GodSectionHeader
+                    title="Audit Logs"
+                    description="Historique complet des actions administratives et des événements de sécurité sur l'ensemble de la plateforme, y compris le journal d'audit du Marché (annonces, réservations, offres, signalements)."
+                />
                 <p className="text-xs text-zinc-600 max-w-2xl">
                     Rétention : <span className="text-zinc-400">{AUDIT_RETENTION_DAYS.GOD} jours</span> pour les actions plateforme (God),
                     <span className="text-zinc-400"> {AUDIT_RETENTION_DAYS.GUILD} jours</span> pour les journaux de guilde — purge quotidienne

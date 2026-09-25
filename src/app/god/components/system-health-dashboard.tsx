@@ -14,6 +14,8 @@ import {
     Cpu
 } from "lucide-react";
 import { getInternalSystemStatus } from "@/server/actions/god-system-actions";
+import { cn } from "@/lib/utils";
+import { GOD_CARD_BASE } from "@/app/god/ui";
 import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
 
@@ -55,7 +57,7 @@ export function SystemHealthDashboard() {
     }, []);
 
     if (loading) return (
-        <div className="flex items-center justify-center p-12 bg-zinc-900/20 border border-white/5 rounded-3xl animate-pulse">
+        <div className={cn(GOD_CARD_BASE, "flex items-center justify-center p-12 animate-pulse")}>
             <div className="flex flex-col items-center gap-4">
                 <Loader2 className="w-6 h-6 text-zinc-600 animate-spin" />
                 <span className="text-caption font-black text-zinc-700 uppercase tracking-widest">Analyse des systèmes...</span>

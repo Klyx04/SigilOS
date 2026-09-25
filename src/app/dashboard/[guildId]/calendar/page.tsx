@@ -24,8 +24,9 @@ export default async function CalendarPage({ params }: CalendarPageProps) {
 
     const ctx = await getUserContext(guildId);
 
-    // Module guard (admins bypass module toggle)
-    if (!ctx.isAdmin && !(await isModuleEnabled(guildId, "calendar"))) {
+    // Module guard (seul le God plateforme contourne : « désactivé = invisible »,
+    // verrou God inclus — cf. `applyGodLocks` dans getUserContext)
+    if (!ctx.isSuperAdmin && !(await isModuleEnabled(guildId, "calendar"))) {
         redirect(`/dashboard/${guildId}`);
     }
 

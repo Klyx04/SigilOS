@@ -25,7 +25,7 @@ export default async function MarketPage({ params }: { params: Promise<{ guildId
     }
 
     const isAdmin = user.isAdmin;
-    if (!isAdmin && !(await isModuleEnabled(guildId, "marche"))) {
+    if (!user.isSuperAdmin && !(await isModuleEnabled(guildId, "marche"))) {
         redirect(`/dashboard/${guildId}`);
     }
 

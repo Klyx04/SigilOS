@@ -3,11 +3,13 @@ import { logger } from "@/lib/logger";
 
 import { db } from "@/lib/prisma";
 import { getUserContext } from "./user-actions";
-import { createAuditLog } from "./audit-actions";
+import { createAuditLog, createGodAuditLog } from "./audit-actions";
 import { auth } from "@/auth";
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
+import { rateLimit } from "@/lib/ratelimit";
 import { type ModuleKey, type GuildModulesState, DEFAULT_MODULES } from "@/lib/module-types";
+import { applyGodLocks, isGodLockableModule, normalizeGodLocks } from "@/lib/module-lock";
 
 const UpdateModulesSchema = z.object({
     // Général
@@ -122,18 +124,13 @@ export const getGuildModules = cache(async (discordGuildId: string): Promise<Gui
 
         // Verrou God : un module verrouillé est effectif OFF quel que soit le
         // toggle guilde (conservé en BDD → réactivation sans perte au délock).
-        // `admin` n'est jamais verrouillable (sinon panneau de config aveugle).
-        const godLocked: string[] = Array.isArray((dbModules as any)?.disabledByGod)
-            ? (dbModules as any).disabledByGod
-            : [];
-        for (const key of godLocked) {
-            if (key !== "admin" && key in data) {
-                (data as Record<string, boolean>)[key] = false;
-            }
-        }
+        // Règle PURE partagée (`src/lib/module-lock.ts`) : c'est la MÊME fonction
+        // que `getModuleGodLocks` et `getUserContext` utilisent, donc le verrou
+        // affiché côté God est exactement le verrou appliqué.
+        const effective = applyGodLocks(data, (dbModules as any)?.disabledByGod);
 
-        moduleCache.set(discordGuildId, { data, expiresAt: now + MODULE_CACHE_TTL });
-        return data;
+        moduleCache.set(discordGuildId, { data: effective, expiresAt: now + MODULE_CACHE_TTL });
+        return effective;
     } catch {
         return DEFAULT_MODULES;
     }
@@ -174,9 +171,7 @@ export async function updateGuildModules(
         where: { guild: { discordGuildId } },
     }).catch(() => null) as unknown as (Record<string, unknown> & { disabledByGod?: unknown }) | null;
     // Pas de ligne = premier toggle (upsert ci-dessous) = aucun verrou possible.
-    const locked: string[] = Array.isArray(rawRow?.disabledByGod)
-        ? (rawRow?.disabledByGod as string[]).filter((k) => k !== "admin")
-        : [];
+    const locked: ModuleKey[] = normalizeGodLocks(rawRow?.disabledByGod);
     for (const key of locked) {
         const current = rawRow?.[key] as boolean | null | undefined;
         const wanted = (parsed.data as Record<string, boolean>)[key];
@@ -243,20 +238,23 @@ export async function updateGuildModules(
 // VERROU GOD (super-gestion par guilde)
 // ============================================================================
 
-const GOD_LOCKABLE_MODULES = new Set<string>([
-    "presentation", "roster", "stats", "calendar", "missions", "songes",
-    "ocre", "ladder", "services", "donjons", "profile", "docs", "polls",
-    "availability", "logs", "reactionRoles", "quests", "worldmap", "resources",
-    "gallery", "ladderSync", "manualLadderSync", "minigames", "succes", "tickets",
-    "marche",
-]);
+/**
+ * Entrée bornée du verrou God (même exigence que `god-market-actions` :
+ * fail-closed, ids Discord bornés, jamais une clé arbitraire en base).
+ */
+const GodLockSchema = z.object({
+    discordGuildId: z.string().min(17).max(20).regex(/^\d+$/, "Snowflake Discord attendu"),
+    moduleKey: z.string().min(1).max(40),
+    locked: z.boolean(),
+});
 
 /**
  * Liste des modules verrouillés par le staff pour une guilde.
  * Lecture : God OU admin Discord natif de la guilde (l'admin voit ce qu'on
  * lui coupe). `admin` n'est jamais verrouillable (garde-fou).
+ * Filtre = règle partagée (`normalizeGodLocks`) : le verrou lu est celui appliqué.
  */
-export async function getModuleGodLocks(discordGuildId: string): Promise<string[]> {
+export async function getModuleGodLocks(discordGuildId: string): Promise<ModuleKey[]> {
     try {
         const session = await auth();
         if (!session?.user?.id) return [];
@@ -269,10 +267,8 @@ export async function getModuleGodLocks(discordGuildId: string): Promise<string[
         const row = await db.guildModules.findFirst({
             where: { guild: { discordGuildId } },
             select: { disabledByGod: true },
-        }).catch(() => null) as unknown as { disabledByGod?: string[] } | null;
-        return Array.isArray(row?.disabledByGod)
-            ? row!.disabledByGod!.filter((k) => k !== "admin" && GOD_LOCKABLE_MODULES.has(k))
-            : [];
+        }).catch(() => null) as unknown as { disabledByGod?: unknown } | null;
+        return normalizeGodLocks(row?.disabledByGod);
     } catch {
         return [];
     }
@@ -281,7 +277,15 @@ export async function getModuleGodLocks(discordGuildId: string): Promise<string[
 /**
  * Verrouille / déverrouille un module pour une guilde (God uniquement).
  * Le toggle guilde et les mappings RBAC sont CONSERVÉS (réactivation sans
- * perte) ; l'effectif passe à OFF tant que le verrou tient. Audit God.
+ * perte) ; l'effectif passe à OFF tant que le verrou tient.
+ *
+ * Durcissements (audit 24/09/2026) :
+ * - **garde d'état** dans le `WHERE` (`disabledByGod equals <valeur lue>`) :
+ *   deux Gods simultanés ne s'écrasent plus (last-writer-wins silencieux) ;
+ * - **Zod borné** + **rate-limit** 10/min/God (modèle `god-market-actions`) ;
+ * - journal **God** (`createGodAuditLog`, `isGodLog: true`, sans `guildId`) et
+ *   non plus le journal de la guilde — une action plateforme ne se range pas
+ *   dans les logs d'un client.
  */
 export async function setModuleGodLock(
     discordGuildId: string,
@@ -292,43 +296,71 @@ export async function setModuleGodLock(
     if (!session?.user?.id) return { success: false, error: "Non authentifié" };
     const { isSuperAdmin } = await import("./super-admin-actions");
     if (!(await isSuperAdmin())) return { success: false, error: "Non autorisé" };
-    if (!GOD_LOCKABLE_MODULES.has(moduleKey) || moduleKey === "admin") {
+
+    const parsed = GodLockSchema.safeParse({ discordGuildId, moduleKey, locked });
+    if (!parsed.success) return { success: false, error: "Requête invalide" };
+    if (!isGodLockableModule(parsed.data.moduleKey)) {
         return { success: false, error: "Module non verrouillable" };
     }
+
+    const limited = await rateLimit(`god:module-lock:${session.user.id}`, 10, 60_000);
+    if (!limited.success) {
+        return { success: false, error: "Trop de modifications rapprochées — patiente une minute." };
+    }
+
     try {
         const guildConfig = await db.guildConfig.findUnique({
-            where: { discordGuildId },
+            where: { discordGuildId: parsed.data.discordGuildId },
             select: { id: true },
         });
         if (!guildConfig) return { success: false, error: "Guilde introuvable" };
+
         const row = await db.guildModules.findUnique({
             where: { guildId: guildConfig.id },
             select: { disabledByGod: true },
-        }).catch(() => null) as unknown as { disabledByGod?: string[] } | null;
-        const current: string[] = Array.isArray(row?.disabledByGod) ? row!.disabledByGod! : [];
-        const next = locked
-            ? Array.from(new Set([...current, moduleKey]))
-            : current.filter((k) => k !== moduleKey);
-        await db.guildModules.upsert({
-            where: { guildId: guildConfig.id },
-            create: { guildId: guildConfig.id, disabledByGod: next },
-            update: { disabledByGod: next },
-        });
-        await invalidateModuleCache(discordGuildId);
+        }).catch(() => null) as unknown as { disabledByGod?: unknown } | null;
+
+        const current: ModuleKey[] = normalizeGodLocks(row?.disabledByGod);
+        const key = parsed.data.moduleKey;
+        const next: ModuleKey[] = parsed.data.locked
+            ? Array.from(new Set([...current, key]))
+            : current.filter((k) => k !== key);
+
+        if (!row) {
+            // Première écriture de la guilde : le `create` garde l'unicité (guildId).
+            await db.guildModules.upsert({
+                where: { guildId: guildConfig.id },
+                create: { guildId: guildConfig.id, disabledByGod: next },
+                update: { disabledByGod: { set: next } },
+            });
+        } else {
+            // Garde d'état : la valeur lue doit être encore celle en base.
+            const updated = await db.guildModules.updateMany({
+                where: { guildId: guildConfig.id, disabledByGod: { equals: current } },
+                data: { disabledByGod: { set: next } },
+            });
+            if (updated.count === 0) {
+                return { success: false, error: "Verrou modifié entre-temps — recharge la page." };
+            }
+        }
+
+        await invalidateModuleCache(parsed.data.discordGuildId);
         const { invalidateGuildCache, flushGuildUserContextCache } = await import("./user-actions");
-        await invalidateGuildCache(discordGuildId);
-        await flushGuildUserContextCache(discordGuildId);
-        await createAuditLog({
-            guildId: discordGuildId,
-            actorUserId: session.user.id,
-            actorName: session.user.name || "God",
-            action: "CONFIG_UPDATED",
+        await invalidateGuildCache(parsed.data.discordGuildId);
+        await flushGuildUserContextCache(parsed.data.discordGuildId);
+
+        await createGodAuditLog({
+            guildId: parsed.data.discordGuildId,
+            action: "GOD_MODULE_LOCK",
             targetType: "CONFIG",
-            targetId: "MODULE_GOD_LOCK",
+            targetId: `MODULE_GOD_LOCK:${key}`,
             oldValue: current,
             newValue: next,
+            metadata: { operation: "SET_MODULE_GOD_LOCK", moduleKey: key, locked: parsed.data.locked },
         });
-        revalidatePath(`/dashboard/${discordGuildId}`, "layout");
+
+        revalidatePath(`/dashboard/${parsed.data.discordGuildId}`, "layout");
+        revalidatePath(`/god/guilds/${guildConfig.id}`);
         return { success: true };
     } catch (error) {
         logger.error("[setModuleGodLock] Error:", error);

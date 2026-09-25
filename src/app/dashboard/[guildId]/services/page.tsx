@@ -24,7 +24,7 @@ export default async function ServicesPage({ params }: { params: Promise<{ guild
     }
 
     const isAdmin = user.isAdmin;
-    if (!isAdmin && !await isModuleEnabled(guildId, "services")) {
+    if (!user.isSuperAdmin && !await isModuleEnabled(guildId, "services")) {
         redirect(`/dashboard/${guildId}`);
     }
 

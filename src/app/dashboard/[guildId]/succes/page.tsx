@@ -25,7 +25,7 @@ export default async function SuccesPage({
         return <AccessDenied />;
     }
 
-    if (!user.isAdmin && !(await isModuleEnabled(guildId, "succes"))) {
+    if (!user.isSuperAdmin && !(await isModuleEnabled(guildId, "succes"))) {
         redirect(`/dashboard/${guildId}`);
     }
 

@@ -28,7 +28,7 @@ export default async function FinderPage({
         return <AccessDenied />;
     }
 
-    if (!user.isAdmin && !(await isModuleEnabled(guildId, "donjons"))) {
+    if (!user.isSuperAdmin && !(await isModuleEnabled(guildId, "donjons"))) {
         redirect(`/dashboard/${guildId}`);
     }
 

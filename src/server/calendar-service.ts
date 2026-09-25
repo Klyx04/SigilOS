@@ -262,7 +262,7 @@ export async function processRegistration(guildId: string, eventId: string, user
         }
         const { internalCheckPermission } = await import("@/server/actions/user-actions");
         const { PERMISSIONS } = await import("@/lib/permissions");
-        const hasPermission = await internalCheckPermission(guildId, discordUserId, PERMISSIONS.RAID_MEMBER);
+        const hasPermission = await internalCheckPermission(guildId, discordUserId, PERMISSIONS.RAID_MEMBER, { module: "calendar" });
         if (!hasPermission) {
             return { success: false, error: "Permission requise: Participation aux Raids" };
         }

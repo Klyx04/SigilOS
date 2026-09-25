@@ -4,7 +4,8 @@ import { auth } from "@/auth";
 import { fetchGuildRoles, fetchGuild, fetchGuildMember, fetchGuildExists, invalidateDiscordCache } from "@/server/discord";
 import { db } from "@/lib/prisma";
 import { PERMISSIONS, type PermissionId } from "@/lib/permissions";
-import { DEFAULT_MODULES } from "@/lib/module-types";
+import { DEFAULT_MODULES, type ModuleKey } from "@/lib/module-types";
+import { applyGodLocks, normalizeGodLocks } from "@/lib/module-lock";
 import { logger } from "@/lib/logger";
 import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
@@ -429,6 +430,12 @@ const GUILD_CONFIG_CACHE_SELECT = {
             tickets: true,
             commandes: true,
             admin: true,
+            // 🔒 Verrou God (audit 24/09) — SANS cette clé, `getUserContext` ne voyait
+            // pas le verrou posé par le staff : `canView*/canManage*` restaient `true`
+            // alors que la sidebar (`getGuildModules`) masquait le module ⇒
+            // admin Discord qui atteint la page en URL directe, et commandes du bot
+            // qui répondent toujours. Lu par `applyGodLocks` (règle pure partagée).
+            disabledByGod: true,
         }
     }
 } satisfies Prisma.GuildConfigSelect;
@@ -1157,7 +1164,12 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
 
     // BUGFIX: Fall back to DEFAULT_MODULES when no GuildModules record exists in DB.
     // Without this, mod = null → !!mod?.X = false → applyModule(false, perm) = false for ALL non-admins.
-    const mod = (guildConfig as any)?.modules ?? DEFAULT_MODULES;
+    const rawModules = (guildConfig as any)?.modules ?? DEFAULT_MODULES;
+    // 🔒 Verrou God : règle PURE partagée (`src/lib/module-lock.ts`) — un module
+    // coupé par le staff est OFF effectif « y compris pour l'admin » (voir ci-dessous),
+    // donc `canView*/canManage*` doivent le refléter. Sans cette ligne, la sidebar
+    // masquait le module mais les pages/URL directes et le bot l'ouvraient encore.
+    const mod = applyGodLocks(rawModules, (rawModules as any)?.disabledByGod);
     // Refonte onboarding §9 — seul le God plateforme contourne les modules
     // désactivés. Ni les natifs Discord ni les dieux délégués : « désactivé =
     // invisible », y compris pour l'admin (le verrou God et les toggles
@@ -1690,7 +1702,15 @@ export async function searchGuildMembers(
 export async function internalCheckPermission(
     guildId: string,
     discordUserId: string,
-    permission: PermissionId
+    permission: PermissionId,
+    /**
+     * Module d'appartenance de l'interaction (`/songes`, bouton `mkt:`…).
+     * ⚠️ On ne teste QUE le verrou God, jamais le toggle de guilde : le toggle a
+     * un défaut « tout éteint » pour les guildes sans ligne `GuildModules`, et
+     * l'imposer ici couperait des commandes qui fonctionnent aujourd'hui
+     * (arbitrage produit distinct, hors de ce correctif).
+     */
+    options?: { module?: ModuleKey }
 ): Promise<boolean> {
     try {
         // God-mode check (platform-level override)
@@ -1708,6 +1728,15 @@ export async function internalCheckPermission(
         if (!guildConfig) return false;
 
         const actualGuildId = guildConfig.discordGuildId || guildId;
+
+        // 1bis. 🔒 Verrou God — contrôlé AVANT les bypass propriétaire et admin
+        // Discord, parce qu'aucun d'eux ne doit rouvrir un module coupé par le
+        // staff (« désactivé = invisible, y compris pour l'admin »). Règle pure
+        // partagée avec `getGuildModules` et `getUserContext`.
+        if (options?.module) {
+            const locks = normalizeGodLocks((guildConfig as any)?.modules?.disabledByGod);
+            if (locks.includes(options.module)) return false;
+        }
 
         // 2. Fetch member with caching
         const member = await fetchGuildMember(actualGuildId, discordUserId);

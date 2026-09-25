@@ -24,7 +24,7 @@ export default async function MarketModerationPage({ params }: { params: Promise
     if (!user.canManageMarket) {
         return <AccessDenied />;
     }
-    if (!user.isAdmin && !(await isModuleEnabled(guildId, "marche"))) {
+    if (!user.isSuperAdmin && !(await isModuleEnabled(guildId, "marche"))) {
         redirect(`/dashboard/${guildId}`);
     }
 

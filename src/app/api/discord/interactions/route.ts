@@ -6,6 +6,7 @@ import { DOFUS_JOBS, DAYS_OF_WEEK } from "@/lib/dofus-assets";
 import { PREFERRED_ACTIVITIES } from "@/lib/profile-activities";
 import { normSearch, parseAlmanaxDateInput, frenchLongDate } from "@/lib/slash-command-helpers";
 import { PERMISSIONS as PERMISSION_IDS, type PermissionId } from "@/lib/permissions";
+import type { ModuleKey } from "@/lib/module-types";
 import { resolveInteractionActor } from "@/lib/tickets/interaction-actor";
 import {
     buildTicketModalSubmittedReply,
@@ -105,6 +106,21 @@ const DISCORD_PERM_MAP: Record<string, PermissionId> = {
     mkt: PERMISSION_IDS.MARKET_TRADE,            // Marché = réserver / offrir / contacter
 };
 
+/**
+ * `prefix` d'un `custom_id` → module God-verrouillable correspondant.
+ *
+ * `internalCheckPermission` ne teste QUE le verrou God (jamais le toggle guilde),
+ * donc cette table doit rester **exacte** : un préfixe absent ne reçoit aucun
+ * contrôle de module (on ne devine jamais).
+ */
+const DISCORD_MODULE_MAP: Record<string, ModuleKey> = {
+    calendar: "calendar",
+    songes: "songes",
+    dj: "donjons",
+    svc: "services",
+    mkt: "marche",
+};
+
 /** Réponse éphémère standard (type 4, `flags: 64`) — visible du seul cliqueur. */
 function ephemeralDiscordMessage(content: string): NextResponse {
     return NextResponse.json({ type: 4, data: { content, flags: 64 } });
@@ -138,7 +154,9 @@ async function isDiscordPrefixAuthorized(
 
     const { internalCheckPermission } = await import("@/server/actions/user-actions");
     try {
-        return await internalCheckPermission(discordGuildId, discordUserId, required);
+        return await internalCheckPermission(discordGuildId, discordUserId, required, {
+            module: DISCORD_MODULE_MAP[prefix],
+        });
     } catch {
         // Fail-closed : Discord/RBAC injoignable ⇒ refus, jamais un accès par défaut.
         return false;
@@ -853,7 +871,7 @@ export async function POST(request: NextRequest) {
                 // Permission check (MISSIONS_VALIDATE required)
                 const { internalCheckPermission } = await import("@/server/actions/user-actions");
                 const { PERMISSIONS } = await import("@/lib/permissions");
-                const isValidator = await internalCheckPermission(targetGuildId, member.user.id, PERMISSIONS.MISSIONS_OFFICER);
+                const isValidator = await internalCheckPermission(targetGuildId, member.user.id, PERMISSIONS.MISSIONS_OFFICER, { module: "missions" });
                 if (!isValidator) {
                     return NextResponse.json({
                         type: 4,
@@ -1609,7 +1627,7 @@ export async function POST(request: NextRequest) {
                 // RBAC check for modal submits (same gate as button clicks)
                 const { internalCheckPermission } = await import("@/server/actions/user-actions");
                 const { PERMISSIONS } = await import("@/lib/permissions");
-                const canJoinSonges = await internalCheckPermission(guild_id, member.user.id, PERMISSIONS.GAME_OPERATIONS);
+                const canJoinSonges = await internalCheckPermission(guild_id, member.user.id, PERMISSIONS.GAME_OPERATIONS, { module: "songes" });
                 if (!canJoinSonges) {
                     return NextResponse.json({
                         type: 4,
@@ -1724,7 +1742,7 @@ export async function POST(request: NextRequest) {
                 // RBAC check identique au bouton (GAME_OPERATIONS pour DJ)
                 const { internalCheckPermission } = await import("@/server/actions/user-actions");
                 const { PERMISSIONS } = await import("@/lib/permissions");
-                const canJoinDj = await internalCheckPermission(guild_id, member.user.id, PERMISSIONS.GAME_OPERATIONS);
+                const canJoinDj = await internalCheckPermission(guild_id, member.user.id, PERMISSIONS.GAME_OPERATIONS, { module: "donjons" });
                 if (!canJoinDj) {
                     return NextResponse.json({
                         type: 4,

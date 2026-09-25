@@ -23,7 +23,7 @@ export default async function MarketListingPage({
     if (!user.canViewMarket) {
         return <AccessDenied />;
     }
-    if (!user.isAdmin && !(await isModuleEnabled(guildId, "marche"))) {
+    if (!user.isSuperAdmin && !(await isModuleEnabled(guildId, "marche"))) {
         redirect(`/dashboard/${guildId}`);
     }
 

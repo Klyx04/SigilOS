@@ -8,10 +8,10 @@ import type { GuildModulesState, ModuleKey } from "@/lib/module-types";
 
 const ORDER: ModuleKey[] = [
     "missions", "songes", "ocre", "ladder", "donjons", "quests", "worldmap",
-    "resources", "services", "calendar", "polls", "minigames", "succes",
+    "resources", "services", "marche", "calendar", "polls", "minigames", "succes",
     "gallery", "roster", "stats", "profile", "presentation", "docs",
-    "availability", "logs", "reactionRoles", "tickets", "ladderSync",
-    "manualLadderSync",
+    "availability", "logs", "reactionRoles", "tickets", "commandes",
+    "ladderSync", "manualLadderSync",
 ];
 
 export function GodGuildModulesClient({

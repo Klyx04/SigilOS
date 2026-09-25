@@ -491,6 +491,68 @@ describe("getUserContext — calcul des permissions RBAC", () => {
         expect(ctx.canViewMissions).toBe(false);
     });
 
+    it("🔒 Verrou God : un module coupé par le staff est OFF effectif (membre avec la permission)", async () => {
+        // Audit 24/09 — `getUserContext` ne lisait pas `disabledByGod` : `canView*`
+        // restait true alors que la sidebar (getGuildModules) masquait le module.
+        mockFetchMember.mockResolvedValue(makeMember({ roles: ["role-membre"] }));
+        mockFetchRoles.mockResolvedValue([
+            { id: "role-membre", permissions: "0", name: "Membre" },
+        ]);
+        mockDb.guildConfig.findFirst.mockResolvedValue(
+            makeGuildConfig({
+                rolesMapping: {
+                    "role-membre": [PERMISSIONS.DASHBOARD_LOGIN, PERMISSIONS.MISSIONS_PLAY],
+                },
+                modules: {
+                    ...makeGuildConfig().modules,
+                    missions: true, // toggle guilde CONSERVÉ…
+                    disabledByGod: ["missions"], // …mais verrouillé par le staff
+                },
+            })
+        );
+
+        const ctx = await getUserContext("111111111111111111");
+
+        expect(ctx.canViewMissions).toBe(false);
+    });
+
+    it("🔒 Verrou God : l'admin Discord ne contourne pas le verrou (trouée n°2 de l'audit)", async () => {
+        mockFetchMember.mockResolvedValue(makeMember({ roles: ["discord-admin-role"] }));
+        mockFetchRoles.mockResolvedValue([
+            { id: "discord-admin-role", permissions: "8", name: "Discord Admin" },
+        ]);
+        mockDb.guildConfig.findFirst.mockResolvedValue(
+            makeGuildConfig({
+                modules: {
+                    ...makeGuildConfig().modules,
+                    missions: true,
+                    disabledByGod: ["missions"],
+                },
+            })
+        );
+
+        const ctx = await getUserContext("111111111111111111");
+
+        expect(ctx.isAdmin).toBe(true); // il reste admin…
+        expect(ctx.canViewMissions).toBe(false); // …mais le verrou le vaut aussi pour lui
+    });
+
+    it("🔒 Verrou God : garde-fou — `admin` n'est jamais verrouillable", async () => {
+        mockFetchMember.mockResolvedValue(makeMember({ roles: ["discord-admin-role"] }));
+        mockFetchRoles.mockResolvedValue([
+            { id: "discord-admin-role", permissions: "8", name: "Discord Admin" },
+        ]);
+        mockDb.guildConfig.findFirst.mockResolvedValue(
+            makeGuildConfig({
+                modules: { ...makeGuildConfig().modules, disabledByGod: ["admin"] },
+            })
+        );
+
+        const ctx = await getUserContext("111111111111111111");
+
+        expect(ctx.isAdmin).toBe(true);
+    });
+
     it("accorde canManageMissions à un officier", async () => {
         mockFetchMember.mockResolvedValue(makeMember({ roles: ["role-officier"] }));
         mockFetchRoles.mockResolvedValue([

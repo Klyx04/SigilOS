@@ -2,6 +2,7 @@
 import { logger } from "@/lib/logger";
 
 import { db } from "@/lib/prisma";
+import { rateLimit } from "@/lib/ratelimit";
 import { sendChannelMessage } from "@/server/discord";
 import { revalidatePath } from "next/cache";
 
@@ -9,6 +10,10 @@ import { revalidatePath } from "next/cache";
  * Global Admin Notification Engine
  * Handles both Discord Pings and Web UI Notifications
  */
+
+/** Fenêtre de déduplication par défaut d'une alerte (1 heure). */
+const GOD_NOTIFY_DEDUPE_WINDOW_MS = 60 * 60 * 1000;
+
 export async function notifyGod(params: {
     title: string;
     message: string;
@@ -17,10 +22,41 @@ export async function notifyGod(params: {
     metadata?: any;
     ping?: boolean; // Whether to ping the configured role on Discord
     forceChannelId?: string; // Optional override for testing
+    /**
+     * 🛑 Alerte **web uniquement** : ne poste **rien** sur Discord.
+     *
+     * Obligatoire pour une alerte dont la cause est un échec d'écriture Discord :
+     * sinon l'alerte repasse par la **même** file qui vient d'échouer (l'écriture
+     * est mise en file → 403 permanent → alerte → nouvelle écriture…) et s'auto-alimente.
+     * Mesure du 25/09/2026 : **1 000 alertes + 1 000 jobs en 19 minutes** (~1/s) sur un
+     * salon de notifications God inaccessible — voir `src/workers/discord-outbox-worker.ts`.
+     */
+    webOnly?: boolean;
+    /**
+     * 🔁 Anti-rafale : au plus **une** alerte par clé et par `dedupeWindowMs`.
+     * Les alertes qui décrivent un **événement métier** (don, feedback…) ne doivent
+     * PAS en fournir : elles sont toutes légitimes. Réservé aux alertes de panne.
+     */
+    dedupeKey?: string;
+    dedupeWindowMs?: number;
 }) {
-    const { title, message, type, success = true, metadata, ping = false, forceChannelId } = params;
+    const { title, message, type, success = true, metadata, ping = false, forceChannelId, webOnly = false, dedupeKey, dedupeWindowMs } = params;
 
     try {
+        // 0. ANTI-RAFALE — une même panne (même clé) ne produit qu'une alerte par fenêtre.
+        //    `rateLimit` est fail-closed : si Redis est indisponible il compte en mémoire.
+        if (dedupeKey) {
+            const allowed = await rateLimit(
+                `god-notify:${dedupeKey}`,
+                1,
+                dedupeWindowMs ?? GOD_NOTIFY_DEDUPE_WINDOW_MS,
+            );
+            if (!allowed.success) {
+                logger.info("[GodNotify] Alerte dédupliquée (clé déjà alertée dans la fenêtre)", { dedupeKey, title });
+                return { success: true };
+            }
+        }
+
         const platformConfig = await db.platformConfig.findUnique({ where: { id: "singleton" } });
         
         // 1. WEB NOTIFICATION
@@ -42,10 +78,10 @@ export async function notifyGod(params: {
             }
         }
 
-        // 2. DISCORD NOTIFICATION
+        // 2. DISCORD NOTIFICATION — jamais pour une alerte `webOnly` (cf. anti-boucle ci-dessus).
         const targetChannelId = forceChannelId || (platformConfig as any)?.godNotifyChannelId;
-        
-        if (targetChannelId) {
+
+        if (targetChannelId && !webOnly) {
             let mention = "";
             if (ping && (platformConfig as any).godNotifyRoleId) {
                 mention = `<@&${(platformConfig as any).godNotifyRoleId}>`;

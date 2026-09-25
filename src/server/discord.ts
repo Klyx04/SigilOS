@@ -1,6 +1,11 @@
 import { getAppBaseUrl } from "@/lib/utils";
 import { logger } from "@/lib/logger";
-import { DiscordApiError } from "@/lib/discord-api-errors";
+import { DiscordApiError, getDiscordApiCode, getDiscordApiStatus, isPermanentDiscordWriteFailure } from "@/lib/discord-api-errors";
+import {
+    isDiscordChannelBlocked,
+    isDiscordChannelBlockedError,
+    markDiscordChannelBlocked,
+} from "@/lib/discord-channel-health";
 
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 1000;
@@ -903,6 +908,16 @@ export async function sendChannelMessage(
         return null;
     }
 
+    // 🛑 Disjoncteur (cf. `@/lib/discord-channel-health`) : un salon en pause
+    // d'écriture n'est même pas sollicité. On renvoie `null` — et non un ID — pour
+    // qu'aucun appelant n'ancre un message inexistant : c'est aussi ce qui empêche
+    // le status-ping d'horodater un « envoi » qui n'a pas eu lieu (il réessaiera au
+    // tick suivant, gratuitement, jusqu'à la réparation du salon).
+    if (await isDiscordChannelBlocked(channelId)) {
+        logger.info("[Discord] Salon en pause d'écriture — envoi ignoré", { channelId });
+        return null;
+    }
+
     const body: Record<string, unknown> = {};
 
     // Extract all mentions from BOTH content and mentionContent to force notifications
@@ -1015,19 +1030,39 @@ export async function sendChannelMessage(
     // `storeMessageIdKey` : le worker ré-ancre le VRAI ID posté (living status).
     if (isDiscordOutboxEnabled()) {
         const { enqueueDiscordWrite } = await import("@/server/discord-outbox");
-        const jobId = await enqueueDiscordWrite({
-            kind: "postMessage",
-            channelId,
-            body,
-            ...(options?.storeMessageIdKey ? { storeMessageIdKey: options.storeMessageIdKey } : {}),
-            ...(options?.storeMessageIdTTL ? { storeMessageIdTTL: options.storeMessageIdTTL } : {}),
-        });
-        return `outbox:${jobId}`;
+        try {
+            const jobId = await enqueueDiscordWrite({
+                kind: "postMessage",
+                channelId,
+                body,
+                ...(options?.storeMessageIdKey ? { storeMessageIdKey: options.storeMessageIdKey } : {}),
+                ...(options?.storeMessageIdTTL ? { storeMessageIdTTL: options.storeMessageIdTTL } : {}),
+            });
+            return `outbox:${jobId}`;
+        } catch (error) {
+            // Salon tombé en pause entre la vérification et la mise en file : le job
+            // est refusé AVANT la file (aucune alerte, aucun retry) — cf. disjoncteur.
+            if (isDiscordChannelBlockedError(error)) {
+                logger.warn("[Discord] Salon en pause d'écriture — job refusé avant la file", { channelId });
+                return null;
+            }
+            throw error;
+        }
     }
 
     try {
         return await postChannelMessage(channelId, body);
     } catch (error: any) {
+        // Refus PERMANENT en HTTP synchrone (mode par défaut en prod, outbox OFF) :
+        // on arme le MÊME disjoncteur que l'outbox. Sans ça, la prod continuerait de
+        // solliciter un salon mort à chaque tick (403/50001 en boucle de cron).
+        if (isPermanentDiscordWriteFailure(error)) {
+            void markDiscordChannelBlocked(channelId, {
+                status: getDiscordApiStatus(error),
+                code: getDiscordApiCode(error),
+                source: "sendChannelMessage",
+            });
+        }
         console.error("[Discord] Error sending message:", error);
         throw error;
     }
@@ -1082,6 +1117,13 @@ export async function updateChannelMessage(
     const sanitizedContent = sanitizeMentions(content);
     const token = process.env.DISCORD_BOT_TOKEN;
     if (!token) return false;
+
+    // 🛑 Disjoncteur : salon en pause ⇒ aucun appel HTTP. C'est le chemin MESURÉ du
+    // 25/09/2026 (le living status ré-éditait son message dans un salon inaccessible
+    // toutes les heures) : sans cette garde, la tentative restait faite pour rien.
+    if (await isDiscordChannelBlocked(channelId)) {
+        return false;
+    }
 
     const body: Record<string, unknown> = {};
 
@@ -1145,11 +1187,35 @@ export async function updateChannelMessage(
         if (!res.ok) {
             const errBody = await res.text();
             console.error(`[Discord] Update failed ${res.status}: ${errBody}`);
-            throw new Error(`Discord Update Error: ${res.status}`);
+
+            // Même contrat que `postChannelMessage` : le STATUT et le `code` numérique
+            // sont portés par l'erreur (jamais le corps brut — F-15). Sans eux, un refus
+            // de PATCH n'était ni classable (« définitif ? ») ni diagnosticable, donc ni
+            // les alertes ni le disjoncteur ne pouvaient le traiter.
+            let message = "Échec de la mise à jour du message Discord";
+            let discordCode: number | undefined;
+            try {
+                const parsed = JSON.parse(errBody);
+                if (res.status === 403) message = "Le bot n'a pas accès à ce salon (Permission bloquée)";
+                else if (res.status === 404) message = "Salon ou message introuvable";
+                else if (parsed?.message) message = "Discord a refusé la demande";
+                if (typeof parsed?.code === "number") discordCode = parsed.code;
+            } catch { /* use default */ }
+
+            throw new DiscordApiError(message, res.status, discordCode);
         }
 
         return true;
     } catch (error: any) {
+        // Refus PERMANENT (salon inaccessible) : on arme le disjoncteur pour couper
+        // la source du bruit (le cron qui réédite dans un salon mort).
+        if (isPermanentDiscordWriteFailure(error)) {
+            void markDiscordChannelBlocked(channelId, {
+                status: getDiscordApiStatus(error),
+                code: getDiscordApiCode(error),
+                source: "updateChannelMessage",
+            });
+        }
         console.error("[Discord] Error updating message:", error);
         throw error;
     }
@@ -1654,8 +1720,16 @@ export async function sendDiscordRawEmbed(
     // #223 P3.1 — Mode dégradé (outbox) : même file que sendChannelMessage (kind: postMessage).
     if (isDiscordOutboxEnabled()) {
         const { enqueueDiscordWrite } = await import("@/server/discord-outbox");
-        const jobId = await enqueueDiscordWrite({ kind: "postMessage", channelId, body });
-        return `outbox:${jobId}`;
+        try {
+            const jobId = await enqueueDiscordWrite({ kind: "postMessage", channelId, body });
+            return `outbox:${jobId}`;
+        } catch (error) {
+            if (isDiscordChannelBlockedError(error)) {
+                logger.warn("[Discord] Salon en pause d'écriture — embed brut non mis en file", { channelId });
+                return null;
+            }
+            throw error;
+        }
     }
 
     try {

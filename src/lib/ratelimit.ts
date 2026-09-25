@@ -35,12 +35,17 @@ function pruneMemoryCache(now = Date.now()) {
  *
  * @returns success=false when the limit is exceeded OR the rate limiter itself
  *          fails (fail-closed). success=true only on a confirmed under-limit.
+ *          `error: true` distingue une PANNE du limiteur d'un dépassement de
+ *          quota : les protections d'accès restent fail-closed dans les deux cas,
+ *          mais un appelant qui déduplique une **alerte** peut légitimement
+ *          choisir de la laisser passer (un doublon vaut mieux qu'un silence —
+ *          cf. `notifyGod`).
  */
 export async function rateLimit(
     identifier: string,
     limit: number,
     windowMs: number
-): Promise<{ success: boolean; remaining: number; reset: number }> {
+): Promise<{ success: boolean; remaining: number; reset: number; error?: boolean }> {
     const key = `ratelimit:${identifier}`;
     const now = Date.now();
 
@@ -73,7 +78,7 @@ export async function rateLimit(
             .pttl(key)
             .exec();
 
-        if (!results) return { success: false, remaining: 0, reset: now + windowMs };
+        if (!results) return { success: false, remaining: 0, reset: now + windowMs, error: true };
 
         const count = results[1][1] as number;
         const ttl = results[2][1] as number;
@@ -88,6 +93,9 @@ export async function rateLimit(
         // This helper only guards mutations/auth actions — blocking them is safe
         // and preferable to a silent bypass of the protection.
         logger.error("[RateLimit] Redis error — FAIL CLOSED (request rejected):", { error: (e as Error).message });
-        return { success: false, remaining: 0, reset: now + windowMs };
+        // `error: true` : la cause est une PANNE du limiteur, pas un dépassement de
+        // quota. Les gardes d'accès restent fail-closed ; un appelant qui déduplique
+        // une alerte peut, lui, préférer un doublon à un silence (cf. `notifyGod`).
+        return { success: false, remaining: 0, reset: now + windowMs, error: true };
     }
 }

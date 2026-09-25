@@ -94,6 +94,62 @@ describe("notifyGod — l'alerte d'échec d'écriture ne repart JAMAIS sur Disco
     });
 });
 
+describe("invariant : une alerte d'ÉCHEC ne repart jamais sur Discord", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        mockDb.platformConfig.findUnique.mockResolvedValue({
+            godNotifyChannelId: "1547020288380637305",
+            godNotifyRoleId: "999",
+        });
+        mockDb.godNotification.create.mockResolvedValue({ id: "notif-1" });
+        (rateLimit as any).mockResolvedValue({ success: true, remaining: 0, reset: Date.now() + 3_600_000 });
+    });
+
+    it("`success: false` SANS drapeau ⇒ aucun envoi Discord (c'est le DÉFAUT, pas une convention)", async () => {
+        const res = await notifyGod({
+            title: "Panne X",
+            message: "détail",
+            type: "SYSTEM",
+            success: false,
+            ping: true,
+        });
+
+        expect(res.success).toBe(true);
+        expect(mockDb.godNotification.create).toHaveBeenCalledTimes(1);
+        // Le point critique : un futur appelant qui OUBLIE `webOnly` ne peut plus
+        // refermer la boucle « échec → alerte → écriture Discord → échec ».
+        expect(sendChannelMessage).not.toHaveBeenCalled();
+    });
+
+    it("dérogation explicite `allowDiscordOnFailure` ⇒ un échec peut être posté (cas légitime préservé)", async () => {
+        await notifyGod({
+            title: "Échec métier sans rapport avec Discord",
+            message: "détail",
+            type: "SYSTEM",
+            success: false,
+            allowDiscordOnFailure: true,
+        });
+
+        expect(sendChannelMessage).toHaveBeenCalledTimes(1);
+    });
+
+    it("erreur Redis sur la déduplication ⇒ l'alerte passe quand même (un doublon vaut mieux qu'un silence)", async () => {
+        (rateLimit as any).mockResolvedValue({ success: false, remaining: 0, reset: 0, error: true });
+
+        await notifyGod({ ...OUTBOX_ALERT, webOnly: true, dedupeKey: "discord-outbox:1547020288380637305" });
+
+        expect(mockDb.godNotification.create).toHaveBeenCalledTimes(1);
+    });
+
+    it("quota réellement dépassé (sans `error`) ⇒ toujours dédupliqué", async () => {
+        (rateLimit as any).mockResolvedValue({ success: false, remaining: 0, reset: 0 });
+
+        await notifyGod({ ...OUTBOX_ALERT, webOnly: true, dedupeKey: "discord-outbox:1547020288380637305" });
+
+        expect(mockDb.godNotification.create).not.toHaveBeenCalled();
+    });
+});
+
 describe("gardes de source — le worker outbox est bien câblé", () => {
     const worker = readFileSync("src/workers/discord-outbox-worker.ts", "utf8");
     const actions = readFileSync("src/server/actions/god-notif-actions.ts", "utf8");
@@ -103,8 +159,22 @@ describe("gardes de source — le worker outbox est bien câblé", () => {
         expect(worker).toMatch(/dedupeKey: `discord-outbox:\$\{failedChannelId \?\? "sans-salon"\}`/);
     });
 
-    it("`notifyGod` coupe l'envoi Discord quand `webOnly` est demandé", () => {
-        expect(actions).toMatch(/if \(targetChannelId && !webOnly\)/);
+    it("`notifyGod` coupe l'envoi Discord pour une alerte web-only (défaut d'échec inclus)", () => {
+        expect(actions).toMatch(/if \(targetChannelId && !effectiveWebOnly\)/);
+        expect(actions).toMatch(/const effectiveWebOnly = webOnly \|\| \(success === false && !allowDiscordOnFailure\)/);
         expect(actions).toMatch(/dedupeKey/);
+    });
+
+    it("le worker met le salon en pause, n'alerte qu'une fois par épisode et lève la pause sur succès", () => {
+        // Une seule alerte par salon jusqu'à la prochaine écriture réussie : à 5 000
+        // guildes, c'est la différence entre 24 alertes/jour/salon et une alerte.
+        expect(worker).toMatch(/markDiscordChannelBlocked\(/);
+        expect(worker).toMatch(/failureCount <= 1/);
+        expect(worker).toMatch(/buildAggregateOutboxFailureAlert\(/);
+        expect(worker).toMatch(/clearDiscordChannelBlock\(/);
+    });
+
+    it("le worker n'alerte PAS quand le disjoncteur est la cause de l'échec (sinon le bruit revient)", () => {
+        expect(worker).toMatch(/isDiscordChannelBlockedError\(err\)/);
     });
 });

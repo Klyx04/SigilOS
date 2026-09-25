@@ -34,6 +34,7 @@ description: Amorce de session — exécuter la refonte God « Guildes & Users �
 > 5. **Ne jamais confondre** `isModuleEnabled` (**toggle ∪ verrou**, sémantique de navigation) et `isModuleLocked` (**verrou seul**, garde d'URL).
 > 6. **Sonde sur la base réelle** : vitest **n'expose pas** `DATABASE_URL` ⇒ l'exporter dans la commande (jamais dans un fichier du dépôt) ; remettre un champ `Json?` à `NULL` via Prisma exige `Prisma.DbNull`.
 > 7. **CI `Verify & Build` ≈ 8-9 min par lot** : poller `gh pr checks <n>` jusqu'au vert avant de merger (le build est **délégué à la CI** si `next dev` tourne — le dire, ne pas prétendre l'avoir joué).
+> 8. **Travail parallèle dans le même arbre de travail** (mesuré le 25/09 : une 2ᵉ session écrivait pendant la 1ʳᵉ) ⇒ commiter par **chemins explicites** (`git add -- <chemin>`, `:(literal)` pour les dossiers `[id]`/`[guildId]`), **jamais** `git add -A` — sinon le lot embarque le WIP d'une autre branche ; et vérifier `git rev-parse --abbrev-ref HEAD` **avant** de committer (le checkout peut avoir changé de branche entre-temps).
 
 ## 1. Brief
 
@@ -249,7 +250,7 @@ SÉCURITÉ (non négociable) — auth sur CHAQUE action (auth()/isSuperAdmin()) 
 snowflake venant du client) · RBAC + isSuperAdmin() fail-closed (page ET action) + audit · Zod borné sur toute entrée
 utilisateur ET sur les données d'API externe · fail-closed si Discord/Redis échoue · secrets process.env sans fallback
 · comparaison timingSafeEqual · logger (jamais console.log) · rate limit sur les mutations (429 propre) · garde d'état
-DANS le WHERE · src/proxy.ts (jamais middleware.ts) · **aucune migration dans ces 4 lots** (les colonnes du lot 2 sont
+DANS le WHERE · src/proxy.ts (jamais middleware.ts) · **aucune migration dans ces 2 lots** (les colonnes du lot 2 sont
 déjà en base ; si un besoin apparaît : additive et idempotente, et STOP avant) · aucun secret en dur.
 
 VÉRIFS par lot — npm run test:run · npx tsc --noEmit · npm run lint · git status --short propre (aucun artefact de la
@@ -257,7 +258,7 @@ tâche : sonde, capture, dump) · gh pr checks jusqu'au vert · merge · branche
 docs/ROADMAP.md + docs/agents/activeContext.md mis à jour. Si `next dev` tourne, le build est délégué à la CI : dis-le
 (ne prétends pas l'avoir joué).
 
-LIVRABLE — commits en français (feat/fix/refactor(god): …) · les 4 PR mergées et CI verte · rapport final ≤ 15 lignes :
+LIVRABLE — commits en français (feat/fix/refactor(god): …) · les 2 PR mergées et CI verte · rapport final ≤ 15 lignes :
 fait / reste / ops côté user.
 ```
 

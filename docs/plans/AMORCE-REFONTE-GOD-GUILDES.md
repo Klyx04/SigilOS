@@ -11,6 +11,27 @@ description: Amorce de session — exécuter la refonte God « Guildes & Users �
 > **Mode demandé** : « *one shot* » ⇒ enchaîner les lots **sans redemander la suite**, **1 lot = 1 branche = 1 PR → `dev`**.
 > Arrêt **uniquement** si une **mesure** contredit le plan (alors : s'arrêter et le dire, cf. §5).
 
+## 0. État d'exécution (25/09/2026, soir) — **il reste les lots 3 → 6**
+
+> 🟢 **Lots 0 · 1 · 2 livrés, mergés dans `dev`, CI verte** (le détail mesuré est dans
+> `docs/agents/activeContext.md`, bloc « Session 25/09/2026 (God, refonte — exécution) »).
+> 👉 **Pour reprendre : le bloc §6 suffit** (il porte l'état + les 4 lots restants, tel quel).
+>
+> | Lot | Branche | PR | Écarts au plan (à connaître avant de coder le lot 3) |
+> |---|---|---|---|
+> | **0** — le mort d'abord | `feat/god-lot0-mort` | **#747** | conforme au plan ; plafond du test de déslop **90 → 85** |
+> | **1** — le verrou atteint la carte de la guilde | `feat/god-lot1-verrou` | **#748** | Core **`src/server/platform-module-state.ts`** (lecture **tolérante** `PlatformConfig.disabledModules`/`moduleNotices`, cache 30 s) au lieu d'un cache local à `module-actions` ; **`getGuildModuleConfig`** (toggles **bruts** + états effectifs issus d'**une** lecture) ; **`isModuleLocked`** (garde de page « verrou », distincte du toggle) ; **2 correctifs mesurés** : le mini-jeu était gardé par le module `worldmap`, et 8 pages ne laissaient pas entrer le God |
+> | **2** — vue God « Modules » + verrou plateforme | `feat/god-lot2-modules` | **#749** | Les 2 actions vivent dans **`src/server/actions/module-actions.ts`** (pas de `god-module-actions.ts`) ; la vue est un **onglet** `/god?tab=modules` (pas de route `/god/modules`) ; message borné à **200** (`MODULE_NOTICE_MAX_LENGTH`, Zod **refuse** au-delà) ; plafond déslop **85 → 86** (1 surface God neuve) ; migration appliquée en local par SQL + `migrate resolve` (historique local déjà dérivé ⇒ `migrate dev` inutilisable) |
+>
+> **Leçons mesurées à ne pas rejouer** :
+> 1. **Créer la branche de chaque lot depuis `dev` APRÈS le merge du précédent** (`git fetch origin dev && git merge origin/dev` avant d'ouvrir la PR) : le lot 2, branché avant le merge du lot 1, embarquait la PR #748.
+> 2. **Conflit de docs à chaque merge** (les 7 lots touchent le **même** bloc de session) ⇒ résoudre en gardant la version **superset** (celle de la branche), jamais en recopiant à la main.
+> 3. **`gh pr create --body "…"` casse sous PowerShell** (le backtick est un caractère d'échappement) ⇒ écrire le corps dans un fichier **hors dépôt** + `--body-file`.
+> 4. **Le payload d'écriture des modules = les toggles BRUTS** : envoyer l'état *effectif* fait échouer l'enregistrement de **tous** les autres modules (bug mesuré, corrigé au lot 1).
+> 5. **Ne jamais confondre** `isModuleEnabled` (**toggle ∪ verrou**, sémantique de navigation) et `isModuleLocked` (**verrou seul**, garde d'URL).
+> 6. **Sonde sur la base réelle** : vitest **n'expose pas** `DATABASE_URL` ⇒ l'exporter dans la commande (jamais dans un fichier du dépôt) ; remettre un champ `Json?` à `NULL` via Prisma exige `Prisma.DbNull`.
+> 7. **CI `Verify & Build` ≈ 8-9 min par lot** : poller `gh pr checks <n>` jusqu'au vert avant de merger (le build est **délégué à la CI** si `next dev` tourne — le dire, ne pas prétendre l'avoir joué).
+
 ## 1. Brief
 
 | Champ | Valeur |
@@ -44,10 +65,11 @@ description: Amorce de session — exécuter la refonte God « Guildes & Users �
 ## 3. Ordre d'exécution — **7 lots, 1 lot = 1 branche = 1 PR → `dev`**
 
 > Règle : **on merge un lot avant d'ouvrir le suivant** (mais on n'attend pas de feu vert : le user a demandé le
-> one shot). Nommage : `feat/god-lot0-mort`, `feat/god-lock-guilde`, `feat/god-modules-plateforme`,
-> `feat/god-logs-unifies`, `fix/god-lecture-god`, `refactor/god-ux-produit`, `refactor/god-deslop`.
+> one shot). **Lots 0-2 livrés** (#747 `feat/god-lot0-mort`, #748 `feat/god-lot1-verrou`, #749 `feat/god-lot2-modules`).
+> Branches utilisées pour la reprise : `feat/god-logs-unifies`, `fix/god-lecture-god`, `refactor/god-ux-produit`,
+> `refactor/god-deslop`.
 
-### Lot 0 — **Le mort d'abord** (A7 · A8) — zéro risque
+### Lot 0 — **Le mort d'abord** (A7 · A8) — zéro risque — ✅ **livré** (PR #747)
 - **Supprimer** (après `git grep -n "<nom-de-fichier>"` obligatoire) :
   `src/app/god/components/lifecycle-panel.tsx` · `src/app/god/components/ghost-radar-panel.tsx` ·
   `src/app/god/janitor-button.tsx` · `src/components/admin/deletion-pending-panel.tsx` ·
@@ -59,7 +81,7 @@ description: Amorce de session — exécuter la refonte God « Guildes & Users �
 - **Preuve** : capture de `/god?tab=security` **sans** les deux cartes mortes · `npm run test:run` vert ·
   `tests/unit/god-deslop.test.ts` (le plafond **baisse** : 4 fichiers en moins).
 
-### Lot 1 — **G8 : le verrou éteint vraiment le module pour la guilde** (A1)
+### Lot 1 — **G8 : le verrou éteint vraiment le module pour la guilde** (A1) — ✅ **livré** (PR #748)
 - **`src/lib/module-lock.ts`** (règle pure, une seule source) : `resolveModuleState(modules, { guildLocks,
   platformLocks, platformNotices }) → { enabled, lockedBy: "platform" | "guild" | null, notice: string | null }` ;
   conserver `applyGodLocks`/`normalizeGodLocks` (compat + tests existants). `admin` **jamais** verrouillable.
@@ -81,7 +103,7 @@ description: Amorce de session — exécuter la refonte God « Guildes & Users �
 - **Preuve** : capture **avant/après** (1440 + 390) de `/admin/pilotage?tab=modules` avec un module verrouillé +
   module actif ⇒ OFF ; `isModuleEnabled` false mesuré.
 
-### Lot 2 — **G12 : vue God « Modules » + verrou global + message perso** (A2/A3) — **1 migration additive**
+### Lot 2 — **G12 : vue God « Modules » + verrou global + message perso** (A2/A3) — **1 migration additive** — ✅ **livré** (PR #749)
 - **Schéma** : `PlatformConfig` → `disabledModules String[] @default([])`, `moduleNotices Json?`,
   `disabledModulesUpdatedAt DateTime?`, `disabledModulesUpdatedBy String?`. Migration **additive** avec
   `ADD COLUMN IF NOT EXISTS` (règle de la PR #614) ; `npx prisma generate` ; même esprit que
@@ -103,7 +125,7 @@ description: Amorce de session — exécuter la refonte God « Guildes & Users �
   avec accès ; au déverrouillage, l'état antérieur revient **intact** (vérifier en base que le toggle guilde n'a
   **pas** été écrasé).
 
-### Lot 3 — **G11 : les logs, une seule porte** (A9 · A10 · A11 · G6)
+### Lot 3 — **G11 : les logs, une seule porte** (A9 · A10 · A11 · G6) — ⏭️ **à faire** (bloc §6)
 - **Nav** : supprimer l'entrée `security` de `god-nav-config.ts` (garder **une** entrée « Sécurité & Logs » →
   `/god/logs`) ; `?tab=security` fait un `redirect("/god/logs?tab=...")` (**les liens existants ne cassent pas**).
 - **`src/app/god/logs/logs-tabs.tsx` → 5 onglets** : **Journal plateforme** · **Journal de guilde** (A11, lecture
@@ -118,7 +140,7 @@ description: Amorce de session — exécuter la refonte God « Guildes & Users �
   `TAB_TO_BRICK` si besoin.
 - **Preuve** : avant/après du volume affiché et du nombre de lignes de journal/jour ; une seule entrée de nav.
 
-### Lot 4 — **Le God voit tout** (G7 · A4 · A5)
+### Lot 4 — **Le God voit tout** (G7 · A4 · A5) — ⏭️ **à faire** (bloc §6)
 - `src/app/god/guilds/[id]/page.tsx` + `god-guild-tabs.tsx` : la lecture s'appuie sur `isSuperAdmin()`
   (**jamais** sur `getUserContext(...).canViewAuditLogs`) ; **« erreur de chargement »** et **« accès refusé »** sont
   deux messages **distincts**.
@@ -126,13 +148,13 @@ description: Amorce de session — exécuter la refonte God « Guildes & Users �
   guilde (`isGodLog: true`, sans `guildId`).
 - **Preuve** : capture d'une fiche guilde par un God — **2 onglets lisibles, zéro message d'accès**.
 
-### Lot 5 — **Langage, tour de contrôle, roster, RBAC, users** (G1 · G2 · G3 · G5 · G9)
+### Lot 5 — **Langage, tour de contrôle, roster, RBAC, users** (G1 · G2 · G3 · G5 · G9) — ⏭️ **à faire** (bloc §6)
 - Glossaire **dans l'UI** (légende dépliable + `title` sur chaque badge) · tour de contrôle **1 action primaire par
   bloc** · roster : **colonnes utiles**, actions visibles, tableau → cartes en mobile · RBAC : **libellés humains**
   depuis `src/lib/permissions.ts` (**plus aucun slug brut**) · `/god/users` même langage.
 - **Preuve** : captures 1440 / 1024 / 390 **avant/après** par écran.
 
-### Lot 6 — **Déslop God par lots** (G10)
+### Lot 6 — **Déslop God par lots** (G10) — ⏭️ **à faire** (bloc §6)
 - Jetons sémantiques (`bg-card`, `text-muted-foreground`, `border-border`…), kit `src/app/god/ui` **étendu**
   (`GodTable`, `GodToolbar`, `GodPagination`, `GodTabs`) — **jamais** une nouvelle recette.
 - Bannir : dégradés violet/glow, `backdrop-blur-xl` généralisé, emojis dans les libellés, `animate-pulse` décoratif,
@@ -167,29 +189,48 @@ description: Amorce de session — exécuter la refonte God « Guildes & Users �
   (aucun artefact : sonde, capture, `temp/` reste **gitignoré**) · `gh pr checks` **vert** · merge · branche
   supprimée · `dev` repullé · `docs/ROADMAP.md` + `docs/agents/activeContext.md` mis à jour · rapport **≤ 15 lignes**.
 
-## 6. Bloc à coller (prompt de session)
+## 6. Bloc à coller — **reprise : lots 3 → 6** (prompt de session)
 
-> Copier **tel quel** dans un nouveau chat. `AGENTS.md` est chargé automatiquement ; ce bloc **précise le chantier**
-> et l'ordre d'exécution.
+> Copier **tel quel** dans un nouveau chat. `AGENTS.md` est chargé automatiquement ; ce bloc **porte l'état réel**
+> (lots 0-2 déjà livrés) et **le chantier des 4 lots restants** — aucune question à poser.
 
 ```
 CONTEXTE — projet SigilOS (Next 16 App Router, React 19, Prisma 7/PostgreSQL, Redis, bot Discord, BullMQ).
-Lis d'abord : docs/plans/AMORCE-REFONTE-GOD-GUILDES.md (cadrage + ordre des lots) et
+Lis d'abord : docs/plans/AMORCE-REFONTE-GOD-GUILDES.md (**§0 = état d'exécution**, §2 = arbitrages, §3 = ordre des lots) et
 docs/plans/PLAN-REFONTE-GOD-GUILDES.md (plan vivant : verbatim user, arbitrages, chantiers G1→G12, dette mesurée
 D1/D2/D3, directives anti-slop §8). Compléments : docs/ROADMAP.md, docs/agents/activeContext.md (en-tête + bloc
-« Session 25/09/2026 (God, refonte) »), docs/RULES.md (§ Security), docs/SECURITY.md,
+« Session 25/09/2026 (God, refonte — exécution) »), docs/RULES.md (§ Security), docs/SECURITY.md,
 docs/agents/{git-push,prisma-schema-change}.md. Vérifie le code : la doc peut être en retard d'une PR.
 
-CHANTIER — refonte UI/UX produit + features de la console God « Guildes & Users », en ONE SHOT : exécute les 7 lots
-de l'amorce, dans l'ordre, 1 lot = 1 branche = 1 PR vers dev. Aucune question à me poser : les 11 arbitrages A1-A11
-sont TRANCHÉS (§3 du plan) — applique-les littéralement.
-Rappel critique A1 : le verrou d'un module est une propriété de LA GUILDE (carte grisée dans
-/dashboard/[guildId]/admin/pilotage ET /admin/modules, toggle inerte + refus serveur, module déjà actif ⇒ OFF
-effectif avec le toggle CONSERVÉ en BDD, absent de la navbar, URL directe rebouchée, commande bot refusée,
-tout vérifié côté serveur). `bypassModules = isGod` RESTE : ne le « corrige » pas, ce n'est pas un bug.
-A2/A3 : message « Indisponible — maintenance » affiché SUR LA CARTE du module côté guilde + NOUVELLE vue God
-« Modules » (désactivation globale pour toutes les guildes + message perso par module, 1 migration additive sur
-PlatformConfig). Le mot « staff » disparaît de l'interface. A9/A10/A11 : un seul écran de logs (/god/logs).
+ÉTAT — les lots 0, 1 et 2 sont **LIVRÉS et mergés dans dev** (PR #747 / #748 / #749, CI verte) : plus aucun doublon
+mort dans l'onglet Sécurité ; le verrou d'un module éteint **vraiment** le module pour la guilde (carte grisée, toggle
+inerte + refus serveur, navbar, URL rebouchée, bot refusé) ; le God peut couper un module pour **toutes** les guildes
+avec un message perso (onglet /god?tab=modules, colonnes additives PlatformConfig.disabledModules/moduleNotices).
+⚠️ Ne pas rejouer A1 : `bypassModules = isGod` RESTE (ce n'est pas un bug). Le mot « staff » est banni de l'interface.
+Le reste = les lots 3 → 6 ci-dessous. Les écarts réels au plan et les leçons mesurées sont en tête de l'amorce (§0).
+
+CHANTIER — exécute les **4 lots restants**, dans l'ordre, en ONE SHOT : 1 lot = 1 branche = 1 PR vers dev, branche
+créée depuis `dev` **après** le merge du lot précédent. Applique littéralement les arbitrages A1-A11 (§2/§3 du plan).
+- LOT 3 — G11 « les logs, une seule porte » (A9 · A10 · A11 · G6) : supprimer l'entrée de nav `security` (garder UNE
+  entrée → /god/logs) et faire **rediriger** `?tab=security` (des liens existent, dont le menu God) ; `logs-tabs.tsx`
+  → 5 onglets (Journal plateforme · Journal de guilde **lecture seule**, filtrable par guilde · Accès refusés · Audit du
+  Marché · **Accès délégués** = `GodAccessLog`, écrit aujourd'hui et jamais lu) ; **arrêter** la ligne
+  `GOD_DASHBOARD_ACCESS` par visite (`GodSessionLog` reste la source) et afficher un **compteur** agrégé par jour —
+  mesure **avant/après** du nombre de lignes/jour (attendu ≈ **−72 %**) ; pagination **numérotée** + « par page »,
+  presets de période (24 h / 7 j / 30 j / 90 j), filtres **EN BASE**, regroupement par jour.
+- LOT 4 — G7 « le God voit tout » (A4 · A5) : la fiche guilde (`src/app/god/guilds/[id]/page.tsx` + `god-guild-tabs.tsx`)
+  lit par `isSuperAdmin()`, **jamais** par `getUserContext(...).canViewAuditLogs` ; « erreur de chargement » et « accès
+  refusé » sont **deux messages distincts** ; test de non-régression : une action God ne crée **aucune** ligne dans le
+  journal de la guilde (`isGodLog: true`, sans `guildId`).
+- LOT 5 — G1 · G2 · G3 · G5 · G9 : glossaire **dans l'UI** (légende dépliable + `title` sur chaque badge) ; tour de
+  contrôle « **1 action primaire par bloc** », le reste en `⋯`, destructif en zone danger ; roster lisible (colonnes
+  utiles, actions visibles, tableau → **cartes en mobile**) ; RBAC avec les **libellés humains** de
+  `src/lib/permissions.ts` (plus aucun slug brut) ; `/god/users` aligné sur le même langage.
+- LOT 6 — G10 déslop God **par lots** : jetons sémantiques (`bg-card`, `text-muted-foreground`, `border-border`…), kit
+  `src/app/god/ui` **étendu** (`GodTable`, `GodToolbar`, `GodPagination`, `GodTabs`) — **jamais** une nouvelle recette ;
+  bannir dégradés violet/glow, `backdrop-blur-xl` généralisé, emojis dans les libellés, `animate-pulse` décoratif ; le
+  plafond de `tests/unit/god-deslop.test.ts` **BAISSE** à chaque PR — objectif final : **retirer le God de l'allowlist**
+  `sigil/no-hardcoded-colors`.
 
 MÉTHODE — 1) mesure la cause racine AVANT de corriger (sonde _probe-*.mjs, requête SQL en lecture seule, curl, logs)
 et écris la mesure ; 2) corrige au bon étage : règle pure src/lib/** > serveur src/server/** > composant, UNE seule
@@ -203,15 +244,15 @@ SÉCURITÉ (non négociable) — auth sur CHAQUE action (auth()/isSuperAdmin()) 
 snowflake venant du client) · RBAC + isSuperAdmin() fail-closed (page ET action) + audit · Zod borné sur toute entrée
 utilisateur ET sur les données d'API externe · fail-closed si Discord/Redis échoue · secrets process.env sans fallback
 · comparaison timingSafeEqual · logger (jamais console.log) · rate limit sur les mutations (429 propre) · garde d'état
-DANS le WHERE · src/proxy.ts (jamais middleware.ts) · exactement 1 migration, additive et idempotente
-(PlatformConfig.disabledModules + moduleNotices, lot 2) · aucun secret en dur.
+DANS le WHERE · src/proxy.ts (jamais middleware.ts) · **aucune migration dans ces 4 lots** (les colonnes du lot 2 sont
+déjà en base ; si un besoin apparaît : additive et idempotente, et STOP avant) · aucun secret en dur.
 
 VÉRIFS par lot — npm run test:run · npx tsc --noEmit · npm run lint · git status --short propre (aucun artefact de la
 tâche : sonde, capture, dump) · gh pr checks jusqu'au vert · merge · branche supprimée · dev repullé ·
 docs/ROADMAP.md + docs/agents/activeContext.md mis à jour. Si `next dev` tourne, le build est délégué à la CI : dis-le
 (ne prétends pas l'avoir joué).
 
-LIVRABLE — commits en français (feat/fix/refactor(god): …) · les 7 PR mergées et CI verte · rapport final ≤ 15 lignes :
+LIVRABLE — commits en français (feat/fix/refactor(god): …) · les 4 PR mergées et CI verte · rapport final ≤ 15 lignes :
 fait / reste / ops côté user.
 ```
 

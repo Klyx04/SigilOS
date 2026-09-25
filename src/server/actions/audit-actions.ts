@@ -57,7 +57,7 @@ export type AuditAction =
     | "GOD_CONFIG_OVERRIDE"       // Manual override of a guild's configuration
     | "GOD_DATABASE_SYNC"         // Massive data synchronization (DofusDB, etc)
     | "GOD_NEWS_PUBLISH"          // Platform-wide news published
-    | "GOD_DASHBOARD_ACCESS"      // Dashboard God accédé (R5)
+    | "GOD_DASHBOARD_ACCESS"      // Accès dashboard God — HISTORIQUE (A9 : plus écrit, cf. GodSessionLog)
     | "GOD_MAINTENANCE_MODE"
     | "GOD_GUIDE_UPDATE"          // Écriture sur un guide optimisé (sous-god) — P2 traçage
     | "GOD_RUSH_UPDATE"           // Écriture sur le rush Sylvestre (sous-god) — P2 traçage
@@ -513,25 +513,12 @@ export async function createGodAuditLog({
         const session = await auth();
         if (!session?.user?.id) return { success: false };
 
-        // 🔵 TÂCHE 2 — Throttle GOD_DASHBOARD_ACCESS : 1 log/heure utilisateur.
-        // Le layout God se re-rend souvent (navigation, refresh) → sans throttle, le volume
-        // explose. On garde la traçabilité du premier accès + un snapshot horaire.
-        if (action === "GOD_DASHBOARD_ACCESS") {
-            const hourAgo = new Date(Date.now() - 60 * 60 * 1000);
-            const lastAccess = await db.auditLog.findFirst({
-                where: {
-                    action: "GOD_DASHBOARD_ACCESS",
-                    actorUserId: session.user.id,
-                    isGodLog: true,
-                    createdAt: { gte: hourAgo }
-                },
-                select: { id: true },
-                orderBy: { createdAt: "desc" }
-            });
-            if (lastAccess) {
-                return { success: true, logId: lastAccess.id };
-            }
-        }
+        // 🧹 A9 — plus AUCUN log par visite : le throttle « 1 log/heure/utilisateur »
+        // vivait ici pour un écrivain qui n'existe plus (le layout God). La trace des
+        // accès est la **session** (`GodSessionLog`) et son compteur agrégé par jour
+        // (`src/server/god-access-stats.ts`). L'action `GOD_DASHBOARD_ACCESS` reste
+        // déclarée (et affichable) : elle porte les lignes **historiques**, purgées
+        // par la rétention God de 90 j (`@/lib/audit-retention-policy`).
 
         const { Prisma } = await import("@prisma/client");
         const toJson = (val: unknown) => (val === undefined || val === null ? Prisma.JsonNull : val);
@@ -638,6 +625,12 @@ const GetLogsSchema = z.object({
     category: z.enum(["security", "functional"]).optional(),
     /** Périmètre : actions plateforme (`isGodLog: true`) ou journaux de guilde. */
     scope: z.enum(["platform", "guild"]).optional(),
+    /**
+     * A11 — **journal d'une guilde** lu par le God (`/god/logs`, onglet dédié) :
+     * filtré par **id interne** de guilde (`GuildConfig.id`), jamais un snowflake
+     * du client. Réservé au super-admin (`getGlobalAuditLogs` refuse sinon).
+     */
+    guildConfigId: z.string().min(1).max(64).optional(),
 });
 
 type GetLogsInput = z.infer<typeof GetLogsSchema>;
@@ -972,7 +965,7 @@ export async function cleanupOldAuditLogs(
  */
 export async function getGlobalAuditLogs(
     options?: Partial<GetLogsInput>
-): Promise<ActionResponse<{ logs: AuditLogEntry[]; total: number; hasMore: boolean }>> {
+): Promise<ActionResponse<{ logs: AuditLogEntry[]; total: number; hasMore: boolean; securityCount: number }>> {
     try {
         // R1 - LECTURE compatible scope "logs" (sub-god logs autorise a lire les logs God).
         const { isSuperAdmin, canGodAccess } = await import("./super-admin-actions");
@@ -982,9 +975,15 @@ export async function getGlobalAuditLogs(
         }
 
         const parsed = GetLogsSchema.safeParse(options || {});
-        const { page, limit, actionFilter, actorFilter, dateFrom, dateTo, search, category, scope } = parsed.success
+        const { page, limit, actionFilter, actorFilter, dateFrom, dateTo, search, category, scope, guildConfigId } = parsed.success
             ? parsed.data
-            : { page: 1, limit: 50, actionFilter: undefined, actorFilter: undefined, dateFrom: undefined, dateTo: undefined, search: undefined, category: undefined, scope: undefined };
+            : { page: 1, limit: 50, actionFilter: undefined, actorFilter: undefined, dateFrom: undefined, dateTo: undefined, search: undefined, category: undefined, scope: undefined, guildConfigId: undefined };
+
+        // 🛡️ A11 — le journal d'une guilde est une lecture **plateforme** (« le God voit
+        // tout », A5) : elle exige le super-admin, jamais un scope de sous-god. Fail-closed.
+        if (guildConfigId && !isAdmin) {
+            return { success: false, error: "Accès refusé" };
+        }
 
         const where: any = {};
         if (actionFilter) {
@@ -1002,6 +1001,9 @@ export async function getGlobalAuditLogs(
         }
         if (scope === "platform") where.isGodLog = true;
         else if (scope === "guild") where.isGodLog = false;
+        // 🏰 A11 — journal d'**une** guilde (id interne `GuildConfig.id`, jamais un
+        // snowflake venant du client) : lecture seule, aucune action God n'y vit.
+        if (guildConfigId) where.guildId = guildConfigId;
         if (actorFilter && actorFilter.trim()) {
             where.actorName = { contains: actorFilter.trim(), mode: 'insensitive' };
         }
@@ -1019,8 +1021,13 @@ export async function getGlobalAuditLogs(
             ];
         }
 
-        const [total, logs] = await Promise.all([
+        // G6 — « compteur par famille » **mesuré** (jamais un compteur déduit de la
+        // page affichée) : `security` est la seule famille qu'il faut compter en plus,
+        // `functional` est le complément **exact** (les deux contraintes sont
+        // `in`/`notIn` de la même liste fermée, donc la partition est stricte).
+        const [total, securityCount, logs] = await Promise.all([
             db.auditLog.count({ where }),
+            db.auditLog.count({ where: { AND: [where, { action: { in: [...SECURITY_AUDIT_ACTIONS] } }] } }),
             db.auditLog.findMany({
                 where,
                 orderBy: { createdAt: "desc" },
@@ -1037,7 +1044,8 @@ export async function getGlobalAuditLogs(
             data: {
                 logs: logs as any[],
                 total,
-                hasMore: page * limit < total
+                hasMore: page * limit < total,
+                securityCount
             }
         };
     } catch (error) {
@@ -1045,4 +1053,98 @@ export async function getGlobalAuditLogs(
         return { success: false, error: "Erreur" };
     }
 }
+/**
+ * A10 — **Accès délégués** : le journal `GodAccessLog` (GRANT / REVOKE / SYNC des
+ * délégations et des briques) était **écrit partout et lu nulle part** (mesure du
+ * 25/09/2026 : 55 lignes — 20 GRANT, 28 REVOKE, 7 SYNC — aucune surface ne les
+ * affichait). Il est exposé dans `/god/logs`.
+ *
+ * 🔒 Super-admin fail-closed (aucun scope de sous-god n'ouvre ce journal) · entrée
+ * bornée par Zod (`page` / `limit`) · noms résolus par une **seconde lecture bornée**
+ * (`GodAccessLog` n'a **pas** de relation Prisma vers `User` : en ajouter une serait
+ * une migration, hors périmètre des lots 3→6) · métadonnées aplaties en **une ligne**
+ * bornée (jamais un objet brut rendu côté client).
+ */
+
+const GodAccessLogsSchema = z.object({
+    page: z.number().int().min(1).default(1),
+    limit: z.number().int().min(1).max(100).default(50),
+});
+
+export interface GodAccessLogEntry {
+    id: string;
+    userId: string;
+    userName: string | null;
+    action: string;
+    targetId: string | null;
+    detail: string | null;
+    createdAt: Date;
+}
+
+export async function getGodAccessLogs(
+    options?: { page?: number; limit?: number }
+): Promise<ActionResponse<{ logs: GodAccessLogEntry[]; total: number }>> {
+    try {
+        const { isSuperAdmin } = await import("./super-admin-actions");
+        if (!(await isSuperAdmin())) {
+            return { success: false, error: "Accès refusé" };
+        }
+
+        const parsed = GodAccessLogsSchema.safeParse(options ?? {});
+        const { page, limit } = parsed.success ? parsed.data : { page: 1, limit: 50 };
+
+        const [total, rows] = await Promise.all([
+            db.godAccessLog.count(),
+            db.godAccessLog.findMany({
+                orderBy: { createdAt: "desc" },
+                skip: (page - 1) * limit,
+                take: limit,
+                select: { id: true, userId: true, action: true, targetId: true, metadata: true, createdAt: true },
+            }),
+        ]);
+
+        // Noms : une seule lecture bornée (au plus `limit` ids distincts).
+        const userIds = [...new Set(rows.map((row) => row.userId))];
+        const users = userIds.length > 0
+            ? await db.user.findMany({ where: { id: { in: userIds } }, select: { id: true, name: true } })
+            : [];
+        const nameById = new Map(users.map((user) => [user.id, user.name]));
+
+        return {
+            success: true,
+            data: {
+                logs: rows.map((row) => ({
+                    id: row.id,
+                    userId: row.userId,
+                    userName: nameById.get(row.userId) ?? null,
+                    action: row.action,
+                    targetId: row.targetId,
+                    detail: formatGodAccessDetail(row.metadata),
+                    createdAt: row.createdAt,
+                })),
+                total,
+            },
+        };
+    } catch (error) {
+        logger.error("[getGodAccessLogs] Error:", { error });
+        return { success: false, error: "Erreur" };
+    }
+}
+
+/** Métadonnées `Json` → une ligne bornée (`clé: valeur · …`), jamais un objet brut. */
+function formatGodAccessDetail(metadata: unknown, maxLength = 160): string | null {
+    if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) return null;
+
+    const parts: string[] = [];
+    for (const [key, value] of Object.entries(metadata as Record<string, unknown>)) {
+        if (value === null || value === undefined) continue;
+        parts.push(`${key}: ${typeof value === "string" ? value : JSON.stringify(value)}`);
+        if (parts.join(" · ").length > maxLength) break;
+    }
+
+    const text = parts.join(" · ");
+    if (!text) return null;
+    return text.length > maxLength ? `${text.slice(0, maxLength - 1)}…` : text;
+}
+
 

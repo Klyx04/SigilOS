@@ -11,17 +11,18 @@ description: Amorce de session — exécuter la refonte God « Guildes & Users �
 > **Mode demandé** : « *one shot* » ⇒ enchaîner les lots **sans redemander la suite**, **1 lot = 1 branche = 1 PR → `dev`**.
 > Arrêt **uniquement** si une **mesure** contredit le plan (alors : s'arrêter et le dire, cf. §5).
 
-## 0. État d'exécution (25/09/2026, soir) — **il reste les lots 3 → 6**
+## 0. État d'exécution (25/09/2026, soir) — **il reste les lots 4 → 6**
 
-> 🟢 **Lots 0 · 1 · 2 livrés, mergés dans `dev`, CI verte** (le détail mesuré est dans
+> 🟢 **Lots 0 · 1 · 2 · 3 livrés, mergés dans `dev`, CI verte** (le détail mesuré est dans
 > `docs/agents/activeContext.md`, bloc « Session 25/09/2026 (God, refonte — exécution) »).
-> 👉 **Pour reprendre : le bloc §6 suffit** (il porte l'état + les 4 lots restants, tel quel).
+> 👉 **Pour reprendre : le bloc §6 suffit** (il porte l'état + les 3 lots restants, tel quel).
 >
-> | Lot | Branche | PR | Écarts au plan (à connaître avant de coder le lot 3) |
+> | Lot | Branche | PR | Écarts au plan (à connaître avant de coder le lot 4) |
 > |---|---|---|---|
 > | **0** — le mort d'abord | `feat/god-lot0-mort` | **#747** | conforme au plan ; plafond du test de déslop **90 → 85** |
 > | **1** — le verrou atteint la carte de la guilde | `feat/god-lot1-verrou` | **#748** | Core **`src/server/platform-module-state.ts`** (lecture **tolérante** `PlatformConfig.disabledModules`/`moduleNotices`, cache 30 s) au lieu d'un cache local à `module-actions` ; **`getGuildModuleConfig`** (toggles **bruts** + états effectifs issus d'**une** lecture) ; **`isModuleLocked`** (garde de page « verrou », distincte du toggle) ; **2 correctifs mesurés** : le mini-jeu était gardé par le module `worldmap`, et 8 pages ne laissaient pas entrer le God |
 > | **2** — vue God « Modules » + verrou plateforme | `feat/god-lot2-modules` | **#749** | Les 2 actions vivent dans **`src/server/actions/module-actions.ts`** (pas de `god-module-actions.ts`) ; la vue est un **onglet** `/god?tab=modules` (pas de route `/god/modules`) ; message borné à **200** (`MODULE_NOTICE_MAX_LENGTH`, Zod **refuse** au-delà) ; plafond déslop **85 → 86** (1 surface God neuve) ; migration appliquée en local par SQL + `migrate resolve` (historique local déjà dérivé ⇒ `migrate dev` inutilisable) |
+> | **3** — les logs, une seule porte | `feat/god-logs-unifies` | — | Règles **pures** dans **`src/lib/audit-log-view.ts`** (période, pagination, jours UTC) ; kit **`GodPagination`** ; le journal de guilde est **refusé aux sous-gods** (`isAdmin` exigé dans `getGlobalAuditLogs` dès qu'un `guildConfigId` est fourni) ; `GodAccessLog` exposé **sans relation Prisma** (donc **aucune migration**) ; plafond déslop **86 → 85** (2 orphelins mesurés supprimés, `user-list.tsx` **conservé** car cité par le lot 5) |
 >
 > **Leçons mesurées à ne pas rejouer** :
 > 1. **Créer la branche de chaque lot depuis `dev` APRÈS le merge du précédent** (`git fetch origin dev && git merge origin/dev` avant d'ouvrir la PR) : le lot 2, branché avant le merge du lot 1, embarquait la PR #748.
@@ -125,7 +126,7 @@ description: Amorce de session — exécuter la refonte God « Guildes & Users �
   avec accès ; au déverrouillage, l'état antérieur revient **intact** (vérifier en base que le toggle guilde n'a
   **pas** été écrasé).
 
-### Lot 3 — **G11 : les logs, une seule porte** (A9 · A10 · A11 · G6) — ⏭️ **à faire** (bloc §6)
+### Lot 3 — **G11 : les logs, une seule porte** (A9 · A10 · A11 · G6) — ✅ **livré** (`feat/god-logs-unifies`)
 - **Nav** : supprimer l'entrée `security` de `god-nav-config.ts` (garder **une** entrée « Sécurité & Logs » →
   `/god/logs`) ; `?tab=security` fait un `redirect("/god/logs?tab=...")` (**les liens existants ne cassent pas**).
 - **`src/app/god/logs/logs-tabs.tsx` → 5 onglets** : **Journal plateforme** · **Journal de guilde** (A11, lecture
@@ -192,7 +193,7 @@ description: Amorce de session — exécuter la refonte God « Guildes & Users �
 ## 6. Bloc à coller — **reprise : lots 3 → 6** (prompt de session)
 
 > Copier **tel quel** dans un nouveau chat. `AGENTS.md` est chargé automatiquement ; ce bloc **porte l'état réel**
-> (lots 0-2 déjà livrés) et **le chantier des 4 lots restants** — aucune question à poser.
+> (lots 0-3 déjà livrés) et **le chantier des 3 lots restants** — aucune question à poser.
 
 ```
 CONTEXTE — projet SigilOS (Next 16 App Router, React 19, Prisma 7/PostgreSQL, Redis, bot Discord, BullMQ).
@@ -209,15 +210,12 @@ avec un message perso (onglet /god?tab=modules, colonnes additives PlatformConfi
 ⚠️ Ne pas rejouer A1 : `bypassModules = isGod` RESTE (ce n'est pas un bug). Le mot « staff » est banni de l'interface.
 Le reste = les lots 3 → 6 ci-dessous. Les écarts réels au plan et les leçons mesurées sont en tête de l'amorce (§0).
 
-CHANTIER — exécute les **4 lots restants**, dans l'ordre, en ONE SHOT : 1 lot = 1 branche = 1 PR vers dev, branche
+CHANTIER — exécute les **3 lots restants**, dans l'ordre, en ONE SHOT : 1 lot = 1 branche = 1 PR vers dev, branche
 créée depuis `dev` **après** le merge du lot précédent. Applique littéralement les arbitrages A1-A11 (§2/§3 du plan).
-- LOT 3 — G11 « les logs, une seule porte » (A9 · A10 · A11 · G6) : supprimer l'entrée de nav `security` (garder UNE
-  entrée → /god/logs) et faire **rediriger** `?tab=security` (des liens existent, dont le menu God) ; `logs-tabs.tsx`
-  → 5 onglets (Journal plateforme · Journal de guilde **lecture seule**, filtrable par guilde · Accès refusés · Audit du
-  Marché · **Accès délégués** = `GodAccessLog`, écrit aujourd'hui et jamais lu) ; **arrêter** la ligne
-  `GOD_DASHBOARD_ACCESS` par visite (`GodSessionLog` reste la source) et afficher un **compteur** agrégé par jour —
-  mesure **avant/après** du nombre de lignes/jour (attendu ≈ **−72 %**) ; pagination **numérotée** + « par page »,
-  presets de période (24 h / 7 j / 30 j / 90 j), filtres **EN BASE**, regroupement par jour.
+- ✅ LOT 3 — G11 « les logs, une seule porte » (A9 · A10 · A11 · G6) : **LIVRÉ** (`feat/god-logs-unifies`) — entrée de
+  nav `security` supprimée (redirection vers `/god/logs`), 5 onglets (dont « Journal de guilde » en lecture seule et
+  « Accès délégués » = `GodAccessLog`), ligne `GOD_DASHBOARD_ACCESS` par visite **arrêtée** (compteur agrégé par jour
+  issu de `GodSessionLog`), pagination numérotée + presets de période + filtres en base + regroupement par jour.
 - LOT 4 — G7 « le God voit tout » (A4 · A5) : la fiche guilde (`src/app/god/guilds/[id]/page.tsx` + `god-guild-tabs.tsx`)
   lit par `isSuperAdmin()`, **jamais** par `getUserContext(...).canViewAuditLogs` ; « erreur de chargement » et « accès
   refusé » sont **deux messages distincts** ; test de non-régression : une action God ne crée **aucune** ligne dans le

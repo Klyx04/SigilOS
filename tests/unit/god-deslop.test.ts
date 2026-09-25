@@ -28,6 +28,8 @@ const REFONTE_FILES = [
     "src/app/god/guilds/[id]/god-guild-modules-client.tsx",
     "src/app/god/guilds/[id]/god-guild-access-panel.tsx",
     "src/app/god/logs/page.tsx",
+    "src/app/god/logs/log-viewer.tsx",
+    "src/app/god/logs/delegated-access-view.tsx",
     "src/app/god/components/system-health-dashboard.tsx",
 ];
 
@@ -58,7 +60,7 @@ describe("déslop God — recette de carte unique", () => {
     it("les surfaces refondues consomment le kit", () => {
         for (const file of REFONTE_FILES) {
             const code = readFileSync(file, "utf8");
-            expect(code, `${file} n'utilise pas le kit God`).toMatch(/from "@\/app\/god\/ui"|from "\.\.\/\.\.\/ui"/);
+            expect(code, `${file} n'utilise pas le kit God`).toMatch(/from "@\/app\/god\/ui"|from "\.\.\/ui"|from "\.\.\/\.\.\/ui"/);
         }
     });
 
@@ -69,7 +71,11 @@ describe("déslop God — recette de carte unique", () => {
         // (+1 le 25/09 : la vue God « Modules & maintenance » (A2 · G12) est une surface
         // NOUVELLE demandée par le plan ; elle consomme le kit, donc elle n'ajoute pas
         // de dette — le plafond suit un nombre de fichiers, pas la qualité.)
-        const CEILING = 86;
+        // (−1 le 25/09, lot 3 : les journaux sont **une seule porte** — `audit-feed-panel`
+        // (second panneau mort) plus deux orphelins mesurés (`guild-manager.tsx`,
+        // `docs/_components/doc-outline-sidebar.tsx`, aucun import) disparaissent ; le
+        // kit gagne `GodPagination` et l'onglet « Accès délégués » une vue. Net : −1.)
+        const CEILING = 85;
         const godFiles = walk(GOD_ROOT).filter((f) => /\.tsx?$/.test(f));
         expect(godFiles.length).toBeLessThanOrEqual(CEILING);
     });

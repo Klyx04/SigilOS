@@ -75,7 +75,6 @@ export default async function SuperAdminPage(props: {
         storage: "storage",
         notifications: "notifications",
         tickets: "tickets",
-        security: "security",
         "game-data/bounties": "game-data-bounties",
     };
     // 🔄 R1/P2 — Résout la cible d'atterrissage la plus pertinente pour un sub-god.
@@ -133,6 +132,10 @@ export default async function SuperAdminPage(props: {
 
     const resolvedSearchParams = await props.searchParams;
     const requestedTab = resolvedSearchParams.tab || "overview";
+    // 🧭 G11 — **une seule porte** pour les journaux : l'ancien onglet `security`
+    // affichait le même `AuditLog` que `/god/logs`. Des liens existent (menu God,
+    // favoris du staff) ⇒ on **redirige**, on ne supprime jamais la route à sec.
+    if (requestedTab === "security") redirect(`${godRoute}/logs`);
     let tab = requestedTab;
 
     // 🔄 P2 — Guard fail-closed STRICT (fix #108) : un sous-god n'accède à un onglet
@@ -291,22 +294,9 @@ export default async function SuperAdminPage(props: {
                         </div>
                     )}
 
-                    {tab === "security" && (
-                        <div className="space-y-12">
-                            <div className="space-y-4 pb-12 border-b border-white/5">
-                                <h1 className="text-3xl sm:text-5xl md:text-7xl font-bold text-white tracking-tight">Sécurité</h1>
-                                <p className="text-zinc-500 text-base md:text-lg font-medium">Logs d'audit, détections sensibles et archivage.</p>
-                            </div>
-
-                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                                <div className="lg:col-span-2 bg-zinc-900/10 border border-white/5 rounded-3xl">
-                                    <Suspense fallback={<div className="animate-pulse h-96 rounded-3xl" />}>
-                                        <GlobalLogsServer />
-                                    </Suspense>
-                                </div>
-                            </div>
-                        </div>
-                    )}
+                    {/* 🧭 G11 — l'onglet `security` est **redirigé** vers `/god/logs` en tête
+                        de page (une seule porte : les journaux y vivent en 5 onglets). Rien à
+                        monter ici : garder un second panneau recréerait le doublon supprimé. */}
 
                     {tab === "tickets" && (
                         <div className="space-y-12">
@@ -444,25 +434,6 @@ export default async function SuperAdminPage(props: {
             </Suspense>
         </div>
     );
-}
-
-async function GlobalLogsServer() {
-    try {
-        const { getGlobalAuditLogs } = await import("@/server/actions/audit-actions");
-        const { AuditFeedPanel } = await import("./components/audit-feed-panel");
-
-        // 🔎 Ce panneau est le **journal de sécurité** : il ne montre QUE la catégorie
-        // `security` (incidents & refus), filtrée **en base**. Avant l'audit du 24/09,
-        // il appelait `getGlobalAuditLogs` sans filtre : « Security Feed » affichait
-        // `CONFIG_UPDATED` et `WEBHOOK_MEMBER_UPDATE`, et son total était identique à
-        // celui de `/god/logs` (le fameux « même 779 partout »).
-        const result = await getGlobalAuditLogs({ limit: 200, category: "security" });
-        const safeLogs = JSON.parse(JSON.stringify(result.data?.logs || []));
-
-        return <AuditFeedPanel logs={safeLogs} total={result.data?.total || 0} />;
-    } catch {
-        return <div className="p-8 text-center text-red-500 text-xs font-mono">Error loading global logs</div>;
-    }
 }
 
 async function LiveStatsServer() {

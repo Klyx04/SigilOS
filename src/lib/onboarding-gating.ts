@@ -97,6 +97,83 @@ export function isOnboardingAllowedPath(pathname: string, guildId: string): bool
     return pathname.startsWith(`/dashboard/${guildId}/admin`);
 }
 
+/**
+ * ── ORIGINE d'une guilde (self-onboarding vs pré-approuvée) — SOURCE UNIQUE ──
+ *
+ * Audit du 24/09/2026 : **trois définitions concurrentes** de « guilde autonome »
+ * coexistaient et se contredisaient :
+ * 1. `onboardGuild` (`admin-actions.ts`) : `isAutonomous = !existingAllowed` ;
+ * 2. la console God (`guild-table.tsx`) : `notes ~ /autonomie/i || tier === "COMMUNITY"` ;
+ * 3. la notif God : déduite de (1).
+ *
+ * Conséquence mesurée : `GuildCreate` (le bot invité) crée la ligne avec
+ * `tier: "BETA"` + `addedBy: "SYSTEM_GATEWAY"` **avant** que l'admin clique
+ * « Déployer » ⇒ la ligne existe déjà ⇒ (1) annonçait « VIP / WHITELIST » pour un
+ * self-onboarding, et (2) affichait « 👑 VIP Manuel » pour la même guilde.
+ *
+ * Vraie règle : une guilde est **autonome** quand AUCUNE validation humaine n'a
+ * eu lieu — bot invité (`SYSTEM_GATEWAY`), ligne créée par `onboardGuild`
+ * (`tier: "COMMUNITY"`), ou note historique « autonomie ». Tout le reste est
+ * **pré-approuvé** : whitelist God (`tier: "BETA"`, `addedBy` = id du God) ou
+ * ticket (`tier: "VIP"`).
+ */
+
+/** Valeur d'`AllowedGuild.addedBy` posée par le gateway Discord (aucun humain). */
+export const SYSTEM_GATEWAY_ADDED_BY = "SYSTEM_GATEWAY";
+
+export type OnboardingOriginKind = "AUTONOME" | "ACCOMPAGNEE";
+
+export type AllowedGuildOriginInput = {
+    tier?: string | null;
+    notes?: string | null;
+    addedBy?: string | null;
+} | null | undefined;
+
+export type OnboardingOrigin = {
+    kind: OnboardingOriginKind;
+    /** Libellé humain (badge console God, message de notif). */
+    label: string;
+    /** Badge court (console God). */
+    badge: string;
+    /** Tag court repris dans `metadata.type` des notifs/audits. */
+    tag: "AUTONOME" | "VIP" | "WHITELIST";
+};
+
+/** Vrai si la guilde s'est déployée SANS validation humaine. */
+export function isSelfOnboardedGuild(allowed: AllowedGuildOriginInput): boolean {
+    // Aucune ligne = créée par `onboardGuild` (self-onboarding) : aucun humain n'a validé.
+    if (!allowed) return true;
+    if (allowed.addedBy === SYSTEM_GATEWAY_ADDED_BY) return true;
+    if (allowed.tier === "COMMUNITY") return true;
+    if (typeof allowed.notes === "string" && /autonomie/i.test(allowed.notes)) return true;
+    return false;
+}
+
+export function resolveOnboardingOrigin(allowed: AllowedGuildOriginInput): OnboardingOrigin {
+    if (isSelfOnboardedGuild(allowed)) {
+        return {
+            kind: "AUTONOME",
+            label: "🚀 Autonome (aucune action requise)",
+            badge: "🚀 Autonome",
+            tag: "AUTONOME",
+        };
+    }
+    if (allowed?.tier === "VIP") {
+        return {
+            kind: "ACCOMPAGNEE",
+            label: "🧑‍🚀 Accompagnée (ticket)",
+            badge: "🧑‍🚀 Ticket",
+            tag: "VIP",
+        };
+    }
+    return {
+        kind: "ACCOMPAGNEE",
+        label: "🛡️ Pré-approuvée par le staff",
+        badge: "🛡️ Pré-approuvée",
+        tag: "WHITELIST",
+    };
+}
+
 /** Icône Discord d'une guilde candidate du portail (format léger borné). */
 export function buildPendingGuildIconUrl(guildId: string, iconHash: string | null): string | null {
     if (!guildId || !iconHash) return null;

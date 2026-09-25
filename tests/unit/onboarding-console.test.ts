@@ -5,12 +5,12 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
  * 1. getPermissionsHiddenByModules : masquage d'affichage (mappings conservés).
  * 2. toggleAutoOnboarding : God-only, upsert singleton.
  * 3. updateGuildModules : gate natif (isDiscordAdmin) + rejet des modules
- *    verrouillés par le staff.
+ *    coupés par le God (guilde **ou** plateforme).
  */
 
 vi.mock("@/lib/prisma", () => ({
     db: {
-        platformConfig: { upsert: vi.fn() },
+        platformConfig: { upsert: vi.fn(), findUnique: vi.fn() },
         guildModules: { findFirst: vi.fn(), findUnique: vi.fn(), upsert: vi.fn(), updateMany: vi.fn() },
         guildConfig: { findUnique: vi.fn(), findFirst: vi.fn() },
         userProfile: { findFirst: vi.fn() },
@@ -63,6 +63,7 @@ import { getUserContext } from "@/server/actions/user-actions";
 import { PERMISSIONS, getPermissionsHiddenByModules, getPermissionsForGuildModule, GUILD_MODULE_LABELS } from "@/lib/permissions";
 import { toggleAutoOnboarding } from "@/server/actions/god-roadmap-actions";
 import { updateGuildModules, setModuleGodLock } from "@/server/actions/module-actions";
+import { invalidatePlatformModuleStateCache } from "@/server/platform-module-state";
 import {
     claimGuildRecovery,
     resolveRecoveryClaim,
@@ -160,6 +161,9 @@ describe("toggleAutoOnboarding (kill-switch God)", () => {
 describe("updateGuildModules — gate native + verrou God", () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        // Le verrou plateforme est mis en cache 30 s au niveau du process : sans
+        // purge, le cas « coupure plateforme » contaminerait les suivants.
+        invalidatePlatformModuleStateCache();
         mockAuth.mockResolvedValue({ user: { id: "user-1", name: "Admin" } });
         mockDb.guildConfig.findUnique.mockResolvedValue({ id: "guild-uuid-1", modules: null });
         mockDb.guildModules.findFirst.mockResolvedValue({ disabledByGod: [] });
@@ -175,12 +179,23 @@ describe("updateGuildModules — gate native + verrou God", () => {
         expect(mockDb.guildModules.upsert).not.toHaveBeenCalled();
     });
 
-    it("refuse la modification d'un module verrouillé par le staff", async () => {
+    it("refuse la modification d'un module coupé par le God pour la guilde", async () => {
         mockGetUserContext.mockResolvedValue({ isDiscordAdmin: true, isAdmin: true });
         mockDb.guildModules.findFirst.mockResolvedValue({ disabledByGod: ["missions"], missions: true });
         const res = await updateGuildModules("111111111111111111", { ...payload, missions: false } as any);
         expect(res.success).toBe(false);
-        expect(res.error).toContain("verrouillé");
+        // A3 — le mot « staff » a disparu de l'interface ; le refus parle de maintenance.
+        expect(res.error).toContain("indisponible");
+        expect(mockDb.guildModules.upsert).not.toHaveBeenCalled();
+    });
+
+    it("refuse aussi une modification quand le God a coupé le module pour la PLATEFORME", async () => {
+        mockGetUserContext.mockResolvedValue({ isDiscordAdmin: true, isAdmin: true });
+        mockDb.guildModules.findFirst.mockResolvedValue({ disabledByGod: [], marche: false });
+        mockDb.platformConfig.findUnique.mockResolvedValue({ disabledModules: ["marche"], moduleNotices: {} });
+        const res = await updateGuildModules("111111111111111111", { ...payload, marche: true } as any);
+        expect(res.success).toBe(false);
+        expect(res.error).toContain("indisponible");
         expect(mockDb.guildModules.upsert).not.toHaveBeenCalled();
     });
 

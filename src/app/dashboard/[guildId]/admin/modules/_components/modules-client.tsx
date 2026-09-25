@@ -1,14 +1,15 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { updateGuildModules } from "@/server/actions/module-actions";
 import { type GuildModulesState, type ModuleKey } from "@/lib/module-types";
+import { MAINTENANCE_LABEL, GUILD_DISABLED_LABEL, type ModuleLockState } from "@/lib/module-lock";
 import { MODULE_GROUPS, MODULE_DOFUS_ASSETS } from "@/lib/module-catalog";
 import { getPermissionsForGuildModule, PERMISSION_LABELS } from "@/lib/permissions";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Search } from "lucide-react";
+import { Info, Loader2, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 
@@ -67,25 +68,35 @@ const MODULE_ROUTES: Partial<Record<ModuleKey, { label: string; href: string }[]
 
 type Props = {
     guildId: string;
+    /**
+     * Toggles **bruts** de la guilde — c'est ce payload qui part à
+     * `updateGuildModules`. Un module verrouillé conserve son toggle en BDD :
+     * l'afficher ou l'écraser ferait échouer l'enregistrement des autres modules.
+     */
     initialModules: GuildModulesState;
-    /** Modules verrouillés par le staff : toggle désactivé + badge ( §9 ). */
-    lockedModules?: string[];
+    /**
+     * État **effectif** de chaque module : origine du verrou (plateforme/guilde)
+     * et message de maintenance éventuel. Source unique `resolveModuleGrid`.
+     */
+    moduleStates: Record<ModuleKey, ModuleLockState>;
 };
 
-export function ModulesClient({ guildId, initialModules, lockedModules = [] }: Props) {
-    const locked = useMemo(() => new Set(lockedModules), [lockedModules]);
+export function ModulesClient({ guildId, initialModules, moduleStates }: Props) {
     const [modules, setModules] = useState<GuildModulesState>(initialModules);
     const [pending, setPending] = useState<ModuleKey | null>(null);
     const [isPending, startTransition] = useTransition();
     const [searchTerm, setSearchTerm] = useState("");
 
     const allModules = MODULE_GROUPS.flatMap(g => g.modules);
-    const enabledCount = allModules.filter(m => modules[m.key]).length;
+    const enabledCount = allModules.filter(m => moduleStates[m.key]?.enabled ?? modules[m.key]).length;
     const totalCount = allModules.length;
 
     async function handleToggle(key: ModuleKey, value: boolean) {
-        if (locked.has(key)) {
-            toast.error("Module verrouillé par le staff — contactez le support");
+        const state = moduleStates[key];
+        // Verrou (plateforme ou guilde) : le toggle est INERTE et le serveur
+        // refuserait de toute façon (`updateGuildModules`).
+        if (state?.lockedBy) {
+            toast.error(state.notice || MAINTENANCE_LABEL);
             return;
         }
         const previous = modules[key];
@@ -164,8 +175,11 @@ export function ModulesClient({ guildId, initialModules, lockedModules = [] }: P
 
                         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-5">
                             {filteredModules.map((mod) => {
-                                const isEnabled = modules[mod.key];
-                                const isLocked = locked.has(mod.key);
+                                const state = moduleStates[mod.key];
+                                const isLocked = Boolean(state?.lockedBy);
+                                // Affichage = état EFFECTIF : un module verrouillé est OFF
+                                // même si son toggle est conservé à `true` en BDD.
+                                const isEnabled = state ? state.enabled : modules[mod.key];
                                 const isLoading = pending === mod.key && isPending;
                                 const Icon = mod.icon;
                                 const routes = MODULE_ROUTES[mod.key];
@@ -222,19 +236,24 @@ export function ModulesClient({ guildId, initialModules, lockedModules = [] }: P
                                                                 </Badge>
                                                             )}
                                                             {isLocked && (
-                                                                <Badge variant="outline" className="text-xs px-2 py-0.5 h-5 bg-info/10 border-info/30 text-info font-medium" title="Verrouillé par le staff : l'activation est gérée côté plateforme">
-                                                                    Verrouillé par le staff
+                                                                <Badge variant="outline" className="text-xs px-2 py-0.5 h-5 bg-info/10 border-info/30 text-info font-medium" title={state?.notice || MAINTENANCE_LABEL}>
+                                                                    {MAINTENANCE_LABEL}
                                                                 </Badge>
                                                             )}
                                                         </div>
                                                         <div className="flex items-center gap-2">
-                                                            {isEnabled ? (
+                                                            {isLocked ? (
+                                                                <span className="flex items-center gap-1.5 text-xs font-medium text-info">
+                                                                    <span className="h-1.5 w-1.5 rounded-full bg-info" />
+                                                                    {MAINTENANCE_LABEL}
+                                                                </span>
+                                                            ) : isEnabled ? (
                                                                 <span className="flex items-center gap-1.5 text-xs font-medium text-success">
                                                                     <span className="h-1.5 w-1.5 rounded-full bg-success" />
                                                                     Actif
                                                                 </span>
                                                             ) : (
-                                                                <span className="text-xs font-medium text-muted-foreground">Désactivé</span>
+                                                                <span className="text-xs font-medium text-muted-foreground">{GUILD_DISABLED_LABEL}</span>
                                                             )}
                                                         </div>
                                                     </div>
@@ -263,6 +282,12 @@ export function ModulesClient({ guildId, initialModules, lockedModules = [] }: P
                                                 )}>
                                                     {mod.description}
                                                 </p>
+                                                {state?.notice && (
+                                                    <p className="flex items-start gap-2 text-xs font-medium text-info bg-info/10 border border-info/20 rounded-lg px-3 py-2">
+                                                        <Info className="w-3.5 h-3.5 shrink-0 mt-0.5" aria-hidden="true" />
+                                                        <span>{state.notice}</span>
+                                                    </p>
+                                                )}
                                             </div>
 
                                             {/* Pages concernées (#66) */}

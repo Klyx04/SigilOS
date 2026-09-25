@@ -17,13 +17,14 @@ type Props = {
 export default async function LadderPage({ params }: Props) {
     const { guildId } = await params;
 
-    // Module guard
-    if (!await isModuleEnabled(guildId, "ladder")) {
+    // RBAC: Check permission to view Ladder
+    const user = await getUserContext(guildId);
+
+    // Module guard (verrou inclus) — le God garde l'accès (`bypassModules = isGod`)
+    if (!user.isSuperAdmin && !await isModuleEnabled(guildId, "ladder")) {
         redirect(`/dashboard/${guildId}`);
     }
 
-    // RBAC: Check permission to view Ladder
-    const user = await getUserContext(guildId);
     if (!user.canViewLadder) {
         return <AccessDenied />;
     }

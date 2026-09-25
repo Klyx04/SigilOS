@@ -45,7 +45,7 @@ export default async function DofusDetailPage({ params, searchParams }: Props) {
     if (!user.canViewQuests) return <AccessDenied />;
 
     const enabled = await isModuleEnabled(guildId, "quests");
-    if (!enabled) return <AccessDenied />;
+    if (!enabled && !user.isSuperAdmin) return <AccessDenied />;
 
     const isDolmanax = dofusSlug === "dolmanax";
     const [result, heatmapResult, globalCompletedResult, almanaxList] = await Promise.all([

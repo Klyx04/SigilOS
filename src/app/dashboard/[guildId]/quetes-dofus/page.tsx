@@ -33,7 +33,7 @@ export default async function QuetesDofusPage({ params, searchParams }: Props) {
     if (!user.canViewQuests) return <AccessDenied />;
 
     const enabled = await isModuleEnabled(guildId, "quests");
-    if (!enabled) return <AccessDenied />;
+    if (!enabled && !user.isSuperAdmin) return <AccessDenied />;
 
     // Fetch data in parallel
     const [dofusResult, guildStatsResult, guidesResult, rushSylvestre] = await Promise.all([

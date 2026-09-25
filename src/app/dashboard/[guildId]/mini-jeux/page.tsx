@@ -25,8 +25,11 @@ export default async function MiniJeuxPage({ params }: Props) {
     const user = await getUserContext(guildId);
     if (!user.canViewMiniGames) return <AccessDenied />;
 
-    const enabled = await isModuleEnabled(guildId, "worldmap");
-    if (!enabled) return <AccessDenied />;
+    // Module « mini-jeux » — l'ancien contrôle lisait `worldmap` par erreur de
+    // copie (un module voisin), donc un module mini-jeux coupé laissait la page
+    // ouverte. Le God garde l'accès (`bypassModules = isGod`).
+    const enabled = await isModuleEnabled(guildId, "minigames");
+    if (!enabled && !user.isSuperAdmin) return <AccessDenied />;
 
     const [ladder, bombLadder, gameStatuses] = await Promise.all([
         getGeoguesserLadder(guildId),

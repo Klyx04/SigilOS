@@ -28,13 +28,14 @@ export default async function QueteOcrePage({
 
     const { guildId } = await params;
 
-    // Module guard
-    if (!await isModuleEnabled(guildId, "ocre")) {
+    // RBAC
+    const user = await getUserContext(guildId);
+
+    // Module guard (verrou inclus) — le God garde l'accès (`bypassModules = isGod`)
+    if (!user.isSuperAdmin && !await isModuleEnabled(guildId, "ocre")) {
         redirect(`/dashboard/${guildId}`);
     }
 
-    // RBAC
-    const user = await getUserContext(guildId);
     if (!user.canViewOcre) {
         return <AccessDenied />;
     }

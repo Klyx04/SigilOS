@@ -86,7 +86,7 @@ export default async function RessourcesPage({ params, searchParams }: Props) {
     if (!user.canViewResources) return <AccessDenied />;
 
     const enabled = await isModuleEnabled(guildId, "resources");
-    if (!enabled) return <AccessDenied />;
+    if (!enabled && !user.isSuperAdmin) return <AccessDenied />;
 
     return (
         <div className="space-y-12 pb-24">

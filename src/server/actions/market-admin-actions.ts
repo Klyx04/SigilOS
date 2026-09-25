@@ -816,6 +816,16 @@ export async function takeDownMarketListing(
             return { success: false, error: "Cette annonce ne peut pas être retirée (statut incompatible)." };
         }
 
+        // Annuler immédiatement toute réservation active ou offre en attente
+        await db.marketReservation.updateMany({
+            where: { listingId: parsed.data, status: "ACTIVE" },
+            data: { status: "CANCELLED_BY_SELLER" },
+        });
+        await db.marketOffer.updateMany({
+            where: { listingId: parsed.data, status: "PENDING" },
+            data: { status: "CANCELLED", respondedAt: now },
+        });
+
         await writeMarketAuditLog({
             guildId: guildConfigId,
             listingId: parsed.data,

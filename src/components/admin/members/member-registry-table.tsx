@@ -11,9 +11,10 @@
  * combinent le déclaré (profils) et la saisie manuelle.
  */
 import React, { useCallback, useEffect, useMemo, useState, useTransition } from "react";
-import { Award, CheckCircle2, Clock, Copy, Download, MessageSquare, Pencil, RefreshCw, Search, Trophy } from "lucide-react";
+import { AlertTriangle, Award, CheckCircle2, Clock, Copy, Download, Loader2, MessageSquare, Pencil, Plus, RefreshCw, Search, ShieldAlert, Trash2, Trophy } from "lucide-react";
 import { MemberRegistryCommentsDialog } from "@/components/admin/members/member-registry-comments-dialog";
 import { DiscordAvatarImage } from "@/components/shared/discord-avatar-image";
+import { ClassIcon } from "@/components/shared/class-icon";
 import { AsyncCombobox, type ComboboxItem } from "@/components/ui/async-combobox";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -24,15 +25,17 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { DOFUS_CLASSES, getClass } from "@/lib/dofus-assets";
 import {
     MAX_REGISTRY_COMMENTS,
     buildRegistryCsv,
     computeSeniorityDays,
     getTrialDecision,
+    hasPseudoDiscordMismatch,
     isValidAnkamaId,
+    parseAnkamaTag,
     resolveJoinedAt,
     type TrialDecision,
 } from "@/lib/member-registry";
@@ -45,7 +48,9 @@ import {
     validateMemberTrial,
     type GuildLifecycleData,
     type LifecycleMemberSummary,
+    type MemberAltInfo,
 } from "@/server/actions/member-lifecycle-actions";
+import { verifyDofusPseudo, isLadderManualFallbackEnabled } from "@/server/actions/profile-actions";
 
 interface MemberRegistryTableProps {
     guildId: string;
@@ -83,9 +88,14 @@ export function MemberRegistryTable({ guildId, canManageMembers }: MemberRegistr
     const [formTrialValid, setFormTrialValid] = useState<"oui" | "non">("non");
     const [formTrialEnd, setFormTrialEnd] = useState("");
 
-    // Mules : une ligne par pseudo
+    // Mules : liste structurée avec contrôle ladder Ankama
     const [mulesFor, setMulesFor] = useState<LifecycleMemberSummary | null>(null);
-    const [mulesText, setMulesText] = useState("");
+    const [currentMules, setCurrentMules] = useState<MemberAltInfo[]>([]);
+    const [newMulePseudo, setNewMulePseudo] = useState("");
+    const [newMuleClass, setNewMuleClass] = useState("cra");
+    const [newMuleLevel, setNewMuleLevel] = useState("200");
+    const [isVerifyingLadder, setIsVerifyingLadder] = useState(false);
+    const [ladderFallbackActive, setLadderFallbackActive] = useState(false);
 
     /** Commentaires : journal du membre, lu et complété dans sa modale dédiée. */
     const [commentsFor, setCommentsFor] = useState<LifecycleMemberSummary | null>(null);
@@ -104,6 +114,14 @@ export function MemberRegistryTable({ guildId, canManageMembers }: MemberRegistr
         fetchData();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [guildId]);
+
+    useEffect(() => {
+        let active = true;
+        isLadderManualFallbackEnabled().then((enabled) => {
+            if (active) setLadderFallbackActive(enabled);
+        });
+        return () => { active = false; };
+    }, []);
 
     const refresh = () => {
         startTransition(async () => {
@@ -222,21 +240,68 @@ export function MemberRegistryTable({ guildId, canManageMembers }: MemberRegistr
 
     const openMules = (m: LifecycleMemberSummary) => {
         setMulesFor(m);
-        setMulesText(m.mules.map((a) => a.pseudo).join("\n"));
+        setCurrentMules([...m.mules]);
+        setNewMulePseudo("");
+        setNewMuleClass("cra");
+        setNewMuleLevel("200");
+    };
+
+    const handleAddMule = async () => {
+        const pseudo = newMulePseudo.trim();
+        if (!pseudo || pseudo.length < 2) {
+            toast.error("Veuillez saisir un pseudo valide (min. 2 caractères).");
+            return;
+        }
+
+        if (currentMules.some((m) => m.pseudo.toLowerCase() === pseudo.toLowerCase())) {
+            toast.error("Cette mule est déjà présente dans la liste.");
+            return;
+        }
+
+        const levelNum = Math.min(200, Math.max(1, parseInt(newMuleLevel, 10) || 200));
+
+        if (ladderFallbackActive) {
+            // Mode God fallback : saisie manuelle autorisée sans ladder
+            setCurrentMules((prev) => [...prev, { pseudo, classe: newMuleClass, level: levelNum }]);
+            setNewMulePseudo("");
+            toast.success(`Mule "${pseudo}" ajoutée (saisie manuelle).`);
+            return;
+        }
+
+        // Vérification systématique sur le ladder officiel Ankama
+        setIsVerifyingLadder(true);
+        try {
+            const res = await verifyDofusPseudo(pseudo, guildId);
+            if (res.success && res.data?.found) {
+                const detectedLevel = res.data.level ? Number(res.data.level) : levelNum;
+                setCurrentMules((prev) => [
+                    ...prev,
+                    {
+                        pseudo: res.data?.character_name || pseudo,
+                        classe: newMuleClass,
+                        level: detectedLevel,
+                    },
+                ]);
+                setNewMulePseudo("");
+                toast.success(`Mule "${pseudo}" validée sur le ladder Ankama !`);
+            } else {
+                toast.error(res.error || `Pseudo "${pseudo}" introuvable sur le ladder Ankama pour cette guilde.`);
+            }
+        } catch {
+            toast.error("Erreur lors de la vérification sur le ladder Ankama.");
+        } finally {
+            setIsVerifyingLadder(false);
+        }
+    };
+
+    const handleRemoveMule = (indexToRemove: number) => {
+        setCurrentMules((prev) => prev.filter((_, idx) => idx !== indexToRemove));
     };
 
     const saveMules = () => {
         if (!mulesFor) return;
-        const wanted = mulesText
-            .split("\n")
-            .map((l) => l.trim())
-            .filter(Boolean)
-            .slice(0, 60);
-        // Conserve classe / niveau déjà connus pour les pseudos gardés.
-        const known = new Map(mulesFor.mules.map((a) => [a.pseudo.toLowerCase(), a]));
-        const merged = wanted.map((pseudo) => known.get(pseudo.toLowerCase()) || pseudo);
         startTransition(async () => {
-            const res = await updateMemberAlts(guildId, mulesFor.id, merged);
+            const res = await updateMemberAlts(guildId, mulesFor.id, currentMules);
             if (res.success) {
                 toast.success("Mules mises à jour");
                 setMulesFor(null);
@@ -394,74 +459,91 @@ export function MemberRegistryTable({ guildId, canManageMembers }: MemberRegistr
                         Aujourd&apos;hui : {todayLabel} · l&apos;ancienneté se calcule seule, l&apos;ID Discord se peuple seul.
                     </CardDescription>
                 </CardHeader>
-                <div className="overflow-x-auto">
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Pseudo serveur (auto)</TableHead>
-                                <TableHead>Pseudo Dofus</TableHead>
-                                <TableHead>Arrivée</TableHead>
-                                <TableHead>Ancienneté</TableHead>
-                                <TableHead>ID Discord</TableHead>
-                                <TableHead>Tag Ankama</TableHead>
-                                <TableHead>Recruté par</TableHead>
-                                <TableHead>Essai validé</TableHead>
-                                <TableHead>Mules</TableHead>
-                                <TableHead>Commentaires</TableHead>
-                                <TableHead className="text-right">Actions</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {rows.map(({ member: m, joinedAt, seniority, trial }) => (
-                                <TableRow key={m.id}>
-                                    <TableCell className="font-semibold">
-                                        <div className="flex items-center gap-2.5">
-                                            <Avatar className="h-7 w-7 shrink-0 border border-border">
-                                                <DiscordAvatarImage
-                                                    src={m.avatar}
-                                                    alt={m.discordNickname || m.displayName}
-                                                    className="object-cover"
-                                                />
-                                                <AvatarFallback className="bg-elevated text-[10px] font-bold uppercase text-muted-foreground">
-                                                    {(m.discordNickname || m.displayName).slice(0, 1)}
-                                                </AvatarFallback>
-                                            </Avatar>
-                                            <div className="min-w-0">
-                                                <span className="block truncate">{m.discordNickname || m.displayName}</span>
-                                                {m.pseudoDofus && m.pseudoDofus !== (m.discordNickname || m.displayName) && (
-                                                    <span className="block text-xs font-normal text-muted-foreground">{m.pseudoDofus}</span>
+
+                {/* Vue Mobile (Cards) - évite tout scroll horizontal coupé */}
+                <div className="block md:hidden divide-y divide-border">
+                    {rows.map(({ member: m, joinedAt, seniority, trial }) => {
+                        const ankamaParts = parseAnkamaTag(m.ankamaId);
+                        const hasMismatch = hasPseudoDiscordMismatch(m.discordNickname || m.displayName, m.ankamaId);
+
+                        return (
+                            <div key={m.id} className="p-4 space-y-3 bg-surface/20">
+                                <div className="flex items-start justify-between gap-2">
+                                    <div className="flex items-center gap-2.5 min-w-0">
+                                        <Avatar className="h-9 w-9 shrink-0 border border-border">
+                                            <DiscordAvatarImage
+                                                src={m.avatar}
+                                                alt={m.discordNickname || m.displayName}
+                                                className="object-cover"
+                                            />
+                                            <AvatarFallback className="bg-elevated text-xs font-bold uppercase text-muted-foreground">
+                                                {(m.discordNickname || m.displayName).slice(0, 1)}
+                                            </AvatarFallback>
+                                        </Avatar>
+                                        <div className="min-w-0">
+                                            <span className="font-semibold text-sm block truncate">{m.discordNickname || m.displayName}</span>
+                                            {m.pseudoDofus && (
+                                                <span className="text-xs text-muted-foreground block truncate">
+                                                    🎮 {m.pseudoDofus}
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-1 shrink-0">
+                                        {canManageMembers && (
+                                            <>
+                                                {trial !== "oui" && (
+                                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-success" onClick={() => validateTrial(m)} title="Valider l'essai">
+                                                        <CheckCircle2 className="w-4 h-4" />
+                                                    </Button>
+                                                )}
+                                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(m)} title="Éditer la ligne">
+                                                    <Pencil className="w-4 h-4" />
+                                                </Button>
+                                            </>
+                                        )}
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-2 text-xs pt-1">
+                                    <div>
+                                        <span className="text-[10px] uppercase text-muted-foreground font-semibold block">Tag Ankama</span>
+                                        {ankamaParts ? (
+                                            <div className="inline-flex flex-col items-start gap-0.5 mt-0.5">
+                                                <span className="font-mono text-xs px-1.5 py-0.5 rounded bg-surface border border-border inline-flex items-center shadow-xs">
+                                                    <span className="text-foreground font-medium">{ankamaParts.name}</span>
+                                                    <span className="text-muted-foreground/60 mx-0.5">#</span>
+                                                    <span className="text-emerald-400 font-bold">{ankamaParts.discriminator}</span>
+                                                </span>
+                                                {hasMismatch && (
+                                                    <span className="inline-flex items-center gap-1 text-[9px] text-amber-400 font-medium bg-amber-500/10 border border-amber-500/20 px-1 py-0.5 rounded">
+                                                        <AlertTriangle className="w-2.5 h-2.5 shrink-0" />
+                                                        ≠ Discord
+                                                    </span>
                                                 )}
                                             </div>
-                                        </div>
-                                    </TableCell>
-                                    <TableCell>{m.pseudoDofus || <span className="text-muted-foreground">—</span>}</TableCell>
-                                    <TableCell className="whitespace-nowrap">
-                                        {new Date(joinedAt).toLocaleDateString("fr-FR")}
-                                        {m.guildJoinedAt && (
-                                            <span className="block text-[11px] text-muted-foreground">saisie manuelle</span>
-                                        )}
-                                    </TableCell>
-                                    <TableCell className="whitespace-nowrap">{seniority} j</TableCell>
-                                    <TableCell>
-                                        {m.discordId ? (
-                                            <button
-                                                onClick={() => copyDiscordId(m.discordId)}
-                                                className="flex items-center gap-1.5 font-mono text-xs text-muted-foreground hover:text-foreground"
-                                                title="Copier l'ID Discord"
-                                            >
-                                                {m.discordId.slice(0, 6)}…{m.discordId.slice(-4)}
-                                                <Copy className="w-3 h-3" />
-                                            </button>
                                         ) : (
                                             <span className="text-muted-foreground">—</span>
                                         )}
-                                    </TableCell>
-                                    <TableCell className="font-mono text-xs">{m.ankamaId || <span className="font-sans text-muted-foreground">—</span>}</TableCell>
-                                    <TableCell>{m.recruiterName || <span className="text-muted-foreground">—</span>}</TableCell>
-                                    <TableCell>
+                                    </div>
+
+                                    <div>
+                                        <span className="text-[10px] uppercase text-muted-foreground font-semibold block">Arrivée & Ancienneté</span>
+                                        <span className="text-xs font-medium block">{new Date(joinedAt).toLocaleDateString("fr-FR")}</span>
+                                        <span className="text-[11px] text-muted-foreground font-mono">{seniority} j</span>
+                                    </div>
+
+                                    <div>
+                                        <span className="text-[10px] uppercase text-muted-foreground font-semibold block">Recruté par</span>
+                                        <span className="text-xs truncate block">{m.recruiterName || "—"}</span>
+                                    </div>
+
+                                    <div>
+                                        <span className="text-[10px] uppercase text-muted-foreground font-semibold block">Essai</span>
                                         <Badge
                                             variant="outline"
                                             className={cn(
+                                                "text-[10px] py-0 px-1.5 mt-0.5",
                                                 trial === "oui" && "text-success border-success/40",
                                                 trial === "non" && "text-warning border-warning/40",
                                                 trial === "prolonge" && "text-info border-info/40"
@@ -469,58 +551,236 @@ export function MemberRegistryTable({ guildId, canManageMembers }: MemberRegistr
                                         >
                                             {TRIAL_LABEL[trial]}
                                         </Badge>
-                                        {m.trialEndsAt && trial !== "oui" && (
-                                            <span className="block text-[11px] text-muted-foreground whitespace-nowrap">
-                                                jusqu&apos;au {new Date(m.trialEndsAt).toLocaleDateString("fr-FR")}
+                                    </div>
+                                </div>
+
+                                <div className="flex items-center justify-between pt-2 border-t border-border/50 text-xs">
+                                    <button onClick={() => openMules(m)} className="flex items-center gap-1.5 text-xs font-medium hover:underline text-muted-foreground hover:text-foreground">
+                                        <div className="flex -space-x-1 overflow-hidden">
+                                            {m.mules.slice(0, 3).map((mule, i) => (
+                                                <div key={i} className="inline-block h-4 w-4 rounded-full bg-surface border border-border overflow-hidden">
+                                                    <ClassIcon classId={mule.classe || "cra"} size={16} />
+                                                </div>
+                                            ))}
+                                        </div>
+                                        <span>{m.muleCount > 0 ? `${m.muleCount} mule${m.muleCount > 1 ? "s" : ""}` : "+ Mules"}</span>
+                                    </button>
+
+                                    <button onClick={() => setCommentsFor(m)} className="flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground hover:underline">
+                                        <MessageSquare className="w-3.5 h-3.5" />
+                                        <span>{m.comments.length}/{MAX_REGISTRY_COMMENTS}</span>
+                                    </button>
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+
+                {/* Vue Desktop / Tablette */}
+                <div className="hidden md:block overflow-x-auto">
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead className="min-w-[200px]">Membre & Pseudo</TableHead>
+                                <TableHead className="min-w-[150px]">Tag Ankama</TableHead>
+                                <TableHead className="min-w-[110px]">Arrivée</TableHead>
+                                <TableHead className="min-w-[110px]">Recruté par</TableHead>
+                                <TableHead className="min-w-[90px]">Essai</TableHead>
+                                <TableHead className="min-w-[90px]">Mules</TableHead>
+                                <TableHead className="min-w-[70px]">Journal</TableHead>
+                                <TableHead className="text-right min-w-[70px]">Actions</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {rows.map(({ member: m, joinedAt, seniority, trial }) => {
+                                const ankamaParts = parseAnkamaTag(m.ankamaId);
+                                const hasMismatch = hasPseudoDiscordMismatch(m.discordNickname || m.displayName, m.ankamaId);
+
+                                return (
+                                    <TableRow key={m.id} className="hover:bg-muted/20">
+                                        {/* Membre & Pseudo */}
+                                        <TableCell>
+                                            <div className="flex items-center gap-2.5">
+                                                <Avatar className="h-8 w-8 shrink-0 border border-border">
+                                                    <DiscordAvatarImage
+                                                        src={m.avatar}
+                                                        alt={m.discordNickname || m.displayName}
+                                                        className="object-cover"
+                                                    />
+                                                    <AvatarFallback className="bg-elevated text-[10px] font-bold uppercase text-muted-foreground">
+                                                        {(m.discordNickname || m.displayName).slice(0, 1)}
+                                                    </AvatarFallback>
+                                                </Avatar>
+                                                <div className="min-w-0">
+                                                    <div className="flex items-center gap-1.5">
+                                                        <span className="font-semibold text-sm block truncate" title={m.discordNickname || m.displayName}>
+                                                            {m.discordNickname || m.displayName}
+                                                        </span>
+                                                        {m.discordId && (
+                                                            <button
+                                                                onClick={() => copyDiscordId(m.discordId)}
+                                                                className="text-muted-foreground/50 hover:text-foreground transition-colors"
+                                                                title={`Copier l'ID Discord (${m.discordId})`}
+                                                            >
+                                                                <Copy className="w-3 h-3" />
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                    {m.pseudoDofus && (
+                                                        <span className="block text-xs font-normal text-muted-foreground truncate">
+                                                            🎮 {m.pseudoDofus}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </TableCell>
+
+                                        {/* Tag Ankama */}
+                                        <TableCell>
+                                            {ankamaParts ? (
+                                                <div className="flex flex-col gap-1 items-start">
+                                                    <div className="font-mono text-xs px-2 py-1 rounded-lg bg-surface/80 border border-border inline-flex items-center shadow-xs">
+                                                        <span className="text-foreground font-semibold tracking-wide">{ankamaParts.name}</span>
+                                                        <span className="text-muted-foreground/60 mx-0.5">#</span>
+                                                        <span className="text-emerald-400 font-bold">{ankamaParts.discriminator}</span>
+                                                    </div>
+                                                    {hasMismatch && (
+                                                        <span
+                                                            className="inline-flex items-center gap-1 text-[10px] font-medium text-amber-400 bg-amber-500/10 border border-amber-500/25 px-1.5 py-0.5 rounded-md"
+                                                            title={`Le pseudo Discord (${m.discordNickname || m.displayName}) diffère du compte Ankama (${ankamaParts.name})`}
+                                                        >
+                                                            <AlertTriangle className="w-3 h-3 shrink-0" />
+                                                            ≠ Discord
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            ) : (
+                                                <span className="text-muted-foreground text-xs">—</span>
+                                            )}
+                                        </TableCell>
+
+                                        {/* Arrivée & Ancienneté */}
+                                        <TableCell>
+                                            <div className="whitespace-nowrap">
+                                                <span className="text-sm font-medium block">
+                                                    {new Date(joinedAt).toLocaleDateString("fr-FR")}
+                                                </span>
+                                                <span className="text-xs text-muted-foreground font-mono">
+                                                    {seniority} j
+                                                </span>
+                                                {m.guildJoinedAt && (
+                                                    <span className="block text-[10px] text-muted-foreground/70">saisie manuelle</span>
+                                                )}
+                                            </div>
+                                        </TableCell>
+
+                                        {/* Recruté par */}
+                                        <TableCell>
+                                            <span className="text-sm truncate block max-w-[140px]" title={m.recruiterName || ""}>
+                                                {m.recruiterName || <span className="text-muted-foreground text-xs">—</span>}
                                             </span>
-                                        )}
-                                    </TableCell>
-                                    <TableCell>
-                                        {m.muleCount > 0 ? (
-                                            <button onClick={() => openMules(m)} className="text-sm font-semibold hover:underline">
-                                                {m.muleCount} mule{m.muleCount > 1 ? "s" : ""}
+                                        </TableCell>
+
+                                        {/* Essai */}
+                                        <TableCell>
+                                            <Badge
+                                                variant="outline"
+                                                className={cn(
+                                                    "text-xs whitespace-nowrap",
+                                                    trial === "oui" && "text-success border-success/40",
+                                                    trial === "non" && "text-warning border-warning/40",
+                                                    trial === "prolonge" && "text-info border-info/40"
+                                                )}
+                                            >
+                                                {TRIAL_LABEL[trial]}
+                                            </Badge>
+                                            {m.trialEndsAt && trial !== "oui" && (
+                                                <span className="block text-[10px] text-muted-foreground whitespace-nowrap mt-0.5">
+                                                    jusqu&apos;au {new Date(m.trialEndsAt).toLocaleDateString("fr-FR")}
+                                                </span>
+                                            )}
+                                        </TableCell>
+
+                                        {/* Mules */}
+                                        <TableCell>
+                                            <button
+                                                onClick={() => openMules(m)}
+                                                className="group inline-flex items-center gap-2 hover:opacity-80 transition-opacity"
+                                                title="Gérer les mules"
+                                            >
+                                                {m.mules.length > 0 ? (
+                                                    <>
+                                                        <div className="flex -space-x-1.5 overflow-hidden">
+                                                            {m.mules.slice(0, 3).map((mule, i) => (
+                                                                <div
+                                                                    key={i}
+                                                                    className="inline-block h-6 w-6 rounded-full ring-1 ring-border bg-surface overflow-hidden shadow-xs"
+                                                                    title={`${mule.pseudo} (${mule.classe || "Cra"} niv. ${mule.level || 200})`}
+                                                                >
+                                                                    <ClassIcon classId={mule.classe || "cra"} size={24} />
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                        <span className="text-xs font-semibold group-hover:underline">
+                                                            {m.muleCount}
+                                                        </span>
+                                                    </>
+                                                ) : (
+                                                    <span className="text-xs text-muted-foreground hover:underline">
+                                                        + Ajouter
+                                                    </span>
+                                                )}
                                             </button>
-                                        ) : (
-                                            <button onClick={() => openMules(m)} className="text-xs text-muted-foreground hover:underline">
-                                                + Ajouter
-                                            </button>
-                                        )}
-                                    </TableCell>
-                                    <TableCell>
-                                        {m.comments.length > 0 ? (
+                                        </TableCell>
+
+                                        {/* Commentaires */}
+                                        <TableCell>
                                             <button
                                                 onClick={() => setCommentsFor(m)}
-                                                className="inline-flex items-center gap-1.5 text-sm font-semibold hover:underline"
-                                                title="Lire le journal des commentaires"
+                                                className={cn(
+                                                    "inline-flex items-center gap-1.5 text-xs font-semibold hover:underline",
+                                                    m.comments.length > 0 ? "text-foreground" : "text-muted-foreground"
+                                                )}
+                                                title={`Lire le journal (${m.comments.length}/${MAX_REGISTRY_COMMENTS})`}
                                             >
                                                 <MessageSquare className="w-3.5 h-3.5" />
-                                                {m.comments.length}
+                                                <span>{m.comments.length}/{MAX_REGISTRY_COMMENTS}</span>
                                             </button>
-                                        ) : (
-                                            <button onClick={() => setCommentsFor(m)} className="text-xs text-muted-foreground hover:underline">
-                                                + Ajouter
-                                            </button>
-                                        )}
-                                    </TableCell>
-                                    <TableCell className="text-right whitespace-nowrap">
-                                        {canManageMembers && (
-                                            <>
-                                                {trial !== "oui" && (
-                                                    <Button variant="ghost" size="sm" onClick={() => validateTrial(m)} title="Valider l'essai">
-                                                        <CheckCircle2 className="w-4 h-4 text-success" />
+                                        </TableCell>
+
+                                        {/* Actions */}
+                                        <TableCell className="text-right whitespace-nowrap">
+                                            {canManageMembers && (
+                                                <div className="flex items-center justify-end gap-1">
+                                                    {trial !== "oui" && (
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            className="h-8 w-8 text-success hover:text-success hover:bg-success/10"
+                                                            onClick={() => validateTrial(m)}
+                                                            title="Valider l'essai"
+                                                        >
+                                                            <CheckCircle2 className="w-4 h-4" />
+                                                        </Button>
+                                                    )}
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                                                        onClick={() => openEdit(m)}
+                                                        title="Éditer la ligne"
+                                                    >
+                                                        <Pencil className="w-4 h-4" />
                                                     </Button>
-                                                )}
-                                                <Button variant="ghost" size="sm" onClick={() => openEdit(m)} title="Éditer la ligne">
-                                                    <Pencil className="w-4 h-4" />
-                                                </Button>
-                                            </>
-                                        )}
-                                    </TableCell>
-                                </TableRow>
-                            ))}
+                                                </div>
+                                            )}
+                                        </TableCell>
+                                    </TableRow>
+                                );
+                            })}
                             {rows.length === 0 && (
                                 <TableRow>
-                                    <TableCell colSpan={10} className="text-center py-10 text-muted-foreground">
+                                    <TableCell colSpan={8} className="text-center py-10 text-muted-foreground">
                                         <Clock className="w-5 h-5 mx-auto mb-2" />
                                         Aucun membre dans le registre avec ces filtres.
                                     </TableCell>
@@ -639,18 +899,158 @@ export function MemberRegistryTable({ guildId, canManageMembers }: MemberRegistr
 
             {/* Mules */}
             <Dialog open={!!mulesFor} onOpenChange={(open) => !open && setMulesFor(null)}>
-                <DialogContent className="max-w-md">
+                <DialogContent className="max-w-lg">
                     <DialogHeader>
-                        <DialogTitle>Mules — {mulesFor?.displayName}</DialogTitle>
-                        <DialogDescription>Un pseudo par ligne. Le déclaré des profils se complète ici à la main.</DialogDescription>
+                        <DialogTitle className="flex items-center gap-2">
+                            <span>Mules — {mulesFor?.displayName}</span>
+                            <Badge variant="outline" className="text-xs">
+                                {currentMules.length} mule{currentMules.length > 1 ? "s" : ""}
+                            </Badge>
+                        </DialogTitle>
+                        <DialogDescription>
+                            Gérez les personnages secondaires du membre avec leur classe et niveau.
+                        </DialogDescription>
                     </DialogHeader>
-                    <Textarea value={mulesText} onChange={(e) => setMulesText(e.target.value)} rows={6} className="font-mono text-sm" />
+
+                    {/* Alerte Fallback God si actif */}
+                    {ladderFallbackActive && (
+                        <div className="rounded-xl bg-amber-500/10 border border-amber-500/30 p-3 text-xs text-amber-300 flex items-start gap-2">
+                            <ShieldAlert className="w-4 h-4 shrink-0 text-amber-400 mt-0.5" />
+                            <div>
+                                <p className="font-semibold">Mode Fallback God actif</p>
+                                <p className="text-amber-300/80">La vérification ladder Ankama est assouplie. La saisie manuelle sans contrôle officiel est autorisée.</p>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Liste des mules actuelles */}
+                    <div className="space-y-2">
+                        <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                            Mules enregistrées
+                        </Label>
+                        <div className="space-y-1.5 max-h-56 overflow-y-auto pr-1">
+                            {currentMules.map((mule, idx) => {
+                                const cls = getClass(mule.classe || "cra") || DOFUS_CLASSES[0];
+                                return (
+                                    <div
+                                        key={idx}
+                                        className="flex items-center justify-between p-2.5 rounded-xl bg-surface/60 border border-border hover:border-border-strong transition-colors"
+                                    >
+                                        <div className="flex items-center gap-3 min-w-0">
+                                            <div className="h-8 w-8 shrink-0 flex items-center justify-center rounded-lg bg-surface border border-border">
+                                                <ClassIcon classId={mule.classe || "cra"} size={22} />
+                                            </div>
+                                            <div className="min-w-0">
+                                                <span className="font-semibold text-sm block truncate">{mule.pseudo}</span>
+                                                <span className="text-xs text-muted-foreground">
+                                                    {cls?.name || "Classe"} · Niv. {mule.level || 200}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 shrink-0"
+                                            onClick={() => handleRemoveMule(idx)}
+                                            title="Supprimer cette mule"
+                                        >
+                                            <Trash2 className="w-4 h-4" />
+                                        </Button>
+                                    </div>
+                                );
+                            })}
+                            {currentMules.length === 0 && (
+                                <div className="text-center py-6 border border-dashed border-border rounded-xl text-xs text-muted-foreground">
+                                    Aucune mule déclarée pour ce membre.
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Ajout d'une mule */}
+                    <div className="space-y-2 pt-2 border-t border-border">
+                        <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                            Ajouter une mule
+                        </Label>
+                        <div className="grid grid-cols-1 sm:grid-cols-12 gap-2">
+                            <div className="sm:col-span-5">
+                                <Input
+                                    placeholder="Pseudo Dofus"
+                                    value={newMulePseudo}
+                                    onChange={(e) => setNewMulePseudo(e.target.value)}
+                                    maxLength={30}
+                                    className="h-9 text-sm"
+                                    onKeyDown={(e) => {
+                                        if (e.key === "Enter") {
+                                            e.preventDefault();
+                                            handleAddMule();
+                                        }
+                                    }}
+                                />
+                            </div>
+                            <div className="sm:col-span-4">
+                                <Select value={newMuleClass} onValueChange={setNewMuleClass}>
+                                    <SelectTrigger className="h-9 text-xs">
+                                        <SelectValue placeholder="Classe" />
+                                    </SelectTrigger>
+                                    <SelectContent className="max-h-56">
+                                        {DOFUS_CLASSES.map((cls) => (
+                                            <SelectItem key={cls.id} value={cls.id} className="text-xs">
+                                                <div className="flex items-center gap-2">
+                                                    <ClassIcon classId={cls.id} size={16} />
+                                                    <span>{cls.name}</span>
+                                                </div>
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="sm:col-span-3">
+                                <Input
+                                    type="number"
+                                    min={1}
+                                    max={200}
+                                    placeholder="Niv."
+                                    value={newMuleLevel}
+                                    onChange={(e) => setNewMuleLevel(e.target.value)}
+                                    className="h-9 text-xs text-center"
+                                />
+                            </div>
+                        </div>
+                        <Button
+                            type="button"
+                            variant="secondary"
+                            size="sm"
+                            className="w-full gap-2 text-xs"
+                            disabled={isVerifyingLadder || !newMulePseudo.trim()}
+                            onClick={handleAddMule}
+                        >
+                            {isVerifyingLadder ? (
+                                <>
+                                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                    Vérification sur le ladder Ankama…
+                                </>
+                            ) : ladderFallbackActive ? (
+                                <>
+                                    <Plus className="w-3.5 h-3.5" />
+                                    Ajouter la mule (sans vérif)
+                                </>
+                            ) : (
+                                <>
+                                    <Search className="w-3.5 h-3.5" />
+                                    Vérifier sur le ladder & Ajouter
+                                </>
+                            )}
+                        </Button>
+                    </div>
+
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setMulesFor(null)}>
                             Annuler
                         </Button>
                         <Button onClick={saveMules} disabled={isPending}>
-                            Enregistrer
+                            Enregistrer les mules
                         </Button>
                     </DialogFooter>
                 </DialogContent>

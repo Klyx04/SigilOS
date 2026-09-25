@@ -464,20 +464,22 @@ export async function expireMarketReservationsCore(
                     })
                 );
 
-                try {
-                    outcome.notified += await notifyMarketReservationEnded({
-                        reason: "expired",
-                        listingId: reservation.listing.id,
-                        discordGuildId: reservation.listing.guild.discordGuildId,
-                        itemLabel: reservation.listing.title,
-                        // Aucune annulation : personne n'est écarté, tout le monde est prévenu.
-                        ...reservationParties(reservation),
-                    });
-                } catch (err) {
-                    logger.warn("[market] notification d'expiration différée", {
-                        reservationId: reservation.id,
-                        err: String(err),
-                    });
+                if (closed.reopened > 0) {
+                    try {
+                        outcome.notified += await notifyMarketReservationEnded({
+                            reason: "expired",
+                            listingId: reservation.listing.id,
+                            discordGuildId: reservation.listing.guild.discordGuildId,
+                            itemLabel: reservation.listing.title,
+                            // Aucune annulation : personne n'est écarté, tout le monde est prévenu.
+                            ...reservationParties(reservation),
+                        });
+                    } catch (err) {
+                        logger.warn("[market] notification d'expiration différée", {
+                            reservationId: reservation.id,
+                            err: String(err),
+                        });
+                    }
                 }
             } catch (error) {
                 // Une réservation en échec n'annule pas la passe : le cron repasse.
@@ -590,8 +592,11 @@ export async function remindMarketReservationsEndingCore(
                 // Strictement dans la fenêtre : `> now` (un rappel n'a de sens que
                 // si la réservation court encore) et `<= now + 1 h` (§11.6).
                 expiresAt: { gt: now, lte: windowEnd },
-                // Le cron est global ; le filtre de guilde sert aux passes ciblées.
-                ...(params.guildConfigId ? { listing: { guildId: params.guildConfigId } } : {}),
+                listing: {
+                    deletedAt: null,
+                    status: "RESERVED",
+                    ...(params.guildConfigId ? { guildId: params.guildConfigId } : {}),
+                },
             },
             select: {
                 id: true,
@@ -622,12 +627,16 @@ export async function remindMarketReservationsEndingCore(
                     continue;
                 }
 
-                // Le rappel n'est utile que si la réservation court toujours.
+                // Le rappel n'est utile que si la réservation court toujours sur une annonce réservée active.
                 const stillOpen = await db.marketReservation.count({
                     where: {
                         id: reservation.id,
                         status: "ACTIVE",
                         expiresAt: { gt: now, lte: windowEnd },
+                        listing: {
+                            deletedAt: null,
+                            status: "RESERVED",
+                        },
                     },
                 });
                 if (stillOpen === 0) continue;

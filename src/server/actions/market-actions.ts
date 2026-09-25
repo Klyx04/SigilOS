@@ -1,4 +1,4 @@
-﻿"use server";
+"use server";
 
 import { db } from "@/lib/prisma";
 import { auth } from "@/auth";
@@ -2192,6 +2192,16 @@ export async function deleteMarketListing(
                 withdrawnAt: now,
                 lastActivityAt: now,
             },
+        });
+
+        // Annuler immédiatement toute réservation active ou offre en attente pour éviter les notifications fantômes
+        await db.marketReservation.updateMany({
+            where: { listingId: existing.id, status: "ACTIVE" },
+            data: { status: "CANCELLED_BY_SELLER" },
+        });
+        await db.marketOffer.updateMany({
+            where: { listingId: existing.id, status: "PENDING" },
+            data: { status: "CANCELLED", respondedAt: now },
         });
 
         const session = await auth();

@@ -160,6 +160,20 @@ export async function expireMarketListingsCore(
                 if (archived.count === 0) continue;
                 outcome.deleted += archived.count;
 
+                // Clôturer les réservations et offres orphelines sans notifier
+                if (db.marketReservation?.updateMany) {
+                    await db.marketReservation.updateMany({
+                        where: { listingId: listing.id, status: "ACTIVE" },
+                        data: { status: "EXPIRED" },
+                    });
+                }
+                if (db.marketOffer?.updateMany) {
+                    await db.marketOffer.updateMany({
+                        where: { listingId: listing.id, status: "PENDING" },
+                        data: { status: "EXPIRED", respondedAt: now },
+                    });
+                }
+
                 await writeMarketAuditLog({
                     guildId: listing.guildId,
                     listingId: listing.id,
@@ -461,6 +475,8 @@ export async function expireMarketOffersCore(
                         id: true,
                         guildId: true,
                         title: true,
+                        status: true,
+                        deletedAt: true,
                         guild: { select: { discordGuildId: true } },
                     },
                 },
@@ -492,16 +508,18 @@ export async function expireMarketOffersCore(
                     reason: "OFFER_EXPIRED",
                 });
 
-                // §11.9 — l'acheteur apprend la mort de son offre (jamais bloquant).
-                const sent = await notifyMarketBuyerActivity({
-                    type: "MARKET_OFFER_ANSWERED",
-                    buyerUserId: offer.buyerUserId,
-                    listingId: offer.listing.id,
-                    discordGuildId: offer.listing.guild.discordGuildId,
-                    itemLabel: offer.listing.title,
-                    decision: "expired",
-                });
-                if (sent) outcome.notified += 1;
+                // §11.9 — l'acheteur apprend la mort de son offre seulement si l'annonce est toujours vivante.
+                if (offer.listing?.deletedAt == null && offer.listing?.status !== "WITHDRAWN") {
+                    const sent = await notifyMarketBuyerActivity({
+                        type: "MARKET_OFFER_ANSWERED",
+                        buyerUserId: offer.buyerUserId,
+                        listingId: offer.listing.id,
+                        discordGuildId: offer.listing.guild.discordGuildId,
+                        itemLabel: offer.listing.title,
+                        decision: "expired",
+                    });
+                    if (sent) outcome.notified += 1;
+                }
 
                 logger.info("[market] offre expirée automatiquement", {
                     offerId: offer.id,

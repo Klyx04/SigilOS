@@ -152,6 +152,20 @@ export async function withdrawMarketListingsForProfileCore(params: {
 
                 if (updated.count === 0) continue; // déjà passée ailleurs : rien à faire
 
+                // Clôturer immédiatement toute réservation active et offre en attente
+                if (db.marketReservation?.updateMany) {
+                    await db.marketReservation.updateMany({
+                        where: { listingId: listing.id, status: "ACTIVE" },
+                        data: { status: "CANCELLED_BY_SELLER" },
+                    });
+                }
+                if (db.marketOffer?.updateMany) {
+                    await db.marketOffer.updateMany({
+                        where: { listingId: listing.id, status: "PENDING" },
+                        data: { status: "CANCELLED", respondedAt: now },
+                    });
+                }
+
                 outcome.withdrawn += 1;
 
                 // Journal par annonce (motif borné) — jamais bloquant (audit.ts).

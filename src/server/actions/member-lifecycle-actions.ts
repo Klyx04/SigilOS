@@ -143,8 +143,8 @@ const altsSchema = z.object({
             z.string().min(1).max(30),
             z.object({
                 pseudo: z.string().min(1).max(30),
-                classe: z.string().optional(),
-                level: z.number().int().min(1).max(200).optional(),
+                classe: z.string().nullable().optional(),
+                level: z.number().int().min(1).max(200).nullable().optional(),
             })
         ])
     ),

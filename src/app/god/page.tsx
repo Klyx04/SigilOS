@@ -34,10 +34,8 @@ import {
 import { LiveStats } from "./components/live-stats";
 import { GuildTable } from "./components/guild-table";
 import { ActivityChart } from "./activity-chart";
-import { JanitorButton } from "./janitor-button";
 import { GodDashboardClient } from "./god-dashboard-client";
 import { AnnouncementPanel } from "./components/announcement-panel";
-import { GhostRadarPanel } from "./components/ghost-radar-panel";
 import { StorageOverviewPanel } from "@/components/admin/storage-overview-panel";
 import { TicketDashboard } from "./components/ticket-dashboard";
 import GameDataInterface from "@/components/admin/GameDataInterface";
@@ -46,7 +44,6 @@ import { EventZoneManager } from "@/components/admin/EventZoneManager";
 import { OverviewTabs } from "./components/overview-tabs";
 import { GodLoadingSkeleton } from "./ui";
 import { BlacklistSection } from "./components/blacklist-section";
-import { DeletionPendingPanel } from "@/components/admin/deletion-pending-panel";
 import { getSystemAnnouncement } from "@/server/actions/announcement-actions";
 import { Suspense } from "react";
 import { WorkerTester } from "./components/worker-tester";
@@ -307,19 +304,6 @@ export default async function SuperAdminPage(props: {
                                     </Suspense>
                                 </div>
                             </div>
-
-                            <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-                                <div className="lg:col-span-3 bg-zinc-900/10 border border-white/5 rounded-3xl p-1 shadow-2xl">
-                                    <Suspense fallback={<div className="animate-pulse bg-zinc-900/10 h-64 rounded-3xl" />}>
-                                        <LifecycleServer />
-                                    </Suspense>
-                                </div>
-                                <div className="lg:col-span-1">
-                                    <Suspense fallback={<div className="animate-pulse bg-zinc-900/10 h-64 rounded-3xl" />}>
-                                        <DeletionPendingPanel />
-                                    </Suspense>
-                                </div>
-                            </div>
                         </div>
                     )}
 
@@ -568,14 +552,6 @@ async function GuildsServer({ isReadOnly = false }: { isReadOnly?: boolean }) {
         };
     });
     return <GuildTable guilds={mergedGuilds} isReadOnly={isReadOnly} />;
-}
-
-async function LifecycleServer() {
-    return (
-        <div className="p-8 text-center text-zinc-500 italic text-xs">
-            Le Lifecycle Server est désormais intégré à l'onglet Guildes via LifecyclePanel pour plus de clarté.
-        </div>
-    );
 }
 
 function StatsLoading() { return <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 animate-pulse">{[...Array(5)].map((_, i) => <div key={i} className="bg-zinc-900/50 h-32 rounded-3xl" />)}</div>; }

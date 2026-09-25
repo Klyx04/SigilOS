@@ -192,7 +192,7 @@ description: Amorce de session — exécuter la refonte God « Guildes & Users �
   (aucun artefact : sonde, capture, `temp/` reste **gitignoré**) · `gh pr checks` **vert** · merge · branche
   supprimée · `dev` repullé · `docs/ROADMAP.md` + `docs/agents/activeContext.md` mis à jour · rapport **≤ 15 lignes**.
 
-## 6. Bloc à coller — **reprise : lots 3 → 6** (prompt de session)
+## 6. Bloc à coller — **reprise : lots 5 → 6** (prompt de session)
 
 > Copier **tel quel** dans un nouveau chat. `AGENTS.md` est chargé automatiquement ; ce bloc **porte l'état réel**
 > (lots 0-4 déjà livrés) et **le chantier des 2 lots restants** — aucune question à poser.
@@ -205,12 +205,16 @@ D1/D2/D3, directives anti-slop §8). Compléments : docs/ROADMAP.md, docs/agents
 « Session 25/09/2026 (God, refonte — exécution) »), docs/RULES.md (§ Security), docs/SECURITY.md,
 docs/agents/{git-push,prisma-schema-change}.md. Vérifie le code : la doc peut être en retard d'une PR.
 
-ÉTAT — les lots 0, 1 et 2 sont **LIVRÉS et mergés dans dev** (PR #747 / #748 / #749, CI verte) : plus aucun doublon
-mort dans l'onglet Sécurité ; le verrou d'un module éteint **vraiment** le module pour la guilde (carte grisée, toggle
-inerte + refus serveur, navbar, URL rebouchée, bot refusé) ; le God peut couper un module pour **toutes** les guildes
-avec un message perso (onglet /god?tab=modules, colonnes additives PlatformConfig.disabledModules/moduleNotices).
-⚠️ Ne pas rejouer A1 : `bypassModules = isGod` RESTE (ce n'est pas un bug). Le mot « staff » est banni de l'interface.
-Le reste = les lots 3 → 6 ci-dessous. Les écarts réels au plan et les leçons mesurées sont en tête de l'amorce (§0).
+ÉTAT — les lots 0 à 4 sont **LIVRÉS et mergés dans `dev`** (PR #747 → #752, CI verte) : plus aucun doublon mort dans
+l'onglet Sécurité ; le verrou d'un module éteint **vraiment** le module pour la guilde (carte grisée, toggle inerte +
+refus serveur, navbar, URL rebouchée, bot refusé) ; le God coupe un module pour **toutes** les guildes avec un message
+perso (onglet `/god?tab=modules`) ; **une seule porte** pour les journaux (`/god/logs`, 5 onglets, `?tab=security`
+redirigé, plus de ligne de journal par visite, compteur agrégé, pagination numérotée, filtres en base) ; le **God voit
+tout** (lecture par `isSuperAdmin()`, « erreur de chargement » ≠ « accès refusé ») et ses actions sur un membre ne
+laissent **aucune** trace dans le journal de la guilde. Le reste = les lots 5 → 6 ci-dessous. Les écarts réels au plan
+et les leçons mesurées sont en tête de l'amorce (§0). ⚠️ Ne pas rejouer A1 : `bypassModules = isGod` RESTE (ce n'est
+pas un bug) ; le mot « staff » est banni de l'interface. (Hors refonte God : une PR de session sur le **registre
+Ankama / marché** a été mergée entre-temps — #753 — sans toucher `src/app/god/**`.)
 
 CHANTIER — exécute les **2 lots restants**, dans l'ordre, en ONE SHOT : 1 lot = 1 branche = 1 PR vers dev, branche
 créée depuis `dev` **après** le merge du lot précédent. Applique littéralement les arbitrages A1-A11 (§2/§3 du plan).

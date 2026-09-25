@@ -59,12 +59,23 @@ describe("slash commands — périmètre", () => {
         }
     });
 
-    it("valider-recrue est déployée sur Discord et gardée côté route", () => {
+    it("valider-recrue n'a plus qu'UNE option : la modale porte le reste", () => {
         const sync = readFileSync("src/server/actions/discord-commands-sync.ts", "utf8");
-        for (const option of ['"membre"', '"pseudo-dofus"', '"tag-ankama"', '"recruteur"', '"arrivee"', '"ajouter-role"', '"retirer-role"']) {
-            expect(sync).toContain(option);
+        // Définition Discord : la seule option restante est la recrue visée.
+        expect(sync).toContain('"membre"');
+        for (const moved of ['"pseudo-dofus"', '"tag-ankama"', '"recruteur"', '"arrivee"', '"ajouter-role"', '"retirer-role"']) {
+            expect(sync, `option héritée encore déclarée sur la commande : ${moved}`).not.toContain(moved);
         }
+
+        // …mais les champs existent toujours dans la MODALE (custom_id du formulaire) :
+        // la commande ouvre le formulaire, elle ne demande plus les valeurs en options.
         const route = readFileSync("src/app/api/discord/interactions/route.ts", "utf8");
+        expect(route).toContain('custom_id: "pseudo_dofus"');
+        expect(route).toContain('custom_id: "tag_ankama"');
+        expect(route).toContain('custom_id: "arrivee"');
+        expect(route).toContain('custom_id: "recruteur"');
+        expect(route).toContain("type: 9, // MODAL");
+
         expect(route).toContain('commandName === "valider-recrue"');
         expect(route).toContain("PERMISSION_IDS.STAFF_MEMBER_MGMT");
         expect(route).toContain("addGuildMemberRole");

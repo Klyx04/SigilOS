@@ -5,6 +5,7 @@ import { Lock, LockOpen, Puzzle } from "lucide-react";
 import { toast } from "sonner";
 import { setModuleGodLock } from "@/server/actions/module-actions";
 import type { GuildModulesState, ModuleKey } from "@/lib/module-types";
+import { GodCard, GodSectionHeader, GodBadge } from "../../ui";
 
 const ORDER: ModuleKey[] = [
     "missions", "songes", "ocre", "ladder", "donjons", "quests", "worldmap",
@@ -42,16 +43,15 @@ export function GodGuildModulesClient({
     };
 
     return (
-        <div className="bg-zinc-900/20 border border-white/5 rounded-3xl p-1 shadow-2xl overflow-hidden">
-            <div className="p-8 border-b border-white/5">
-                <h3 className="text-sm font-black text-zinc-500 uppercase tracking-widest flex items-center gap-3">
-                    <Puzzle className="w-4 h-4 text-violet-500" />
-                    Modules — super-gestion
-                </h3>
-                <p className="text-xs text-zinc-600 mt-2">
-                    Verrouiller = OFF effectif quel que soit le toggle guilde (conservé).
-                    La RBAC associée est masquée de la matrice (mappings conservés).
-                </p>
+        <GodCard className="p-1 shadow-2xl overflow-hidden">
+            <div className="p-8 border-b border-white/5 flex flex-wrap items-start justify-between gap-4">
+                <GodSectionHeader
+                    title="Modules — super-gestion"
+                    description="Verrouiller = OFF effectif quel que soit le toggle de la guilde (conservé). La RBAC associée est masquée de la matrice (mappings conservés)."
+                />
+                <GodBadge variant={locks.length > 0 ? "warning" : "success"}>
+                    {locks.length > 0 ? `${locks.length} verrou(s)` : "aucun verrou"}
+                </GodBadge>
             </div>
             <div className="p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {ORDER.map((key) => {
@@ -86,6 +86,6 @@ export function GodGuildModulesClient({
                     );
                 })}
             </div>
-        </div>
+        </GodCard>
     );
 }

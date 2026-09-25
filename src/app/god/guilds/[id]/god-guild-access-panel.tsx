@@ -12,6 +12,8 @@
 
 import { ShieldCheck, KeyRound, UserCog, Crown, Users } from "lucide-react";
 import { DASHBOARD_ACCESS_ROLE_NAME, DASHBOARD_LOGIN } from "@/lib/onboarding-gating";
+import { cn } from "@/lib/utils";
+import { GOD_CARD_BASE } from "../../ui";
 
 /** Résout un id de rôle Discord en nom lisible (nom connu > rôle de la guilde > id). */
 type RoleLabeler = (roleId: string) => string;
@@ -84,7 +86,7 @@ function AccessBaseCard({
     discordRolesCount: number;
 }) {
     return (
-        <div className="bg-zinc-900/20 border border-white/5 rounded-3xl p-6 space-y-4">
+        <div className={cn(GOD_CARD_BASE, "p-6 space-y-4")}>
             <h3 className="text-sm font-black text-zinc-500 uppercase tracking-widest flex items-center gap-3">
                 <Crown className="w-4 h-4 text-violet-500" />
                 Propriétaire & accès de base
@@ -122,7 +124,7 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
 
 function DashboardLoginRolesCard({ roles, roleLabel }: { roles: [string, string[]][]; roleLabel: RoleLabeler }) {
     return (
-        <div className="bg-zinc-900/20 border border-white/5 rounded-3xl p-6 space-y-4">
+        <div className={cn(GOD_CARD_BASE, "p-6 space-y-4")}>
             <h3 className="text-sm font-black text-zinc-500 uppercase tracking-widest flex items-center gap-3">
                 <KeyRound className="w-4 h-4 text-violet-500" />
                 Rôles avec <code className="text-zinc-400">{DASHBOARD_LOGIN}</code>
@@ -150,7 +152,7 @@ function DashboardLoginRolesCard({ roles, roleLabel }: { roles: [string, string[
 
 function IndividualOverridesCard({ entries }: { entries: [string, string[]][] }) {
     return (
-        <div className="bg-zinc-900/20 border border-white/5 rounded-3xl p-6 space-y-4 lg:col-span-2">
+        <div className={cn(GOD_CARD_BASE, "p-6 space-y-4 lg:col-span-2")}>
             <h3 className="text-sm font-black text-zinc-500 uppercase tracking-widest flex items-center gap-3">
                 <UserCog className="w-4 h-4 text-violet-500" />
                 Dérivations individuelles ({entries.length})
@@ -184,7 +186,7 @@ function MappedRolesCard({
 }) {
     const entries = Object.entries(rolesMapping);
     return (
-        <div className="bg-zinc-900/20 border border-white/5 rounded-3xl p-6 space-y-4">
+        <div className={cn(GOD_CARD_BASE, "p-6 space-y-4")}>
             <h3 className="text-sm font-black text-zinc-500 uppercase tracking-widest flex items-center gap-3">
                 <Users className="w-4 h-4 text-violet-500" />
                 Tous les rôles mappés ({entries.length})

@@ -1,13 +1,19 @@
 import { cn } from "@/lib/utils";
 import type { HTMLAttributes, ReactNode } from "react";
 
+/**
+ * Recette de carte God — **source unique**.
+ *
+ * Le même `bg-zinc-900/2x border border-white/5 rounded-3xl` était recopié à la main
+ * dans les écrans God (audit du 24/09 : 4 fichiers, 7 occurrences). Il est exporté
+ * pour les blocs dont la balise n'est pas réécrite d'un coup, afin qu'ils partagent
+ * exactement la même recette que `<GodCard>`.
+ */
+export const GOD_CARD_BASE = "rounded-3xl border border-white/5 bg-zinc-900/10 backdrop-blur-xl";
+
 export function GodCard({ className, children, ...props }: HTMLAttributes<HTMLDivElement> & { children?: ReactNode }) {
     return (
-        <div className={cn(
-            "relative rounded-3xl border border-white/5 bg-zinc-900/10 backdrop-blur-xl",
-            "",
-            className
-        )} {...props}>
+        <div className={cn(GOD_CARD_BASE, className)} {...props}>
             {children}
         </div>
     );

@@ -5,6 +5,7 @@ import { MemberManagementTable } from "@/components/admin/member-management-tabl
 import { Shield, ChevronLeft, Users } from "lucide-react";
 import Link from "next/link";
 import { db } from "@/lib/prisma";
+import { GodCard } from "@/app/god/ui";
 import { logger } from "@/lib/logger";
 import { GodGuildTabs } from "./god-guild-tabs";
 
@@ -122,7 +123,7 @@ export default async function GodGuildDetailsPage({ params }: GodGuildDetailsPag
             </div>
 
             {/* Roster Table - Reusing the Admin component for consistency */}
-            <div className="bg-zinc-900/20 border border-white/5 rounded-3xl p-1 shadow-2xl overflow-hidden">
+            <GodCard className="p-1 shadow-2xl overflow-hidden">
                 <div className="p-8 border-b border-white/5 flex items-center justify-between">
                     <h3 className="text-sm font-black text-zinc-500 uppercase tracking-widest flex items-center gap-3">
                         <Users className="w-4 h-4 text-violet-500" />
@@ -138,7 +139,7 @@ export default async function GodGuildDetailsPage({ params }: GodGuildDetailsPag
                         ownerId={members.ownerId}
                     />
                 </div>
-            </div>
+            </GodCard>
 
             <div className="bg-amber-500/5 border border-amber-500/10 rounded-2xl p-6">
                 <p className="text-xs text-amber-500/80 font-medium leading-relaxed">

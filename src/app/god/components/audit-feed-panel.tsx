@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { AUDIT_ACTION_FILTER_OPTIONS } from "@/lib/audit-taxonomy";
 
 const ACTION_COLORS: Record<string, string> = {
     RBAC_UPDATE: "bg-amber-500/20 text-amber-400 border-amber-500/30",
@@ -37,15 +38,8 @@ const ACTION_COLORS: Record<string, string> = {
 };
 
 const ACTION_OPTIONS = [
-    { value: "all", label: "Toutes les actions" },
-    { value: "SECURITY_ALERT,ADMIN_FULL_DENIED", label: "🚨 Alertes Sécurité & Accès" },
-    { value: "RBAC_UPDATE", label: "Permissions modifiées" },
-    { value: "MISSION_CREATED,MISSION_DELETED,MISSION_VALIDATED,MISSION_REJECTED", label: "⚔️ Missions" },
-    { value: "BONUS_PURCHASED,BONUS_CANCELLED", label: "🔮 Bonus" },
-    { value: "POLL_CREATED,POLL_CLOSED,POLL_DELETED,POLL_CREATOR_ROLE_ACQUIRED", label: "📊 Sondages & Micro" },
-    { value: "MEMBER_PURGED,MEMBER_BANNED,MEMBER_ARCHIVED,MEMBER_LEFT,WEBHOOK_MEMBER_ADD,WEBHOOK_MEMBER_REMOVE", label: "🔄 Mouvements" },
-    { value: "CONFIG_UPDATED,SETTINGS_UPDATED", label: "⚙️ Configuration" },
-    { value: "USER_GDPR_DELETE", label: "🗑️ Suppressions RGPD" },
+    { value: "all", label: "Toutes les alertes" },
+    ...AUDIT_ACTION_FILTER_OPTIONS.filter((o) => o.category === "security"),
 ];
 
 export function AuditFeedPanel({ logs, total }: { logs: any[]; total: number }) {
@@ -82,7 +76,7 @@ export function AuditFeedPanel({ logs, total }: { logs: any[]; total: number }) 
             <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 mb-6 pb-4 border-b border-white/5 shrink-0">
                 <div className="flex items-center gap-3 shrink-0">
                     <span className="text-xs text-zinc-500 font-black uppercase tracking-widest">
-                        Security Feed ({total})
+                        Journal de sécurité ({total})
                     </span>
                     <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
                 </div>

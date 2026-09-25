@@ -23,6 +23,11 @@ import {
     Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+    AUDIT_ACTION_FILTER_OPTIONS,
+    AUDIT_CATEGORY_FILTER_OPTIONS,
+    AUDIT_SCOPE_FILTER_OPTIONS,
+} from "@/lib/audit-taxonomy";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -59,16 +64,9 @@ interface LogViewerProps {
 
 const ITEMS_PER_PAGE = 50;
 
-const ACTION_OPTIONS = [
-    { value: "all", label: "Toutes les actions" },
-    { value: "SECURITY_ALERT", label: "🚨 Alertes de Sécurité" },
-    { value: "RBAC_UPDATE,RBAC_ROLE_ADD,RBAC_ROLE_REMOVE", label: "Permissions" },
-    { value: "GOD_GUILD_WHITELIST,GOD_USER_PLATFORM_BAN,GOD_CONFIG_OVERRIDE,GOD_DATABASE_SYNC,GOD_MODULE_LOCK", label: "🛡️ Actions God" },
-    { value: "WEBHOOK_MEMBER_ADD,WEBHOOK_MEMBER_REMOVE,WEBHOOK_MEMBER_UPDATE", label: "🔄 Mouvements" },
-    { value: "USER_GDPR_DELETE", label: "🗑️ Suppressions RGPD" },
-    { value: "CONFIG_UPDATED", label: "Configuration" },
-    { value: "ADMIN_FULL_DENIED", label: "Accès refusé" },
-];
+// ⚠️ SOURCE UNIQUE : la liste de filtres vient de `src/lib/audit-taxonomy.ts`
+// (les deux écrans God avaient deux listes différentes — illusion de deux sources).
+const ACTION_OPTIONS = AUDIT_ACTION_FILTER_OPTIONS;
 
 export function LogViewer({ initialLogs, initialTotal }: LogViewerProps) {
     const [logs, setLogs] = useState(initialLogs);
@@ -80,6 +78,9 @@ export function LogViewer({ initialLogs, initialTotal }: LogViewerProps) {
     const [actionFilter, setActionFilter] = useState<string>("all");
     const [searchQuery, setSearchQuery] = useState("");
     const [debouncedSearch, setDebouncedSearch] = useState("");
+    /** 🔎 Catégorie et périmètre — filtrés EN BASE (voir `getGlobalAuditLogs`). */
+    const [categoryFilter, setCategoryFilter] = useState<string>("all");
+    const [scopeFilter, setScopeFilter] = useState<string>("all");
 
     const totalPages = Math.ceil(total / ITEMS_PER_PAGE);
 
@@ -106,6 +107,8 @@ export function LogViewer({ initialLogs, initialTotal }: LogViewerProps) {
             if (debouncedSearch) {
                 params.set("search", debouncedSearch);
             }
+            if (categoryFilter !== "all") params.set("category", categoryFilter);
+            if (scopeFilter !== "all") params.set("scope", scopeFilter);
 
             const res = await fetch(`/api/god/audit-logs?${params.toString()}`);
             if (res.ok) {
@@ -122,25 +125,27 @@ export function LogViewer({ initialLogs, initialTotal }: LogViewerProps) {
 
     useEffect(() => {
         // Skip initial fetch since we have initialLogs
-        if (page === 1 && actionFilter === "all" && !debouncedSearch) {
+        if (page === 1 && actionFilter === "all" && !debouncedSearch && categoryFilter === "all" && scopeFilter === "all") {
             return;
         }
         fetchLogs();
-    }, [page, actionFilter, debouncedSearch, fetchLogs]);
+    }, [page, actionFilter, debouncedSearch, categoryFilter, scopeFilter, fetchLogs]);
 
     // Reset page when filters change
     useEffect(() => {
         setPage(1);
-    }, [actionFilter, debouncedSearch]);
+    }, [actionFilter, debouncedSearch, categoryFilter, scopeFilter]);
 
     const clearFilters = () => {
         setActionFilter("all");
         setSearchQuery("");
         setDebouncedSearch("");
+        setCategoryFilter("all");
+        setScopeFilter("all");
         setPage(1);
     };
 
-    const hasActiveFilters = actionFilter !== "all" || debouncedSearch;
+    const hasActiveFilters = actionFilter !== "all" || debouncedSearch || categoryFilter !== "all" || scopeFilter !== "all";
 
     const getActionColors = (action: string) => {
         if (action.includes("RBAC")) return "bg-amber-500/10 text-amber-400 border-amber-500/20";
@@ -209,6 +214,36 @@ export function LogViewer({ initialLogs, initialTotal }: LogViewerProps) {
                         className="h-9 w-[260px] pl-9 text-caption font-bold bg-zinc-800/50 border-white/10 rounded-xl"
                     />
                 </div>
+
+                {/* 🔎 Catégorie (sécurité / fonctionnel) et périmètre (God / guildes) :
+                    filtrés EN BASE. Avant l'audit du 24/09, les deux écrans God
+                    affichaient le même total brut — la sécurité se noyait dans la
+                    configuration et les mouvements Discord. */}
+                <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                    <SelectTrigger className="w-[230px] h-9 text-caption font-bold bg-zinc-800/50 border-white/10 rounded-xl">
+                        <SelectValue placeholder="Catégorie" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-zinc-900 border-white/10">
+                        {AUDIT_CATEGORY_FILTER_OPTIONS.map(opt => (
+                            <SelectItem key={opt.value} value={opt.value} className="text-xs">
+                                {opt.label}
+                            </SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+
+                <Select value={scopeFilter} onValueChange={setScopeFilter}>
+                    <SelectTrigger className="w-[190px] h-9 text-caption font-bold bg-zinc-800/50 border-white/10 rounded-xl">
+                        <SelectValue placeholder="Périmètre" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-zinc-900 border-white/10">
+                        {AUDIT_SCOPE_FILTER_OPTIONS.map(opt => (
+                            <SelectItem key={opt.value} value={opt.value} className="text-xs">
+                                {opt.label}
+                            </SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
 
                 {hasActiveFilters && (
                     <Button

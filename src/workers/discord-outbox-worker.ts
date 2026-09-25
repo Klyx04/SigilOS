@@ -85,15 +85,24 @@ worker.on("failed", async (job, err) => {
         try {
             const { notifyGod } = await import("../server/actions/god-notif-actions");
             const data = (job.data ?? {}) as Partial<DiscordOutboxJobData> & { channelId?: string };
-            await notifyGod(
-                buildDiscordOutboxFailureAlert({
+            const failedChannelId = (err as { channelId?: string } | null)?.channelId ?? data.channelId;
+            await notifyGod({
+                ...buildDiscordOutboxFailureAlert({
                     jobId: job.id,
                     kind: data.kind,
-                    channelId: (err as { channelId?: string } | null)?.channelId ?? data.channelId,
+                    channelId: failedChannelId,
                     attempts: job.attemptsMade,
                     error: err,
-                })
-            );
+                }),
+                // 🛑 ANTI-BOUCLE (mesure du 25/09/2026 : 1 000 alertes + 1 000 jobs en
+                // 19 minutes) — cette alerte décrit un échec d'écriture Discord : si elle
+                // repartait sur Discord (`sendChannelMessage` → même file), elle recréerait
+                // un job qui échouerait → une alerte → etc. Elle reste donc **web**.
+                webOnly: true,
+                // …et une seule alerte par salon et par heure : une panne de permission ne
+                // doit pas noyer la console God (elle se répète à chaque message concerné).
+                dedupeKey: `discord-outbox:${failedChannelId ?? "sans-salon"}`,
+            });
         } catch (notifyErr) {
             logger.warn("[DiscordOutbox] notifyGod échoué:", { error: String(notifyErr) });
         }

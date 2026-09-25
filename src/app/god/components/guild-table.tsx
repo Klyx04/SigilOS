@@ -41,6 +41,7 @@ import { forceBotLeaveGuild } from "@/server/actions/god-discord-actions";
 import { toast } from 'sonner';
 import Link from 'next/link';
 import { z } from 'zod';
+import { isSelfOnboardedGuild, resolveOnboardingOrigin } from '@/lib/onboarding-gating';
 
 const whitelistSchema = z.object({
     discordGuildId: z.string().min(17, "ID Discord trop court").max(20, "ID Discord trop long").regex(/^\d+$/, "L'ID doit être numérique"),
@@ -62,6 +63,8 @@ interface Guild {
     isWhitelistOnly?: boolean;
     notes?: string | null;
     tier?: string; // Restore tier
+    /** Origine : `SYSTEM_GATEWAY` = bot invité (aucune validation humaine). */
+    addedBy?: string | null;
     _count: {
         profiles: number;
     };
@@ -102,7 +105,10 @@ export function GuildTable({ guilds, isReadOnly = false }: GuildTableProps) {
         let frozen = 0;
 
         for (const g of guilds) {
-            const isAuto = g.notes?.toLowerCase().includes("autonomie") || g.tier === "COMMUNITY";
+            // Origine = SOURCE UNIQUE (`resolveOnboardingOrigin`) : le bot invité crée
+            // déjà la ligne (`addedBy: "SYSTEM_GATEWAY"`, tier BETA) — une guilde
+            // auto-onboardée était comptée « VIP Manuel » avant l'audit du 24/09.
+            const isAuto = isSelfOnboardedGuild(g);
             if (isAuto) autonomous++;
             else if (!g.isWhitelistOnly) vip++;
 
@@ -121,7 +127,7 @@ export function GuildTable({ guilds, isReadOnly = false }: GuildTableProps) {
                 guild.name.toLowerCase().includes(search.toLowerCase()) ||
                 guild.discordGuildId.includes(search);
 
-            const isAuto = guild.notes?.toLowerCase().includes("autonomie") || guild.tier === "COMMUNITY";
+            const isAuto = isSelfOnboardedGuild(guild);
             const isFrozen = !guild.isActive || !!guild.deletedAt;
             const isWatch = !guild.isWhitelistOnly && !isFrozen && guild._count.profiles <= 3;
 
@@ -365,11 +371,11 @@ export function GuildTable({ guilds, isReadOnly = false }: GuildTableProps) {
                     className={`p-4 rounded-2xl border text-left transition-all ${filterStatus === 'vip' ? 'bg-purple-500/10 border-purple-500/50 ring-1 ring-purple-500/30' : 'bg-zinc-900/40 border-white/5 hover:border-white/10'}`}
                 >
                     <div className="text-caption font-bold text-purple-400 uppercase tracking-widest flex items-center justify-between">
-                        <span>VIP / Manuels</span>
-                        <span className="text-xs">👑</span>
+                        <span>Pré-approuvées</span>
+                        <span className="text-xs">🛡️</span>
                     </div>
                     <div className="text-2xl font-black text-purple-400 mt-1">{radarStats.vip}</div>
-                    <div className="text-[11px] text-zinc-500 mt-0.5">Validés par ticket</div>
+                    <div className="text-[11px] text-zinc-500 mt-0.5">Whitelist God ou ticket</div>
                 </button>
 
                 <button
@@ -420,7 +426,7 @@ export function GuildTable({ guilds, isReadOnly = false }: GuildTableProps) {
                     >
                         <option value="all">Toutes les guildes ({radarStats.total})</option>
                         <option value="autonomous">🚀 Autonomes ({radarStats.autonomous})</option>
-                        <option value="vip">👑 VIP / Manuels ({radarStats.vip})</option>
+                        <option value="vip">🛡️ Pré-approuvées God / ticket ({radarStats.vip})</option>
                         <option value="active">✅ Actives</option>
                         <option value="watch">🟡 À surveiller ({radarStats.watch})</option>
                         <option value="frozen">❄️ Gelées / Inactives ({radarStats.frozen})</option>
@@ -514,7 +520,11 @@ function GuildRow({ guild, selected, onSelect, isReadOnly }: {
 }) {
     const [isUpdating, setIsUpdating] = useState(false);
 
-    const isAutonomous = guild.notes?.toLowerCase().includes("autonomie") || guild.tier === "COMMUNITY";
+    // Origine — SOURCE UNIQUE (`src/lib/onboarding-gating.ts`). Avant l'audit du
+    // 24/09, cette ligne ne reconnaissait ni `addedBy: "SYSTEM_GATEWAY"` ni le
+    // tier par défaut ⇒ toute guilde auto-onboardée s'affichait « 👑 VIP Manuel ».
+    const origin = resolveOnboardingOrigin(guild);
+    const isAutonomous = origin.kind === "AUTONOME";
     const isFrozen = !guild.isActive || !!guild.deletedAt;
     const isWatch = !guild.isWhitelistOnly && !isFrozen && guild._count.profiles <= 3;
 
@@ -698,16 +708,16 @@ function GuildRow({ guild, selected, onSelect, isReadOnly }: {
                             <div className="font-bold text-sm text-white">{guild.name}</div>
                             {/* Origin badge */}
                             {isAutonomous ? (
-                                <span className="text-[10px] px-2 py-0.5 rounded font-black uppercase tracking-wider bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                                    🚀 Autonome
+                                <span className="text-[10px] px-2 py-0.5 rounded font-black uppercase tracking-wider bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" title="Aucune validation humaine : bot invité ou self-onboarding en 1 clic.">
+                                    {origin.badge}
                                 </span>
                             ) : guild.isWhitelistOnly ? (
                                 <span className="text-[10px] px-2 py-0.5 rounded font-black uppercase tracking-wider bg-amber-500/10 text-amber-400 border border-amber-500/20" title="Bot installé mais guilde jamais déployée — en attente que l'admin clique Déployer sur le portail">
                                     🤖 Bot Seul — en attente de déploiement
                                 </span>
                             ) : (
-                                <span className="text-[10px] px-2 py-0.5 rounded font-black uppercase tracking-wider bg-purple-500/10 text-purple-400 border border-purple-500/20">
-                                    👑 VIP Manuel
+                                <span className="text-[10px] px-2 py-0.5 rounded font-black uppercase tracking-wider bg-purple-500/10 text-purple-400 border border-purple-500/20" title={origin.label}>
+                                    {origin.badge}
                                 </span>
                             )}
                             {/* Risk score badge */}

@@ -228,21 +228,35 @@ client.on(Events.GuildCreate, async (guild) => {
                             discordGuildId: guild.id,
                             guildName: guild.name,
                             addedBy: 'SYSTEM_GATEWAY',
-                            operation: 'GUILD_CREATE_UNWHITELISTED'
+                            operation: autoOnboardingOn ? 'GUILD_CREATE_AUTO' : 'GUILD_CREATE_UNWHITELISTED'
                         },
                     },
                 });
 
                 // 2. Try to send Discord alert to GOD channel
+                // ⚠️ L'embed DOIT dire la même vérité que la ligne ci-dessus : en
+                // mode auto, la guilde est active immédiatement — un embed rouge
+                // « non-whitelisté, action requise » faisait croire au staff et aux
+                // admins qu'une approbation était en attente (audit 24/09/2026).
                 const platformConfig = await (db as any).platformConfig.findUnique({ where: { id: "singleton" } });
                 const godChannelId = platformConfig?.godNotifyChannelId;
                 if (godChannelId) {
                     const channel = await client.channels.fetch(godChannelId).catch(() => null);
                     if (channel && channel.isTextBased() && 'send' in channel) {
                         await channel.send({
-                            embeds: [{
+                            embeds: [autoOnboardingOn ? {
+                                title: '🟢 Nouveau serveur (auto-actif)',
+                                description: `Le bot a été invité sur **"${guild.name}"** (\`${guild.id}\`)\n\n✅ Ce serveur est **actif immédiatement** — aucune approbation requise. Modération a posteriori (ban / gel / expulsion) depuis le GOD Dashboard si abus.`,
+                                color: 0x22c55e,
+                                fields: [
+                                    { name: 'Serveur', value: guild.name, inline: true },
+                                    { name: 'ID', value: guild.id, inline: true },
+                                ],
+                                timestamp: new Date().toISOString(),
+                                footer: { text: 'SigilOS Gateway Bot • Vie de la plateforme' },
+                            } : {
                                 title: '🚨 Nouveau serveur non-whitelisté',
-                                description: `Le bot a été invité sur **"${guild.name}"** (\`${guild.id}\`)\n\n⚠️ Ce serveur n'est **pas dans la whitelist**. Rendez-vous sur le GOD Dashboard pour approuver ou rejeter.`,
+                                description: `Le bot a été invité sur **"${guild.name}"** (\`${guild.id}\`)\n\n⚠️ Ce serveur n'est **pas dans la whitelist** et l'auto-onboarding est **fermé**. Rendez-vous sur le GOD Dashboard pour approuver ou rejeter.`,
                                 color: 0xef4444,
                                 fields: [
                                     { name: 'Serveur', value: guild.name, inline: true },

@@ -2,7 +2,7 @@ import { Metadata } from "next";
 import { headers } from "next/headers";
 import Link from "next/link";
 import { notFound, permanentRedirect } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Swords } from "lucide-react";
 import { PublicHeader } from "@/components/layout/public-header";
 import { GalacticFooter } from "@/components/layout/galactic-footer";
 import { JsonLd } from "@/components/shared/json-ld";
@@ -15,6 +15,7 @@ import { getAnomalyBossBattleMap, getAnomalyBossFamily } from "@/server/actions/
 import { getBountyFiche } from "@/server/actions/bounty-actions";
 import { mergeDofensiveSpells } from "@/lib/dofensive-spells";
 import { PublicBossDetailClient, type DungeonFamily } from "./_components/PublicBossDetailClient";
+import { getPublicLinkedQuests, getPublicDungeonAchievements } from "@/server/actions/public-boss-tabs-actions";
 
 export const revalidate = 3600;
 
@@ -205,6 +206,17 @@ export default async function PublicBossDetailPage({ params }: PageProps) {
   const family: DungeonFamily | null = familyRes.success ? ((familyRes.data as DungeonFamily) ?? null) : null;
   const dungeonMaps = mapsRes.success ? mapsRes.data : null;
 
+  // Quêtes et succès — uniquement pour les vrais donjons (pas titans, pas bounties).
+  const [questsRes, achievementsRes] = dungeon
+    ? await Promise.all([
+        getPublicLinkedQuests(dungeon.name, dungeon.bossName ?? dungeon.name),
+        getPublicDungeonAchievements(dungeon.id),
+      ])
+    : [{ success: false, data: undefined }, { success: false, data: undefined }];
+
+  const initialQuestsData = questsRes.success && questsRes.data ? questsRes.data : null;
+  const initialAchievements = achievementsRes.success && achievementsRes.data ? achievementsRes.data : null;
+
   const headersList = await headers();
   const nonce = headersList.get("x-nonce") ?? "";
 
@@ -271,6 +283,10 @@ export default async function PublicBossDetailPage({ params }: PageProps) {
             <ArrowLeft className="w-3.5 h-3.5" />
             {locale === "en" ? "All bosses & dungeons" : "Tous les boss & donjons"}
           </Link>
+
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-border bg-surface/60 text-muted-foreground text-[11px] uppercase tracking-wider">
+            <Swords className="w-3.5 h-3.5" /> {locale === "en" ? "Tactical simulation" : "Simulation tactique"}
+          </span>
         </div>
 
         {/* Client Boss Detail Client */}
@@ -308,6 +324,8 @@ export default async function PublicBossDetailPage({ params }: PageProps) {
           initialFamily={family}
           initialDungeonMaps={dungeonMaps ?? undefined}
           bountyMeta={bounty?.meta ?? null}
+          initialQuestsData={initialQuestsData}
+          initialAchievements={initialAchievements}
         />
       </main>
 

@@ -40,6 +40,9 @@ import { DungeonMinimapCard } from "./DungeonMinimapCard";
 import { getAnomalyBossBattleMap, getAnomalyBossFamily } from "@/server/actions/anomaly-boss-actions";
 import { getBountyBattleMap } from "@/server/actions/bounty-actions";
 import type { BountyPublicMeta } from "@/lib/bounty-fiche";
+import { PublicBossQuestsTab } from "./PublicBossQuestsTab";
+import { PublicBossAchievementsTab } from "./PublicBossAchievementsTab";
+import type { PublicLinkedQuestsData, PublicDungeonAchievement } from "@/server/actions/public-boss-tabs-actions";
 
 interface PublicDungeon {
   id: string;
@@ -85,6 +88,10 @@ interface PublicBossDetailClientProps {
   initialDungeonMaps?: DofensiveDungeonInfo | null;
   /** 🎯 Avis de recherche : zone de traque, prime, critères de quête, repli de carte déclaré. */
   bountyMeta?: BountyPublicMeta | null;
+  /** 📜 Quêtes liées au donjon (vrais donjons uniquement — `null` sinon). */
+  initialQuestsData?: PublicLinkedQuestsData | null;
+  /** 🏆 Succès du donjon (vrais donjons uniquement — `null` sinon). */
+  initialAchievements?: PublicDungeonAchievement[] | null;
 }
 
 function MonsterImage({
@@ -129,7 +136,7 @@ function MonsterImage({
   );
 }
 
-type DetailTab = "sorts" | "overview" | "sim" | "grades" | "loot" | "family";
+type DetailTab = "sorts" | "overview" | "sim" | "grades" | "loot" | "family" | "quests" | "achievements";
 
 export function PublicBossDetailClient({
   dungeon,
@@ -137,8 +144,15 @@ export function PublicBossDetailClient({
   initialFamily,
   initialDungeonMaps,
   bountyMeta,
+  initialQuestsData,
+  initialAchievements,
 }: PublicBossDetailClientProps) {
   const bossName = dungeon.bossName || dungeon.name;
+  // 📜 Onglets « quêtes liées » / « succès du donjon » : le serveur ne fournit ces données que
+  // pour les **vrais donjons** (ni titan, ni avis de recherche) ⇒ l'onglet disparaît quand il n'y
+  // a rien à montrer, jamais un onglet vide.
+  const questCount = initialQuestsData?.quests.length ?? 0;
+  const achievementCount = initialAchievements?.length ?? 0;
   const isTitan = dungeon.kind === "titan";
   // 🎯 Avis de recherche : ni donjon ni titan — pas de salle, pas de carte Dofensive, mais une
   // zone de traque, une prime (curée dans God) et des critères de quête SIPHONNÉS.
@@ -334,6 +348,8 @@ export function PublicBossDetailClient({
       { id: "grades", label: locale === "en" ? `Grades & Tiers (${grades.length})` : `Grades & Paliers (${grades.length})`, asset: "/assets/dofus/modules/character.png", hidden: grades.length <= 1 },
       { id: "loot", label: locale === "en" ? "Loot & Drops" : "Butin & Drops", asset: "/assets/dofus/modules/chest.png" },
       { id: "family", label: locale === "en" ? `Room Monsters (${roomMonsters.length})` : `Monstres de la salle (${roomMonsters.length})`, asset: "/assets/dofus/modules/party.png", hidden: !hasRoomMonsters },
+      { id: "quests", label: locale === "en" ? `Linked Quests (${questCount})` : `Quêtes liées (${questCount})`, asset: "/assets/dofus/icons/quests.png", hidden: questCount === 0 },
+      { id: "achievements", label: locale === "en" ? `Dungeon Achievements (${achievementCount})` : `Succès du donjon (${achievementCount})`, asset: "/assets/dofus/icons/success.png", hidden: achievementCount === 0 },
     ] as { id: DetailTab; label: string; asset: string; hidden?: boolean }[]
   ).filter((t) => !t.hidden);
 
@@ -960,6 +976,16 @@ export function PublicBossDetailClient({
       )}
 
       {/* ── TAB: MONSTRES DE LA SALLE ── */}
+      {/* ── TAB: QUÊTES LIÉES (vrais donjons uniquement) ── */}
+      {detailTab === "quests" && initialQuestsData && (
+        <PublicBossQuestsTab data={initialQuestsData} bossName={bossName} />
+      )}
+
+      {/* ── TAB: SUCCÈS DU DONJON (vrais donjons uniquement) ── */}
+      {detailTab === "achievements" && initialAchievements && (
+        <PublicBossAchievementsTab achievements={initialAchievements} bossName={bossName} />
+      )}
+
       {detailTab === "family" && (() => {
         const companionCount = familyByDungeon[dungeon.id]?.companions?.length ?? 0;
         const companionHint = familyByDungeon[dungeon.id]?.companionHint ?? null;

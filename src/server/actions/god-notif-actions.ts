@@ -3,6 +3,7 @@ import { logger } from "@/lib/logger";
 
 import { db } from "@/lib/prisma";
 import { rateLimit } from "@/lib/ratelimit";
+import { isOutboxFailureContext } from "@/lib/discord-outbox-context";
 import { sendChannelMessage } from "@/server/discord";
 import { revalidatePath } from "next/cache";
 
@@ -31,18 +32,15 @@ export async function notifyGod(params: {
      * Mesure du 25/09/2026 : **4 575 alertes + 4 575 jobs en 90 minutes** (~0,85/s) sur un
      * salon de notifications God inaccessible — voir `src/workers/discord-outbox-worker.ts`.
      *
-     * ⚠️ Depuis le 25/09/2026, **une alerte en échec (`success: false`) est web-only par
-     * défaut** : il faut `allowDiscordOnFailure: true` pour la poster malgré tout. La
-     * boucle est ainsi impossible par CONSTRUCTION, même si un futur appelant oublie ce
-     * drapeau — c'était le trou qui ne tenait qu'à une convention d'appel.
+     * ⚠️ Ce drapeau n'est **pas** la seule garantie : le worker exécute tout son
+     * traitement d'échec dans le contexte `runInOutboxFailureContext()`
+     * (`src/lib/discord-outbox-context.ts`), où `notifyGod` **refuse d'office** tout
+     * envoi Discord. Un appelant qui oublierait `webOnly: true` ne peut donc pas
+     * refermer la boucle. En revanche, une alerte d'échec **métier** (NSFW bloqué, API
+     * tierce en difficulté, guilde orpheline) garde son ping Discord : on ne coupe pas
+     * la surveillance pour se protéger d'un mécanisme qui n'est pas en cause.
      */
     webOnly?: boolean;
-    /**
-     * Dérogation explicite à l'invariant ci-dessus : autorise une alerte d'ÉCHEC à
-     * partir sur Discord. À n'utiliser que si l'échec ne peut PAS être causé par une
-     * écriture Discord (sinon on rouvre la boucle).
-     */
-    allowDiscordOnFailure?: boolean;
     /**
      * 🔁 Anti-rafale : au plus **une** alerte par clé et par `dedupeWindowMs`.
      * Les alertes qui décrivent un **événement métier** (don, feedback…) ne doivent
@@ -53,13 +51,16 @@ export async function notifyGod(params: {
 }) {
     const {
         title, message, type, success = true, metadata, ping = false, forceChannelId,
-        webOnly = false, allowDiscordOnFailure = false, dedupeKey, dedupeWindowMs,
+        webOnly = false, dedupeKey, dedupeWindowMs,
     } = params;
 
-    // 🛑 INVARIANT ANTI-BOUCLE : une alerte d'échec ne repart JAMAIS sur Discord sans
-    // dérogation explicite. La cause la plus fréquente d'un échec est justement une
-    // écriture Discord impossible — la poster sur Discord refermerait la boucle.
-    const effectiveWebOnly = webOnly || (success === false && !allowDiscordOnFailure);
+    // 🛑 INVARIANT ANTI-BOUCLE (structurel, pas une convention d'appel) : une alerte
+    // émise PENDANT le traitement d'un échec d'écriture outbox ne repart jamais sur
+    // Discord — elle repasserait par la file qui vient d'échouer. Le ciblage se fait
+    // sur le CONTEXTE et non sur `success === false` : une alerte d'échec légitime
+    // (NSFW bloqué, API tierce en difficulté, guilde orpheline…) doit continuer d'être
+    // poussée sur Discord, sinon on éteindrait la surveillance qu'on veut protéger.
+    const effectiveWebOnly = webOnly || isOutboxFailureContext();
 
     try {
         // 0. ANTI-RAFALE — une même panne (même clé) ne produit qu'une alerte par fenêtre.

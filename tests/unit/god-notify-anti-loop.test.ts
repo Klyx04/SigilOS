@@ -35,6 +35,7 @@ import { db } from "@/lib/prisma";
 import { rateLimit } from "@/lib/ratelimit";
 import { sendChannelMessage } from "@/server/discord";
 import { notifyGod } from "@/server/actions/god-notif-actions";
+import { runInOutboxFailureContext } from "@/lib/discord-outbox-context";
 
 const mockDb = db as any;
 
@@ -105,30 +106,40 @@ describe("invariant : une alerte d'ÉCHEC ne repart jamais sur Discord", () => {
         (rateLimit as any).mockResolvedValue({ success: true, remaining: 0, reset: Date.now() + 3_600_000 });
     });
 
-    it("`success: false` SANS drapeau ⇒ aucun envoi Discord (c'est le DÉFAUT, pas une convention)", async () => {
-        const res = await notifyGod({
-            title: "Panne X",
-            message: "détail",
-            type: "SYSTEM",
+    it("alerte d'ÉCHEC métier (`success: false`) ⇒ Discord est TOUJOURS notifié (on n'éteint pas la surveillance)", async () => {
+        // Mesure : 15 sites du dépôt envoient une alerte d'échec LÉGITIME (NSFW bloqué,
+        // API tierce en difficulté, guilde orpheline, stockage critique, workers…).
+        // Un garde-fou général « échec ⇒ jamais Discord » les aurait toutes muettes.
+        await notifyGod({
+            title: "NSFW bloqué",
+            message: "tentative sur une preuve",
+            type: "SECURITY_ALERT",
             success: false,
-            ping: true,
         });
 
-        expect(res.success).toBe(true);
-        expect(mockDb.godNotification.create).toHaveBeenCalledTimes(1);
-        // Le point critique : un futur appelant qui OUBLIE `webOnly` ne peut plus
-        // refermer la boucle « échec → alerte → écriture Discord → échec ».
-        expect(sendChannelMessage).not.toHaveBeenCalled();
+        expect(sendChannelMessage).toHaveBeenCalledTimes(1);
     });
 
-    it("dérogation explicite `allowDiscordOnFailure` ⇒ un échec peut être posté (cas légitime préservé)", async () => {
-        await notifyGod({
-            title: "Échec métier sans rapport avec Discord",
-            message: "détail",
-            type: "SYSTEM",
-            success: false,
-            allowDiscordOnFailure: true,
-        });
+    it("émise PENDANT le traitement d'un échec outbox ⇒ AUCUN envoi Discord (garde-fou structurel)", async () => {
+        // C'est le ciblage par CONTEXTE qui rend la boucle impossible, même si un futur
+        // appelant oubliait `webOnly` : l'alerte ne peut pas retourner dans la file
+        // qui vient d'échouer.
+        await runInOutboxFailureContext(() =>
+            notifyGod({
+                title: "Panne d'écriture",
+                message: "détail",
+                type: "SYSTEM",
+                success: false,
+            }),
+        );
+
+        expect(sendChannelMessage).not.toHaveBeenCalled();
+        expect(mockDb.godNotification.create).toHaveBeenCalledTimes(1);
+    });
+
+    it("le contexte est bien borné : une alerte APRÈS le traitement d'échec renotifie Discord", async () => {
+        await runInOutboxFailureContext(async () => undefined);
+        await notifyGod({ title: "Reprise", message: "ok", type: "SYSTEM", success: true });
 
         expect(sendChannelMessage).toHaveBeenCalledTimes(1);
     });
@@ -159,10 +170,14 @@ describe("gardes de source — le worker outbox est bien câblé", () => {
         expect(worker).toMatch(/dedupeKey: `discord-outbox:\$\{failedChannelId \?\? "sans-salon"\}`/);
     });
 
-    it("`notifyGod` coupe l'envoi Discord pour une alerte web-only (défaut d'échec inclus)", () => {
+    it("`notifyGod` coupe l'envoi Discord hors ET dans le contexte d'échec outbox", () => {
         expect(actions).toMatch(/if \(targetChannelId && !effectiveWebOnly\)/);
-        expect(actions).toMatch(/const effectiveWebOnly = webOnly \|\| \(success === false && !allowDiscordOnFailure\)/);
+        expect(actions).toMatch(/const effectiveWebOnly = webOnly \|\| isOutboxFailureContext\(\)/);
         expect(actions).toMatch(/dedupeKey/);
+    });
+
+    it("le worker émet ses alertes DANS le contexte d'échec outbox (anti-boucle structurel)", () => {
+        expect(worker).toMatch(/runInOutboxFailureContext\(\(\) => notifyGod\(\{/);
     });
 
     it("le worker met le salon en pause, n'alerte qu'une fois par épisode et lève la pause sur succès", () => {

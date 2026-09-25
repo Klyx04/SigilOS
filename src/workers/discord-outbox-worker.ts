@@ -15,6 +15,7 @@ import {
     isDiscordChannelBlockedError,
     markDiscordChannelBlocked,
 } from "../lib/discord-channel-health";
+import { runInOutboxFailureContext } from "../lib/discord-outbox-context";
 
 /**
  * #223 P3.1 — Discord Outbox Worker.
@@ -142,7 +143,10 @@ worker.on("failed", async (job, err) => {
             // sondé en silence : à 5 000 guildes, c'est la différence entre 24 alertes par
             // jour et par salon, et une alerte au total.
             if (!block || block.failureCount <= 1) {
-                await notifyGod({
+                // `runInOutboxFailureContext` : cette alerte est émise pendant le traitement
+                // d'un échec d'écriture — le contexte lui interdit tout envoi Discord, même
+                // si un futur appelant oubliait `webOnly` (anti-boucle structurel).
+                await runInOutboxFailureContext(() => notifyGod({
                     ...buildDiscordOutboxFailureAlert({
                         jobId: job.id,
                         kind: data.kind,
@@ -159,13 +163,13 @@ worker.on("failed", async (job, err) => {
                     // n'est qu'un filet si le compteur Redis est indisponible.
                     dedupeKey: `discord-outbox:${failedChannelId ?? "sans-salon"}`,
                     dedupeWindowMs: DISCORD_OUTBOX_CHANNEL_ALERT_WINDOW_MS,
-                });
+                }));
             }
 
             // ③ Alerte AGRÉGÉE dès que PLUSIEURS salons sont en pause : c'est le signal
             // d'échelle (un salon isolé est déjà couvert par ②), lui aussi plafonné.
             if (block && !block.alreadyBlocked && block.blockedCount > 1) {
-                await notifyGod({
+                await runInOutboxFailureContext(() => notifyGod({
                     ...buildAggregateOutboxFailureAlert({
                         channels: block.blockedChannels,
                         total: block.blockedCount,
@@ -174,7 +178,7 @@ worker.on("failed", async (job, err) => {
                     webOnly: true,
                     dedupeKey: "discord-outbox:salons-inaccessibles",
                     dedupeWindowMs: DISCORD_OUTBOX_AGGREGATE_ALERT_WINDOW_MS,
-                });
+                }));
             }
         } catch (notifyErr) {
             logger.warn("[DiscordOutbox] notifyGod échoué:", { error: String(notifyErr) });

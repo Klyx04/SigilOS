@@ -36,7 +36,8 @@ export default async function CommandesBotPage({ params }: Props) {
     }
 
     const { isModuleEnabled } = await import("@/server/actions/module-actions");
-    if (!(await isModuleEnabled(guildId, "commandes"))) {
+    // Module guard — le God plateforme garde l'accès (`bypassModules = isGod`)
+    if (!user.isSuperAdmin && !(await isModuleEnabled(guildId, "commandes"))) {
         return <AccessDenied />;
     }
 

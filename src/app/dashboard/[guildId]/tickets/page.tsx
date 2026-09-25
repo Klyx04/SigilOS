@@ -33,6 +33,13 @@ export default async function TicketsPage({ params }: TicketsPageProps) {
         redirect(`/dashboard/${guildId}`);
     }
 
+    // 🔒 Verrou de module (guilde ∪ plateforme) : une URL directe reboucle (A1).
+    // Le God plateforme garde l'accès (`bypassModules = isGod`).
+    if (!ctx.isSuperAdmin) {
+        const { isModuleLocked } = await import("@/server/actions/module-actions");
+        if (await isModuleLocked(guildId, "tickets")) redirect(`/dashboard/${guildId}`);
+    }
+
     const [configRes, categoriesRes, panelsRes, recordsRes, statsRes, journeysRes, formsRes, teamsRes] =
         await Promise.all([
             getTicketGuildConfigAction(guildId),

@@ -23,7 +23,7 @@ export default async function WorldmapOverlayPage({ params, searchParams }: Prop
   if (!user.isAuthenticated || !user.isMember || !user.canViewWorldmap) return <AccessDenied />;
 
   const enabled = await isModuleEnabled(guildId, "worldmap");
-  if (!enabled) return <AccessDenied />;
+  if (!enabled && !user.isSuperAdmin) return <AccessDenied />;
 
   const xNum = x ? parseFloat(x) : undefined;
   const yNum = y ? parseFloat(y) : undefined;

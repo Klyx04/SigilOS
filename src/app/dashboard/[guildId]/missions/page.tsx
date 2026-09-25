@@ -27,11 +27,13 @@ export default async function MissionsPage({ params }: { params: Promise<{ guild
 
     const { guildId } = await params;
 
-    if (!await isModuleEnabled(guildId, "missions")) {
+    const user = await getUserContext(guildId);
+
+    // Module guard (verrou inclus) — le God garde l'accès (`bypassModules = isGod`)
+    if (!user.isSuperAdmin && !await isModuleEnabled(guildId, "missions")) {
         redirect(`/dashboard/${guildId}`);
     }
 
-    const user = await getUserContext(guildId);
     if (!user.canViewMissions) {
         return <AccessDenied />;
     }

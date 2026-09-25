@@ -9,7 +9,8 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { rateLimit } from "@/lib/ratelimit";
 import { type ModuleKey, type GuildModulesState, DEFAULT_MODULES } from "@/lib/module-types";
-import { applyGodLocks, isGodLockableModule, normalizeGodLocks } from "@/lib/module-lock";
+import { applyGodLocks, isGodLockableModule, normalizeGodLocks, resolveModuleGrid, type ModuleLockState } from "@/lib/module-lock";
+import { getPlatformModuleState } from "@/server/platform-module-state";
 
 const UpdateModulesSchema = z.object({
     // Général
@@ -57,8 +58,13 @@ type ActionResponse<T = undefined> = {
 
 import { cache } from "react";
 
-// In-memory cache for module states (30s TTL)
-const moduleCache = new Map<string, { data: GuildModulesState, expiresAt: number }>();
+// In-memory cache for module states (30s TTL).
+// On met en cache l'état **BRUT** (`raw` = toggles de la guilde tels qu'en BDD) +
+// les verrous de guilde ; le verrou **plateforme** est appliqué à la lecture
+// (`getPlatformModuleState`, cache 30 s), donc un déverrouillage plateforme
+// n'attend pas l'expiration de ce cache-ci.
+type CachedGuildModules = { raw: GuildModulesState; guildLocks: ModuleKey[]; expiresAt: number };
+const moduleCache = new Map<string, CachedGuildModules>();
 const MODULE_CACHE_TTL = 30_000;
 
 /**
@@ -68,13 +74,11 @@ export async function invalidateModuleCache(discordGuildId: string) {
     moduleCache.delete(discordGuildId);
 }
 
-export const getGuildModules = cache(async (discordGuildId: string): Promise<GuildModulesState> => {
+/** Lecture unique de la guilde : toggles **bruts** + verrou de guilde, cache 30 s. */
+async function readGuildModules(discordGuildId: string): Promise<CachedGuildModules> {
     const now = Date.now();
     const cached = moduleCache.get(discordGuildId);
-
-    if (cached && cached.expiresAt > now) {
-        return cached.data;
-    }
+    if (cached && cached.expiresAt > now) return cached;
 
     try {
         const guildConfig = await db.guildConfig.findUnique({
@@ -84,10 +88,11 @@ export const getGuildModules = cache(async (discordGuildId: string): Promise<Gui
 
         const dbModules = guildConfig?.modules as any;
         
-        // If no modules record at all, return defaults
+        // If no modules record at all, return defaults (aucun verrou possible)
         if (!dbModules) {
-            moduleCache.set(discordGuildId, { data: DEFAULT_MODULES, expiresAt: now + MODULE_CACHE_TTL });
-            return DEFAULT_MODULES;
+            const entry: CachedGuildModules = { raw: DEFAULT_MODULES, guildLocks: [], expiresAt: now + MODULE_CACHE_TTL };
+            moduleCache.set(discordGuildId, entry);
+            return entry;
         }
 
         // Merge defaults with DB values, ensuring boolean conversion and fallback
@@ -122,19 +127,83 @@ export const getGuildModules = cache(async (discordGuildId: string): Promise<Gui
             commandes: dbModules.commandes ?? DEFAULT_MODULES.commandes,
         };
 
-        // Verrou God : un module verrouillé est effectif OFF quel que soit le
-        // toggle guilde (conservé en BDD → réactivation sans perte au délock).
-        // Règle PURE partagée (`src/lib/module-lock.ts`) : c'est la MÊME fonction
-        // que `getModuleGodLocks` et `getUserContext` utilisent, donc le verrou
-        // affiché côté God est exactement le verrou appliqué.
-        const effective = applyGodLocks(data, (dbModules as any)?.disabledByGod);
-
-        moduleCache.set(discordGuildId, { data: effective, expiresAt: now + MODULE_CACHE_TTL });
-        return effective;
+        const entry: CachedGuildModules = {
+            raw: data,
+            guildLocks: normalizeGodLocks(dbModules.disabledByGod),
+            expiresAt: now + MODULE_CACHE_TTL,
+        };
+        moduleCache.set(discordGuildId, entry);
+        return entry;
     } catch {
-        return DEFAULT_MODULES;
+        return { raw: DEFAULT_MODULES, guildLocks: [], expiresAt: now + MODULE_CACHE_TTL };
     }
+}
+/**
+ * État effectif des modules d'une guilde — **guilde ∪ plateforme**.
+ *
+ * Un module verrouillé (par le God, pour cette guilde **ou** pour toute la
+ * plateforme) est OFF effectif quel que soit le toggle de guilde, lequel reste
+ * conservé en BDD (réactivation sans perte au déverrouillage). Règle PURE
+ * partagée (`src/lib/module-lock.ts`) : c'est la MÊME règle que
+ * `getGuildModuleStates`, `getUserContext` et `internalCheckPermission`, donc le
+ * verrou affiché est exactement le verrou appliqué.
+ */
+export const getGuildModules = cache(async (discordGuildId: string): Promise<GuildModulesState> => {
+    const [entry, platform] = await Promise.all([
+        readGuildModules(discordGuildId),
+        getPlatformModuleState(),
+    ]);
+    return applyGodLocks(entry.raw, [...entry.guildLocks, ...platform.locks]);
 });
+
+/**
+ * Configuration **complète** d'une guilde pour la carte des modules :
+ * les toggles **bruts** (propriété de la guilde, payload d'écriture) + l'état
+ * **effectif** de chaque module (origine du verrou, message de maintenance).
+ *
+ * Les deux valeurs viennent de la **même lecture** : c'est ce qui garantit qu'un
+ * enregistrement n'écrase jamais le toggle conservé en BDD d'un module verrouillé.
+ *
+ * Auth : fail-closed — la configuration n'est rendue qu'à une session
+ * authentifiée (les pages qui la consomment sont derrière une garde d'accès).
+ */
+export async function getGuildModuleConfig(
+    discordGuildId: string,
+): Promise<{ toggles: GuildModulesState; states: Record<ModuleKey, ModuleLockState> }> {
+    const session = await auth();
+    if (!session?.user?.id) throw new Error("Non authentifié");
+
+    const [entry, platform] = await Promise.all([
+        readGuildModules(discordGuildId),
+        getPlatformModuleState(),
+    ]);
+    return {
+        toggles: entry.raw,
+        states: resolveModuleGrid(entry.raw, {
+            guildLocks: entry.guildLocks,
+            platformLocks: platform.locks,
+            platformNotices: platform.notices,
+        }),
+    };
+}
+
+/**
+ * Le module est-il **verrouillé** (guilde ou plateforme) pour cette guilde ?
+ *
+ * Garde de page dédiée : c'est le **verrou** qui doit reboucler une URL directe
+ * (A1) — pas le toggle de guilde, qui a ses propres sémantiques de navigation.
+ * `admin` n'est jamais verrouillable.
+ */
+export async function isModuleLocked(discordGuildId: string, module: ModuleKey): Promise<boolean> {
+    if (!isGodLockableModule(module)) return false;
+    const [entry, platform] = await Promise.all([
+        readGuildModules(discordGuildId),
+        getPlatformModuleState(),
+    ]);
+    return entry.guildLocks.includes(module) || platform.locks.includes(module);
+}
+
+
 
 export async function isModuleEnabled(
     discordGuildId: string,
@@ -164,19 +233,24 @@ export async function updateGuildModules(
     const parsed = UpdateModulesSchema.safeParse(newModules);
     if (!parsed.success) return { success: false, error: "Données invalides" };
 
-    // Refuse toute modification du toggle guilde d'un module verrouillé par le
-    // staff (le verrou prime ; le toggle est conservé tel quel en BDD).
-    // `admin` n'est jamais verrouillable (garde-fou miroir de la résolution).
+    // Refuse toute modification du toggle guilde d'un module verrouillé — par le
+    // God pour cette guilde **ou** pour toute la plateforme (le verrou prime ; le
+    // toggle est conservé tel quel en BDD). `admin` n'est jamais verrouillable
+    // (garde-fou miroir de la résolution).
     const rawRow = await db.guildModules.findFirst({
         where: { guild: { discordGuildId } },
     }).catch(() => null) as unknown as (Record<string, unknown> & { disabledByGod?: unknown }) | null;
-    // Pas de ligne = premier toggle (upsert ci-dessous) = aucun verrou possible.
-    const locked: ModuleKey[] = normalizeGodLocks(rawRow?.disabledByGod);
+    const platform = await getPlatformModuleState();
+    // Pas de ligne = premier toggle (upsert ci-dessous) = aucun verrou de guilde possible.
+    const locked: ModuleKey[] = Array.from(new Set([
+        ...normalizeGodLocks(rawRow?.disabledByGod),
+        ...platform.locks,
+    ]));
     for (const key of locked) {
         const current = rawRow?.[key] as boolean | null | undefined;
         const wanted = (parsed.data as Record<string, boolean>)[key];
         if (wanted !== undefined && current !== undefined && current !== null && wanted !== current) {
-            return { success: false, error: `Module verrouillé par le staff : ${key}` };
+            return { success: false, error: "Module indisponible (maintenance) : modification refusée." };
         }
     }
 

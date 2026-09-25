@@ -1,5 +1,5 @@
 import { getGuildPresentation } from "@/server/actions/presentation-actions";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -25,6 +25,13 @@ export default async function GuildMemberPresentationPage({ params }: Props) {
 
     if (!user.canViewPresentation) {
         return <AccessDenied />;
+    }
+
+    // 🔒 Verrou de module (guilde ∪ plateforme) : une URL directe reboucle (A1).
+    // Le God plateforme garde l'accès (`bypassModules = isGod`).
+    if (!user.isSuperAdmin) {
+        const { isModuleLocked } = await import("@/server/actions/module-actions");
+        if (await isModuleLocked(guildId, "presentation")) redirect(`/dashboard/${guildId}`);
     }
 
     if (!guild) {

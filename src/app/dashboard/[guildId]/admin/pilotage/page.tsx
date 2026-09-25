@@ -4,7 +4,9 @@ import Link from "next/link";
 import AccessDenied from "@/components/access-denied";
 import { getUserContext } from "@/server/actions/user-actions";
 import { logAdminAccessDenied } from "@/server/actions/audit-actions";
-import { getGuildModules, getModuleGodLocks } from "@/server/actions/module-actions";
+import { getGuildModules, getGuildModuleConfig } from "@/server/actions/module-actions";
+import type { GuildModulesState, ModuleKey } from "@/lib/module-types";
+import type { ModuleLockState } from "@/lib/module-lock";
 import { getPermissionsHiddenByModules } from "@/lib/permissions";
 import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
 import { ModuleHelpActions } from "@/components/doc/module-help-actions";
@@ -47,7 +49,7 @@ export default async function PilotagePage({ params, searchParams }: Props) {
     const { isRbacConfigured } = await import("@/lib/onboarding-gating");
     const { getGettingStartedProgress } = await import("@/server/actions/onboarding-actions");
 
-    const [config, botPresent, modules, locks, progress] = await Promise.all([
+    const [config, botPresent, modules, moduleConfig, progress] = await Promise.all([
         db.guildConfig.findUnique({
             where: { discordGuildId: guildId },
             select: {
@@ -57,7 +59,7 @@ export default async function PilotagePage({ params, searchParams }: Props) {
         }).catch(() => null),
         verifyGuildAccessibility(guildId).catch(() => false),
         getGuildModules(guildId).catch(() => null),
-        getModuleGodLocks(guildId).catch(() => [] as string[]),
+        getGuildModuleConfig(guildId).catch(() => null),
         getGettingStartedProgress(guildId).catch(() => null),
     ]);
 
@@ -195,8 +197,8 @@ export default async function PilotagePage({ params, searchParams }: Props) {
                 </h2>
                 <ModulesClient
                     guildId={guildId}
-                    initialModules={modules as any}
-                    lockedModules={locks}
+                    initialModules={(moduleConfig?.toggles ?? modules) as GuildModulesState}
+                    moduleStates={(moduleConfig?.states ?? {}) as Record<ModuleKey, ModuleLockState>}
                 />
             </section>
             </>

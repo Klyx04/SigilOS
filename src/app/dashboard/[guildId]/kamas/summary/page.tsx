@@ -22,12 +22,13 @@ export default async function KamaWeeklySummaryPage({
 
     const { guildId } = await params;
 
-    // Module guard — missions doit être activé (le module kamas est lié aux missions)
-    if (!await isModuleEnabled(guildId, "missions")) {
+    const user = await getUserContext(guildId);
+
+    // Module guard — missions doit être activé (le module kamas est lié aux
+    // missions) ; le God garde l'accès (`bypassModules = isGod`)
+    if (!user.isSuperAdmin && !await isModuleEnabled(guildId, "missions")) {
         redirect(`/dashboard/${guildId}`);
     }
-
-    const user = await getUserContext(guildId);
 
     // Accessible à tous les membres authentifiés (COMMUNITY_ACCESS minimum)
     // Les officiers voient en plus les preuves screenshots

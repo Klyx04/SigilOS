@@ -14,9 +14,17 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { DEFAULT_MODULES } from "@/lib/module-types";
-import { GOD_LOCKABLE_MODULES, applyGodLocks, normalizeGodLocks } from "@/lib/module-lock";
+import {
+    GOD_LOCKABLE_MODULES,
+    MODULE_NOTICE_MAX_LENGTH,
+    applyGodLocks,
+    normalizeGodLocks,
+    normalizePlatformNotices,
+    resolveModuleGrid,
+    resolveModuleState,
+} from "@/lib/module-lock";
 
 vi.mock("@/lib/prisma", () => ({
     db: {
@@ -45,7 +53,7 @@ import { db } from "@/lib/prisma";
 import { rateLimit } from "@/lib/ratelimit";
 import { isSuperAdmin } from "@/server/actions/super-admin-actions";
 import { createAuditLog, createGodAuditLog } from "@/server/actions/audit-actions";
-import { setModuleGodLock } from "@/server/actions/module-actions";
+import { setModuleGodLock, invalidateModuleCache, getGuildModuleConfig, isModuleLocked } from "@/server/actions/module-actions";
 
 const GUILD = "111111111111111111";
 
@@ -183,5 +191,170 @@ describe("couverture — une seule vérité, jusqu'à la UI", () => {
         expect(modules.missions).toBe(true); // pas de mutation en place
         expect(applyGodLocks(modules, [])).toBe(modules); // aucun verrou = pas de copie
         expect(applyGodLocks(null, ["missions"])).toBeNull();
+    });
+});
+
+describe("résolution d'état — plateforme ∪ guilde (A1 · A2 · A3)", () => {
+    it("module actif + verrou de guilde ⇒ OFF effectif, origine `guild`", () => {
+        expect(resolveModuleState("missions", { missions: true }, { guildLocks: ["missions"] }))
+            .toEqual({ enabled: false, lockedBy: "guild", notice: null });
+    });
+
+    it("verrou plateforme ⇒ origine `platform` + message perso (prime sur le verrou de guilde)", () => {
+        const state = resolveModuleState("songes", { songes: true }, {
+            guildLocks: ["songes"],
+            platformLocks: ["songes"],
+            platformNotices: { songes: "  Migration en cours  " },
+        });
+        expect(state).toEqual({ enabled: false, lockedBy: "platform", notice: "Migration en cours" });
+    });
+
+    it("toggle OFF sans verrou ⇒ aucune origine (c'est la guilde qui a coupé)", () => {
+        expect(resolveModuleState("missions", { missions: false }, {}))
+            .toEqual({ enabled: false, lockedBy: null, notice: null });
+    });
+
+    it("`admin` n'est JAMAIS verrouillable, même présent dans les deux listes", () => {
+        expect(resolveModuleState("admin", { admin: true }, { guildLocks: ["admin"], platformLocks: ["admin"] }))
+            .toEqual({ enabled: true, lockedBy: null, notice: null });
+    });
+
+    it("la grille couvre tout le registre et aligne `enabled` sur le verrou", () => {
+        const grid = resolveModuleGrid({ missions: true }, {
+            platformLocks: ["marche"],
+            platformNotices: { marche: "Maintenance" },
+        });
+        expect(Object.keys(grid).sort()).toEqual(Object.keys(DEFAULT_MODULES).sort());
+        expect(grid.missions.enabled).toBe(true);
+        expect(grid.marche).toEqual({ enabled: false, lockedBy: "platform", notice: "Maintenance" });
+        expect(grid.admin.lockedBy).toBeNull();
+        expect(grid.roster.enabled).toBe(false); // absent de l'entrée brute ⇒ éteint
+    });
+
+    it("`moduleNotices` : bruit écarté, message borné, clés hors registre ignorées", () => {
+        const notices = normalizePlatformNotices({
+            missions: "  ok  ",
+            admin: "jamais",
+            inconnu: "non",
+            songes: 42,
+            marche: "x".repeat(MODULE_NOTICE_MAX_LENGTH + 50),
+        }) as Record<string, string | undefined>;
+        expect(notices.missions).toBe("ok");
+        expect(notices.admin).toBeUndefined();
+        expect(notices.inconnu).toBeUndefined();
+        expect(notices.songes).toBeUndefined();
+        expect(notices.marche).toHaveLength(MODULE_NOTICE_MAX_LENGTH);
+    });
+});
+
+describe("garde serveur — le verrou reboucle l'URL directe", () => {
+    const mockDb = db as any;
+
+    beforeEach(async () => {
+        vi.clearAllMocks();
+        (auth as any).mockResolvedValue({ user: { id: "god-1" } });
+        // Le cache 30 s vit au niveau du module : sans purge, un cas servirait la
+        // lecture du cas précédent (faux vert).
+        await invalidateModuleCache(GUILD);
+    });
+
+    it("isModuleLocked : vrai sur verrou, faux sur un module simplement éteint", async () => {
+        mockDb.guildConfig.findUnique.mockResolvedValue({ id: "cfg", modules: { missions: false, disabledByGod: ["missions"] } });
+        expect(await isModuleLocked(GUILD, "missions")).toBe(true);
+
+        await invalidateModuleCache(GUILD);
+        mockDb.guildConfig.findUnique.mockResolvedValue({ id: "cfg", modules: { missions: false, disabledByGod: [] } });
+        expect(await isModuleLocked(GUILD, "missions")).toBe(false);
+        expect(await isModuleLocked(GUILD, "admin")).toBe(false);
+    });
+
+    it("getGuildModuleConfig : toggles bruts + états effectifs issus de la MÊME lecture", async () => {
+        mockDb.guildConfig.findUnique.mockResolvedValue({ id: "cfg", modules: { missions: true, disabledByGod: ["missions"] } });
+
+        const { toggles, states } = await getGuildModuleConfig(GUILD);
+
+        expect(toggles.missions).toBe(true); // toggle conservé en BDD
+        expect(states.missions).toEqual({ enabled: false, lockedBy: "guild", notice: null }); // OFF effectif
+    });
+
+    it("getGuildModuleConfig refuse une session absente (fail-closed)", async () => {
+        (auth as any).mockResolvedValue(null);
+        await expect(getGuildModuleConfig(GUILD)).rejects.toThrow("Non authentifié");
+    });
+});
+
+describe("couverture — le verrou atteint enfin la carte de la guilde", () => {
+    it("la carte `/admin/modules` affiche « Indisponible — maintenance », plus « staff »", () => {
+        const client = readFileSync("src/app/dashboard/[guildId]/admin/modules/_components/modules-client.tsx", "utf8");
+        expect(client).toContain("MAINTENANCE_LABEL");
+        expect(client).toContain("GUILD_DISABLED_LABEL");
+        expect(client).toMatch(/state\?\.lockedBy/);
+    });
+
+    it("plus une seule occurrence de « verrouillé par le staff » dans `src/`", () => {
+        const files: string[] = [];
+        const walk = (dir: string) => {
+            for (const entry of readdirSync(dir, { withFileTypes: true })) {
+                const full = `${dir}/${entry.name}`;
+                if (entry.isDirectory()) walk(full);
+                else if (/\.tsx?$/.test(entry.name)) files.push(full);
+            }
+        };
+        walk("src");
+        const offenders = files.filter((f) => /verrouill[ée]?\s*par\s+le\s+staff/i.test(readFileSync(f, "utf8")));
+        expect(offenders).toEqual([]);
+    });
+
+    it("toute page gardée par `isModuleEnabled` laisse le God entrer (`bypassModules = isGod` RESTE)", () => {
+        const files = [
+            "src/app/api/market/items/search/route.ts",
+            "src/app/dashboard/[guildId]/calendar/page.tsx",
+            "src/app/dashboard/[guildId]/commandes/page.tsx",
+            "src/app/dashboard/[guildId]/donjons-et-quetes/page.tsx",
+            "src/app/dashboard/[guildId]/galerie-stuff/page.tsx",
+            "src/app/dashboard/[guildId]/kamas/summary/page.tsx",
+            "src/app/dashboard/[guildId]/ladder/page.tsx",
+            "src/app/dashboard/[guildId]/marche/page.tsx",
+            "src/app/dashboard/[guildId]/mini-jeux/page.tsx",
+            "src/app/dashboard/[guildId]/missions/page.tsx",
+            "src/app/dashboard/[guildId]/quete-ocre/page.tsx",
+            "src/app/dashboard/[guildId]/quetes-dofus/page.tsx",
+            "src/app/dashboard/[guildId]/ressources/page.tsx",
+            "src/app/dashboard/[guildId]/services/page.tsx",
+            "src/app/dashboard/[guildId]/sondages/page.tsx",
+            "src/app/dashboard/[guildId]/stats/page.tsx",
+            "src/app/dashboard/[guildId]/succes/page.tsx",
+            "src/app/dashboard/[guildId]/worldmap/page.tsx",
+            "src/app/overlay/worldmap/[guildId]/page.tsx",
+        ];
+        for (const file of files) {
+            expect(readFileSync(file, "utf8"), `${file} : le God doit garder l'accès (bypassModules = isGod)`).toMatch(/isSuperAdmin/);
+        }
+    });
+
+    it("les pages de module sans garde de toggle rebouclent au moins sur un VERROU", () => {
+        const files = [
+            "src/app/dashboard/[guildId]/presentation/page.tsx",
+            "src/app/dashboard/[guildId]/members/page.tsx",
+            "src/app/dashboard/[guildId]/profile/page.tsx",
+            "src/app/dashboard/[guildId]/reaction-roles/page.tsx",
+            "src/app/dashboard/[guildId]/tickets/page.tsx",
+            "src/app/dashboard/[guildId]/admin/logs/page.tsx",
+        ];
+        for (const file of files) {
+            const code = readFileSync(file, "utf8");
+            expect(code, `${file} : un module verrouillé doit reboucler l'URL directe`).toMatch(/isModuleLocked\(/);
+            expect(code, `${file} : le God doit garder l'accès`).toMatch(/isSuperAdmin/);
+        }
+    });
+
+    it("le bot refuse aussi une coupure plateforme (`internalCheckPermission`)", () => {
+        const code = readFileSync("src/server/actions/user-actions.ts", "utf8");
+        expect(code).toMatch(/platformLocks\.includes\(options\.module\)/);
+    });
+
+    it("le mini-jeu est gardé par SON module, plus par `worldmap` par erreur", () => {
+        const code = readFileSync("src/app/dashboard/[guildId]/mini-jeux/page.tsx", "utf8");
+        expect(code).toMatch(/isModuleEnabled\(guildId, "minigames"\)/);
     });
 });

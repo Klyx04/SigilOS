@@ -3,7 +3,6 @@ import { redirect } from "next/navigation";
 import AccessDenied from "@/components/access-denied";
 import { getUserContext } from "@/server/actions/user-actions";
 import { logAdminAccessDenied } from "@/server/actions/audit-actions";
-import { getGuildModules } from "@/server/actions/module-actions";
 import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
 import { ModuleHelpActions } from "@/components/doc/module-help-actions";
 import { Puzzle, ShieldAlert } from "lucide-react";
@@ -28,9 +27,10 @@ export default async function AdminModulesPage({ params }: Props) {
         return <AccessDenied />;
     }
 
-    const modules = await getGuildModules(guildId);
-    const { getModuleGodLocks } = await import("@/server/actions/module-actions");
-    const lockedModules = await getModuleGodLocks(guildId);
+    const { getGuildModuleConfig } = await import("@/server/actions/module-actions");
+    // Toggles BRUTS (propriété de la guilde) + état EFFECTIF par module (verrou
+    // plateforme ∪ guilde + message de maintenance), issus d'une seule lecture.
+    const { toggles, states: moduleStates } = await getGuildModuleConfig(guildId);
     const guild = await db.guildConfig.findUnique({
         where: { discordGuildId: guildId },
         select: { rolesMapping: true }
@@ -84,7 +84,7 @@ export default async function AdminModulesPage({ params }: Props) {
             )}
 
             <div data-tour="admin-modules-list">
-                <ModulesClient guildId={guildId} initialModules={modules} lockedModules={lockedModules} />
+                <ModulesClient guildId={guildId} initialModules={toggles} moduleStates={moduleStates} />
             </div>
         </div>
     );

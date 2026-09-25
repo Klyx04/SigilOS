@@ -166,8 +166,10 @@ export default async function GodGuildDetailsPage({ params }: GodGuildDetailsPag
                 )}
                 logs={<GodGuildLogsSection
                     discordGuildId={guild.discordGuildId}
+                    guildConfigId={guildId}
                     guildName={guild.name}
                     stats={logsStats}
+                    isGod={isAdmin}
                 />}
                 access={<GodsGuildAccessPanel
                     ownerId={members.ownerId ?? null}
@@ -190,38 +192,62 @@ export default async function GodGuildDetailsPage({ params }: GodGuildDetailsPag
  */
 async function GodGuildLogsSection({
     discordGuildId,
+    guildConfigId,
     guildName,
     stats,
+    isGod,
 }: {
     discordGuildId: string;
+    /** Id **interne** de la guilde (`GuildConfig.id`) — clé du mode God (A5). */
+    guildConfigId: string;
     guildName: string;
     stats: { serviceLogs: number; auditLogs: number } | null;
+    /** Super-admin : il lit **toujours** (A5), jamais via le RBAC de guilde. */
+    isGod: boolean;
 }) {
     const { AuditLogsClient } = await import("@/app/dashboard/[guildId]/admin/logs/_components/audit-logs-client");
-    const { getAuditLogs } = await import("@/server/actions/audit-actions");
+    const { getAuditLogs, getGlobalAuditLogs } = await import("@/server/actions/audit-actions");
     const { fetchGuildRoles } = await import("@/server/discord");
-    const { getUserContext } = await import("@/server/actions/user-actions");
 
-    // Garde de lecture : `getAuditLogs` exige `canViewAuditLogs` (God inclus). Un
-    // sous-god sans rôle de guilde obtient un état vide explicite, jamais une erreur.
-    const ctx = await getUserContext(discordGuildId).catch(() => null);
-    if (!ctx?.canViewAuditLogs) {
-        return (
-            <div className="bg-amber-500/5 border border-amber-500/10 rounded-2xl p-6">
-                <p className="text-xs text-amber-500/80 font-medium leading-relaxed">
-                    <span className="font-black uppercase tracking-widest mr-2">Accès :</span>
-                    ce compte n&apos;a pas la permission de lire le journal de cette guilde.
+    // 🛡️ A5 (verbatim 9) — « je suis le dev du produit, je vois tout ». Le God lit par
+    // `isSuperAdmin()`, **jamais** par `getUserContext().canViewAuditLogs` : ce dernier
+    // répond `false` pour un God qui n'est pas membre du serveur Discord — c'est la cause
+    // racine du « ce compte n'a pas la permission de lire le journal de cette guilde »
+    // (capture *Kamas NOT Found*) affiché sous un en-tête « INSPECTION GOD MODE ».
+    const [result, roles] = await Promise.all([
+        isGod
+            ? getGlobalAuditLogs({ guildConfigId, scope: "guild", limit: 20, page: 1 })
+            : getAuditLogs(discordGuildId, { limit: 20, page: 1 }),
+        fetchGuildRoles(discordGuildId).catch(() => [] as Awaited<ReturnType<typeof fetchGuildRoles>>),
+    ]);
+
+    // 🔴 A5 — « erreur de chargement » et « accès refusé » ne portent **jamais** le même
+    // texte : un God ne peut pas lire un refus de droits, un sous-god sans droit lit un
+    // refus explicite, et un incident technique affiche sa cause.
+    if (!result.success || !result.data) {
+        const isRefusal = !isGod && result.error === "Accès non autorisé";
+
+        return isRefusal ? (
+            <div role="status" className="rounded-2xl border border-warning/30 bg-warning/5 p-6">
+                <p className="text-body-sm font-semibold text-warning">Accès refusé</p>
+                <p className="mt-1 text-caption text-warning/80">
+                    Ton accès de guilde ne couvre pas le journal de cette guilde (droit « consulter les journaux »
+                    absent).
+                </p>
+            </div>
+        ) : (
+            <div role="alert" className="rounded-2xl border border-danger/30 bg-danger/5 p-6">
+                <p className="text-body-sm font-semibold text-danger">Erreur de chargement du journal</p>
+                <p className="mt-1 text-caption text-danger/80">
+                    La lecture a échoué ({result.error ?? "cause inconnue"}) — ce n&apos;est pas un refus de droits.
+                    Réessaie, puis vérifie l&apos;état de la base.
                 </p>
             </div>
         );
     }
 
-    const [logsResult, roles] = await Promise.all([
-        getAuditLogs(discordGuildId, { limit: 20, page: 1 }),
-        fetchGuildRoles(discordGuildId).catch(() => [] as Awaited<ReturnType<typeof fetchGuildRoles>>),
-    ]);
-    const logs = logsResult.success && logsResult.data ? logsResult.data.logs : [];
-    const total = logsResult.success && logsResult.data ? logsResult.data.total : 0;
+    const logs = result.data.logs;
+    const total = result.data.total;
 
     const roleNames: Record<string, string> = {};
     for (const role of roles) roleNames[role.id] = role.name;
@@ -260,6 +286,7 @@ async function GodGuildLogsSection({
                 initialLogs={serializedLogs}
                 initialTotal={total}
                 roleNames={roleNames}
+                godGuildConfigId={isGod ? guildConfigId : undefined}
             />
         </div>
     );

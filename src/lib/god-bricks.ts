@@ -23,6 +23,10 @@ export const GOD_BRICKS = [
     { id: "storage",        label: "Stockage & Captures",    scope: null, group: "supervision", subGodAccess: false },
     { id: "notifications",  label: "Alertes Système",       scope: null, group: "supervision", subGodAccess: false },
     { id: "mini-games",     label: "Mini-Jeux",             scope: null, group: "supervision", subGodAccess: false },
+    // A2 · G12 — coupure **globale** d'un module (toutes guildes) + message de
+    // maintenance. Super-admin only : une brique plateforme ne s'ouvre pas à un
+    // sous-god. La vue vit dans un onglet de `/god` (`?tab=modules`).
+    { id: "modules",        label: "Modules & maintenance", scope: null, group: "supervision", subGodAccess: false },
     // S8.18 — supervision du Marché : agrégats cross-guild ⇒ super-admin seul.
     { id: "market",         label: "Marché (supervision)",  scope: null, group: "supervision", subGodAccess: false },
 

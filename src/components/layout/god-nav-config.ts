@@ -26,6 +26,7 @@ import {
     Award,
     Key,
     ShoppingBag,
+    Puzzle,
     type LucideIcon
 } from "lucide-react";
 
@@ -72,6 +73,8 @@ export const CONSOLE_PAGES: GodNavItem[] = [
     { id: "storage", name: "Stockage & Captures", icon: HardDrive, color: "text-info", group: "supervision", scope: "all", scopeLabel: "Toutes", brickId: "storage" },
     { id: "notifications", name: "Alertes Système", icon: Bell, color: "text-danger", group: "supervision", scope: "all", scopeLabel: "Toutes", brickId: "notifications" },
     { id: "mini-games", name: "Mini-Jeux", icon: Gamepad2, color: "text-warning", group: "supervision", sub: "mini-games", scope: "all", scopeLabel: "Toutes", brickId: "mini-games" },
+    // A2 · G12 — vue « Modules » : coupure globale (toutes guildes) + message perso.
+    { id: "modules", name: "Modules", icon: Puzzle, color: "text-warning", group: "supervision", scope: "all", scopeLabel: "Toutes", brickId: "modules" },
     { id: "market", name: "Marché", icon: ShoppingBag, color: "text-warning", group: "supervision", sub: "market", scope: "all", scopeLabel: "Toutes", brickId: "market" },
     { id: "geo-blacklist", name: "Blacklist Géoguesser", icon: Map, color: "text-danger", group: "supervision", sub: "mini-games", query: "sub=GUESSER", scope: "all", scopeLabel: "Toutes", brickId: "mini-games" },
 

@@ -160,6 +160,15 @@ model PlatformConfig {
   // Kill-switch God de l'auto-onboarding : OFF = les NOUVELLES guildes ne sont
   // plus déployables en autonomie (file God) ; guildes existantes intouchées.
   autoOnboardingEnabled  Boolean  @default(true)
+  // Kill-switch God des MODULES, au niveau PLATEFORME (A2 · G12) : un module
+  // listé ici est « Indisponible — maintenance » pour TOUTES les guildes
+  // (toggle de guilde conservé en BDD, restauré au déverrouillage). Le message
+  // libre affiché sur la carte du module vit dans `moduleNotices`
+  // (`{ [moduleKey]: string }`), borné à 200 caractères.
+  disabledModules          String[]  @default([])
+  moduleNotices            Json?
+  disabledModulesUpdatedAt DateTime?
+  disabledModulesUpdatedBy String?
   questFeedbackChannelId String?  // Canal Discord dédié aux feedbacks Dofus
   // Toggle God : si le ladder Ankama est indisponible, on autorise la saisie
   // manuelle du pseudo Dofus à la place de la vérification Ankama.

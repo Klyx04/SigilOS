@@ -8,6 +8,7 @@ import { fetchGuild } from "@/server/discord";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { logger } from "@/lib/logger";
+import { resolveOnboardingOrigin } from "@/lib/onboarding-gating";
 import { logAction } from "./audit-actions";
 
 export type ActionResponse = {
@@ -97,14 +98,33 @@ export async function onboardGuild(guildId: string): Promise<ActionResponse> {
         const discordUserId = guard.discordUserId!;
         const guildInfo = await fetchGuild(guildId);
 
-        // 3. Auto-whitelist entry in AllowedGuild for autonomous onboarding
+        // 3. ORIGINE de la guilde — SOURCE UNIQUE (`src/lib/onboarding-gating.ts`).
+        // ⚠️ Le gateway bot crée DÉJÀ la ligne quand il est invité
+        // (`tier: "BETA"`, `addedBy: "SYSTEM_GATEWAY"`) : « la ligne existe » ne
+        // signifie donc PAS « validée par un humain ». L'ancien test
+        // (`isAutonomous = !existingAllowed`) annonçait « VIP / WHITELIST » au
+        // self-onboarding normal, et l'ancien `else if (!isActive)` réactivait
+        // silencieusement une guilde gelée par le staff.
         const existingAllowed = await db.allowedGuild.findUnique({
             where: { discordGuildId: guildId }
         });
-        const isAutonomous = !existingAllowed;
+        const origin = resolveOnboardingOrigin(existingAllowed);
+        const isAutonomous = origin.kind === "AUTONOME";
 
-        // Kill-switch God : les déploiements autonomes sont suspendus → seules
-        // les guildes pré-approuvées (ligne active) ou le ticket God passent.
+        // 3bis. Fail-closed : une ligne DÉSACTIVÉE par le staff (gel, retrait de
+        // whitelist, ou auto-onboarding fermé au moment de l'invitation) ne se
+        // réactive jamais depuis le portail. Le portail la masque déjà
+        // (`isAllowedForDeployment`) ; l'appel direct doit refuser aussi, sinon
+        // le gel God est contournable par un simple clic « Déployer ».
+        if (existingAllowed && !existingAllowed.isActive) {
+            return {
+                success: false,
+                error: "Ce serveur n'est pas encore approuvé (ou a été gelé) par l'équipe SigilOS. Ouvre un ticket pour être accompagné.",
+            };
+        }
+
+        // Kill-switch God : les déploiements AUTONOMES sont suspendus → seules
+        // les guildes pré-approuvées (whitelist God / ticket) passent.
         // (Le portail masque déjà ces guildes ; ceci verrouille l'appel direct.)
         if (isAutonomous) {
             const platformCfg = await db.platformConfig.findUnique({
@@ -126,11 +146,6 @@ export async function onboardGuild(guildId: string): Promise<ActionResponse> {
                     isActive: true,
                     addedBy: discordUserId,
                 }
-            });
-        } else if (!existingAllowed.isActive) {
-            await db.allowedGuild.update({
-                where: { discordGuildId: guildId },
-                data: { isActive: true }
             });
         }
 
@@ -158,15 +173,16 @@ export async function onboardGuild(guildId: string): Promise<ActionResponse> {
         try {
             const { notifyGod } = await import("./god-notif-actions");
             await notifyGod({
-                title: isAutonomous ? "🚀 Déploiement Autonome Réussi" : "✨ Déploiement Guilde Réussi",
-                message: `La guilde **${guildInfo.name}** (\`${guildId}\`) a été déployée avec succès.\n👤 Déployée par : <@${discordUserId}> (${session.user.name || "Inconnu"})\n🏷️ Type : **${isAutonomous ? "AUTONOME" : "VIP / WHITELIST"}**`,
+                title: isAutonomous ? "🚀 Déploiement autonome réussi" : "✨ Déploiement guilde réussi",
+                message: `La guilde **${guildInfo.name}** (\`${guildId}\`) a été déployée avec succès.\n👤 Déployée par : <@${discordUserId}> (${session.user.name || "Inconnu"})\n🏷️ Origine : **${origin.label}**`,
                 type: "SYSTEM",
                 success: true,
                 metadata: {
                     guildId,
                     guildName: guildInfo.name,
                     discordUserId,
-                    type: isAutonomous ? "AUTONOME" : "WHITELIST",
+                    type: origin.tag,
+                    originLabel: origin.label,
                     operation: "ONBOARD_GUILD"
                 }
             });
@@ -180,7 +196,7 @@ export async function onboardGuild(guildId: string): Promise<ActionResponse> {
             action: "WEBHOOK_GUILD_CREATE",
             targetType: "GUILD",
             targetId: guildId,
-            metadata: { operation: "ONBOARD_GUILD", guildName: guildInfo.name, isAutonomous }
+            metadata: { operation: "ONBOARD_GUILD", guildName: guildInfo.name, isAutonomous, origin: origin.tag }
         });
 
         // Rôle d'accès au dashboard : sans lui, un serveur qui n'a AUCUN rôle

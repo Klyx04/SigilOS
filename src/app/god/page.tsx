@@ -563,6 +563,7 @@ async function GuildsServer({ isReadOnly = false }: { isReadOnly?: boolean }) {
             isWhitelistOnly: !config,
             notes: allowed.notes,
             tier: allowed.tier,
+            addedBy: allowed.addedBy,
             _count: { profiles: config?._count.profiles || 0 }
         };
     });

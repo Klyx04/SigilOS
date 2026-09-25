@@ -1316,7 +1316,7 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
                   imageUrl={ms.imageUrl}
                   accentColor={ms.accentColor}
                 >
-                  <RushRichText text={infoText} />
+                  <RushRichText text={infoText} normalizeMeta />
                 </RushInfoBanner>
               </div>
             );

@@ -51,11 +51,11 @@ describe("RushInfoSequenceBanner — rendu réel", () => {
     expect(out).toContain("background-color:#3b82f6");
   });
 
-  it("rend le texte enrichi : lien nommé (URL invisible) et position copiable en /w", () => {
+  it("rend le texte enrichi : lien nommé (URL invisible) et position copiable en /travel", () => {
     const out = html(seq());
     expect(out).toContain('href="https://www.dofuspourlesnoobs.com/leacuteternelle-moisson.html"');
     expect(out).toContain("Eternelle Moisson");
-    expect(out).toContain("Cliquer pour copier /w -55,15");
+    expect(out).toContain("Cliquer pour copier /travel -55,15");
     // L'URL n'apparaît qu'en attribut : jamais recopiée dans le texte visible.
     expect(out.split("leacuteternelle-moisson.html").length - 1).toBe(1);
   });

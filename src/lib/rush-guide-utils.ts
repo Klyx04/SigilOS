@@ -268,7 +268,7 @@ export function parseCoordinates(
   const x = parseInt(match[1], 10);
   const y = parseInt(match[2], 10);
   const worldId = match[3] ? parseInt(match[3], 10) : undefined;
-  const travelCommand = worldId !== undefined ? `/w ${x},${y},${worldId}` : `/w ${x},${y}`;
+  const travelCommand = worldId !== undefined ? `/travel ${x} ${y} ${worldId}` : `/travel ${x},${y}`;
 
   return {
     x,

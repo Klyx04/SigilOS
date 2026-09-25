@@ -41,6 +41,8 @@ import { uploadImageFile } from "@/components/editor/utils/image-upload";
 import { isSafeImageUrl, safeImageUrl } from "@/lib/security";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
+import { RushBlockMetaEditor, type RushBlockMetaValues } from "@/components/dofus-quests/rush/RushBlockMetaEditor";
+import { parseBlockMeta, formatBlockMeta, validateCoordinate } from "@/lib/rush-rich-meta";
 
 type DungeonResult = { id: string; name: string; imageUrl?: string | null; level: number; bossName?: string };
 
@@ -313,6 +315,8 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
   const [newDofusId, setNewDofusId] = useState<string | null>(null);
   // Image du bloc (upload scope `guides` — servie aussi aux visiteurs anonymes).
   const [newStepImage, setNewStepImage] = useState("");
+  // Description libre ou métadonnées (position, lien) pour séparateur ou étape
+  const [newStepDescription, setNewStepDescription] = useState("");
   // Texte du bloc CONSEIL / TIPS : c'est SON contenu (le bandeau le rend tel quel côté
   // membre). Sans ce champ à la création, il fallait créer le bloc puis le rouvrir en
   // édition pour écrire le conseil — absurde pour un bloc qui ne porte que ça.
@@ -454,6 +458,9 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
           order: localMilestones.length,
           type: newStepType,
           dofusId: isSeparator ? null : newDofusId,
+          description: isSeparator
+            ? (newStepDescription.trim() || undefined)
+            : (newStepDescription.trim() || undefined),
           // Texte du conseil : uniquement pour un bloc Tips (c'est son contenu). Le champ
           // du modèle est `tips?: string` (pas de null côté action) → undefined si vide.
           tips: isInfoBlock && newStepTips.trim() ? newStepTips.trim() : undefined,
@@ -478,11 +485,11 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
           setExpandedMilestones(prev => new Set(prev).add(created.id));
         }
         toast.success(isSeparator ? "Séparateur ajouté ✓" : isDofusBanner ? "Bannière Dofus ajoutée ✓" : "Étape ajoutée ✓");
-        setNewStepTitle(""); setNewChapterLabel(""); setNewDofusId(null); setNewStepImage(""); setNewStepTips(""); setAddingStep(false);
+        setNewStepTitle(""); setNewChapterLabel(""); setNewDofusId(null); setNewStepImage(""); setNewStepTips(""); setNewStepDescription(""); setAddingStep(false);
         router.refresh();
       } catch (e: any) { toast.error(e.message); }
     });
-  }, [newChapterNum, newChapterLabel, newStepTitle, newStepColor, newStepType, newDofusId, newStepImage, newStepTips, sortedMilestones, router]);
+  }, [newChapterNum, newChapterLabel, newStepTitle, newStepColor, newStepType, newDofusId, newStepImage, newStepTips, newStepDescription, sortedMilestones, router]);
 
   const handleSaveMilestone = useCallback((m: Milestone) => {
     startTransition(async () => {
@@ -760,22 +767,32 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
                       />
                     </div>
 
-                    {/* Bloc CONSEIL / TIPS : son TEXTE est tout son contenu — on le saisit
-                        ici (le bandeau membre, public et overlay le rend tel quel). */}
+                    {/* Bloc CONSEIL / TIPS : son contenu enrichi (position, lien cliquable, note) */}
                     {newStepType === "INFO" && (
-                      <div>
-                        <label className="text-caption font-black text-zinc-500 uppercase tracking-widest mb-1 block">
-                          Conseil / Tips
-                        </label>
-                        <textarea value={newStepTips} onChange={e => setNewStepTips(e.target.value)}
-                          className="w-full bg-black/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-purple-200/90 placeholder:text-zinc-700 focus:outline-none focus:border-purple-500/40 resize-none"
-                          placeholder="ex: Lancer [Eternelle Moisson](https://www.dofuspourlesnoobs.com/leacuteternelle-moisson.html) dès que possible. Position de lancement : Village de la Canopée [-55,15]."
-                          rows={4}
-                        />
-                        {/* Syntaxe du texte enrichi : le lien porte le NOM (l'URL ne s'affiche
-                            jamais) et une position entre crochets devient une puce copiable. */}
-                        <RichTextSyntaxHint />
-                      </div>
+                      <RushBlockMetaEditor
+                        values={parseBlockMeta(newStepTips)}
+                        onChange={(patch) => {
+                          const current = parseBlockMeta(newStepTips);
+                          const updated = formatBlockMeta({ ...current, ...patch });
+                          setNewStepTips(updated);
+                        }}
+                        accentColor={newStepColor || "#a855f7"}
+                        isSeparator={false}
+                      />
+                    )}
+
+                    {/* Bloc SÉPARATEUR : position, lien cliquable et description de section */}
+                    {newStepType === "SEPARATEUR" && (
+                      <RushBlockMetaEditor
+                        values={parseBlockMeta(newStepDescription)}
+                        onChange={(patch) => {
+                          const current = parseBlockMeta(newStepDescription);
+                          const updated = formatBlockMeta({ ...current, ...patch });
+                          setNewStepDescription(updated);
+                        }}
+                        accentColor={newStepColor || "#d4a853"}
+                        isSeparator={true}
+                      />
                     )}
 
                     {/* Dofus selector (si type DOFUS ou DOFUS_OBTAINED) */}
@@ -1234,7 +1251,7 @@ function RichTextSyntaxHint() {
   return (
     <p className="mt-1 text-[11px] leading-relaxed text-zinc-500">
       Lien nommé : <code className="text-purple-300/80">[Nom de la quête](https://…)</code> — l&apos;URL ne s&apos;affiche pas, le nom pointe vers elle.
-      Position copiable : <code className="text-purple-300/80">[-55,15]</code> ou <code className="text-purple-300/80">/w -55,15</code> · un clic copie <code className="text-purple-300/80">/w -55,15</code>.
+      Position copiable : <code className="text-purple-300/80">[-55,15]</code> ou <code className="text-purple-300/80">/travel -55,15</code> · un clic copie <code className="text-purple-300/80">/travel -55,15</code>.
     </p>
   );
 }
@@ -1303,11 +1320,16 @@ function SeparatorRowAdmin({
               placeholder="Titre de section"
               autoFocus
             />
-            <input
-              value={editingData?.description ?? ""}
-              onChange={(e) => onEditChange({ description: e.target.value })}
-              className="w-full bg-black/60 border border-white/10 rounded-lg px-2 py-1 text-xs text-zinc-400 focus:outline-none focus:border-amber-500/40"
-              placeholder="Description (optionnel) — sous le titre du bandeau"
+            {/* Métadonnées enrichies du séparateur (Position, Lien cliquable, Description) */}
+            <RushBlockMetaEditor
+              values={parseBlockMeta(editingData?.description ?? "")}
+              onChange={(patch) => {
+                const current = parseBlockMeta(editingData?.description ?? "");
+                const updated = formatBlockMeta({ ...current, ...patch });
+                onEditChange({ description: updated });
+              }}
+              accentColor={editingData?.accentColor ?? color}
+              isSeparator={true}
             />
             {/* Image du séparateur : elle remplit la DROITE du bandeau (côté membre,
                 dans le guide public et dans l'overlay). Même champ que les autres blocs. */}
@@ -1473,11 +1495,27 @@ function MilestoneRow({
                 placeholder="Description (optionnel)"
               />
             </div>
-            <textarea value={editingData?.tips ?? ""} onChange={e => onEditChange({ tips: e.target.value })}
-              className="w-full bg-black/60 border border-white/10 rounded-lg px-2 py-1.5 text-xs text-amber-300/80 focus:outline-none focus:border-amber-500/30 resize-none"
-              placeholder="💡 Tips / Conseils pour ce bloc" rows={2}
-            />
-            <RichTextSyntaxHint />
+            {/* Pour les blocs Conseil / Tips (INFO), le contenu principal est le conseil enrichi */}
+            {(editingData?.type ?? milestone.type) === "INFO" ? (
+              <RushBlockMetaEditor
+                values={parseBlockMeta(editingData?.tips ?? "")}
+                onChange={(patch) => {
+                  const current = parseBlockMeta(editingData?.tips ?? "");
+                  const updated = formatBlockMeta({ ...current, ...patch });
+                  onEditChange({ tips: updated });
+                }}
+                accentColor={editingData?.accentColor ?? color}
+                isSeparator={false}
+              />
+            ) : (
+              <>
+                <textarea value={editingData?.tips ?? ""} onChange={e => onEditChange({ tips: e.target.value })}
+                  className="w-full bg-black/60 border border-white/10 rounded-lg px-2 py-1.5 text-xs text-amber-300/80 focus:outline-none focus:border-amber-500/30 resize-none"
+                  placeholder="💡 Tips / Conseils pour ce bloc" rows={2}
+                />
+                <RichTextSyntaxHint />
+              </>
+            )}
             {/* Image du bloc — TOUS les types, y compris le séparateur : elle se loge à
                 DROITE du bloc côté membre, servie NUE (pas de cadre, un fondu l'amène
                 dans la ligne). Champ partagé avec la création et le séparateur. */}
@@ -2330,36 +2368,95 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
           </span>
           <ChevronDown className={`w-3.5 h-3.5 text-zinc-500 transition-transform ${openSections.location ? "rotate-180" : ""}`} />
         </button>
-        {openSections.location && (
-          <div className="p-3 pt-0 space-y-2 border-t border-white/5">
-            <label className="text-caption font-black text-emerald-400/80 uppercase tracking-widest mb-1 block">
-              Positions GPS (ex: -2, 0 ; 10, -22)
-            </label>
-            <div className="flex items-center gap-1.5">
-              <input
-                value={positionsInput}
-                onChange={e => handlePositionsChange(e.target.value)}
-                className="flex-1 bg-black/60 border border-emerald-500/20 rounded-lg px-2.5 py-1.5 text-xs text-emerald-300 font-mono focus:outline-none focus:border-emerald-500/50"
-                placeholder="-2, 0 ; 10, -22"
-              />
-              <div className="relative shrink-0">
-                <WorldPicker
-                  value={positionsWorldId}
-                  onChange={w => {
-                    setPositionsWorldId(w);
-                    setActivityTags(prev => {
-                      const filtered = prev.filter((t: any) => t.type !== "pos_tags");
-                      if (positionsInput.trim()) {
-                        return [...filtered, { type: "pos_tags" as any, name: positionsInput.trim(), worldId: w }];
-                      }
-                      return filtered;
-                    });
-                  }}
-                />
+        {openSections.location && (() => {
+          const parsed = validateCoordinate(positionsInput);
+          const rawParts = positionsInput.split(",");
+          const curX = parsed ? String(parsed.x) : (rawParts[0]?.trim() || "");
+          const curY = parsed ? String(parsed.y) : (rawParts[1]?.trim() || "");
+
+          const updateXY = (newX: string, newY: string) => {
+            const trimmedX = newX.trim();
+            const trimmedY = newY.trim();
+            if (!trimmedX && !trimmedY) {
+              handlePositionsChange("");
+            } else {
+              handlePositionsChange(`${trimmedX}, ${trimmedY}`);
+            }
+          };
+
+          return (
+            <div className="p-3 pt-0 space-y-2 border-t border-white/5">
+              <div className="flex items-center justify-between">
+                <label className="text-caption font-black text-emerald-400/80 uppercase tracking-widest block">
+                  Coordonnées GPS (X et Y)
+                </label>
+                {parsed ? (
+                  <span className="text-[10px] text-emerald-400 font-mono">
+                    ✓ Reconnue : [{parsed.formatted}] (copie /travel {parsed.formatted})
+                  </span>
+                ) : positionsInput.trim() ? (
+                  <span className="text-[10px] text-amber-400 font-mono">
+                    Format : X et Y
+                  </span>
+                ) : null}
+              </div>
+
+              <div className="flex items-center gap-2">
+                {/* Champ X */}
+                <div className="flex items-center gap-1 flex-1">
+                  <span className="text-xs text-zinc-500 font-mono font-bold">X:</span>
+                  <input
+                    type="text"
+                    value={curX}
+                    onChange={e => updateXY(e.target.value, curY)}
+                    className="w-full bg-black/60 border border-emerald-500/20 focus:border-emerald-500/50 rounded-lg px-2.5 py-1.5 text-xs text-emerald-300 font-mono focus:outline-none transition-colors"
+                    placeholder="ex: -2"
+                  />
+                </div>
+
+                {/* Champ Y */}
+                <div className="flex items-center gap-1 flex-1">
+                  <span className="text-xs text-zinc-500 font-mono font-bold">Y:</span>
+                  <input
+                    type="text"
+                    value={curY}
+                    onChange={e => updateXY(curX, e.target.value)}
+                    className="w-full bg-black/60 border border-emerald-500/20 focus:border-emerald-500/50 rounded-lg px-2.5 py-1.5 text-xs text-emerald-300 font-mono focus:outline-none transition-colors"
+                    placeholder="ex: 0"
+                  />
+                </div>
+
+                {/* Monde / Dimension */}
+                <div className="relative shrink-0">
+                  <WorldPicker
+                    value={positionsWorldId}
+                    onChange={w => {
+                      setPositionsWorldId(w);
+                      setActivityTags(prev => {
+                        const filtered = prev.filter((t: any) => t.type !== "pos_tags");
+                        if (positionsInput.trim()) {
+                          return [...filtered, { type: "pos_tags" as any, name: positionsInput.trim(), worldId: w }];
+                        }
+                        return filtered;
+                      });
+                    }}
+                  />
+                </div>
+
+                {positionsInput.trim() ? (
+                  <button
+                    type="button"
+                    onClick={() => handlePositionsChange("")}
+                    className="p-1.5 text-zinc-500 hover:text-zinc-300 bg-zinc-800/60 hover:bg-zinc-800 rounded-lg transition-colors"
+                    title="Effacer la position"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                ) : null}
               </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
       </div>
 
       {/* ── Section 3 : Prérequis & Dofus ── */}
@@ -2722,13 +2819,13 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
                     if (!x) return;
                     const y = prompt("Position Y :");
                     if (!y) return;
-                    const pos = `/w ${x},${y}`;
+                    const pos = `/travel ${x},${y}`;
                     setTips(prev => prev ? `${prev} ${pos}` : pos);
                     toast.success(`📍 ${pos} ajouté !`, { duration: 1500 });
                   }}
                   className="flex items-center gap-1 text-caption font-bold text-indigo-300 hover:text-indigo-100 bg-indigo-500/20 border border-indigo-500/30 px-2 py-0.5 rounded-lg transition-all"
                 >
-                  <MapPin className="w-3 h-3" /> Ajouter position
+                  <MapPin className="w-3 h-3" /> Ajouter position (/travel)
                 </button>
               </div>
               <textarea

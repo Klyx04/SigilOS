@@ -4,40 +4,56 @@ import React from "react";
 import { ExternalLink } from "lucide-react";
 import { safeImageUrl } from "@/lib/security";
 import { cn } from "@/lib/utils";
+import { parseBlockMeta } from "@/lib/rush-rich-meta";
 import { RushCoordinateChip } from "./RushCoordinateChip";
 
 /**
  * RushRichText — le texte des encarts CONSEIL / TIPS, rendu UNE fois pour les trois
  * surfaces (dashboard membre, guide public, overlay PiP).
  *
- * Demande user (21/09/2026) : « dans les bandeaux de type tips/conseil je peux ajouter
+ * Demande user (21/09/2026 + 25/09/2026) : « dans les bandeaux de type tips/conseil je peux ajouter
  * n'importe où dans le texte un lien, une ou plusieurs positions cliquables presse-papier
- * en /w x,y … l'url doit pas être dispo mais le nom de la quête pointera vers l'url ».
+ * en /w x,y … l'url doit pas être dispo mais le nom de la quête pointera vers l'url.
+ * Que les positions soient toujours au même endroit dans le guide dashboard/overlay etc. ».
  *
- * Syntaxe reconnue, n'importe où dans le texte :
- *   · `[Eternelle Moisson](https://…/leacuteternelle-moisson.html)` → lien portant LE NOM
- *     saisi, l'URL n'apparaît jamais dans le texte ;
- *   · une URL brute → libellé lisible (DofusDB / DofusNoobs / le domaine seul), jamais la
- *     bouillie `https://…/chemin?…` ;
- *   · `[-55,15]`, `[-55, 15, 2]`, `/w -55,15`, `/travel -55 15` → chip cliquable qui copie
- *     `/w x,y` (commande construite par `parseCoordinates`, source unique).
- *
- * Une position cliquée copie la commande : pas de mini-carte ici. Elle vit sur la ligne
- * d'étape du dashboard, qui seule connaît la guilde — et un même texte doit rendre
- * exactement pareil sur les trois surfaces.
- *
- * Sécurité : un lien dont l'URL n'est pas sûre (schéma autre que http(s), caractère HTML)
- * n'est PAS rendu comme lien — le libellé reste du texte. Fail-closed, même allowlist que
- * les images (`safeImageUrl`).
+ * `normalizeMeta = true` : extrait la position et le lien pour les afficher de manière
+ * structurée et fixe (position TOUJOURS à gauche, lien TOUJOURS à côté, texte descriptif séparé).
  */
 export function RushRichText({
   text,
   className,
+  normalizeMeta = false,
 }: {
   text: string | null | undefined;
   className?: string;
+  normalizeMeta?: boolean;
 }) {
   if (!text) return null;
+
+  if (normalizeMeta) {
+    const meta = parseBlockMeta(text);
+    if (meta.coord || meta.linkUrl) {
+      return (
+        <div className={cn("flex flex-col gap-1.5", className)}>
+          {meta.text && (
+            <p className="text-xs leading-relaxed text-muted-foreground sm:text-[13px]">{meta.text}</p>
+          )}
+          <div className="flex flex-wrap items-center gap-2">
+            {meta.coord && (
+              <RushCoordinateChip coordText={meta.coord} showIcon />
+            )}
+            {meta.linkUrl && (
+              <RushTextLink
+                label={meta.linkLabel || bareLinkLabel(meta.linkUrl)}
+                href={meta.linkUrl}
+              />
+            )}
+          </div>
+        </div>
+      );
+    }
+  }
+
   const parts = splitRichText(text);
 
   return (

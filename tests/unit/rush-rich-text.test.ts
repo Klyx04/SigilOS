@@ -89,14 +89,27 @@ describe("RushRichText — rendu réel", () => {
     expect(out.split("leacuteternelle-moisson.html").length - 1).toBe(1);
   });
 
-  it("la position est copiable en /w x,y (format demandé)", () => {
+  it("la position est copiable en /travel x,y (format demandé)", () => {
     const out = html("Position de lancement : Village de la Canopée [-55,15].");
-    expect(out).toContain("Cliquer pour copier /w -55,15");
-    expect(out).toContain("Copier la commande /w -55,15");
-    expect(out).not.toContain("/travel");
+    expect(out).toContain("Cliquer pour copier /travel -55,15");
+    expect(out).toContain("Copier la commande /travel -55,15");
   });
 
   it("un texte vide ne rend rien", () => {
     expect(html("")).toBe("");
   });
+
+  it("avec normalizeMeta, la position est TOUJOURS placée avant le lien, peu importe l'ordre de saisie", () => {
+    const rawInverted = "[Chaque chose en son temps](https://www.dofuspourlesnoobs.com/chaque-chose-en-son-temps.html)\n[2,1]";
+    const out = renderToStaticMarkup(React.createElement(RushRichText, { text: rawInverted, normalizeMeta: true }));
+
+    const posIdx = out.indexOf("2, 1");
+    const linkIdx = out.indexOf("Chaque chose en son temps");
+
+    expect(posIdx).toBeGreaterThan(-1);
+    expect(linkIdx).toBeGreaterThan(-1);
+    // La position doit impérativement apparaître AVANT le lien !
+    expect(posIdx).toBeLessThan(linkIdx);
+  });
 });
+

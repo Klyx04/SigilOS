@@ -2,6 +2,7 @@
 
 import { safeImageUrl } from "@/lib/security";
 import { cn } from "@/lib/utils";
+import { RushRichText } from "./RushRichText";
 
 /**
  * RushSeparatorBanner — le bandeau d'un bloc SÉPARATEUR du Rush Sylvestre.
@@ -60,7 +61,9 @@ export function RushSeparatorBanner({
           <span aria-hidden="true" className="h-px flex-1 bg-gradient-to-l from-transparent to-border" />
         </div>
         {description && (
-          <p className="max-w-[60ch] text-xs leading-relaxed text-muted-foreground">{description}</p>
+          <div className="max-w-[60ch] text-xs leading-relaxed text-muted-foreground flex justify-center">
+            <RushRichText text={description} normalizeMeta />
+          </div>
         )}
       </div>
       {src && (

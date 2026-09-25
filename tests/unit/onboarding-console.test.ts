@@ -11,7 +11,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 vi.mock("@/lib/prisma", () => ({
     db: {
         platformConfig: { upsert: vi.fn() },
-        guildModules: { findFirst: vi.fn(), findUnique: vi.fn(), upsert: vi.fn() },
+        guildModules: { findFirst: vi.fn(), findUnique: vi.fn(), upsert: vi.fn(), updateMany: vi.fn() },
         guildConfig: { findUnique: vi.fn(), findFirst: vi.fn() },
         userProfile: { findFirst: vi.fn() },
         guildRecoveryClaim: {
@@ -26,6 +26,9 @@ vi.mock("@/server/actions/god-notif-actions", () => ({
     notifyGod: vi.fn().mockResolvedValue(undefined),
 }));
 vi.mock("@/auth", () => ({ auth: vi.fn() }));
+// Le verrou God est rate-limité (10/min/God) : on le neutralise ici, sinon le
+// test dépendrait du Redis local (fail-closed ⇒ refus systématique hors infra).
+vi.mock("@/lib/ratelimit", () => ({ rateLimit: vi.fn().mockResolvedValue({ success: true }) }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("@/lib/logger", () => ({
     logger: { warn: vi.fn(), error: vi.fn(), info: vi.fn() },
@@ -50,6 +53,7 @@ vi.mock("@/server/actions/user-actions", () => ({
 }));
 vi.mock("@/server/actions/audit-actions", () => ({
     createAuditLog: vi.fn(),
+    createGodAuditLog: vi.fn(),
 }));
 
 import { auth } from "@/auth";
@@ -207,12 +211,19 @@ describe("setModuleGodLock", () => {    beforeEach(() => {
         expect(res.success).toBe(false);
     });
 
-    it("verrouille puis déverrouille (upsert, audit via createAuditLog)", async () => {
+    it("verrouille un module : garde d'état dans le WHERE + journal God", async () => {
         mockIsSuperAdmin.mockResolvedValue(true);
+        mockDb.guildModules.findUnique.mockResolvedValue({ disabledByGod: [] });
+        mockDb.guildModules.updateMany.mockResolvedValue({ count: 1 });
+
         const lock = await setModuleGodLock("111111111111111111", "missions", true);
+
         expect(lock.success).toBe(true);
-        expect(mockDb.guildModules.upsert).toHaveBeenCalledWith(
-            expect.objectContaining({ update: { disabledByGod: ["missions"] } })
+        expect(mockDb.guildModules.updateMany).toHaveBeenCalledWith(
+            expect.objectContaining({
+                where: { guildId: "guild-uuid-1", disabledByGod: { equals: [] } },
+                data: { disabledByGod: { set: ["missions"] } },
+            })
         );
     });
 });

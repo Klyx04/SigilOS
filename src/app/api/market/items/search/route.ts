@@ -42,7 +42,7 @@ export async function GET(req: NextRequest) {
     if (!user.isAuthenticated || !user.isMember || !user.canViewMarket) {
         return NextResponse.json({ error: "Tu n'as pas accès au Marché sur ce serveur." }, { status: 403 });
     }
-    if (!user.isAdmin && !(await isModuleEnabled(guildId, "marche"))) {
+    if (!user.isSuperAdmin && !(await isModuleEnabled(guildId, "marche"))) {
         return NextResponse.json({ error: "Le Marché est désactivé sur ce serveur." }, { status: 403 });
     }
 

@@ -73,7 +73,9 @@ export type AuditAction =
     | "GOD_MARKET_RESYNC"        // Resynchronisation Discord d'une annonce (ou lot)
     | "GOD_MARKET_IMAGE_REGEN"   // Régénération de la carte PNG + embed
     | "GOD_MARKET_MEDIA_PURGE"   // Purge cross-guild des médias expirés
-    | "GOD_MARKET_SETTINGS";     // Réglages globaux (verrou plateforme + rétention)
+    | "GOD_MARKET_SETTINGS"     // Réglages globaux (verrou plateforme + rétention)
+    // Verrou God d'un module par guilde (fiche guilde `/god/guilds/[id]`)
+    | "GOD_MODULE_LOCK";
 
 export type AuditTargetType =
     | "PERMISSION"

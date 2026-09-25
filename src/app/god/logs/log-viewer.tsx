@@ -63,7 +63,7 @@ const ACTION_OPTIONS = [
     { value: "all", label: "Toutes les actions" },
     { value: "SECURITY_ALERT", label: "🚨 Alertes de Sécurité" },
     { value: "RBAC_UPDATE,RBAC_ROLE_ADD,RBAC_ROLE_REMOVE", label: "Permissions" },
-    { value: "GOD_GUILD_WHITELIST,GOD_USER_PLATFORM_BAN,GOD_CONFIG_OVERRIDE,GOD_DATABASE_SYNC", label: "🛡️ Actions God" },
+    { value: "GOD_GUILD_WHITELIST,GOD_USER_PLATFORM_BAN,GOD_CONFIG_OVERRIDE,GOD_DATABASE_SYNC,GOD_MODULE_LOCK", label: "🛡️ Actions God" },
     { value: "WEBHOOK_MEMBER_ADD,WEBHOOK_MEMBER_REMOVE,WEBHOOK_MEMBER_UPDATE", label: "🔄 Mouvements" },
     { value: "USER_GDPR_DELETE", label: "🗑️ Suppressions RGPD" },
     { value: "CONFIG_UPDATED", label: "Configuration" },

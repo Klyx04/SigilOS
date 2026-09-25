@@ -31,7 +31,7 @@ async function requireDiscordAdmin(discordGuildId: string, discordUserId: string
     { allowed: false; error: string }
 > {
     const { internalCheckPermission } = await import("@/server/actions/user-actions");
-    const hasPermission = await internalCheckPermission(discordGuildId, discordUserId, PERMISSIONS.MISSIONS_OFFICER);
+    const hasPermission = await internalCheckPermission(discordGuildId, discordUserId, PERMISSIONS.MISSIONS_OFFICER, { module: "missions" });
     if (!hasPermission) return { allowed: false, error: "Permissions insuffisantes (MISSIONS_VALIDATE requis)." };
 
     const account = await db.account.findFirst({

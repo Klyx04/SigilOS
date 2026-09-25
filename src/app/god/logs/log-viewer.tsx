@@ -1,369 +1,412 @@
 "use client";
 
-import { useState } from "react";
+/**
+ * Journal unifié de la console God — **un seul** viewer (G6 · G11 · A11).
+ *
+ * Avant : deux écrans (`/god?tab=security`, 200 lignes brutes, et `/god/logs`,
+ * 50 lignes) affichaient le **même** `AuditLog`, avec deux listes de filtres
+ * différentes et une pagination « Page 1 / 2 ‹ › ». Ce composant est la **seule**
+ * table du journal : il sert l'onglet **plateforme** (`isGodLog: true`) et
+ * l'onglet **guilde** (`isGodLog: false`, filtrable par guilde).
+ *
+ * G6 — filtres **en base** (action, catégorie, période, recherche, guilde),
+ * pagination **numérotée** + « par page », regroupement par **jour** (UTC), et
+ * compteur par **famille** mesuré côté serveur (jamais déduit de la page affichée).
+ * A11 — la vue d'un journal de guilde est **en lecture seule** : aucune action God
+ * n'y vit (ce composant n'écrit rien, il n'appelle que la route de lecture).
+ */
+
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
 import {
-    History,
-    User,
-    AlertCircle,
-    Key,
-    Terminal,
-    Plus,
-    X,
-    Search,
-    Filter,
-    ChevronLeft,
-    ChevronRight,
-    Clock,
-    UserMinus,
-    Trash2,
-    Shield,
     Building2,
-    Settings,
+    Filter,
+    History,
+    RefreshCw,
+    Search,
+    ShieldAlert,
+    Settings2,
+    X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import {
-    AUDIT_ACTION_FILTER_OPTIONS,
-    AUDIT_CATEGORY_FILTER_OPTIONS,
-    AUDIT_SCOPE_FILTER_OPTIONS,
-} from "@/lib/audit-taxonomy";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import {
     Select,
     SelectContent,
     SelectItem,
     SelectTrigger,
-    SelectValue
+    SelectValue,
 } from "@/components/ui/select";
-import { useEffect, useCallback } from "react";
+import { AUDIT_ACTION_FILTER_OPTIONS, AUDIT_CATEGORY_FILTER_OPTIONS } from "@/lib/audit-taxonomy";
+import {
+    AUDIT_LOG_PAGE_SIZES,
+    AUDIT_LOG_PERIODS,
+    DEFAULT_AUDIT_LOG_PAGE_SIZE,
+    DEFAULT_AUDIT_LOG_PERIOD,
+    auditLogPeriodStart,
+    groupLogsByDay,
+    totalPagesOf,
+    type AuditLogPeriod,
+} from "@/lib/audit-log-view";
+import { GodEmptyState, GodPagination, GodLoadingSkeleton } from "../ui";
 
-interface AuditLog {
+export interface GodLogRow {
     id: string;
-    actorUserId: string;
     actorName: string;
     action: string;
     targetType: string;
     targetId: string | null;
-    oldValue: any;
-    newValue: any;
-    metadata: any;
-    createdAt: Date;
-    guild?: {
-        name: string;
-        discordGuildId: string;
-    };
+    metadata: unknown;
+    createdAt: string | Date;
+    guild?: { name: string } | null;
 }
 
 interface LogViewerProps {
-    initialLogs: AuditLog[];
+    /** Périmètre **fixé par l'onglet** : jamais choisi librement par le client. */
+    scope: "platform" | "guild";
+    initialLogs: GodLogRow[];
     initialTotal: number;
+    initialSecurityCount: number;
+    /** Guildes **internes** (id + nom) — requis pour le filtre de l'onglet guilde. */
+    guilds?: { id: string; name: string }[];
+    /** Guilde déjà sélectionnée (arrivée depuis une fiche guilde). */
+    initialGuildConfigId?: string;
 }
 
-const ITEMS_PER_PAGE = 50;
+const ACTION_LABELS: Record<string, string> = {
+    WEBHOOK_MEMBER_ADD: "Arrivée membre",
+    WEBHOOK_MEMBER_REMOVE: "Départ membre",
+    WEBHOOK_MEMBER_UPDATE: "Mise à jour membre",
+    SECURITY_ALERT: "Alerte de sécurité",
+    ADMIN_FULL_DENIED: "Accès admin refusé",
+    BETA_ACCESS_ATTEMPT: "Code bêta invalide",
+    GOD_AUTH_BYPASS: "Contournement God",
+    GOD_DASHBOARD_ACCESS: "Accès dashboard God (historique)",
+    CONFIG_UPDATED: "Configuration modifiée",
+    SETTINGS_UPDATED: "Réglages modifiés",
+    RBAC_UPDATE: "Permissions modifiées",
+};
 
-// ⚠️ SOURCE UNIQUE : la liste de filtres vient de `src/lib/audit-taxonomy.ts`
-// (les deux écrans God avaient deux listes différentes — illusion de deux sources).
-const ACTION_OPTIONS = AUDIT_ACTION_FILTER_OPTIONS;
+function actionLabel(action: string): string {
+    return ACTION_LABELS[action] ?? action.replace(/_/g, " ").toLowerCase();
+}
 
-export function LogViewer({ initialLogs, initialTotal }: LogViewerProps) {
-    const [logs, setLogs] = useState(initialLogs);
+function actionTone(action: string): string {
+    if (action === "SECURITY_ALERT" || action === "USER_GDPR_DELETE") return "border-danger/40 text-danger";
+    if (action === "ADMIN_FULL_DENIED" || action === "BETA_ACCESS_ATTEMPT") return "border-warning/40 text-warning";
+    if (action.startsWith("GOD_")) return "border-border text-info";
+    return "border-border text-muted-foreground";
+}
+
+/** Métadonnées → une ligne lisible et **bornée** (jamais un JSON brut tronqué). */
+function detailOf(metadata: unknown, maxLength = 90): string {
+    if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) return "";
+    const parts: string[] = [];
+    for (const [key, value] of Object.entries(metadata as Record<string, unknown>)) {
+        if (value === null || value === undefined || key === "timestamp" || key === "source") continue;
+        parts.push(`${key}: ${typeof value === "string" ? value : JSON.stringify(value)}`);
+        if (parts.join(" · ").length > maxLength) break;
+    }
+    const text = parts.join(" · ");
+    return text.length > maxLength ? `${text.slice(0, maxLength - 1)}…` : text;
+}
+
+
+export function LogViewer({
+    scope,
+    initialLogs,
+    initialTotal,
+    initialSecurityCount,
+    guilds = [],
+    initialGuildConfigId,
+}: LogViewerProps) {
+    const [logs, setLogs] = useState<GodLogRow[]>(initialLogs);
     const [total, setTotal] = useState(initialTotal);
-    const [page, setPage] = useState(1);
+    const [securityCount, setSecurityCount] = useState(initialSecurityCount);
     const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
-    // Filters
-    const [actionFilter, setActionFilter] = useState<string>("all");
+    const [page, setPage] = useState(1);
+    const [pageSize, setPageSize] = useState<number>(DEFAULT_AUDIT_LOG_PAGE_SIZE);
+    const [actionFilter, setActionFilter] = useState("all");
+    const [categoryFilter, setCategoryFilter] = useState("all");
+    const [period, setPeriod] = useState<AuditLogPeriod>(DEFAULT_AUDIT_LOG_PERIOD);
+    const [guildConfigId, setGuildConfigId] = useState(initialGuildConfigId ?? "");
     const [searchQuery, setSearchQuery] = useState("");
     const [debouncedSearch, setDebouncedSearch] = useState("");
-    /** 🔎 Catégorie et périmètre — filtrés EN BASE (voir `getGlobalAuditLogs`). */
-    const [categoryFilter, setCategoryFilter] = useState<string>("all");
-    const [scopeFilter, setScopeFilter] = useState<string>("all");
 
-    const totalPages = Math.ceil(total / ITEMS_PER_PAGE);
+    const totalPages = totalPagesOf(total, pageSize);
+    const firstRun = useRef(true);
+    const now = useMemo(() => new Date(), []);
 
-    // Debounce search
+    // 🔎 Recherche : 300 ms de debounce — jamais une requête par frappe.
     useEffect(() => {
-        const timer = setTimeout(() => {
-            setDebouncedSearch(searchQuery);
-        }, 300);
+        const timer = setTimeout(() => setDebouncedSearch(searchQuery), 300);
         return () => clearTimeout(timer);
     }, [searchQuery]);
 
-    // Fetch logs when filters or page change
+    // Un filtre change ⇒ retour page 1 (jamais une page 7 devenue vide).
+    useEffect(() => {
+        setPage(1);
+    }, [actionFilter, categoryFilter, period, guildConfigId, debouncedSearch, pageSize]);
+
     const fetchLogs = useCallback(async () => {
         setLoading(true);
+        setError(null);
         try {
             const params = new URLSearchParams({
-                page: page.toString(),
-                limit: ITEMS_PER_PAGE.toString(),
+                page: String(page),
+                limit: String(pageSize),
+                scope,
             });
-
-            if (actionFilter && actionFilter !== "all") {
-                params.set("action", actionFilter);
-            }
-            if (debouncedSearch) {
-                params.set("search", debouncedSearch);
-            }
+            if (actionFilter !== "all") params.set("action", actionFilter);
             if (categoryFilter !== "all") params.set("category", categoryFilter);
-            if (scopeFilter !== "all") params.set("scope", scopeFilter);
+            if (debouncedSearch) params.set("search", debouncedSearch);
+            if (scope === "guild" && guildConfigId) params.set("guildConfigId", guildConfigId);
+            const dateFrom = auditLogPeriodStart(period);
+            if (dateFrom) params.set("dateFrom", dateFrom.toISOString());
 
-            const res = await fetch(`/api/god/audit-logs?${params.toString()}`);
-            if (res.ok) {
-                const data = await res.json();
-                setLogs(data.logs);
-                setTotal(data.total);
+            const response = await fetch(`/api/god/audit-logs?${params.toString()}`);
+            if (!response.ok) {
+                // « Journal indisponible » ≠ « accès refusé » : le refus (403) est un
+                // état distinct, jamais un écran vide qui laisserait croire à une absence.
+                setError(response.status === 403 ? "Accès refusé à ce journal." : "Journal indisponible (erreur serveur).");
+                return;
             }
-        } catch (error) {
-            console.error("Failed to fetch logs:", error);
+            const data = await response.json();
+            setLogs((data.logs ?? []) as GodLogRow[]);
+            setTotal(typeof data.total === "number" ? data.total : 0);
+            setSecurityCount(typeof data.securityCount === "number" ? data.securityCount : 0);
+        } catch {
+            setError("Journal indisponible (réseau).");
         } finally {
             setLoading(false);
         }
-    }, [page, actionFilter, debouncedSearch]);
+    }, [page, pageSize, scope, actionFilter, categoryFilter, debouncedSearch, guildConfigId, period]);
 
     useEffect(() => {
-        // Skip initial fetch since we have initialLogs
-        if (page === 1 && actionFilter === "all" && !debouncedSearch && categoryFilter === "all" && scopeFilter === "all") {
+        // La première page est déjà rendue par le serveur : on ne refetch pas pour rien.
+        if (firstRun.current) {
+            firstRun.current = false;
             return;
         }
-        fetchLogs();
-    }, [page, actionFilter, debouncedSearch, categoryFilter, scopeFilter, fetchLogs]);
+        void fetchLogs();
+    }, [fetchLogs]);
 
-    // Reset page when filters change
-    useEffect(() => {
-        setPage(1);
-    }, [actionFilter, debouncedSearch, categoryFilter, scopeFilter]);
+    const groups = useMemo(() => groupLogsByDay(logs, (log) => log.createdAt, now), [logs, now]);
+
+    const hasActiveFilters =
+        actionFilter !== "all"
+        || categoryFilter !== "all"
+        || period !== DEFAULT_AUDIT_LOG_PERIOD
+        || !!debouncedSearch
+        || !!guildConfigId;
 
     const clearFilters = () => {
         setActionFilter("all");
+        setCategoryFilter("all");
+        setPeriod(DEFAULT_AUDIT_LOG_PERIOD);
         setSearchQuery("");
         setDebouncedSearch("");
-        setCategoryFilter("all");
-        setScopeFilter("all");
-        setPage(1);
+        setGuildConfigId(initialGuildConfigId ?? "");
     };
 
-    const hasActiveFilters = actionFilter !== "all" || debouncedSearch || categoryFilter !== "all" || scopeFilter !== "all";
-
-    const getActionColors = (action: string) => {
-        if (action.includes("RBAC")) return "bg-amber-500/10 text-amber-400 border-amber-500/20";
-        if (action.includes("SECURITY")) return "bg-red-500/10 text-red-400 border-red-500/20 animate-pulse";
-        if (action.includes("CONFIG")) return "bg-blue-500/10 text-blue-400 border-blue-500/20";
-        if (action.startsWith("GOD_")) return "bg-violet-500/10 text-violet-400 border-violet-500/20 ";
-        if (action === "WEBHOOK_MEMBER_ADD") return "bg-emerald-500/10 text-emerald-400 border-emerald-500/20";
-        if (action === "WEBHOOK_MEMBER_REMOVE") return "bg-zinc-500/10 text-zinc-400 border-white/10";
-        if (action === "WEBHOOK_MEMBER_UPDATE") return "bg-indigo-500/10 text-indigo-400 border-indigo-500/20";
-        if (action === "USER_GDPR_DELETE") return "bg-red-500/10 text-red-400 border-red-500/50 hover:bg-red-500/20";
-        return "bg-zinc-500/10 text-zinc-400 border-white/5";
-    };
-
-    const getActionIcon = (action: string) => {
-        if (action.includes("RBAC")) return <Key className="w-3.5 h-3.5" />;
-        if (action.includes("SECURITY")) return <AlertCircle className="w-3.5 h-3.5" />;
-        if (action.includes("CONFIG")) return <Settings className="w-3.5 h-3.5" />;
-        if (action.includes("MEMBER_ADD")) return <Plus className="w-3.5 h-3.5" />;
-        if (action === "WEBHOOK_MEMBER_REMOVE") return <UserMinus className="w-3.5 h-3.5" />;
-        if (action === "USER_GDPR_DELETE") return <Trash2 className="w-3.5 h-3.5" />;
-        if (action.startsWith("GOD_")) return <Terminal className="w-3.5 h-3.5 text-violet-400" />;
-        return <Shield className="w-3.5 h-3.5" />;
-    };
-
-    const formatActionLabel = (action: string) => {
-        if (action === "WEBHOOK_MEMBER_ADD") return "Arrivée Membre";
-        if (action === "WEBHOOK_MEMBER_REMOVE") return "Départ Membre";
-        if (action === "WEBHOOK_MEMBER_UPDATE") return "MàJ Membre";
-        return action.replace(/_/g, " ");
-    };
-
-    const formatValue = (val: any) => {
-        if (!val || typeof val !== "object") return String(val);
-        return JSON.stringify(val, null, 2);
-    };
+    const functionalCount = Math.max(total - securityCount, 0);
 
     return (
         <div className="space-y-4">
-            {/* Filters Toolbar */}
-            <div className="flex flex-wrap items-center gap-3 bg-zinc-900/40 p-3 rounded-2xl border border-white/5 backdrop-blur-md">
-                <div className="flex items-center gap-2 px-2 border-r border-white/10 mr-2">
-                    <Filter className="h-4 w-4 text-zinc-500" />
-                    <span className="text-caption font-black text-zinc-500 uppercase tracking-widest">Filtres</span>
-                </div>
+            {/* Compteurs par **famille** (G6) — mesurés en base, jamais déduits de la page */}
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-2xl border border-border bg-surface/40 px-4 py-3">
+                <span className="flex items-center gap-2 text-body-sm font-semibold text-foreground">
+                    <History className="h-4 w-4 text-muted-foreground" />
+                    <span className="tabular-nums">{total}</span> entrée(s)
+                </span>
+                <span className="flex items-center gap-1.5 text-caption text-danger">
+                    <ShieldAlert className="h-3.5 w-3.5" />
+                    Sécurité <span className="font-bold tabular-nums">{securityCount}</span>
+                </span>
+                <span className="flex items-center gap-1.5 text-caption text-muted-foreground">
+                    <Settings2 className="h-3.5 w-3.5" />
+                    Fonctionnel <span className="font-bold tabular-nums">{functionalCount}</span>
+                </span>
+                {scope === "guild" ? (
+                    <span className="text-caption text-muted-foreground">
+                        Lecture seule : aucune action God n&apos;est disponible dans le journal d&apos;une guilde.
+                    </span>
+                ) : null}
+            </div>
 
-                <Select value={actionFilter} onValueChange={setActionFilter}>
-                    <SelectTrigger className="w-[180px] h-9 text-caption font-bold bg-zinc-800/50 border-white/10 rounded-xl">
-                        <SelectValue placeholder="Type d'action" />
+            {/* Filtres — tout part **en base** (action, catégorie, période, guilde, recherche) */}
+            <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-border bg-surface/40 p-3">
+                <span className="flex items-center gap-2 px-2 text-caption font-semibold uppercase tracking-wider text-muted-foreground">
+                    <Filter className="h-4 w-4" /> Filtres
+                </span>
+
+                {scope === "guild" && guilds.length > 0 ? (
+                    <Select
+                        value={guildConfigId || "all"}
+                        onValueChange={(value) => setGuildConfigId(value === "all" ? "" : value)}
+                    >
+                        <SelectTrigger className="h-9 w-[220px] text-caption" aria-label="Filtrer par guilde">
+                            <SelectValue placeholder="Guilde" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">Toutes les guildes</SelectItem>
+                            {guilds.map((guild) => (
+                                <SelectItem key={guild.id} value={guild.id}>
+                                    {guild.name}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                ) : null}
+
+                <Select value={period} onValueChange={(value) => setPeriod(value as AuditLogPeriod)}>
+                    <SelectTrigger className="h-9 w-[190px] text-caption" aria-label="Période">
+                        <SelectValue placeholder="Période" />
                     </SelectTrigger>
-                    <SelectContent className="bg-zinc-900 border-white/10">
-                        {ACTION_OPTIONS.map(opt => (
-                            <SelectItem key={opt.value} value={opt.value} className="text-xs">
-                                {opt.label}
+                    <SelectContent>
+                        {AUDIT_LOG_PERIODS.map((preset) => (
+                            <SelectItem key={preset.value} value={preset.value}>
+                                {preset.label}
                             </SelectItem>
                         ))}
                     </SelectContent>
                 </Select>
 
-                <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-500" />
+                <Select value={actionFilter} onValueChange={setActionFilter}>
+                    <SelectTrigger className="h-9 w-[200px] text-caption" aria-label="Type d'action">
+                        <SelectValue placeholder="Type d'action" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="all">Toutes les actions</SelectItem>
+                        {AUDIT_ACTION_FILTER_OPTIONS.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                                {option.label}
+                            </SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+
+                <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                    <SelectTrigger className="h-9 w-[200px] text-caption" aria-label="Catégorie">
+                        <SelectValue placeholder="Catégorie" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        {AUDIT_CATEGORY_FILTER_OPTIONS.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                                {option.label}
+                            </SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+
+                <div className="relative min-w-[200px] flex-1">
+                    <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
                     <Input
-                        type="text"
-                        placeholder="Rechercher par acteur, guilde..."
                         value={searchQuery}
-                        onChange={e => setSearchQuery(e.target.value)}
-                        className="h-9 w-[260px] pl-9 text-caption font-bold bg-zinc-800/50 border-white/10 rounded-xl"
+                        onChange={(event) => setSearchQuery(event.target.value)}
+                        placeholder="Acteur, guilde, action…"
+                        aria-label="Rechercher dans le journal"
+                        className="h-9 pl-9 text-caption"
                     />
                 </div>
 
-                {/* 🔎 Catégorie (sécurité / fonctionnel) et périmètre (God / guildes) :
-                    filtrés EN BASE. Avant l'audit du 24/09, les deux écrans God
-                    affichaient le même total brut — la sécurité se noyait dans la
-                    configuration et les mouvements Discord. */}
-                <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                    <SelectTrigger className="w-[230px] h-9 text-caption font-bold bg-zinc-800/50 border-white/10 rounded-xl">
-                        <SelectValue placeholder="Catégorie" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-zinc-900 border-white/10">
-                        {AUDIT_CATEGORY_FILTER_OPTIONS.map(opt => (
-                            <SelectItem key={opt.value} value={opt.value} className="text-xs">
-                                {opt.label}
-                            </SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
-
-                <Select value={scopeFilter} onValueChange={setScopeFilter}>
-                    <SelectTrigger className="w-[190px] h-9 text-caption font-bold bg-zinc-800/50 border-white/10 rounded-xl">
-                        <SelectValue placeholder="Périmètre" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-zinc-900 border-white/10">
-                        {AUDIT_SCOPE_FILTER_OPTIONS.map(opt => (
-                            <SelectItem key={opt.value} value={opt.value} className="text-xs">
-                                {opt.label}
-                            </SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
-
-                {hasActiveFilters && (
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={clearFilters}
-                        className="h-9 text-caption font-black text-zinc-500 hover:text-white uppercase tracking-widest"
-                    >
-                        <X className="h-3 w-3 mr-2" />
-                        Réinitialiser
+                {hasActiveFilters ? (
+                    <Button variant="ghost" size="sm" onClick={clearFilters} className="h-9 text-caption">
+                        <X className="mr-1.5 h-3 w-3" /> Réinitialiser
                     </Button>
-                )}
+                ) : null}
 
-                <div className="ml-auto flex items-center gap-4">
-                    <div className="flex items-center gap-2 text-caption font-black text-zinc-500 uppercase tracking-widest">
-                        Page <span className="text-zinc-300">{page}</span> / <span className="text-zinc-300">{totalPages || 1}</span>
-                    </div>
-                    <div className="flex gap-1">
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setPage(p => Math.max(1, p - 1))}
-                            disabled={page === 1 || loading}
-                            className="h-8 w-8 p-0 bg-zinc-800/50 border-white/10 rounded-lg disabled:opacity-30"
-                        >
-                            <ChevronLeft className="h-4 h-4" />
-                        </Button>
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                            disabled={page >= totalPages || loading}
-                            className="h-8 w-8 p-0 bg-zinc-800/50 border-white/10 rounded-lg disabled:opacity-30"
-                        >
-                            <ChevronRight className="h-4 h-4" />
-                        </Button>
-                    </div>
+                <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => void fetchLogs()}
+                    disabled={loading}
+                    className="ml-auto h-9 text-caption"
+                >
+                    <RefreshCw className={cn("mr-1.5 h-3.5 w-3.5", loading && "animate-spin")} /> Actualiser
+                </Button>
+            </div>
+
+            {error ? (
+                /* Erreur ≠ refus ≠ vide : trois messages distincts (cf. plan §8.3). */
+                <div role="alert" className="rounded-2xl border border-danger/30 bg-danger/5 p-4 text-body-sm text-danger">
+                    {error}
                 </div>
-            </div>
-
-            {/* Table */}
-            <div className="bg-zinc-900/30 border border-white/5 rounded-2xl overflow-hidden backdrop-blur-xl max-h-[600px] overflow-y-auto">
-                <table className="w-full text-left border-collapse">
-                    <thead className="bg-white/5">
-                        <tr>
-                            <th className="px-6 py-4 text-caption font-black text-zinc-500 uppercase tracking-widest">Événement</th>
-                            <th className="px-6 py-4 text-caption font-black text-zinc-500 uppercase tracking-widest">Acteur</th>
-                            <th className="px-6 py-4 text-caption font-black text-zinc-500 uppercase tracking-widest">Cible / Guilde</th>
-                            <th className="px-6 py-4 text-caption font-black text-zinc-500 uppercase tracking-widest">Détails</th>
-                            <th className="px-6 py-4 text-caption font-black text-zinc-500 uppercase tracking-widest text-right">Date</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-white/5">
-                        {logs.length === 0 ? (
+            ) : loading ? (
+                <GodLoadingSkeleton rows={5} />
+            ) : logs.length === 0 ? (
+                <GodEmptyState
+                    icon={History}
+                    title="Aucune entrée sur ce périmètre"
+                    description="Élargis la période ou retire un filtre. Rétention : 90 j pour la plateforme, 30 j pour une guilde."
+                />
+            ) : (
+                <div className="overflow-hidden rounded-2xl border border-border bg-card">
+                    <table className="w-full border-collapse text-left">
+                        <thead className="bg-elevated/60">
                             <tr>
-                                <td colSpan={5} className="px-6 py-20 text-center text-zinc-600 font-medium">
-                                    Aucun log détecté dans la base de données.
-                                </td>
+                                <th className="px-6 py-3 text-caption font-semibold uppercase tracking-wider text-muted-foreground">Événement</th>
+                                <th className="px-6 py-3 text-caption font-semibold uppercase tracking-wider text-muted-foreground">Acteur</th>
+                                <th className="px-6 py-3 text-caption font-semibold uppercase tracking-wider text-muted-foreground">Cible / Guilde</th>
+                                <th className="px-6 py-3 text-caption font-semibold uppercase tracking-wider text-muted-foreground">Détails</th>
+                                <th className="px-6 py-3 text-right text-caption font-semibold uppercase tracking-wider text-muted-foreground">Date</th>
                             </tr>
-                        ) : logs.map((log) => (
-                            <tr key={log.id} className="group hover:bg-white/[0.02] transition-colors">
-                                <td className="px-6 py-4">
-                                    <div className="flex items-center gap-3">
-                                        <div className={cn(
-                                            "flex items-center justify-center w-8 h-8 rounded-lg border transition-all duration-300",
-                                            getActionColors(log.action)
-                                        )}>
-                                            {getActionIcon(log.action)}
-                                        </div>
-                                        <div className="flex flex-col">
-                                            <span className="text-caption font-black uppercase tracking-tight text-white leading-none">
-                                                {formatActionLabel(log.action)}
+                        </thead>
+                        {/* G6 — un `tbody` par **jour** : l'entête de jour reste collée à son groupe */}
+                        {groups.map((group) => (
+                            <tbody key={group.key}>
+                                <tr className="bg-elevated/40">
+                                    <td colSpan={5} className="px-6 py-2 text-caption font-bold uppercase tracking-wider text-muted-foreground">
+                                        {group.label} · <span className="tabular-nums">{group.rows.length}</span> entrée(s)
+                                    </td>
+                                </tr>
+                                {group.rows.map((log) => (
+                                    <tr key={log.id} className="border-t border-border/60 align-top">
+                                        <td className="px-6 py-3">
+                                            <span className={cn("inline-flex rounded-full border px-2 py-0.5 text-caption font-bold", actionTone(log.action))}>
+                                                {actionLabel(log.action)}
                                             </span>
-                                            <span className="text-caption font-bold text-zinc-500 uppercase tracking-widest mt-1">
-                                                {log.targetType}
+                                            <div className="mt-1 text-caption text-muted-foreground">{log.targetType}</div>
+                                        </td>
+                                        <td className="px-6 py-3 text-body-sm text-foreground">{log.actorName}</td>
+                                        <td className="px-6 py-3">
+                                            <span className="flex items-center gap-1.5 text-body-sm text-muted-foreground">
+                                                <Building2 className="h-3.5 w-3.5 shrink-0" />
+                                                <span className="truncate">{log.guild?.name ?? "Plateforme"}</span>
                                             </span>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td className="px-6 py-4">
-                                    <div className="flex items-center gap-2">
-                                        <div className="w-6 h-6 rounded flex items-center justify-center bg-violet-500/10 border border-violet-500/20">
-                                            <User className="w-3 h-3 text-violet-400" />
-                                        </div>
-                                        <span className="text-sm font-medium text-zinc-300">{log.actorName}</span>
-                                    </div>
-                                </td>
-                                <td className="px-6 py-4">
-                                    <div className="flex flex-col">
-                                        <div className="flex items-center gap-2">
-                                            <Building2 className="w-3 h-3 text-zinc-600" />
-                                            <span className="text-sm font-medium text-zinc-400">{log.guild?.name || "Global / System"}</span>
-                                        </div>
-                                        {log.targetId && (
-                                            <span className="text-caption font-mono text-zinc-600 ml-5">{log.targetId}</span>
-                                        )}
-                                    </div>
-                                </td>
-                                <td className="px-6 py-4">
-                                    {log.metadata && (
-                                        <div className="max-w-xs truncate text-xs text-zinc-500 font-mono italic">
-                                            {typeof log.metadata === 'string' ? log.metadata : JSON.stringify(log.metadata)}
-                                        </div>
-                                    )}
-                                </td>
-                                <td className="px-6 py-4 text-right">
-                                    <div className="text-sm font-medium text-zinc-400">
-                                        {formatDistanceToNow(new Date(log.createdAt), { addSuffix: true, locale: fr })}
-                                    </div>
-                                </td>
-                            </tr>
+                                            {log.targetId ? (
+                                                <span className="mt-0.5 block truncate font-mono text-caption text-muted-foreground">{log.targetId}</span>
+                                            ) : null}
+                                        </td>
+                                        <td className="px-6 py-3 text-caption text-muted-foreground">{detailOf(log.metadata) || "—"}</td>
+                                        <td className="px-6 py-3 text-right text-caption text-muted-foreground">
+                                            <span title={new Date(log.createdAt).toISOString()}>
+                                                {formatDistanceToNow(new Date(log.createdAt), { addSuffix: true, locale: fr })}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
                         ))}
-                    </tbody>
-                </table>
-            </div>
+                    </table>
+                </div>
+            )}
 
-            {/* Bottom Info */}
-            <div className="flex items-center justify-between text-caption font-black text-zinc-600 uppercase tracking-widest px-2">
-                <span>Affichage de <span className="text-zinc-400">{logs.length}</span> entrées sur un total de <span className="text-zinc-400">{total}</span></span>
-            </div>
+            <GodPagination
+                page={page}
+                totalPages={totalPages}
+                total={total}
+                onPageChange={setPage}
+                pageSize={pageSize}
+                pageSizes={AUDIT_LOG_PAGE_SIZES}
+                onPageSizeChange={setPageSize}
+                disabled={loading}
+            />
         </div>
     );
 }
+

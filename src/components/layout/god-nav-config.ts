@@ -7,7 +7,6 @@ import {
     Bell,
     Ticket,
     Database,
-    ShieldAlert,
     Shield,
     Sparkles,
     Bug,
@@ -63,8 +62,7 @@ export const CONSOLE_PAGES: GodNavItem[] = [
     { id: "delegates", name: "Sous-Gods", sub: "delegates", icon: Shield, color: "text-violet-400", group: "administration", scope: "users", scopeLabel: "Users", brickId: "delegates" },
     { id: "api-keys", name: "Clés d'API & Dev", icon: Key, color: "text-amber-400", group: "administration", scope: "all", scopeLabel: "Toutes", brickId: "api-keys" },
     { id: "slash-commands", name: "Commandes Slash", icon: Terminal, color: "text-accent", group: "administration", scope: "all", scopeLabel: "Toutes", brickId: "slash-commands" },
-    { id: "security", name: "Sécurité & Logs", icon: ShieldAlert, color: "text-muted-foreground", group: "administration", scope: "logs", scopeLabel: "Logs", brickId: "security" },
-    { id: "logs", name: "Audit Logs", sub: "logs", icon: History, color: "text-violet-400", group: "administration", scope: "all", scopeLabel: "Toutes", brickId: "logs" },
+    { id: "logs", name: "Journaux", sub: "logs", icon: History, color: "text-violet-400", group: "administration", scope: "all", scopeLabel: "Toutes", brickId: "logs" },
     { id: "tickets", name: "Tickets Support", icon: Ticket, color: "text-info", group: "administration", scope: "all", scopeLabel: "Toutes", brickId: "tickets" },
 
     // Supervision

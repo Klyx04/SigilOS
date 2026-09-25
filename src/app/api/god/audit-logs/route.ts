@@ -27,6 +27,19 @@ export async function GET(request: Request) {
     const rawScope = searchParams.get("scope");
     const category = rawCategory === "security" || rawCategory === "functional" ? rawCategory : undefined;
     const scope = rawScope === "platform" || rawScope === "guild" ? rawScope : undefined;
+    // 🏰 A11 — filtre « journal d'une guilde » : id **interne** (`GuildConfig.id`),
+    // borné ici puis revalidé par le schéma Zod de l'action. Le contrôle de droits
+    // (super-admin obligatoire pour ce paramètre) vit dans `getGlobalAuditLogs`.
+    const rawGuildConfigId = searchParams.get("guildConfigId");
+    const guildConfigId =
+        rawGuildConfigId && rawGuildConfigId.length > 0 && rawGuildConfigId.length <= 64
+            ? rawGuildConfigId
+            : undefined;
+    // ⏱️ G6 — preset de période : borne **basse** uniquement, revalidée ici (une date
+    // invalide est **ignorée**, jamais transformée en `Invalid Date` transmise à Prisma).
+    const rawDateFrom = searchParams.get("dateFrom");
+    const parsedDateFrom = rawDateFrom ? new Date(rawDateFrom) : null;
+    const dateFrom = parsedDateFrom && !Number.isNaN(parsedDateFrom.getTime()) ? parsedDateFrom : undefined;
 
     const result = await getGlobalAuditLogs({
         page,
@@ -35,6 +48,8 @@ export async function GET(request: Request) {
         search,
         category,
         scope,
+        guildConfigId,
+        dateFrom,
     });
 
     if (!result.success) {

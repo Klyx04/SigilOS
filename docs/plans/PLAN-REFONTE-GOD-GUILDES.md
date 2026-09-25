@@ -54,9 +54,9 @@
 | **Soft-delete** | La donnée **reste en base**, marquée supprimée (`deletedAt`, `scheduledDeletion`) jusqu'à la purge. Ce n'est **pas** une suppression. | colonnes `deletedAt` / `scheduledDeletion` |
 | **Janitor** | Script VPS `scripts/database-janitor.ts` lancé par `scripts/maintenance.sh` (~04h00, `--execute` **dans le conteneur app**) : orphelins `User` > 7 j sans profil, `AuditLog` (30 j guilde / 90 j God), `GuildConfig` + `UserProfile` dont `scheduledDeletion` est échue. **Il ne purge jamais un `User`.** | `scripts/database-janitor.ts` |
 | **Journal plateforme** | Onglet « Journal d'audit » de `/god/logs` : table `AuditLog` globale (avec les lignes `isGodLog`, sans guilde). | `getGlobalAuditLogs` |
-| **Journal de sécurité** | **Extrait du même flux** (`/god?tab=security`, `category: "security"`, 200 max) — ce n'est pas un autre journal. | `audit-feed-panel.tsx` |
+| **Journal de sécurité** | **Supprimé le 25/09/2026 (lot 3)** : `/god?tab=security` n'était qu'un **extrait du même** `AuditLog` — il **redirige** désormais vers `/god/logs` (onglet « Journal plateforme »). | `/god/logs` (`getGlobalAuditLogs`) |
 | **Accès refusés** | Onglet de `/god/logs` : table `AccessAttempt` (clic « Se connecter » **sans** guilde gérée). Écrite, affichée, purgée à 90 j par le Janitor. | `getRecentAccessAttempts` |
-| **Comptes (Plateforme)** | Carte listant les `User` avec `deletionRequestedAt`/`scheduledDeletion` non nuls. **Aucun code n'écrit ces colonnes** → voir **D2** (§4bis). | `deletion-pending-panel.tsx` |
+| **Comptes (Plateforme)** | Carte **supprimée le 25/09/2026 (lot 0)** : elle listait les `User` avec `deletionRequestedAt`/`scheduledDeletion` non nuls, **colonnes qu'aucun code n'écrit** → voir **D2** (§4bis). | — (purge réelle : cron `account-retention`) |
 
 → **G1** : ces définitions doivent vivre dans l'UI (légende dépliable + `title` sur chaque badge), pas dans un doc.
 

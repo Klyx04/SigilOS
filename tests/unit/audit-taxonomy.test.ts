@@ -112,17 +112,16 @@ describe("getGlobalAuditLogs — filtrage EN BASE", () => {
     });
 });
 
-describe("usage unique — les deux écrans God partagent la liste", () => {
-    it("le viewer et le panneau importent la taxonomie", () => {
-        for (const file of ["src/app/god/logs/log-viewer.tsx", "src/app/god/components/audit-feed-panel.tsx"]) {
-            const code = readFileSync(file, "utf8");
-            expect(code, file).toMatch(/from "@\/lib\/audit-taxonomy"/);
-            expect(code, file).toMatch(/AUDIT_ACTION_FILTER_OPTIONS/);
-        }
+describe("usage unique — un seul viewer de journaux (lot 3)", () => {
+    it("le viewer unique importe la taxonomie", () => {
+        const code = readFileSync("src/app/god/logs/log-viewer.tsx", "utf8");
+        expect(code).toMatch(/from "@\/lib\/audit-taxonomy"/);
+        expect(code).toMatch(/AUDIT_ACTION_FILTER_OPTIONS/);
     });
 
-    it("le panneau du dashboard God ne demande QUE la catégorie sécurité", () => {
+    it("le dashboard God ne monte plus de second journal (une seule porte)", () => {
         const page = readFileSync("src/app/god/page.tsx", "utf8");
-        expect(page).toMatch(/getGlobalAuditLogs\(\{ limit: 200, category: "security" \}\)/);
+        expect(page).not.toMatch(/AuditFeedPanel/);
+        expect(page).toMatch(/requestedTab === "security"\) redirect/);
     });
 });

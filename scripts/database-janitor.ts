@@ -17,9 +17,15 @@
 import { PrismaClient } from '@prisma/client';
 import { Pool } from 'pg';
 import { PrismaPg } from '@prisma/adapter-pg';
+import { AUDIT_RETENTION_DAYS, MS_PER_DAY } from '../src/lib/audit-retention-policy';
 
 const GRACE_PERIOD_DAYS = 7;
-const AUDIT_RETENTION_DAYS = 30;
+// ⚠️ Politique d'audit : SOURCE UNIQUE dans `src/lib/audit-retention-policy.ts`
+// (import relatif — ce script ne connaît pas les alias `@/`, il est bundlé par
+// esbuild sans résolution de chemins). Avant l'audit du 24/09, ce script purgeait
+// les logs God à 30 j alors que la décision user est **90 j**.
+const AUDIT_RETENTION_DAYS_GUILD = AUDIT_RETENTION_DAYS.GUILD;
+const AUDIT_RETENTION_DAYS_GOD = AUDIT_RETENTION_DAYS.GOD;
 const GOD_NOTIF_RETENTION_DAYS = 90;
 // Rétention des journaux/grants God (P4) — limite la croissance des tables PIM.
 const GOD_LOG_RETENTION_DAYS = 90;
@@ -70,24 +76,29 @@ async function main() {
             }
         }
 
-        // 2. Audit Log Cleanup
-        const auditCutoff = new Date();
-        auditCutoff.setDate(auditCutoff.getDate() - AUDIT_RETENTION_DAYS);
+        // 2. Audit Log Cleanup — 30 j pour les journaux de guilde, 90 j pour les
+        //    actions plateforme (`isGodLog: true`, sans guilde). Deux coupures
+        //    distinctes : c'est la politique décidée le 24/09/2026.
+        const now2 = new Date();
+        const guildCutoff = new Date(now2.getTime() - AUDIT_RETENTION_DAYS_GUILD * MS_PER_DAY);
+        const godCutoff = new Date(now2.getTime() - AUDIT_RETENTION_DAYS_GOD * MS_PER_DAY);
 
-        const auditCount = await db.auditLog.count({
-            where: { createdAt: { lt: auditCutoff } }
-        });
+        const [guildAuditCount, godAuditCount] = await Promise.all([
+            db.auditLog.count({ where: { isGodLog: false, createdAt: { lt: guildCutoff } } }),
+            db.auditLog.count({ where: { isGodLog: true, createdAt: { lt: godCutoff } } }),
+        ]);
 
-        console.log(`[Audit] Found ${auditCount} audit logs older than ${AUDIT_RETENTION_DAYS} days.`);
+        console.log(`[Audit] Found ${guildAuditCount} guild audit log(s) older than ${AUDIT_RETENTION_DAYS_GUILD} days and ${godAuditCount} God log(s) older than ${AUDIT_RETENTION_DAYS_GOD} days.`);
 
-        if (auditCount > 0) {
+        if (guildAuditCount + godAuditCount > 0) {
             if (isDryRun) {
-                console.log(`  [DRY] Would delete ${auditCount} audit log entries.`);
+                console.log(`  [DRY] Would delete ${guildAuditCount + godAuditCount} audit log entries.`);
             } else {
-                const result = await db.auditLog.deleteMany({
-                    where: { createdAt: { lt: auditCutoff } }
-                });
-                console.log(`  [DEL] Successfully deleted ${result.count} audit log entries.`);
+                const [guildRemoved, godRemoved] = await Promise.all([
+                    db.auditLog.deleteMany({ where: { isGodLog: false, createdAt: { lt: guildCutoff } } }),
+                    db.auditLog.deleteMany({ where: { isGodLog: true, createdAt: { lt: godCutoff } } }),
+                ]);
+                console.log(`  [DEL] Successfully deleted ${guildRemoved.count} guild + ${godRemoved.count} God audit log entries.`);
             }
         }
 

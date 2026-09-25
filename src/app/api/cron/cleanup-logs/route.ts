@@ -1,14 +1,14 @@
 import { NextResponse } from 'next/server';
-import { cleanupGlobalAuditLogs } from '@/server/actions/audit-actions';
+import { purgeAuditLogsCore } from '@/server/audit-retention';
 import { verifyCronSecret } from "@/lib/cron-auth";
 import { logger } from "@/lib/logger";
 
 /**
- * 🔒 CRON: Nettoyage global des logs d'audit (> 30 jours)
+ * 🔒 CRON: Nettoyage des logs d'audit (rétention 90 j God / 30 j guilde)
  *
- * Déclenché par le crontab VPS, cette route supprime tous les logs
- * d'audit de TOUTES les guildes dont la date de création dépasse
- * RETENTION_DAYS (configuré dans audit-actions.ts, actuellement 30 jours).
+ * Déclenché par le crontab VPS. La passe est **par lot** (500) et par périmètre
+ * (cf. `src/server/audit-retention.ts` — core hors `"use server"`, seul moyen
+ * d'avoir une purge plateforme SANS l'exposer comme server action au client).
  *
  * Elle porte aussi les autres rétentions de la même famille :
  *   • **notifications God** de plus de 90 j ;
@@ -28,20 +28,10 @@ export async function GET(req: Request) {
     const startedAt = Date.now();
 
     try {
-        const result = await cleanupGlobalAuditLogs();
+        const result = await purgeAuditLogsCore();
         const durationMs = Date.now() - startedAt;
 
-        if (!result.success) {
-            const { recordCronExecution } = await import("@/lib/cron-telemetry");
-            await recordCronExecution("cleanup_logs", {
-                success: false,
-                durationMs,
-                summary: `Échec purge logs: ${result.error}`,
-            });
-            return NextResponse.json({ error: result.error }, { status: 500 });
-        }
-
-        const deletedCount = result.data?.deletedCount || 0;
+        const deletedCount = result.deleted;
 
         // Purge des notifications God lues/anciennes (> 90 j) — croissance
         // lente mais sans borne sinon.
@@ -80,10 +70,20 @@ export async function GET(req: Request) {
 
         const { recordCronExecution } = await import("@/lib/cron-telemetry");
         await recordCronExecution("cleanup_logs", {
-            success: marketLogsFailed === 0,
+            success: marketLogsFailed === 0 && result.failed === 0,
             durationMs,
-            summary: `Purge logs : ${deletedCount} logs supprimés (> 30j) + ${godNotifDeleted} notifs God (> 90j) + ${marketLogsDeleted} logs marché (> rétention de guilde)`,
-            details: { deletedCount, godNotifDeleted, marketLogsDeleted, marketLogsHasMore, marketLogsFailed },
+            summary: `Purge logs : ${result.godDeleted} God (> 90j) + ${result.guildDeleted} guilde (> 30j) + ${godNotifDeleted} notifs God (> 90j) + ${marketLogsDeleted} logs marché (> rétention de guilde)`,
+            details: {
+                deletedCount,
+                godDeleted: result.godDeleted,
+                guildDeleted: result.guildDeleted,
+                auditFailed: result.failed,
+                auditHasMore: result.hasMore,
+                godNotifDeleted,
+                marketLogsDeleted,
+                marketLogsHasMore,
+                marketLogsFailed,
+            },
         });
 
         return NextResponse.json({
@@ -92,7 +92,7 @@ export async function GET(req: Request) {
             godNotifDeleted,
             marketLogsDeleted,
             marketLogsHasMore,
-            message: `${deletedCount} logs supprimés (rétention > 30 jours), ${marketLogsDeleted} logs du marché purgés`
+            message: `${deletedCount} logs supprimés (90 j God / 30 j guilde), ${marketLogsDeleted} logs du marché purgés`
         });
     } catch (e: any) {
         console.error('[CRON Cleanup Logs] Error:', e);

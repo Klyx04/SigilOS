@@ -901,15 +901,18 @@ export async function getAuditActionTypes(
 // AUDIT LOG CLEANUP (Retention Policy)
 // ============================================================================
 
-// Rétention à 30 jours pour les logs d'audit
-// — Évite le gonflement de la BDD sur le VPS multi-guildes
-// — Les admins peuvent exporter manuellement avant purge si besoin
-const RETENTION_DAYS = 30;
-
 /**
- * Cleanup old audit logs for a guild
- * Removes logs older than RETENTION_DAYS (30 days)
- * Triggered lazily on each visit to the logs page
+ * Cleanup des logs d'audit d'**une** guilde (30 j — `@/lib/audit-retention-policy`).
+ * Déclenché paresseusement à la visite de `/dashboard/[guildId]/admin/logs` : le
+ * client voit son journal, borné, et peut exporter avant purge. La passe est
+ * **par lot** (500) via le core partagé.
+ *
+ * ⚠️ La purge **plateforme** (`cleanupGlobalAuditLogs`) a été **retirée d'ici**
+ * (audit croisé du 24/09/2026) : ce fichier est `"use server"`, donc cet export
+ * était une server action **sans aucune garde** — le `isSuperAdmin()` en avait été
+ * retiré pour le cron (#147bis) — capable de vider la table `AuditLog` entière.
+ * Le core vit désormais dans `src/server/audit-retention.ts` (hors `"use server"`),
+ * appelé par la route cron (`verifyCronSecret`) et jamais exposé au client.
  */
 export async function cleanupOldAuditLogs(
     discordGuildId: string
@@ -936,28 +939,19 @@ export async function cleanupOldAuditLogs(
             return { success: false, error: "Guild not found" };
         }
 
-        // Calculate cutoff date
-        const cutoffDate = new Date();
-        cutoffDate.setDate(cutoffDate.getDate() - RETENTION_DAYS);
-
-        // Delete old logs
-        const result = await db.auditLog.deleteMany({
-            where: {
-                guildId: guildConfig.id,
-                createdAt: { lt: cutoffDate }
-            }
-        });
-
+        const { purgeAuditLogsCore } = await import("@/server/audit-retention");
+        const outcome = await purgeAuditLogsCore({ guildConfigId: guildConfig.id });
 
         return {
             success: true,
-            data: { deletedCount: result.count }
+            data: { deletedCount: outcome.guildDeleted }
         };
     } catch (error) {
         logger.error("[cleanupOldAuditLogs] Error:", error);
         return { success: false, error: "Erreur lors du nettoyage des logs" };
     }
 }
+
 /**
  * Get platform-wide audit logs (Super-admin only)
  */
@@ -1029,30 +1023,3 @@ export async function getGlobalAuditLogs(
     }
 }
 
-/**
- * Cleanup old audit logs platform-wide (Retention policy)
- */
-export async function cleanupGlobalAuditLogs(): Promise<ActionResponse<{ deletedCount: number }>> {
-    try {
-        // 🔒 #147bis — Suppression du gate `isSuperAdmin()` : en contexte CRON il n'y a
-        // AUCUNE session → la purge des logs échouait toujours avec « Unauthorized » (500).
-        // Les deux appelants sont déjà authentifiés en amont : la route cron `/api/cron/cleanup-logs`
-        // via `verifyCronSecret` (fail-closed), et la page God `/god/logs` via son layout.
-        const cutoffDate = new Date();
-        cutoffDate.setDate(cutoffDate.getDate() - RETENTION_DAYS);
-
-        const result = await db.auditLog.deleteMany({
-            where: {
-                createdAt: { lt: cutoffDate }
-            }
-        });
-
-        return {
-            success: true,
-            data: { deletedCount: result.count }
-        };
-    } catch (error) {
-        logger.error("[cleanupGlobalAuditLogs] Error:", error);
-        return { success: false, error: "Erreur" };
-    }
-}

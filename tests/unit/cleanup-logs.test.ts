@@ -5,9 +5,9 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
-const mockCleanupGlobalAuditLogs = vi.fn();
-vi.mock("@/server/actions/audit-actions", () => ({
-    cleanupGlobalAuditLogs: (...args: any[]) => mockCleanupGlobalAuditLogs(...args),
+const mockPurgeAuditLogs = vi.fn();
+vi.mock("@/server/audit-retention", () => ({
+    purgeAuditLogsCore: (...args: any[]) => mockPurgeAuditLogs(...args),
 }));
 
 const mockGodNotifDeleteMany = vi.fn();
@@ -29,10 +29,22 @@ import { GET } from "@/app/api/cron/cleanup-logs/route";
 
 const emptyMarketOutcome = { guilds: 0, scanned: 0, deleted: 0, failed: 0, hasMore: false };
 
+/** Retour minimal du core d'audit (90 j God / 30 j guilde). */
+const auditOutcome = (over: Record<string, unknown> = {}) => ({
+    guilds: 0,
+    scanned: 0,
+    deleted: 0,
+    godDeleted: 0,
+    guildDeleted: 0,
+    failed: 0,
+    hasMore: false,
+    ...over,
+});
+
 beforeEach(() => {
     vi.clearAllMocks();
     process.env.CRON_SECRET = "test-cron-secret";
-    mockCleanupGlobalAuditLogs.mockResolvedValue({ success: true, data: { deletedCount: 5 } });
+    mockPurgeAuditLogs.mockResolvedValue(auditOutcome({ scanned: 5, deleted: 5, godDeleted: 4, guildDeleted: 1 }));
     mockGodNotifDeleteMany.mockResolvedValue({ count: 12 });
     mockPurgeMarketAuditLogs.mockResolvedValue(emptyMarketOutcome);
     mockRecordCronExecution.mockResolvedValue(true);
@@ -44,7 +56,7 @@ afterEach(() => {
 });
 
 describe("GET /api/cron/cleanup-logs", () => {
-    it("purge audit + notifs God > 90 j et les comptabilise", async () => {
+    it("purge l'audit (90 j God / 30 j guilde) + les notifs God > 90 j et les comptabilise", async () => {
         const req = new Request("http://localhost:3000/api/cron/cleanup-logs", {
             headers: { "x-cron-secret": "test-cron-secret" },
         });
@@ -53,6 +65,9 @@ describe("GET /api/cron/cleanup-logs", () => {
 
         expect(res.status).toBe(200);
         expect(data.deletedCount).toBe(5);
+        // La passe d'audit est appelée SANS argument : elle décide elle-même de ses
+        // deux périmètres et de leur rétention (`src/lib/audit-retention-policy.ts`).
+        expect(mockPurgeAuditLogs).toHaveBeenCalledWith();
         expect(data.godNotifDeleted).toBe(12);
         expect(mockGodNotifDeleteMany).toHaveBeenCalledTimes(1);
         const where = mockGodNotifDeleteMany.mock.calls[0][0].where;
@@ -64,7 +79,11 @@ describe("GET /api/cron/cleanup-logs", () => {
             "cleanup_logs",
             expect.objectContaining({
                 success: true,
-                details: expect.objectContaining({ marketLogsDeleted: 0 }),
+                details: expect.objectContaining({
+                    godDeleted: 4,
+                    guildDeleted: 1,
+                    marketLogsDeleted: 0,
+                }),
             })
         );
     });

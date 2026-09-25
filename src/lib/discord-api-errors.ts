@@ -144,3 +144,43 @@ export function buildDiscordOutboxFailureAlert(args: {
         },
     };
 }
+
+/**
+ * Alerte God **agrégée** : combien de salons refusent les écritures du bot, et
+ * lesquels. Née de la mesure du 25/09/2026 — à l'échelle, une alerte par salon
+ * et par échec noie les alertes métier : le disjoncteur (`discord-channel-health`)
+ * plafonne chaque salon à **une** alerte, et cette ligne donne le tableau
+ * d'ensemble (plafonnée elle aussi par la déduplication).
+ *
+ * Reste **web-only** côté appelant : une alerte qui décrit une panne d'écriture
+ * Discord ne doit jamais repartir sur Discord.
+ */
+export function buildAggregateOutboxFailureAlert(args: {
+    channels: string[];
+    total?: number;
+    kind?: string;
+}): DiscordOutboxFailureAlert {
+    const { channels, kind } = args;
+    const total = args.total ?? channels.length;
+    const shown = channels.slice(0, 10);
+    const rest = total > shown.length ? ` … (+${total - shown.length} autre(s))` : "";
+    const liste = shown.length ? `\nSalons en pause : ${shown.map((c) => `\`${c}\``).join(", ")}${rest}` : "";
+
+    return {
+        title: "Discord Outbox : salons inaccessibles (agrégé)",
+        message:
+            `**${total}** salon(s) Discord refusent les écritures du bot${kind ? ` (${kind})` : ""}. ` +
+            `Un refus permanent (403/50001, 404, 401) met le salon en pause d'écriture 15 min à 6 h : ` +
+            `la file n'y retente plus, et la pause expire pour sonder la réparation.${liste}`,
+        type: "SYSTEM",
+        success: false,
+        ping: true,
+        metadata: {
+            salons: total,
+            listes: shown.length,
+            premier: shown[0] ?? "?",
+            kind: kind ?? "?",
+        },
+    };
+}
+

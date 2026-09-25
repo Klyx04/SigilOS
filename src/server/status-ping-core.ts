@@ -287,6 +287,16 @@ export async function sendGlobalStatusPingCore(
         }
 
         // Horodatage du dernier envoi effectif → garde-fou de fréquence.
+        //
+        // ⚠️ Mesure du 25/09/2026 : `sendChannelMessage` renvoie `outbox:<jobId>` dès
+        // l'acceptation en file (donc AVANT tout envoi réel) — un `finalMessageId`
+        // truthy est bien un « envoi confié », et c'est voulu (sinon on reposterait à
+        // chaque tick de 5 min). Ce qui ne doit JAMAIS arriver, c'est qu'un salon
+        // **inaccessible** avance ce compteur : le disjoncteur
+        // (`@/lib/discord-channel-health`) fait alors renvoyer `null` à
+        // `sendChannelMessage`, donc aucun horodatage — le salon reste sondé sans
+        // bruit jusqu'à sa réparation, au lieu d'être réessayé une fois par heure
+        // (c'était le défaut mesuré : échec à `:10:00` de chaque heure, indéfiniment).
         if (finalMessageId) {
             try {
                 await redis.set(REDIS_STATUS_LAST_TS_KEY, String(Date.now()), "EX", 60 * 60 * 24 * 7);

@@ -35,6 +35,7 @@ import { db } from "@/lib/prisma";
 import { rateLimit } from "@/lib/ratelimit";
 import { sendChannelMessage } from "@/server/discord";
 import { notifyGod } from "@/server/actions/god-notif-actions";
+import { runInOutboxFailureContext } from "@/lib/discord-outbox-context";
 
 const mockDb = db as any;
 
@@ -94,6 +95,72 @@ describe("notifyGod — l'alerte d'échec d'écriture ne repart JAMAIS sur Disco
     });
 });
 
+describe("invariant : une alerte d'ÉCHEC ne repart jamais sur Discord", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        mockDb.platformConfig.findUnique.mockResolvedValue({
+            godNotifyChannelId: "1547020288380637305",
+            godNotifyRoleId: "999",
+        });
+        mockDb.godNotification.create.mockResolvedValue({ id: "notif-1" });
+        (rateLimit as any).mockResolvedValue({ success: true, remaining: 0, reset: Date.now() + 3_600_000 });
+    });
+
+    it("alerte d'ÉCHEC métier (`success: false`) ⇒ Discord est TOUJOURS notifié (on n'éteint pas la surveillance)", async () => {
+        // Mesure : 15 sites du dépôt envoient une alerte d'échec LÉGITIME (NSFW bloqué,
+        // API tierce en difficulté, guilde orpheline, stockage critique, workers…).
+        // Un garde-fou général « échec ⇒ jamais Discord » les aurait toutes muettes.
+        await notifyGod({
+            title: "NSFW bloqué",
+            message: "tentative sur une preuve",
+            type: "SECURITY_ALERT",
+            success: false,
+        });
+
+        expect(sendChannelMessage).toHaveBeenCalledTimes(1);
+    });
+
+    it("émise PENDANT le traitement d'un échec outbox ⇒ AUCUN envoi Discord (garde-fou structurel)", async () => {
+        // C'est le ciblage par CONTEXTE qui rend la boucle impossible, même si un futur
+        // appelant oubliait `webOnly` : l'alerte ne peut pas retourner dans la file
+        // qui vient d'échouer.
+        await runInOutboxFailureContext(() =>
+            notifyGod({
+                title: "Panne d'écriture",
+                message: "détail",
+                type: "SYSTEM",
+                success: false,
+            }),
+        );
+
+        expect(sendChannelMessage).not.toHaveBeenCalled();
+        expect(mockDb.godNotification.create).toHaveBeenCalledTimes(1);
+    });
+
+    it("le contexte est bien borné : une alerte APRÈS le traitement d'échec renotifie Discord", async () => {
+        await runInOutboxFailureContext(async () => undefined);
+        await notifyGod({ title: "Reprise", message: "ok", type: "SYSTEM", success: true });
+
+        expect(sendChannelMessage).toHaveBeenCalledTimes(1);
+    });
+
+    it("erreur Redis sur la déduplication ⇒ l'alerte passe quand même (un doublon vaut mieux qu'un silence)", async () => {
+        (rateLimit as any).mockResolvedValue({ success: false, remaining: 0, reset: 0, error: true });
+
+        await notifyGod({ ...OUTBOX_ALERT, webOnly: true, dedupeKey: "discord-outbox:1547020288380637305" });
+
+        expect(mockDb.godNotification.create).toHaveBeenCalledTimes(1);
+    });
+
+    it("quota réellement dépassé (sans `error`) ⇒ toujours dédupliqué", async () => {
+        (rateLimit as any).mockResolvedValue({ success: false, remaining: 0, reset: 0 });
+
+        await notifyGod({ ...OUTBOX_ALERT, webOnly: true, dedupeKey: "discord-outbox:1547020288380637305" });
+
+        expect(mockDb.godNotification.create).not.toHaveBeenCalled();
+    });
+});
+
 describe("gardes de source — le worker outbox est bien câblé", () => {
     const worker = readFileSync("src/workers/discord-outbox-worker.ts", "utf8");
     const actions = readFileSync("src/server/actions/god-notif-actions.ts", "utf8");
@@ -103,8 +170,26 @@ describe("gardes de source — le worker outbox est bien câblé", () => {
         expect(worker).toMatch(/dedupeKey: `discord-outbox:\$\{failedChannelId \?\? "sans-salon"\}`/);
     });
 
-    it("`notifyGod` coupe l'envoi Discord quand `webOnly` est demandé", () => {
-        expect(actions).toMatch(/if \(targetChannelId && !webOnly\)/);
+    it("`notifyGod` coupe l'envoi Discord hors ET dans le contexte d'échec outbox", () => {
+        expect(actions).toMatch(/if \(targetChannelId && !effectiveWebOnly\)/);
+        expect(actions).toMatch(/const effectiveWebOnly = webOnly \|\| isOutboxFailureContext\(\)/);
         expect(actions).toMatch(/dedupeKey/);
+    });
+
+    it("le worker émet ses alertes DANS le contexte d'échec outbox (anti-boucle structurel)", () => {
+        expect(worker).toMatch(/runInOutboxFailureContext\(\(\) => notifyGod\(\{/);
+    });
+
+    it("le worker met le salon en pause, n'alerte qu'une fois par épisode et lève la pause sur succès", () => {
+        // Une seule alerte par salon jusqu'à la prochaine écriture réussie : à 5 000
+        // guildes, c'est la différence entre 24 alertes/jour/salon et une alerte.
+        expect(worker).toMatch(/markDiscordChannelBlocked\(/);
+        expect(worker).toMatch(/failureCount <= 1/);
+        expect(worker).toMatch(/buildAggregateOutboxFailureAlert\(/);
+        expect(worker).toMatch(/clearDiscordChannelBlock\(/);
+    });
+
+    it("le worker n'alerte PAS quand le disjoncteur est la cause de l'échec (sinon le bruit revient)", () => {
+        expect(worker).toMatch(/isDiscordChannelBlockedError\(err\)/);
     });
 });

@@ -3,6 +3,7 @@ import { logger } from "@/lib/logger";
 
 import { db } from "@/lib/prisma";
 import { rateLimit } from "@/lib/ratelimit";
+import { isOutboxFailureContext } from "@/lib/discord-outbox-context";
 import { sendChannelMessage } from "@/server/discord";
 import { revalidatePath } from "next/cache";
 
@@ -28,8 +29,16 @@ export async function notifyGod(params: {
      * Obligatoire pour une alerte dont la cause est un échec d'écriture Discord :
      * sinon l'alerte repasse par la **même** file qui vient d'échouer (l'écriture
      * est mise en file → 403 permanent → alerte → nouvelle écriture…) et s'auto-alimente.
-     * Mesure du 25/09/2026 : **1 000 alertes + 1 000 jobs en 19 minutes** (~1/s) sur un
+     * Mesure du 25/09/2026 : **4 575 alertes + 4 575 jobs en 90 minutes** (~0,85/s) sur un
      * salon de notifications God inaccessible — voir `src/workers/discord-outbox-worker.ts`.
+     *
+     * ⚠️ Ce drapeau n'est **pas** la seule garantie : le worker exécute tout son
+     * traitement d'échec dans le contexte `runInOutboxFailureContext()`
+     * (`src/lib/discord-outbox-context.ts`), où `notifyGod` **refuse d'office** tout
+     * envoi Discord. Un appelant qui oublierait `webOnly: true` ne peut donc pas
+     * refermer la boucle. En revanche, une alerte d'échec **métier** (NSFW bloqué, API
+     * tierce en difficulté, guilde orpheline) garde son ping Discord : on ne coupe pas
+     * la surveillance pour se protéger d'un mécanisme qui n'est pas en cause.
      */
     webOnly?: boolean;
     /**
@@ -40,20 +49,36 @@ export async function notifyGod(params: {
     dedupeKey?: string;
     dedupeWindowMs?: number;
 }) {
-    const { title, message, type, success = true, metadata, ping = false, forceChannelId, webOnly = false, dedupeKey, dedupeWindowMs } = params;
+    const {
+        title, message, type, success = true, metadata, ping = false, forceChannelId,
+        webOnly = false, dedupeKey, dedupeWindowMs,
+    } = params;
+
+    // 🛑 INVARIANT ANTI-BOUCLE (structurel, pas une convention d'appel) : une alerte
+    // émise PENDANT le traitement d'un échec d'écriture outbox ne repart jamais sur
+    // Discord — elle repasserait par la file qui vient d'échouer. Le ciblage se fait
+    // sur le CONTEXTE et non sur `success === false` : une alerte d'échec légitime
+    // (NSFW bloqué, API tierce en difficulté, guilde orpheline…) doit continuer d'être
+    // poussée sur Discord, sinon on éteindrait la surveillance qu'on veut protéger.
+    const effectiveWebOnly = webOnly || isOutboxFailureContext();
 
     try {
         // 0. ANTI-RAFALE — une même panne (même clé) ne produit qu'une alerte par fenêtre.
-        //    `rateLimit` est fail-closed : si Redis est indisponible il compte en mémoire.
         if (dedupeKey) {
             const allowed = await rateLimit(
                 `god-notify:${dedupeKey}`,
                 1,
                 dedupeWindowMs ?? GOD_NOTIFY_DEDUPE_WINDOW_MS,
             );
-            if (!allowed.success) {
+            // `error: true` = le limiteur est EN PANNE (Redis) et non le quota dépassé :
+            // on préfère un doublon à un silence. Sans cette distinction, une panne Redis
+            // faisait disparaître les alertes de panne (`rateLimit` est fail-closed).
+            if (!allowed.success && !allowed.error) {
                 logger.info("[GodNotify] Alerte dédupliquée (clé déjà alertée dans la fenêtre)", { dedupeKey, title });
                 return { success: true };
+            }
+            if (allowed.error) {
+                logger.warn("[GodNotify] Déduplication indisponible (Redis) — alerte envoyée quand même", { dedupeKey, title });
             }
         }
 
@@ -81,7 +106,7 @@ export async function notifyGod(params: {
         // 2. DISCORD NOTIFICATION — jamais pour une alerte `webOnly` (cf. anti-boucle ci-dessus).
         const targetChannelId = forceChannelId || (platformConfig as any)?.godNotifyChannelId;
 
-        if (targetChannelId && !webOnly) {
+        if (targetChannelId && !effectiveWebOnly) {
             let mention = "";
             if (ping && (platformConfig as any).godNotifyRoleId) {
                 mention = `<@&${(platformConfig as any).godNotifyRoleId}>`;

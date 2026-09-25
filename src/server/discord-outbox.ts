@@ -13,6 +13,10 @@ import {
     getDiscordApiStatus,
     isPermanentDiscordWriteFailure,
 } from "@/lib/discord-api-errors";
+import {
+    DiscordChannelBlockedError,
+    isDiscordChannelBlocked,
+} from "@/lib/discord-channel-health";
 import { isDiscordSnowflake } from "@/lib/discord-ids";
 
 // #223 P3.1 — Outbox des écritures Discord (BullMQ/Redis).
@@ -86,6 +90,13 @@ export async function enqueueDiscordWrite(
     opts?: { jobId?: string }
 ): Promise<string> {
     const validated = DiscordOutboxJobSchema.parse(job); // fail-closed avant enqueue
+    // 🛑 Disjoncteur (mesure du 25/09/2026) : un salon qui a refusé une écriture de
+    // façon PERMANENTE (403/50001, 404, 401) est en pause. Y déposer un job est
+    // inutile (il échouera), coûteux (une entrée de file + une alerte par échec) et
+    // c'est exactement ce qui produisait le bruit à l'échelle — on refuse AVANT la file.
+    if (await isDiscordChannelBlocked(validated.channelId)) {
+        throw new DiscordChannelBlockedError(validated.channelId);
+    }
     const jobId = opts?.jobId ?? stableJobId(validated);
     await discordOutboxQueue.add("discord-write", validated, { jobId });
     return jobId;
@@ -107,6 +118,13 @@ export async function executeDiscordWrite(
 ): Promise<{ success: true; messageId?: string }> {
     const validated = DiscordOutboxJobSchema.parse(job);
     const channelId = validated.channelId;
+
+    // 🛑 Disjoncteur : un job DÉJÀ en file au moment où le salon est tombé en panne
+    // ne doit pas être rejoué (c'est le retry qui entretenait le bruit). Le worker
+    // n'alerte pas sur cette erreur : le garde-fou fonctionne, ce n'est pas un incident.
+    if (await isDiscordChannelBlocked(channelId)) {
+        throw new DiscordChannelBlockedError(channelId);
+    }
 
     try {
         return await dispatchDiscordWrite(validated);

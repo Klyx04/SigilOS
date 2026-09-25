@@ -22,17 +22,19 @@ export default async function GodLogsPage() {
         listGodMarketGuilds(),
     ]);
 
-    // 🧹 Maintenance: Trigger background cleanup of old platform logs (30d retention)
-    const { cleanupGlobalAuditLogs } = await import("@/server/actions/audit-actions");
-    const { logger } = await import("@/lib/logger");
-    cleanupGlobalAuditLogs().catch(err => logger.error("[PlatformCleanup] Failed:", { error: (err as Error).message }));
+    // 🧹 La purge n'est PLUS déclenchée ici : `/god/logs` n'est pas un cron.
+    // Avant l'audit du 24/09, chaque visite lançait `cleanupGlobalAuditLogs()` en
+    // fire-and-forget (un `deleteMany` global sans lot) — et c'était l'un des deux
+    // appelants qui justifiait d'avoir retiré la garde d'accès de la fonction.
+    // La purge vit désormais dans le core `src/server/audit-retention.ts`, appelé
+    // par le cron `/api/cron/cleanup-logs` (90 j God / 30 j guilde, par lot).
 
     return (
         <div className="space-y-8 py-8">
             <div className="flex flex-col gap-4">
                 <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-caption font-semibold text-emerald-400 uppercase tracking-wider w-fit">
                     <Shield className="w-3 h-3" />
-                    Archive Système
+                    Journal plateforme
                 </div>
                 <h1 className="text-2xl md:text-3xl font-bold text-white tracking-tight">
                     Audit Logs
@@ -40,6 +42,11 @@ export default async function GodLogsPage() {
                 <p className="text-zinc-500 max-w-2xl font-medium">
                     Historique complet des actions administratives et des événements de sécurité sur l'ensemble de la
                     plateforme, y compris le journal d'audit du Marché (annonces, réservations, offres, signalements).
+                </p>
+                <p className="text-xs text-zinc-600 max-w-2xl">
+                    Rétention : <span className="text-zinc-400">90 jours</span> pour les actions plateforme (God),
+                    <span className="text-zinc-400"> 30 jours</span> pour les journaux de guilde — purge quotidienne
+                    par le cron <code className="text-zinc-500">cleanup-logs</code>.
                 </p>
             </div>
 

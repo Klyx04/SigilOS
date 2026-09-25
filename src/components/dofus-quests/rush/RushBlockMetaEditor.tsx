@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { MapPin, Link as LinkIcon, ExternalLink, X, Check } from "lucide-react";
 import { validateCoordinate } from "@/lib/rush-rich-meta";
+import { safeImageUrl } from "@/lib/security";
 
 export interface RushBlockMetaValues {
   coord: string;
@@ -34,7 +35,8 @@ export function RushBlockMetaEditor({
   useEffect(() => { setLocalText(values.text || ""); }, [values.text]);
 
   const validatedCoord = validateCoordinate(localCoord);
-  const isValidUrl = localUrl.trim().startsWith("http://") || localUrl.trim().startsWith("https://");
+  const sanitizedUrl = safeImageUrl(localUrl);
+  const isValidUrl = Boolean(sanitizedUrl);
 
   const handleCoordChange = (val: string) => {
     setLocalCoord(val);
@@ -190,12 +192,12 @@ export function RushBlockMetaEditor({
           <div className="flex items-center gap-2 pt-0.5">
             <span className="text-[10px] text-zinc-500">Aperçu :</span>
             <a
-              href={localUrl}
+              href={sanitizedUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1 text-[11px] font-bold text-success hover:underline"
             >
-              {localLabel.trim() || localUrl}
+              {localLabel.trim() || sanitizedUrl}
               <ExternalLink className="w-2.5 h-2.5" />
             </a>
           </div>

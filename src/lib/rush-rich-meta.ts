@@ -11,7 +11,6 @@
  * sans nécessiter de modification de schéma de base de données.
  */
 
-import { safeImageUrl } from "./security";
 
 export interface ParsedBlockMeta {
   coord: string;

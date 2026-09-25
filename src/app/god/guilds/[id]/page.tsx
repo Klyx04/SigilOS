@@ -5,6 +5,8 @@ import { MemberManagementTable } from "@/components/admin/member-management-tabl
 import { Shield, ChevronLeft, Users } from "lucide-react";
 import Link from "next/link";
 import { db } from "@/lib/prisma";
+import { logger } from "@/lib/logger";
+import { GodGuildTabs } from "./god-guild-tabs";
 
 interface GodGuildDetailsPageProps {
     params: Promise<{ id: string }>;
@@ -25,7 +27,14 @@ export default async function GodGuildDetailsPage({ params }: GodGuildDetailsPag
     // Fetch individual guild config for the header
     const guild = await db.guildConfig.findUnique({
         where: { id: guildId },
-        select: { name: true, discordGuildId: true, iconUrl: true, welcomeBadgeName: true }
+        select: {
+            name: true,
+            discordGuildId: true,
+            iconUrl: true,
+            welcomeBadgeName: true,
+            rolesMapping: true,
+            usersMapping: true,
+        }
     });
 
     if (!guild) {
@@ -33,6 +42,31 @@ export default async function GodGuildDetailsPage({ params }: GodGuildDetailsPag
     }
 
     const members = await getGuildMembersForGod(guildId);
+
+    // Données des onglets Logs / Accès & RBAC (audit du 24/09 : aucune des deux
+    // n'existait). Best-effort : une API Discord indisponible ne doit pas casser
+    // la fiche — on affiche alors des listes vides explicites.
+    const { fetchGuildRoles } = await import("@/server/discord");
+    const { getGuildLogsStats } = await import("@/server/actions/storage-actions");
+    const { getRbacUsersMappingEnabled } = await import("@/lib/platform-rbac");
+    const { GodsGuildAccessPanel } = await import("./god-guild-access-panel");
+
+    const [discordRoles, rbacUsersMappingEnabled] = await Promise.all([
+        fetchGuildRoles(guild.discordGuildId).catch(() => [] as { id: string; name: string }[]),
+        getRbacUsersMappingEnabled().catch(() => true),
+    ]);
+
+    const roleNames: Record<string, string> = {};
+    for (const role of discordRoles) roleNames[role.id] = role.name;
+
+    // `getGuildLogsStats` est réservé super-admin (fail-closed) : un sous-god n'a
+    // pas de compteur, il garde les journaux.
+    let logsStats: { serviceLogs: number; auditLogs: number } | null = null;
+    if (isAdmin) {
+        const statsRes = await getGuildLogsStats().catch(() => null);
+        const row = statsRes?.success ? statsRes.data?.rows.find((r) => r.guildId === guildId) : undefined;
+        logsStats = row ? { serviceLogs: row.serviceLogs, auditLogs: row.auditLogs } : null;
+    }
 
     return (
         <div className="space-y-8 py-8">
@@ -115,10 +149,117 @@ export default async function GodGuildDetailsPage({ params }: GodGuildDetailsPag
                 </p>
             </div>
 
-            {/* Super-gestion des modules (§9) — God uniquement */}
-            {isAdmin && (
-                <GodGuildModulesSection discordGuildId={guild.discordGuildId} />
-            )}
+            {/* Super-gestion des modules (§9) + journaux + accès : ONGLETS (audit 24/09) */}
+            <GodGuildTabs
+                logsBadge={logsStats?.auditLogs ?? 0}
+                modules={isAdmin ? (
+                    <GodGuildModulesSection discordGuildId={guild.discordGuildId} />
+                ) : (
+                    <div className="bg-amber-500/5 border border-amber-500/10 rounded-2xl p-6">
+                        <p className="text-xs text-amber-500/80 font-medium leading-relaxed">
+                            <span className="font-black uppercase tracking-widest mr-2">Lecture seule :</span>
+                            les verrous de modules sont réservés au staff plateforme. Un sous-god voit ici
+                            l&apos;état des accès et des journaux, jamais les actions.
+                        </p>
+                    </div>
+                )}
+                logs={<GodGuildLogsSection
+                    discordGuildId={guild.discordGuildId}
+                    guildName={guild.name}
+                    stats={logsStats}
+                />}
+                access={<GodsGuildAccessPanel
+                    ownerId={members.ownerId ?? null}
+                    rolesMapping={(guild.rolesMapping as Record<string, string[]>) ?? {}}
+                    usersMapping={(guild.usersMapping as Record<string, string[]>) ?? {}}
+                    discordRoles={discordRoles}
+                    rbacUsersMappingEnabled={rbacUsersMappingEnabled}
+                    roleNames={roleNames}
+                />}
+            />
+        </div>
+    );
+}
+
+/**
+ * Onglet **Logs** d'une guilde côté God — réutilise le rendu **riche** de la guilde
+ * (`AuditLogsClient` : `changeDetail`, `PermissionChangesDisplay`, pseudos,
+ * filtres action/acteur/date, pagination) au lieu du `JSON.stringify` tronqué du
+ * viewer God (audit du 24/09 : « richesse guilde vs pauvreté God »).
+ */
+async function GodGuildLogsSection({
+    discordGuildId,
+    guildName,
+    stats,
+}: {
+    discordGuildId: string;
+    guildName: string;
+    stats: { serviceLogs: number; auditLogs: number } | null;
+}) {
+    const { AuditLogsClient } = await import("@/app/dashboard/[guildId]/admin/logs/_components/audit-logs-client");
+    const { getAuditLogs } = await import("@/server/actions/audit-actions");
+    const { fetchGuildRoles } = await import("@/server/discord");
+    const { getUserContext } = await import("@/server/actions/user-actions");
+
+    // Garde de lecture : `getAuditLogs` exige `canViewAuditLogs` (God inclus). Un
+    // sous-god sans rôle de guilde obtient un état vide explicite, jamais une erreur.
+    const ctx = await getUserContext(discordGuildId).catch(() => null);
+    if (!ctx?.canViewAuditLogs) {
+        return (
+            <div className="bg-amber-500/5 border border-amber-500/10 rounded-2xl p-6">
+                <p className="text-xs text-amber-500/80 font-medium leading-relaxed">
+                    <span className="font-black uppercase tracking-widest mr-2">Accès :</span>
+                    ce compte n&apos;a pas la permission de lire le journal de cette guilde.
+                </p>
+            </div>
+        );
+    }
+
+    const [logsResult, roles] = await Promise.all([
+        getAuditLogs(discordGuildId, { limit: 20, page: 1 }),
+        fetchGuildRoles(discordGuildId).catch(() => [] as Awaited<ReturnType<typeof fetchGuildRoles>>),
+    ]);
+    const logs = logsResult.success && logsResult.data ? logsResult.data.logs : [];
+    const total = logsResult.success && logsResult.data ? logsResult.data.total : 0;
+
+    const roleNames: Record<string, string> = {};
+    for (const role of roles) roleNames[role.id] = role.name;
+
+    // Dates + BigInt (champs Json Prisma) sérialisés pour le composant client —
+    // même conversion que la page guilde, l'API de pagination est la même.
+    const stringify = (val: unknown) =>
+        val ? JSON.parse(JSON.stringify(val, (_k, v) => (typeof v === "bigint" ? v.toString() : v))) : val;
+    const serializedLogs = logs.map((log) => ({
+        ...log,
+        createdAt: (log.createdAt as Date).toISOString(),
+        metadata: stringify(log.metadata),
+        oldValue: stringify(log.oldValue),
+        newValue: stringify(log.newValue),
+    }));
+
+    return (
+        <div className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="bg-zinc-900/20 border border-white/5 rounded-2xl p-4">
+                    <p className="text-caption font-black text-zinc-500 uppercase tracking-widest">Audit (30 j)</p>
+                    <p className="text-2xl font-black text-white mt-1 tabular-nums">{stats?.auditLogs ?? 0}</p>
+                </div>
+                <div className="bg-zinc-900/20 border border-white/5 rounded-2xl p-4">
+                    <p className="text-caption font-black text-zinc-500 uppercase tracking-widest">Activité services (30 j)</p>
+                    <p className="text-2xl font-black text-white mt-1 tabular-nums">{stats?.serviceLogs ?? 0}</p>
+                </div>
+                <div className="bg-zinc-900/20 border border-white/5 rounded-2xl p-4">
+                    <p className="text-caption font-black text-zinc-500 uppercase tracking-widest">Guilde</p>
+                    <p className="text-sm font-bold text-zinc-300 mt-2 truncate" title={guildName}>{guildName}</p>
+                </div>
+            </div>
+
+            <AuditLogsClient
+                guildId={discordGuildId}
+                initialLogs={serializedLogs}
+                initialTotal={total}
+                roleNames={roleNames}
+            />
         </div>
     );
 }

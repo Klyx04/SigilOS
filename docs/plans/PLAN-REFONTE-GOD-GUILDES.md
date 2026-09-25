@@ -35,7 +35,7 @@
 | PR | Livré le 25/09 | Conséquence pour ce plan |
 |---|---|---|
 | **#739** | Origine d'une guilde = **source unique** (`src/lib/onboarding-gating.ts`) | Les badges `🚀 Autonome` / `🛡️ Pré-approuvée` / `🧑‍🚀 Ticket` sont **exacts** → il reste à les **expliquer** (G1) |
-| **#740** | **Verrou God effectif** (permissions, pages, bot) + écriture durcie (garde d'état, Zod, rate-limit, journal God) | Le verrou marche **sauf pour le God** (`bypassModules = isGod`) → **arbitrage A1** |
+| **#740** | **Verrou God effectif** (permissions, pages, bot) + écriture durcie (garde d'état, Zod, rate-limit, journal God) | Le God garde l'accès **par design** (`bypassModules = isGod`) : **A1 tranché** ⇒ ce n'est **pas** un trou à boucher, le verrou est **côté guilde** ; ce qui manque (carte **grisée**, message, verrou **plateforme**) → **G8 + G12** |
 | **#741** | Rétention **90 j God / 30 j guilde** + purge batchée hors server action | Compteurs et pagination des logs restent à soigner (G6) |
 | **#742** | Audit/sécurité **filtré en base** + 2 index | La tour de contrôle ne doit plus afficher **deux fois le même flux** (G2) |
 | **#743** | Fiche guilde **à onglets** (Modules / Logs / Accès & RBAC) | **Base à refondre** : grille modules **nue**, panneau Accès **illisible** (G3/G4/G5) |
@@ -60,19 +60,25 @@
 
 → **G1** : ces définitions doivent vivre dans l'UI (légende dépliable + `title` sur chaque badge), pas dans un doc.
 
-## 3. Arbitrages à trancher AVANT de coder
+## 3. Arbitrages — **TRANCHÉS le 25/09/2026** (réponses user ; verbatim pour A1/A2/A8)
 
-| # | Question | Défaut proposé |
-|---|---|---|
-| **A1** | Le **verrou de module s'applique-t-il au God** lui-même ? Aujourd'hui non (`bypassModules = isGod`, décision §9 « seul le God contourne »). L'utilisateur veut « on doit rien afficher » — donc **oui**. | **Oui** : verrou = invisible pour **tout le monde** ; le God pilote depuis `/god` uniquement. Garde-fou : `admin` reste **jamais** verrouillable (sinon plus de panneau de config). |
-| **A2** | Le **message « en maintenance »** : global (plateforme) ou par guilde ? Qui le rédige ? | **Global** (God) + **note par guilde** possible ; stocké sans migration si possible (`PlatformConfig`), sinon migration additive. |
-| **A3** | Le **toggle guilde** (module OFF par l'admin) écrit-il aussi « en maintenance » ? | Non : côté client on distingue **« Désactivé par ta guilde »** (toggle) et **« Indisponible — maintenance »** (verrou God). |
-| **A4** | Les actions du God sur un membre (ban, purge depuis la fiche guilde) : **visibles** dans le journal de la guilde ? | **Non** (verbatim 10) : toute action d'un God part dans le **journal God** (`isGodLog: true`, sans `guildId`). |
-| **A5** | Le God voit-il **toutes** les guildes sans condition (verbatim 9) ? | **Oui** : `isSuperAdmin()` ⇒ lecture **toujours** accordée (le « pas la permission » actuel est un défaut). |
-| **A6** | La tour de contrôle : combien d'actions visibles ? | **1 action primaire par bloc** + un menu « ⋯ » pour le reste ; les actions destructrices passent en **zone danger** confirmée. |
-| **A7** | Carte **« Comptes (Plateforme) »** (D2) : on la **branche** (créer l'action « demander la suppression de mon compte » qui écrit `User.deletionRequestedAt` + `scheduledDeletion`) ou on la **supprime** ? | **Supprimer maintenant** : le panneau ne peut rien montrer (aucun écrivain), et la suppression de compte n'existe pas côté membre. Le jour où ce flux produit est décidé, panneau **et** action se codent dans le **même chantier**. Interdiction de laisser un vert « La plateforme est propre » qui ne prouve rien. |
-| **A8** | Le **cycle de vie** (D1 : `LifecyclePanel` mort, `GhostRadarPanel`/`JanitorButton` importés mais non montés) : on le **ressuscite** dans la fiche guilde ou on le **supprime** ? | **Supprimer** les 3 composants orphelins + `LifecycleServer` (le message menteur) ; **garder** `god-lifecycle-actions.ts` (les actions geler/dégeler vivent dans `guild-table.tsx`). Si le God a besoin de voir le soft-delete, il le voit dans **un onglet de `/god/logs`** (G11), pas dans un panneau séparé. |
-| **A9** | `AuditLog.GOD_DASHBOARD_ACCESS` (72 % du journal mesuré en dev) **et** `GodSessionLog` qui doublonne : on garde quoi ? | **Une seule source** : la **session** (`GodSessionLog`) reste, la **navigation** ne produit plus une ligne d'audit unitaire — le journal affiche un **compteur d'accès God agrégé** par jour. Règle générale : *une visite n'est pas un événement de sécurité*. |
+> Les 11 décisions ci-dessous sont **fermes** : une PR qui les contredit est refusée. Les mentions
+> « **à faire** » / « **tu gères** » signalent les cas où le user a renvoyé la décision au défaut proposé.
+> ⚠️ **A1 est la décision la plus mal comprise** : relire sa formulation avant de toucher à `bypassModules`.
+
+| # | Décision |
+|---|---|
+| **A1** | **Le verrou n'est PAS une question de God : c'est le module, pour CETTE guilde, qui devient indisponible.** Verbatim : « *je ne veux pas verrouiller tel module au God, je veux que le verrou d'un module pour une guilde grise le module* » dans `/dashboard/[guildId]/admin/pilotage`, « *qu'il ne soit juste pas dispo à l'activation pour une guilde et si il était déjà actif cela doit le désactiver* », « *cacher le module en navbar* », « *et bien sûr tout vérifié côté serveur sécu* ». ⇒ **5 obligations** : ① la carte est **grisée** (pilotage **et** `/admin/modules`) ; ② toggle **inerte** + **refus serveur** dans `updateGuildModules` ; ③ module **déjà actif** ⇒ **OFF effectif** (toggle **conservé** en BDD : au délock, l'état revient **sans perte**) ; ④ **absent de la navbar** + URL directe **rebouchée** vers le dashboard ; ⑤ garde **serveur** partout (page, navbar, action, **bot**), fail-closed. `admin` reste **jamais** verrouillable. **⚠️ Ne PAS en déduire qu'on verrouille le God : `bypassModules = isGod` reste en place** (le God garde l'accès technique ; c'est le module **pour la guilde** qui est éteint). |
+| **A2** | **Message « indisponible » affiché SUR LA CARTE du module** (texte libre du God) **+ une nouvelle vue God « Modules »** (→ **G12**) listant **tous** les modules/features, où le God peut **désactiver globalement pour toutes les guildes** et **écrire un message perso sur la carte** d'un module. Verbatim : « *le message "indisponible" maintenance ce que je voulais dire c'est de pouvoir afficher un message sur la carte d'un module indisponible pour les guildes* » … « *une nouvelle vue coté GOD ou tous les modules/features sont dispo que je puisse les désactiver de façon globale pour toutes les guildes et y ajouter un message sur une carte module : maintenance etc, un message perso* ». |
+| **A3** | **Rejoint A2** : trois niveaux **distincts**, jamais confondus, et le mot « staff » **disparaît** de l'interface — ① **verrou plateforme** (le God, toutes les guildes) → « **Indisponible — maintenance** » + message perso ; ② **verrou de guilde** (le God, cette guilde ; existant `GuildModules.disabledByGod`) → même libellé, message possible ; ③ **toggle de la guilde** (son propre choix) → « **Désactivé par ta guilde** ». |
+| **A4** | **« À faire »** (défaut appliqué) : tes actions sur un membre (ban, purge, déblocage…) ne laissent **aucune** trace dans le journal de la guilde — tout part en **journal God** (`isGodLog: true`, sans `guildId`) — **+ un test unitaire** qui le verrouille (non-régression du verbatim 10). |
+| **A5** | **« À faire »** (défaut appliqué) : le God lit **toujours** (`isSuperAdmin()` ⇒ lecture accordée, verbatim 9) ; « **erreur de chargement** » et « **accès refusé** » ne s'affichent **jamais** avec le même texte. |
+| **A6** | **« Tu gères »** : **1 action primaire par bloc** sur la tour de contrôle, le reste dans un `⋯` ; tout destructif en **zone danger** confirmée. |
+| **A7** | **« Tu gères »** ⇒ **supprimer la carte « Comptes (Plateforme) »** (dette **D2** : aucun code n'écrit ses colonnes, donc « ✓ Aucune / La plateforme est propre » est un **faux positif**, et la légende attribue au *Janitor* une purge qui appartient au cron `account-retention`). Si un jour un membre peut **demander** la suppression de son compte, l'action **et** le panneau se codent dans le **même chantier**. |
+| **A8** | Verbatim : « **il faut des choses simples et fonctionnelles, marre des doublons partout** » ⇒ **supprimer** le placeholder `LifecycleServer` et les composants orphelins `LifecyclePanel`, `GhostRadarPanel`, `JanitorButton` (dette **D1**) ; **garder** les actions serveur utiles (`god-lifecycle-actions.ts` : geler/dégeler vit dans `guild-table.tsx`) ; **une seule** porte pour le cycle de vie et les logs → `/god/logs` (**G11**). |
+| **A9** | **« Tu gères »** ⇒ **une seule source de trace** : `GodSessionLog` (la session) **reste**, `AuditLog.GOD_DASHBOARD_ACCESS` n'ajoute **plus une ligne par visite** (compteur **agrégé** par jour). Règle : *une visite n'est pas un événement de sécurité*. |
+| **A10** | **« Tu gères »** ⇒ `GodAccessLog` (55 lignes écrites par `god-delegate-actions.ts`, **jamais lues**) est **exposé** dans `/god/logs` (onglet « Accès délégués ») : c'est de la vraie sécurité (qui a donné/retiré quel accès, à qui). |
+| **A11** | Défaut appliqué ⇒ onglet « **Journal de guilde** » dans `/god/logs` : **lecture seule**, filtrable par guilde, **sans aucune** action God à l'intérieur (A4). |
 
 
 ## 4. Chantiers (1 chantier = 1 branche = 1 PR → `dev`)
@@ -99,19 +105,47 @@
   Distinguer dans l'UI « erreur de chargement » et « accès refusé » (jamais le même texte).
 - **Recette** : un God ouvre **n'importe quelle** fiche guilde → 3 onglets lisibles, **aucun** message d'accès.
 
-### G8 — Verrou **invisible partout** + « indisponible : maintenance » (verbatims 6 & 7)
-- **Mesure à refaire en début de chantier (2 min, avant tout correctif)** : verrouiller un module depuis
-  `/god/guilds/[id]`, puis ① navbar **avec un compte membre** (le God contourne **par design** → dépend de **A1**) ;
-  ② `curl` de l'URL du module verrouillé (attendu : **rebouclage** vers `/dashboard/[guildId]`) ; ③ commande bot liée
-  (ex. `/songes`) → refus.
-- ⚠️ **Ce qui est déjà vrai — ne pas « re-corriger »** : la navbar lit `getGuildModules` (**lock-aware**, donc masquée),
-  et les pages testent `!isSuperAdmin && !isModuleEnabled(...)` (donc refusées). Le **seul trou connu** est le
-  **bypass God** (`bypassModules = isGod` dans `getUserContext`) → c'est exactement **A1**.
-- **Correctif** : appliquer A1 (fin du bypass God), ramener toutes les gardes de page à **une source unique**
-  (`resolveEffectiveModules` de `src/lib/module-lock.ts`), et **masquer** (jamais un lien mort).
-- **Côté client** : « **Verrouillé par le staff** » → « **Indisponible — maintenance** » + **message customisable**
-  (A2/A3). Fichiers : `admin/modules/_components/modules-client.tsx`, `admin/pilotage/page.tsx`,
-  `src/lib/module-lock.ts` (exposer la *raison* du verdict : toggle vs verrou), message en base.
+### G8 — Verrou de module : **OFF effectif côté guilde, invisible partout** (A1, verbatims 6 & 7)
+- **Ce que le user veut** (verbatim A1, c'est la demande exacte) : poser le verrou depuis la console God ⇒
+  ① la carte du module est **grisée** dans `/dashboard/[guildId]/admin/pilotage` (onglet Modules) **et**
+  `/admin/modules` ; ② il n'est **pas activable** (toggle **inerte** + **refus serveur**) ; ③ s'il était **déjà
+  actif**, il devient **OFF effectif** (le toggle de la guilde est **conservé** en BDD → au délock, l'état revient
+  **sans perte**) ; ④ il **disparaît de la navbar** et l'**URL directe reboucle** vers le dashboard ; ⑤ **tout est
+  vérifié côté serveur** (page, navbar, action, **bot**), fail-closed.
+- ⚠️ **Ce qui N'EST PAS demandé** : verrouiller l'accès **du God**. `bypassModules = isGod`
+  (`src/server/actions/user-actions.ts`) **reste en place** — c'est le module **pour la guilde** qui est éteint, pas
+  l'accès du God. « Corriger » ce bypass serait une **régression** de la demande.
+- **Ce qui est déjà vrai (ne pas refaire)** : lecture appliquée par `applyGodLocks` (`src/lib/module-lock.ts`) ;
+  `getGuildModules` l'applique et la navbar est **lock-aware** ; `updateGuildModules` **refuse** le toggle d'un module
+  verrouillé ; `admin` non verrouillable ; `setModuleGodLock` durci (Zod, rate-limit, garde d'état, `GOD_MODULE_LOCK`).
+- **Reste à faire** : ① **une seule** résolution effective — `src/lib/module-lock.ts` expose
+  `resolveModuleState(...) → { enabled, lockedBy: "platform" | "guild" | null, notice }` et **tous** les consommateurs
+  l'utilisent (page, navbar, action, `getUserContext`, bot) ; ② **griser la carte** (aujourd'hui seul le toggle est
+  désactivé) ; ③ remplacer « Verrouillé par le staff » par « **Indisponible — maintenance** » + **message perso** (A2) ;
+  ④ test unitaire du scénario complet : *module actif + verrou ⇒ lecture OFF, `isModuleEnabled` false, toggle refusé,
+  navbar masquée, bot refusé*.
+- **Fichiers** : `src/lib/module-lock.ts` · `src/server/actions/module-actions.ts` (`getGuildModules`,
+  `updateGuildModules`, `getModuleGodLocks`) · `src/server/actions/user-actions.ts` (`getUserContext`) ·
+  `src/components/layout/app-sidebar.tsx` · `src/app/dashboard/[guildId]/admin/modules/_components/modules-client.tsx` ·
+  `src/app/dashboard/[guildId]/admin/pilotage/page.tsx` · `services/discord-bot/index.ts` (`internalCheckPermission`).
+
+### G12 — Vue God « Modules » : verrou **global plateforme** + message perso (A2/A3)
+- **Ce que le user veut** : **un seul écran God** qui liste **tous** les modules/features, où il peut
+  **désactiver globalement pour toutes les guildes** et **écrire un message perso** affiché sur la carte du module
+  côté guilde (« Maintenance en cours — de retour vendredi »).
+- **Stockage** : `PlatformConfig` est **déjà** la maison des kill-switch God (`maintenanceMode`, `maintenanceMessage`,
+  `autoOnboardingEnabled`, `rbacUsersMappingEnabled`, `forceDarkMode`) ⇒ **migration additive** :
+  `disabledModules String[] @default([])`, `moduleNotices Json?` (message par clé), `disabledModulesUpdatedAt/By`
+  (traçabilité, comme les autres toggles). **Pas** de nouvelle table.
+- **Règles** : `admin` **jamais** verrouillable globalement (sinon plus aucun panneau de config dans aucune guilde) ;
+  Zod **borné** (message ≤ 280 caractères, clés **issues du registre** `DEFAULT_MODULES`) ; **garde d'état** dans le
+  `WHERE` ; **rate limit** ; `createGodAuditLog` (`GOD_MODULE_LOCK`, périmètre **plateforme**) ; action
+  **super-admin only** ; `invalidateModuleCache` (ou TTL 30 s assumé et **documenté**) après écriture.
+- **Où** : **nouvelle entrée de nav** God « Modules » (brique `modules`, `subGodAccess: false`) — voisine de l'entrée
+  existante « Icônes Modules » (`god-nav-config.ts:94`) ; la vue par guilde reste dans la fiche guilde (`G4`).
+- **Recette** : God ⇒ verrou global sur `songes` + message ⇒ **toutes** les guildes perdent la carte (grisée +
+  message), la navbar, l'URL, la commande bot ; **aucune** guilde ne garde l'accès ; au déverrouillage, l'état
+  antérieur revient **intact**.
 
 ### G4 — Onglet Modules côté God : les **mêmes cartes** que l'admin (verbatim 5)
 - **Douleur** : la grille God affiche `missions / Inactif (guilde)` + un cadenas — **nue** : pas d'icône de module,
@@ -193,23 +227,33 @@
 | **D2** | Carte **« Comptes (Plateforme) »** : « ✓ Aucune / La plateforme est propre » s'affiche **par construction** — c'est un **faux positif** de sécurité, pas un résultat. La légende est **inexacte** : elle attribue la suppression définitive au *Janitor*, qui ne touche **jamais** un `User` (il ne purge que les orphelins > 7 j, `GuildConfig` et `UserProfile`). | `deletion-pending-panel.tsx:1-118` + `super-admin-actions.ts:1146` ; **aucune écriture** de `User.deletionRequestedAt` dans tout `src/` (3 occurrences : 1 migration + le schema + la lecture) ; mesures locales : `User` en attente **0**, `GuildConfig` soft-delete **0**, `UserProfile` soft-delete **0** ; la vraie purge des comptes = `/api/cron/account-retention` → `purgeOrphanAccountsCore` (90 j, `profiles: none ACTIVE`, gardes super-admin + `guildEvents`). | **A7** → suppression maintenant ; le jour où un membre peut **demander** la suppression de son compte, l'action et le panneau se codent **ensemble**. |
 | **D3** | **Mutualisation absente** : `/god?tab=security` (`GlobalLogsServer`, 200 lignes, `category: "security"`) et `/god/logs` (`LogViewer`, 50/page) affichent **le même `AuditLog`** ; la navigation du God est journalisée **deux fois** et **noye** le journal (sur la capture bêta : 831 entrées, majoritairement des visites). | `page.tsx:296-324` vs `logs/page.tsx` ; `god-nav-config.ts:65-66` ; mesures locales : `AuditLog` **1032** (dont **867** `isGodLog`), `GOD_DASHBOARD_ACCESS` **748**, `GodSessionLog` **490**, `AccessAttempt` **1**, `GodAccessLog` **55** (écrit, **jamais** exposé), `GodNotification` **78**. | **G11** (+ **A9**) : un seul écran, accès God agrégé, `GodAccessLog` soit exposé soit arrêté. |
 
-## 5. Ordre conseillé (dépendances)
+## 5. Ordre d'exécution — **one shot, lot par lot, 1 lot = 1 PR vers `dev`** (décidé le 25/09)
 
-1. **A1/A5 tranchés** (décisions, pas de code) → sinon G8 repart en arrière. **A7/A8/A9** se tranchent avec le lot 0
-   ci-dessous (ce sont des suppressions, pas des refontes).
-2. **Lot 0 — le mort d'abord** (2 fichiers, aucune surface refondue) : **G11-①/⑤** (une seule porte de nav, suppression
-   du placeholder `LifecycleServer` + carte « Comptes (Plateforme) » + composants orphelins *selon A7/A8*), puis
-   **A9** (accès God agrégé). C'est ce qui rend l'onglet **Sécurité** crédible **avant** toute refonte visuelle.
-3. **G7** (bug bloquant pour toi, 1 fichier) → **G8** (verrou visible/rebouclage + message maintenance) → **G4** (cartes modules).
-4. **G1** (langage/légende) → **G2** (tour de contrôle) → **G6 + G11-②③④** (le journal : pagination + onglets
-   mutualisés — même composant, un seul lot) → **G3** (roster) → **G5** (RBAC) → **G9** (users).
-5. **G10** (déslop/responsive) se fait **par lots**, en même temps que chaque écran touché — jamais un « big bang ».
+> Les 11 arbitrages sont **tranchés** (§3) et le user demande d'**exécuter tout**, sans redemander la suite
+> (arrêt uniquement si une **mesure** contredit ce plan, cf. §7). Un lot n'attend pas le suivant pour être mergé.
+
+| Lot | Contenu | Chantiers | Pourquoi ce rang |
+|---|---|---|---|
+| **0** | **Le mort d'abord** : suppression du placeholder `LifecycleServer`, des composants orphelins `LifecyclePanel` / `GhostRadarPanel` / `JanitorButton`, de la carte « Comptes (Plateforme) » et des imports non utilisés | A7 · A8 | Zéro risque ; supprime un **faux positif de sécurité** et un cul-de-sac. L'onglet Sécurité devient **honnête** avant d'être joli |
+| **1** | **Le verrou de module côté guilde** : résolution unique (`resolveModuleState`), carte **grisée**, toggle inerte + **refus serveur**, navbar, URL rebouchée, bot, tests | **G8** (A1) | C'est **la** demande fonctionnelle ; le lot 2 (le message) s'y branche |
+| **2** | **Vue God « Modules »** : migration additive (`PlatformConfig.disabledModules` + `moduleNotices`), écran God, action durcie, **message perso** affiché sur la carte côté guilde | **G12** (A2/A3) · G4 | Livrer le **contenu** avant la **forme** ; techniquement dépend du lot 1 |
+| **3** | **Les logs : une seule porte** : `/god/logs` unifié (5 onglets), `?tab=security` **redirigé**, accès God **agrégé**, onglet « Accès délégués », « Journal de guilde », pagination numérotée | **G11** (A9/A10/A11) · G6 | Supprime le doublon de nav et le bruit **mesuré** (72 % du journal = des visites) |
+| **4** | **Le God voit tout** : lecture toujours accordée, « erreur de chargement » ≠ « accès refusé », **aucune** trace God dans le journal de guilde (+ test) | G7 · A4 · A5 | Correctifs ciblés, une fois les écrans stabilisés |
+| **5** | **Langage, tour de contrôle, roster, RBAC, users** : glossaire dans l'UI, 1 action primaire par bloc, colonnes utiles, libellés de permissions | G1 · G2 · G3 · G5 · G9 | La refonte visuelle, sur une base fonctionnelle saine |
+| **6** | **Déslop par lots** : jetons sémantiques, kit God, plafond de `tests/unit/god-deslop.test.ts` qui **baisse** | G10 | Jamais un « big bang » : écran par écran, en accompagnement des lots 3 → 5 |
+
+**Preuve exigée pour chaque lot** : mesure avant/après (capture 1440 / 1024 / 390 pour une UI, compteur chiffré pour une
+donnée) · `npm run test:run` · `npx tsc --noEmit` · `npm run lint` · `git status --short` propre · `gh pr checks` vert.
 
 ## 6. Recette globale (DoD de la refonte)
 
 - [ ] Un God ouvre n'importe quelle guilde : **aucun** message d'accès, 3 onglets lisibles, **0 slug brut**.
-- [ ] Verrou posé ⇒ module **absent** de la navbar, **URL rebouchée** vers le dashboard, **commande bot refusée**,
-      **message « maintenance »** visible côté guilde (et **aucune** mention « staff »).
+- [ ] Verrou posé (**A1**) ⇒ carte du module **grisée** dans `/admin/pilotage` **et** `/admin/modules`, toggle **inerte**
+      avec **refus serveur**, module **déjà actif** ⇒ **OFF effectif** (et **retour intact** au déverrouillage),
+      module **absent** de la navbar, **URL rebouchée** vers le dashboard, **commande bot refusée** — et **aucune**
+      mention « staff » nulle part.
+- [ ] Le God (**A2**) peut **désactiver globalement** un module pour **toutes** les guildes depuis sa vue « Modules » et
+      poser un **message perso** qui s'affiche **sur la carte** du module côté guilde.
 - [ ] Aucune action God visible dans le journal de la guilde (verbatim 10) — vérifier **après** une action God sur un membre.
 - [ ] Chaque badge de statut a un `title` + une légende accessible (verbatim 2).
 - [ ] **Une seule** entrée de nav pour les logs (`/god/logs`), `?tab=security` redirigé, **aucun** placeholder ni
@@ -275,9 +319,10 @@
 git fetch origin dev && git switch dev && git pull            # dev contient #739 → #744
 npm run test:run && npx tsc --noEmit                          # état de départ attendu : vert
 ```
-**À lire** : ce fichier + `docs/agents/activeContext.md` (bloc « Session 25/09/2026 (God, refonte) ») + le verbatim §0.
-**À trancher AVANT tout commit** : **A1-A9** (§3) — en particulier **A7/A8** (supprimer la carte « Comptes
-(Plateforme) » et le placeholder `LifecycleServer` ? → lot 0 de l'ordre §5).
+**À lire** : ce fichier + `docs/plans/AMORCE-REFONTE-GOD-GUILDES.md` + `docs/agents/activeContext.md` (bloc
+« Session 25/09/2026 (God, refonte) ») + le verbatim §0.
+**Arbitrages** : **A1-A11 tranchés** le 25/09 (§3) — **aucune** décision à redemander. Attention particulière à
+**A1** : le verrou est **côté guilde**, `bypassModules = isGod` **reste**.
 **À ne pas relire** : les 3 audits de `temp/` (arbitrés), le mémo externe (corrigé le 25/09).
 **Pièges connus** : `src/app/god/**` est allowlisté dans `sigil/no-hardcoded-colors` (le déslop ne casse pas le lint,
 il n'est donc **pas** détecté) · `moduleCache` (30 s) et le cache Redis du contexte (`user:ctx:*`) peuvent masquer un

@@ -66,7 +66,7 @@ describe("déslop God — recette de carte unique", () => {
         // Mesure du 25/09/2026 : 86 fichiers dans src/app/god, dont la majorité garde des
         // palettes zinc/violet (allowlist ESLint). Ce plafond ne peut que DÉCROÎTRE — il
         // matérialise le reste du chantier, il ne l'excuse pas.
-        const CEILING = 90;
+        const CEILING = 85;
         const godFiles = walk(GOD_ROOT).filter((f) => /\.tsx?$/.test(f));
         expect(godFiles.length).toBeLessThanOrEqual(CEILING);
     });

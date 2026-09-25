@@ -55,9 +55,10 @@ export const AUDIT_SCOPE_FILTER_OPTIONS: readonly { value: "all" | "platform" | 
 ];
 
 /**
- * **Une seule** liste de filtres d'action, partagée par les deux écrans God
- * (`log-viewer.tsx` et `audit-feed-panel.tsx`) — ils en avaient deux différentes,
- * ce qui donnait l'illusion de deux sources de données.
+ * **Une seule** liste de filtres d'action, partagée par le **seul** viewer de
+ * journaux (`src/app/god/logs/log-viewer.tsx` : onglet plateforme **et** onglet
+ * guilde). Les deux écrans God en avaient deux différentes — et prétendaient donc
+ * afficher deux sources de données qui n'en étaient qu'une.
  */
 export const AUDIT_ACTION_FILTER_OPTIONS: readonly {
     value: string;

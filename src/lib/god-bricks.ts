@@ -31,8 +31,10 @@ export const GOD_BRICKS = [
     { id: "market",         label: "Marché (supervision)",  scope: null, group: "supervision", subGodAccess: false },
 
     // ─── Administration (sécurité) ─────────────────────────────────────────
-    { id: "security",       label: "Sécurité & Logs",       scope: null, group: "admin",       subGodAccess: false },
-    { id: "logs",           label: "Audit Logs (Archive)",   scope: null, group: "admin",       subGodAccess: false },
+    // 🧭 G11 · A11 — les journaux sont **une seule porte** (`/god/logs`, 5 onglets :
+    // plateforme, guilde en lecture seule, accès refusés, Marché, accès délégués).
+    // L'ancienne brique `security` (même écran, même `AuditLog`) est **fusionnée ici**.
+    { id: "logs",           label: "Journaux & audit",        scope: null, group: "admin",       subGodAccess: false },
     { id: "delegates",      label: "Sous-Gods (accès)",     scope: null, group: "admin",       subGodAccess: false },
     { id: "onboarding",     label: "Onboarding B2B",        scope: null, group: "admin",       subGodAccess: false },
     { id: "api-keys",       label: "Clés d'API & Dev",      scope: null, group: "admin",       subGodAccess: false },

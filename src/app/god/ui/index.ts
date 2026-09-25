@@ -5,3 +5,4 @@ export { GodSectionHeader } from "./god-section-header";
 export { GodEmptyState } from "./god-empty-state";
 export { GodLoadingSkeleton } from "./god-loading-skeleton";
 export { GodPanel, GodPanelGrid } from "./god-panel";
+export { GodPagination } from "./god-pagination";

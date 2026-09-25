@@ -193,6 +193,13 @@ type Props = {
     initialLogs: AuditLog[];
     initialTotal: number;
     roleNames: Record<string, string>;
+    /**
+     * 🛡️ G7/A5 — **mode God** : id **interne** de la guilde (`GuildConfig.id`). Quand il
+     * est fourni, la pagination et les filtres passent par la route **plateforme**
+     * (`/api/god/audit-logs`, super-admin obligatoire) au lieu de la route de guilde,
+     * qui évalue le RBAC Discord d'un God qui n'est pas membre du serveur.
+     */
+    godGuildConfigId?: string;
 };
 
 const ITEMS_PER_PAGE = 20;
@@ -272,7 +279,7 @@ function PermissionChangesDisplay({
     );
 }
 
-export function AuditLogsClient({ guildId, initialLogs, initialTotal, roleNames }: Props) {
+export function AuditLogsClient({ guildId, initialLogs, initialTotal, roleNames, godGuildConfigId }: Props) {
     const [logs, setLogs] = useState<AuditLog[]>(initialLogs);
     const [total, setTotal] = useState(initialTotal);
     const [page, setPage] = useState(1);
@@ -330,7 +337,14 @@ export function AuditLogsClient({ guildId, initialLogs, initialTotal, roleNames 
                 params.set("dateTo", dateTo);
             }
 
-            const res = await fetch(`/api/guild/${guildId}/audit-logs?${params.toString()}`);
+            const url = godGuildConfigId
+                // 🛡️ G7/A5 — mode **God** : la pagination passe par la route plateforme
+                // (super-admin obligatoire pour un `guildConfigId`), jamais par la route
+                // de guilde qui évalue le RBAC Discord du God.
+                ? `/api/god/audit-logs?scope=guild&guildConfigId=${encodeURIComponent(godGuildConfigId)}&${params.toString()}`
+                : `/api/guild/${guildId}/audit-logs?${params.toString()}`;
+
+            const res = await fetch(url);
             if (res.ok) {
                 const data = await res.json();
                 setLogs(data.logs);
@@ -341,7 +355,7 @@ export function AuditLogsClient({ guildId, initialLogs, initialTotal, roleNames 
         } finally {
             setLoading(false);
         }
-    }, [guildId, page, actionFilter, debouncedSearch, debouncedActor, dateFrom, dateTo]);
+    }, [guildId, godGuildConfigId, page, actionFilter, debouncedSearch, debouncedActor, dateFrom, dateTo]);
 
     useEffect(() => {
         // Skip initial fetch since we have initialLogs

@@ -1,13 +1,33 @@
 "use client";
 
+/**
+ * `/god/logs` — **une seule porte** pour les journaux (G11 · A9 · A10 · A11).
+ *
+ * Avant : deux entrées de nav (« Sécurité & Logs » `?tab=security`, 200 lignes
+ * brutes, et « Audit Logs » `/god/logs`) affichaient le **même** `AuditLog` — le
+ * second journalisait en plus chaque visite du God (749 lignes, **72 %** du
+ * journal). Il ne reste qu'une entrée de nav ; `?tab=security` **redirige** ici.
+ *
+ * Les cinq onglets couvrent ce que la plateforme **écrit** réellement :
+ *  ① **Journal plateforme** — actions God (`isGodLog: true`) ;
+ *  ② **Journal de guilde** — `isGodLog: false`, filtrable par guilde, **lecture seule** (A11) ;
+ *  ③ **Accès refusés** — `AccessAttempt` (connexions refusées) ;
+ *  ④ **Audit du Marché** — `MarketAuditLog` (module Marché) ;
+ *  ⑤ **Accès délégués** — `GodAccessLog`, écrit depuis l'origine et **jamais lu** (A10).
+ * Les compteurs d'accès God ne sont plus des lignes de journal : ils sont agrégés
+ * par jour dans l'entête de la page (A9).
+ */
+
 import { useState } from "react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { LogViewer } from "./log-viewer";
-import { MarketLogView } from "./market-log-view";
-import { ScrollText, ShieldX, CheckCircle2, Building2, UserX, ShoppingBag } from "lucide-react";
-import type { GodMarketLogRow } from "@/server/actions/god-market-actions";
 import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
+import { Building2, CheckCircle2, KeyRound, ScrollText, ShieldX, ShoppingBag, UserX } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import type { GodMarketLogRow } from "@/server/actions/god-market-actions";
+import type { GodAccessLogEntry } from "@/server/actions/audit-actions";
+import { LogViewer, type GodLogRow } from "./log-viewer";
+import { MarketLogView } from "./market-log-view";
+import { DelegatedAccessView } from "./delegated-access-view";
 
 interface AccessAttempt {
     id: string;
@@ -19,14 +39,22 @@ interface AccessAttempt {
 }
 
 interface LogsTabsProps {
+    /** Journal **plateforme** (actions God) — page 1 rendue par le serveur. */
+    platformLogs: GodLogRow[];
+    platformTotal: number;
+    platformSecurityCount: number;
+    /** Journal **d'une guilde** (ou de toutes) — lecture seule, page 1 côté serveur. */
+    guildLogs: GodLogRow[];
+    guildTotal: number;
+    guildSecurityCount: number;
+    /** Guildes **internes** (id + nom) : filtre du journal de guilde **et** du Marché. */
+    guilds: { id: string; name: string }[];
     attempts: AccessAttempt[];
     attemptsTotal: number;
-    initialLogs: any[];
-    initialTotal: number;
-    /** Journal d'audit du **Marché** (onglet dédié — décision user 18/09/2026). */
     marketLogs: GodMarketLogRow[];
-    /** Guildes **internes** (id + nom) pour le filtre du journal du marché. */
-    marketGuilds: { id: string; name: string }[];
+    /** Journal des **accès délégués** (`GodAccessLog`, A10). */
+    delegatedLogs: GodAccessLogEntry[];
+    delegatedTotal: number;
 }
 
 const REASON_LABELS: Record<string, string> = {
@@ -34,101 +62,131 @@ const REASON_LABELS: Record<string, string> = {
     DISCORD_API_ERROR: "API Discord indisponible (pas de profil connu)",
 };
 
+const TAB_TRIGGER_CLASS =
+    "rounded-lg px-3 py-2 text-body-sm font-semibold text-muted-foreground transition-colors data-[state=active]:bg-foreground data-[state=active]:text-background";
+
 export function LogsTabs({
+    platformLogs,
+    platformTotal,
+    platformSecurityCount,
+    guildLogs,
+    guildTotal,
+    guildSecurityCount,
+    guilds,
     attempts,
     attemptsTotal,
-    initialLogs,
-    initialTotal,
     marketLogs,
-    marketGuilds,
+    delegatedLogs,
+    delegatedTotal,
 }: LogsTabsProps) {
-    const [tab, setTab] = useState<string>("audit");
+    const [tab, setTab] = useState<string>("platform");
 
     return (
         <Tabs value={tab} onValueChange={setTab} className="w-full space-y-4">
-            <TabsList className="bg-zinc-950/80 border border-white/10 rounded-xl p-1">
-                <TabsTrigger
-                    value="audit"
-                    className="rounded-lg px-4 py-2 text-sm font-semibold text-zinc-400 data-[state=active]:bg-zinc-100 data-[state=active]:text-zinc-900 transition-colors"
-                >
-                    <ScrollText className="w-4 h-4 mr-2" />
-                    Journal d'audit
+            <TabsList className="h-auto flex-wrap justify-start rounded-xl border border-border bg-surface/60 p-1">
+                <TabsTrigger value="platform" className={TAB_TRIGGER_CLASS}>
+                    <ScrollText className="mr-2 h-4 w-4" />
+                    Journal plateforme
                 </TabsTrigger>
-                <TabsTrigger
-                    value="access"
-                    className="rounded-lg px-4 py-2 text-sm font-semibold text-zinc-400 data-[state=active]:bg-zinc-100 data-[state=active]:text-zinc-900 transition-colors"
-                >
-                    <ShieldX className="w-4 h-4 mr-2" />
+                <TabsTrigger value="guild" className={TAB_TRIGGER_CLASS}>
+                    <Building2 className="mr-2 h-4 w-4" />
+                    Journal de guilde
+                </TabsTrigger>
+                <TabsTrigger value="access" className={TAB_TRIGGER_CLASS}>
+                    <ShieldX className="mr-2 h-4 w-4" />
                     Accès refusés
-                    <span className="ml-2 inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-zinc-800 text-xs font-bold text-zinc-300 tabular-nums">
+                    <span className="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-elevated px-1.5 text-caption font-bold tabular-nums text-muted-foreground">
                         {attemptsTotal}
                     </span>
                 </TabsTrigger>
-                <TabsTrigger
-                    value="market"
-                    className="rounded-lg px-4 py-2 text-sm font-semibold text-zinc-400 data-[state=active]:bg-zinc-100 data-[state=active]:text-zinc-900 transition-colors"
-                >
-                    <ShoppingBag className="w-4 h-4 mr-2" />
-                    Marché
-                    <span className="ml-2 inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-zinc-800 text-xs font-bold text-zinc-300 tabular-nums">
+                <TabsTrigger value="market" className={TAB_TRIGGER_CLASS}>
+                    <ShoppingBag className="mr-2 h-4 w-4" />
+                    Audit du Marché
+                    <span className="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-elevated px-1.5 text-caption font-bold tabular-nums text-muted-foreground">
                         {marketLogs.length}
+                    </span>
+                </TabsTrigger>
+                <TabsTrigger value="delegates" className={TAB_TRIGGER_CLASS}>
+                    <KeyRound className="mr-2 h-4 w-4" />
+                    Accès délégués
+                    <span className="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-elevated px-1.5 text-caption font-bold tabular-nums text-muted-foreground">
+                        {delegatedTotal}
                     </span>
                 </TabsTrigger>
             </TabsList>
 
-            <TabsContent value="audit" className="animate-in fade-in duration-150 focus-visible:outline-none">
-                <LogViewer initialLogs={initialLogs} initialTotal={initialTotal} />
+            <TabsContent value="platform" className="animate-in fade-in duration-150 focus-visible:outline-none">
+                <LogViewer
+                    scope="platform"
+                    initialLogs={platformLogs}
+                    initialTotal={platformTotal}
+                    initialSecurityCount={platformSecurityCount}
+                />
+            </TabsContent>
+
+            {/* A11 — journal d'une guilde : lecture seule, filtrable par guilde (id interne). */}
+            <TabsContent value="guild" className="animate-in fade-in duration-150 focus-visible:outline-none">
+                <LogViewer
+                    scope="guild"
+                    initialLogs={guildLogs}
+                    initialTotal={guildTotal}
+                    initialSecurityCount={guildSecurityCount}
+                    guilds={guilds}
+                />
             </TabsContent>
 
             <TabsContent value="access" className="animate-in fade-in duration-150 focus-visible:outline-none">
-                {/* #84 — onglet dédié « Accès refusés », bandeau enrichi (appartenance guilde actuelle) */}
-                <div className="rounded-2xl border border-white/5 bg-zinc-900/30 p-5 space-y-3">
-                    <div className="flex items-center justify-between gap-4 flex-wrap">
+                {/* #84 — onglet dédié « Accès refusés » : appartenance à une guilde au moment du refus */}
+                <div className="space-y-3 rounded-2xl border border-border bg-surface/40 p-5">
+                    <div className="flex flex-wrap items-center justify-between gap-4">
                         <div className="flex items-center gap-2">
-                            <ShieldX className="w-4 h-4 text-rose-400" />
-                            <h2 className="text-base font-semibold text-white">Tentatives de connexion refusées</h2>
-                            <span className="text-xs px-2 py-0.5 rounded-full bg-zinc-800 border border-white/5 text-zinc-400 tabular-nums">
+                            <ShieldX className="h-4 w-4 text-danger" />
+                            <h2 className="text-base font-semibold text-foreground">Connexions refusées</h2>
+                            <span className="rounded-full border border-border bg-elevated px-2 py-0.5 text-caption tabular-nums text-muted-foreground">
                                 {attemptsTotal} au total
                             </span>
                         </div>
-                        <span className="text-caption text-zinc-500">
+                        <span className="text-caption text-muted-foreground">
                             Candidats ayant cliqué « Se connecter » sans être dans une guilde gérée. Rétention 90 jours.
                         </span>
                     </div>
 
                     {attempts.length === 0 ? (
-                        <p className="text-sm text-zinc-500 italic">Aucune tentative refusée enregistrée.</p>
+                        <p className="text-body-sm italic text-muted-foreground">Aucune tentative refusée enregistrée.</p>
                     ) : (
-                        <ul className="divide-y divide-white/5 text-sm">
-                            {attempts.map((a) => (
-                                <li key={a.id} className="py-3 flex flex-wrap items-center justify-between gap-3 min-w-0">
-                                    <div className="flex items-center gap-2 min-w-0">
-                                        <UserX className="w-3.5 h-3.5 text-zinc-600 shrink-0" />
-                                        <span className="font-mono text-xs text-zinc-300 truncate">Discord ID: {a.discordId}</span>
-                                        {a.nowMember ? (
-                                            <span className="inline-flex items-center gap-1 text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full whitespace-nowrap">
-                                                <CheckCircle2 className="w-3 h-3" />
+                        <ul className="divide-y divide-border text-body-sm">
+                            {attempts.map((attempt) => (
+                                <li key={attempt.id} className="flex min-w-0 flex-wrap items-center justify-between gap-3 py-3">
+                                    <div className="flex min-w-0 items-center gap-2">
+                                        <UserX className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                                        <span className="truncate font-mono text-caption text-foreground">Discord ID: {attempt.discordId}</span>
+                                        {attempt.nowMember ? (
+                                            <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-full border border-success/30 bg-success/10 px-2 py-0.5 text-caption text-success">
+                                                <CheckCircle2 className="h-3 w-3" />
                                                 Désormais membre
                                             </span>
                                         ) : (
-                                            <span className="inline-flex items-center gap-1 text-xs text-zinc-500 bg-zinc-800/60 border border-white/5 px-2 py-0.5 rounded-full whitespace-nowrap">
-                                                <ShieldX className="w-3 h-3" />
+                                            <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-full border border-border bg-elevated px-2 py-0.5 text-caption text-muted-foreground">
+                                                <ShieldX className="h-3 w-3" />
                                                 Aucune guilde SigilOS
                                             </span>
                                         )}
                                     </div>
-                                    <div className="flex items-center gap-3 ml-auto flex-wrap">
-                                        {a.guilds.length > 0 && (
-                                            <span className="inline-flex items-center gap-1.5 text-xs text-zinc-300" title={a.guilds.map((g) => `${g.name} — ${g.status}`).join(", ")}>
-                                                <Building2 className="w-3 h-3 text-zinc-500 shrink-0" />
+                                    <div className="ml-auto flex flex-wrap items-center gap-3">
+                                        {attempt.guilds.length > 0 ? (
+                                            <span
+                                                className="inline-flex items-center gap-1.5 text-caption text-muted-foreground"
+                                                title={attempt.guilds.map((g) => `${g.name} — ${g.status}`).join(", ")}
+                                            >
+                                                <Building2 className="h-3 w-3 shrink-0 text-muted-foreground" />
                                                 <span className="max-w-[240px] truncate">
-                                                    {a.guilds.map((g) => `${g.name} (${g.status})`).join(", ")}
+                                                    {attempt.guilds.map((g) => `${g.name} (${g.status})`).join(", ")}
                                                 </span>
                                             </span>
-                                        )}
-                                        <span className="text-xs text-rose-300/90">{REASON_LABELS[a.reason] || a.reason}</span>
-                                        <span className="text-caption text-zinc-500 whitespace-nowrap">
-                                            {formatDistanceToNow(new Date(a.createdAt), { addSuffix: true, locale: fr })}
+                                        ) : null}
+                                        <span className="text-caption text-warning">{REASON_LABELS[attempt.reason] || attempt.reason}</span>
+                                        <span className="whitespace-nowrap text-caption text-muted-foreground">
+                                            {formatDistanceToNow(new Date(attempt.createdAt), { addSuffix: true, locale: fr })}
                                         </span>
                                     </div>
                                 </li>
@@ -138,11 +196,14 @@ export function LogsTabs({
                 </div>
             </TabsContent>
 
-            {/* 🧭 Journal d'audit du **Marché** — déplacé depuis God → Marché
-                (décision user 18/09/2026) : même journal, même rétention, mais
-                regroupé avec les autres logs de la plateforme. */}
+            {/* 🧭 Audit du **Marché** — déplacé depuis la page God → Marché (décision user 18/09/2026). */}
             <TabsContent value="market" className="animate-in fade-in duration-150 focus-visible:outline-none">
-                <MarketLogView initialLogs={marketLogs} guilds={marketGuilds} />
+                <MarketLogView initialLogs={marketLogs} guilds={guilds} />
+            </TabsContent>
+
+            {/* A10 — `GodAccessLog` : écrit depuis l'origine, exposé ici pour la première fois. */}
+            <TabsContent value="delegates" className="animate-in fade-in duration-150 focus-visible:outline-none">
+                <DelegatedAccessView initialLogs={delegatedLogs} initialTotal={delegatedTotal} />
             </TabsContent>
         </Tabs>
     );

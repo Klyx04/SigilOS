@@ -21,12 +21,20 @@ export async function GET(request: Request) {
     const limit = parseInt(searchParams.get("limit") || "50");
     const action = searchParams.get("action") || undefined;
     const search = searchParams.get("search") || undefined;
+    // 🔎 Paramètres bornés par liste blanche (une valeur inconnue est ignorée par la
+    // route, jamais transmise au schéma Zod : sinon l'action retombait sur ses défauts).
+    const rawCategory = searchParams.get("category");
+    const rawScope = searchParams.get("scope");
+    const category = rawCategory === "security" || rawCategory === "functional" ? rawCategory : undefined;
+    const scope = rawScope === "platform" || rawScope === "guild" ? rawScope : undefined;
 
     const result = await getGlobalAuditLogs({
         page,
         limit,
         actionFilter: action,
-        search
+        search,
+        category,
+        scope,
     });
 
     if (!result.success) {

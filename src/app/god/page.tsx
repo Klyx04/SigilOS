@@ -460,7 +460,12 @@ async function GlobalLogsServer() {
         const { getGlobalAuditLogs } = await import("@/server/actions/audit-actions");
         const { AuditFeedPanel } = await import("./components/audit-feed-panel");
 
-        const result = await getGlobalAuditLogs({ limit: 200 });
+        // 🔎 Ce panneau est le **journal de sécurité** : il ne montre QUE la catégorie
+        // `security` (incidents & refus), filtrée **en base**. Avant l'audit du 24/09,
+        // il appelait `getGlobalAuditLogs` sans filtre : « Security Feed » affichait
+        // `CONFIG_UPDATED` et `WEBHOOK_MEMBER_UPDATE`, et son total était identique à
+        // celui de `/god/logs` (le fameux « même 779 partout »).
+        const result = await getGlobalAuditLogs({ limit: 200, category: "security" });
         const safeLogs = JSON.parse(JSON.stringify(result.data?.logs || []));
 
         return <AuditFeedPanel logs={safeLogs} total={result.data?.total || 0} />;

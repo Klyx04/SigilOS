@@ -6,6 +6,7 @@ import { logger } from "@/lib/logger";
 import { z } from "zod";
 import { getUserContext } from "./user-actions";
 import { rateLimit } from "@/lib/ratelimit";
+import { SECURITY_AUDIT_ACTIONS } from "@/lib/audit-taxonomy";
 
 // ============================================================================
 // TYPES
@@ -633,9 +634,23 @@ const GetLogsSchema = z.object({
     dateFrom: z.date().optional(),
     dateTo: z.date().optional(),
     search: z.string().optional(),
+    /** 🔎 Séparation audit/sécurité (audit du 24/09) — filtrée **en base**. */
+    category: z.enum(["security", "functional"]).optional(),
+    /** Périmètre : actions plateforme (`isGodLog: true`) ou journaux de guilde. */
+    scope: z.enum(["platform", "guild"]).optional(),
 });
 
 type GetLogsInput = z.infer<typeof GetLogsSchema>;
+
+/**
+ * Contrainte `action` d'une catégorie, à **croiser** (jamais à écraser) avec un
+ * filtre d'action explicite. `null` = pas de contrainte.
+ */
+function categoryActionConstraint(category: GetLogsInput["category"]): Record<string, unknown> | null {
+    if (category === "security") return { in: [...SECURITY_AUDIT_ACTIONS] };
+    if (category === "functional") return { notIn: [...SECURITY_AUDIT_ACTIONS] };
+    return null;
+}
 
 /**
  * Get audit logs for a guild
@@ -967,9 +982,9 @@ export async function getGlobalAuditLogs(
         }
 
         const parsed = GetLogsSchema.safeParse(options || {});
-        const { page, limit, actionFilter, actorFilter, dateFrom, dateTo, search } = parsed.success
+        const { page, limit, actionFilter, actorFilter, dateFrom, dateTo, search, category, scope } = parsed.success
             ? parsed.data
-            : { page: 1, limit: 50, actionFilter: undefined, actorFilter: undefined, dateFrom: undefined, dateTo: undefined, search: undefined };
+            : { page: 1, limit: 50, actionFilter: undefined, actorFilter: undefined, dateFrom: undefined, dateTo: undefined, search: undefined, category: undefined, scope: undefined };
 
         const where: any = {};
         if (actionFilter) {
@@ -979,6 +994,14 @@ export async function getGlobalAuditLogs(
                 where.action = actionFilter;
             }
         }
+        // 🔎 Séparation audit/sécurité, **en base** (jamais un filtrage en mémoire sur
+        // la première page : c'est ce qui faisait afficher le même total aux deux écrans).
+        const categoryConstraint = categoryActionConstraint(category);
+        if (categoryConstraint) {
+            where.AND = [...(where.AND ?? []), { action: categoryConstraint }];
+        }
+        if (scope === "platform") where.isGodLog = true;
+        else if (scope === "guild") where.isGodLog = false;
         if (actorFilter && actorFilter.trim()) {
             where.actorName = { contains: actorFilter.trim(), mode: 'insensitive' };
         }

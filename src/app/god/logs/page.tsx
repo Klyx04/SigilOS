@@ -6,6 +6,7 @@ import { getRecentAccessAttempts } from "@/server/actions/super-admin-actions";
 import { listGodMarketAuditLogs, listGodMarketGuilds } from "@/server/actions/god-market-actions";
 import { Shield } from "lucide-react";
 import { LogsTabs } from "./logs-tabs";
+import { AUDIT_RETENTION_DAYS } from "@/lib/audit-retention-policy";
 
 export default async function GodLogsPage() {
     const isAdmin = await isSuperAdmin();
@@ -44,8 +45,8 @@ export default async function GodLogsPage() {
                     plateforme, y compris le journal d'audit du Marché (annonces, réservations, offres, signalements).
                 </p>
                 <p className="text-xs text-zinc-600 max-w-2xl">
-                    Rétention : <span className="text-zinc-400">90 jours</span> pour les actions plateforme (God),
-                    <span className="text-zinc-400"> 30 jours</span> pour les journaux de guilde — purge quotidienne
+                    Rétention : <span className="text-zinc-400">{AUDIT_RETENTION_DAYS.GOD} jours</span> pour les actions plateforme (God),
+                    <span className="text-zinc-400"> {AUDIT_RETENTION_DAYS.GUILD} jours</span> pour les journaux de guilde — purge quotidienne
                     par le cron <code className="text-zinc-500">cleanup-logs</code>.
                 </p>
             </div>

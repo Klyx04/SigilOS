@@ -612,6 +612,11 @@ model AuditLog {
   @@index([guildId, createdAt])
   @@index([actorUserId])
   @@index([action])
+  // 🔎 Séparation audit/sécurité (audit du 24/09/2026) : les écrans God filtrent
+  // désormais EN BASE (`isGodLog` + catégorie d'action) au lieu de trancher une
+  // première page en mémoire. Ces deux index portent les requêtes correspondantes.
+  @@index([isGodLog, createdAt])
+  @@index([guildId, isGodLog, createdAt])
 }
 
 model GuildActivity {

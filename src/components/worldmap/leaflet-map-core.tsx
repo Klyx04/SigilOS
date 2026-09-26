@@ -9,6 +9,7 @@ import { Plus, Minus, Copy, Flag, CornerUpRight, Rocket, Smartphone, Layers, Com
 import { toast } from 'sonner';
 import { mergeCellEdges } from '@/lib/map-utils';
 import { resolveTileBank, findNearestMap, MAP_OCEAN_TONE } from '@/lib/worldmap-tiles';
+import { findNearestZaap, type ZaapEntry } from '@/lib/nearest-zaap';
 import { HarvestRouteOverlay } from './harvest-route-overlay';
 import { SecretPassagesOverlay } from './secret-passages-overlay';
 import { cn } from '@/lib/utils';
@@ -666,20 +667,21 @@ function MapGridOverlay({ activeWorld, mapsByCoords, mapsBySubAreaId, subAreasBy
         zoomend: () => drawGrid(),
     });
 
-    // Helper Zaap le plus proche
+    // Helper Zaap le plus proche — version DURCIE partagée (`findNearestZaap`) :
+    // on cherche dans le monde AFFICHÉ. L'ancien calcul (tous mondes confondus)
+    // proposait un zaap du Monde des Douze à 800 maps dans une dimension, présenté
+    // comme « le plus proche ». Ici, hors monde → on le DIT au lieu de mentir.
     const getClosestZaap = useCallback((gx: number, gy: number) => {
-        if (!zaaps || zaaps.length === 0) return null;
-        let closest = null;
-        let minDist = Infinity;
-        for (const z of zaaps) {
-            const d = Math.abs(z.x - gx) + Math.abs(z.y - gy);
-            if (d < minDist) {
-                minDist = d;
-                closest = { ...z, dist: d };
-            }
-        }
-        return closest;
-    }, [zaaps]);
+        const worldId = Number(activeWorld?.id ?? activeWorld?.m_id);
+        const nearest = findNearestZaap(zaaps as ZaapEntry[], {
+            x: gx,
+            y: gy,
+            worldId: Number.isFinite(worldId) ? worldId : null,
+        });
+        return nearest
+            ? { ...nearest.zaap, dist: nearest.distance, sameWorld: nearest.sameWorld }
+            : null;
+    }, [zaaps, activeWorld]);
 
     // Mise à jour directe du HUD DOM (zéro re-render React pour les perfs)
     const updateHudDOM = useCallback((mapData: any, subArea: any, gx: number, gy: number, isPinned: boolean) => {
@@ -723,12 +725,21 @@ function MapGridOverlay({ activeWorld, mapsByCoords, mapsBySubAreaId, subAreasBy
             imgEl.src = `/game-data/hd_maps/${mapData.id}.webp`;
         }
 
-        // 3. Zaap le plus proche
+        // 3. Zaap le plus proche (dans le monde affiché)
         const closestZaap = getClosestZaap(gx, gy);
         if (closestZaap && zaapContainer && zaapNameEl && zaapDistEl && zaapBtn) {
             zaapContainer.style.display = 'flex';
-            zaapNameEl.innerText = `${closestZaap.name} [${closestZaap.x}, ${closestZaap.y}]`;
-            zaapDistEl.innerText = `(${closestZaap.dist} ${closestZaap.dist <= 1 ? 'map' : 'maps'})`;
+            if (closestZaap.sameWorld) {
+                zaapNameEl.innerText = `${closestZaap.name} [${closestZaap.x}, ${closestZaap.y}]`;
+                zaapDistEl.innerText = `(${closestZaap.dist} ${closestZaap.dist <= 1 ? 'map' : 'maps'})`;
+                zaapBtn.style.display = '';
+            } else {
+                // Aucun zaap dans ce monde : on l'affiche, on ne propose pas un
+                // faux « plus proche » (le bouton de trajet est retiré).
+                zaapNameEl.innerText = 'Aucun zaap dans ce monde';
+                zaapDistEl.innerText = `(le plus proche : ${closestZaap.name} [${closestZaap.x}, ${closestZaap.y}], autre monde)`;
+                zaapBtn.style.display = 'none';
+            }
             zaapBtn.dataset.zaapX = String(closestZaap.x);
             zaapBtn.dataset.zaapY = String(closestZaap.y);
         } else if (zaapContainer) {

@@ -1182,58 +1182,6 @@ export async function respondToJoinRequest(guildId: string, data: z.infer<typeof
 }
 
 // ============================================
-// DELETE RUN
-// ============================================
-
-export async function deleteDreamRun(guildId: string, runId: string) {
-    const ctx = await getGuildUserContext(guildId);
-    if (!ctx) return { success: false, error: "Non authentifié ou non autorisé" };
-
-    const run = await db.dreamRun.findFirst({
-        where: { id: runId, guildId: ctx.guildId },
-    });
-
-    if (!run) {
-        return { success: false, error: "Run non trouvée" };
-    }
-
-    // Only leader or admin can delete
-    if (run.leaderId !== ctx.userId && !ctx.isAdmin) {
-        return { success: false, error: "Seul le leader ou un administrateur peut supprimer la run" };
-    }
-
-    // Remove Discord embed if it exists
-    const { deleteDiscordRunEmbed } = await import("@/server/songes-service");
-    await deleteDiscordRunEmbed(ctx.guildId, runId);
-
-    // Delete run (cascade will handle related records)
-    await db.dreamRun.delete({
-        where: { id: runId },
-    });
-
-    // Audit Log for admin deletion
-    if (ctx.isAdmin && run.leaderId !== ctx.userId) {
-        const guildConfig = await db.guildConfig.findUnique({ where: { discordGuildId: guildId }, select: { id: true } });
-        if (guildConfig) {
-            await db.auditLog.create({
-                data: {
-                    guildId: guildConfig.id,
-                    actorUserId: ctx.userId,
-                    actorName: ctx.name || "Admin",
-                    action: "SONGES_RUN_DELETED_BY_ADMIN",
-                    targetType: "DREAM_RUN",
-                    targetId: runId,
-                    metadata: { leaderId: run.leaderId, difficulty: run.difficulty } as any,
-                }
-            });
-        }
-    }
-
-    revalidatePath(`/dashboard/${ctx.guildId}/songes`);
-    return { success: true };
-}
-
-// ============================================
 // KICK MEMBER (Leader only)
 // ============================================
 

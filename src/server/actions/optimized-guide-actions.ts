@@ -12,6 +12,7 @@ import { createGodAuditLog, type AuditAction, type AuditTargetType } from "./aud
 import { revalidatePath } from "next/cache";
 import { logger } from "@/lib/logger";
 import { rateLimit } from "@/lib/ratelimit";
+import { findNearestZaap, type ZaapEntry } from "@/lib/nearest-zaap";
 import { publishGuideEvent, parseStepKey, getCachedGuideProgress, invalidateGuideProgressCache } from "@/lib/guide-realtime";
 import { buildGuildProgressRows, buildPresenceMap, buildUniqueGuildMembers, buildMilestoneStepKeys, type GuideProgressRow, type GuideProgressMember, type GuidePresenceMap } from "@/lib/guide-progress-helpers";
 import { z } from "zod";
@@ -2420,7 +2421,7 @@ function loadMapData() {
 /**
  * Resolves the precise world map ID for a given coordinate [x, y] using context matching to avoid false positives.
  */
-export async function resolveMapWorldAction(x: number, y: number, textContext?: string): Promise<{ success: boolean; worldId: number }> {
+async function resolveMapWorldId(x: number, y: number, textContext?: string): Promise<{ success: boolean; worldId: number }> {
   try {
     const { worldMap, worlds } = loadMapData();
     if (!worldMap || !worldMap.maps) {
@@ -2531,6 +2532,73 @@ export async function resolveMapWorldAction(x: number, y: number, textContext?: 
     logger.error("Failed to resolve map world:", err);
     return { success: false, worldId: 1 };
   }
+}
+
+/**
+ * Zaaps connus (`public/game-data/zaaps.json`) — chargés une fois par process :
+ * le guide appelle cette action à chaque survol de coordonnée.
+ */
+let cachedZaaps: ZaapEntry[] | null = null;
+
+function loadZaaps(): ZaapEntry[] {
+  if (cachedZaaps) return cachedZaaps;
+  try {
+    const zaapsPath = path.join(process.cwd(), "public", "game-data", "zaaps.json");
+    if (fs.existsSync(zaapsPath)) {
+      const parsed = JSON.parse(fs.readFileSync(zaapsPath, "utf8"));
+      if (Array.isArray(parsed)) cachedZaaps = parsed as ZaapEntry[];
+    }
+  } catch (e) {
+    logger.error("Failed to load zaaps on server side:", e);
+  }
+  return cachedZaaps ?? [];
+}
+
+export type NearestZaapInfo = {
+  name: string;
+  x: number;
+  y: number;
+  /** Distance de Manhattan en maps. */
+  dist: number;
+  /** Faux = repli hors monde : le monde de la position n'a aucun zaap. */
+  sameWorld: boolean;
+};
+
+export type ResolvedMapPosition = {
+  success: boolean;
+  worldId: number;
+  /** Zaap le plus proche, ou `null` si aucun zaap n'est exploitable. */
+  nearestZaap: NearestZaapInfo | null;
+};
+
+/**
+ * Résout le monde d'une coordonnée ET le zaap le plus proche (GPS).
+ *
+ * Le calcul du « zaap le plus proche » existait uniquement côté worldmap, sans
+ * tenir compte du monde : dans un monde sans zaap (dimensions, sous-sols) il
+ * proposait un zaap du Monde des Douze à des centaines de maps. On expose donc la
+ * version durcie (`findNearestZaap`, `src/lib/nearest-zaap.ts`) au guide
+ * Sylvestre, à son overlay et à la page publique — une seule source de vérité.
+ */
+export async function resolveMapWorldAction(
+  x: number,
+  y: number,
+  textContext?: string
+): Promise<ResolvedMapPosition> {
+  const base = await resolveMapWorldId(x, y, textContext);
+
+  // Position non numérique : aucune invention de GPS.
+  const nearest = base.success && Number.isFinite(x) && Number.isFinite(y)
+    ? findNearestZaap(loadZaaps(), { x, y, worldId: base.worldId })
+    : null;
+
+  return {
+    success: base.success,
+    worldId: base.worldId,
+    nearestZaap: nearest
+      ? { name: nearest.zaap.name, x: nearest.zaap.x, y: nearest.zaap.y, dist: nearest.distance, sameWorld: nearest.sameWorld }
+      : null,
+  };
 }
 
 // ─── Rush Timeline Actions ──────────────────────────────────────────────────

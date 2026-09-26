@@ -15,9 +15,9 @@ import {
     rejectDjParticipant,
     joinDjPost,
     leaveDjPost,
-    deleteDjPost,
 } from "@/server/actions/dungeon-finder-actions";
 import { DjEditModal } from "./DjEditModal";
+import { DjCloseModal } from "./DjCloseModal";
 import { DjReminderModal } from "./DjReminderModal";
 import type { DjPostWithDetails } from "@/server/actions/dungeon-finder-actions";
 import { format } from "date-fns";
@@ -25,7 +25,7 @@ import { fr } from "date-fns/locale";
 import { DOFUS_CLASSES, getClass } from "@/lib/dofus-assets";
 import { DofusUiIcon } from "@/components/shared/dofus-ui-icon";
 import { PseudoChip } from "@/components/shared/pseudo-chip";
-import { getMultiDungeons, getDjPostTitle, getDjPostSubtitle } from "@/lib/dungeon-finder-utils";
+import { getMultiDungeons, getDjPostTitle, getDjPostSubtitle, formatDjDateLabel } from "@/lib/dungeon-finder-utils";
 import { DjMultiBossAvatars } from "./DjMultiBossAvatars";
 
 const MODE_LABELS: Record<string, string> = {
@@ -54,6 +54,9 @@ export function DjPostDetailModal({
     const [message, setMessage] = useState("");
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isReminderModalOpen, setIsReminderModalOpen] = useState(false);
+    // Clôture (bilan des succès/points + fermeture Discord) : action principale du
+    // créateur. La suppression du groupe a été retirée (elle détruisait le bilan).
+    const [isCloseModalOpen, setIsCloseModalOpen] = useState(false);
     const [isPending, startTransition] = useTransition();
 
     const isOwner = post.profileId === currentProfileId;
@@ -101,18 +104,6 @@ export function DjPostDetailModal({
             const res = await leaveDjPost(guildId, post.id);
             if (res.success) { toast.success("Parti du post."); onRefresh(); onClose(); }
             else toast.error(res.error);
-        });
-    }
-
-    function handleDelete() {
-        if (!confirm("Voulez-vous vraiment supprimer ce post définitivement ?")) return;
-        startTransition(async () => {
-            const res = await deleteDjPost(guildId, post.id);
-            if (res.success) {
-                toast.success("Post supprimé définitivement.");
-                onRefresh();
-                onClose();
-            } else toast.error(res.error);
         });
     }
 
@@ -204,9 +195,7 @@ export function DjPostDetailModal({
                                 <div className="bg-surface/40 rounded-xl p-4 border border-border col-span-2 shadow-inner">
                                     <p className="text-muted-foreground text-caption uppercase tracking-widest font-bold mb-1.5 flex items-center gap-1.5"><DofusUiIcon name="date" size={14} /> Date prévue</p>
                                     <p className="font-bold text-foreground">
-                                        {new Date(post.targetDate).toLocaleDateString("fr-FR", {
-                                            weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit"
-                                        }).replace(/, /g, " à ")}
+                                        {formatDjDateLabel(post.targetDate)}
                                     </p>
                                 </div>
                             )}
@@ -271,7 +260,7 @@ export function DjPostDetailModal({
                                             <p className="text-caption text-muted-foreground">
                                                 Lvl {d.level}
                                                 {(d.wantedAchievementIds?.length ?? 0) > 0 && ` · ${d.wantedAchievementIds!.length} succès`}
-                                                {d.targetDate && ` · ${new Date(d.targetDate).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" })}`}
+                                                {d.targetDate ? ` · ${formatDjDateLabel(d.targetDate, { shortMonth: true }) ?? ""}` : ""}
                                             </p>
                                         </div>
                                         <span className="text-caption font-black text-info/70 uppercase tracking-widest shrink-0">#{idx + 1}</span>
@@ -566,9 +555,11 @@ export function DjPostDetailModal({
                             </div>
                         )}
 
-                        {/* Creator actions */}
-                        {(isOwner || isAdmin) && post.status === "OPEN" && (
-                            <div className="border-t border-border pt-5 flex gap-3">
+                        {/* Actions du créateur (ou d'un admin) : relancer, modifier, TERMINER.
+                            Trois gestes lisibles, dans cet ordre — le bouton de clôture est le
+                            seul en couleur pleine, c'est le but de la session. */}
+                        {(isOwner || isAdmin) && (post.status === "OPEN" || post.status === "FULL") && (
+                            <div className="border-t border-border pt-5 flex flex-wrap gap-3">
                                 {isOwner && (
                                     <>
                                         {post.isDiscordPublished && post.discordMessageId && acceptedCount > 1 && (
@@ -585,7 +576,7 @@ export function DjPostDetailModal({
                                         )}
                                         <Button
                                             variant="outline"
-                                            className="flex-1 border-border bg-surface text-foreground hover:text-foreground hover:bg-surface font-bold h-11 transition-all"
+                                            className="flex-1 min-w-[180px] border-border bg-surface text-foreground hover:text-foreground hover:bg-surface font-bold h-11 transition-all"
                                             onClick={() => setIsEditModalOpen(true)}
                                             disabled={isPending}
                                         >
@@ -594,14 +585,17 @@ export function DjPostDetailModal({
                                         </Button>
                                     </>
                                 )}
+                                {/* Terminer = clôture AVEC bilan (succès validés, points de
+                                    contribution, embed Discord fermé). L'ancien « Supprimer le
+                                    groupe » effaçait le post sans rien valider : retiré. */}
                                 <Button
-                                    variant="outline"
-                                    className="flex-1 border-danger/40 bg-danger/20 text-danger hover:bg-danger/40 hover:text-danger font-bold h-11 transition-all"
-                                    onClick={handleDelete}
+                                    className="flex-1 min-w-[180px] bg-warning/15 hover:bg-warning/25 text-warning border border-warning/30 font-black h-11 transition-all"
+                                    onClick={() => setIsCloseModalOpen(true)}
                                     disabled={isPending}
+                                    title={isOwner ? "Terminer le post (bilan + clôture Discord)" : "Fermer le post (admin)"}
                                 >
-                                    <Trash2 className="w-4 h-4 mr-2" />
-                                    Supprimer le groupe
+                                    <CheckCircle2 className="w-4 h-4 mr-2" />
+                                    {isOwner ? "Terminer le post" : "Fermer le post"}
                                 </Button>
                             </div>
                         )}
@@ -624,6 +618,22 @@ export function DjPostDetailModal({
                     post={post}
                     guildId={guildId}
                     onClose={() => setIsReminderModalOpen(false)}
+                />
+            )}
+            {/* Clôture : ouverte depuis la fiche comme depuis la carte (même modale,
+                même bilan) — un seul chemin de code pour terminer un post. */}
+            {(isOwner || isAdmin) && (
+                <DjCloseModal
+                    isOpen={isCloseModalOpen}
+                    post={post}
+                    guildId={guildId}
+                    adminMode={!!isAdmin && !isOwner}
+                    onClose={() => setIsCloseModalOpen(false)}
+                    onClosed={() => {
+                        setIsCloseModalOpen(false);
+                        onRefresh();
+                        onClose();
+                    }}
                 />
             )}
         </>

@@ -1,5 +1,7 @@
 "use client";
 // dark-locked — module volontairement sombre (V2 Dual-Theme Phase 2C) : ne PAS utiliser les tokens thème-aware ici (voir memo 21/08 + prompt 22/08).
+import { SONGES_BUTTON } from "@/lib/songes/ui";
+
 
 import { useEffect, useRef, useState } from "react";
 import { updateCurrentFloor } from "@/server/actions/songes/dream-run-actions";
@@ -142,7 +144,7 @@ function FloorNode({ floor, isCurrent, isCompleted, isLocked, isLeader, palierCo
                 {/* Checkmark */}
                 {isCompleted && (
                     <div className="absolute -bottom-1 -right-1 z-10" style={{ transform: "translateZ(30px)" }}>
-                        <div className="bg-emerald-500 rounded-full p-0.5 border border-black/60 shadow">
+                        <div className="bg-success rounded-full p-0.5 border border-black/60 shadow">
                             <CheckCircle2 className="w-3.5 h-3.5 text-foreground" />
                         </div>
                     </div>
@@ -234,7 +236,7 @@ function BossNode({ isCurrent, isCompleted, isLeader, onClick }: {
                 {/* Checkmark */}
                 {isCompleted && (
                     <div className="absolute bottom-6 right-6 z-10" style={{ transform: "translateZ(50px)" }}>
-                        <div className="bg-amber-500 text-warning-foreground rounded-full p-2 shadow-lg animate-in zoom-in spin-in-180">
+                        <div className="bg-warning text-warning-foreground rounded-full p-2 shadow-lg animate-in zoom-in spin-in-180">
                             <CheckCircle2 className="w-6 h-6" />
                         </div>
                     </div>
@@ -243,16 +245,16 @@ function BossNode({ isCurrent, isCompleted, isLeader, onClick }: {
 
             {/* Label boss */}
             <div className="text-center space-y-1">
-                <h4 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-b from-amber-100 to-amber-600 uppercase tracking-widest drop-shadow-[0_4px_12px_rgba(245,158,11,0.5)]">
+                <h4 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-b from-warning/70 to-warning uppercase tracking-widest drop-shadow-[0_4px_12px_rgba(245,158,11,0.5)]">
                     Combat Final
                 </h4>
                 {/* Badge MAJ 3.5 */}
                 <div className="flex items-center justify-center gap-2">
-                    <Waves className="w-3.5 h-3.5 text-amber-400/70" />
-                    <span className="text-caption font-bold text-amber-400/70 uppercase tracking-wider">
+                    <Waves className="w-3.5 h-3.5 text-warning/70" />
+                    <span className="text-caption font-bold text-warning/70 uppercase tracking-wider">
                         Vagues infinies
                     </span>
-                    <Waves className="w-3.5 h-3.5 text-amber-400/70" />
+                    <Waves className="w-3.5 h-3.5 text-warning/70" />
                 </div>
                 <p className="text-caption text-foreground/25 tracking-wider">
                     Enchaînez les vagues pour maximiser vos Bribes de Rêve
@@ -504,13 +506,13 @@ export function RunTree({ guildId, currentFloor, runId, isLeader, runStatus, lea
                         <div className="mt-8 flex flex-col items-center gap-3 animate-in fade-in slide-in-from-bottom-4 duration-300">
                             {runStatus === "IN_PROGRESS" && (
                                 <>
-                                    <p className="text-amber-500/50 text-xs uppercase tracking-widest text-center">
+                                    <p className="text-warning/60 text-xs uppercase tracking-widest text-center">
                                         Le rêve touche à sa fin
                                     </p>
                                     <button
                                         onClick={handleCloseRun}
                                         disabled={updating}
-                                        className="flex items-center gap-2 px-8 py-3 bg-[#05010a] border border-amber-500/50 text-amber-500 font-bold uppercase tracking-widest text-sm hover:bg-amber-500 hover:text-warning-foreground transition-all duration-300   disabled:opacity-50"
+                                        className={cn(SONGES_BUTTON.close, "flex items-center gap-2 px-8 py-3 uppercase tracking-widest text-sm transition-all duration-300 disabled:opacity-50")}
                                     >
                                         {updating ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
                                         Clôturer la run
@@ -539,7 +541,7 @@ export function RunTree({ guildId, currentFloor, runId, isLeader, runStatus, lea
 
             {/* ── Legend compacte en bas ── */}
             <div className="relative z-20 border-t border-border px-5 py-3 flex items-center gap-4 flex-wrap">
-                <LegendItem color="bg-emerald-500" label="Étage actif" />
+                <LegendItem color="bg-success" label="Étage actif" />
                 <LegendItem color="bg-elevated" label="Terminé" />
                 <LegendItem color="bg-surface" label="Verrouillé" />
                 {isLeader && (

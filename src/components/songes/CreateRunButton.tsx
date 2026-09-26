@@ -2,7 +2,7 @@
 
 import { useState, useTransition, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Loader2, MessageSquare, Trophy, Swords, Timer, Calendar as CalendarIcon, Clock, ChevronsUpDown, Check, Hash, ChevronRight, AlertTriangle, X, User } from "lucide-react";
+import { Plus, Loader2, MessageSquare, Trophy, Swords, Timer, Calendar as CalendarIcon, ChevronsUpDown, Check, Hash, ChevronRight, AlertTriangle, X, User } from "lucide-react";
 import { DOFUS_CLASSES, getClass } from "@/lib/dofus-assets";
 import NextImage from "next/image";
 import { Button } from "@/components/ui/button";
@@ -37,14 +37,14 @@ import { getDiscordChannelInfo } from "@/server/actions/discord-actions";
 import { PingEstimate } from "@/components/shared/ping-estimate";
 import { getStuffGalleryPage, type GalleryBuild } from "@/server/actions/gallery-actions";
 import { DIFFICULTIES, OBJECTIVES, EPREUVES_SONGE, type DifficultyKey, type ObjectiveKey, type EpreuveCode } from "@/lib/songes/types";
+import { SongesPicto } from "@/components/songes/SongesPicto";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar } from "@/components/ui/calendar";
-import { Input } from "@/components/ui/input";
+import { DateTimePicker } from "@/components/ui/date-time-picker";
 
 // Couleur selon difficulté
 function getDifficultyBadgeColor(diffKey: DifficultyKey) {
@@ -77,8 +77,9 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
     // Shared
     const [publishToDiscord, setPublishToDiscord] = useState(!!isDiscordConfigured);
     const [isScheduled, setIsScheduled] = useState(false);
-    const [scheduledDate, setScheduledDate] = useState<Date | undefined>(new Date());
-    const [scheduledTime, setScheduledTime] = useState("20:00");
+    // Date de départ OPTIONNELLE, unifiée avec le reste de l'app : fini le
+    // « aujourd'hui 20:00 » pré-rempli (qui laissait croire à une run programmée).
+    const [scheduledDateInput, setScheduledDateInput] = useState("");
     const [stuffs, setStuffs] = useState<GalleryBuild[]>([]);
     const [selectedStuffId, setSelectedStuffId] = useState<string>("none");
     const [customStuffName, setCustomStuffName] = useState("");
@@ -182,12 +183,8 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
             }
             setError(null);
             startTransition(async () => {
-                let scheduledAt: Date | null = null;
-                if (isScheduled && scheduledDate) {
-                    const [hours, minutes] = scheduledTime.split(":").map(Number);
-                    scheduledAt = new Date(scheduledDate);
-                    scheduledAt.setHours(hours, minutes, 0, 0);
-                }
+                // Heure LOCALE et réellement optionnelle : vide ⇒ aucune programmation.
+                const scheduledAt = isScheduled && scheduledDateInput ? new Date(scheduledDateInput) : null;
 
                 const result = await createDreamRun(guildId, {
                     difficulty,
@@ -222,12 +219,7 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
             const epreuve = EPREUVES_SONGE.find(e => e.code === selectedEpreuve)!;
             setError(null);
             startTransition(async () => {
-                let scheduledAt: Date | null = null;
-                if (isScheduled && scheduledDate) {
-                    const [hours, minutes] = scheduledTime.split(":").map(Number);
-                    scheduledAt = new Date(scheduledDate);
-                    scheduledAt.setHours(hours, minutes, 0, 0);
-                }
+                const scheduledAt = isScheduled && scheduledDateInput ? new Date(scheduledDateInput) : null;
 
                 const result = await createDreamRun(guildId, {
                     difficulty: epreuve.difficulty,
@@ -350,11 +342,11 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
                                             className={cn(
                                                 "flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all",
                                                 isSelected
-                                                    ? "bg-info/25 border-info/60 text-info"
-                                                    : "bg-white/3 border-white/8 text-foreground/50 hover:bg-white/6 hover:text-foreground/70"
+                                                    ? "bg-elevated border-border-strong text-foreground shadow-sm"
+                                                    : "bg-surface/40 border-border text-muted-foreground hover:bg-elevated hover:text-foreground"
                                             )}
                                         >
-                                            <div className="text-lg">{value.icon}</div>
+                                            <SongesPicto asset={value.asset} size={22} title={value.label} />
                                             <div className="text-sm font-medium">{value.label}</div>
                                             {isSelected && (
                                                 <div className="ml-auto w-2 h-2 rounded-full bg-info " />
@@ -383,7 +375,7 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
                                             "relative flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-all duration-200 group",
                                             isSelected
                                                 ? "border-warning/50 bg-warning/15 "
-                                                : "border-white/8 bg-white/3 hover:border-border-strong hover:bg-surface"
+                                                : "border-border bg-surface/40 hover:border-border-strong hover:bg-elevated"
                                         )}
                                     >
                                         {/* Barre colorée latérale */}
@@ -397,10 +389,10 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
 
                                         {/* Icône */}
                                         <div className={cn(
-                                            "w-10 h-10 rounded-xl flex items-center justify-center text-xl shrink-0 transition-all",
-                                            isSelected ? "bg-warning/20 border border-warning/30" : "bg-surface border border-white/8"
+                                            "w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-all",
+                                            isSelected ? "bg-warning/20 border border-warning/30" : "bg-surface border border-border"
                                         )}>
-                                            {epreuve.icon}
+                                            <SongesPicto asset={epreuve.asset} size={24} title={epreuve.label} />
                                         </div>
 
                                         {/* Content */}
@@ -439,7 +431,7 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
                     {/* SCHEDULE & STUFF (Step 1 Shared) */}
                     {/* ─── SCHEDULE TOGGLE ─── */}
                     <div className="space-y-3">
-                        <div className="flex items-center justify-between p-3 rounded-lg border border-white/8 bg-white/3">
+                        <div className="flex items-center justify-between p-3 rounded-lg border border-border bg-surface/40">
                             <div className="flex items-center gap-3">
                                 <CalendarIcon className="w-5 h-5 text-info" />
                                 <div>
@@ -455,47 +447,17 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
                         </div>
 
                         {isScheduled && (
-                            <div className="grid grid-cols-2 gap-3 animate-in fade-in slide-in-from-top-2 duration-200">
-                                <div className="space-y-1.5">
-                                    <Label className="text-caption text-foreground/40 uppercase font-bold ml-1">Date</Label>
-                                    <Popover>
-                                        <PopoverTrigger asChild>
-                                            <Button
-                                                variant="outline"
-                                                className={cn(
-                                                    "w-full h-10 justify-start text-left font-normal bg-surface border-border text-foreground hover:bg-white/8",
-                                                    !scheduledDate && "text-foreground/40"
-                                                )}
-                                            >
-                                                <CalendarIcon className="mr-2 h-4 w-4 text-info" />
-                                                {scheduledDate ? format(scheduledDate, "d MMM yyyy", { locale: fr }) : "Choisir une date"}
-                                            </Button>
-                                        </PopoverTrigger>
-                                        <PopoverContent className="w-auto p-0 bg-background border-border z-[200]" align="center">
-                                            <Calendar
-                                                mode="single"
-                                                selected={scheduledDate}
-                                                onSelect={setScheduledDate}
-                                                disabled={(date) => date < new Date() && date.toDateString() !== new Date().toDateString()}
-                                                initialFocus
-                                                className="bg-transparent text-foreground"
-                                            />
-                                        </PopoverContent>
-                                    </Popover>
-                                </div>
-
-                                <div className="space-y-1.5">
-                                    <Label className="text-caption text-foreground/40 uppercase font-bold ml-1">Heure</Label>
-                                    <div className="relative">
-                                        <Clock className="absolute left-3 top-3 h-4 w-4 text-info" />
-                                        <Input
-                                            type="time"
-                                            value={scheduledTime}
-                                            onChange={(e) => setScheduledTime(e.target.value)}
-                                            className="h-10 pl-10 bg-surface border-border text-foreground focus:border-info/50"
-                                        />
-                                    </div>
-                                </div>
+                            <div className="animate-in fade-in slide-in-from-top-2 duration-200 space-y-1.5">
+                                <Label className="text-caption text-foreground/40 uppercase font-bold ml-1">Date & heure</Label>
+                                {/* Même sélecteur que partout (DJ, édition de run) : heure locale,
+                                    « Sans heure » possible, et un placeholder honnête. */}
+                                <DateTimePicker
+                                    value={scheduledDateInput}
+                                    onChange={setScheduledDateInput}
+                                    minDate={new Date()}
+                                    timeOptional
+                                    placeholder="Sans date pour l'instant"
+                                />
                             </div>
                         )}
                     </div>
@@ -535,7 +497,7 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
                                                     "flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-bold transition-all",
                                                     isSelected
                                                         ? "border-info/60 bg-info/15 text-info "
-                                                        : "border-white/8 bg-white/3 text-foreground/50 hover:border-border-strong hover:text-foreground/80"
+                                                        : "border-border bg-surface/40 text-muted-foreground hover:border-border-strong hover:text-foreground"
                                                 )}
                                             >
                                                 <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${cls.color}20` }}>
@@ -561,7 +523,7 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
                                                     "flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-bold transition-all",
                                                     isSelected
                                                         ? "border-info/60 bg-info/15 text-info "
-                                                        : "border-white/8 bg-white/3 text-foreground/50 hover:border-border-strong hover:text-foreground/80"
+                                                        : "border-border bg-surface/40 text-muted-foreground hover:border-border-strong hover:text-foreground"
                                                 )}
                                             >
                                                 <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${cls.color}20` }}>
@@ -579,7 +541,7 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
                         {/* Toutes les classes */}
                         <div className="space-y-1.5">
                             <p className="text-caption text-foreground/35 uppercase font-bold tracking-widest">Toutes les Classes</p>
-                            <div className="flex flex-wrap gap-1.5 bg-white/3 rounded-xl p-2 border border-border">
+                            <div className="flex flex-wrap gap-1.5 bg-surface/40 rounded-xl p-2 border border-border">
                                 {DOFUS_CLASSES.map((cls) => {
                                     const isSelected = leaderClass === cls.id;
                                     return (

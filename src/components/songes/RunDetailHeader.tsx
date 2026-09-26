@@ -17,6 +17,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DIFFICULTIES, OBJECTIVES, EPREUVES_SONGE, getEpreuve, type DifficultyKey, type ObjectiveKey } from "@/lib/songes/types";
+import { SongesPicto } from "./SongesPicto";
+import { SONGES_BUTTON } from "@/lib/songes/ui";
 import { closeDreamRun, updateDreamRun } from "@/server/actions/songes/dream-run-actions";
 import type { DreamRun, DreamRunMember } from "@prisma/client";
 import { cn } from "@/lib/utils";
@@ -248,8 +250,8 @@ export function RunDetailHeader({ run, guildId, isLeader, leaderName, optimistic
                             )}
                             {/* NEW: Objective Badge for Standard runs */}
                             {!epreuve && objective && (
-                                <div className="flex items-center gap-2 bg-purple-500/10 px-3 py-1 rounded-full border border-purple-500/20 text-purple-300 text-caption font-black uppercase tracking-widest ml-2">
-                                    {objective.icon}
+                                <div className="flex items-center gap-2 bg-surface/40 px-3 py-1 rounded-full border border-border text-muted-foreground text-caption font-black uppercase tracking-widest ml-2">
+                                    <SongesPicto asset={objective.asset} size={16} title={objective.label} />
                                     <span>{objective.label}</span>
                                 </div>
                             )}
@@ -286,7 +288,7 @@ export function RunDetailHeader({ run, guildId, isLeader, leaderName, optimistic
                                 href="https://www.dofuspourlesnoobs.com/songes-infinis.html"
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="flex items-center gap-4 px-8 py-5 rounded-2xl border-2 border-blue-500/30 bg-blue-600/10 text-blue-200 hover:bg-blue-500/20 hover:text-foreground hover:border-blue-400 hover:-translate-y-1  transition-all group font-black text-lg uppercase tracking-wider flex-1 min-w-[280px]"
+                                className="flex items-center gap-4 px-8 py-5 rounded-2xl border border-border bg-surface/40 text-muted-foreground hover:bg-elevated hover:text-foreground transition-colors group font-black text-lg uppercase tracking-wider flex-1 min-w-[280px]"
                             >
                                 <div className="w-2.5 h-2.5 rounded-full bg-blue-400  animate-pulse" />
                                 <span>Guide Songes</span>
@@ -297,7 +299,7 @@ export function RunDetailHeader({ run, guildId, isLeader, leaderName, optimistic
                             {onOpenBossGuide && (
                                 <button
                                     onClick={onOpenBossGuide}
-                                    className="flex items-center gap-4 px-8 py-5 rounded-2xl border-2 border-emerald-500/30 bg-emerald-600/10 text-emerald-200 hover:bg-emerald-500/20 hover:text-foreground hover:border-emerald-400 hover:-translate-y-1  transition-all group font-black text-lg uppercase tracking-wider flex-1 min-w-[280px]"
+                                    className="flex items-center gap-4 px-8 py-5 rounded-2xl border border-border bg-surface/40 text-muted-foreground hover:bg-elevated hover:text-foreground transition-colors group font-black text-lg uppercase tracking-wider flex-1 min-w-[280px]"
                                 >
                                     <BookOpen className="w-6 h-6 group-hover:rotate-12 transition-transform drop-shadow-[0_0_10px_rgba(217,70,239,1)]" />
                                     <span>Guide Boss Songes</span>
@@ -315,13 +317,13 @@ export function RunDetailHeader({ run, guildId, isLeader, leaderName, optimistic
                                     backgroundColor: `${epreuve.color}05`,
                                 }}
                             >
-                                <div className="absolute -right-4 -bottom-4 text-8xl opacity-[0.03] transition-transform group- pointer-events-none">
-                                    {epreuve.icon}
+                                <div className="absolute -right-4 -bottom-4 opacity-[0.06] transition-transform group- pointer-events-none">
+                                    <SongesPicto asset={epreuve.asset} size={120} />
                                 </div>
                                 <div className="flex flex-col md:flex-row gap-5 items-start">
-                                    <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-3xl shrink-0"
+                                    <div className="w-14 h-14 rounded-2xl flex items-center justify-center shrink-0"
                                         style={{ backgroundColor: `${epreuve.color}20`, border: `1px solid ${epreuve.color}40` }}>
-                                        {epreuve.icon}
+                                        <SongesPicto asset={epreuve.asset} size={32} title={epreuve.label} />
                                     </div>
                                     <div className="flex-1">
                                         <div className="flex items-center gap-3 mb-2">
@@ -363,7 +365,7 @@ export function RunDetailHeader({ run, guildId, isLeader, leaderName, optimistic
                                     <Dialog open={closeDialogOpen} onOpenChange={setCloseDialogOpen}>
                                         <DialogTrigger asChild>
                                             <Button
-                                                className="w-full bg-amber-500 hover:bg-amber-400 text-warning-foreground font-black uppercase tracking-widest h-14 shadow-lg shadow-amber-900/20 active:scale-95"
+                                                className={cn(SONGES_BUTTON.close, "w-full uppercase tracking-widest h-14 shadow-lg active:scale-95")}
                                             >
                                                 <CheckCircle2 className="w-5 h-5 mr-3" />
                                                 Clôturer la Run
@@ -384,7 +386,7 @@ export function RunDetailHeader({ run, guildId, isLeader, leaderName, optimistic
                                             </div>
                                             <div className="flex justify-end gap-3 mt-4">
                                                 <Button variant="ghost" onClick={() => setCloseDialogOpen(false)}>Annuler</Button>
-                                                <Button onClick={handleCloseRun} disabled={loading} className="bg-amber-600 hover:bg-amber-500 text-warning-foreground">
+                                                <Button onClick={handleCloseRun} disabled={loading} className={SONGES_BUTTON.close}>
                                                     {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Terminer la Run"}
                                                 </Button>
                                             </div>
@@ -437,7 +439,12 @@ export function RunDetailHeader({ run, guildId, isLeader, leaderName, optimistic
                                             <SelectContent className="bg-background border-border">
                                                 <SelectItem value="">Run standard</SelectItem>
                                                 {EPREUVES_SONGE.map((e) => (
-                                                    <SelectItem key={e.code} value={e.code}>{e.icon} {e.label}</SelectItem>
+                                                    <SelectItem key={e.code} value={e.code}>
+                                            <span className="flex items-center gap-2">
+                                                <SongesPicto asset={e.asset} size={16} title={e.label} />
+                                                {e.label}
+                                            </span>
+                                        </SelectItem>
                                                 ))}
                                             </SelectContent>
                                         </Select>
@@ -456,7 +463,7 @@ export function RunDetailHeader({ run, guildId, isLeader, leaderName, optimistic
                                                                     : "bg-surface border-border text-foreground/60 hover:border-border-strong"
                                                             }`}
                                                         >
-                                                            <span className="text-sm">{obj.icon}</span>
+                                                            <SongesPicto asset={obj.asset} size={18} title={obj.label} />
                                                             <span className="text-xs font-bold">{obj.label}</span>
                                                         </button>
                                                     ))}
@@ -500,7 +507,7 @@ export function RunDetailHeader({ run, guildId, isLeader, leaderName, optimistic
                                 </div>
                                 <div className="flex justify-end gap-3 mt-4">
                                     <Button variant="ghost" onClick={() => setEditOpen(false)} className="text-foreground/60 hover:text-foreground">Annuler</Button>
-                                    <Button onClick={handleEditSubmit} disabled={editPending} className="bg-purple-600 hover:bg-purple-500 text-foreground">
+                                    <Button onClick={handleEditSubmit} disabled={editPending} className={SONGES_BUTTON.primary}>
                                         {editPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Pencil className="w-4 h-4 mr-2" />}
                                         Enregistrer
                                     </Button>

@@ -6,6 +6,10 @@ import { useRouter } from "next/navigation";
 import { Pencil, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DateTimePicker } from "@/components/ui/date-time-picker";
+import { SongesPicto } from "./SongesPicto";
+import { SONGES_BUTTON } from "@/lib/songes/ui";
+import { toLocalDateTimeInput } from "@/lib/date-utils";
 import {
     Dialog,
     DialogContent,
@@ -37,16 +41,10 @@ export function RunEditModal({ isOpen, onClose, guildId, run }: RunEditModalProp
         Array.isArray(run.objectives) ? (run.objectives as string[]) : (run.objective ? [run.objective] : [])
     );
     const [epreuveCode, setEpreuveCode] = useState<string>(run.epreuveCode || "");
-    const [date, setDate] = useState<string>(() => {
-        if (!run.scheduledAt) return "";
-        const d = new Date(run.scheduledAt);
-        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-    });
-    const [time, setTime] = useState<string>(() => {
-        if (!run.scheduledAt) return "21:00";
-        const d = new Date(run.scheduledAt);
-        return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
-    });
+    // Date & heure UNIFIÉES avec le reste de l'app (sélecteur partagé), et
+    // réellement OPTIONNELLES : aucune date ⇒ `null` (jamais un 21:00 inventé qui
+    // laissait croire à un départ programmé). Heure locale, sans décalage UTC.
+    const [scheduledAt, setScheduledAt] = useState<string>(() => toLocalDateTimeInput(run.scheduledAt));
     const [currentFloor, setCurrentFloor] = useState<string>(String(run.currentFloor));
 
     const toggleObjective = (key: string) => {
@@ -56,17 +54,12 @@ export function RunEditModal({ isOpen, onClose, guildId, run }: RunEditModalProp
     const handleSubmit = async () => {
         setPending(true);
         try {
-            let scheduledAt: Date | null = null;
-            if (date) {
-                const [y, m, d] = date.split("-").map(Number);
-                const [hh, mm] = (time || "21:00").split(":").map(Number);
-                if (y && m && d) scheduledAt = new Date(y, m - 1, d, hh || 0, mm || 0, 0, 0);
-            }
             const res = await updateDreamRun(guildId, run.id, {
                 difficulty: difficulty as any,
                 objectives: objectives as any,
                 epreuveCode: epreuveCode || null,
-                scheduledAt,
+                // Champ vide ⇒ aucune date (null), pas une date invalide.
+                scheduledAt: scheduledAt ? new Date(scheduledAt) : null,
                 mentionRoleIds: [],
                 currentFloor: currentFloor ? Math.max(0, Math.min(26, parseInt(currentFloor, 10) || 0)) : undefined,
             });
@@ -117,7 +110,12 @@ export function RunEditModal({ isOpen, onClose, guildId, run }: RunEditModalProp
                             <SelectContent className="bg-background border-border z-[200]">
                                 <SelectItem value="">Run standard</SelectItem>
                                 {EPREUVES_SONGE.map((e) => (
-                                    <SelectItem key={e.code} value={e.code}>{e.icon} {e.label}</SelectItem>
+                                    <SelectItem key={e.code} value={e.code}>
+                                        <span className="flex items-center gap-2">
+                                            <SongesPicto asset={e.asset} size={16} title={e.label} />
+                                            {e.label}
+                                        </span>
+                                    </SelectItem>
                                 ))}
                             </SelectContent>
                         </Select>
@@ -136,7 +134,7 @@ export function RunEditModal({ isOpen, onClose, guildId, run }: RunEditModalProp
                                                     : "bg-surface border-border text-foreground/60 hover:border-border-strong"
                                             }`}
                                         >
-                                            <span className="text-sm">{obj.icon}</span>
+                                            <SongesPicto asset={obj.asset} size={18} title={obj.label} />
                                             <span className="text-xs font-bold">{obj.label}</span>
                                         </button>
                                     ))}
@@ -145,25 +143,19 @@ export function RunEditModal({ isOpen, onClose, guildId, run }: RunEditModalProp
                         )}
                     </div>
 
-                    <div className="grid grid-cols-2 gap-3">
-                        <div className="space-y-2">
-                            <label className="text-caption font-black text-foreground/40 uppercase tracking-widest">Date de départ</label>
-                            <Input
-                                type="date"
-                                value={date}
-                                onChange={(e) => setDate(e.target.value)}
-                                className="bg-surface border-border text-sm"
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <label className="text-caption font-black text-foreground/40 uppercase tracking-widest">Heure</label>
-                            <Input
-                                type="time"
-                                value={time}
-                                onChange={(e) => setTime(e.target.value)}
-                                className="bg-surface border-border text-sm"
-                            />
-                        </div>
+                    <div className="space-y-2">
+                        <label className="text-caption font-black text-foreground/40 uppercase tracking-widest">
+                            Date de départ <span className="normal-case font-medium">(optionnel)</span>
+                        </label>
+                        {/* Même sélecteur que le reste de l'app : « Sans heure » possible,
+                            et aucune date = « Sans date pour l'instant » (jamais un 21:00
+                            inventé qui faisait croire à un départ programmé). */}
+                        <DateTimePicker
+                            value={scheduledAt}
+                            onChange={setScheduledAt}
+                            timeOptional
+                            placeholder="Sans date pour l'instant"
+                        />
                     </div>
 
                     <div className="space-y-2">
@@ -179,8 +171,8 @@ export function RunEditModal({ isOpen, onClose, guildId, run }: RunEditModalProp
                     </div>
                 </div>
                 <div className="flex justify-end gap-3 mt-4">
-                    <Button variant="ghost" onClick={onClose} disabled={pending} className="text-foreground/60 hover:text-foreground">Annuler</Button>
-                    <Button onClick={handleSubmit} disabled={pending} className="bg-purple-600 hover:bg-purple-500 text-foreground">
+                    <Button variant="ghost" onClick={onClose} disabled={pending} className={SONGES_BUTTON.ghost}>Annuler</Button>
+                    <Button onClick={handleSubmit} disabled={pending} className={SONGES_BUTTON.primary}>
                         {pending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Pencil className="w-4 h-4 mr-2" />}
                         Enregistrer
                     </Button>

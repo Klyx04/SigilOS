@@ -60,14 +60,14 @@ export function RunProgressModal({
             <DialogContent className="sm:max-w-2xl bg-background border-border text-foreground overflow-hidden p-0">
                 {/* Background Decor */}
                 <div className="absolute inset-0 z-0 opacity-20 pointer-events-none">
-                    <div className="absolute top-0 left-1/4 w-64 h-64 bg-purple-600/30 blur-[100px] rounded-full" />
-                    <div className="absolute bottom-0 right-1/4 w-64 h-64 bg-blue-600/30 blur-[100px] rounded-full" />
+                    <div className="absolute top-0 left-1/4 w-64 h-64 bg-info/20 blur-[100px] rounded-full" />
+                    <div className="absolute bottom-0 right-1/4 w-64 h-64 bg-info/20 blur-[100px] rounded-full" />
                 </div>
 
                 <div className="relative z-10 p-6">
                     <DialogHeader className="mb-6">
                         <DialogTitle className="text-2xl font-black uppercase tracking-tighter flex items-center gap-2">
-                            <Sparkles className="w-6 h-6 text-purple-400" />
+                            <Sparkles className="w-6 h-6 text-info" />
                             Progression du Rêve
                         </DialogTitle>
                         <DialogDescription className="text-foreground/50 font-medium">
@@ -140,7 +140,7 @@ export function RunProgressModal({
                                                     )}
                                                 >
                                                     <span className="text-sm font-black">{floor}</span>
-                                                    {isDone && <div className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-emerald-500/40" />}
+                                                    {isDone && <div className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-success/40" />}
                                                 </button>
                                             );
                                         })}
@@ -163,8 +163,8 @@ export function RunProgressModal({
                                 className={cn(
                                     "w-full h-16 rounded-2xl border-2 flex items-center justify-center gap-4 transition-all hover:scale-[1.02] active:scale-95 disabled:opacity-50",
                                     currentFloor === 26
-                                        ? "bg-amber-500 text-warning-foreground border-amber-400 "
-                                        : "bg-amber-500/10 border-amber-500/20 text-amber-500 hover:bg-amber-500/20"
+                                        ? "bg-warning text-warning-foreground border-warning "
+                                        : "bg-warning/10 border-warning/20 text-warning hover:bg-warning/20"
                                 )}
                             >
                                 <div className="flex items-center gap-4">
@@ -190,8 +190,8 @@ export function RunProgressModal({
                     {isUpdating && (
                         <div className="absolute inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center animate-in fade-in">
                             <div className="flex flex-col items-center gap-3">
-                                <Loader2 className="w-10 h-10 text-purple-400 animate-spin" />
-                                <span className="text-xs font-black uppercase tracking-widest text-purple-400/80">Modification...</span>
+                                <Loader2 className="w-10 h-10 text-info animate-spin" />
+                                <span className="text-xs font-black uppercase tracking-widest text-info/80">Modification...</span>
                             </div>
                         </div>
                     )}

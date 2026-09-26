@@ -3,8 +3,9 @@
 import { useState, useEffect, useMemo } from "react";
 import { RunCard } from "./RunCard";
 import type { DreamRun, DreamRunMember, DreamWaitlist } from "@prisma/client";
-import { Moon, Sparkles, Flame, Star } from "lucide-react";
+import { Moon } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
+import { SongesPicto } from "./SongesPicto";
 
 type RunWithRelations = DreamRun & {
     members: DreamRunMember[];
@@ -23,30 +24,36 @@ interface RunCardGridProps {
 
 type TierFilter = "ALL" | "REVE" | "PARADOXE" | "CAUCHEMAR";
 
-const TIER_CONFIG: Record<TierFilter, { label: string; icon: React.ReactNode; color: string; activeColor: string }> = {
+/**
+ * Filtres par palier — pictos Dofus officiels (`/assets/missions/*`, les mêmes que
+ * les embeds et les cartes) et style NEUTRE : le module est dark-locked, donc plus
+ * de couples `light/dark` (text-purple-700 dark:text-purple-300) ni de pastilles
+ * arc-en-ciel — l'état actif est neutre, l'accent reste unique (comme les filtres DJ).
+ */
+const TIER_CONFIG: Record<TierFilter, { label: string; asset: string; color: string; activeColor: string }> = {
     ALL: {
         label: "Tous",
-        icon: <Star className="w-4 h-4" />,
-        color: "text-purple-700 dark:text-purple-300 border-purple-500/30 bg-purple-500/10 hover:bg-purple-500/20",
-        activeColor: "bg-purple-600 text-white border-purple-600 shadow-sm"
+        asset: "/assets/missions/songes.png",
+        color: "text-muted-foreground border-border bg-surface/40 hover:text-foreground hover:bg-elevated",
+        activeColor: "bg-elevated border-border-strong text-foreground shadow-sm",
     },
     REVE: {
         label: "Rêve",
-        icon: <Moon className="w-4 h-4" />,
-        color: "text-emerald-700 dark:text-emerald-300 border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20",
-        activeColor: "bg-emerald-600 text-white border-emerald-600 shadow-sm"
+        asset: "/assets/missions/reve1.png",
+        color: "text-muted-foreground border-border bg-surface/40 hover:text-foreground hover:bg-elevated",
+        activeColor: "bg-elevated border-border-strong text-foreground shadow-sm",
     },
     PARADOXE: {
         label: "Paradoxe",
-        icon: <Sparkles className="w-4 h-4" />,
-        color: "text-amber-700 dark:text-amber-300 border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20",
-        activeColor: "bg-amber-500 text-white border-amber-500 shadow-sm"
+        asset: "/assets/missions/paradoxe1.png",
+        color: "text-muted-foreground border-border bg-surface/40 hover:text-foreground hover:bg-elevated",
+        activeColor: "bg-elevated border-border-strong text-foreground shadow-sm",
     },
     CAUCHEMAR: {
         label: "Cauchemar",
-        icon: <Flame className="w-4 h-4" />,
-        color: "text-red-700 dark:text-red-300 border-red-500/30 bg-red-500/10 hover:bg-red-900/20",
-        activeColor: "bg-red-600 text-white border-red-600 shadow-sm"
+        asset: "/assets/missions/cauchemar1.png",
+        color: "text-muted-foreground border-border bg-surface/40 hover:text-foreground hover:bg-elevated",
+        activeColor: "bg-elevated border-border-strong text-foreground shadow-sm",
     },
 };
 
@@ -86,16 +93,17 @@ export function RunCardGrid({ runs: initialRuns, currentUserId, canJoinSonges, i
                         <button
                             key={tier}
                             onClick={() => setTierFilter(tier)}
+                            aria-pressed={isActive}
                             className={`
-                                flex items-center gap-2 px-4 py-2 rounded-lg border transition-all duration-200
+                                flex items-center gap-2 px-4 py-2 rounded-xl border text-sm font-bold transition-all duration-200
                                 ${isActive ? config.activeColor : config.color}
                             `}
                         >
-                            {config.icon}
-                            <span className="font-medium">{config.label}</span>
+                            <SongesPicto asset={config.asset} size={16} title={config.label} />
+                            <span>{config.label}</span>
                             <span className={`
-                                text-xs px-1.5 py-0.5 rounded-full
-                                ${isActive ? "bg-elevated" : "bg-current/10"}
+                                text-xs px-1.5 py-0.5 rounded-full font-black
+                                ${isActive ? "bg-background/60 text-foreground" : "bg-surface text-muted-foreground"}
                             `}>
                                 {count}
                             </span>

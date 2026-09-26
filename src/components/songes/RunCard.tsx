@@ -7,7 +7,6 @@ import { useParams, useRouter } from "next/navigation";
 import {
     Users,
     Loader2,
-    Trash2,
     UserPlus,
     Clock,
     LogOut,
@@ -16,8 +15,7 @@ import {
     X,
     ShieldCheck,
     TrendingUp,
-    Pencil,
-    AlertTriangle
+    Pencil
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -28,8 +26,6 @@ import {
     DialogContent,
     DialogHeader,
     DialogTitle,
-    DialogTrigger,
-    DialogDescription,
 } from "@/components/ui/dialog";
 import {
     Select,
@@ -42,7 +38,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import {
     sendJoinRequest,
-    deleteDreamRun,
     getMemberProfiles,
     getMyJoinRequestStatus,
     cancelJoinRequest,
@@ -58,6 +53,8 @@ import {
     type DofusClass,
     getEpreuve
 } from "@/lib/songes/types";
+import { SongesPicto } from "./SongesPicto";
+import { SONGES_BUTTON } from "@/lib/songes/ui";
 import { ClassIcon } from "@/components/shared/class-icon";
 import { RunCloseModal } from "@/components/songes/RunCloseModal";
 import { RunProgressModal } from "@/components/songes/RunProgressModal";
@@ -100,7 +97,6 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
     const [isPending, startTransition] = useTransition();
     const [loading, setLoading] = useState(false);
     const [joinDialogOpen, setJoinDialogOpen] = useState(false);
-    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [closeModalOpen, setCloseModalOpen] = useState(false);
     const [progressModalOpen, setProgressModalOpen] = useState(false);
     const [editModalOpen, setEditModalOpen] = useState(false);
@@ -123,6 +119,8 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
         : `Créée · ${format(new Date(run.createdAt), "d MMM · HH:mm", { locale: fr })}`;
     const canApplyConditions = !isMember && !isLeader && run.members.length < 4 && !pendingRequest;
     const canApply = canApplyConditions && canJoinSonges;
+    // Ma position en file d'attente (promotion automatique au départ d'un membre)
+    const myWaitlistEntry = currentUserId ? run.waitlist.find((w) => w.userId === currentUserId) : undefined;
 
     // Helper: get a member's class from their ACCEPTED join request
     const getMemberClass = (userId: string): string | null => {
@@ -186,14 +184,6 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
         });
     };
 
-    const handleDelete = async () => {
-        setLoading(true);
-        await deleteDreamRun(params.guildId as string, run.id);
-        setDeleteDialogOpen(false);
-        router.refresh();
-        setLoading(false);
-    };
-
     const handleLeave = () => {
         startTransition(async () => {
             await leaveDreamRun(params.guildId as string, run.id);
@@ -251,59 +241,16 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
                     </div>
                 </div>
 
-                <div className="flex items-center gap-2">
-                    {(isLeader || isAdmin) && (
-                        <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-                            <DialogTrigger asChild>
-                                <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground hover:text-red-400 hover:bg-red-500/10 transition-colors rounded-lg" title="Supprimer la run">
-                                    <Trash2 className="w-4 h-4" />
-                                </Button>
-                            </DialogTrigger>
-                            <DialogContent className="bg-background border-border text-foreground max-w-sm rounded-2xl">
-                                <DialogHeader>
-                                    <DialogTitle className="flex items-center gap-2 text-red-500 text-lg font-black uppercase">
-                                        <Trash2 className="w-5 h-5" /> Supprimer la run
-                                    </DialogTitle>
-                                    <DialogDescription className="sr-only">
-                                        Confirmation de suppression définitive de la run
-                                    </DialogDescription>
-                                </DialogHeader>
-                                <div className="py-1 space-y-4">
-                                    <div className="flex items-start gap-3 p-3 rounded-xl bg-red-500/10 border border-red-500/20">
-                                        <AlertTriangle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
-                                        <p className="text-caption text-red-600 dark:text-red-200/80 font-medium leading-relaxed">
-                                            Cette action est <span className="font-black text-red-700 dark:text-red-300">irréversible</span>.
-                                            La run <span className="font-bold text-foreground">{DIFFICULTIES[run.difficulty as DifficultyKey]?.label || run.difficulty}</span>
-                                            {run.members.length > 0 ? ` (${run.members.length} membre${run.members.length > 1 ? "s" : ""})` : ""}
-                                            , ses candidatures et son annonce Discord seront définitivement supprimés.
-                                        </p>
-                                    </div>
-                                    <p className="text-caption text-muted-foreground font-bold uppercase tracking-widest">
-                                        {run.members.length > 0
-                                            ? "Les participants perdront leur place."
-                                            : "Aucun participant n'est inscrit."}
-                                    </p>
-                                </div>
-                                <div className="flex gap-3 mt-4">
-                                    <Button variant="outline" className="flex-1 rounded-xl h-10 border-border bg-surface hover:bg-surface text-foreground" onClick={() => setDeleteDialogOpen(false)}>
-                                        Annuler
-                                    </Button>
-                                    <Button variant="destructive" className="flex-1 font-black uppercase text-caption rounded-xl h-10 bg-red-600 hover:bg-red-500 text-foreground" onClick={handleDelete} disabled={loading}>
-                                        {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4 mr-1" />}
-                                        Supprimer
-                                    </Button>
-                                </div>
-                            </DialogContent>
-                        </Dialog>
-                    )}
-                </div>
+                {/* Plus d'icône « Supprimer la run » : la suppression détruisait la run (et
+                    son annonce Discord) sans bilan. Le geste utile est « Clôturer »
+                    (bilan des étages/bonus + fermeture Discord), juste en dessous. */}
             </div>
 
             {/* --- ÉPREUVE BOX --- */}
             {epreuve && (
                 <div className="relative z-10 p-4 rounded-2xl border border-border bg-elevated/70 mb-5">
                     <div className="flex items-center gap-2 mb-1.5">
-                        <span className="text-xl">{epreuve.icon}</span>
+                        <SongesPicto asset={epreuve.asset} size={20} title={epreuve.label} />
                         <span className="text-caption font-black uppercase tracking-widest" style={{ color: epreuve.color }}>{epreuve.label}</span>
                     </div>
                     <p className="text-caption text-muted-foreground leading-relaxed">{epreuve.description}</p>
@@ -323,7 +270,7 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
                     <div className="flex flex-col items-end flex-1 ml-8">
                         <div className="w-full h-2 bg-muted rounded-full overflow-hidden p-0.5 border border-border">
                             <div
-                                className="h-full rounded-full bg-emerald-500/80 transition-all duration-200"
+                                className="h-full rounded-full bg-success/80 transition-all duration-200"
                                 style={{ width: `${progress}%` }}
                             />
                         </div>
@@ -385,10 +332,10 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
 
             {/* --- CANDIDACIES SECTION --- */}
             {isLeader && run.joinRequests && run.joinRequests.filter(r => r.status !== 'ACCEPTED').length > 0 && (
-                <div className="relative z-10 p-5 rounded-2xl bg-amber-500/5 border border-amber-500/10 mb-6 animate-in slide-in-from-bottom-2 duration-300">
+                <div className="relative z-10 p-5 rounded-2xl bg-warning/5 border border-warning/20 mb-6 animate-in slide-in-from-bottom-2 duration-300">
                     <div className="flex items-center gap-2 mb-4">
-                        <Bell className="w-3.5 h-3.5 text-amber-500" />
-                        <p className="text-caption font-black uppercase tracking-widest text-amber-500/70">Candidatures</p>
+                        <Bell className="w-3.5 h-3.5 text-warning" />
+                        <p className="text-caption font-black uppercase tracking-widest text-warning/70">Candidatures</p>
                     </div>
 
                     <div className="space-y-3">
@@ -414,7 +361,7 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
                                         <div className="flex gap-1.5 shrink-0">
                                             <Button
                                                 size="icon"
-                                                className="w-8 h-8 rounded-lg bg-green-500 hover:bg-green-400 text-foreground"
+                                                className="w-8 h-8 rounded-lg bg-success hover:bg-success/80 text-success-foreground"
                                                 onClick={() => handleRespondCandidacy(c.id, true)}
                                                 disabled={!!actionLoading}
                                             >
@@ -423,7 +370,7 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
                                             <Button
                                                 size="icon"
                                                 variant="ghost"
-                                                className="w-8 h-8 rounded-lg text-foreground/20 hover:text-rose-500 hover:bg-rose-500/10"
+                                                className="w-8 h-8 rounded-lg text-foreground/20 hover:text-danger hover:bg-danger/10"
                                                 onClick={() => handleRespondCandidacy(c.id, false)}
                                                 disabled={!!actionLoading}
                                             >
@@ -483,7 +430,7 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
                 ) : isMember ? (
                     <Button
                         variant="ghost"
-                        className="flex-1 h-11 bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 border border-rose-500/20 font-black uppercase tracking-widest text-caption rounded-xl"
+                        className={cn(SONGES_BUTTON.danger, "flex-1 h-11 uppercase tracking-widest text-caption rounded-xl")}
                         onClick={handleLeave}
                     >
                         <LogOut className="w-4 h-4 mr-2" />
@@ -491,17 +438,25 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
                     </Button>
                 ) : pendingRequest ? (
                     <div className="flex-1 flex gap-2">
-                        <div className="flex-1 h-11 flex items-center justify-center rounded-xl bg-amber-500/10 text-amber-500 border border-amber-500/20 font-black uppercase tracking-widest text-caption">
+                        <div className="flex-1 h-11 flex items-center justify-center rounded-xl bg-warning/10 text-warning border border-warning/20 font-black uppercase tracking-widest text-caption">
                             <Clock className="w-4 h-4 mr-2" />
                             En attente
                         </div>
                         <Button
                             variant="ghost"
-                            className="h-11 w-11 rounded-xl border border-border text-foreground/20 hover:text-rose-500"
+                            className={cn(SONGES_BUTTON.ghost, "h-11 w-11 rounded-xl border border-border hover:text-danger")}
                             onClick={handleCancelRequest}
                         >
                             <X className="w-4 h-4" />
                         </Button>
+                    </div>
+                ) : myWaitlistEntry ? (
+                    // File d'attente Songes : la promotion est AUTOMATIQUE (dès qu'un membre
+                    // part ou est éjecté), mais la carte ne le disait nulle part — le joueur
+                    // lisait « Équipe complète » sans savoir qu'il attendait une place.
+                    <div className="flex-1 h-11 flex items-center justify-center gap-2 rounded-xl bg-warning/10 text-warning border border-warning/20 font-black uppercase tracking-widest text-caption">
+                        <Clock className="w-4 h-4" />
+                        File d&apos;attente — position {myWaitlistEntry.position}
                     </div>
                 ) : canApply ? (
                     <Button

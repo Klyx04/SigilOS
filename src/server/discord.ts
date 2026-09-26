@@ -848,6 +848,45 @@ export async function updateForumThreadTags(threadId: string, tagIds: string[]):
 }
 
 /**
+ * Renomme un sujet de forum / thread (`PATCH /channels/{threadId}` avec `name`).
+ *
+ * Différence avec `renameChannelDiscord` : un salon textuel N'ACCEPTE que
+ * `[a-z0-9-_]` (d'où la slugification), alors qu'un sujet de forum accepte les
+ * emoji et les accents. On envoie donc le nom TEL QUEL, borné à 100 caractères
+ * (limite Discord du nom de salon/sujet).
+ *
+ * Jamais d'exception : `false` = à retenter (le module reste fonctionnel sans).
+ */
+export async function updateForumThreadName(threadId: string, name: string): Promise<boolean> {
+    const token = process.env.DISCORD_BOT_TOKEN;
+    if (!token) return false;
+
+    const clean = String(name || "").trim().slice(0, 100);
+    if (!clean) return false;
+
+    try {
+        const res = await fetchWithRetry(`/api/v10/channels/${threadId}`, {
+            method: "PATCH",
+            headers: {
+                Authorization: `Bot ${token}`,
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ name: clean }),
+        });
+
+        if (!res.ok) {
+            const errBody = await res.text();
+            logger.warn(`[Discord] updateForumThreadName failed ${res.status}`, { error: errBody.slice(0, 300) });
+            return false;
+        }
+        return true;
+    } catch (error) {
+        logger.warn("[Discord] Error renaming forum thread", { error: String(error) });
+        return false;
+    }
+}
+
+/**
  * Discord embed field
  */
 interface EmbedField {

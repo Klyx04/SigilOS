@@ -246,9 +246,24 @@ export function PlatformConfigPanel({ config, availableGuilds, availableRoles }:
                             <span className="text-caption text-zinc-500 uppercase block">Salons accessibles</span>
                             <div className="flex flex-wrap gap-1">
                                 {Object.entries(diagResults.channels).map(([k, v]: any) => (
-                                    <span key={k} className={cn("text-caption font-mono px-1.5 py-0.5 rounded", v.status === "OK" ? "bg-emerald-500/20 text-emerald-400" : "bg-rose-500/20 text-rose-400")}>{k}</span>
+                                    <span key={k} title={v.message} className={cn("text-caption font-mono px-1.5 py-0.5 rounded cursor-help", v.status === "OK" ? "bg-emerald-500/20 text-emerald-400" : "bg-rose-500/20 text-rose-400")}>{k}</span>
                                 ))}
                             </div>
+                            {/* Le POURQUOI d'une pastille rouge : sans ce détail, l'opérateur ne
+                                sait pas s'il manque une permission (403) ou si l'ID est faux
+                                (404) — la pastille seule ne permet pas d'agir (mesure du
+                                26/09/2026 : une soirée entière passée à deviner). */}
+                            {Object.entries(diagResults.channels).some(([, v]: any) => v.status !== "OK") && (
+                                <div className="pt-1 space-y-0.5">
+                                    {Object.entries(diagResults.channels)
+                                        .filter(([, v]: any) => v.status !== "OK")
+                                        .map(([k, v]: any) => (
+                                            <p key={k} className="text-caption text-rose-300 font-mono leading-tight break-words">
+                                                {k} · {v.status} — {v.message}
+                                            </p>
+                                        ))}
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>

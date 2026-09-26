@@ -62,6 +62,14 @@ export async function notifyGod(params: {
     // poussée sur Discord, sinon on éteindrait la surveillance qu'on veut protéger.
     const effectiveWebOnly = webOnly || isOutboxFailureContext();
 
+    /**
+     * ID (ou `outbox:<jobId>`) du message Discord réellement confié à la file, `null`
+     * si aucun envoi Discord n'a eu lieu (`webOnly`, salon en pause d'écriture, panne).
+     * Sert aux **tests manuels** : sans cette information, le bouton « Test Alerte »
+     * affichait « envoyée avec succès » alors que rien n'était parti.
+     */
+    let discordMessageId: string | null = null;
+
     try {
         // 0. ANTI-RAFALE — une même panne (même clé) ne produit qu'une alerte par fenêtre.
         if (dedupeKey) {
@@ -116,7 +124,7 @@ export async function notifyGod(params: {
             const emoji = success ? "✅" : "❌";
 
             try {
-                await sendChannelMessage(
+                const sentId = await sendChannelMessage(
                     targetChannelId,
                     mention,
                     {
@@ -132,16 +140,20 @@ export async function notifyGod(params: {
                             })) : undefined
                     }
                 );
+                // Contrat strict : `string | null` — un salon en pause d'écriture (ou sans
+                // accès) fait renvoyer `null` à `sendChannelMessage`, et c'est CE que le
+                // test manuel doit voir pour ne pas annoncer un faux succès.
+                discordMessageId = sentId ?? null;
             } catch (discordErr: any) {
                 logger.error("[GodNotify] Discord dispatch failed:", discordErr.message);
                 // We still want to return success for the DB part, but log the Discord fail
             }
         }
 
-        return { success: true };
+        return { success: true, discordMessageId };
     } catch (err: any) {
         logger.error("[GodNotify] Failed to send notification:", err);
-        return { success: false, error: err.message };
+        return { success: false, error: err.message, discordMessageId: null };
     }
 }
 

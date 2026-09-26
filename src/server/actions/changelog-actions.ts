@@ -542,10 +542,22 @@ export async function testStatusPing(channelId?: string) {
     if (!isAdmin) return { success: false, error: 'Unauthorized' };
 
     try {
+        // Un TEST est un geste EXPLICITE de l'opérateur : il doit être TENTÉ pour de vrai,
+        // même si le disjoncteur a mis le salon en pause d'écriture — sinon le bouton ment
+        // (mesure du 26/09/2026 : « envoyé avec succès » alors qu'aucun message n'existait).
+        // On lève donc la pause, puis on rapporte le résultat RÉEL.
+        const { clearDiscordChannelBlock } = await import("@/lib/discord-channel-health");
+        if (channelId) await clearDiscordChannelBlock(channelId);
+
         const { sendGlobalStatusPing } = await import("./status-actions");
         // Force the mode to 'notification' so it bypasses the "Living Status" edit check
         // This ensures the test ALWAYS pushes a notification that the admin can see at the bottom
-        return await sendGlobalStatusPing(true, 'notification', undefined, channelId);
+        const res = await sendGlobalStatusPing(true, 'notification', undefined, channelId);
+
+        if (res.success && res.delivered === false) {
+            return { success: false, error: res.warning ?? "Aucun message Discord envoyé." };
+        }
+        return res;
     } catch (e: any) {
         logger.error('[testStatusPing]', e);
         return { success: false, error: e.message || "Erreur interne" };
@@ -557,8 +569,14 @@ export async function testBackupNotification(channelId?: string) {
     if (!isAdmin) return { success: false, error: 'Unauthorized' };
 
     try {
+        // Idem « Test Ping » : un geste explicite de l'opérateur doit être TENTÉ pour de
+        // vrai (on lève la pause d'écriture) et on rapporte ce qui s'est réellement passé,
+        // au lieu d'annoncer un succès pour un message qui n'existe pas.
+        const { clearDiscordChannelBlock } = await import("@/lib/discord-channel-health");
+        if (channelId) await clearDiscordChannelBlock(channelId);
+
         const { notifyGod } = await import("./god-notif-actions");
-        return await notifyGod({
+        const res = await notifyGod({
             title: "Sauvegarde Système (TEST)",
             message: "Ceci est une notification de test pour vérifier le bon fonctionnement du flux R2 / Cloudflare.",
             type: "SYSTEM",
@@ -571,6 +589,14 @@ export async function testBackupNotification(channelId?: string) {
                 mode: "MANUAL_TEST"
             }
         });
+
+        if (res.success && res.discordMessageId === null) {
+            return {
+                success: false,
+                error: "Aucun message Discord envoyé (salon en pause d'écriture ou bot sans accès). L'alerte reste visible dans la console God.",
+            };
+        }
+        return res;
     } catch (e: any) {
         logger.error('[testBackupNotification]', e);
         return { success: false, error: e.message || "Erreur interne" };

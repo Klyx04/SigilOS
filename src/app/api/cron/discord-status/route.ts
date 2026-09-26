@@ -38,6 +38,22 @@ export async function GET(req: Request) {
             return NextResponse.json({ error: result.error }, { status: 500 });
         }
 
+        // La passe a tourné mais le MIROIR Discord n'est pas parti (salon en pause
+        // d'écriture, bot sans accès) : 200 — cette route peut servir de sonde de
+        // disponibilité — et télémétrie en échec pour que God le voie.
+        if (result.delivered === false) {
+            const { recordCronExecution } = await import("@/lib/cron-telemetry");
+            await recordCronExecution("discord_status", {
+                success: false,
+                durationMs,
+                summary: result.warning ?? "Miroir Discord non envoyé",
+            });
+            return NextResponse.json(
+                { success: true, delivered: false, warning: result.warning },
+                { status: 200 }
+            );
+        }
+
         const { recordCronExecution } = await import("@/lib/cron-telemetry");
         await recordCronExecution("discord_status", {
             success: true,

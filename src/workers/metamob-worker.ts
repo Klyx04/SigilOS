@@ -464,6 +464,17 @@ const cronWorker = new Worker(
             } else if ((res as { skipped?: boolean }).skipped) {
                 logger.info(`[Cron] Status Ping sauté (fréquence ${(res as { frequencyMin?: number }).frequencyMin ?? "?"} min).`);
                 await recordCronExecution("status_ping", { success: true, durationMs, summary: `Ping sauté (fréquence ${(res as { frequencyMin?: number }).frequencyMin ?? "?"} min)` });
+            } else if (res.delivered === false) {
+                // La passe a tourné, mais le MIROIR Discord n'est pas parti (salon en pause
+                // d'écriture ou sans accès) : le cron ne doit surtout pas être annoncé
+                // « mis à jour » alors qu'aucun message n'existe. C'est ce faux vert qui a
+                // laissé la panne invisible pendant des heures (mesure du 26/09/2026).
+                logger.warn(`[Cron] Status Ping non envoyé: ${res.warning}`);
+                await recordCronExecution("status_ping", {
+                    success: false,
+                    durationMs,
+                    summary: res.warning ?? "Miroir Discord non envoyé",
+                });
             } else {
                 logger.info(`[Cron] Status Ping ${res.action ?? "OK"}.`);
                 await recordCronExecution("status_ping", { success: true, durationMs, summary: `Statut Discord mis à jour (${res.action ?? "OK"})` });

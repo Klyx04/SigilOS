@@ -93,7 +93,19 @@ export async function sendGlobalStatusPingCore(
         const channelId = targetChannelId || config?.serviceStatusChannelId;
 
         if (!channelId) {
-            return { success: false, error: "Salon d'état des services non configuré." };
+            // Pas de salon configuré : la PASSE s'est déroulée (le site et la page /status
+            // ne dépendent pas de Discord), mais AUCUN message n'est parti. Les distinguer
+            // est essentiel : `success: false` ferait répondre 500 à
+            // `/api/cron/status-ping`, que **UptimeRobot surveille** — un salon Discord
+            // mal configuré ferait alors crier « site down » au monitoring.
+            return {
+                success: true,
+                delivered: false,
+                warning: "Salon d'état des services non configuré — aucun message Discord envoyé.",
+                action: "skipped" as const,
+                messageId: null,
+                stats: { channelId: null },
+            };
         }
 
         const effectiveMode = mode || (config?.statusMode as 'living' | 'notification') || 'living';
@@ -286,27 +298,39 @@ export async function sendGlobalStatusPingCore(
             }
         }
 
-        // Horodatage du dernier envoi effectif → garde-fou de fréquence.
-        //
-        // ⚠️ Mesure du 25/09/2026 : `sendChannelMessage` renvoie `outbox:<jobId>` dès
-        // l'acceptation en file (donc AVANT tout envoi réel) — un `finalMessageId`
-        // truthy est bien un « envoi confié », et c'est voulu (sinon on reposterait à
-        // chaque tick de 5 min). Ce qui ne doit JAMAIS arriver, c'est qu'un salon
-        // **inaccessible** avance ce compteur : le disjoncteur
-        // (`@/lib/discord-channel-health`) fait alors renvoyer `null` à
-        // `sendChannelMessage`, donc aucun horodatage — le salon reste sondé sans
-        // bruit jusqu'à sa réparation, au lieu d'être réessayé une fois par heure
-        // (c'était le défaut mesuré : échec à `:10:00` de chaque heure, indéfiniment).
-        if (finalMessageId) {
+        // ⚠️ Mesure du 25/09/2026 (`sendChannelMessage` renvoie `outbox:<jobId>` dès
+        // l'acceptation en file) : un `finalMessageId` truthy = « écriture confiée »,
+        // un `null` = **rien n'est parti** (salon en pause d'écriture décidé par le
+        // disjoncteur, ou bot sans accès). On le DIT, au lieu de renvoyer un faux
+        // succès : c'est ce faux succès qui faisait afficher « envoyé avec succès » par
+        // le bouton Test Ping et déclarer le cron vert alors qu'aucun message n'existait.
+        const delivered = !!finalMessageId;
+
+        if (delivered) {
+            // Horodatage du dernier envoi effectif → garde-fou de fréquence.
             try {
                 await redis.set(REDIS_STATUS_LAST_TS_KEY, String(Date.now()), "EX", 60 * 60 * 24 * 7);
             } catch (e) {
                 logger.warn(`[Status Ping] Persistance horodatage impossible [${src}]`, e);
             }
+        } else {
+            logger.warn(`[Status Ping] Aucun message envoyé [${src}]`, {
+                channelId,
+                action: actionTaken,
+                mode: effectiveMode,
+            });
         }
 
         return {
             success: true,
+            delivered,
+            ...(delivered
+                ? {}
+                : {
+                    warning:
+                        "Aucun message Discord envoyé : le salon d'état est en pause d'écriture " +
+                        "(échec permanent récent) ou le bot n'y a pas accès.",
+                }),
             action: actionTaken,
             messageId: finalMessageId,
             frequencyMin,
@@ -320,6 +344,10 @@ export async function sendGlobalStatusPingCore(
 
     } catch (error: any) {
         logger.error("[Status Action] Critical Failure:", error);
-        return { success: false, error: error.message || "Erreur de connexion Discord (vérifiez l'ID du salon)" };
+        return {
+            success: false,
+            delivered: false,
+            error: error.message || "Erreur de connexion Discord (vérifiez l'ID du salon)",
+        };
     }
 }

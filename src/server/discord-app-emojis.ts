@@ -23,7 +23,16 @@ export type EmojiResolver = (name: string) => string;
 
 const CACHE_TTL_MS = 10 * 60 * 1000;
 
-let cache: { at: number; map: Map<string, string> } | null = null;
+/**
+ * Une liste VIDE n'est pas un résultat : c'est l'état « synchro pas encore jouée ».
+ * La mémoriser 10 min a produit un vrai faux négatif (pictos absents des embeds
+ * après une synchro faite pendant que l'app tournait) → on retente au bout de 30 s.
+ */
+const EMPTY_CACHE_TTL_MS = 30 * 1000;
+
+type EmojiCache = { at: number; ttl: number; map: Map<string, string> };
+
+let cache: EmojiCache | null = null;
 
 /** Id de l'application Discord de l'environnement (même résolution que les slash commands). */
 export function getDiscordApplicationId(): string | null {
@@ -32,12 +41,19 @@ export function getDiscordApplicationId(): string | null {
     return digits.length >= 17 ? digits : null;
 }
 
-/**
- * Résolveur « tout replié » : aucun emoji custom disponible → on rend les replis
- * unicode du catalogue (situation normale tant que la synchro n'a pas été jouée).
- */
+/** Résolveur « tout replié » : aucun emoji custom disponible → replis unicode du catalogue. */
 export function fallbackEmojiResolver(): EmojiResolver {
     return (name) => DISCORD_EMOJIS[name]?.fallback ?? "";
+}
+
+/** UNE seule fabrique de résolveur : `<:nom:id>` si l'emoji existe, sinon le repli. */
+function makeResolver(map: Map<string, string>): EmojiResolver {
+    return (name) => {
+        const entry = DISCORD_EMOJIS[name];
+        if (!entry) return "";
+        const id = map.get(entry.name);
+        return id ? `<:${entry.name}:${id}>` : entry.fallback;
+    };
 }
 
 async function fetchApplicationEmojiMap(): Promise<Map<string, string>> {
@@ -71,24 +87,19 @@ async function fetchApplicationEmojiMap(): Promise<Map<string, string>> {
  */
 export async function loadEmojiResolver(force = false): Promise<EmojiResolver> {
     const now = Date.now();
-    if (!force && cache && now - cache.at < CACHE_TTL_MS) {
-        const map = cache.map;
-        return (name) => {
-            const entry = DISCORD_EMOJIS[name];
-            if (!entry) return "";
-            const id = map.get(entry.name);
-            return id ? `<:${entry.name}:${id}>` : entry.fallback;
-        };
+    if (!force && cache && now - cache.at < cache.ttl) {
+        return makeResolver(cache.map);
     }
 
     const map = await fetchApplicationEmojiMap();
-    cache = { at: now, map };
-    return (name) => {
-        const entry = DISCORD_EMOJIS[name];
-        if (!entry) return "";
-        const id = map.get(entry.name);
-        return id ? `<:${entry.name}:${id}>` : entry.fallback;
-    };
+    // Signal explicite : token présent mais AUCUN emoji côté application = la synchro
+    // n'a pas encore été jouée (ou l'app n'est pas la bonne). Sans ce log, le symptôme
+    // est « les pictos ne s'affichent pas » sans aucune piste.
+    if (map.size === 0 && process.env.DISCORD_BOT_TOKEN && getDiscordApplicationId()) {
+        logger.warn("[DiscordEmoji] aucun emoji d'application trouvé — lancer `npx -y tsx scripts/sync-discord-app-emojis.ts --apply` (repli unicode utilisé en attendant)");
+    }
+    cache = { at: now, map, ttl: map.size === 0 ? EMPTY_CACHE_TTL_MS : CACHE_TTL_MS };
+    return makeResolver(map);
 }
 
 /** Vide le cache en mémoire (après une synchro d'emojis, pour voir le résultat tout de suite). */

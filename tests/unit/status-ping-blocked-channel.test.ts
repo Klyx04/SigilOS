@@ -14,6 +14,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { readFileSync } from "node:fs";
 
 const mockPlatformConfigFindUnique = vi.fn();
 const mockQueryRaw = vi.fn();
@@ -89,5 +90,68 @@ describe("sendGlobalStatusPingCore — salon en pause d'écriture", () => {
         await sendGlobalStatusPingCore({ source: "test" });
 
         expect(lastTsWrites()).toHaveLength(1);
+    });
+
+    it("salon en pause ⇒ résultat HONNÊTE : `delivered: false` + `warning`, jamais un faux succès", async () => {
+        mockSendChannelMessage.mockResolvedValue(null);
+
+        const res = await sendGlobalStatusPingCore({ source: "manual" });
+
+        // `success` = « la passe a tourné » (le site et /status ne dépendent pas de Discord).
+        // Il reste `true` pour que `/api/cron/status-ping` — sonde d'UptimeRobot — ne
+        // réponde pas 500 pour un salon Discord mal configuré…
+        expect(res.success).toBe(true);
+        // … mais `delivered` dit la vérité : AUCUN message n'est parti. Sans ce champ,
+        // le bouton « Test Ping » annonçait « envoyé avec succès » et le cron restait vert.
+        expect(res.delivered).toBe(false);
+        expect(res.warning).toBeTruthy();
+        expect(res.messageId).toBeNull();
+    });
+
+    it("envoi confié à la file ⇒ `delivered: true` et aucun avertissement", async () => {
+        mockSendChannelMessage.mockResolvedValue("outbox:job-abc");
+
+        const res = await sendGlobalStatusPingCore({ source: "test" });
+
+        expect(res.delivered).toBe(true);
+        expect(res.warning).toBeUndefined();
+    });
+
+    it("aucun salon configuré ⇒ `delivered: false` (pas de 500 pour le monitoring)", async () => {
+        mockPlatformConfigFindUnique.mockResolvedValue({
+            serviceStatusChannelId: null,
+            statusIsLite: false,
+            statusMode: "living",
+            statusMention: "none",
+            statusFrequency: 60,
+        });
+
+        const res = await sendGlobalStatusPingCore({ source: "cron:status-ping" });
+
+        expect(res.success).toBe(true);
+        expect(res.delivered).toBe(false);
+        expect(mockSendChannelMessage).not.toHaveBeenCalled();
+    });
+});
+
+describe("gardes de source — l'interface God ne ment plus sur ce qui est parti", () => {
+    const changelogActions = readFileSync("src/server/actions/changelog-actions.ts", "utf8");
+    const panel = readFileSync("src/app/god/components/platform-config-panel.tsx", "utf8");
+
+    it("« Test Ping » / « Test Alerte » lèvent la pause d'écriture avant d'essayer", () => {
+        // Un test est un geste EXPLICITE de l'opérateur : sans ce `clear`, un salon en
+        // pause faisait échouer le test en silence (mesure du 26/09/2026 : « le test ping
+        // ne part pas », alors que la cause était le disjoncteur, pas les permissions).
+        expect(changelogActions).toMatch(/clearDiscordChannelBlock\(channelId\)/);
+    });
+
+    it("les deux tests rapportent l'ÉCHEC quand rien n'est parti (fin du faux succès)", () => {
+        expect(changelogActions).toMatch(/res\.delivered === false/);
+        expect(changelogActions).toMatch(/res\.discordMessageId === null/);
+    });
+
+    it("le rapport de diagnostic affiche POURQUOI un salon est rouge (403 ≠ 404)", () => {
+        // La pastille seule ne permet pas d'agir : cette soirée a été passée à deviner.
+        expect(panel).toMatch(/\{k\} · \{v\.status\} — \{v\.message\}/);
     });
 });

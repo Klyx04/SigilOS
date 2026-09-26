@@ -193,3 +193,59 @@ describe("gardes de source — le worker outbox est bien câblé", () => {
         expect(worker).toMatch(/isDiscordChannelBlockedError\(err\)/);
     });
 });
+
+describe("notifyGod — le retour dit la VÉRITÉ sur l'envoi Discord", () => {
+    /**
+     * Mesure du 26/09/2026 : le bouton God « Test Alerte » annonçait « Alerte ADMIN
+     * envoyée avec succès ! » alors qu'aucun message n'existait dans le salon (bot sans
+     * accès / salon en pause d'écriture). Ces trois cas verrouillent le champ qui
+     * permet à l'appelant de distinguer « confié à la file » de « rien n'est parti ».
+     */
+    beforeEach(() => {
+        vi.clearAllMocks();
+        mockDb.platformConfig.findUnique.mockResolvedValue({
+            godNotifyChannelId: "1547020288380637305",
+            godNotifyRoleId: "999",
+        });
+        mockDb.godNotification.create.mockResolvedValue({ id: "notif-1" });
+        (rateLimit as any).mockResolvedValue({ success: true, remaining: 0, reset: Date.now() + 3_600_000 });
+    });
+
+    it("écriture confiée à la file ⇒ `discordMessageId` renseigné", async () => {
+        (sendChannelMessage as any).mockResolvedValue("outbox:job-abc");
+
+        const res = await notifyGod({
+            title: "Sauvegarde Système (TEST)",
+            message: "test",
+            type: "SYSTEM",
+            success: true,
+        });
+
+        expect(res.discordMessageId).toBe("outbox:job-abc");
+    });
+
+    it("envoi refusé par le disjoncteur (`sendChannelMessage` → null) ⇒ `discordMessageId: null`", async () => {
+        (sendChannelMessage as any).mockResolvedValue(null);
+
+        const res = await notifyGod({
+            title: "Sauvegarde Système (TEST)",
+            message: "test",
+            type: "SYSTEM",
+            success: true,
+        });
+
+        // La notif existe quand même dans la console God…
+        expect(mockDb.godNotification.create).toHaveBeenCalledTimes(1);
+        expect(res.success).toBe(true);
+        // … mais RIEN n'est parti sur Discord : c'est ce champ que « Test Alerte » lit
+        // pour ne plus annoncer un succès mensonger.
+        expect(res.discordMessageId).toBeNull();
+    });
+
+    it("alerte `webOnly` ⇒ aucun envoi Discord, donc `discordMessageId: null`", async () => {
+        const res = await notifyGod({ ...OUTBOX_ALERT, webOnly: true });
+
+        expect(res.discordMessageId).toBeNull();
+    });
+});
+

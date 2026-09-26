@@ -15,7 +15,26 @@ export async function GET(req: Request) {
     try {
         const startedAt = Date.now();
         const result = await sendGlobalStatusPingCore({ source: "cron:status-ping" });
-        
+
+        // La passe a tourné mais le MIROIR Discord n'est pas parti (salon en pause
+        // d'écriture, bot sans accès) : ce n'est PAS une panne de la plateforme. On
+        // répond 200 — cette route sert de sonde de disponibilité (UptimeRobot la sonde
+        // en HEAD) : un 500 ferait crier « site down » pour un salon Discord mal
+        // configuré. La télémétrie God, elle, le signale bien en échec.
+        if (result.success && result.delivered === false) {
+            await recordCronExecution("status_ping", {
+                success: false,
+                summary: result.warning ?? "Miroir Discord non envoyé",
+                details: result.stats ?? {},
+            });
+            return NextResponse.json({
+                success: true,
+                delivered: false,
+                warning: result.warning,
+                stats: result.stats,
+            });
+        }
+
         if (!result.success) {
             await recordCronExecution("status_ping", {
                 success: false,

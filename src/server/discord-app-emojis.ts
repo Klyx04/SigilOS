@@ -65,6 +65,10 @@ async function fetchApplicationEmojiMap(): Promise<Map<string, string>> {
     try {
         const res = await fetchWithRetry(`/api/v10/applications/${appId}/emojis`, {
             headers: { Authorization: `Bot ${token}`, "Cache-Control": "no-store" },
+            // Convention du dépôt (cf. discord.ts) : le fetch de Next est patché, on refuse
+            // explicitement tout cache de réponse — sinon une liste vide lue AVANT la synchro
+            // pourrait être resservie (pictos absents alors que les emojis existent).
+            cache: "no-store",
         });
         if (!res.ok) {
             logger.warn(`[DiscordEmoji] listing échoué ${res.status}`);

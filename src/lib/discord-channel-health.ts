@@ -33,9 +33,10 @@
  *  · **Fail-open assumé** : si Redis est injoignable, on ne bloque pas (le pire
  *    cas reste borné par `webOnly` + la déduplication des alertes). Refuser
  *    toutes les écritures sur une panne de Redis serait une panne auto-infligée.
- *  · **Clés préfixées par l'environnement** : prod et bêta partagent la même
- *    instance Redis (audit I-07) — sans ce préfixe, une panne bêta bloquerait un
- *    salon en production.
+ *  · **Clés préfixées par l'environnement** : les deux Redis sont **séparés**
+ *    depuis le 09/08 (`docs/MAINTENANCE.md` §3c, chantier I-07), mais le préfixe
+ *    `sigilos:{beta,prod}:` garde le disjoncteur juste si une instance venait à
+ *    être mutualisée — et il évite qu'une panne bêta bloque un salon en production.
  *
  * ⚠️ Fichier **serveur partagé** (Next + worker) : ni `"use server"`, ni React.
  */

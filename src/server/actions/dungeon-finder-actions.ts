@@ -3,7 +3,7 @@ import { logger } from "@/lib/logger";
 
 import { db } from "@/lib/prisma";
 import { getUserContext, type ActionResponse } from "./user-actions";
-import { deleteChannelMessage, fetchChannel, postChannelMessage, createForumThread, patchChannelMessage } from "@/server/discord";
+import { deleteChannelMessage, fetchChannel, postChannelMessage, createForumThread, patchChannelMessage, updateForumThreadName } from "@/server/discord";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { redis } from "@/lib/redis";
@@ -11,8 +11,10 @@ import { getDisplayName } from "@/lib/display-name";
 import { resolveDjContributionPoints } from "@/lib/points-config";
 import { createAuditLog } from "./audit-actions";
 import { sanitizeName } from "@/lib/security";
-import { getMultiDungeons } from "@/lib/dungeon-finder-utils";
+import { getMultiDungeons, formatDiscordDateStamp, mergeMultiDungeonTargetDates } from "@/lib/dungeon-finder-utils";
 import { buildClassDispatchFields, buildClassSelectRow, type DispatchEntry } from "@/server/discord-class-dispatch";
+import { loadEmojiResolver } from "@/server/discord-app-emojis";
+import { classEmojiName } from "@/lib/discord-emoji-catalog";
 
 // ---------------------------------------------------------------------------
 // UTILS
@@ -58,6 +60,72 @@ async function assertPostGuildTenant(
         return { ok: false, error: "Post introuvable" };
     }
     return { ok: true };
+}
+
+/**
+ * Titre du sujet forum d'un post DJ — SOURCE UNIQUE (création + renommage auto).
+ *
+ * Le titre porte le nombre de places (« [2/4] ») : il était calculé une seule
+ * fois à la création, donc figé à « [1/4] » même avec 2 inscrits. Cette fonction
+ * est donc appelée aux deux bouts (création dans `sendDiscordNotification`,
+ * rafraîchissement dans `syncDjThreadName`).
+ */
+function buildDjThreadTitle(post: any, placesTag: string): string {
+    const mode = post?.mode || "QUETE";
+    let typeLabel = "Quête";
+    let emoji = "📜";
+    let contentName = post?.questName || "";
+
+    if (mode === "TITAN") {
+        typeLabel = "Titan";
+        emoji = "👑";
+        contentName = post?.titanName || post?.titan?.name || "";
+    } else if (mode === "DEFI") {
+        typeLabel = "Défi";
+        emoji = "⚡";
+        contentName = post?.defiName || post?.defi?.name || "";
+    } else if (mode === "DONJON") {
+        typeLabel = "Donjon";
+        emoji = "⚔️";
+        contentName = post?.dungeon?.name || getMultiDungeons(post?.dungeonsJson)?.[0]?.name || "";
+    }
+
+    const name = String(contentName || typeLabel).trim().substring(0, 65);
+    return `${emoji} ${typeLabel} - ${name}${placesTag}`.trim().substring(0, 100);
+}
+
+/**
+ * Renomme le sujet forum d'un post quand sa composition change.
+ *
+ * Le titre figé (« [1/4] » à vie) est le symptôme : le tag de places n'était
+ * écrit qu'à la création. On ne renomme QUE si le titre calculé diffère du titre
+ * réel du salon — Discord limite les renommages (2 / 10 min) et un PATCH inutile
+ * consommerait le quota. Best-effort : un échec ne casse jamais la mise à jour de
+ * l'embed (le renommage n'est pas une donnée métier).
+ */
+async function syncDjThreadName(guildId: string, post: any, placesTag: string) {
+    if (!post?.discordChannelId) return;
+    try {
+        const guildConfig = await (db as any).guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { djNotifyChannelId: true },
+        });
+        // Publié directement dans le salon de notification = pas un sujet de forum.
+        if (!guildConfig?.djNotifyChannelId) return;
+        if (post.discordChannelId === guildConfig.djNotifyChannelId) return;
+
+        const channel = await fetchChannel(post.discordChannelId);
+        // 11 = sujet public, 12 = sujet privé. Tout autre type : on ne touche pas.
+        if (!channel || (channel.type !== 11 && channel.type !== 12)) return;
+
+        const nextName = buildDjThreadTitle(post, placesTag);
+        if (channel.name === nextName) return;
+
+        const ok = await updateForumThreadName(post.discordChannelId, nextName);
+        if (ok) logger.info(`[DJ] sujet forum renommé → « ${nextName} »`);
+    } catch (err) {
+        logger.warn("[DJ] renommage du sujet forum impossible", { error: String(err) });
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -233,6 +301,26 @@ const createMultiPostSchema = z.object({
 /** Anti-spam : nombre max de posts DJ/quêtes actifs par membre (simple ET multi). */
 const MAX_ACTIVE_DJ_POSTS = 5;
 
+/**
+ * Édition d'un post par son créateur (date/heure, taille du groupe, succès…).
+ * Les champs « libres » du client sont bornés ici ; `.catch()` ramène à `null`
+ * une valeur inexploitable (ex. `Invalid Date`) au lieu de refuser toute
+ * l'édition — la date est optionnelle.
+ */
+const updatePostSchema = z.object({
+    maxMembers: z.number().min(2).max(8),
+    message: z.string().max(500).nullable().catch(null),
+    targetDate: z.date().nullable().catch(null),
+    wantedAchievementIds: z.array(z.string().max(40)).max(50).default([]),
+    requiredClasses: z.array(z.string().max(30)).max(19).default([]),
+    questName: z.string().max(100).nullable().catch(null).optional(),
+    questUrl: z.string().max(500).nullable().catch(null).optional(),
+    /** #26 — dates prévues PAR donjon d'un post multi (max 5 donjons). */
+    multiDungeonDates: z.array(z.object({
+        targetDate: z.date().nullable().catch(null),
+    })).max(5).nullable().optional(),
+});
+
 // ---------------------------------------------------------------------------
 // HELPERS
 // ---------------------------------------------------------------------------
@@ -299,25 +387,15 @@ async function sendDiscordNotification(
         if (isForumChannel) {
             // #167 + #Titan — nom du thread Forum depuis les DONNÉES RÉELLES du post
             const postMode = post?.mode || (embed.title?.includes("⚔️") ? "DONJON" : embed.title?.includes("👑") ? "TITAN" : embed.title?.includes("⚡") ? "DEFI" : "QUETE");
-            let typeLabel = "Quête";
-            let defaultEmoji = "📜";
+            // Nom de repli, réutilisé par les fallbacks ci-dessous si les données du post sont vides.
             let contentName = "";
-
             if (postMode === "TITAN") {
-                typeLabel = "Titan";
-                defaultEmoji = "👑";
                 contentName = post?.titanName || post?.titan?.name || "";
             } else if (postMode === "DEFI") {
-                typeLabel = "Défi";
-                defaultEmoji = "⚡";
                 contentName = post?.defiName || post?.defi?.name || "";
             } else if (postMode === "DONJON") {
-                typeLabel = "Donjon";
-                defaultEmoji = "⚔️";
                 contentName = post?.dungeon?.name || getMultiDungeons(post?.dungeonsJson)?.[0]?.name || "";
             } else {
-                typeLabel = "Quête";
-                defaultEmoji = "📜";
                 contentName = post?.questName || "";
             }
 
@@ -341,18 +419,28 @@ async function sendDiscordNotification(
                 }
             }
 
+            // Dernier repli : le libellé du mode (ex. « Donjon ») — même règle que
+            // `buildDjThreadTitle`, qui applique ce repli lui-même.
             if (!contentName) {
-                contentName = typeLabel;
+                contentName = postMode === "TITAN" ? "Titan" : postMode === "DEFI" ? "Défi" : postMode === "DONJON" ? "Donjon" : "Quête";
             }
 
             contentName = String(contentName).trim().substring(0, 65);
-            const emojiChar = embed.title ? embed.title.slice(0, 2) : defaultEmoji;
             const placesField = embed.fields && embed.fields.find((f: { name: string; value: string }) => f.name.includes("Places") || f.name.includes("Membres"));
-            // Ex: "👥 Membres (1/4)" -> match (1/4), ou fallback sur placesField.value
+            // Ex: "👥 Places (1/4)" -> match (1/4), ou fallback sur placesField.value
             const membersCountMatch = placesField?.name?.match(/\(([^)]+)\)/);
             const placesValue = membersCountMatch ? membersCountMatch[1] : placesField?.value;
             const placesTag = placesValue ? ` [${placesValue}]` : "";
-            const threadTitle = `${emojiChar} ${typeLabel} - ${contentName}${placesTag}`.trim().substring(0, 100);
+            // Titre partagé avec le renommage auto (`syncDjThreadName`) : une seule source
+            // pour l'emoji, le libellé de mode et le tag de places.
+            const threadTitle = buildDjThreadTitle({
+                mode: postMode,
+                questName: contentName,
+                titanName: contentName,
+                defiName: contentName,
+                dungeon: post?.dungeon,
+                dungeonsJson: post?.dungeonsJson,
+            }, placesTag);
 
             // Extraire les tags disponibles depuis channelData (déjà fetchée)
             const availableTags: { id: string; name: string; moderated?: boolean }[] = channelData.available_tags || [];
@@ -521,6 +609,7 @@ async function buildMultiPostEmbeds(post: any, authorName: string): Promise<any[
     const entries: any[] = getMultiDungeons(post.dungeonsJson);
     const acceptedParts = (post.participants ?? []).filter((p: any) => p.status === "ACCEPTED");
     const isMulti = entries.length > 0;
+    const emo = await loadEmojiResolver();
 
     let creatorClasse: string | null = post.profile?.classe ?? null;
     if (!creatorClasse && post.profileId) {
@@ -553,41 +642,63 @@ async function buildMultiPostEmbeds(post: any, authorName: string): Promise<any[
 
         const fields: any[] = [];
         fields.push({
-            name: "📍 Donjon",
+            name: `${emo("dofus_dungeon")} Donjon`,
             value: `**${entry.name}**\n*Niveau ${entry.level} — ${entry.bossName}*`,
             inline: true,
         });
-        if (entry.targetDate) {
-            const d = new Date(entry.targetDate);
-            const ts = Math.floor(d.getTime() / 1000);
-            fields.push({ name: "📅 Date prévue", value: `<t:${ts}:F>\n(<t:${ts}:R)>`, inline: true });
-        }
+        // Capacité PAR donjon, toujours visible (le dispatch par classe remplace le
+        // field « Membres » — le nombre max disparaissait de l'embed).
+        const spotsLeftForDungeon = Math.max(0, maxForDungeon - countForDungeon);
+        fields.push({
+            name: countForDungeon >= maxForDungeon
+                ? `${emo("dofus_players")} Places (${countForDungeon}/${maxForDungeon}) — COMPLET`
+                : `${emo("dofus_players")} Places (${countForDungeon}/${maxForDungeon})`,
+            value: spotsLeftForDungeon > 0
+                ? `${spotsLeftForDungeon} dispo${spotsLeftForDungeon > 1 ? "s" : ""}`
+                : "Complet",
+            inline: true,
+        });
+        // Date du donjon — TOUJOURS affichée : `<t:D>` (date seule) si aucune heure n'a
+        // été fixée, et « Sans date pour l'instant » s'il n'y a pas de date du tout.
+        // Jamais un champ absent : le lecteur ne peut pas distinguer « pas de date »
+        // d'un oubli de l'embed.
+        const dungeonDateStamp = formatDiscordDateStamp(entry.targetDate);
+        fields.push({
+            name: `${emo("dofus_date")} Date prévue`,
+            value: dungeonDateStamp
+                ? `${dungeonDateStamp}\n(${dungeonDateStamp.replace(/:([A-Z])>/, ":R>")})`
+                : "*Sans date pour l'instant*",
+            inline: true,
+        });
         if ((entry.wantedAchievementIds ?? []).length > 0) {
             const achNames = (entry.achievements ?? [])
                 .filter((a: any) => entry.wantedAchievementIds.includes(a.id))
                 .map((a: any) => `• ${a.name}`)
                 .join("\n");
-            if (achNames) fields.push({ name: "🏆 Succès visés", value: achNames, inline: true });
+            if (achNames) fields.push({ name: `${emo("dofus_success")} Succès visés`, value: achNames, inline: true });
         }
-        if (entry.message) fields.push({ name: "💬 Note", value: entry.message, inline: false });
+        if (entry.message) fields.push({ name: `${emo("dofus_note")} Note`, value: entry.message, inline: false });
         if (post.requiredClasses?.length) {
-            fields.push({ name: "🎭 Classes recherchées", value: post.requiredClasses.map((c: string) => `\`${c}\``).join(" "), inline: true });
-        }
-        if (partsForDungeon.length === 0) {
             fields.push({
-                name: memberLabel,
-                value: `**${authorName}**\n*En attente de joueurs...*`,
-                inline: false,
+                name: `🎭 Classes recherchées`,
+                value: post.requiredClasses
+                    .map((c: string) => {
+                        const ref = classEmojiName(c) ? emo(classEmojiName(c)!) : "";
+                        return ref ? `${ref} ${c}` : `\`${c}\``;
+                    })
+                    .join(" "),
+                inline: true,
             });
-        } else {
-            fields.push(...buildClassDispatchFields(dispatchEntries, {
-                emptyField: { name: memberLabel, value: "*En attente de joueurs...*" },
-                maxGroups: 19,
-            }));
         }
+        // Composition par classe : le créateur y figure toujours (il porte sa classe).
+        fields.push(...buildClassDispatchFields(dispatchEntries, {
+            emptyField: { name: memberLabel, value: "*En attente de joueurs...*" },
+            maxGroups: 18,
+            emoji: emo,
+        }));
 
         return {
-            title: `⚔️ MULTI-DONJON — ${entry.name}`,
+            title: `${emo("dofus_dungeon")} MULTI-DONJON — ${entry.name}`,
             description: `${idx + 1}/${entries.length} · rejoins la session !`,
             color: 0x818cf8,
             fields,
@@ -661,6 +772,20 @@ export async function updateDjDiscordEmbed(guildId: string, postId: string) {
 
         const ok = await patchChannelMessage(post.discordChannelId, post.discordMessageId, patchBody);
         if (!ok) logger.error("[updateDjDiscordEmbed] PATCH failed");
+
+        // Sujet forum : le titre portait le tag de places calculé à la CRÉATION
+        // (« [1/4] » à vie, même avec 2 inscrits) — on le resynchronise ici, à
+        // chaque changement de composition. `syncDjThreadName` ne PATCH que si le
+        // titre calculé diffère vraiment (quota Discord : 2 renommages / 10 min).
+        if (isMulti) {
+            // Titre multi = « +N » (la capacité est PAR donjon, pas de tag global).
+            const entries = getMultiDungeons(post.dungeonsJson);
+            await syncDjThreadName(guildId, post, entries.length > 1 ? ` +${entries.length - 1}` : "");
+        } else {
+            const accepted = (post.participants ?? []).filter((p: any) => p.status === "ACCEPTED").length + 1; // +1 créateur
+            const bounded = Math.min(accepted, post.maxMembers);
+            await syncDjThreadName(guildId, post, ` [${bounded}/${post.maxMembers}]`);
+        }
     } catch (err) { logger.error("[updateDjDiscordEmbed]", err); }
 }
 
@@ -916,38 +1041,41 @@ async function buildPostEmbed(post: any, authorName: string, guildId: string, ac
         creatorDiscordId = acc?.providerAccountId || null;
     }
 
+    // Pictos Dofus : emojis d'application si la synchro a été jouée, sinon les replis
+    // unicode du catalogue (rendu identique à aujourd'hui). UN seul await par embed.
+    const emo = await loadEmojiResolver();
     const title = post.mode === "DONJON"
-        ? `⚔️ RECHERCHE DONJON`
+        ? `${emo("dofus_dungeon")} RECHERCHE DONJON`
         : post.mode === "DEFI"
-        ? `⚡ RECHERCHE DÉFI`
+        ? `${emo("dofus_challenge")} RECHERCHE DÉFI`
         : post.mode === "TITAN"
-        ? `👑 RECHERCHE TITAN`
-        : `📜 RECHERCHE QUÊTE`;
+        ? `${emo("dofus_titan")} RECHERCHE TITAN`
+        : `${emo("dofus_quest")} RECHERCHE QUÊTE`;
 
     const fields: any[] = [];
 
     // Main Content Info
     if (isDungeon && post.dungeon) {
         fields.push({ 
-            name: "📍 Donjon", 
+            name: `${emo("dofus_dungeon")} Donjon`, 
             value: `**${post.dungeon.name}**\n*Niveau ${post.dungeon.level}*`,
             inline: true 
         });
     } else if (post.mode === "DEFI") {
         fields.push({ 
-            name: "⚡ Défi", 
+            name: `${emo("dofus_challenge")} Défi`, 
             value: `**${post.defiName || "Inconnu"}**`,
             inline: true 
         });
     } else if (post.mode === "TITAN") {
         fields.push({ 
-            name: "👑 Titan", 
+            name: `${emo("dofus_titan")} Titan`, 
             value: `**${post.titanName || "Inconnu"}**`,
             inline: true 
         });
     } else if (!isDungeon) {
         fields.push({ 
-            name: "📂 Quête", 
+            name: `${emo("dofus_quest")} Quête`, 
             value: post.questUrl 
                 ? `**[${post.questName || "Inconnue"}](${post.questUrl})**`
                 : `**${post.questName || "Inconnue"}**`,
@@ -955,15 +1083,17 @@ async function buildPostEmbed(post: any, authorName: string, guildId: string, ac
         });
     }
 
-    if (post.targetDate) {
-        const d = new Date(post.targetDate);
-        const timestamp = Math.floor(d.getTime() / 1000);
-        fields.push({
-            name: "📅 Date prévue",
-            value: `<t:${timestamp}:F>\n(<t:${timestamp}:R>)`,
-            inline: true
-        });
-    }
+    // Date prévue — TOUJOURS affichée : quand le créateur n'en a pas fixé (elle est
+    // optionnelle), l'embed doit le DIRE plutôt que laisser un trou (un lecteur ne
+    // peut pas distinguer « pas de date » de « date oubliée dans l'embed »).
+    const dateStamp = formatDiscordDateStamp(post.targetDate);
+    fields.push({
+        name: `${emo("dofus_date")} Date prévue`,
+        value: dateStamp
+            ? `${dateStamp}\n(${dateStamp.replace(/:([A-Z])>/, ":R>")})`
+            : "*Sans date pour l'instant*",
+        inline: true,
+    });
 
     // New line for following fields
     fields.push({ name: "\u200b", value: "\u200b", inline: false });
@@ -974,14 +1104,21 @@ async function buildPostEmbed(post: any, authorName: string, guildId: string, ac
             .map((a: any) => `• ${a.challenge.name}`)
             .join("\n");
         if (achNames) {
-            fields.push({ name: "🏆 Succès visés", value: achNames, inline: true });
+            fields.push({ name: `${emo("dofus_success")} Succès visés`, value: achNames, inline: true });
         }
     }
 
     if (post.requiredClasses && post.requiredClasses.length > 0) {
         fields.push({ 
-            name: "🎭 Classes recherchées", 
-            value: post.requiredClasses.map((c: string) => `\`${c}\``).join(" "),
+            name: `🎭 Classes recherchées`, 
+            // Le picto de la classe précède son nom (comme sur le site) ; sans synchro
+            // des emojis, on retombe sur le rendu historique `` `Cra` ``.
+            value: post.requiredClasses
+                .map((c: string) => {
+                    const ref = classEmojiName(c) ? emo(classEmojiName(c)!) : "";
+                    return ref ? `${ref} ${c}` : `\`${c}\``;
+                })
+                .join(" "),
             inline: true
         });
     }
@@ -1007,26 +1144,38 @@ async function buildPostEmbed(post: any, authorName: string, guildId: string, ac
         ? `👥 Membres (${totalCount}/${post.maxMembers}) — COMPLET`
         : `👥 Membres (${totalCount}/${post.maxMembers})`;
 
-    if (acceptedParts.length === 0) {
-        // Rendu historique quand personne n'a rejoint (orga seul).
-        fields.push({
-            name: memberFieldLabel,
-            value: `**${leadName}**\n*En attente de joueurs...*`,
-            inline: false,
-        });
-    } else {
-        const dispatchEntries: DispatchEntry[] = [
-            { line: `**${leadName}**`, classe: creatorClasse },
-            ...acceptedParts.map((p: any) => {
-                const n = p.profile?.discordNickname || p.profile?.pseudoDofus || p.profile?.dofusPseudo || "Membre";
-                return { line: `• ${n}`, classe: p.classe ?? null } as DispatchEntry;
-            }),
-        ];
-        fields.push(...buildClassDispatchFields(dispatchEntries, {
-            emptyField: { name: memberFieldLabel, value: "*En attente de joueurs...*" },
-            maxGroups: 19,
-        }));
-    }
+    // Capacité TOUJOURS visible : le dispatch par classe remplaçait le field
+    // « Membres » et le nombre max disparaissait de l'embed (les cartes du
+    // dashboard l'affichaient toujours → retour utilisateur).
+    const spotsLeft = Math.max(0, post.maxMembers - totalCount);
+    const waitlistSuffix = pendingParts.length > 0 ? ` · ${pendingParts.length} en file` : "";
+    fields.push({
+        name: totalCount >= post.maxMembers
+            ? `${emo("dofus_players")} Places (${totalCount}/${post.maxMembers}) — COMPLET`
+            : `${emo("dofus_players")} Places (${totalCount}/${post.maxMembers})`,
+        value: spotsLeft > 0
+            ? `${spotsLeft} dispo${spotsLeft > 1 ? "s" : ""}${waitlistSuffix}`
+            : `Complet${waitlistSuffix}`,
+        inline: true,
+    });
+
+    // Composition par classe : le créateur y figure (il porte sa propre classe),
+    // donc plus besoin d'un rendu spécial « personne n'a rejoint ».
+    const dispatchEntries: DispatchEntry[] = [
+        { line: `**${leadName}**`, classe: creatorClasse },
+        ...acceptedParts.map((p: any) => {
+            const n = p.profile?.discordNickname || p.profile?.pseudoDofus || p.profile?.dofusPseudo || "Membre";
+            return { line: `• ${n}`, classe: p.classe ?? null } as DispatchEntry;
+        }),
+    ];
+    // maxGroups 18 : les fields déjà posés (donjon, date, succès, classes
+    // recherchées, places, file d'attente) + les groupes doivent tenir sous la
+    // limite Discord de 25 fields par embed.
+    fields.push(...buildClassDispatchFields(dispatchEntries, {
+        emptyField: { name: memberFieldLabel, value: "*En attente de joueurs...*" },
+        maxGroups: 18,
+        emoji: emo,
+    }));
 
     // File d'attente — affichée uniquement si des joueurs attendent
     if (pendingParts.length > 0) {
@@ -1035,7 +1184,7 @@ async function buildPostEmbed(post: any, authorName: string, guildId: string, ac
             return `• ${n}${p.classe ? ` *(${p.classe})*` : ""}`;
         });
         fields.push({
-            name: `⏳ File d'attente (${pendingParts.length})`,
+            name: `${emo("dofus_waitlist")} File d'attente (${pendingParts.length})`,
             value: waitlistLines.join("\n"),
             inline: false,
         });
@@ -1311,10 +1460,19 @@ export async function updateDjPost(
         requiredClasses: string[];
         questName?: string | null;
         questUrl?: string | null;
+        /** #26 — dates prévues par donjon (posts multi uniquement). */
+        multiDungeonDates?: { targetDate: Date | null }[] | null;
     }
 ): Promise<ActionResponse> {
     const user = await getUserContext(guildId);
     if (!user.isAuthenticated || !user.profileId) return { success: false, error: "Non authentifié" };
+
+    const parsed = updatePostSchema.safeParse(payload);
+    if (!parsed.success) {
+        logger.warn("[updateDjPost] payload invalide", { error: parsed.error.errors[0]?.message });
+        return { success: false, error: "Données invalides" };
+    }
+    const data = parsed.data;
 
     try {
         const guildConfig = await db.guildConfig.findUnique({
@@ -1325,7 +1483,7 @@ export async function updateDjPost(
 
         const postBefore = await (db as any).djSearchPost.findFirst({
             where: { id: postId, guildId: guildConfig.id },
-            select: { profileId: true, status: true, maxMembers: true },
+            select: { profileId: true, status: true, maxMembers: true, dungeonsJson: true },
         });
 
         if (!postBefore) return { success: false, error: "Post introuvable" };
@@ -1334,28 +1492,35 @@ export async function updateDjPost(
 
         const prevMax = postBefore.maxMembers ?? 1;
 
+        // #26 — dates par donjon : on ne remplace QUE `targetDate` et on préserve
+        // l'enveloppe `{ _items, _autoReminderCount }` écrite par les rappels.
+        const multi = Array.isArray(data.multiDungeonDates) && data.multiDungeonDates.length > 0
+            ? mergeMultiDungeonTargetDates(postBefore.dungeonsJson, data.multiDungeonDates)
+            : null;
+
         await (db as any).djSearchPost.update({
             where: { id: postId },
             data: {
-                maxMembers: payload.maxMembers,
-                message: payload.message,
-                targetDate: payload.targetDate,
-                wantedAchievementIds: payload.wantedAchievementIds,
-                requiredClasses: payload.requiredClasses,
+                maxMembers: data.maxMembers,
+                message: data.message,
+                targetDate: data.targetDate,
+                wantedAchievementIds: data.wantedAchievementIds,
+                requiredClasses: data.requiredClasses,
+                ...(multi ? { dungeonsJson: multi } : {}),
                 // Modifiable uniquement pour les quêtes manuelles (pas de questId valide)
-                ...(payload.questName !== undefined && { questName: payload.questName }),
-                ...(payload.questUrl !== undefined && { questUrl: payload.questUrl }),
+                ...(data.questName !== undefined && { questName: data.questName }),
+                ...(data.questUrl !== undefined && { questUrl: data.questUrl }),
             },
         });
 
         // #169 — basculement AUTO file → inscrits : si le créateur AUGMENTE le nombre
         // de places, les membres en file d'attente (PENDING) sont promus dans l'ordre
         // d'arrivée jusqu'à la nouvelle capacité. Le statut du post reste aligné.
-        if (payload.maxMembers > prevMax) {
+        if (data.maxMembers > prevMax) {
             const acceptedCount = await (db as any).djSearchParticipant.count({
                 where: { postId, status: "ACCEPTED" },
             });
-            const freeSlots = Math.max(0, payload.maxMembers - acceptedCount);
+            const freeSlots = Math.max(0, data.maxMembers - acceptedCount);
 
             if (freeSlots > 0) {
                 const waiting = await (db as any).djSearchParticipant.findMany({
@@ -1377,8 +1542,15 @@ export async function updateDjPost(
             const refreshedCount = await (db as any).djSearchParticipant.count({
                 where: { postId, status: "ACCEPTED" },
             });
-            const newStatus = refreshedCount >= payload.maxMembers ? "FULL" : "OPEN";
-            if (postBefore.status !== newStatus) {
+            // Le créateur compte dans le groupe (même règle que joinDjPost et
+            // buildPostEmbed : ACCEPTED + 1 créateur vs maxMembers). Un post MULTI ne
+            // passe jamais FULL globalement : chaque donjon a sa propre capacité (#203).
+            const newStatus = refreshedCount + 1 >= data.maxMembers ? "FULL" : "OPEN";
+            if (
+                getMultiDungeons(postBefore.dungeonsJson).length === 0
+                && (postBefore.status === "OPEN" || postBefore.status === "FULL")
+                && postBefore.status !== newStatus
+            ) {
                 await (db as any).djSearchPost.update({
                     where: { id: postId },
                     data: { status: newStatus },
@@ -1704,47 +1876,6 @@ export async function closeDjPost(
     } catch (error) {
         logger.error("[closeDjPost]", error);
         return { success: false, error: "Erreur lors de la fermeture" };
-    }
-}
-
-/**
- * Delete a DJ search post explicitly (author or admin).
- */
-export async function deleteDjPost(
-    guildId: string,
-    postId: string
-): Promise<ActionResponse> {
-    const user = await getUserContext(guildId);
-    if (!user.profileId) return { success: false, error: "Profil introuvable" };
-
-    try {
-        const post = await (db as any).djSearchPost.findUnique({
-            where: { id: postId },
-            select: { profileId: true, guildId: true, discordMessageId: true, discordChannelId: true },
-        });
-
-        if (!post) return { success: false, error: "Post introuvable" };
-        // #149 — Isolement tenant strict (suppression cross-guild bloquée).
-        const djTenant = await assertPostGuildTenant(guildId, post.guildId);
-        if (!djTenant.ok) return { success: false, error: djTenant.error || "Accès refusé" };
-
-        if (post.profileId !== user.profileId && !user.isAdmin) {
-            return { success: false, error: "Non autorisé" };
-        }
-
-        if (post.discordChannelId && post.discordMessageId) {
-            deleteChannelMessage(post.discordChannelId, post.discordMessageId).catch(() => { });
-        }
-
-        await (db as any).djSearchPost.delete({
-            where: { id: postId },
-        });
-
-        revalidatePath(`/dashboard/${guildId}/donjons-et-quetes`);
-        return { success: true };
-    } catch (error) {
-        logger.error("[deleteDjPost]", error);
-        return { success: false, error: "Erreur lors de la suppression" };
     }
 }
 
@@ -2361,7 +2492,21 @@ export async function acceptDjParticipant(
     try {
         const participant = await (db as any).djSearchParticipant.findUnique({
             where: { id: participantId },
-            include: { post: { select: { profileId: true, guildId: true } } },
+            include: {
+                post: {
+                    select: {
+                        profileId: true,
+                        guildId: true,
+                        status: true,
+                        maxMembers: true,
+                        dungeonsJson: true,
+                        participants: {
+                            where: { status: "ACCEPTED" },
+                            select: { id: true, dungeonIndex: true },
+                        },
+                    },
+                },
+            },
         });
 
         if (!participant) return { success: false, error: "Participant introuvable" };
@@ -2371,12 +2516,53 @@ export async function acceptDjParticipant(
         if (participant.post.profileId !== user.profileId && !user.isAdmin) {
             return { success: false, error: "Seul l'auteur peut accepter" };
         }
+        if (participant.status === "ACCEPTED") {
+            return { success: false, error: "Ce joueur est déjà inscrit" };
+        }
+
+        // Capacité (FAIL-CLOSED) : accepter depuis la file sans place disponible
+        // faisait grossir le groupe au-delà de sa taille annoncée. En multi, chaque
+        // donjon a sa propre capacité (#203).
+        const multiEntries = getMultiDungeons(participant.post.dungeonsJson);
+        const dungeonIndex = participant.dungeonIndex ?? null;
+        const maxMembers = multiEntries.length > 0 && dungeonIndex != null
+            ? (multiEntries[dungeonIndex]?.maxMembers ?? participant.post.maxMembers)
+            : participant.post.maxMembers;
+        const acceptedCount = participant.post.participants.filter((p: any) =>
+            multiEntries.length > 0 && dungeonIndex != null
+                ? p.dungeonIndex === dungeonIndex || p.dungeonIndex == null
+                : true
+        ).length + 1; // +1 créateur
+
+        if (acceptedCount >= maxMembers) {
+            return {
+                success: false,
+                error: `Groupe complet (${acceptedCount}/${maxMembers}) — augmente la taille du groupe avant d'accepter.`,
+            };
+        }
 
         await (db as any).djSearchParticipant.update({
             where: { id: participantId },
             data: { status: "ACCEPTED" },
         });
 
+        // Statut cohérent : le bouton Discord parle de « File d'attente » tant que le
+        // groupe est complet. Un post MULTI ne passe jamais FULL globalement (#203).
+        if (multiEntries.length === 0) {
+            const newTotal = acceptedCount + 1;
+            const newStatus = newTotal >= maxMembers ? "FULL" : "OPEN";
+            // Un post fermé/expiré n'est jamais rouvert par une acceptation.
+            if ((participant.post.status === "OPEN" || participant.post.status === "FULL") && participant.post.status !== newStatus) {
+                await (db as any).djSearchPost.update({
+                    where: { id: postId },
+                    data: { status: newStatus },
+                });
+            }
+        }
+
+        // L'embed DOIT suivre : c'est là que la file d'attente est visible.
+        updateDjDiscordEmbed(guildId, postId).catch(() => { });
+        await notifyDjUpdate(guildId);
         revalidatePath(`/dashboard/${guildId}/donjons-et-quetes`);
         return { success: true };
     } catch (error) {
@@ -2414,6 +2600,9 @@ export async function rejectDjParticipant(
             where: { id: participantId },
         });
 
+        // La file d'attente affichée dans l'embed doit rétrécir tout de suite.
+        updateDjDiscordEmbed(guildId, postId).catch(() => { });
+        await notifyDjUpdate(guildId);
         revalidatePath(`/dashboard/${guildId}/donjons-et-quetes`);
         return { success: true };
     } catch (error) {

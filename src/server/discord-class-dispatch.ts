@@ -12,6 +12,7 @@
  */
 
 import { DOFUS_CLASSES } from "@/lib/dofus-assets";
+import { classEmojiName } from "@/lib/discord-emoji-catalog";
 
 /** Les 19 classes, dans l'ordre canonique (même référentiel que VALID_CLASSES). */
 export const DISPATCH_CLASSES: string[] = DOFUS_CLASSES.map((c) => c.name);
@@ -88,26 +89,42 @@ function joinLines(lines: string[]): string {
  * - `emptyField` : rendu quand il n'y a aucun inscrit (ex: `*En attente…*`).
  * - `maxGroups` : budget de fields (limite Discord = 25 par embed). Au-delà,
  *   repli sur UN field plat (rendu historique) pour ne jamais casser l'envoi.
+ * - `emoji` : résolveur des emojis de CLASSE (pictos Dofus uploadés comme emojis
+ *   d'application, cf. `src/lib/discord-emoji-catalog.ts`). Facultatif : sans lui
+ *   (ou sans synchro des emojis), le rendu reste **exactement** celui d'avant —
+ *   c'est le repli unicode du catalogue qui décide, jamais ce module.
  */
 export function buildClassDispatchFields(
     entries: DispatchEntry[],
-    opts: { emptyField: { name: string; value: string }; maxGroups?: number }
+    opts: { emptyField: { name: string; value: string }; maxGroups?: number; emoji?: (name: string) => string }
 ): any[] {
+    const emojiFor = (classe: string | null | undefined): string => {
+        if (!opts.emoji) return "";
+        const name = classEmojiName(classe);
+        return name ? opts.emoji(name) : "";
+    };
+    /** Une classe par ligne : le picto de classe précède le pseudo (comme sur le site). */
+    const decorate = (lines: string[], classe: string | null | undefined): string[] => {
+        const ref = emojiFor(classe);
+        return ref ? lines.map((l) => `${ref} ${l}`) : lines;
+    };
+
     if (entries.length === 0) {
         return [{ ...opts.emptyField, inline: false }];
     }
     const groups = groupEntriesByClass(entries);
     const maxGroups = opts.maxGroups ?? 19;
     if (groups.length > maxGroups) {
+        // Repli « plat » : une entrée = une ligne, chacune avec sa propre classe.
         return [{
             name: opts.emptyField.name,
-            value: joinLines(entries.map((e) => e.line)),
+            value: joinLines(entries.map((e) => decorate([e.line], e.classe).join(""))),
             inline: false,
         }];
     }
     return groups.map((g) => ({
         name: `${g.label === NO_CLASS_LABEL ? "❔ " : ""}${g.label} (${g.lines.length})`,
-        value: joinLines(g.lines),
+        value: joinLines(decorate(g.lines, g.label)),
         inline: true,
     }));
 }

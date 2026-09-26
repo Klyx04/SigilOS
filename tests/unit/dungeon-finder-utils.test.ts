@@ -10,7 +10,17 @@
 
 import { describe, it, expect } from "vitest";
 
-import { getMultiDungeons, getDjPostTitle, getDjPostSubtitle } from "@/lib/dungeon-finder-utils";
+import {
+    getMultiDungeons,
+    getDjPostTitle,
+    getDjPostSubtitle,
+    getDjDateParts,
+    hasExplicitTime,
+    formatDjDateLabel,
+    formatDiscordDateStamp,
+    mergeMultiDungeonTargetDates,
+} from "@/lib/dungeon-finder-utils";
+import { toLocalDateTimeInput } from "@/lib/date-utils";
 
 const dj = (name: string, level: number) => ({
     dungeonId: `id-${name}`,
@@ -119,5 +129,90 @@ describe("getDjPostSubtitle", () => {
         expect(getDjPostSubtitle({ mode: "TITAN", titanName: "Grozilla" })).toBe("Grozilla");
         expect(getDjPostSubtitle({ mode: "TITAN" })).toBe("Mode Titan");
         expect(getDjPostSubtitle({})).toBe("Mode Quête");
+    });
+});
+
+/**
+ * Date & heure optionnelles — la date est posée à minuit quand le membre choisit
+ * « Sans heure » : on lit alors une DATE SEULE, jamais « 00:00 ».
+ * Le calcul doit être identique côté serveur (embed) et côté navigateur (carte) :
+ * il est donc fait en heure civile Europe/Paris, quel que soit le fuseau du
+ * runtime. C'était la cause du « jour et heure figés à minuit ».
+ */
+describe("date prévue (optionnelle)", () => {
+    // 20/09/2026 16:00 UTC = 18:00 à Paris (CEST).
+    const withTime = new Date("2026-09-20T16:00:00.000Z");
+    // 19/09/2026 22:00 UTC = 20/09/2026 00:00 à Paris → « Sans heure ».
+    const dateOnly = new Date("2026-09-19T22:00:00.000Z");
+
+    it("getDjDateParts lit l'heure civile Paris (pas le fuseau du runtime)", () => {
+        const parts = getDjDateParts(withTime);
+        expect(parts).not.toBeNull();
+        expect([parts!.year, parts!.month, parts!.day]).toEqual([2026, 9, 20]);
+        expect([parts!.hours, parts!.minutes]).toEqual([18, 0]);
+        expect(parts!.explicitTime).toBe(true);
+    });
+
+    it("minuit Paris = « date seule » (le runtime UTC ne doit pas dire 22:00)", () => {
+        const parts = getDjDateParts(dateOnly);
+        expect([parts!.year, parts!.month, parts!.day]).toEqual([2026, 9, 20]);
+        expect([parts!.hours, parts!.minutes]).toEqual([0, 0]);
+        expect(parts!.explicitTime).toBe(false);
+        expect(hasExplicitTime(dateOnly)).toBe(false);
+    });
+
+    it("absente / invalide → null et jamais d'exception", () => {
+        expect(getDjDateParts(null)).toBeNull();
+        expect(getDjDateParts(undefined)).toBeNull();
+        expect(getDjDateParts("")).toBeNull();
+        expect(getDjDateParts("pas-une-date")).toBeNull();
+        expect(hasExplicitTime(null)).toBe(false);
+        expect(formatDjDateLabel(null)).toBeNull();
+        expect(formatDiscordDateStamp(undefined)).toBeNull();
+    });
+
+    it("formatDjDateLabel : date + heure, ou date seule si « Sans heure »", () => {
+        expect(formatDjDateLabel(withTime)).toBe("dimanche 20 septembre 2026 à 18:00");
+        const only = formatDjDateLabel(dateOnly);
+        expect(only).toBe("dimanche 20 septembre 2026");
+        expect(only).not.toContain("00:00");
+        expect(formatDjDateLabel(withTime, { shortWeekday: true, shortMonth: true })).toContain("à 18:00");
+    });
+
+    it("formatDiscordDateStamp : <t:F> avec heure, <t:D> sans heure", () => {
+        expect(formatDiscordDateStamp(withTime)).toMatch(/^<t:\d+:F>$/);
+        expect(formatDiscordDateStamp(dateOnly)).toMatch(/^<t:\d+:D>$/);
+        // Même instant → même timestamp, seule l'annotation d'affichage change.
+        const tsOf = (s: string) => s.match(/^<t:(\d+):/)?.[1];
+        expect(tsOf(formatDiscordDateStamp(dateOnly)!)).toBe(tsOf(formatDiscordDateStamp(new Date(dateOnly))!));
+    });
+
+    it("toLocalDateTimeInput : heure LOCALE (jamais le décalage UTC de toISOString)", () => {
+        // 18:00 Paris (CEST) = 16:00 UTC → le champ doit afficher 18:00, pas 16:00.
+        expect(toLocalDateTimeInput(withTime)).toBe("2026-09-20T18:00");
+        // Et l'ancien code (toISOString) produisait bien un décalage → régression verrouillée.
+        expect(toLocalDateTimeInput(withTime)).not.toBe(withTime.toISOString().slice(0, 16));
+        expect(toLocalDateTimeInput(null)).toBe("");
+        expect(toLocalDateTimeInput("pas-une-date")).toBe("");
+    });
+
+    it("mergeMultiDungeonTargetDates : ne touche que targetDate et garde l'enveloppe", () => {
+        type Enveloppe = { _items: { name?: string; targetDate?: Date | null }[]; _autoReminderCount?: number };
+        const items = [dj("Kraken", 100), dj("Minotoror", 120)];
+        const envelope = { _items: items, _autoReminderCount: 3 };
+        const merged = mergeMultiDungeonTargetDates(envelope, [{ targetDate: new Date("2026-09-20T18:00:00.000Z") }]) as Enveloppe;
+        expect(merged._autoReminderCount).toBe(3); // compteur de rappels préservé
+        expect(merged._items[0].targetDate).toBeInstanceOf(Date);
+        expect(merged._items[0].name).toBe("Kraken"); // données intactes
+        expect(merged._items[1].targetDate).toBeUndefined(); // donjon non touché
+    });
+
+    it("mergeMultiDungeonTargetDates : tableau direct, et date retirée (null)", () => {
+        const items = [{ ...dj("A", 1), targetDate: new Date("2026-09-20T18:00:00.000Z") }];
+        const merged = mergeMultiDungeonTargetDates(items, [{ targetDate: null }]) as { targetDate: Date | null }[];
+        expect(Array.isArray(merged)).toBe(true);
+        expect(merged[0].targetDate).toBeNull();
+        // Aucun donjon multi → on rend l'entrée telle quelle (pas de destruction).
+        expect(mergeMultiDungeonTargetDates(null, [{ targetDate: null }])).toBeNull();
     });
 });

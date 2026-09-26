@@ -378,7 +378,9 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
         if (!multiActive && mode === "QUETE" && !selectedQuest) return "Choisis une quête dans la recherche ci-dessus.";
         if (!multiActive && mode === "DEFI" && !selectedDefi) return "Choisis un défi dans la liste ci-dessus.";
         if (!multiActive && mode === "TITAN" && !selectedTitan) return "Choisis un titan dans la liste ci-dessus.";
-        if (!multiActive && !targetDate) return "Renseigne le champ « Date & Heure prévue » ci-dessus.";
+        // La date est OPTIONNELLE (sauf Titan, dont le créneau est imposé par sa dispo) :
+        // on ne bloque plus la publication faute de date.
+        if (!multiActive && mode === "TITAN" && !targetDate) return "Choisis un créneau dans la fenêtre de disponibilité du titan.";
         return null;
     })();
 
@@ -437,8 +439,8 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
             toast.error("Veuillez choisir un titan.");
             return;
         }
-        if (!targetDate) {
-            toast.error("Veuillez définir une date et une heure prévues.");
+        if (mode === "TITAN" && !targetDate) {
+            toast.error("Veuillez choisir un créneau de la fenêtre de disponibilité du titan.");
             return;
         }
 
@@ -1010,7 +1012,7 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
                                 <div className={`grid gap-6 ${multiDungeons ? "grid-cols-1" : "grid-cols-1 sm:grid-cols-2"}`}>
                                     {!multiDungeons && (
                                         <div className="space-y-3">
-                                            <p className="text-caption font-black text-muted-foreground uppercase tracking-widest ml-1">Date & Heure prévue</p>
+                                            <p className="text-caption font-black text-muted-foreground uppercase tracking-widest ml-1">Date & Heure prévue <span className="normal-case font-medium">(optionnel)</span></p>
                                             <DateTimePicker
                                                 value={targetDate}
                                                 onChange={setTargetDate}
@@ -1023,8 +1025,8 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
                                             {mode === "TITAN" && titanSchedule?.days && (
                                                 <p className="text-caption text-muted-foreground ml-1">📅 Jours & horaires calqués sur la disponibilité du titan.</p>
                                             )}
-                                            {!targetDate && (
-                                                <p className="text-caption text-warning/90 font-bold ml-1">Date requise pour continuer.</p>
+                                            {!targetDate && mode !== "TITAN" && (
+                                                <p className="text-caption text-muted-foreground ml-1">Sans date, le groupe se cale une fois complet. Tu pourras en ajouter une plus tard.</p>
                                             )}
                                         </div>
                                     )}

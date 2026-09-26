@@ -11,6 +11,8 @@ import { updateDjPost } from "@/server/actions/dungeon-finder-actions";
 import { DOFUS_CLASSES } from "@/lib/dofus-assets";
 import type { DjPostWithDetails } from "@/server/actions/dungeon-finder-actions";
 import { DateTimePicker } from "@/components/ui/date-time-picker";
+import { getMultiDungeons, formatDjDateLabel } from "@/lib/dungeon-finder-utils";
+import { toLocalDateTimeInput } from "@/lib/date-utils";
 
 interface DjEditModalProps {
     isOpen: boolean;
@@ -26,8 +28,15 @@ export function DjEditModal({ isOpen, post, guildId, onClose, onSaved }: DjEditM
     // Pre-fill from existing post
     const [maxMembers, setMaxMembers] = useState(post.maxMembers);
     const [message, setMessage] = useState(post.message ?? "");
-    const [targetDate, setTargetDate] = useState(
-        post.targetDate ? new Date(post.targetDate).toISOString().slice(0, 16) : ""
+    // Heure LOCALE : `toISOString()` (ancien code) décalait l'heure et changeait de
+    // jour près de minuit (« le jour et l'heure se figent à minuit »).
+    const [targetDate, setTargetDate] = useState(toLocalDateTimeInput(post.targetDate));
+    // #26 — un post multi porte une date PAR donjon : sans ça, le créateur ne
+    // pouvait pas ajouter d'heure après la création (le champ n'existait qu'à la
+    // création, et l'édition forçait `targetDate: null`).
+    const multiDungeons = useMemo(() => getMultiDungeons(post.dungeonsJson), [post.dungeonsJson]);
+    const [multiDates, setMultiDates] = useState<string[]>(() =>
+        multiDungeons.map((d) => toLocalDateTimeInput(d.targetDate))
     );
     const [selectedAchievements, setSelectedAchievements] = useState<string[]>(
         post.wantedAchievementIds ?? []
@@ -45,7 +54,8 @@ export function DjEditModal({ isOpen, post, guildId, onClose, onSaved }: DjEditM
     const initialSnapshot = useMemo(() => ({
         maxMembers: post.maxMembers,
         message: post.message ?? "",
-        targetDate: post.targetDate ? new Date(post.targetDate).toISOString().slice(0, 16) : "",
+        targetDate: toLocalDateTimeInput(post.targetDate),
+        multiDates: getMultiDungeons(post.dungeonsJson).map((d) => toLocalDateTimeInput(d.targetDate)),
         selectedAchievements: post.wantedAchievementIds ?? [],
         requiredClasses: post.requiredClasses ?? [],
         questName: post.questName ?? "",
@@ -56,6 +66,7 @@ export function DjEditModal({ isOpen, post, guildId, onClose, onSaved }: DjEditM
         maxMembers,
         message,
         targetDate,
+        multiDates,
         selectedAchievements,
         requiredClasses,
         questName,
@@ -75,17 +86,21 @@ export function DjEditModal({ isOpen, post, guildId, onClose, onSaved }: DjEditM
     }
 
     function handleSave() {
-        if (!isMulti && !targetDate) {
-            toast.error("La date prévue est obligatoire.");
-            return;
-        }
         startTransition(async () => {
             const res = await updateDjPost(guildId, post.id, {
                 maxMembers,
                 message: message.trim() || null,
-                targetDate: isMulti ? null : new Date(targetDate),
+                // Date OPTIONNELLE : champ vide = aucune date prévue (jamais une date
+                // invalide fabriquée à partir de "").
+                targetDate: isMulti || !targetDate ? null : new Date(targetDate),
                 wantedAchievementIds: selectedAchievements,
                 requiredClasses,
+                // #26 — dates prévues PAR donjon du post multi (max 5, bornage serveur).
+                ...(isMulti && {
+                    multiDungeonDates: multiDungeons.map((_, idx) => ({
+                        targetDate: multiDates[idx] ? new Date(multiDates[idx]) : null,
+                    })),
+                }),
                 ...(isManualQuest && {
                     questName: questName.trim() || null,
                     questUrl: questUrl.trim() || null,
@@ -145,7 +160,7 @@ export function DjEditModal({ isOpen, post, guildId, onClose, onSaved }: DjEditM
                                         <p className="text-caption text-muted-foreground">
                                             Lvl {d.level}
                                             {(d.wantedAchievementIds?.length ?? 0) > 0 && ` · ${d.wantedAchievementIds.length} succès`}
-                                            {d.targetDate && ` · ${new Date(d.targetDate).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" })}`}
+                                            {d.targetDate ? ` · ${formatDjDateLabel(d.targetDate, { shortMonth: true }) ?? ""}` : ""}
                                         </p>
                                     </div>
                                 </div>
@@ -153,13 +168,13 @@ export function DjEditModal({ isOpen, post, guildId, onClose, onSaved }: DjEditM
                         </div>
                     )}
 
-                    {/* Date (simple uniquement — le multi gère ses dates par donjon) */}
+                    {/* Date (simple) — OPTIONNELLE, heure optionnelle */}
                     {!isMulti && (
                     <div className="space-y-2">
                         <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest block mb-1.5 flex items-center gap-1.5">
                             <CalendarClock className="w-3.5 h-3.5 text-info" />
-                            Date prévue <span className="text-danger">*</span>
-                            <span className="text-muted-foreground font-normal text-caption normal-case ml-1">(heure optionnelle)</span>
+                            Date prévue
+                            <span className="text-muted-foreground font-normal text-caption normal-case ml-1">(optionnel — pas de date = groupe à caler)</span>
                         </label>
                         <DateTimePicker
                             value={targetDate}
@@ -167,6 +182,36 @@ export function DjEditModal({ isOpen, post, guildId, onClose, onSaved }: DjEditM
                             minDate={new Date()}
                             timeOptional={true}
                         />
+                    </div>
+                    )}
+
+                    {/* #26 — une date/heure PAR donjon : le créateur peut enfin en ajouter une
+                        après la création (avant, le champ n'existait qu'à la création). */}
+                    {isMulti && (
+                    <div className="space-y-3">
+                        <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-1.5">
+                            <CalendarClock className="w-3.5 h-3.5 text-info" />
+                            Dates prévues par donjon
+                            <span className="text-muted-foreground font-normal text-caption normal-case ml-1">(optionnel — heure optionnelle)</span>
+                        </label>
+                        {multiDungeons.map((d, idx) => (
+                            <div key={d.dungeonId ?? idx} className="space-y-1.5">
+                                <p className="text-caption font-bold text-muted-foreground truncate">
+                                    #{idx + 1} — {d.name}
+                                </p>
+                                <DateTimePicker
+                                    value={multiDates[idx] ?? ""}
+                                    onChange={(v) => setMultiDates((prev) => {
+                                        const next = [...prev];
+                                        while (next.length < multiDungeons.length) next.push("");
+                                        next[idx] = v;
+                                        return next;
+                                    })}
+                                    minDate={new Date()}
+                                    timeOptional={true}
+                                />
+                            </div>
+                        ))}
                     </div>
                     )}
 

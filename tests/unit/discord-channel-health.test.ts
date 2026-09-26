@@ -91,7 +91,7 @@ describe("discordBlockTtlSeconds — escalade bornée", () => {
     });
 });
 
-describe("clés Redis — une instance partagée prod/bêta (audit I-07)", () => {
+describe("clés Redis — préfixe d'environnement (filet si une instance est mutualisée)", () => {
     it("porte le préfixe d'environnement ET l'ID du salon", () => {
         const key = discordChannelBlockKey(CHANNEL);
         expect(key).toMatch(/^sigilos:(beta|prod):discord:channel_blocked:/);

@@ -405,7 +405,7 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
 
                         <Button
                             variant="secondary"
-                            className="flex-1 h-11 bg-surface hover:bg-surface border-border text-foreground font-black uppercase tracking-widest text-caption rounded-xl"
+                            className={cn(SONGES_BUTTON.secondary, "flex-1 h-11 uppercase tracking-widest text-caption rounded-xl font-black")}
                             onClick={() => setProgressModalOpen(true)}
                         >
                             <TrendingUp className="w-4 h-4 mr-2" />
@@ -413,14 +413,14 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
                         </Button>
                         <Button
                             variant="secondary"
-                            className="flex-1 h-11 bg-surface hover:bg-surface border-border text-foreground font-black uppercase tracking-widest text-caption rounded-xl"
+                            className={cn(SONGES_BUTTON.secondary, "flex-1 h-11 uppercase tracking-widest text-caption rounded-xl font-black")}
                             onClick={() => setEditModalOpen(true)}
                         >
                             <Pencil className="w-4 h-4 mr-2" />
                             Modifier
                         </Button>
                         <Button
-                            className="flex-1 h-11 bg-warning/15 hover:bg-warning/25 text-warning border border-warning/30 font-black uppercase tracking-widest text-caption rounded-xl transition-all"
+                            className={cn(SONGES_BUTTON.close, "flex-1 h-11 uppercase tracking-widest text-caption rounded-xl")}
                             onClick={() => setCloseModalOpen(true)}
                         >
                             <Check className="w-4 h-4 mr-2" />

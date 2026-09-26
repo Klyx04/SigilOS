@@ -319,7 +319,7 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
                                     {Object.entries(DIFFICULTIES).map(([key, value]) => (
                                         <SelectItem key={key} value={key} className="text-foreground focus:bg-surface">
                                             <div className="flex items-center gap-2">
-                                                <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: value.couleur }} />
+                                                <SongesPicto asset={value.asset} size={16} title={value.label} />
                                                 {value.label}
                                                 <span className="text-foreground/40 text-xs">({value.xpBonus}% XP/Butin)</span>
                                             </div>

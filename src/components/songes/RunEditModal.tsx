@@ -95,7 +95,12 @@ export function RunEditModal({ isOpen, onClose, guildId, run }: RunEditModalProp
                             </SelectTrigger>
                             <SelectContent className="bg-background border-border z-[200]">
                                 {Object.entries(DIFFICULTIES).map(([key, d]) => (
-                                    <SelectItem key={key} value={key}>{d.label}</SelectItem>
+                                    <SelectItem key={key} value={key}>
+                                        <span className="flex items-center gap-2">
+                                            <SongesPicto asset={d.asset} size={16} title={d.label} />
+                                            {d.label}
+                                        </span>
+                                    </SelectItem>
                                 ))}
                             </SelectContent>
                         </Select>

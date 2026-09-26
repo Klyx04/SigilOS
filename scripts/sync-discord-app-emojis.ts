@@ -9,8 +9,12 @@
  * script crée simplement les manquants.
  *
  * Usage (depuis la racine du projet) :
- *   npx -y tsx scripts/sync-discord-app-emojis.ts            # DRY RUN (défaut)
- *   npx -y tsx scripts/sync-discord-app-emojis.ts --apply    # crée les manquants
+ *   npx -y tsx scripts/sync-discord-app-emojis.ts                     # DRY RUN (défaut)
+ *   npx -y tsx scripts/sync-discord-app-emojis.ts --apply             # crée les manquants
+ *   npx -y tsx scripts/sync-discord-app-emojis.ts --env=.env.prod --apply   # autre environnement
+ *
+ * `--env=<fichier>` évite de manipuler un token à la main (chaque environnement a
+ * son application Discord = son token) : le fichier reste sur le disque, rien à coller.
  *
  * Sécurité :
  *  · rien n'est jamais supprimé ni modifié — seuls des emojis MANQUANTS sont créés ;
@@ -26,17 +30,19 @@ import path from "node:path";
 
 import { planAppEmojiSync } from "../src/lib/discord-app-emoji-plan";
 
+const args = process.argv.slice(2);
+const envArg = args.find((a) => a.startsWith("--env="));
 try {
-    // Node ≥ 20.12 : charge `.env` sans dépendance supplémentaire.
-    (process as unknown as { loadEnvFile?: (p?: string) => void }).loadEnvFile?.();
+    // Node ≥ 20.12 : charge le fichier d'env demandé (`.env` par défaut) sans dépendance.
+    (process as unknown as { loadEnvFile?: (p?: string) => void }).loadEnvFile?.(envArg ? envArg.slice("--env=".length) : ".env");
 } catch {
-    /* déjà chargé, ou aucun .env : on lit l'environnement tel quel */
+    /* déjà chargé, ou fichier absent : on lit l'environnement tel quel */
 }
+
+const apply = args.includes("--apply");
 
 const API = "https://discord.com/api/v10";
 const USER_AGENT = "DiscordBot (https://github.com/Klyx04/SigilOS, 1.0.0)";
-
-const apply = process.argv.slice(2).includes("--apply");
 const appId = (process.env.AUTH_DISCORD_ID || process.env.DISCORD_APPLICATION_ID || process.env.DISCORD_CLIENT_ID || "").replace(/\D/g, "");
 const token = process.env.DISCORD_BOT_TOKEN || "";
 

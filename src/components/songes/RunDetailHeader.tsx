@@ -424,7 +424,12 @@ export function RunDetailHeader({ run, guildId, isLeader, leaderName, optimistic
                                             </SelectTrigger>
                                             <SelectContent className="bg-background border-border">
                                                 {Object.entries(DIFFICULTIES).map(([key, d]) => (
-                                                    <SelectItem key={key} value={key}>{d.label}</SelectItem>
+                                                    <SelectItem key={key} value={key}>
+                                                        <span className="flex items-center gap-2">
+                                                            <SongesPicto asset={d.asset} size={16} title={d.label} />
+                                                            {d.label}
+                                                        </span>
+                                                    </SelectItem>
                                                 ))}
                                             </SelectContent>
                                         </Select>

@@ -27,7 +27,7 @@ interface CalendarDiscordDialogProps {
     roles: DiscordRole[];
     everyoneAllowed?: boolean;
     mode: "REMINDER" | "SHARE";
-    onConfirm: (roleId?: string | "everyone") => Promise<{ success: boolean; sentCount?: number; discordSent?: boolean; error?: string }>;
+    onConfirm: (roleId?: string | "everyone") => Promise<{ success: boolean; sentCount?: number; discordSent?: boolean; pinged?: number; skipped?: number; error?: string }>;
 }
 
 type PingType = "EVERYONE" | "ROLE" | "NONE";
@@ -57,6 +57,9 @@ export function CalendarDiscordDialog({
                 if (isReminder) {
                     let msg = `Rappel envoyé à ${res.sentCount} participants`;
                     if (res.discordSent) msg += " et publié sur Discord";
+                    if (typeof res.pinged === "number" || typeof res.skipped === "number") {
+                        msg += ` (${res.pinged ?? 0} pingé(s), ${res.skipped ?? 0} déjà en vocal)`;
+                    }
                     toast.success(msg);
                 } else {
                     toast.success("Événement partagé sur Discord !");
@@ -85,7 +88,7 @@ export function CalendarDiscordDialog({
                         </DialogTitle>
                         <DialogDescription className="text-muted-foreground text-xs mt-1">
                             {isReminder
-                                ? "Notifiez les participants avec un ping optionnel."
+                                ? "Notifiez les participants avec un ping optionnel. Seuls les absents du vocal sont pingés (le capitaine donne le salon de référence)."
                                 : "Qui mentionner pour cette annonce d'événement ?"
                             }
                         </DialogDescription>

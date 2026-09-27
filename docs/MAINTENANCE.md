@@ -41,6 +41,9 @@ Appelés depuis le crontab VPS (`crontab -l`) via
 - `/api/cron/cleanup-proofs` · `/api/cron/cleanup-logs` · `/api/cron/cleanup-inactive-posts` · `/api/cron/cleanup-inactive-service-requests` — purges (depuis **S5.6**, `cleanup-logs` purge aussi les **logs d'audit du marché**, cf. §Module « Marché »). **Rétention des logs d'audit (audit du 25/09)** : `cleanup-logs` applique **90 j** aux actions plateforme (`isGodLog: true`, sans guilde) et **30 j** aux journaux de guilde — politique unique dans `src/lib/audit-retention-policy.ts`, appliquée par le core `src/server/audit-retention.ts` (par lots de 500, par périmètre, jamais de `deleteMany` global). Le script VPS `scripts/database-janitor.ts` (04h00) consomme la même politique.
 - `/api/cron/daily-summary` · `/api/cron/status-ping` · `/api/cron/mission-reset-notify` · `/api/cron/loan-reminders` — notifications
 - `/api/cron/raid-reminders` — **rappel automatique des raids** : pour chaque raid `PUBLISHED` entré dans sa fenêtre (`GuildEvent.notifyBefore`, **60 min par défaut**), poste UN message dans le salon du raid dont le `content` ne porte que les mentions `<@id>` des **inscrits** (REGISTERED + CONFIRMED) — **jamais** les rôles de l'embed, jamais `@everyone`. Idempotent (`metadata.raidReminderSentAt`) et silencieux si un rappel manuel vient d'être envoyé. Fréquence recommandée : toutes les 10 min (`0,10,20,30,40,50 * * * *`).
+- `/api/cron/event-reminders` — **rappel des events calendrier non-raid** (même contrat, fenêtre `notifyBefore`, marqueur `metadata.eventReminderSentAt` ; sans `startDate` → ignoré).
+- `/api/cron/dj-reminders` — **rappel H-1 des posts DJ/Quêtes datés** (`targetDate` ; posts indéfinis ignorés ; marqueur `dungeonsJson._h1ReminderSentAt`).
+- `/api/cron/songes-reminders` — **rappel H-1 des runs Songes planifiées** (`scheduledAt` ; runs indéfinies ignorées ; idempotence Redis par échéance).
 - `/api/cron/ladder-sync` · `/api/cron/discord-status` — synchronisations
 - `/api/cron/account-retention` — **#168 rétention/purge comptes orphelins** (RGPD) : purge `User`+`Account` sans profil ACTIVE après 90 j et grâce `scheduledDeletion` écoulée, 50 max/exécution. Fréquence recommandée : quotidien (`0 6 * * *`).
 - `/api/cron/sync-dofensive-maps` — **siphon local Dofensive (fiches boss)** : `/dungeons/preview` + `/maps/{id}` → tables `DofensiveDungeon` + `DofensiveMap` (grille `Cells` 40×14, ally/enemyCells, coords). `versionHash` → update auto si changement, salles fraîches (< 24 h) sautées. Fréquence recommandée : quotidien (`30 3 * * *`).
@@ -131,6 +134,22 @@ annonces de **prod**) avec `> /dev/null` (⇒ **aucun log**, donc invisible dans
 0,10,20,30,40,50 * * * * curl -s -o /dev/null -w "raid-reminders \%{http_code} $(date -Is)\n" \
   -H "x-cron-secret: $(cat /home/sigiladmin/.sigilos-cron-secret)" \
   "$APP_URL/api/cron/raid-reminders" >> "$LOG_DIR/raid-reminders.log" 2>&1
+
+# Rappel des events calendrier non-raid (même fenêtre `notifyBefore`, 60 min par
+# défaut ; posts sans `startDate` ignorés ; un seul ping par event)
+0,10,20,30,40,50 * * * * curl -s -o /dev/null -w "event-reminders \%{http_code} $(date -Is)\n" \
+  -H "x-cron-secret: $(cat /home/sigiladmin/.sigilos-cron-secret)" \
+  "$APP_URL/api/cron/event-reminders" >> "$LOG_DIR/event-reminders.log" 2>&1
+
+# Rappel H-1 des posts DJ/Quêtes datés (`targetDate` ; posts indéfinis ignorés)
+0,10,20,30,40,50 * * * * curl -s -o /dev/null -w "dj-reminders \%{http_code} $(date -Is)\n" \
+  -H "x-cron-secret: $(cat /home/sigiladmin/.sigilos-cron-secret)" \
+  "$APP_URL/api/cron/dj-reminders" >> "$LOG_DIR/dj-reminders.log" 2>&1
+
+# Rappel H-1 des runs Songes planifiées (`scheduledAt` ; runs indéfinies ignorées)
+0,10,20,30,40,50 * * * * curl -s -o /dev/null -w "songes-reminders \%{http_code} $(date -Is)\n" \
+  -H "x-cron-secret: $(cat /home/sigiladmin/.sigilos-cron-secret)" \
+  "$APP_URL/api/cron/songes-reminders" >> "$LOG_DIR/songes-reminders.log" 2>&1
 ```
 
 > 📋 **Rappel des 23 tâches lues par God** (`KNOWN_CRON_TASKS`, `src/lib/cron-telemetry.ts`) : chacune

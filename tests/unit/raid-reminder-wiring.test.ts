@@ -57,17 +57,22 @@ describe("Service `raid-reminder-service` — ping des INSCRITS uniquement", () 
         expect(SERVICE_CODE, "la file d'attente n'est pas pingée").not.toMatch(/RESERVE/);
     });
 
-    it("est idempotent : marqueur `raidReminderSentAt` + trace `reminderMessages`", () => {
+    it("est idempotent : marqueur `raidReminderSentAt` + trace `reminderMessages` (clé Redis unique par message)", () => {
         expect(SERVICE_CODE).toMatch(/autoReminderSentAt: \(meta\.raidReminderSentAt as string \| undefined\) \?\? null/);
         expect(SERVICE_CODE).toMatch(/raidReminderSentAt: now\.toISOString\(\)/);
-        expect(SERVICE_CODE).toMatch(/reminderMessages: \[\.\.\.existingReminders, \{ channelId, messageId \}\]/);
+        expect(SERVICE_CODE).toMatch(/reminderMessages: \[\.\.\.existingReminders, \{ channelId, messageId, messageKey: reminderMsgKey \}\]/);
+        expect(SERVICE_CODE).toMatch(/storeMessageIdKey: reminderMsgKey/);
     });
 
-    it("ne scanne que des raids publiés, à venir, avec un salon", () => {
+    it("ne scanne que des raids publiés à venir (le salon est résolu en repli, pas filtré en SQL)", () => {
         expect(SERVICE_CODE).toMatch(/type: "RAID_OFFICIAL"/);
         expect(SERVICE_CODE).toMatch(/status: "PUBLISHED"/);
         expect(SERVICE_CODE).toMatch(/startDate: \{ gt: now, lte: new Date\(now\.getTime\(\) \+ SCAN_HORIZON_MS\) \}/);
-        expect(SERVICE_CODE).toMatch(/discordChannelId: \{ not: null \}/);
+        // Un raid sans salon explicite utilise le salon configuré de la guilde
+        // (`pickRaidReminderChannelId`) — le filtre SQL `discordChannelId: { not: null }`
+        // excluait ces raids du scan (bug : rappel jamais envoyé).
+        expect(SERVICE_CODE).not.toMatch(/discordChannelId: \{ not: null \}/);
+        expect(SERVICE_CODE).toMatch(/pickRaidReminderChannelId\(guildConfig, meta\.raidType\)/);
     });
 
     it("passe par la décision pure (aucune règle de fenêtre réécrite ici)", () => {

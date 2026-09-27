@@ -116,6 +116,9 @@ async function deliverRaidReminder(args: {
     const startTs = Math.floor(event.startDate.getTime() / 1000);
     const dashboardUrl = `${getAppBaseUrl()}/dashboard/${guildId}/calendar?event=${event.id}`;
 
+    // Clé Redis unique par message : si deux rappels (auto + manuel) partent pour
+    // le même raid, la seconde ne doit pas écraser la résolution de la première.
+    const reminderMsgKey = `raid-reminder:msg:${event.id}:${now.getTime()}`;
     const messageId = await sendChannelMessage(
         channelId as string,
         `🔔 **Rappel raid — départ dans ${leadLabel}** (rendez-vous en jeu / vocal)\n${mentions}`,
@@ -133,6 +136,11 @@ async function deliverRaidReminder(args: {
                 },
                 { name: "💡 Avant de partir", value: "Vérifie ta classe sur le dashboard et prépare ton stuff.", inline: false },
             ],
+            // Outbox : demande au worker d'ancrer le vrai ID Discord dans Redis.
+            // Sans cette clé, le messageId stocké reste "outbox:<jobId>" et la
+            // suppression à la clôture du raid appelle Discord avec un ID invalide.
+            storeMessageIdKey: reminderMsgKey,
+            storeMessageIdTTL: 30 * 24 * 3600,
         }
     );
 
@@ -142,6 +150,9 @@ async function deliverRaidReminder(args: {
 
     // Idempotence (`raidReminderSentAt`) + nettoyage à la clôture de l'événement
     // (`reminderMessages` est déjà purgé par cancel / complete / auto-close).
+    // Outbox : le worker ancre le vrai snowflake dans Redis via `storeMessageIdKey`.
+    // On stocke ce que `sendChannelMessage` renvoie (snowflake direct OU `outbox:<jobId>`
+    // si l'outbox est active) + la clé Redis pour résoudre le vrai ID à la suppression.
     const existingReminders = Array.isArray(meta.reminderMessages) ? meta.reminderMessages : [];
     await db.guildEvent
         .update({
@@ -150,7 +161,7 @@ async function deliverRaidReminder(args: {
                 metadata: {
                     ...meta,
                     raidReminderSentAt: now.toISOString(),
-                    reminderMessages: [...existingReminders, { channelId, messageId }],
+                    reminderMessages: [...existingReminders, { channelId, messageId, messageKey: reminderMsgKey }],
                 },
             },
         })
@@ -247,7 +258,6 @@ export async function sendRaidReminders(
             type: "RAID_OFFICIAL",
             status: "PUBLISHED",
             startDate: { gt: now, lte: new Date(now.getTime() + SCAN_HORIZON_MS) },
-            discordChannelId: { not: null },
         },
         select: {
             id: true,

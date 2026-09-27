@@ -80,6 +80,27 @@ const RegisterEventSchema = z.object({
 
 export type GuildEventInput = z.infer<typeof GuildEventSchema>;
 
+/** Entrée `metadata.reminderMessages` : le `messageKey` permet de résoudre le
+ * vrai snowflake quand l'envoi est passé par l'outbox (`outbox:<jobId>`). */
+export type ReminderMessageRef = {
+    channelId: string;
+    messageId: string;
+    messageKey?: string | null;
+};
+
+/** Supprime des messages de rappel en résolvant les IDs outbox via Redis. */
+async function deleteReminderMessageRefs(refs: ReminderMessageRef[]): Promise<void> {
+    if (!refs || refs.length === 0) return;
+    const tasks: Promise<unknown>[] = [];
+    for (const rm of refs) {
+        if (!rm?.channelId || !rm?.messageId) continue;
+        tasks.push(
+            deleteChannelMessage(rm.channelId, rm.messageId, rm.messageKey ?? null).catch(() => false)
+        );
+    }
+    if (tasks.length > 0) await Promise.allSettled(tasks);
+}
+
 // ============================================
 // READ ACTIONS
 // ============================================
@@ -852,7 +873,7 @@ export async function updateCalendarEvent(guildId: string, eventId: string, data
         });
         if (!guildConfig) return { success: false, error: "Guilde non trouvée" };
 
-        const event = await db.guildEvent.findUnique({ where: { id: eventId }, select: { creatorId: true, discordMessageId: true, discordChannelId: true } });
+        const event = await db.guildEvent.findUnique({ where: { id: eventId }, select: { creatorId: true, discordMessageId: true, discordChannelId: true, startDate: true } });
         if (!event) return { success: false, error: "Événement introuvable" };
         if (event.creatorId !== ctx.id && !ctx.isAdmin) {
             return { success: false, error: "Seul le créateur de l'événement ou un administrateur peut le modifier." };
@@ -866,12 +887,22 @@ export async function updateCalendarEvent(guildId: string, eventId: string, data
 
         // Merge missionIds into metadata
         const existingEvent = await db.guildEvent.findUnique({ where: { id: eventId }, select: { metadata: true } });
+        const prevMeta = (existingEvent?.metadata as any) || {};
         const finalMetadata = {
-            ...(existingEvent?.metadata as any || {}),
+            ...prevMeta,
             ...(updateData.metadata || {}),
             missionIds: missionIds || [],
             mentionRoleIds: mentionRoleIds || []
         };
+        // Replanification : si la date change, le H-1 doit pouvoir repartir pour
+        // la nouvelle échéance (sinon `raidReminderSentAt`/`eventReminderSentAt`
+        // bloquerait à jamais le rappel du nouvel horaire).
+        const prevStartMs = event.startDate ? new Date(event.startDate).getTime() : null;
+        const nextStartMs = updateData.startDate ? new Date(updateData.startDate).getTime() : null;
+        if (prevStartMs !== null && nextStartMs !== null && prevStartMs !== nextStartMs) {
+            delete (finalMetadata as any).raidReminderSentAt;
+            delete (finalMetadata as any).eventReminderSentAt;
+        }
 
         await db.guildEvent.update({
             where: { id: eventId, guildId: guildConfig.id },
@@ -924,15 +955,17 @@ export async function cancelCalendarEvent(guildId: string, eventId: string) {
             return { success: false, error: "Seul le créateur de l'événement ou un administrateur peut l'annuler." };
         }
 
-        // Cleanup reminder messages
+        // Cleanup reminder messages — await allSettled : toutes les suppressions
+        // doivent être tentées (best-effort) même si l'une échoue. On attend car
+        // le runtime Next.js peut couper la Server Action avant la fin des promesses.
         const cancelMeta = (event.metadata as any) || {};
-        const cancelReminders: { channelId: string, messageId: string }[] = cancelMeta.reminderMessages || [];
-        cancelReminders.forEach(({ channelId, messageId }) => {
-            deleteChannelMessage(channelId, messageId).catch(() => { });
-        });
+        const cancelReminders: ReminderMessageRef[] = cancelMeta.reminderMessages || [];
+        await deleteReminderMessageRefs(cancelReminders);
+        const cancelDeleteTasks: Promise<unknown>[] = [];
         if (event?.discordChannelId && event?.discordMessageId) {
-            deleteChannelMessage(event.discordChannelId, event.discordMessageId).catch(() => { });
+            cancelDeleteTasks.push(deleteChannelMessage(event.discordChannelId, event.discordMessageId).catch(() => false));
         }
+        if (cancelDeleteTasks.length > 0) await Promise.allSettled(cancelDeleteTasks);
 
         await db.guildEvent.update({
             where: { id: eventId, guildId: guildConfig.id },
@@ -964,7 +997,7 @@ export async function deleteCalendarEvent(guildId: string, eventId: string) {
 
         const event = await db.guildEvent.findUnique({
             where: { id: eventId, guildId: guildConfig.id },
-            select: { id: true, creatorId: true, status: true, discordChannelId: true, discordMessageId: true }
+            select: { id: true, creatorId: true, status: true, metadata: true, discordChannelId: true, discordMessageId: true }
         });
 
         if (!event) return { success: false, error: "Événement introuvable" };
@@ -973,9 +1006,15 @@ export async function deleteCalendarEvent(guildId: string, eventId: string) {
             return { success: false, error: "Seul le créateur de l'événement ou un administrateur peut le supprimer." };
         }
 
+        // Nettoyage des messages de rappel Discord (oubli initial : seul l'embed principal était supprimé).
+        const deleteMeta = (event.metadata as any) || {};
+        const deleteReminders: ReminderMessageRef[] = deleteMeta.reminderMessages || [];
+        await deleteReminderMessageRefs(deleteReminders);
+        const hardDeleteTasks: Promise<unknown>[] = [];
         if (event?.discordChannelId && event?.discordMessageId) {
-            deleteChannelMessage(event.discordChannelId, event.discordMessageId).catch(() => { });
+            hardDeleteTasks.push(deleteChannelMessage(event.discordChannelId, event.discordMessageId).catch(() => false));
         }
+        if (hardDeleteTasks.length > 0) await Promise.allSettled(hardDeleteTasks);
 
         await db.guildEvent.delete({
             where: { id: eventId, guildId: guildConfig.id }
@@ -1064,15 +1103,16 @@ export async function completeEvent(guildId: string, eventId: string) {
             data: { status: "COMPLETED" }
         });
 
-        // Close Discord message + cleanup reminder messages
+        // Close Discord message + cleanup reminder messages (await allSettled — le forEach
+        // original lâchait les promesses sans attendre, le runtime coupait avant la fin).
         const cleanupMeta = (event.metadata as any) || {};
-        const reminderMessages: { channelId: string, messageId: string }[] = cleanupMeta.reminderMessages || [];
-        reminderMessages.forEach(({ channelId, messageId }) => {
-            deleteChannelMessage(channelId, messageId).catch(() => { });
-        });
+        const reminderMessages: ReminderMessageRef[] = cleanupMeta.reminderMessages || [];
+        await deleteReminderMessageRefs(reminderMessages);
+        const completeTasks: Promise<unknown>[] = [];
         if (event.discordChannelId && event.discordMessageId) {
-            deleteChannelMessage(event.discordChannelId, event.discordMessageId).catch(() => { });
+            completeTasks.push(deleteChannelMessage(event.discordChannelId, event.discordMessageId).catch(() => false));
         }
+        if (completeTasks.length > 0) await Promise.allSettled(completeTasks);
 
         // Distribute XP to all registered participants
         if (event.participants.length > 0) {
@@ -1142,15 +1182,16 @@ export async function completeRaidEvent(
             }
         });
 
-        // Close Discord message + cleanup reminder messages
+        // Close Discord message + cleanup reminder messages (await allSettled — même
+        // correction que completeEvent : on attend toutes les suppressions Discord).
         const cleanupMeta = (event.metadata as any) || {};
-        const reminderMessages: { channelId: string, messageId: string }[] = cleanupMeta.reminderMessages || [];
-        reminderMessages.forEach(({ channelId, messageId }) => {
-            deleteChannelMessage(channelId, messageId).catch(() => { });
-        });
+        const reminderMessages: ReminderMessageRef[] = cleanupMeta.reminderMessages || [];
+        await deleteReminderMessageRefs(reminderMessages);
+        const raidCompleteTasks: Promise<unknown>[] = [];
         if (event.discordChannelId && event.discordMessageId) {
-            deleteChannelMessage(event.discordChannelId, event.discordMessageId).catch(() => { });
+            raidCompleteTasks.push(deleteChannelMessage(event.discordChannelId, event.discordMessageId).catch(() => false));
         }
+        if (raidCompleteTasks.length > 0) await Promise.allSettled(raidCompleteTasks);
 
         // Distribute XP + deduct Purple Kamas for present members (dynamic threshold + stored for undo)
         let purpleKamasCost = 30; // default fallback
@@ -1537,10 +1578,23 @@ async function reorderParticipants(eventId: string) {
  * Also sends a Discord reminder embed if configured
  * Only event creator or admin can trigger
  * @param pingRoleId - Optional role ID to mention (use "everyone" for @everyone)
+ * @param opts.onlyAbsentFromVoice - quand true (défaut), les pings Discord des
+ * inscrits sont filtrés aux absents du vocal (« suivre le capitaine »).
  */
-export async function sendEventReminder(guildId: string, eventId: string, pingRoleId?: string) {
+export async function sendEventReminder(
+    guildId: string,
+    eventId: string,
+    pingRoleId?: string,
+    opts?: { onlyAbsentFromVoice?: boolean }
+) {
     const ctx = await getUserContext(guildId);
     if (!ctx.isAuthenticated) return { success: false, error: "Non authentifié" };
+
+    // Rate limit anti-spam sur les rappels manuels (fail-closed 429).
+    const rl = await rateLimit(`reminder:${ctx.id}:${eventId}`, 3, 10 * 60 * 1000);
+    if (!rl.success) return { success: false, error: "Trop de rappels. Réessaie dans quelques minutes." };
+
+    const onlyAbsentFromVoice = opts?.onlyAbsentFromVoice !== false;
 
     try {
         const event = await db.guildEvent.findUnique({
@@ -1640,6 +1694,8 @@ export async function sendEventReminder(guildId: string, eventId: string, pingRo
 
         // Send Discord reminder (embed only — no role ping unless explicitly requested)
         let discordSent = false;
+        let voicePinged = 0;
+        let voiceSkipped = 0;
         if (targetChannelId) {
             // Validate channel belongs to guild
             const { validateChannelBelongsToGuild, sendChannelMessage } = await import("@/server/discord");
@@ -1677,9 +1733,12 @@ export async function sendEventReminder(guildId: string, eventId: string, pingRo
                     }
                 }
 
+                // Build mention content (rôle optionnel + inscrits absents du vocal).
                 if (isRaid) {
+                    // Inscrits = REGISTERED + CONFIRMED (même règle que le rappel
+                    // auto — la file/RESERVE n'est jamais pingée sur Discord).
                     const participantUserIds = event.participants
-                        .filter(p => p.status === "REGISTERED")
+                        .filter(p => p.status === "REGISTERED" || (p as any).status === "CONFIRMED")
                         .map(p => p.userId);
 
                     const accounts = await db.account.findMany({
@@ -1688,13 +1747,59 @@ export async function sendEventReminder(guildId: string, eventId: string, pingRo
                             provider: "discord"
                         },
                         select: {
+                            userId: true,
                             providerAccountId: true
                         }
                     });
 
-                    const discordPings = accounts.map(acc => `<@${acc.providerAccountId}>`).join(" ");
+                    let discordIds = accounts.map(acc => acc.providerAccountId);
+                    if (onlyAbsentFromVoice && discordIds.length > 0) {
+                        // « Suivre le capitaine » : le capitaine = créateur de l'event.
+                        const captainAccount = await db.account.findFirst({
+                            where: { userId: event.creatorId, provider: "discord" },
+                            select: { providerAccountId: true },
+                        });
+                        const { splitByVoice } = await import("@/server/voice-reminder-service");
+                        const split = await splitByVoice(guildId, discordIds, captainAccount?.providerAccountId ?? null);
+                        discordIds = split.absentDiscordIds;
+                        voiceSkipped = split.presentCount;
+                    }
+
+                    const { buildRaidReminderMentions } = await import("@/lib/raid-reminder");
+                    const discordPings = buildRaidReminderMentions(discordIds);
+                    voicePinged = discordPings ? discordPings.split(" ").length : 0;
                     if (discordPings) {
                         mentionContent = mentionContent ? `${mentionContent} ${discordPings}` : discordPings;
+                    }
+                } else if (onlyAbsentFromVoice) {
+                    // Events non-raid : le rappel manuel ping désormais aussi les
+                    // inscrits (REGISTERED) absents du vocal — avant, seul le rôle
+                    // optionnel était pingé, les inscrits n'étaient jamais notifiés.
+                    const participantUserIds = event.participants
+                        .filter(p => p.status === "REGISTERED")
+                        .map(p => p.userId);
+                    if (participantUserIds.length > 0) {
+                        const accounts = await db.account.findMany({
+                            where: { userId: { in: participantUserIds }, provider: "discord" },
+                            select: { providerAccountId: true },
+                        });
+                        const captainAccount = await db.account.findFirst({
+                            where: { userId: event.creatorId, provider: "discord" },
+                            select: { providerAccountId: true },
+                        });
+                        const { splitByVoice } = await import("@/server/voice-reminder-service");
+                        const { buildRaidReminderMentions } = await import("@/lib/raid-reminder");
+                        const split = await splitByVoice(
+                            guildId,
+                            accounts.map(a => a.providerAccountId),
+                            captainAccount?.providerAccountId ?? null
+                        );
+                        const pings = buildRaidReminderMentions(split.absentDiscordIds);
+                        voicePinged = pings ? pings.split(" ").length : 0;
+                        voiceSkipped = split.presentCount;
+                        if (pings) {
+                            mentionContent = mentionContent ? `${mentionContent} ${pings}` : pings;
+                        }
                     }
                 }
 
@@ -1702,13 +1807,14 @@ export async function sendEventReminder(guildId: string, eventId: string, pingRo
                 const registeredCount = event.participants.filter(p => p.status === "REGISTERED").length;
 
                 // Create urgency embed for reminder
+                const manualMsgKey = `manual-reminder:msg:${eventId}:${Date.now()}`;
                 const msgId = await sendChannelMessage(
                     targetChannelId,
                     mentionContent,
                     {
                         embedTitle: `⏰ RAPPEL: ${event.title}`,
                         embedColor: 0xff6b35, // Orange urgence
-                        embedFooter: `SigilOS • ${guildConfig.name}`,
+                        embedFooter: `SigilOS • ${guildConfig.name}${voiceSkipped > 0 ? ` • ${voiceSkipped} déjà en vocal non pingé(s)` : ""}`,
                         fields: [
                             { name: "⏱️ Commence dans", value: `**${timeUntil}**`, inline: true },
                             { name: "📆 Date", value: dateStr, inline: true },
@@ -1716,7 +1822,9 @@ export async function sendEventReminder(guildId: string, eventId: string, pingRo
                             { name: "👥 Inscrits", value: `${registeredCount}${event.maxParticipants ? `/${event.maxParticipants}` : ""} participants`, inline: true },
                             { name: `${typeConfig.emoji} Type`, value: event.type.replace(/_/g, " "), inline: true },
                             { name: "💡 Rappel", value: "Préparez-vous, l'événement arrive bientôt !", inline: false }
-                        ]
+                        ],
+                        storeMessageIdKey: manualMsgKey,
+                        storeMessageIdTTL: 30 * 24 * 3600,
                     }
                 );
                 discordSent = !!msgId;
@@ -1725,7 +1833,7 @@ export async function sendEventReminder(guildId: string, eventId: string, pingRo
                 if (msgId) {
                     const existingMeta = (event.metadata as any) || {};
                     const existingReminders = existingMeta.reminderMessages || [];
-                    const newReminderMessages = [...existingReminders, { channelId: targetChannelId, messageId: msgId }];
+                    const newReminderMessages = [...existingReminders, { channelId: targetChannelId, messageId: msgId, messageKey: manualMsgKey }];
                     await db.guildEvent.update({
                         where: { id: eventId },
                         data: { metadata: { ...existingMeta, reminderMessages: newReminderMessages } }
@@ -1741,10 +1849,70 @@ export async function sendEventReminder(guildId: string, eventId: string, pingRo
         });
 
         revalidatePath(`/dashboard/${guildId}/calendar`);
-        return { success: true, sentCount, discordSent };
+        return { success: true, sentCount, discordSent, pinged: voicePinged, skipped: voiceSkipped };
     } catch (error) {
         logger.error("[Calendar] sendEventReminder Error:", error);
         return { success: false, error: "Erreur lors de l'envoi des rappels" };
+    }
+}
+
+/**
+ * Statut vocal avant rappel manuel : qui est déjà en vocal avec l'organisateur.
+ * Lecture seule (aucun ping) — alimente la modale « Rappel Discord ».
+ * Visible par : créateur du post OU admin/gestionnaire calendrier (même règle
+ * que `sendEventReminder`).
+ */
+export async function getEventVoiceStatus(guildId: string, eventId: string) {
+    const ctx = await getUserContext(guildId);
+    if (!ctx.isAuthenticated) return { success: false, error: "Non authentifié" };
+
+    try {
+        const guildConfig = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { id: true },
+        });
+        if (!guildConfig) return { success: false, error: "Guilde non trouvée" };
+
+        const event = await db.guildEvent.findUnique({
+            where: { id: eventId, guildId: guildConfig.id },
+            select: {
+                id: true,
+                creatorId: true,
+                participants: {
+                    where: { status: { in: ["REGISTERED", "CONFIRMED"] } },
+                    select: { userId: true },
+                },
+            },
+        });
+        if (!event) return { success: false, error: "Événement introuvable" };
+        if (event.creatorId !== ctx.id && !ctx.canManageCalendar) {
+            return { success: false, error: "Seul l'organisateur peut voir ce statut" };
+        }
+
+        const accounts = await db.account.findMany({
+            where: { userId: { in: event.participants.map(p => p.userId) }, provider: "discord" },
+            select: { providerAccountId: true },
+        });
+        const captainAccount = await db.account.findFirst({
+            where: { userId: event.creatorId, provider: "discord" },
+            select: { providerAccountId: true },
+        });
+        const { splitByVoice } = await import("@/server/voice-reminder-service");
+        const split = await splitByVoice(
+            guildId,
+            accounts.map(a => a.providerAccountId),
+            captainAccount?.providerAccountId ?? null
+        );
+        return {
+            success: true,
+            total: accounts.length,
+            present: split.presentCount,
+            absent: split.absentCount,
+            captainInVoice: !!split.captainChannelId,
+        };
+    } catch (error) {
+        logger.error("[Calendar] getEventVoiceStatus Error:", error);
+        return { success: false, error: "Erreur lors de la lecture du vocal" };
     }
 }
 
@@ -1848,10 +2016,10 @@ export async function autoCloseExpiredEvents(guildId: string) {
         const deleteTasks: Promise<unknown>[] = [];
         for (const event of expiredEvents) {
             const meta = (event.metadata as any) || {};
-            const reminderMessages: { channelId: string, messageId: string }[] = meta.reminderMessages || [];
+            const reminderMessages: ReminderMessageRef[] = meta.reminderMessages || [];
             for (const rm of reminderMessages) {
                 if (rm?.channelId && rm?.messageId) {
-                    deleteTasks.push(deleteChannelMessage(rm.channelId, rm.messageId).catch(() => false));
+                    deleteTasks.push(deleteChannelMessage(rm.channelId, rm.messageId, rm.messageKey ?? null).catch(() => false));
                 }
             }
             if (event.discordChannelId && event.discordMessageId) {

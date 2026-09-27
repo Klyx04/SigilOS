@@ -22,6 +22,10 @@ import { logger } from "@/lib/logger";
  */
 export async function GET(req: Request) {
     if (!verifyCronSecret(req)) {
+        // Trace le refus dans Redis : sans ça, le panneau God reste « Inconnu »
+        // même si la crontab appelle la route mais avec un secret erroné.
+        const { recordCronRefusal } = await import("@/lib/cron-telemetry");
+        await recordCronRefusal("raid_reminders").catch(() => null);
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 

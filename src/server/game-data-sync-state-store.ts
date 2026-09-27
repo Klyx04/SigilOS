@@ -165,6 +165,48 @@ export async function setGameDataWatchState(dataset: GameDataDataset, state: Gam
     await withRedis((c) => c.set(WATCH_KEY(dataset), JSON.stringify(state)));
 }
 
+// ─── Filigrane des veilles delta (« rail » du 27/09/2026) ─────────────────────
+//
+// Les états ci-dessus (`since`/`skip`) décrivent une **passe ciblée** reprenable à l'intérieur
+// d'une exécution. Le rail de veille (`src/lib/dofusdb-veille.ts`) a besoin de plus : un
+// **filigrane monotone** (jamais de recul), le **restant mesuré** et la **date de la dernière
+// passe réussie** — pour que la couverture d'un dataset soit chiffrée dans God au lieu d'être
+// supposée. ⚠️ **Sans TTL**, comme le filigrane de veille ciblée : un filigrane perdu = un
+// backfill complet à refaire (correct, mais lent).
+
+export interface GameDataVeilleState {
+    /** Dernière valeur acquise (`"31"` pour un id, ISO pour une date) — jamais réécrite à la baisse. */
+    cursor: string | null;
+    /** Restant estimé après la dernière passe (`null` si la source n'a pas donné de total). */
+    remaining: number | null;
+    /** Date de la dernière passe réussie (ISO). */
+    lastPassAt: string | null;
+}
+
+const VEILLE_KEY = (datasetId: string) => `game-data:veille:${datasetId}`;
+
+/** Lit le filigrane d'un dataset veillé (`null` si jamais passé, ou Redis indisponible). */
+export async function getGameDataVeilleState(datasetId: string): Promise<GameDataVeilleState | null> {
+    const raw = await withRedis((c) => c.get(VEILLE_KEY(datasetId)));
+    if (!raw) return null;
+    try {
+        const parsed = JSON.parse(raw) as Partial<GameDataVeilleState>;
+        const remaining = Number(parsed.remaining);
+        return {
+            cursor: typeof parsed.cursor === "string" && parsed.cursor.trim() !== "" ? parsed.cursor : null,
+            remaining: Number.isFinite(remaining) ? Math.max(0, Math.floor(remaining)) : null,
+            lastPassAt: typeof parsed.lastPassAt === "string" ? parsed.lastPassAt : null,
+        };
+    } catch {
+        return null;
+    }
+}
+
+/** Écrit le filigrane d'un dataset veillé (fail-open : Redis indisponible ⇒ ignoré). */
+export async function setGameDataVeilleState(datasetId: string, state: GameDataVeilleState): Promise<void> {
+    await withRedis((c) => c.set(VEILLE_KEY(datasetId), JSON.stringify(state)));
+}
+
 /** Tous les états (un par dataset, jamais `null`) — lu par le tableau du dashboard God. */
 export async function getGameDataRunStates(): Promise<GameDataRunState[]> {
     const raw = await withRedis((c) => c.mget(...GAME_DATA_DATASETS.map(KEY)));

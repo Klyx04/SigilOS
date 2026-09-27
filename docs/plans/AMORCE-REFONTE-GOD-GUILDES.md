@@ -36,6 +36,45 @@ description: Amorce de session — exécuter la refonte God « Guildes & Users �
 > 7. **CI `Verify & Build` ≈ 8-9 min par lot** : poller `gh pr checks <n>` jusqu'au vert avant de merger (le build est **délégué à la CI** si `next dev` tourne — le dire, ne pas prétendre l'avoir joué).
 > 8. **Travail parallèle dans le même arbre de travail** (mesuré le 25/09 : une 2ᵉ session écrivait pendant la 1ʳᵉ) ⇒ commiter par **chemins explicites** (`git add -- <chemin>`, `:(literal)` pour les dossiers `[id]`/`[guildId]`), **jamais** `git add -A` — sinon le lot embarque le WIP d'une autre branche ; et vérifier `git rev-parse --abbrev-ref HEAD` **avant** de committer (le checkout peut avoir changé de branche entre-temps).
 
+### 🔎 Périmètre **restant**, re-mesuré le 26/09/2026 (`dev` = `a75da8d1`) — **à ne pas re-mesurer**
+
+> Ces chiffres sont le **point de départ** des lots 5 et 6 : ils disent **où** est le travail et ils donnent la
+> **preuve de baisse** attendue à chaque PR. Ne re-mesurer que si une PR a touché `src/app/god/**` entre-temps.
+
+**Lot 5 — les écrans (G1 · G2 · G3 · G5 · G9)**
+
+| Chantier | Fichier / mesure (26/09/2026) | Ce qui reste à faire |
+|---|---|---|
+| **G1** jargon | `src/app/god/components/guild-table.tsx` — **946 l.**, **11** `<button>`, **12** emojis ; libellés « Autonomes », « Pré-approuvées God / ticket », « Gelées / Inactives » | renommer + `title` sur **chaque** badge + **légende dépliable** « ⓘ Comprendre les statuts » (texte = §2 du plan) + **bandeau d'origine** dans la fiche guilde |
+| **G2** tour de contrôle | `src/app/god/page.tsx` (**659 l.**) + `guild-table.tsx` (**11 boutons**) | **1 action primaire par bloc**, le reste en `⋯`, section vide **masquée**, compteurs cliquables **avec libellé + légende** |
+| **G3** roster | `src/components/admin/member-management-table.tsx` — **939 l.**, **partagé God/client** | colonnes utiles, avatar + pseudo + `@handle` sur 2 lignes, actions **visibles**, tri, **tableau → cartes en mobile** ; bandeau d'état au lieu du pavé |
+| **G5** RBAC | **le slug brut n'est qu'à UN endroit** : `src/app/god/guilds/[id]/god-guild-access-panel.tsx:204-206` (`perms.join(", ")` en `font-mono`) | consommer le catalogue `src/lib/permissions.ts` (`label`/`description`/`sensitive`/`module`) + badges par domaine + compteur de permissions sensibles. **Déjà bon côté guilde** : `permissions-manager.tsx` utilise `getDisplayName`/`detail.label`/`MODULE_ORDER` ⇒ **ne pas le refaire** |
+| **G9** `/god/users` | `src/app/god/user-list.tsx` — **89 l.** (1 bouton) | même langage que Guildes (cartes, badges, pagination), **aucun** slug brut, jamais de refus de lecture (G7 déjà corrigé) |
+
+**Lot 6 — déslop (G10), compteurs de départ (la preuve de baisse)**
+
+- `src/app/god/**` = **85 fichiers** `.ts(x)` — **exactement la valeur du plafond** de `tests/unit/god-deslop.test.ts`
+  (`CEILING = 85`, l. 78) ⇒ **une surface neuve casse la garde** : le plafond doit **baisser**, jamais être consommé.
+- Fichiers à palettes en dur (`zinc-`/`violet-`) : **48** · violet/purple : **23** · `backdrop-blur-xl` : **16** ·
+  `animate-pulse` : **19** · au moins un emoji : **75**.
+- Kit `src/app/god/ui` : **8 pièces** (`GodCard`, `GodPanel`, `GodBadge`, `GodEmptyState`, `GodLoadingSkeleton`,
+  `GodPagination`, `GodSectionHeader`, `GodStatCard`) ⇒ **`GodTable`, `GodToolbar`, `GodTabs` manquent** — à ajouter
+  **dans le kit**, jamais une recette locale.
+- Objectif final : **retirer `"\god\"` de l'allowlist** de `sigil/no-hardcoded-colors` (`eslint.config.mjs:124-131`).
+- Gisements (taille = travail restant) : `rush-sylvestre/RushSylvestreAdminClient.tsx` **3 421 l.** ·
+  `dofus-guides/OptimizedGuideAdminClient.tsx` **1 892 l.** · `components/telemetry-dashboard.tsx` **1 007 l.** ·
+  `components/ticket-dashboard.tsx` **960 l.** · `components/guild-table.tsx` **946 l.** ⇒ **plusieurs PR**, écran par
+  écran, plafond **−N** à chacune.
+
+**3 pièges de plus** (à côté des **8 leçons** ci-dessus et des **6 pièges** du §4)
+
+1. **Un fichier partagé God/client** au lot 5 (`member-management-table.tsx`, 939 l.) : toute réécriture change le
+   dashboard **membre** ⇒ mesurer l'impact client d'abord, ou extraire un composant God dédié.
+2. **Le plafond déslop compte des FICHIERS, pas des couleurs** : le gagner en supprimant des fichiers orphelins est
+   valide (c'est ce qu'a fait le lot 3) — mais **découper** un fichier le **fait monter**.
+3. `[id]` sous PowerShell = **joker** ⇒ `-LiteralPath` (lecture) et
+   `git add -- ":(literal)src/app/god/guilds/[id]/…"` (indexation) ; jamais `git add -A`.
+
 ## 1. Brief
 
 | Champ | Valeur |
@@ -156,14 +195,24 @@ description: Amorce de session — exécuter la refonte God « Guildes & Users �
 - Glossaire **dans l'UI** (légende dépliable + `title` sur chaque badge) · tour de contrôle **1 action primaire par
   bloc** · roster : **colonnes utiles**, actions visibles, tableau → cartes en mobile · RBAC : **libellés humains**
   depuis `src/lib/permissions.ts` (**plus aucun slug brut**) · `/god/users` même langage.
+- **Où c'est, re-mesuré le 26/09/2026** (détail + chiffres : §0 « Périmètre restant ») :
+  `god/components/guild-table.tsx` (**946 l.**, jargon + 11 boutons + 12 emojis) pour G1/G2 ·
+  `src/components/admin/member-management-table.tsx` (**939 l., partagé God/client**) pour G3 ·
+  **G5 = un seul endroit** : `god/guilds/[id]/god-guild-access-panel.tsx:204-206` (`perms.join(", ")`) ·
+  `god/user-list.tsx` (**89 l.**) pour G9.
 - **Preuve** : captures 1440 / 1024 / 390 **avant/après** par écran.
 
 ### Lot 6 — **Déslop God par lots** (G10) — ⏭️ **à faire** (bloc §6)
 - Jetons sémantiques (`bg-card`, `text-muted-foreground`, `border-border`…), kit `src/app/god/ui` **étendu**
-  (`GodTable`, `GodToolbar`, `GodPagination`, `GodTabs`) — **jamais** une nouvelle recette.
+  (`GodTable`, `GodToolbar`, `GodTabs` — `GodPagination`, lui, **existe depuis le lot 3**) — **jamais** une nouvelle
+  recette locale.
 - Bannir : dégradés violet/glow, `backdrop-blur-xl` généralisé, emojis dans les libellés, `animate-pulse` décoratif,
   rayons/tailles improvisés. Le plafond de `tests/unit/god-deslop.test.ts` **baisse à chaque PR** ;
   objectif final : **retirer le God de l'allowlist** de `sigil/no-hardcoded-colors`.
+- **Départ mesuré le 26/09/2026** : **85 fichiers** = plafond (aucune marge) · **48** à palettes en dur · **23** en
+  violet/purple · **16** `backdrop-blur-xl` · **19** `animate-pulse` · **75** avec emojis · kit = **8 pièces** sur 11.
+  Gisements : `RushSylvestreAdminClient` **3 421 l.** > `OptimizedGuideAdminClient` **1 892 l.** >
+  `telemetry-dashboard` **1 007 l.** > `ticket-dashboard` **960 l.** > `guild-table` **946 l.** ⇒ **plusieurs PR**.
 
 ## 4. Les 6 pièges mesurés à ne pas rejouer
 
@@ -216,6 +265,20 @@ laissent **aucune** trace dans le journal de la guilde. Le reste = les lots 5 �
 et les leçons mesurées sont en tête de l'amorce (§0). ⚠️ Ne pas rejouer A1 : `bypassModules = isGod` RESTE (ce n'est
 pas un bug) ; le mot « staff » est banni de l'interface. (Hors refonte God : une PR de session sur le **registre
 Ankama / marché** a été mergée entre-temps — #753 — sans toucher `src/app/god/**`.)
+
+PÉRIMÈTRE RESTANT (re-mesuré le 26/09/2026 sur `dev` = `a75da8d1` — à ne PAS re-mesurer ; détail : §0 « Périmètre restant »)
+- LOT 5 · écrans : `god/components/guild-table.tsx` (**946 l.**, jargon « Autonomes / Pré-approuvées / Gelées-Off »,
+  **11 boutons**, **12 emojis**) = G1 + G2 · `src/components/admin/member-management-table.tsx` (**939 l.**, PARTAGÉ
+  God/client ⇒ mesurer l'impact client) = G3 · `god/guilds/[id]/god-guild-access-panel.tsx:204-206` (`perms.join(", ")`
+  affiche les slugs bruts) = G5 · `god/user-list.tsx` (**89 l.**) = G9.
+- LOT 6 · déslop : `src/app/god/**` = **85 fichiers** = EXACTEMENT le plafond de `tests/unit/god-deslop.test.ts`
+  (`CEILING = 85`) ⇒ le plafond doit **BAISSER** (toute surface neuve casse la garde) ; **48** fichiers à palettes en
+  dur, **23** en violet, **16** en `backdrop-blur-xl`, **19** en `animate-pulse`, **75** avec emojis ; kit
+  `src/app/god/ui` = **8 pièces**, il manque **`GodTable`, `GodToolbar`, `GodTabs`** (`GodPagination` existe) ;
+  objectif final = retirer `"\god\"` de l'allowlist `sigil/no-hardcoded-colors`.
+- ORDRE : **lot 5 PUIS lot 6** (le 5 restructure les écrans, le 6 nettoie ce qui vient d'être restructuré). Preuve du
+  lot 5 = captures **1440 / 1024 / 390** avant/après ; preuve du lot 6 = le **compteur du test qui baisse** + ESLint
+  sans `no-hardcoded-colors` sur les fichiers traités.
 
 CHANTIER — exécute les **2 lots restants**, dans l'ordre, en ONE SHOT : 1 lot = 1 branche = 1 PR vers dev, branche
 créée depuis `dev` **après** le merge du lot précédent. Applique littéralement les arbitrages A1-A11 (§2/§3 du plan).

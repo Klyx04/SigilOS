@@ -56,7 +56,7 @@ export interface ZaapItem {
 export interface SecretPassageItem {
     id: string;
     name: string;
-    category: 'egouts' | 'foreuse' | 'bateau' | 'diligence' | 'scaeroplane' | 'canon' | 'peniche' | 'brigandin' | 'kart' | 'mine' | 'secret' | 'sous-marin' | 'tunnel' | 'zaap';
+    category: 'egouts' | 'foreuse' | 'bateau' | 'diligence' | 'scaeroplane' | 'canon' | 'peniche' | 'brigandin' | 'kart' | 'mine' | 'secret' | 'sous-marin' | 'tunnel' | 'zaap' | 'boss' | 'raid';
     type: string;
     worldId: number;
     x: number;
@@ -175,6 +175,8 @@ export function SecretPassagesOverlay({
         // Helpers pour l'icône/couleur selon catégorie
         function getStyle(cat: string) {
             switch (cat) {
+                case 'boss':      return { border: '#ef4444', shadow: 'rgba(239,68,68,0.7)', default: '/assets/dofus/map-layers/icon-boss.png' };
+                case 'raid':      return { border: '#a855f7', shadow: 'rgba(168,85,247,0.7)', default: '/assets/dofus/map-layers/icon-dungeon-bright.png' };
                 case 'zaap':      return { border: '#38bdf8', shadow: 'rgba(56,189,248,0.7)', default: '/assets/dofus/zaap.png' };
                 case 'egouts':    return { border: '#34d399', shadow: 'rgba(16,185,129,0.6)', default: '/assets/dofus/map-layers/icon-egouts.png' };
                 case 'foreuse':
@@ -191,7 +193,7 @@ export function SecretPassagesOverlay({
             }
         }
 
-        grouped.forEach((group, key) => {
+        grouped.forEach((group, _key) => {
             const first = group[0];
             const latLng = coordToLatLng(first.x, first.y);
             if (!latLng) return;

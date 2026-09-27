@@ -7,7 +7,7 @@ import dynamic from 'next/dynamic';
 import {
     Search, Map as MapIcon, Loader2, Target, Eye, EyeOff, Trophy,
     Clock, ZoomIn, Compass, ChevronDown, ChevronLeft, ChevronRight, Plus, Minus, Users, Trash2, X, CheckCircle2, Copy,
-    Crown, Play, Palette, Smartphone, HelpCircle, LogOut, RotateCcw, Flag, Rocket, Bomb, Lock, Shield, Mic, Zap, MapPin
+    Crown, Play, Palette, Smartphone, HelpCircle, LogOut, RotateCcw, Flag, Rocket, Bomb, Lock, Shield, Mic, Zap, MapPin, BookOpen
 } from 'lucide-react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -52,6 +52,7 @@ const ZoneDetailModal = dynamic<any>(() => import('./ZoneDetailModal').then(mod 
 const MapHelpCard = dynamic<any>(() => import('./MapHelpCard').then(mod => mod.MapHelpCard), { ssr: false });
 const HarvestOptiFarmPanel = dynamic<any>(() => import('./harvest-opti-farm-panel').then(mod => mod.HarvestOptiFarmPanel), { ssr: false });
 const HarvestGpsController = dynamic<any>(() => import('./harvest-gps-controller').then(mod => mod.HarvestGpsController), { ssr: false });
+const RaidStratDrawer = dynamic<any>(() => import('./RaidStratDrawer').then(mod => mod.RaidStratDrawer), { ssr: false });
 
 interface InteractiveMapProps {
     worldMap: WorldData;
@@ -170,6 +171,10 @@ export default function InteractiveMapV2({
     const [overlayWorldDropdownOpen, setOverlayWorldDropdownOpen] = useState(false);
     const worldDropdownBtnRef = useRef<HTMLButtonElement>(null);
     const [worldDropdownPos, setWorldDropdownPos] = useState<{ top: number; left: number } | null>(null);
+    // Panneau strat raid (monde 37 Gigalodon / monde 40 Sanctuaire uniquement)
+    const [showStratPanel, setShowStratPanel] = useState(false);
+    // Monde actif est un monde de raid (affiche le bouton Strat)
+    const isRaidWorld = selectedWorldId === 37 || selectedWorldId === 40;
 
     // Archimonstre search state
     const [archiResults, setArchiResults] = useState<any[]>([]);
@@ -237,6 +242,13 @@ export default function InteractiveMapV2({
         }).catch(() => {});
         return () => { cancelled = true; };
     }, []);
+
+    // Fermer le panneau strat si on quitte un monde de raid (37/40)
+    useEffect(() => {
+        if (selectedWorldId !== 37 && selectedWorldId !== 40) {
+            setShowStratPanel(false);
+        }
+    }, [selectedWorldId]);
 
     // Load harvest resources and zaaps data once
     useEffect(() => {
@@ -1396,34 +1408,87 @@ export default function InteractiveMapV2({
                                         </div>
                                     )}
 
+                                    {/* 🗡️ Bouton Strat Raid — uniquement mondes 37 (Gigalodon) et 40 (Sanctuaire) */}
+                                    {isRaidWorld && (
+                                        <button
+                                            onClick={() => setShowStratPanel(v => !v)}
+                                            className={cn(
+                                                "flex items-center gap-2 px-3 py-1.5 rounded-xl font-black text-caption uppercase tracking-wider transition-all border",
+                                                showStratPanel
+                                                    ? "bg-cyan-500/20 text-cyan-300 border-cyan-400/40 shadow-[0_0_15px_rgba(6,182,212,0.25)]"
+                                                    : "bg-surface/90 hover:bg-elevated border-border text-muted-foreground hover:text-foreground"
+                                            )}
+                                            title="Afficher la stratégie du raid et lancer l'overlay in-game"
+                                        >
+                                            <BookOpen size={13} className="shrink-0 text-cyan-400" />
+                                            <span className="hidden sm:inline">Stratégie</span>
+                                        </button>
+                                    )}
+
                                 </div>
 
 
                                 {/* Selection Quick Action */}
                                 <AnimatePresence mode="wait">
-                                    {selectedPosition && (
-                                        <motion.button
-                                            key={`copy-${selectedPosition.x}-${selectedPosition.y}`}
-                                            initial={{ opacity: 0, x: 20, scale: 0.95 }}
-                                            animate={{ opacity: 1, x: 0, scale: 1 }}
-                                            exit={{ opacity: 0, x: -10, scale: 0.95 }}
-                                            whileHover={{ scale: 1.05 }}
-                                            whileTap={{ scale: 0.95 }}
-                                            onClick={() => {
-                                                const cmd = `/travel ${selectedPosition.x} ${selectedPosition.y}`;
-                                                navigator.clipboard.writeText(cmd);
-                                                toast.success("Position copiée !", {
-                                                    description: cmd,
-                                                    icon: <Rocket className="w-4 h-4 text-success" />
-                                                });
-                                            }}
-                                            className="px-3 sm:px-4 py-1.5 rounded-xl bg-success text-success-foreground font-black text-caption uppercase italic flex items-center gap-1.5 shadow-[0_10px_20px_rgba(16,185,129,0.25)] border-b-2 border-success transition-all origin-right"
-                                        >
-                                            <Rocket size={12} className="fill-success-foreground" />
-                                            <span className="hidden sm:inline">Copier [ {selectedPosition.x}, {selectedPosition.y} ]</span>
-                                            <span className="sm:hidden">[ {selectedPosition.x}, {selectedPosition.y} ]</span>
-                                        </motion.button>
-                                    )}
+                                    {selectedPosition && (() => {
+                                        // Vérifier si cette position a un donjon/boss (pour ouvrir la modale en 1 clic)
+                                        const posMapNode = selectedPosition.mapId
+                                            ? (mapsById.get(selectedPosition.mapId) || allMapsById.get(selectedPosition.mapId))
+                                            : (mapsByCoords.get(`${selectedPosition.x},${selectedPosition.y}`) || allWorldMapsByCoords.get(`${selectedPosition.x},${selectedPosition.y}`));
+                                        const posMapId = selectedPosition.mapId || posMapNode?.id;
+                                        let posDungeons = posMapId ? dungeonsByMapId.get(posMapId) : undefined;
+                                        if (!posDungeons || posDungeons.length === 0) {
+                                            const matched = worldMap.dungeons?.filter(d => {
+                                                const dMapId = d.mapId || d.entranceMapId;
+                                                const m = dMapId ? allMapsById.get(dMapId) : undefined;
+                                                return m && m.x === selectedPosition.x && m.y === selectedPosition.y;
+                                            });
+                                            if (matched && matched.length > 0) {
+                                                posDungeons = matched;
+                                            }
+                                        }
+                                        return (
+                                            <div key={`action-${selectedPosition.x}-${selectedPosition.y}`} className="flex items-center gap-2">
+                                                {posDungeons && posDungeons.length > 0 && (
+                                                    <motion.button
+                                                        initial={{ opacity: 0, x: 20, scale: 0.95 }}
+                                                        animate={{ opacity: 1, x: 0, scale: 1 }}
+                                                        exit={{ opacity: 0, x: -10, scale: 0.95 }}
+                                                        whileHover={{ scale: 1.05 }}
+                                                        whileTap={{ scale: 0.95 }}
+                                                        onClick={() => setSelectedDungeon(posDungeons)}
+                                                        className="px-3 py-1.5 rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/30 font-black text-caption uppercase italic flex items-center gap-1.5 transition-all"
+                                                        title="Voir ce boss"
+                                                    >
+                                                        <Crown size={12} />
+                                                        <span className="hidden sm:inline">{typeof posDungeons[0].name === 'string' ? posDungeons[0].name : posDungeons[0].name?.fr || 'Boss'}</span>
+                                                        <span className="sm:hidden">Boss</span>
+                                                    </motion.button>
+                                                )}
+                                                <motion.button
+                                                    key={`copy-${selectedPosition.x}-${selectedPosition.y}`}
+                                                    initial={{ opacity: 0, x: 20, scale: 0.95 }}
+                                                    animate={{ opacity: 1, x: 0, scale: 1 }}
+                                                    exit={{ opacity: 0, x: -10, scale: 0.95 }}
+                                                    whileHover={{ scale: 1.05 }}
+                                                    whileTap={{ scale: 0.95 }}
+                                                    onClick={() => {
+                                                        const cmd = `/travel ${selectedPosition.x} ${selectedPosition.y}`;
+                                                        navigator.clipboard.writeText(cmd);
+                                                        toast.success("Position copiée !", {
+                                                            description: cmd,
+                                                            icon: <Rocket className="w-4 h-4 text-success" />
+                                                        });
+                                                    }}
+                                                    className="px-3 sm:px-4 py-1.5 rounded-xl bg-success text-success-foreground font-black text-caption uppercase italic flex items-center gap-1.5 shadow-[0_10px_20px_rgba(16,185,129,0.25)] border-b-2 border-success transition-all origin-right"
+                                                >
+                                                    <Rocket size={12} className="fill-success-foreground" />
+                                                    <span className="hidden sm:inline">Copier [ {selectedPosition.x}, {selectedPosition.y} ]</span>
+                                                    <span className="sm:hidden">[ {selectedPosition.x}, {selectedPosition.y} ]</span>
+                                                </motion.button>
+                                            </div>
+                                        );
+                                    })()}
                                 </AnimatePresence>
 
                                 {/* Zone Search + Filter */}
@@ -3002,6 +3067,16 @@ export default function InteractiveMapV2({
                             dungeons={selectedDungeon}
                             guildId={guildId}
                             isPublic={isPublic || !guildId}
+                        />
+                    )}
+
+                    {/* 🗡️ Panneau Strat Raid — aligné à gauche dans le style Registre avec bouton Overlay PiP */}
+                    {!isOverlay && isRaidWorld && (
+                        <RaidStratDrawer
+                            isOpen={showStratPanel}
+                            onClose={() => setShowStratPanel(false)}
+                            worldId={selectedWorldId}
+                            onSelectCoords={(x: number, y: number) => setTriggerCenterPosition({ x, y })}
                         />
                     )}
                 </AnimatePresence>

@@ -119,6 +119,7 @@ import { headers } from "next/headers";
 import { PwaRegistration, PwaInstallBanner } from "@/components/pwa/PwaRegistration";
 
 import { BossOverlayHost } from "@/components/boss-overlay/BossOverlayHost";
+import { RaidOverlayHost } from "@/components/raid-overlay/RaidOverlayHost";
 
 export default async function RootLayout({
   children,
@@ -156,6 +157,7 @@ export default async function RootLayout({
                 <PwaInstallBanner />
                 <AppToaster />
                 <BossOverlayHost />
+                <RaidOverlayHost />
               </TooltipProvider>
             </AuthProvider>
           </I18nProvider>

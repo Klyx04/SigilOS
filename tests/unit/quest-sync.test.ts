@@ -14,6 +14,7 @@ vi.mock("@/lib/prisma", () => ({
             findUnique: vi.fn(),
             create: vi.fn(),
             update: vi.fn(),
+            updateMany: vi.fn(),
             upsert: vi.fn(),
         },
     },
@@ -24,6 +25,11 @@ import { isSuperAdmin } from "@/server/actions/super-admin-actions";
 import { db } from "@/lib/prisma";
 import { checkDofusDbDeltas } from "@/server/actions/game-quest-sync-actions";
 import { siphonQuestsFromDofusDB } from "@/server/actions/game-data-admin-actions";
+import {
+    applyQuestVisualsCore,
+    backfillQuestVisualsCore,
+    syncQuestDeltasCore,
+} from "@/lib/quest-siphon";
 
 const mockAuth = auth as unknown as ReturnType<typeof vi.fn>;
 const mockIsSuperAdmin = isSuperAdmin as unknown as ReturnType<typeof vi.fn>;
@@ -148,4 +154,126 @@ describe("siphonQuestsFromDofusDB — Siphon continu", () => {
         expect(res.data?.skipped).toBe(50);
         expect(mockGameQuest.create).toHaveBeenCalledTimes(10);
     });
+
+    // 🖼️ Constat user du 27/09/2026 : « vrai asset quête Dofus par quête ». L'import initial
+    // écrivait `q?.img` — un champ que `/quests` **n'expose pas** (mesuré) ⇒ 0/1 976 visuels.
+    it("écrit la carte de départ de la quête comme visuel (et rien quand DofusDB n'en donne pas)", async () => {
+        mockAuth.mockResolvedValue({ user: { id: "admin-1" } });
+        mockIsSuperAdmin.mockResolvedValue(true);
+
+        vi.stubGlobal("fetch", vi.fn().mockResolvedValueOnce(jsonResponse({
+            total: 2,
+            data: [
+                { id: 1, name: { fr: "Quête avec départ" }, category: { name: { fr: "Zone" } }, startPosition: [{ mapId: 160695296, npcId: 12 }] },
+                { id: 2, name: { fr: "Quête sans départ" }, category: { name: { fr: "Zone" } } },
+            ],
+        })));
+        mockGameQuest.findFirst.mockResolvedValue(null);
+        mockGameQuest.findUnique.mockResolvedValue(null);
+        mockGameQuest.create.mockResolvedValue({ id: "created-id" });
+
+        const res = await siphonQuestsFromDofusDB(10);
+
+        expect(res.data?.created).toBe(2);
+        expect(mockGameQuest.create.mock.calls[0][0].data.imageUrl).toBe("/game-data/hd_maps/160695296.webp");
+        expect(mockGameQuest.create.mock.calls[1][0].data.imageUrl).toBeNull();
+    });
 });
+
+describe("backfillQuestVisualsCore — rattrapage du visuel des quêtes déjà en base", () => {
+    it("lit les ids manquants puis interroge DofusDB par lots (id[$in][]), une requête par 50", async () => {
+        mockGameQuest.findMany.mockResolvedValueOnce([
+            { dofusDbId: 568 },
+            { dofusDbId: 584 },
+            { dofusDbId: null }, // jamais interrogé (aucune clé d'écriture)
+        ]);
+        const fetchMock = vi.fn().mockResolvedValueOnce(jsonResponse({
+            data: [
+                { id: 568, startPosition: [{ mapId: 54169887, npcId: 1241 }] },
+                { id: 584, startPosition: [{ mapId: 54165306, npcId: 1280 }] },
+            ],
+        }));
+        vi.stubGlobal("fetch", fetchMock);
+        mockGameQuest.updateMany.mockResolvedValue({ count: 1 });
+
+        const written = await backfillQuestVisualsCore(50);
+
+        expect(written).toBe(2);
+        const url = String(fetchMock.mock.calls[0][0]);
+        expect(url).toContain("id[$in][]=568");
+        expect(url).toContain("id[$in][]=584");
+        expect(url).toContain("$select[]=startPosition");
+        expect(mockGameQuest.updateMany).toHaveBeenCalledWith({
+            // Garde d'état : la ligne doit **encore** être sans visuel (idempotent, jamais d'écrasement).
+            where: { dofusDbId: 568, imageUrl: null },
+            data: { imageUrl: "/game-data/hd_maps/54169887.webp" },
+        });
+    });
+
+    it("ne fait AUCUNE requête quand toutes les quêtes ont déjà un visuel", async () => {
+        mockGameQuest.findMany.mockResolvedValueOnce([]);
+        const fetchMock = vi.fn();
+        vi.stubGlobal("fetch", fetchMock);
+
+        expect(await backfillQuestVisualsCore()).toBe(0);
+        expect(fetchMock).not.toHaveBeenCalled();
+    });
+});
+
+describe("applyQuestVisualsCore — écriture locale des visuels", () => {
+    it("n'écrit qu'un chemin interne, et seulement sur une ligne encore sans visuel", async () => {
+        mockGameQuest.updateMany.mockResolvedValue({ count: 1 });
+
+        const updated = await applyQuestVisualsCore([
+            { dofusDbId: 10, imageUrl: "/game-data/hd_maps/160695296.webp" },
+            { dofusDbId: 11, imageUrl: "https://exemple.fr/x.png" }, // externe → refusé
+            { dofusDbId: 12, imageUrl: "//exemple.fr/x.png" }, // protocole-relatif → refusé
+            { dofusDbId: -1, imageUrl: "/game-data/hd_maps/1.webp" }, // id invalide → refusé
+        ]);
+
+        expect(updated).toBe(1);
+        expect(mockGameQuest.updateMany).toHaveBeenCalledTimes(1);
+        expect(mockGameQuest.updateMany).toHaveBeenCalledWith({
+            // Garde d'état dans le WHERE : jamais d'écrasement d'un visuel existant (idempotent).
+            where: { dofusDbId: 10, imageUrl: null },
+            data: { imageUrl: "/game-data/hd_maps/160695296.webp" },
+        });
+    });
+});
+
+describe("syncQuestDeltasCore — le visuel voyage avec la quête", () => {
+    it("persiste la carte de départ, et laisse le visuel intact quand DofusDB n'en donne pas", async () => {
+        vi.stubGlobal("fetch", vi.fn()
+            .mockResolvedValueOnce(jsonResponse({ data: [{ id: 1, name: { fr: "Zone" } }] }))
+            .mockResolvedValueOnce(jsonResponse({
+                id: 10,
+                name: { fr: "Ma quête" },
+                levelMin: 1,
+                levelMax: 2,
+                categoryId: 1,
+                updatedAt: "2026-09-01T00:00:00.000Z",
+                startPosition: [{ mapId: 160695296, npcId: 7 }],
+            }))
+            .mockResolvedValueOnce(jsonResponse({ data: [{ id: 1, name: { fr: "Zone" } }] }))
+            .mockResolvedValueOnce(jsonResponse({
+                id: 11,
+                name: { fr: "Sans départ" },
+                levelMin: 1,
+                levelMax: 2,
+                categoryId: 1,
+                updatedAt: "2026-09-01T00:00:00.000Z",
+            })));
+        mockGameQuest.findFirst.mockResolvedValue(null);
+        mockGameQuest.upsert.mockResolvedValue({ id: "created-id" });
+
+        await syncQuestDeltasCore([10]);
+        expect(mockGameQuest.upsert.mock.calls[0][0].create.imageUrl).toBe(
+            "/game-data/hd_maps/160695296.webp"
+        );
+
+        await syncQuestDeltasCore([11]);
+        // `undefined` = « ne touche pas » pour Prisma : on n'efface jamais un visuel déjà posé.
+        expect(mockGameQuest.upsert.mock.calls[1][0].create.imageUrl).toBeUndefined();
+    });
+});
+

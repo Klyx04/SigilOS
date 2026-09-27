@@ -12,13 +12,18 @@
  *     échec n'interrompt pas les autres (loggée, comptée à part) ;
  *   · un nom déjà pris par un **autre** `dofusDbId` reçoit le suffixe ` (#id)` — jamais de
  *     doublon de nom, et `name.startsWith(remoteName + " (#")` évite de le re-signaler
- *     comme « MODIFIED » au passage suivant.
+ *     comme « MODIFIED » au passage suivant ;
+ *   · 🖼️ **visuel de quête** (27/09/2026) : `syncQuestDeltasCore` écrit la carte de départ dans
+ *     `GameQuest.imageUrl`, et `backfillQuestVisualsCore` rattrape les quêtes qui n'en ont pas —
+ *     par **lots de 50 ids en une requête** (`id[$in][]`), donc sans dépendre de la pagination du
+ *     comparateur (qui s'arrête au quota de l'API).
  */
 
 import { db } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 import { dofusDbFetch } from "@/lib/dofusdb-limiter";
 import { DOFUSDB_PAGE_MAX } from "@/lib/dofusdb-pagination";
+import { questMapImageUrl, questStartMapId } from "@/lib/dungeon-finder-utils";
 import { diffFields, diffCollection, recordGameDataChanges, type GameDataChangeEntry } from "@/lib/game-data-changelog";
 import {
     buildQuestContentDigest,
@@ -60,6 +65,22 @@ export interface QuestDeltasResult {
 
 /** Nombre de contenus de quêtes rattrapés par passe (≈ 10 min à 30 req/min). */
 export const QUEST_CONTENT_BACKFILL_PER_PASS = 300;
+
+/** 🖼️ Visuel (carte de départ) à écrire pour une quête locale — chemin **interne** uniquement. */
+export interface QuestVisualEntry {
+    dofusDbId: number;
+    imageUrl: string;
+}
+
+/**
+ * Borne des visuels rattrapés par passe. Chaque lot de **50 ids = 1 seule requête** (mesuré le
+ * 27/09/2026 : `?id[$in][]=568&id[$in][]=584&$select[]=id&$select[]=startPosition` → 3 quêtes en
+ * une requête) ⇒ 1 200 visuels = **24 requêtes**, soit **sous le quota** de 30 req/min : une passe
+ * n'attend jamais. Volontairement **séparé du comparateur** : la pagination de ce dernier s'arrête
+ * au quota (mesuré : 1 290 des 1 976 quêtes lues) — un rattrapage adossé à elle n'aurait jamais vu
+ * la fin du catalogue.
+ */
+export const QUEST_VISUAL_BACKFILL_PER_PASS = 1200;
 
 
 /**
@@ -269,6 +290,12 @@ export async function syncQuestDeltasCore(selectedIds: number[]): Promise<number
                         contentJson: digest as unknown as object,
                         contentHash,
                         dofusDbUpdatedAt: remoteUpdatedAt,
+                        // 🖼️ Vrai visuel de la quête (carte de départ DofusDB → tuile du jeu servie
+                        // par le dépôt). `undefined` = « ne touche pas » : on n'efface jamais un
+                        // visuel déjà écrit, et une quête sans position de départ ne perd rien.
+                        // ⚠️ Volontairement **hors** de `QUEST_CHANGE_KEYS` : une vignette n'est pas
+                        // un changement de contenu — le journal garde son sens (étapes/objectifs).
+                        imageUrl: questMapImageUrl(questStartMapId(remoteQuest.startPosition)) ?? undefined,
                     };
 
                     if (existingById) {
@@ -323,6 +350,7 @@ export async function syncQuestDeltasCore(selectedIds: number[]): Promise<number
                                 contentJson: remoteValues.contentJson,
                                 contentHash,
                                 dofusDbUpdatedAt: remoteUpdatedAt,
+                                imageUrl: remoteValues.imageUrl,
                             },
                             create: {
                                 name: finalName,
@@ -333,6 +361,7 @@ export async function syncQuestDeltasCore(selectedIds: number[]): Promise<number
                                 contentJson: remoteValues.contentJson,
                                 contentHash,
                                 dofusDbUpdatedAt: remoteUpdatedAt,
+                                imageUrl: remoteValues.imageUrl,
                             }
                         });
                         changes.push({
@@ -355,5 +384,111 @@ export async function syncQuestDeltasCore(selectedIds: number[]): Promise<number
     await recordGameDataChanges("QUESTS", changes);
 
     return syncedCount;
+}
+
+/**
+ * 🖼️ Écrit les visuels de quêtes préparés en amont : **aucun appel réseau** ici, uniquement des
+ * écritures locales bornées. Renvoie le nombre de lignes effectivement mises à jour.
+ *
+ * Garde d'état **dans le WHERE** (`imageUrl: null`) : on ne remplace jamais un visuel déjà présent
+ * (une valeur curée en God reste), et un double passage est idempotent. Chaque entrée est
+ * re-validée ici (id entier ≥ 0, chemin **interne** `/…` jamais `//`) : les données viennent d'une
+ * API tierce, l'écriture ne leur fait pas confiance.
+ */
+export async function applyQuestVisualsCore(entries: QuestVisualEntry[]): Promise<number> {
+    if (!Array.isArray(entries) || entries.length === 0) return 0;
+
+    let updated = 0;
+    const batchSize = 20;
+
+    for (let i = 0; i < entries.length; i += batchSize) {
+        const chunk = entries.slice(i, i + batchSize);
+        await Promise.all(
+            chunk.map(async (entry) => {
+                const dofusDbId = Number(entry?.dofusDbId);
+                const imageUrl = typeof entry?.imageUrl === "string" ? entry.imageUrl.trim() : "";
+                if (!Number.isInteger(dofusDbId) || dofusDbId < 0) return;
+                if (!imageUrl.startsWith("/") || imageUrl.startsWith("//")) return;
+                try {
+                    const res = await db.gameQuest.updateMany({
+                        where: { dofusDbId, imageUrl: null },
+                        data: { imageUrl },
+                    });
+                    updated += res.count;
+                } catch (err) {
+                    logger.error(`[quest-siphon] Erreur d'écriture du visuel de la quête ${dofusDbId}:`, err);
+                }
+            })
+        );
+    }
+
+    return updated;
+}
+
+/**
+ * 🖼️ Rattrapage **borné** du visuel des quêtes déjà en base (constat user du 27/09/2026 : « vrai
+ * asset quête Dofus par quête » — 1 976/1 976 quêtes locales n'avaient **aucune** image).
+ *
+ * Pourquoi ne pas se contenter de `syncQuestDeltasCore` (qui écrit le visuel des quêtes qu'il
+ * synchronise) ? Parce qu'il ne touche que les ids qu'on lui donne : sans ce rattrapage, une quête
+ * déjà en base resterait sans image jusqu'à sa prochaine modification — soit jamais.
+ *
+ * 📏 Mesure : chaque lot de **50 ids = 1 requête** (`id[$in][]` + `$select[]=id&$select[]=startPosition`)
+ * ⇒ 1 200 visuels / passe = **24 requêtes**, sous le quota (30/min) ⇒ aucune attente, aucun rejeu.
+ * Contrairement à la pagination du comparateur, cette lecture **ne peut pas** s'arrêter « à la
+ * moitié » : les ids sont ceux de nos lignes, précis.
+ *
+ * Fail-soft : un lot en échec est loggé et n'empêche ni les autres lots ni la passe suivante.
+ */
+export async function backfillQuestVisualsCore(
+    limit: number = QUEST_VISUAL_BACKFILL_PER_PASS
+): Promise<number> {
+    const capped = Math.min(QUEST_VISUAL_BACKFILL_PER_PASS, Math.max(1, Math.round(limit) || 0));
+
+    let missing: { dofusDbId: number | null }[];
+    try {
+        missing = await db.gameQuest.findMany({
+            where: { imageUrl: null, dofusDbId: { not: null } },
+            select: { dofusDbId: true },
+            orderBy: { dofusDbId: "asc" },
+            take: capped,
+        });
+    } catch (err) {
+        logger.error("[quest-siphon] Rattrapage des visuels : lecture locale impossible", err);
+        return 0;
+    }
+
+    const ids = missing
+        .map((q) => Number(q.dofusDbId))
+        .filter((id) => Number.isInteger(id) && id > 0);
+    if (ids.length === 0) return 0;
+
+    const entries: QuestVisualEntry[] = [];
+    for (let i = 0; i < ids.length; i += DOFUSDB_PAGE_MAX) {
+        const chunk = ids.slice(i, i + DOFUSDB_PAGE_MAX);
+        try {
+            // CodeQL SSRF : les ids viennent de **notre** base et sont re-validés entiers > 0 ci-dessus.
+            const query = chunk.map((id) => `id[$in][]=${id}`).join("&");
+            const res = await dofusDbFetch(
+                `${DOFUSDB_API}/quests?${query}&$select[]=id&$select[]=startPosition&$limit=${DOFUSDB_PAGE_MAX}`,
+                { headers: { Accept: "application/json" }, signal: AbortSignal.timeout(15000) }
+            );
+            if (!res.ok) continue;
+            const json = await res.json();
+            if (!Array.isArray(json?.data)) continue;
+
+            for (const remoteQuest of json.data) {
+                const id = Number(remoteQuest?.id);
+                const imageUrl = questMapImageUrl(questStartMapId(remoteQuest?.startPosition));
+                if (Number.isInteger(id) && id > 0 && imageUrl) {
+                    entries.push({ dofusDbId: id, imageUrl });
+                }
+            }
+        } catch (err) {
+            logger.error(`[quest-siphon] Rattrapage des visuels : lot de ${chunk.length} id(s) en échec`, err);
+        }
+    }
+
+    return applyQuestVisualsCore(entries);
 }
 

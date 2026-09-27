@@ -11,11 +11,28 @@ export const QUEST_ICON_FALLBACK = "/assets/dofus/icons/quests.png";
 /**
  * `mapId` de la position de départ d'une quête DofusDB (`startPosition[].mapId`) — `null` si la
  * source n'en donne pas (jamais de carte inventée).
+ *
+ * 📏 Mesure du 27/09/2026 (250 quêtes, 271 entrées) : `startPosition` est **toujours** un
+ * **tableau** d'objets `{ mapId, npcId }` (parfois dupliqué à l'identique) — jamais un objet seul.
  */
 export function questStartMapId(startPosition: unknown): number | null {
     const first = Array.isArray(startPosition) ? startPosition[0] : null;
     const mapId = Math.floor(Number((first as { mapId?: unknown } | null)?.mapId) || 0);
     return mapId > 0 ? mapId : null;
+}
+
+/**
+ * Chemin **interne** de la carte du jeu pour un `mapId` Dofus (`/game-data/hd_maps/{id}.webp` —
+ * le même jeu de tuiles que la worldmap, versionné dans `public/`) — `null` si l'id n'est pas
+ * exploitable. C'est **la** source unique du chemin : `questThumbnail` (affichage) et les siphons
+ * (écriture en base) passent tous les deux par ici.
+ *
+ * 📏 Mesure du 27/09/2026 : sur 133 `mapId` de départ de quêtes distincts, **133/133** sont
+ * présents dans le cache local ⇒ la carte de départ est un vrai asset disponible, pas un espoir.
+ */
+export function questMapImageUrl(mapId: unknown): string | null {
+    const id = Math.floor(Number(mapId) || 0);
+    return Number.isSafeInteger(id) && id > 0 ? `/game-data/hd_maps/${id}.webp` : null;
 }
 
 /**
@@ -25,9 +42,10 @@ export function questStartMapId(startPosition: unknown): number | null {
  *
  * 🐛 Constat user du 27/09/2026 : « liste quête : supprimer les numéros et vrai asset quête Dofus
  * par quête ». La liste affichait `#606` (l'id technique) sans aucune image.
- * Mesure en base (locale) : `GameQuest.imageUrl` **0/1 976** et `DofusQuestEntry.mapId` **0/433**
- * ⇒ une quête servie par la base locale n'a **pas** encore de carte de départ : le repli est l'icône
- * de quête (le siphon des `startPosition` DofusDB reste à faire, cf. `docs/ROADMAP.md`).
+ * Mesure en base (locale) : `GameQuest.imageUrl` **0/1 976** et `DofusQuestEntry.mapId` **0/433**.
+ * ⚠️ `GameQuest` **ne stocke pas** `startPosition` : une quête servie par la base locale n'a donc
+ * de carte que si le siphon l'a **écrite** dans `imageUrl` (fait le 27/09/2026 — `quest-siphon` et
+ * l'import God la dérivent de `startPosition`). Sans carte : icône de quête.
  *
  * 🛡️ Garde de forme : seul un chemin **interne** (`/…`) est publié dans le `<img>` — une valeur
  * brute venue de la base ne part jamais telle quelle dans le DOM (même leçon que les images d'avis).
@@ -37,8 +55,7 @@ export function questThumbnail(
 ): string {
     const image = typeof quest?.imageUrl === "string" ? quest.imageUrl.trim() : "";
     if (image.startsWith("/") && !image.startsWith("//")) return image;
-    const mapId = questStartMapId(quest?.startPosition);
-    return mapId ? `/game-data/hd_maps/${mapId}.webp` : QUEST_ICON_FALLBACK;
+    return questMapImageUrl(questStartMapId(quest?.startPosition)) ?? QUEST_ICON_FALLBACK;
 }
 
 export interface MultiDungeonItem {

@@ -127,17 +127,24 @@ async function runBackgroundDataset(
     // QUESTS : cœur descendu dans `src/lib` le 23/09/2026 (`quest-siphon`) — le cron
     // `data-watch` l'appelait déjà sans session : il suffisait de le remonter d'un étage.
     if (dataset === "QUESTS") {
-        const { computeQuestDeltasCore, syncQuestDeltasCore } = await import("../lib/quest-siphon");
+        const { computeQuestDeltasCore, syncQuestDeltasCore, backfillQuestVisualsCore } = await import("../lib/quest-siphon");
         await beginGameDataRun("QUESTS", { message: "Quêtes (écarts DofusDB)" });
         const { deltas, totalLocal, totalRemote, backfillIds } = await computeQuestDeltasCore();
         // 📜 Le rattrapage du contenu (quêtes sans résumé stocké) voyage avec les écarts : il est
         // **borné par passe** (≈10 min à 30 req/min) et reprend à la suivante.
+        //
+        // 🖼️ Les visuels manquants (`GameQuest.imageUrl`) partent **en premier** : rattrapage local
+        // par lots de 50 ids (24 requêtes max, sous le quota) ⇒ la vraie carte de chaque quête
+        // apparaît dans la liste. Constat user du 27/09/2026 : 1 976/1 976 quêtes sans image.
+        const visualsApplied = await backfillQuestVisualsCore();
         const deltaIds = new Set(deltas.map((d) => d.dofusDbId));
         const idsToSync = [...deltas.map((d) => d.dofusDbId), ...backfillIds.filter((id) => !deltaIds.has(id))];
         if (idsToSync.length === 0) {
             await finishGameDataRun("QUESTS", {
                 ok: true,
-                message: `Aucune modification (nom/niveaux/contenu) — ${totalLocal} en base / ${totalRemote} chez DofusDB`,
+                message:
+                    `Aucune modification (nom/niveaux/contenu) — ${totalLocal} en base / ${totalRemote} chez DofusDB` +
+                    (visualsApplied > 0 ? ` · ${visualsApplied} visuel(s) complété(s)` : ""),
             });
             return { totalLocal, totalRemote, synced: 0 };
         }
@@ -153,7 +160,8 @@ async function runBackgroundDataset(
             ok: true,
             message:
                 `${synced} quête(s) synchronisée(s) sur ${deltas.length} écart(s) détecté(s)` +
-                (backfillIds.length > 0 ? ` · ${backfillIds.length} contenu(s) rattrapé(s)` : ""),
+                (backfillIds.length > 0 ? ` · ${backfillIds.length} contenu(s) rattrapé(s)` : "") +
+                (visualsApplied > 0 ? ` · ${visualsApplied} visuel(s) complété(s)` : ""),
         });
         return { totalLocal, totalRemote, synced };
     }

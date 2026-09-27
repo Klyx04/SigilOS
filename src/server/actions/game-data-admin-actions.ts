@@ -14,6 +14,7 @@ import { join } from "path";
 import { addIgnoredFamily, addIgnoredZone } from "@/server/actions/game-data-actions";
 import { resolveUniqueDungeonSlug } from "@/server/game/dungeon-slug";
 import { bossSlugWithFallback } from "@/lib/boss-slug";
+import { questMapImageUrl, questStartMapId } from "@/lib/dungeon-finder-utils";
 import { NO_ACHIEVEMENT_CHALLENGE_SLUG, ensureNoAchievementChallengeId } from "@/lib/dungeon-no-achievement";
 import { addIgnoredBounty, getIgnoredBounties, removeIgnoredBounty, type IgnoredBountyEntry } from "@/lib/bounty-ignore";
 import {
@@ -855,7 +856,11 @@ export async function siphonQuestsFromDofusDB(limit = 100): Promise<ActionRespon
                             levelMin: Number(q?.levelMin) || null,
                             levelMax: Number(q?.levelMax) || null,
                             description: q?.description?.fr || q?.description || null,
-                            imageUrl: q?.img || null,
+                            // 🖼️ Vrai visuel de la quête : la **carte de départ** DofusDB
+                            // (`startPosition[].mapId`), servie par le dépôt en tuile du jeu.
+                            // ⚠️ Mesure du 27/09/2026 : `/quests` **n'expose aucune image** — le
+                            // `q?.img` d'avant n'existait pas, d'où 0/1 976 visuels en base.
+                            imageUrl: questMapImageUrl(questStartMapId(q?.startPosition)),
                             category: String(q?.category?.name?.fr || "DofusDB").slice(0, 60),
                         },
                     });

@@ -60,6 +60,8 @@ export async function siphonAnomalyBossesNow(): Promise<ActionResponse<AnomalyBo
             guardians: result.guardians.length,
             synced: result.synced,
             errors: result.errors.length,
+            /* Entrées supprimées à la main (exclues) : jamais recréées — visible dans l'audit God. */
+            skippedIgnored: result.skippedIgnored,
         });
         revalidatePath("/god?tab=game-data");
         revalidatePath("/boss");

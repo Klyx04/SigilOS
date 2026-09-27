@@ -129,6 +129,118 @@ export function isAnomalyBossDungeon(dungeon: { isAnomalyBoss?: boolean | null }
     return !!dungeon?.isAnomalyBoss;
 }
 
+// ─── Anti-doublon : ADOPTION de la ligne déclarée à la main + exclusions ──────
+//
+// 🐛 Mesure du 27/09/2026 (« je ne veux plus me retrouver avec des doublons ») : le siphon
+// upsertait la paire `(name = carte, bossName = gardien)` **sans regarder** si le God avait déjà
+// déclaré ce gardien à la main ⇒ deux entrées pour un même boss (constaté dans le sitemap :
+// `/boss/qilby-2` et `/boss/agonie-la-deterree-2`, les doublons du siphon portant le slug nu).
+// Ces deux règles pures sont la source de vérité de l'adoption et de l'exclusion.
+
+/** Ligne `Dungeon` minimale utile à l'adoption (sous-ensemble du modèle Prisma). */
+export interface DungeonCurationRow {
+    id: string;
+    name: string;
+    bossName: string;
+    dofusdbId?: number | null;
+    dofensiveMonsterName?: string | null;
+}
+
+/** Clé de comparaison d'un nom (accents, casse, ponctuation neutralisés). */
+export function normalizeAnomalyNameKey(value: unknown): string {
+    return String(value ?? "")
+        .trim()
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-z0-9]+/g, "");
+}
+
+/** Référence minimale d'un gardien pour l'adoption/l'exclusion. */
+export interface AnomalyGuardianRef {
+    /** Nom de l'entité (le gardien). */
+    name: string;
+    /** Nom de l'entrée `Dungeon` que le siphon créerait (la carte de combat). */
+    mapName?: string | null;
+    dofusdbId?: number | null;
+}
+
+/**
+ * Trouve la ligne `Dungeon` à **adopter** pour un gardien — celle que le God a déclarée à la main.
+ *
+ * Ordre (le premier qui matche gagne) :
+ *   1. même couple `(name, bossName)` (la ligne du siphon : simple mise à jour) ;
+ *   2. même `dofusdbId` (l'entité est prouvée) ;
+ *   3. même **entité** : `bossName` ou `dofensiveMonsterName` = nom du gardien (« Agonie la
+ *      Déterrée » déclarée avec un autre libellé de donjon).
+ *
+ * `null` ⇒ aucune ligne existante : le siphon crée la sienne (comportement inchangé).
+ */
+export function pickAdoptableDungeon<T extends DungeonCurationRow>(
+    rows: T[] | null | undefined,
+    guardian: AnomalyGuardianRef
+): T | null {
+    const list = Array.isArray(rows) ? rows : [];
+    const name = String(guardian?.name ?? "").trim();
+    if (!name) return null;
+    const pairKey = `${normalizeAnomalyNameKey(guardian?.mapName)}::${normalizeAnomalyNameKey(name)}`;
+    const entityKey = normalizeAnomalyNameKey(name);
+    const id = Math.floor(Number(guardian?.dofusdbId) || 0);
+
+    const samePair = list.find(
+        (r) => `${normalizeAnomalyNameKey(r?.name)}::${normalizeAnomalyNameKey(r?.bossName)}` === pairKey
+    );
+    if (samePair) return samePair;
+
+    if (id > 0) {
+        const sameId = list.find((r) => Math.floor(Number(r?.dofusdbId) || 0) === id);
+        if (sameId) return sameId;
+    }
+
+    return (
+        list.find(
+            (r) =>
+                normalizeAnomalyNameKey(r?.bossName) === entityKey ||
+                normalizeAnomalyNameKey(r?.dofensiveMonsterName) === entityKey
+        ) ?? null
+    );
+}
+
+/** Entrée d'exclusion minimale (même forme que `ignored-dungeons.json`). */
+export interface AnomalyIgnoredDungeon {
+    name: string;
+    bossName: string;
+    dofusdbId?: number | null;
+}
+
+/**
+ * Le gardien est-il **exclu** (donjon supprimé à la main par le God) ?
+ *
+ * Trois correspondances, parce que la ligne supprimée peut porter un autre libellé que celui que
+ * le siphon créerait : couple `(name, bossName)`, **entité** (`bossName` = nom du gardien) ou
+ * `dofusdbId`. Un gardien exclu n'est **jamais** recréé (ses fiches restent siphonnées).
+ */
+export function isAnomalyGuardianIgnored(
+    guardian: AnomalyGuardianRef,
+    ignored: AnomalyIgnoredDungeon[] | null | undefined
+): boolean {
+    const list = Array.isArray(ignored) ? ignored : [];
+    if (list.length === 0) return false;
+    const name = String(guardian?.name ?? "").trim();
+    if (!name) return false;
+    const pairKey = `${normalizeAnomalyNameKey(guardian?.mapName)}::${normalizeAnomalyNameKey(name)}`;
+    const entityKey = normalizeAnomalyNameKey(name);
+    const id = Math.floor(Number(guardian?.dofusdbId) || 0);
+
+    return list.some((e) => {
+        const entryPair = `${normalizeAnomalyNameKey(e?.name)}::${normalizeAnomalyNameKey(e?.bossName)}`;
+        if (entryPair === pairKey) return true;
+        if (normalizeAnomalyNameKey(e?.bossName) === entityKey) return true;
+        return id > 0 && Math.floor(Number(e?.dofusdbId) || 0) === id;
+    });
+}
+
+
 /**
  * Ne garde que les gardiens qui SONT des boss (DofusDB `isBoss` / Dofensive `Type = 3`).
  *

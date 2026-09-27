@@ -23,6 +23,7 @@
  */
 import { db } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
+import { getIgnoredDungeons } from "@/lib/game-data-ignores";
 import { dofusdbFetch } from "@/lib/dofusdb-fetch";
 import { dofensiveFetch } from "@/lib/dofensive-fetch";
 import { DB_READABLE, persistMonsterStat, siphonDofensiveMapById } from "@/lib/dofensive-sync";
@@ -43,11 +44,16 @@ import {
     buildAnomalyDungeonName,
     groupAnomalyGuardiansByMap,
     isAnomalyCompanion,
+    isAnomalyGuardianIgnored,
     orderAnomalyCompanions,
+    pickAdoptableDungeon,
     pickAnomalyBossEntries,
     resolveAnomalyMap,
     toAnomalyZone,
+    type AnomalyGuardianRef,
+    type AnomalyIgnoredDungeon,
     type AnomalyMonsterRef,
+    type DungeonCurationRow,
 } from "@/lib/anomaly-boss";
 
 /** Gardien d'anomalie résolu (sortie du siphon — utilisée par la télémétrie/God). */
@@ -159,7 +165,21 @@ export interface AnomalyBossSyncResult {
     guardians: AnomalyGuardian[];
     /** Monstres de l'anomalie (accompagnateurs Briko/Bruto/Gromo) — rattachés par la famille 35. */
     companions: AnomalyCompanion[];
+    /** Gardiens dont l'entrée `Dungeon` a été **supprimée à la main** (exclue) : jamais recréée. */
+    skippedIgnored: number;
 }
+
+/**
+ * Ligne `Dungeon` chargée **une fois par passe** : l'adoption (anti-doublon) et la complétion
+ * lisent cet index plutôt que d'ouvrir une requête par gardien.
+ */
+type AnomalyDungeonRow = DungeonCurationRow & {
+    isAnomalyBoss: boolean;
+    anomalyMapId: number | null;
+    anomalyFamily: string | null;
+    imageUrl: string | null;
+    isNoAchievement: boolean;
+};
 
 /**
  * Accompagnateur d'anomalie résolu (sortie du siphon — télémétrie God + fiche).
@@ -297,6 +317,7 @@ export async function syncAnomalyBosses(): Promise<AnomalyBossSyncResult> {
         imagesSiphoned: 0,
         guardians: [],
         companions: [],
+        skippedIgnored: 0,
     };
 
     // 1. LISTE — DofusDB `monsters?race=191` (source de vérité de l'appartenance).
@@ -420,6 +441,28 @@ export async function syncAnomalyBosses(): Promise<AnomalyBossSyncResult> {
         })),
     ];
 
+    // 3.bis CURATION & EXCLUSIONS — lues UNE fois par passe (jamais une requête par gardien) :
+    //  · `curationRows` = index des `Dungeon` existants → **ADOPTION** de la ligne déclarée à la
+    //    main (fin des doublons type `qilby-2` / `agonie-la-deterree-2`) ;
+    //  · `ignoredDungeons` = suppressions du God (`ignored-dungeons.json`) → jamais recréées.
+    const curationRows: AnomalyDungeonRow[] = DB_READABLE
+        ? await db.dungeon.findMany({
+              select: {
+                  id: true,
+                  name: true,
+                  bossName: true,
+                  dofusdbId: true,
+                  dofensiveMonsterName: true,
+                  isAnomalyBoss: true,
+                  anomalyMapId: true,
+                  anomalyFamily: true,
+                  imageUrl: true,
+                  isNoAchievement: true,
+              },
+          })
+        : [];
+    const ignoredDungeons: AnomalyIgnoredDungeon[] = getIgnoredDungeons();
+
     // 4. SIPHON unitaire (concurrence bornée) : sorts + fiche + map + icônes + ligne Dungeon.
     await mapWithConcurrency(targets, CONCURRENCY, async (guardian) => {
         try {
@@ -501,16 +544,20 @@ export async function syncAnomalyBosses(): Promise<AnomalyBossSyncResult> {
             // monstres de l'anomalie (Briko/Bruto/Gromo) n'ont pas d'occurrence propre : ils
             // restent des monstres de salle (famille de la carte pour les uns, accompagnateurs pour les autres).
             if (!guardian.isCompanion && bossIds.has(guardian.id)) {
-                const entry = await upsertAnomalyDungeonRow({
-                    name: guardian.mapName,
-                    bossName: guardian.name,
-                    level: guardian.level,
-                    dofusdbId: guardian.id,
-                    mapId: guardian.mapId,
-                    family: guardian.family,
-                    imageUrl: `/api/assets-dofus/monsters/${guardian.id}`,
-                });
-                if (entry.created) result.synced++;
+                const entry = await upsertAnomalyDungeonRow(
+                    {
+                        name: guardian.mapName,
+                        bossName: guardian.name,
+                        level: guardian.level,
+                        dofusdbId: guardian.id,
+                        mapId: guardian.mapId,
+                        family: guardian.family,
+                        imageUrl: `/api/assets-dofus/monsters/${guardian.id}`,
+                    },
+                    { rows: curationRows, ignored: ignoredDungeons }
+                );
+                if (entry.skipped) result.skippedIgnored++;
+                else if (entry.created || entry.changed) result.synced++;
                 else result.unchanged++;
             }
 
@@ -550,27 +597,63 @@ export async function syncAnomalyBosses(): Promise<AnomalyBossSyncResult> {
 }
 
 /**
- * Écrit (upsert) la ligne `Dungeon` d'un gardien d'anomalie et garantit le pseudo-succès
- * « Donjon validé » (l'entrée devient cochable dans « Mes Succès »).
- * `db.dungeon` est inatteignable en test (`DB_READABLE=false`) → renvoie `created:false`.
+ * Écrit la ligne `Dungeon` d'un gardien d'anomalie — en **ADOPTANT** la ligne déjà déclarée à la
+ * main quand il en existe une, et en **respectant** les suppressions du God.
+ *
+ * 🐛 Correctif 27/09/2026 (« je ne veux plus me retrouver avec des doublons ») :
+ *  · une entrée qui désigne **le même gardien** (`dofusdbId`, ou même entité que `bossName` /
+ *    `dofensiveMonsterName`) est **complétée** — le siphon ne crée plus une seconde ligne au nom
+ *    de la carte, ne renomme jamais la ligne du God et ne réécrit pas ce qu'il a curé
+ *    (`name`, `slug`, `level`, image) ;
+ *  · un gardien **exclu** (`ignored-dungeons.json`) n'est **pas recréé** (ses fiches `MonsterStat`
+ *    et sa carte restent siphonnées : seul le donjon ne revient pas).
+ *
+ * `db.dungeon` est inatteignable en test (`DB_READABLE=false`) → `{ skipped: false }`.
  */
-async function upsertAnomalyDungeonRow(input: {
-    name: string;
-    bossName: string;
-    level: number;
-    dofusdbId: number;
-    mapId: number;
-    family: string;
-    imageUrl: string;
-}): Promise<{ created: boolean; id?: string }> {
-    if (!DB_READABLE) return { created: false };
-    const existing = await db.dungeon.findFirst({
-        where: { name: input.name, bossName: input.bossName },
-        select: { id: true, isAnomalyBoss: true, anomalyMapId: true },
-    });
-    const dungeon = await db.dungeon.upsert({
-        where: { name_bossName: { name: input.name, bossName: input.bossName } },
-        create: {
+async function upsertAnomalyDungeonRow(
+    input: {
+        name: string;
+        bossName: string;
+        level: number;
+        dofusdbId: number;
+        mapId: number;
+        family: string;
+        imageUrl: string;
+    },
+    ctx: { rows: AnomalyDungeonRow[]; ignored: AnomalyIgnoredDungeon[] }
+): Promise<{ created: boolean; changed: boolean; skipped: boolean; id?: string }> {
+    if (!DB_READABLE) return { created: false, changed: false, skipped: false };
+
+    const guardian: AnomalyGuardianRef = { name: input.bossName, mapName: input.name, dofusdbId: input.dofusdbId };
+    if (isAnomalyGuardianIgnored(guardian, ctx.ignored)) {
+        return { created: false, changed: false, skipped: true };
+    }
+
+    const adopted = pickAdoptableDungeon(ctx.rows, guardian);
+    if (adopted) {
+        // COMPLÉTER, jamais réécrire : uniquement les champs d'anomalie encore absents.
+        const data: Record<string, unknown> = {};
+        if (!adopted.isAnomalyBoss) data.isAnomalyBoss = true;
+        if (!adopted.anomalyMapId) data.anomalyMapId = input.mapId;
+        if (!adopted.anomalyFamily) data.anomalyFamily = input.family;
+        if (adopted.dofusdbId == null) data.dofusdbId = input.dofusdbId;
+        if (!adopted.dofensiveMonsterName) data.dofensiveMonsterName = input.bossName;
+        if (!adopted.imageUrl) data.imageUrl = input.imageUrl;
+        if (!adopted.isNoAchievement) {
+            // « boss d'anomalie » = aucun succès propre : on pose le pseudo-succès seulement si la
+            // ligne n'en porte AUCUN (une curation explicite du God est respectée).
+            const achievements = await db.dungeonAchievement.count({ where: { dungeonId: adopted.id } });
+            if (achievements === 0) data.isNoAchievement = true;
+        }
+        if (Object.keys(data).length > 0) {
+            await db.dungeon.update({ where: { id: adopted.id }, data });
+        }
+        await attachNoAchievementToDungeon(adopted.id);
+        return { created: false, changed: Object.keys(data).length > 0, skipped: false, id: adopted.id };
+    }
+
+    const dungeon = await db.dungeon.create({
+        data: {
             name: input.name,
             bossName: input.bossName,
             // Slug public `/boss/<slug>` : généré à la création, **conservé** ensuite
@@ -588,21 +671,10 @@ async function upsertAnomalyDungeonRow(input: {
             /* « succès » = avoir vaincu le gardien (même règle qu'un donjon sans succès). */
             isNoAchievement: true,
         },
-        update: {
-            level: input.level,
-            dofusdbId: input.dofusdbId,
-            imageUrl: input.imageUrl,
-            dofensiveMonsterName: input.bossName,
-            isAnomalyBoss: true,
-            anomalyMapId: input.mapId,
-            anomalyFamily: input.family,
-            isNoAchievement: true,
-        },
         select: { id: true },
     });
     await attachNoAchievementToDungeon(dungeon.id);
-    const unchanged = !!existing && existing.isAnomalyBoss && existing.anomalyMapId === input.mapId;
-    return { created: !unchanged, id: dungeon.id };
+    return { created: true, changed: true, skipped: false, id: dungeon.id };
 }
 
 

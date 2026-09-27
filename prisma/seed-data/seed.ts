@@ -16,6 +16,7 @@ import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import 'dotenv/config';
 import { legendaryItems } from './legendary-items';
+import { getIgnoredChallenges, getIgnoredDungeons, isIgnoredChallenge, isIgnoredDungeon } from '@/lib/game-data-ignores';
 
 // Clean helper for environment variables
 const cleanEnv = (val: string | undefined) => {
@@ -211,9 +212,19 @@ async function main() {
         if (seedData.data.challenges && Array.isArray(seedData.data.challenges)) {
             console.log(`\n⚔️  [CHALLENGES] Processing ${seedData.data.challenges.length} challenges...`);
 
+            /* 🛡️ Anti-résurrection (27/09/2026) : ce que le God a supprimé à la main est mémorisé
+               dans `ignored-challenges.json` — le seed ne le recrée pas. */
+            const ignoredChallenges = getIgnoredChallenges();
+
             for (const challenge of seedData.data.challenges) {
                 if (!challenge.slug) {
                     console.warn('⚠️  [CHALLENGES] Skipping challenge without slug:', challenge);
+                    totalSkipped++;
+                    continue;
+                }
+
+                if (isIgnoredChallenge(challenge.slug, ignoredChallenges)) {
+                    console.log(`  🚫 Ignoré (supprimé à la main) : ${challenge.name ?? challenge.slug}`);
                     totalSkipped++;
                     continue;
                 }
@@ -265,9 +276,20 @@ async function main() {
         if (seedData.data.dungeons && Array.isArray(seedData.data.dungeons)) {
             console.log(`\n🏰 [DUNGEONS] Processing ${seedData.data.dungeons.length} dungeons...`);
 
+            /* 🛡️ Anti-résurrection (27/09/2026) : les donjons supprimés à la main sont mémorisés
+               dans `ignored-dungeons.json` — le seed ne les recrée pas (c'était la cause n°1 des
+               « choses qui se recréent à chaque déploiement »). */
+            const ignoredDungeons = getIgnoredDungeons();
+
             for (const dungeon of seedData.data.dungeons) {
                 if (!dungeon.name) {
                     console.warn('⚠️  [DUNGEONS] Skipping dungeon without name:', dungeon);
+                    totalSkipped++;
+                    continue;
+                }
+
+                if (isIgnoredDungeon({ name: dungeon.name, bossName: dungeon.bossName }, ignoredDungeons)) {
+                    console.log(`  🚫 Ignoré (supprimé à la main) : ${dungeon.name} / ${dungeon.bossName}`);
                     totalSkipped++;
                     continue;
                 }

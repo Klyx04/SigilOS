@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
+import { normalizeDofusAssetStoredUrl } from "@/lib/dofus-image-url";
 import { DocContent } from '@/components/doc/doc-content';
 import { AdvancedEditor } from '@/components/editor/advanced-editor';
 import { AssetGalleryModal } from "@/components/admin/asset-gallery-modal";
@@ -27,6 +28,32 @@ const REWARD_TYPES = [
     { id: "Aviton", label: "Avitons", icon: "/assets/avis/avitons.png" },
     { id: "Kama de glace", label: "Kamas de glace", icon: "/assets/avis/kamas_de_glace.png" },
 ];
+
+/**
+ * Portrait d'un avis — rendu **via le proxy d'assets**, jamais depuis le chemin stocké.
+ *
+ * 🐛 Mesure beta (27/09/2026) : `Bounty.imageUrl` vaut `/uploads/assets-dofus/monsters/N.webp`,
+ * un chemin servi par le standalone **seulement** si le WebP a déjà été siphonné
+ * (`/uploads/…/4834.webp` → 404, `/api/uploads/…` → 200, puis le chemin brut → 200 **après** le
+ * passage du proxy). Rendu brut, il donnait une image KO ici alors que l'onglet Succès (même
+ * avis) l'affichait : deux formes d'URL pour une seule donnée. Le proxy, lui, sert le WebP local
+ * ou son placeholder — **jamais de 404**.
+ */
+function BountyPortrait({
+    bounty,
+    className,
+    fallback,
+}: {
+    bounty: any;
+    className?: string;
+    fallback: React.ReactNode;
+}) {
+    const src = normalizeDofusAssetStoredUrl("monsters", bounty?.imageUrl, bounty?.dofusdbId);
+    const [failed, setFailed] = useState(false);
+    useEffect(() => { setFailed(false); }, [src]);
+    if (!src || failed) return <>{fallback}</>;
+    return <img src={src} alt="" className={className} onError={() => setFailed(true)} />;
+}
 
 export default function GodBountiesPage() {
     const [galleryOpen, setGalleryOpen] = useState(false);
@@ -271,11 +298,11 @@ export default function GodBountiesPage() {
                             )}
                         >
                             <div className="w-14 h-14 rounded-xl bg-black/60 flex items-center justify-center overflow-hidden border border-white/10 shrink-0 group- transition-transform relative z-10">
-                                {b.imageUrl ? (
-                                    <img src={b.imageUrl} alt="" className="w-12 h-12 object-contain" />
-                                ) : (
-                                    <ShieldAlert size={24} className="text-zinc-800" />
-                                )}
+                                <BountyPortrait
+                                    bounty={b}
+                                    className="w-12 h-12 object-contain"
+                                    fallback={<ShieldAlert size={24} className="text-zinc-800" />}
+                                />
                             </div>
                             <div className="flex-1 min-w-0 relative z-10">
                                 <p className={cn(
@@ -398,11 +425,11 @@ export default function GodBountiesPage() {
                                                         onClick={() => { setGalleryType("portraits"); setGalleryOpen(true); }}
                                                         className="w-full aspect-square rounded-3xl bg-zinc-950/80 border border-white/10 flex items-center justify-center overflow-hidden relative group shadow-xl transition-all hover:border-amber-500/50"
                                                     >
-                                                        {selectedBounty.imageUrl ? (
-                                                            <img src={selectedBounty.imageUrl} alt="" className="w-full h-full object-contain group- transition-transform duration-300" />
-                                                        ) : (
-                                                            <ImageIcon size={48} className="text-zinc-700" />
-                                                        )}
+                                                        <BountyPortrait
+                                                            bounty={selectedBounty}
+                                                            className="w-full h-full object-contain group- transition-transform duration-300"
+                                                            fallback={<ImageIcon size={48} className="text-zinc-700" />}
+                                                        />
                                                         <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2">
                                                             <ImageIcon size={24} className="text-amber-500" />
                                                             <span className="text-caption font-black uppercase tracking-widest text-white">Changer</span>

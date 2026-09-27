@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { resolveDofusImageUrl, resolveDofusAssetImageUrl, internalDofusDbImageUrl } from "@/lib/dofus-image-url";
+import {
+    resolveDofusImageUrl,
+    resolveDofusAssetImageUrl,
+    internalDofusDbImageUrl,
+    normalizeDofusAssetStoredUrl,
+} from "@/lib/dofus-image-url";
 
 describe("resolveDofusImageUrl (#206 Dofoobz)", () => {
     it("sert l'asset local pour le slug dofoozbz, quel que soit l'imageUrl en base", () => {
@@ -110,6 +115,68 @@ describe("resolveDofusAssetImageUrl / internalDofusDbImageUrl — zéro hotlink 
     it("laisse une URL (interne) sans paramètre inutile", () => {
         expect(resolveDofusAssetImageUrl("items", "9143")).toBe("/api/assets-dofus/items/9143");
         expect(resolveDofusAssetImageUrl("monsters", 1234, null)).toBe("/api/assets-dofus/monsters/1234");
+    });
+});
+
+describe("normalizeDofusAssetStoredUrl — un chemin STOCKÉ n'est jamais rendu brut", () => {
+    // 🐛 Mesure beta du 27/09/2026 (page God « Avis de recherche », portraits KO) : la valeur
+    // en base `/uploads/assets-dofus/monsters/4834.webp` renvoyait **404** ; le MÊME fichier via
+    // le proxy (`/api/uploads/assets-dofus/monsters/4834.webp`) renvoyait **200**, et le chemin
+    // brut passait à 200 seulement APRÈS un passage par le proxy (c'est lui qui siphonne).
+    const STORED = "/uploads/assets-dofus/monsters/4834.webp";
+
+    it("réécrit le chemin legacy du cache disque vers le proxy (id extrait du chemin)", () => {
+        expect(normalizeDofusAssetStoredUrl("monsters", STORED)).toBe("/api/assets-dofus/monsters/4834");
+        expect(normalizeDofusAssetStoredUrl("monsters", "/uploads/assets-dofus/monsters/4834.png")).toBe(
+            "/api/assets-dofus/monsters/4834"
+        );
+    });
+
+    it("l'id du chemin fait foi (c'est lui qui nomme le fichier siphonné)", () => {
+        // Une ligne dont `dofusdbId` divergerait affiche l'image réellement déclarée.
+        expect(normalizeDofusAssetStoredUrl("monsters", STORED, 9999)).toBe("/api/assets-dofus/monsters/4834");
+    });
+
+    it("idempotent : une URL déjà canonique n'est pas retouchée", () => {
+        expect(normalizeDofusAssetStoredUrl("monsters", "/api/assets-dofus/monsters/4834")).toBe(
+            "/api/assets-dofus/monsters/4834"
+        );
+        // URL de proxy d'un AUTRE type : conservée telle quelle (on ne ment pas sur l'asset servi).
+        expect(normalizeDofusAssetStoredUrl("monsters", "/api/assets-dofus/spells/4")).toBe(
+            "/api/assets-dofus/spells/4"
+        );
+    });
+
+    it("ne sert pas l'asset d'un autre type sous cette route", () => {
+        expect(normalizeDofusAssetStoredUrl("monsters", "/uploads/assets-dofus/spells/4.webp")).toBe(
+            "/uploads/assets-dofus/spells/4.webp"
+        );
+    });
+
+    it("vide ⇒ proxy depuis l'id ; sans id ni URL exploitables ⇒ null (repli de l'appelant)", () => {
+        expect(normalizeDofusAssetStoredUrl("monsters", null, 4834)).toBe("/api/assets-dofus/monsters/4834");
+        expect(normalizeDofusAssetStoredUrl("monsters", "   ", "5684")).toBe("/api/assets-dofus/monsters/5684");
+        expect(normalizeDofusAssetStoredUrl("monsters", null)).toBeNull();
+        expect(normalizeDofusAssetStoredUrl("monsters", "/uploads/assets-dofus/monsters/abc.webp")).toBe(
+            "/uploads/assets-dofus/monsters/abc.webp"
+        );
+    });
+
+    it("URL absolue : DofusDB ⇒ proxy interne, autre hôte ⇒ conservée", () => {
+        const DB = "https://api.dofusdb.fr/img/monsters/4834.png";
+        expect(normalizeDofusAssetStoredUrl("monsters", DB)).toBe(
+            `/api/assets-dofus/monsters/4834?url=${encodeURIComponent(DB)}`
+        );
+        expect(normalizeDofusAssetStoredUrl("monsters", "https://cdn.exemple.fr/monstre.png")).toBe(
+            "https://cdn.exemple.fr/monstre.png"
+        );
+    });
+
+    it("nom nu ⇒ proxy ; asset local déclaré (`/game-data/…`) ⇒ conservé", () => {
+        expect(normalizeDofusAssetStoredUrl("monsters", "4834.webp")).toBe("/api/assets-dofus/monsters/4834");
+        expect(normalizeDofusAssetStoredUrl("monsters", "/game-data/bounties/avis-4834.webp")).toBe(
+            "/game-data/bounties/avis-4834.webp"
+        );
     });
 });
 

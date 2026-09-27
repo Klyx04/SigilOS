@@ -13,6 +13,7 @@ import {
     bountyDofusDbUrl,
     bountyRaceName,
 } from "@/lib/bounty";
+import { normalizeDofusAssetStoredUrl } from "@/lib/dofus-image-url";
 
 /** Ligne `Bounty` minimale utilisée par la fiche (sous-ensemble du modèle Prisma). */
 export interface BountyRowInput {
@@ -165,7 +166,10 @@ export function buildBountyBestiaireEntry(bounty: BountyRowInput) {
         name: zone || bounty.name,
         bossName: bounty.name,
         level: Math.floor(Number(bounty.level) || 0),
-        imageUrl: String(bounty.imageUrl ?? "").trim() || null,
+        // 🖼️ Le chemin STOCKÉ (`/uploads/assets-dofus/monsters/N.webp`) n'est pas servi tant que
+        // le WebP n'a pas été siphonné (mesuré : 404 avant, 200 après un passage par le proxy) ⇒
+        // on publie la forme canonique du proxy, comme les autres assets Dofus.
+        imageUrl: normalizeDofusAssetStoredUrl("monsters", bounty.imageUrl, bounty.dofusdbId),
         dofensiveUrl: bountyDofensiveUrl(bounty.dofusdbId),
         dpnlUrl: String(bounty.dpnlUrl ?? "").trim() || null,
         dofusdbId: Number.isFinite(Number(bounty.dofusdbId)) ? Math.floor(Number(bounty.dofusdbId)) : null,
@@ -188,7 +192,8 @@ export function buildBountyPublicDungeon(bounty: BountyRowInput): BountyPublicDu
         name: zone || bounty.name,
         bossName: bounty.name,
         level: Math.floor(Number(bounty.level) || 0),
-        imageUrl: String(bounty.imageUrl ?? "").trim() || null,
+        // 🖼️ Idem catalogue : jamais le chemin stocké brut (404 tant que le WebP n'est pas siphonné).
+        imageUrl: normalizeDofusAssetStoredUrl("monsters", bounty.imageUrl, bounty.dofusdbId),
         dofensiveUrl: bountyDofensiveUrl(bounty.dofusdbId),
         dofuspourlesnoobsUrl: String(bounty.dpnlUrl ?? "").trim() || null,
         dofensiveMonsterName: bounty.name,

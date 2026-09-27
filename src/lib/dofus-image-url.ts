@@ -9,7 +9,11 @@
  *   - le wrapper `resolveDofusImageUrl(slug, imageUrl, name?)` qui renvoie le local
  *     quand le Dofus est connu, sinon retombe sur l'`imageUrl` (dofusdb) d'origine,
  *   - la **réécriture des icônes d'assets DofusDB vers le proxy interne**
- *     (`resolveDofusAssetImageUrl` / `internalDofusDbImageUrl`).
+ *     (`resolveDofusAssetImageUrl` / `internalDofusDbImageUrl`),
+ *   - la **normalisation d'une URL STOCKÉE** (chemin legacy du cache disque
+ *     `/uploads/assets-dofus/{type}/{id}.webp`, URL DofusDB absolue, nom nu) vers la
+ *     **forme canonique du proxy** (`normalizeDofusAssetStoredUrl`) — un chemin stocké
+ *     ne doit JAMAIS être rendu brut par un composant.
  *
  * 🐛 Correctif 18/09/2026 (« on tape encore chez DofusDB pour les icônes des sorts ») :
  * la modale de build rendait `spell.imageUrl`, une URL **absolue**
@@ -185,4 +189,62 @@ export function resolveDofusAssetImageUrl(
 export function internalDofusDbImageUrl(upstreamUrl?: string | null): string | null {
     const parsed = upstreamUrl ? parseDofusDbImageUrl(upstreamUrl) : null;
     return parsed ? resolveDofusAssetImageUrl(parsed.type, parsed.id, upstreamUrl) : null;
+}
+
+/**
+ * Chemin **legacy** du cache disque, tel qu'il est stocké en base
+ * (`/uploads/assets-dofus/monsters/4834.webp`, `/uploads/assets-dofus/spells/sort_12160.webp`).
+ * Volontairement STRICT (id numérique) : un motif plus permissif transformerait n'importe
+ * quelle chaîne en URL de proxy.
+ */
+const STORED_ASSET_PATH = /^\/uploads\/assets-dofus\/(monsters|spells|items)\/(?:sort_)?(\d{1,12})\.(?:webp|png|jpg|jpeg)$/i;
+
+/** Nom de fichier nu, sans dossier (`4834.webp`) — livré par certaines intégrations. */
+const STORED_ASSET_BARE_NAME = /^(\d{1,12})(?:\.(?:webp|png|jpg|jpeg))?$/i;
+
+/**
+ * Normalise une URL d'asset **telle qu'elle est stockée** vers la forme que le navigateur doit
+ * demander : `/api/assets-dofus/{type}/{id}` (proxy auto-siphon, jamais de 404).
+ *
+ * 🐛 Mesure beta du 27/09/2026 (page God « Avis de recherche ») : les portraits sont stockés
+ * `/uploads/assets-dofus/monsters/N.webp`. Ce chemin n'est **pas** servi par le standalone tant
+ * que le WebP n'a pas été siphonné — mesuré : `/uploads/…/4834.webp` → **404**, puis le même
+ * fichier via `/api/uploads/…` → **200**, et le chemin brut repasse à 200 **après** un passage
+ * par le proxy (c'est le proxy qui l'a téléchargé). Rendu brut, il donnait donc une image KO
+ * dans God alors que l'onglet Succès (même avis, via le proxy) l'affichait : deux pages, deux
+ * formes d'URL.
+ *
+ * Cascade (la première règle qui s'applique gagne) :
+ *   1. vide ⇒ proxy depuis `id` (ou `null` : l'appelant garde SON repli) ;
+ *   2. URL interne du proxy ⇒ conservée (idempotent) ;
+ *   3. chemin legacy `/uploads/assets-dofus/{type}/{id}.{ext}` ⇒ proxy depuis l'id du chemin
+ *      (**même type** uniquement : on ne sert pas l'asset d'un autre type sous cette route) ;
+ *   4. URL absolue DofusDB ⇒ proxy interne ; autre hôte ⇒ conservée ;
+ *   5. nom nu (`4834.webp`) ⇒ proxy depuis ce nom ;
+ *   6. autre chemin local (`/game-data/…`, `/assets/…`) ⇒ conservé tel quel.
+ */
+export function normalizeDofusAssetStoredUrl(
+    type: DofusAssetType,
+    raw: string | null | undefined,
+    id?: number | string | null,
+): string | null {
+    const fallback = resolveDofusAssetImageUrl(type, id ?? null);
+    const value = typeof raw === "string" ? raw.trim() : "";
+    if (!value) return fallback;
+
+    // Déjà une URL de proxy (celle de ce type, ou celle d'un autre type : on ne la réécrit pas).
+    if (value.startsWith("/api/assets-dofus/")) return value;
+
+    const stored = STORED_ASSET_PATH.exec(value);
+    if (stored) {
+        if (stored[1].toLowerCase() !== type) return value;
+        return resolveDofusAssetImageUrl(type, stored[2]) ?? fallback ?? value;
+    }
+
+    if (/^https?:\/\//i.test(value)) return internalDofusDbImageUrl(value) ?? value;
+
+    const bare = STORED_ASSET_BARE_NAME.exec(value);
+    if (bare) return resolveDofusAssetImageUrl(type, bare[1]) ?? fallback;
+
+    return value;
 }

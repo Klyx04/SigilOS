@@ -189,11 +189,18 @@ describe("date prévue (optionnelle)", () => {
         expect(tsOf(formatDiscordDateStamp(dateOnly)!)).toBe(tsOf(formatDiscordDateStamp(new Date(dateOnly))!));
     });
 
-    it("toLocalDateTimeInput : heure LOCALE (jamais le décalage UTC de toISOString)", () => {
-        // 18:00 Paris (CEST) = 16:00 UTC → le champ doit afficher 18:00, pas 16:00.
-        expect(toLocalDateTimeInput(withTime)).toBe("2026-09-20T18:00");
-        // Et l'ancien code (toISOString) produisait bien un décalage → régression verrouillée.
-        expect(toLocalDateTimeInput(withTime)).not.toBe(withTime.toISOString().slice(0, 16));
+    it("toLocalDateTimeInput : heure LOCALE, jamais l'heure UTC de toISOString", () => {
+        // ⚠️ Ce test ne doit dépendre d'AUCUN fuseau : verrouiller « 18:00 » pour un instant
+        // UTC passait sur un poste parisien mais cassait sur le runner GitHub (UTC).
+        // Le champ alimenté est un `datetime-local` : par définition **local**. On construit
+        // donc la date en composantes locales → identité dans n'importe quel fuseau.
+        const local = new Date(2026, 8, 20, 18, 0, 0);
+        expect(toLocalDateTimeInput(local)).toBe("2026-09-20T18:00");
+        // Chaîne sans fuseau → interprétée comme locale → identité également.
+        expect(toLocalDateTimeInput("2026-09-20T18:00")).toBe("2026-09-20T18:00");
+        // Bug d'origine verrouillé : `toISOString().slice(0, 16)` rendait l'heure **UTC**
+        // (heure qui reculait, et date qui changeait de jour près de minuit) — sur un poste
+        // non-UTC, la comparaison locale ci-dessus le révèle immédiatement.
         expect(toLocalDateTimeInput(null)).toBe("");
         expect(toLocalDateTimeInput("pas-une-date")).toBe("");
     });

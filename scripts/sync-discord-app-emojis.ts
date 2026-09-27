@@ -126,6 +126,8 @@ async function main() {
     }
 
     console.log(`\n📊 Terminé : ${created} créé(s), ${plan.alreadyThere.length} déjà présent(s), ${plan.rejected.length} refusé(s), ${failed} échec(s).`);
+    console.log("   Effet : dès que l'app relit la liste des emojis (≤ 30 s si elle n'en avait aucun, ≤ 10 min sinon ; un redémarrage force la relecture).");
+    console.log("   Les messages DÉJÀ envoyés gardent leur ancien rendu : un nouveau post (ou « Modifier ») les affichera.\n");
     console.log("   Les embeds utilisent les emojis dès le prochain envoi (cache mémoire 10 min).\n");
     if (failed > 0) process.exit(1);
 }

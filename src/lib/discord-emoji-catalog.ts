@@ -91,12 +91,56 @@ const CLASS_EMOJIS: DiscordEmojiEntry[] = DOFUS_CLASSES.map((c) => ({
     fallback: "",
 }));
 
+/**
+ * Pictos de SUCCÈS visés (`dofus_success_duo`, …) — un par asset
+ * `public/game-data/achievements/*.png`, c'est-à-dire **les mêmes images que la modale
+ * du site** : elle affiche `challenge.iconUrl`, qui pointe exactement ces fichiers.
+ *
+ * La clé est déduite du **nom de fichier**, jamais du slug : les slugs en base sont
+ * historiquement incohérents (`sp-cial`, `conqu-rant`, `libert-` pour « spécial »,
+ * « conquérant », « liberté ») alors que le fichier, lui, est stable et vérifiable
+ * (les 28 succès de `prisma/seed-data/game-data.json` ont tous leur PNG local).
+ *
+ * Repli `•` : c'est EXACTEMENT la puce historique des listes de succès (`• Duo`) —
+ * sans synchro, l'embed reste identique à aujourd'hui.
+ */
+export const ACHIEVEMENT_EMOJI_PREFIX = "dofus_success_";
+
+/** Assets de succès : noms de fichiers (sans extension) sous `public/game-data/achievements/`. */
+const ACHIEVEMENT_ASSETS = [
+    "barbare", "blitzkrieg", "chrono", "circulez", "collant", "compagnon",
+    "conquerant", "dernier", "duel", "duo", "en-ligne-de-mire", "focus",
+    "hardi", "liberte", "mains-propres", "misanthrope", "mystique", "nomade",
+    "premier", "prudent", "quatuor", "special", "statue", "survivant",
+    "trio", "versatile", "zombie",
+];
+
+/**
+ * Clé ASCII d'un nom d'asset : accents retirés (NFD), tout le reste → `_`.
+ * Discord n'accepte que minuscules, chiffres et `_` dans un nom d'emoji
+ * (« spécial » → `special`, « en-ligne-de-mire » → `en_ligne_de_mire`).
+ */
+function assetKey(asset: string): string {
+    return asset
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "_")
+        .replace(/^_+|_+$/g, "");
+}
+
+const ACHIEVEMENT_EMOJIS: DiscordEmojiEntry[] = ACHIEVEMENT_ASSETS.map((asset) => ({
+    name: `${ACHIEVEMENT_EMOJI_PREFIX}${assetKey(asset)}`,
+    file: `game-data/achievements/${asset}.png`,
+    fallback: "•",
+}));
+
 export const DISCORD_EMOJIS: Record<string, DiscordEmojiEntry> = Object.fromEntries(
-    [...SECTION_EMOJIS, ...CLASS_EMOJIS].map((e) => [e.name, e])
+    [...SECTION_EMOJIS, ...CLASS_EMOJIS, ...ACHIEVEMENT_EMOJIS].map((e) => [e.name, e])
 );
 
 /** Toutes les entrées (ordre stable) — utilisé par le script de synchro. */
-export const DISCORD_EMOJI_LIST: DiscordEmojiEntry[] = [...SECTION_EMOJIS, ...CLASS_EMOJIS];
+export const DISCORD_EMOJI_LIST: DiscordEmojiEntry[] = [...SECTION_EMOJIS, ...CLASS_EMOJIS, ...ACHIEVEMENT_EMOJIS];
 
 /** Nom d'emoji d'une classe à partir de son id **ou** de son nom (« Cra », « cra »). */
 export function classEmojiName(classeIdOrName: string | null | undefined): string | null {
@@ -104,4 +148,18 @@ export function classEmojiName(classeIdOrName: string | null | undefined): strin
     if (!key) return null;
     const found = DOFUS_CLASSES.find((c) => c.id === key || c.name.toLowerCase() === key);
     return found ? `${CLASS_EMOJI_PREFIX}${found.id}` : null;
+}
+
+/**
+ * Nom d'emoji du succès porté par un `challenge.iconUrl`
+ * (ex. `/game-data/achievements/spécial.png` → `dofus_success_special`).
+ * `null` si l'asset n'est pas au catalogue (succès ajouté côté site, URL d'API…) :
+ * l'appelant garde alors la puce historique, jamais un picto vide.
+ */
+export function achievementEmojiName(iconUrl: string | null | undefined): string | null {
+    if (!iconUrl) return null;
+    const base = (iconUrl.split("?")[0].split("/").pop() ?? "").replace(/\.png$/i, "");
+    if (!base) return null;
+    const key = `${ACHIEVEMENT_EMOJI_PREFIX}${assetKey(base)}`;
+    return DISCORD_EMOJIS[key] ? key : null;
 }

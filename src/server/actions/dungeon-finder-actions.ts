@@ -11,7 +11,7 @@ import { getDisplayName } from "@/lib/display-name";
 import { resolveDjContributionPoints } from "@/lib/points-config";
 import { createAuditLog } from "./audit-actions";
 import { sanitizeName } from "@/lib/security";
-import { getMultiDungeons, formatDiscordDateStamp, mergeMultiDungeonTargetDates } from "@/lib/dungeon-finder-utils";
+import { getMultiDungeons, achievementLines, formatDiscordDateStamp, mergeMultiDungeonTargetDates } from "@/lib/dungeon-finder-utils";
 import { buildClassDispatchFields, buildClassSelectRow, type DispatchEntry } from "@/server/discord-class-dispatch";
 import { loadEmojiResolver } from "@/server/discord-app-emojis";
 import { classEmojiName } from "@/lib/discord-emoji-catalog";
@@ -671,10 +671,10 @@ async function buildMultiPostEmbeds(post: any, authorName: string): Promise<any[
             inline: true,
         });
         if ((entry.wantedAchievementIds ?? []).length > 0) {
-            const achNames = (entry.achievements ?? [])
-                .filter((a: any) => entry.wantedAchievementIds.includes(a.id))
-                .map((a: any) => `• ${a.name}`)
-                .join("\n");
+            const achNames = achievementLines(
+                (entry.achievements ?? []).filter((a: any) => entry.wantedAchievementIds.includes(a.id)),
+                emo
+            );
             if (achNames) fields.push({ name: `${emo("dofus_success")} Succès visés`, value: achNames, inline: true });
         }
         if (entry.message) fields.push({ name: `${emo("dofus_note")} Note`, value: entry.message, inline: false });
@@ -1099,10 +1099,12 @@ async function buildPostEmbed(post: any, authorName: string, guildId: string, ac
     fields.push({ name: "\u200b", value: "\u200b", inline: false });
 
     if (isDungeon && post.wantedAchievementIds.length > 0 && post.dungeon?.achievements) {
-        const achNames = post.dungeon.achievements
-            .filter((a: any) => post.wantedAchievementIds.includes(a.id))
-            .map((a: any) => `• ${a.challenge.name}`)
-            .join("\n");
+        const achNames = achievementLines(
+            post.dungeon.achievements
+                .filter((a: any) => post.wantedAchievementIds.includes(a.id))
+                .map((a: any) => ({ name: a.challenge.name, iconUrl: a.challenge.iconUrl })),
+            emo
+        );
         if (achNames) {
             fields.push({ name: `${emo("dofus_success")} Succès visés`, value: achNames, inline: true });
         }

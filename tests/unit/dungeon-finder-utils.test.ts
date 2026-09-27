@@ -19,6 +19,7 @@ import {
     formatDjDateLabel,
     formatDiscordDateStamp,
     mergeMultiDungeonTargetDates,
+    achievementLines,
 } from "@/lib/dungeon-finder-utils";
 import { toLocalDateTimeInput } from "@/lib/date-utils";
 
@@ -215,4 +216,47 @@ describe("date prévue (optionnelle)", () => {
         // Aucun donjon multi → on rend l'entrée telle quelle (pas de destruction).
         expect(mergeMultiDungeonTargetDates(null, [{ targetDate: null }])).toBeNull();
     });
+
+/**
+ * Lignes « Succès visés » des embeds : picto du succès (même asset que la modale du
+ * site) quand l'application Discord le porte, puce historique `•` sinon.
+ * Une seule règle pour le post simple ET le post multi-donjons.
+ */
+describe("achievementLines", () => {
+    const picto = (name: string) => `<:${name}:1234567890>`;
+
+    it("préfixe chaque succès de son picto (clé = nom de fichier de l'asset)", () => {
+        const lines = achievementLines(
+            [
+                { name: "Nomade", iconUrl: "/game-data/achievements/nomade.png" },
+                { name: "Spécial", iconUrl: "/game-data/achievements/spécial.png" },
+            ],
+            picto
+        );
+        expect(lines).toBe(
+            "<:dofus_success_nomade:1234567890> Nomade\n<:dofus_success_special:1234567890> Spécial"
+        );
+    });
+
+    it("sans synchro (repli du catalogue) → puce historique, zéro régression", () => {
+        const lines = achievementLines([{ name: "Duo", iconUrl: "/game-data/achievements/duo.png" }], () => "•");
+        expect(lines).toBe("• Duo");
+    });
+
+    it("succès sans asset connu → puce historique, jamais un picto vide", () => {
+        const lines = achievementLines(
+            [
+                { name: "Succès d'API", iconUrl: "https://api.dofusdb.fr/img/challenges/42.png" },
+                { name: "Sans icône" },
+            ],
+            picto
+        );
+        expect(lines).toBe("• Succès d'API\n• Sans icône");
+    });
+
+    it("liste vide → chaîne vide (le champ n'est alors pas ajouté à l'embed)", () => {
+        expect(achievementLines([], picto)).toBe("");
+    });
+});
+
 });

@@ -3,6 +3,8 @@
  * #26 — Mode multi-donjons
  */
 
+import { achievementEmojiName } from "@/lib/discord-emoji-catalog";
+
 export interface MultiDungeonItem {
     dungeonId: string;
     name: string;
@@ -40,6 +42,29 @@ export function getMultiDungeons(dungeonsJson: unknown): MultiDungeonItem[] {
         }
     }
     return [];
+}
+
+/**
+ * Une ligne par succès visé d'un embed Discord : le **picto du succès** (le même asset
+ * que la modale du site) quand l'application Discord le porte, sinon la puce historique.
+ *
+ * Une seule implémentation pour le post simple ET le post multi-donjons : deux copies
+ * divergeraient au premier succès ajouté.
+ *
+ * @param emo Résolveur d'emojis (`loadEmojiResolver()`), rend `•` tant que la synchro
+ *            n'a pas été jouée — l'embed reste alors exactement comme avant.
+ */
+export function achievementLines(
+    achievements: { name: string; iconUrl?: string | null }[],
+    emo: (name: string) => string
+): string {
+    return achievements
+        .map((achievement) => {
+            const key = achievementEmojiName(achievement.iconUrl);
+            const picto = key ? emo(key) : "";
+            return picto ? `${picto} ${achievement.name}` : `• ${achievement.name}`;
+        })
+        .join("\n");
 }
 
 /**

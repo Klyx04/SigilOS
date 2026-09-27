@@ -105,8 +105,3 @@ export async function loadEmojiResolver(force = false): Promise<EmojiResolver> {
     cache = { at: now, map, ttl: map.size === 0 ? EMPTY_CACHE_TTL_MS : CACHE_TTL_MS };
     return makeResolver(map);
 }
-
-/** Vide le cache en mémoire (après une synchro d'emojis, pour voir le résultat tout de suite). */
-export function invalidateAppEmojiCache(): void {
-    cache = null;
-}

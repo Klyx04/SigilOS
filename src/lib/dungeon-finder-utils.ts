@@ -5,6 +5,42 @@
 
 import { achievementEmojiName } from "@/lib/discord-emoji-catalog";
 
+/** Icône **réelle** de quête (asset Dofus du dépôt) — repli quand la quête n'a pas de carte connue. */
+export const QUEST_ICON_FALLBACK = "/assets/dofus/icons/quests.png";
+
+/**
+ * `mapId` de la position de départ d'une quête DofusDB (`startPosition[].mapId`) — `null` si la
+ * source n'en donne pas (jamais de carte inventée).
+ */
+export function questStartMapId(startPosition: unknown): number | null {
+    const first = Array.isArray(startPosition) ? startPosition[0] : null;
+    const mapId = Math.floor(Number((first as { mapId?: unknown } | null)?.mapId) || 0);
+    return mapId > 0 ? mapId : null;
+}
+
+/**
+ * Miniature **réelle** d'une quête : image explicite si la base en porte une, sinon la **carte de
+ * départ** de la quête (`startPosition[].mapId` → `/game-data/hd_maps/{id}.webp`, asset du jeu),
+ * sinon l'**icône de quête Dofus**.
+ *
+ * 🐛 Constat user du 27/09/2026 : « liste quête : supprimer les numéros et vrai asset quête Dofus
+ * par quête ». La liste affichait `#606` (l'id technique) sans aucune image.
+ * Mesure en base (locale) : `GameQuest.imageUrl` **0/1 976** et `DofusQuestEntry.mapId` **0/433**
+ * ⇒ une quête servie par la base locale n'a **pas** encore de carte de départ : le repli est l'icône
+ * de quête (le siphon des `startPosition` DofusDB reste à faire, cf. `docs/ROADMAP.md`).
+ *
+ * 🛡️ Garde de forme : seul un chemin **interne** (`/…`) est publié dans le `<img>` — une valeur
+ * brute venue de la base ne part jamais telle quelle dans le DOM (même leçon que les images d'avis).
+ */
+export function questThumbnail(
+    quest: { imageUrl?: string | null; startPosition?: unknown } | null | undefined
+): string {
+    const image = typeof quest?.imageUrl === "string" ? quest.imageUrl.trim() : "";
+    if (image.startsWith("/") && !image.startsWith("//")) return image;
+    const mapId = questStartMapId(quest?.startPosition);
+    return mapId ? `/game-data/hd_maps/${mapId}.webp` : QUEST_ICON_FALLBACK;
+}
+
 export interface MultiDungeonItem {
     dungeonId: string;
     name: string;

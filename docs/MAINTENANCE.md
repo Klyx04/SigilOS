@@ -345,6 +345,22 @@ journalctl --vacuum-time=1d
 df -h
 ```
 
+### Purge du cache d'images siphonnées (monstres)
+```bash
+# Pourquoi : jusqu'au 27/09/2026 le proxy `/api/assets-dofus` pouvait écrire dans le cache
+# disque (`public/uploads/assets-dofus/monsters/{id}.webp`, volume `assets-*-data`) l'apparence
+# d'un AUTRE monstre — l'apparence est indexée par `gfxId`, jamais par l'id (mesure : 100 % des
+# 300 monstres DofusDB testés ont `gfxId != id`, 281/300 collisions avec le dump local). Le
+# fichier étant ensuite servi avec `Cache-Control: immutable` (1 an), il faut le PURGER après
+# le déploiement du correctif — les images se re-téléchargent À LA DEMANDE (correctes).
+sudo docker compose -f docker-compose.prod.yml --env-file .env.beta exec app-beta rm -f public/uploads/assets-dofus/monsters/*.webp
+sudo docker compose -f docker-compose.prod.yml --env-file .env.prod exec app-prod rm -f public/uploads/assets-dofus/monsters/*.webp
+
+# Contrôle (l'apparence doit correspondre au gfxId de la fiche) :
+# curl -s "https://api.dofusdb.fr/monsters/4834" | grep -o '"gfxId":[0-9]*'   # Predagob -> 1583
+# curl -s -o /dev/null -w "%{http_code}\n" https://beta.sigilos.fr/api/assets-dofus/monsters/4834
+```
+
 ---
 
 ## 📊 Métriques Clés

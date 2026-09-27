@@ -64,6 +64,10 @@ export async function GET(
         const safeId = rawId.replace(/[^a-zA-Z0-9_-]/g, '').replace(/\.webp$/, '');
         if (!safeId) return new NextResponse('ID invalide', { status: 400 });
 
+        // Un id purement numérique est adressable sur DofusDB (fiche + asset) ; un CUID Prisma
+        // ne l'est pas → aucun lookup devinable (fail-closed, plus bas).
+        const isNumericId = /^\d+$/.test(safeId);
+
         ensureAssetDirsExist();
         const localFilePath = path.join(ASSET_DIRS[assetType], `${safeId}.webp`);
 
@@ -138,7 +142,10 @@ export async function GET(
         const safeUrlParam = getAllowedRemoteUrl(rawUrlParam);
 
         // Si une URL est fournie et qu'on peut en extraire un id numérique, on tente le fichier « god » local
-        if (safeUrlParam) {
+        // ⚠️ Jamais pour un MONSTRE à id numérique : son apparence est résolue par l'API juste en
+        // dessous (autorité DofusDB). Ici le dump est indexé par le gfx contenu dans l'URL, donc une
+        // URL périmée (l'apparence d'un autre monstre) serait servie ET mise en cache 1 an.
+        if (safeUrlParam && !(assetType === 'monsters' && isNumericId)) {
             const urlMatch = safeUrlParam.match(/\/(\d+)\.(png|webp|jpg)/i);
             const altGodFile = urlMatch ? findGodFile(urlMatch[1]) : null;
             if (altGodFile) {
@@ -161,12 +168,89 @@ export async function GET(
         // Guard : si l'ID n'est pas purement numérique (ex: CUID Prisma comme "cmrwd97k..."),
         // on ne peut pas faire un lookup DofusDB fiable → on tente uniquement le ?url= fourni
         // sinon on renvoie directement le placeholder pour éviter de retourner le mauvais monstre.
-        const isNumericId = /^\d+$/.test(safeId);
-
-        const remoteUrl = safeUrlParam || (isNumericId ? `${REMOTE_BASE_URLS[assetType]}/${safeId}.png` : null);
+        //
+        // 🐛 `img/{type}/{id}.png` n'est VALABLE QUE POUR LES ITEMS (leur clé de cache EST leur id).
+        // Mesure du 27/09/2026 sur 300 monstres DofusDB : **100 % ont `gfxId ≠ id`**
+        // (Predagob 4834 → `img/monsters/1583.png` ; `img/monsters/4834.png` → **404**). Deviner
+        // l'apparence d'un monstre par son id servait donc l'image d'un AUTRE monstre (ou un 404),
+        // puis la figeait en cache. Les monstres sont désormais résolus par l'API (bloc MONSTRES).
+        const remoteUrl = safeUrlParam || (isNumericId && assetType === 'items' ? `${REMOTE_BASE_URLS.items}/${safeId}.png` : null);
 
         let downloaded = false;
         let inputBuffer: Buffer | null = null;
+
+        // ── MONSTRES : DofusDB est la SEULE autorité de l'apparence ─────────────────────────
+        // L'apparence est indexée par le **gfxId**, jamais par l'id du monstre. Mesure du
+        // 27/09/2026 : 100 % des 300 monstres DofusDB testés ont `gfxId ≠ id` (Predagob 4834 →
+        // gfx 1583) et le dump local `monsters_2x/` est indexé par gfx lui aussi (281/300 des
+        // ids de monstres portent AUSSI un fichier de dump — celui d'un autre monstre).
+        // Ordre : API + garde d'identité → dump par **gfx** → `img` de l'API. Le résultat est
+        // mis en cache sous `{id}.webp` (notre clé d'affichage) = l'apparence DU BON monstre.
+        let monsterImageHandled = false;
+        if (isNumericId && assetType === 'monsters') {
+            monsterImageHandled = true;
+            try {
+                const monsterRes = await fetch(`https://api.dofusdb.fr/monsters/${safeId}`, {
+                    headers: { 'User-Agent': 'SigilOS/1.0 (+https://sigilos.fr)' },
+                    signal: AbortSignal.timeout(6_000),
+                });
+                if (monsterRes.ok) {
+                    const monsterData = await monsterRes.json();
+                    // 🛡️ Garde d'identité (même règle que les items) : DofusDB répond 200 avec un
+                    // monstre de repli quand l'id n'existe pas ⇒ jamais l'apparence d'un autre.
+                    if (Number(monsterData?.id) === Number(safeId)) {
+                        const gfxId = Math.floor(Number(monsterData?.gfxId) || 0);
+                        const dumpFile = gfxId > 0 ? findGodFile(String(gfxId)) : null;
+                        if (dumpFile) {
+                            inputBuffer = fs.readFileSync(dumpFile);
+                            downloaded = true;
+                        } else {
+                            const imgUrl = getAllowedRemoteUrl(monsterData?.img);
+                            if (imgUrl) {
+                                await assertSafeUrl(imgUrl);
+                                const imgRes = await fetch(imgUrl, {
+                                    headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+                                    signal: AbortSignal.timeout(6_000),
+                                });
+                                if (imgRes.ok) {
+                                    const contentType = imgRes.headers.get('content-type') || '';
+                                    if (contentType.startsWith('image/') || contentType.startsWith('application/octet-stream')) {
+                                        const arrayBuffer = await imgRes.arrayBuffer();
+                                        if (arrayBuffer.byteLength > 0 && arrayBuffer.byteLength <= MAX_IMAGE_BYTES) {
+                                            inputBuffer = Buffer.from(arrayBuffer);
+                                            downloaded = true;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            } catch {
+                // API/réseau indisponible → repli déclaré ci-dessous, puis placeholder neutre.
+            }
+
+            // Repli **déclaré** (`?url=` allowlisté) joué APRÈS l'autorité : une URL périmée
+            // (apparence d'un autre monstre) ne peut donc plus passer devant la fiche DofusDB.
+            if (!downloaded && safeUrlParam) {
+                try {
+                    await assertSafeUrl(safeUrlParam);
+                    const declared = await fetch(safeUrlParam, {
+                        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+                        signal: AbortSignal.timeout(6_000),
+                    });
+                    if (declared.ok) {
+                        const arrayBuffer = await declared.arrayBuffer();
+                        if (arrayBuffer.byteLength > 0 && arrayBuffer.byteLength <= MAX_IMAGE_BYTES) {
+                            inputBuffer = Buffer.from(arrayBuffer);
+                            downloaded = true;
+                        }
+                    }
+                } catch {
+                    // Repli déclaré indisponible → placeholder neutre plus bas.
+                }
+            }
+        }
 
         // ── SORTS : DofusDB est la SEULE autorité de l'icône ────────────────────────────────
         // L'icône réelle d'un sort est `img/spells/sort_{iconId}.png` (`iconId` ≠ id du sort ; il
@@ -222,8 +306,9 @@ export async function GET(
         }
 
         // Tentative 1 : Téléchargement direct depuis remoteUrl (si disponible)
-        // (jamais pour les sorts : leur icône est résolue ci-dessus, cf. § SORTS.)
-        if (remoteUrl && !spellIconHandled) {
+        // (jamais pour les sorts : leur icône est résolue ci-dessus, cf. § SORTS ;
+        //  jamais pour les monstres : apparence résolue par l'API, cf. § MONSTRES.)
+        if (remoteUrl && !spellIconHandled && !monsterImageHandled) {
             try {
                 // 🔒 SSRF : re-valide DNS/IP juste avant fetch (anti-rebinding), fail-closed.
                 await assertSafeUrl(remoteUrl);
@@ -287,41 +372,6 @@ export async function GET(
                 }
             } catch {
                 // Échec résolution iconId
-            }
-        }
-
-        // Tentative 3 : Si c'est un monstre et que l'URL par défaut a échoué, résolution via l'API DofusDB (graphicLookId)
-        if (!downloaded && isNumericId && assetType === 'monsters') {
-            try {
-                const monsterRes = await fetch(`https://api.dofusdb.fr/monsters/${safeId}`, {
-                    headers: { 'User-Agent': 'SigilOS/1.0 (+https://sigilos.fr)' },
-                    signal: AbortSignal.timeout(6_000),
-                });
-                if (monsterRes.ok) {
-                    const monsterData = await monsterRes.json();
-                    const realImgUrl = getAllowedRemoteUrl(monsterData.img);
-                    if (realImgUrl) {
-                        await assertSafeUrl(realImgUrl);
-                        const imgRes = await fetch(realImgUrl, {
-                            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
-                            signal: AbortSignal.timeout(6_000),
-                        });
-                        if (imgRes.ok) {
-                            const contentType = imgRes.headers.get('content-type') || '';
-                            if (!contentType.startsWith('image/') && !contentType.startsWith('application/octet-stream')) {
-                                throw new Error('Contenu non-image rejeté');
-                            }
-                            const arrayBuffer = await imgRes.arrayBuffer();
-                            if (arrayBuffer.byteLength > MAX_IMAGE_BYTES) {
-                                throw new Error('Image trop volumineuse');
-                            }
-                            inputBuffer = Buffer.from(arrayBuffer);
-                            downloaded = true;
-                        }
-                    }
-                }
-            } catch {
-                // Échec résolution monstre
             }
         }
 

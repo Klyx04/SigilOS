@@ -84,7 +84,10 @@ describe("icône de sort — DofusDB est l'autorité, jamais une image d'un autr
     it("le `?url=` n'est plus une source pour les sorts (CDN par défaut = icône étrangère)", () => {
         expect(PROXY).toMatch(/let spellIconHandled = false;/);
         expect(PROXY).toMatch(/if \(isNumericId && assetType === 'spells'\) \{/);
-        expect(PROXY).toMatch(/if \(remoteUrl && !spellIconHandled\) \{/);
+        // ⚠️ Depuis le 27/09/2026 les MONSTRES sont aussi résolus par l'API (apparence = `gfxId`,
+        // 100 % des monstres DofusDB ont `gfxId != id`) : le `?url=` ne sert donc plus, pour eux
+        // non plus, de source prioritaire — même garde d'ordre, étendue.
+        expect(PROXY).toMatch(/if \(remoteUrl && !spellIconHandled && !monsterImageHandled\) \{/);
     });
 
     it("un `iconId` négatif ne devient jamais une icône (`-1` → aucun candidat)", () => {

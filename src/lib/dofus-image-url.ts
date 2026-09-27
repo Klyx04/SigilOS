@@ -203,6 +203,27 @@ const STORED_ASSET_PATH = /^\/uploads\/assets-dofus\/(monsters|spells|items)\/(?
 const STORED_ASSET_BARE_NAME = /^(\d{1,12})(?:\.(?:webp|png|jpg|jpeg))?$/i;
 
 /**
+ * Formes d'URL d'image que l'app accepte de poser dans le DOM.
+ *
+ * 🛡️ Pourquoi cette garde existe (alerte CodeQL `js/xss-through-dom`, 27/09/2026) : la page God
+ * « Avis de recherche » posait une **donnée brute** (le chemin stocké en base) dans le `src` d'un
+ * `<img>` ⇒ « DOM text reinterpreted as HTML ». En produit, la règle est la même : **rien
+ * d'arbitraire ne part dans une URL du navigateur** — seuls nos chemins internes et le domaine de
+ * confiance DofusDB sont acceptés, tout le reste retombe sur le repli visuel de l'appelant.
+ */
+export function isSafeDofusImageSrc(raw: string | null | undefined): boolean {
+    const value = String(raw ?? "").trim();
+    if (value === "") return false;
+    // Chemin interne : un seul slash initial (jamais protocol-relative `//evil.tld`), charset borné.
+    if (value.startsWith("/")) {
+        if (value.startsWith("//")) return false;
+        return /^\/[\w\-./%?&=+:@!$'()*,;]*$/.test(value);
+    }
+    // URL absolue : uniquement le domaine de confiance DofusDB, en HTTPS.
+    return /^https:\/\/api\.dofusdb\.fr\/[\w\-./%?&=+:@!$'()*,;]*$/i.test(value);
+}
+
+/**
  * Normalise une URL d'asset **telle qu'elle est stockée** vers la forme que le navigateur doit
  * demander : `/api/assets-dofus/{type}/{id}` (proxy auto-siphon, jamais de 404).
  *

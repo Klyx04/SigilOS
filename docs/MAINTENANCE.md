@@ -430,6 +430,72 @@ git pull origin main
 
 ---
 
+## 🧩 Émojis d'application Discord — synchro manuelle (bêta / prod)
+
+Les pictos des embeds (sections Dofus, classes, et **un par succès**) sont des **emojis d'application** :
+ils appartiennent à l'**application Discord** de l'environnement, pas à une guilde — donc **une synchro
+par environnement**.
+
+| Environnement | Application Discord (id) |
+|---|---|
+| bêta | `1458259008355045519` |
+| prod | `1547055932792508476` |
+
+**83 emojis** (`dofus_*` = 56 sections/classes + 27 succès) sont en place sur les **deux** depuis le
+**27/09/2026**. Source unique du catalogue : `src/lib/discord-emoji-catalog.ts` (JS pur) ; décision de
+synchro : `src/lib/discord-app-emoji-plan.ts` (**pur**, testé) ; script : `scripts/sync-discord-app-emojis.ts`
+(idempotent : ne crée que les manquants, ne supprime ni ne renomme jamais).
+
+### Pourquoi pas `docker compose exec … tsx`
+L'image de prod ne contient **ni `src/` ni `tsconfig`** (elle ne copie que `public/`, `prisma/`,
+`scripts/` et les JS compilés) alors que le script importe le catalogue TypeScript ⇒
+`npx -y tsx scripts/…` dans le conteneur échoue (« Cannot find module »). Deux voies fonctionnent.
+
+### Voie A — Node ≥ 20.12 sur l'hôte (dans le dossier du dépôt)
+```bash
+npx -y tsx scripts/sync-discord-app-emojis.ts --env=.env.prod            # contrôle : AUCUN envoi
+npx -y tsx scripts/sync-discord-app-emojis.ts --env=.env.prod --apply    # crée les manquants
+```
+
+### Voie B — VPS **sans Node** : conteneur jetable (testée le 27/09/2026)
+```bash
+rm -rf /tmp/emoji-sync
+git clone --depth 1 --branch dev https://github.com/Klyx04/SigilOS.git /tmp/emoji-sync
+
+sudo docker run --rm \
+  -v /tmp/emoji-sync:/app -v /app/node_modules \
+  -v "$HOME/SigilOS/.env.prod":/app/.env.prod:ro \
+  -w /app node:22-alpine \
+  npx -y tsx scripts/sync-discord-app-emojis.ts --env=.env.prod
+
+# puis la MÊME commande avec --apply, et enfin :
+rm -rf /tmp/emoji-sync
+```
+- `-v /app/node_modules` **masque** le `node_modules` de l'hôte : sans lui, `tsx` charge un `esbuild`
+  d'une autre plateforme (« You installed esbuild for another platform ») — reproduit le 27/09.
+- Le `.env.prod` est monté **en fichier, en lecture seule**, et `--env=` le lit puis le **parse comme
+  Node** (guillemets retirés), contrairement à l'option `--env-file` de Docker qui les conserve.
+- Le mode par défaut **n'envoie rien** : il affiche l'id de l'app et les compteurs.
+
+### Vérifier
+- **1ʳᵉ ligne = id de l'application** : comparez au tableau ci-dessus, c'est ce qui dit sur **quel**
+  environnement on agit ;
+- après `--apply` : « N créé(s) … 0 échec(s) », puis le contrôle doit dire « déjà présents : 83,
+  à créer : 0 » ;
+- portail Discord → app → onglet *Émojis* ;
+- les messages **déjà envoyés** gardent leur ancien rendu : nouveau post (ou bouton « Modifier »).
+- un **refusé** n'est pas une panne : c'est le garde-fou des 256 Ko (`missions/songes.png` 1,3 Mo,
+  `anomalie.png` 693 Ko) — il faut réduire l'image avant de l'ajouter au catalogue.
+
+**Une fois par environnement** : le bot a besoin de la permission **« Créer des publications »** si le
+salon de notification est un **forum** (un post de forum est un thread).
+
+> 🔭 Un onglet God « Émojis Discord » est **décidé mais non codé** (voir `docs/ROADMAP.md`) : il fera
+> ces deux étapes en un clic, sur l'app de l'environnement courant.
+
+---
+
+
 ## 📞 Contacts & Alertes
 
 **Discord Webhook**: Configuré dans `.env.prod`  

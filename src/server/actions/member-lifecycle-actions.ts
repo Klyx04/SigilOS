@@ -390,6 +390,152 @@ export async function getGuildLifecycleData(guildId: string): Promise<ActionResp
         return { success: false, error: "Impossible de charger les données des membres" };
     }
 }
+/** Un membre **Discord sans profil dashboard** — vu par le bot, absent du registre. */
+export interface RegistryDiscordOnlyMember {
+    discordId: string;
+    displayName: string;
+    username: string;
+    avatar: string | null;
+    joinedAt: string | null;
+    roles: string[];
+}
+
+/** Rôle Discord de la guilde (id + libellé + couleur + position hiérarchique). */
+export interface RegistryDiscordRole {
+    id: string;
+    name: string;
+    color: number;
+    position: number;
+}
+
+/**
+ * Index Discord du registre recrutement — ce que la base **ne peut pas** dire seule.
+ *
+ * 🐛 Constat user du 27/09/2026 : « je comprends pas pk les non présents dashboard y sont pas ».
+ * Mesure : le registre est construit sur `userProfile` (les **profils dashboard**) — un membre
+ * présent sur Discord **sans profil** n'existe donc pas dans la liste, alors que l'onglet Audit,
+ * lui, le compte (`hasDashboardProfile: false`). Et sans les rôles Discord du membre, impossible de
+ * **cibler un rôle** dans le registre (la base ne cache que le rôle principal :
+ * `UserProfile.discordRoleName`/`discordRoleColor`).
+ *
+ * `discordAvailable: false` ⇒ Discord injoignable (ou bot sans droits) : le registre reste
+ * parfaitement utilisable, seules les colonnes Discord sont vides (jamais d'écran d'erreur).
+ */
+export interface MemberRegistryDiscordIndex {
+    discordAvailable: boolean;
+    roles: RegistryDiscordRole[];
+    /** Rôles Discord du membre, indexés par `userProfile.id`. */
+    rolesByProfileId: Record<string, string[]>;
+    /** Membres Discord **hors bots** sans profil dashboard, triés par nom. */
+    discordOnly: RegistryDiscordOnlyMember[];
+}
+
+/**
+ * Index Discord du registre : rôles par profil dashboard + membres Discord hors dashboard.
+ *
+ * Lecture seule, mise en cache par la couche Discord (`listGuildMembers` 10 min,
+ * `fetchGuildRoles` 15 s). Fail-soft : une panne Discord ne casse pas le registre.
+ */
+export async function getMemberRegistryDiscordIndex(
+    guildId: string
+): Promise<ActionResponse<MemberRegistryDiscordIndex>> {
+    const session = await auth();
+    if (!session?.user?.id) return { success: false, error: "Non authentifié" };
+    if (!guildId) return { success: false, error: "ID de guilde manquant" };
+
+    const ctx = await getUserContext(guildId);
+    if (!ctx.isAdmin && !ctx.canManageMembers) {
+        return { success: false, error: "Permission 'Gérer les membres' requise" };
+    }
+
+    try {
+        const guild = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { id: true },
+        });
+        if (!guild) return { success: false, error: "Guilde introuvable" };
+
+        const [{ listGuildMembers, fetchGuildRoles }, { buildGuildAvatarUrl }] = await Promise.all([
+            import("@/server/discord"),
+            import("@/lib/discord-avatars"),
+        ]);
+
+        const [discordMembers, discordRoles, profiles] = await Promise.all([
+            // Panne Discord ⇒ listes vides, jamais une exception qui casse le registre.
+            listGuildMembers(guildId, 1000).catch(() => [] as Awaited<ReturnType<typeof listGuildMembers>>),
+            fetchGuildRoles(guildId, { excludeManaged: false }).catch(() => []),
+            db.userProfile.findMany({
+                where: { guildId: guild.id },
+                select: {
+                    id: true,
+                    user: {
+                        select: {
+                            accounts: {
+                                where: { provider: "discord" },
+                                select: { providerAccountId: true },
+                            },
+                        },
+                    },
+                },
+            }),
+        ]);
+
+        const profileIdByDiscordId = new Map<string, string>();
+        for (const profile of profiles) {
+            const discordId = profile.user?.accounts?.[0]?.providerAccountId;
+            if (discordId) profileIdByDiscordId.set(discordId, profile.id);
+        }
+
+        const rolesByProfileId: Record<string, string[]> = {};
+        const discordOnly: RegistryDiscordOnlyMember[] = [];
+        const seen = new Set<string>();
+
+        for (const member of discordMembers) {
+            const discordId = String(member?.user?.id ?? "");
+            if (!discordId || member?.user?.bot || seen.has(discordId)) continue;
+            seen.add(discordId);
+
+            const roles = Array.isArray(member.roles) ? member.roles.map(String) : [];
+            const profileId = profileIdByDiscordId.get(discordId);
+            if (profileId) {
+                rolesByProfileId[profileId] = roles;
+                continue;
+            }
+
+            discordOnly.push({
+                discordId,
+                displayName: String(member.nick || member.user.global_name || member.user.username || discordId),
+                username: String(member.user.username ?? ""),
+                // Avatar de guilde prioritaire, repli sur l'avatar global (même règle que #134).
+                avatar: buildGuildAvatarUrl(guildId, discordId, member.avatar || member.user.avatar || null, 128),
+                joinedAt: member.joined_at ?? null,
+                roles,
+            });
+        }
+
+        discordOnly.sort((a, b) => a.displayName.localeCompare(b.displayName, "fr"));
+
+        return {
+            success: true,
+            data: {
+                discordAvailable: seen.size > 0,
+                roles: discordRoles.map((role) => ({
+                    id: role.id,
+                    name: role.name,
+                    color: role.color,
+                    position: role.position,
+                })),
+                rolesByProfileId,
+                discordOnly,
+            },
+        };
+    } catch (err: any) {
+        logger.error("[getMemberRegistryDiscordIndex] Erreur critique:", err);
+        return { success: false, error: "Impossible de charger les rôles Discord du registre" };
+    }
+}
+
+
 
 /**
  * État d'essai d'un membre (registre) : Oui = validé, Non = en essai jusqu'à

@@ -183,3 +183,159 @@ export function buildRegistryCsv(rows: RegistryCsvRow[], guildId: string, todayI
         content: `${headers.join(";")}\n${lines.join("\n")}`,
     };
 }
+// ─── Filtres du registre (règles pures : une seule source de vérité, testable sans UI) ──────────
+
+/**
+ * Inscription au dashboard : `ALL` (les deux), `DASHBOARD` (profils inscrits seulement),
+ * `MISSING` (« hors dashboard » : membres Discord sans profil — ils n'ont ni essai ni recruteur).
+ */
+export type RegistryDashboardFilter = "ALL" | "DASHBOARD" | "MISSING";
+
+/** État des filtres de la vue « Registre recrutement ». */
+export interface RegistryFilters {
+    search: string;
+    /** `ALL` = tous ; sinon la décision d'essai attendue. */
+    trial: "ALL" | TrialDecision;
+    /** `ALL` = tous ; sinon l'id du profil recruteur. */
+    recruiterId: string;
+    /** `ALL` = tous ; sinon l'id du rôle Discord. */
+    roleId: string;
+    dashboard: RegistryDashboardFilter;
+}
+
+export const DEFAULT_REGISTRY_FILTERS: RegistryFilters = {
+    search: "",
+    trial: "ALL",
+    recruiterId: "ALL",
+    roleId: "ALL",
+    dashboard: "ALL",
+};
+
+/** Champs d'une ligne du registre interrogés par la recherche libre. */
+export interface RegistrySearchableRow {
+    displayName: string;
+    discordId: string;
+    pseudoDofus?: string | null;
+    discordNickname?: string | null;
+    ankamaId?: string | null;
+}
+
+/**
+ * Recherche libre du registre : pseudo du dashboard, pseudo Dofus, pseudo Discord, tag Ankama
+ * **ou** ID Discord (une chaîne vide ne filtre rien).
+ */
+export function matchesRegistrySearch(row: RegistrySearchableRow, search: string): boolean {
+    const q = String(search ?? "").trim().toLowerCase();
+    if (!q) return true;
+    return (
+        String(row.displayName ?? "").toLowerCase().includes(q) ||
+        String(row.pseudoDofus ?? "").toLowerCase().includes(q) ||
+        String(row.discordNickname ?? "").toLowerCase().includes(q) ||
+        String(row.ankamaId ?? "").toLowerCase().includes(q) ||
+        String(row.discordId ?? "").includes(q)
+    );
+}
+
+/** Le membre porte-t-il le rôle Discord filtré ? (`ALL` / vide = pas de filtre). */
+export function matchesDiscordRole(roles: readonly string[] | null | undefined, roleId: string): boolean {
+    if (!roleId || roleId === "ALL") return true;
+    return (Array.isArray(roles) ? roles : []).includes(roleId);
+}
+
+/**
+ * Une ligne **membre du dashboard** passe-t-elle les filtres ? Une ligne dashboard n'est jamais
+ * une ligne « hors dashboard » ⇒ le filtre `MISSING` l'exclut toujours.
+ */
+export function matchesRegistryFilters(
+    input: {
+        row: RegistrySearchableRow;
+        trial: TrialDecision;
+        recruitedById: string | null;
+        roles: readonly string[] | null | undefined;
+    },
+    filters: RegistryFilters
+): boolean {
+    if (!matchesRegistrySearch(input.row, filters.search)) return false;
+    if (!matchesDiscordRole(input.roles, filters.roleId)) return false;
+    if (filters.dashboard === "MISSING") return false;
+    if (filters.trial !== "ALL" && input.trial !== filters.trial) return false;
+    if (filters.recruiterId !== "ALL" && input.recruitedById !== filters.recruiterId) return false;
+    return true;
+}
+
+/**
+ * Une ligne **membre Discord sans profil dashboard** passe-t-elle les filtres ?
+ *
+ * L'essai et le recruteur sont des données du registre : un membre hors dashboard ne peut pas y
+ * répondre ⇒ ces deux filtres l'excluent (aucune ligne ne « matche » par accident).
+ */
+export function matchesDiscordOnlyFilters(
+    row: RegistrySearchableRow & { roles: readonly string[] | null | undefined },
+    filters: RegistryFilters
+): boolean {
+    if (filters.dashboard === "DASHBOARD") return false;
+    if (filters.trial !== "ALL" || filters.recruiterId !== "ALL") return false;
+    return matchesRegistrySearch(row, filters.search) && matchesDiscordRole(row.roles, filters.roleId);
+}
+
+/** Rôle Discord proposé au filtre : ce que l'écran affiche, avec le nombre de membres concernés. */
+export interface DiscordRoleOption {
+    id: string;
+    name: string;
+    color: number;
+    position: number;
+    count: number;
+}
+
+/**
+ * Options du filtre « rôle Discord » : **seulement les rôles portés par au moins un membre** (un
+ * rôle que personne ne porte ne filtre rien — il n'a rien à faire dans la liste), du plus haut au
+ * plus bas dans la hiérarchie Discord, à position égale par ordre alphabétique.
+ *
+ * `members` = les deux natures de lignes du registre (profils dashboard **et** membres Discord
+ * seuls) : le filtre doit pouvoir cibler les deux.
+ */
+export function registryRoleOptions(
+    roles: readonly { id: string; name: string; color?: number | null; position?: number | null }[] | null | undefined,
+    members: readonly { roles: readonly string[] | null | undefined }[] | null | undefined
+): DiscordRoleOption[] {
+    const counts = new Map<string, number>();
+    for (const member of members ?? []) {
+        for (const roleId of new Set(member?.roles ?? [])) {
+            counts.set(roleId, (counts.get(roleId) ?? 0) + 1);
+        }
+    }
+    return (roles ?? [])
+        .map((role) => ({
+            id: role.id,
+            name: role.name,
+            color: Math.max(0, Math.floor(Number(role.color) || 0)),
+            position: Math.floor(Number(role.position) || 0),
+            count: counts.get(role.id) ?? 0,
+        }))
+        .filter((role) => role.count > 0)
+        .sort((a, b) => b.position - a.position || a.name.localeCompare(b.name, "fr"));
+}
+
+/**
+ * Couleur d'un rôle Discord (entier `0xRRGGBB`) → `#rrggbb`, `null` si le rôle n'a pas de couleur
+ * (`0` = couleur neutre côté Discord). Règle pure : jamais de couleur inventée.
+ */
+export function discordRoleColorHex(color: number | null | undefined): string | null {
+    const value = Math.floor(Number(color) || 0);
+    if (value <= 0 || value > 0xffffff) return null;
+    return `#${value.toString(16).padStart(6, "0")}`;
+}
+
+/**
+ * Le rôle le plus haut porté par un membre (nom + couleur), pour l'afficher dans la ligne.
+ * `null` si le membre ne porte aucun rôle connu de la guilde (ex. `@everyone` non listé).
+ */
+export function topDiscordRole(
+    roles: readonly string[] | null | undefined,
+    options: readonly DiscordRoleOption[]
+): DiscordRoleOption | null {
+    const held = new Set(Array.isArray(roles) ? roles : []);
+    return options.find((option) => held.has(option.id)) ?? null;
+}
+

@@ -11,7 +11,7 @@
  * combinent le déclaré (profils) et la saisie manuelle.
  */
 import React, { useCallback, useEffect, useMemo, useState, useTransition } from "react";
-import { AlertTriangle, Award, CheckCircle2, Clock, Copy, Download, Loader2, MessageSquare, Pencil, Plus, RefreshCw, Search, ShieldAlert, Trash2, Trophy } from "lucide-react";
+import { AlertTriangle, Award, CheckCircle2, Clock, Copy, Download, Loader2, MessageSquare, Pencil, Plus, RefreshCw, Search, ShieldAlert, Trash2, Trophy, UserRoundX } from "lucide-react";
 import { MemberRegistryCommentsDialog } from "@/components/admin/members/member-registry-comments-dialog";
 import { DiscordAvatarImage } from "@/components/shared/discord-avatar-image";
 import { ClassIcon } from "@/components/shared/class-icon";
@@ -29,18 +29,28 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { DOFUS_CLASSES, getClass } from "@/lib/dofus-assets";
 import {
+    DEFAULT_REGISTRY_FILTERS,
     MAX_REGISTRY_COMMENTS,
     buildRegistryCsv,
     computeSeniorityDays,
+    discordRoleColorHex,
     getTrialDecision,
     hasPseudoDiscordMismatch,
     isValidAnkamaId,
+    matchesDiscordOnlyFilters,
+    matchesRegistryFilters,
     parseAnkamaTag,
+    registryRoleOptions,
     resolveJoinedAt,
+    topDiscordRole,
+    type DiscordRoleOption,
+    type RegistryDashboardFilter,
+    type RegistryFilters,
     type TrialDecision,
 } from "@/lib/member-registry";
 import {
     getGuildLifecycleData,
+    getMemberRegistryDiscordIndex,
     setMemberTrialState,
     updateMemberAlts,
     updateMemberRecruiter,
@@ -49,6 +59,8 @@ import {
     type GuildLifecycleData,
     type LifecycleMemberSummary,
     type MemberAltInfo,
+    type MemberRegistryDiscordIndex,
+    type RegistryDiscordOnlyMember,
 } from "@/server/actions/member-lifecycle-actions";
 import { verifyDofusPseudo, isLadderManualFallbackEnabled } from "@/server/actions/profile-actions";
 
@@ -71,6 +83,40 @@ function fromDateInput(value: string): string | null {
     return Number.isNaN(d.getTime()) ? null : d.toISOString();
 }
 
+/**
+ * Pastille du **rôle Discord principal** d'un membre (le plus haut de la hiérarchie).
+ *
+ * La seule couleur « en dur » autorisée ici vient de la **donnée** Discord (`role.color`) et est
+ * posée en `style` : c'est l'identité visuelle du rôle, pas une couleur de thème. Rôle sans couleur
+ * ⇒ point neutre (`bg-muted-foreground/40`), jamais de substitution inventée.
+ */
+function RolePill({ role }: { role: DiscordRoleOption | null }) {
+    if (!role) return null;
+    const hex = discordRoleColorHex(role.color);
+    return (
+        <span
+            className="inline-flex items-center gap-1 text-[10px] font-medium text-muted-foreground min-w-0"
+            title={`Rôle Discord : ${role.name}`}
+        >
+            <span
+                className={cn("h-2 w-2 rounded-full shrink-0", !hex && "bg-muted-foreground/40")}
+                style={hex ? { backgroundColor: hex } : undefined}
+            />
+            <span className="truncate max-w-[110px]">{role.name}</span>
+        </span>
+    );
+}
+
+/** Badge « hors dashboard » : le membre existe sur Discord, mais n'a pas de profil ici. */
+function DiscordOnlyBadge() {
+    return (
+        <Badge variant="outline" className="gap-1 text-[10px] py-0 px-1.5 border-warning/40 text-warning">
+            <UserRoundX className="w-2.5 h-2.5" />
+            Hors dashboard
+        </Badge>
+    );
+}
+
 export function MemberRegistryTable({ guildId, canManageMembers }: MemberRegistryTableProps) {
     const [data, setData] = useState<GuildLifecycleData | null>(null);
     const [loading, setLoading] = useState(true);
@@ -78,6 +124,15 @@ export function MemberRegistryTable({ guildId, canManageMembers }: MemberRegistr
     const [search, setSearch] = useState("");
     const [trialFilter, setTrialFilter] = useState<TrialFilter>("ALL");
     const [recruiterFilter, setRecruiterFilter] = useState<string>("ALL");
+    /** Rôle Discord ciblé (`ALL` = tous) + inscription au dashboard (tous / inscrits / hors). */
+    const [roleFilter, setRoleFilter] = useState<string>("ALL");
+    const [dashboardFilter, setDashboardFilter] = useState<RegistryDashboardFilter>("ALL");
+    /**
+     * Index Discord (rôles par profil + membres Discord **hors dashboard**) — chargé à part du
+     * registre : la liste des membres s'affiche tout de suite, les colonnes Discord se remplissent
+     * ensuite (et l'absence de Discord ne casse rien).
+     */
+    const [discordIndex, setDiscordIndex] = useState<MemberRegistryDiscordIndex | null>(null);
 
     // Édition d'une ligne
     const [editing, setEditing] = useState<LifecycleMemberSummary | null>(null);
@@ -110,8 +165,16 @@ export function MemberRegistryTable({ guildId, canManageMembers }: MemberRegistr
         setLoading(false);
     };
 
+    /** Index Discord : fail-soft, un silence (bot absent, droits) ne bloque jamais le registre. */
+    const fetchDiscordIndex = async () => {
+        const res = await getMemberRegistryDiscordIndex(guildId);
+        if (res.success && res.data) setDiscordIndex(res.data);
+        else setDiscordIndex({ discordAvailable: false, roles: [], rolesByProfileId: {}, discordOnly: [] });
+    };
+
     useEffect(() => {
         fetchData();
+        fetchDiscordIndex();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [guildId]);
 
@@ -130,12 +193,39 @@ export function MemberRegistryTable({ guildId, canManageMembers }: MemberRegistr
                 setData(res.data);
                 toast.success("Registre actualisé");
             } else toast.error(res.error || "Erreur de rafraîchissement");
+            await fetchDiscordIndex();
         });
     };
 
+    /** Filtres courants, dans une seule forme : les règles pures de `member-registry` s'en servent. */
+    const filters: RegistryFilters = useMemo(
+        () => ({
+            search,
+            trial: trialFilter,
+            recruiterId: recruiterFilter,
+            roleId: roleFilter,
+            dashboard: dashboardFilter,
+        }),
+        [search, trialFilter, recruiterFilter, roleFilter, dashboardFilter]
+    );
+
+    const rolesByProfileId = discordIndex?.rolesByProfileId ?? {};
+
+    /**
+     * Options du filtre « rôle Discord » : les rôles réellement portés par un membre (profil
+     * dashboard **ou** membre hors dashboard), du plus haut au plus bas.
+     */
+    const roleOptions = useMemo<DiscordRoleOption[]>(
+        () =>
+            registryRoleOptions(discordIndex?.roles, [
+                ...(data?.members ?? []).map((m) => ({ roles: rolesByProfileId[m.id] ?? [] })),
+                ...(discordIndex?.discordOnly ?? []).map((m) => ({ roles: m.roles })),
+            ]),
+        [discordIndex, data?.members, rolesByProfileId]
+    );
+
     const rows = useMemo(() => {
         if (!data) return [];
-        const q = search.toLowerCase();
         return data.members
             .map((m) => {
                 const joinedAt = resolveJoinedAt({ guildJoinedAt: m.guildJoinedAt, createdAt: m.createdAt });
@@ -151,20 +241,28 @@ export function MemberRegistryTable({ guildId, canManageMembers }: MemberRegistr
                     }),
                 };
             })
-            .filter(({ member: m, trial }) => {
-                const matchesSearch =
-                    !q ||
-                    m.displayName.toLowerCase().includes(q) ||
-                    (m.pseudoDofus && m.pseudoDofus.toLowerCase().includes(q)) ||
-                    (m.discordNickname && m.discordNickname.toLowerCase().includes(q)) ||
-                    (m.ankamaId && m.ankamaId.toLowerCase().includes(q)) ||
-                    m.discordId.includes(q);
-                const matchesTrial = trialFilter === "ALL" || trial === trialFilter;
-                const matchesRecruiter = recruiterFilter === "ALL" || m.recruitedById === recruiterFilter;
-                return matchesSearch && matchesTrial && matchesRecruiter;
-            })
+            .filter(({ member: m, trial }) =>
+                matchesRegistryFilters(
+                    { row: m, trial, recruitedById: m.recruitedById, roles: rolesByProfileId[m.id] ?? [] },
+                    filters
+                )
+            )
             .sort((a, b) => b.seniority - a.seniority);
-    }, [data, search, trialFilter, recruiterFilter]);
+    }, [data, filters, rolesByProfileId]);
+
+    /**
+     * Membres **Discord sans profil dashboard** : ils étaient invisibles ici (le registre est
+     * construit sur les profils). Lecture seule — il n'y a rien à saisir pour eux —, filtrés par
+     * les mêmes règles (recherche + rôle) ; les filtres « essai » et « recruteur » les excluent,
+     * puisqu'ils ne portent pas ces données.
+     */
+    const discordOnlyRows = useMemo<RegistryDiscordOnlyMember[]>(() => {
+        const list = discordIndex?.discordOnly ?? [];
+        return list.filter((m) => matchesDiscordOnlyFilters(m, filters));
+    }, [discordIndex?.discordOnly, filters]);
+
+    const discordOnlyCount = discordIndex?.discordOnly.length ?? 0;
+    const visibleCount = rows.length + discordOnlyRows.length;
 
     const openEdit = (m: LifecycleMemberSummary) => {
         setEditing(m);
@@ -413,30 +511,63 @@ export function MemberRegistryTable({ guildId, canManageMembers }: MemberRegistr
                         className="pl-9"
                     />
                 </div>
-                <Select value={trialFilter} onValueChange={(v) => setTrialFilter(v as TrialFilter)}>
-                    <SelectTrigger className="w-full lg:w-44">
-                        <SelectValue placeholder="Essai validé" />
+                {/* Inscription : le registre est bâti sur les profils dashboard ⇒ les membres
+                    Discord **sans profil** étaient invisibles ici (« pk les non présents
+                    dashboard y sont pas ? »). Ils sont désormais listables (lecture seule). */}
+                <Select value={dashboardFilter} onValueChange={(v) => setDashboardFilter(v as RegistryDashboardFilter)}>
+                    <SelectTrigger className="w-full lg:w-56">
+                        <SelectValue placeholder="Inscription" />
                     </SelectTrigger>
                     <SelectContent>
-                        <SelectItem value="ALL">Essai validé : tous</SelectItem>
-                        <SelectItem value="oui">Essai validé : oui</SelectItem>
-                        <SelectItem value="non">Essai validé : non</SelectItem>
-                        <SelectItem value="prolonge">Essai validé : prolongé</SelectItem>
+                        <SelectItem value="ALL">Inscription : tous</SelectItem>
+                        <SelectItem value="DASHBOARD">Inscription : dashboard</SelectItem>
+                        <SelectItem value="MISSING">Hors dashboard ({discordOnlyCount})</SelectItem>
                     </SelectContent>
                 </Select>
-                <Select value={recruiterFilter} onValueChange={setRecruiterFilter}>
-                    <SelectTrigger className="w-full lg:w-52">
-                        <SelectValue placeholder="Recruteur" />
+                {/* Cibler UN rôle Discord (compteur = membres du registre + hors dashboard). */}
+                <Select value={roleFilter} onValueChange={setRoleFilter}>
+                    <SelectTrigger className="w-full lg:w-56">
+                        <SelectValue placeholder="Rôle Discord" />
                     </SelectTrigger>
                     <SelectContent>
-                        <SelectItem value="ALL">Recruteur : tous</SelectItem>
-                        {data?.recruiterLeaderboard.map((r) => (
-                            <SelectItem key={r.recruiterId} value={r.recruiterId}>
-                                {r.recruiterName} ({r.totalRecruits})
+                        <SelectItem value="ALL">Rôle Discord : tous</SelectItem>
+                        {roleOptions.map((role) => (
+                            <SelectItem key={role.id} value={role.id}>
+                                {role.name} ({role.count})
                             </SelectItem>
                         ))}
                     </SelectContent>
                 </Select>
+                {/* Essai & recruteur sont des données du registre : sur « hors dashboard », il n'y a
+                    rien à filtrer (règle pure `matchesDiscordOnlyFilters`) ⇒ on ne les affiche pas. */}
+                {dashboardFilter !== "MISSING" && (
+                    <>
+                        <Select value={trialFilter} onValueChange={(v) => setTrialFilter(v as TrialFilter)}>
+                            <SelectTrigger className="w-full lg:w-44">
+                                <SelectValue placeholder="Essai validé" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="ALL">Essai validé : tous</SelectItem>
+                                <SelectItem value="oui">Essai validé : oui</SelectItem>
+                                <SelectItem value="non">Essai validé : non</SelectItem>
+                                <SelectItem value="prolonge">Essai validé : prolongé</SelectItem>
+                            </SelectContent>
+                        </Select>
+                        <Select value={recruiterFilter} onValueChange={setRecruiterFilter}>
+                            <SelectTrigger className="w-full lg:w-52">
+                                <SelectValue placeholder="Recruteur" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="ALL">Recruteur : tous</SelectItem>
+                                {data?.recruiterLeaderboard.map((r) => (
+                                    <SelectItem key={r.recruiterId} value={r.recruiterId}>
+                                        {r.recruiterName} ({r.totalRecruits})
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </>
+                )}
                 <div className="flex gap-2">
                     <Button variant="outline" size="sm" onClick={refresh} disabled={isPending} className="gap-2">
                         <RefreshCw className={cn("w-3.5 h-3.5", isPending && "animate-spin")} />
@@ -453,11 +584,21 @@ export function MemberRegistryTable({ guildId, canManageMembers }: MemberRegistr
             <Card className="bg-surface/40 border-border rounded-2xl overflow-hidden">
                 <CardHeader className="py-4 px-6 border-b border-border">
                     <CardTitle className="text-sm font-semibold uppercase tracking-wide">
-                        Registre — {rows.length} membre{rows.length > 1 ? "s" : ""}
+                        Registre — {visibleCount} membre{visibleCount > 1 ? "s" : ""}
                     </CardTitle>
                     <CardDescription>
                         Aujourd&apos;hui : {todayLabel} · l&apos;ancienneté se calcule seule, l&apos;ID Discord se peuple seul.
+                        {discordOnlyCount > 0 && (
+                            <span className="text-warning">
+                                {" "}· {discordOnlyCount} membre{discordOnlyCount > 1 ? "s" : ""} sur Discord sans profil dashboard
+                            </span>
+                        )}
                     </CardDescription>
+                    {discordIndex && !discordIndex.discordAvailable && (
+                        <p className="text-[11px] text-muted-foreground mt-1">
+                            Discord injoignable : rôles et membres hors dashboard indisponibles pour l&apos;instant.
+                        </p>
+                    )}
                 </CardHeader>
 
                 {/* Vue Mobile (Cards) - évite tout scroll horizontal coupé */}
@@ -465,6 +606,7 @@ export function MemberRegistryTable({ guildId, canManageMembers }: MemberRegistr
                     {rows.map(({ member: m, joinedAt, seniority, trial }) => {
                         const ankamaParts = parseAnkamaTag(m.ankamaId);
                         const hasMismatch = hasPseudoDiscordMismatch(m.discordNickname || m.displayName, m.ankamaId);
+                        const topRole = topDiscordRole(rolesByProfileId[m.id] ?? [], roleOptions);
 
                         return (
                             <div key={m.id} className="p-4 space-y-3 bg-surface/20">
@@ -487,6 +629,9 @@ export function MemberRegistryTable({ guildId, canManageMembers }: MemberRegistr
                                                     🎮 {m.pseudoDofus}
                                                 </span>
                                             )}
+                                            <div className="mt-0.5">
+                                                <RolePill role={topRole} />
+                                            </div>
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-1 shrink-0">
@@ -574,6 +719,54 @@ export function MemberRegistryTable({ guildId, canManageMembers }: MemberRegistr
                             </div>
                         );
                     })}
+
+                    {/* Membres Discord SANS profil dashboard : listés ici en **lecture seule**
+                        (rien à saisir pour eux) — c'est ce que le registre ne montrait pas. */}
+                    {discordOnlyRows.map((m) => (
+                        <div key={`discord-${m.discordId}`} className="p-4 space-y-3 bg-surface/20">
+                            <div className="flex items-start justify-between gap-2">
+                                <div className="flex items-center gap-2.5 min-w-0">
+                                    <Avatar className="h-9 w-9 shrink-0 border border-border">
+                                        <DiscordAvatarImage src={m.avatar} alt={m.displayName} className="object-cover" />
+                                        <AvatarFallback className="bg-elevated text-xs font-bold uppercase text-muted-foreground">
+                                            {m.displayName.slice(0, 1)}
+                                        </AvatarFallback>
+                                    </Avatar>
+                                    <div className="min-w-0">
+                                        <span className="font-semibold text-sm block truncate" title={m.displayName}>{m.displayName}</span>
+                                        <div className="mt-0.5">
+                                            <DiscordOnlyBadge />
+                                        </div>
+                                    </div>
+                                </div>
+                                <RolePill role={topDiscordRole(m.roles, roleOptions)} />
+                            </div>
+                            <div className="grid grid-cols-2 gap-2 text-xs pt-1">
+                                <div>
+                                    <span className="text-[10px] uppercase text-muted-foreground font-semibold block">ID Discord</span>
+                                    <button
+                                        onClick={() => copyDiscordId(m.discordId)}
+                                        className="font-mono text-[11px] text-muted-foreground hover:text-foreground inline-flex items-center gap-1"
+                                        title={`Copier l'ID Discord (${m.discordId})`}
+                                    >
+                                        <Copy className="w-3 h-3" />
+                                        {m.discordId}
+                                    </button>
+                                </div>
+                                <div>
+                                    <span className="text-[10px] uppercase text-muted-foreground font-semibold block">Arrivée sur Discord</span>
+                                    <span className="text-xs font-medium block">
+                                        {m.joinedAt ? new Date(m.joinedAt).toLocaleDateString("fr-FR") : "—"}
+                                    </span>
+                                    {m.joinedAt && (
+                                        <span className="text-[11px] text-muted-foreground font-mono">
+                                            {computeSeniorityDays(m.joinedAt)} j
+                                        </span>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    ))}
                 </div>
 
                 {/* Vue Desktop / Tablette */}
@@ -595,6 +788,7 @@ export function MemberRegistryTable({ guildId, canManageMembers }: MemberRegistr
                             {rows.map(({ member: m, joinedAt, seniority, trial }) => {
                                 const ankamaParts = parseAnkamaTag(m.ankamaId);
                                 const hasMismatch = hasPseudoDiscordMismatch(m.discordNickname || m.displayName, m.ankamaId);
+                                const topRole = topDiscordRole(rolesByProfileId[m.id] ?? [], roleOptions);
 
                                 return (
                                     <TableRow key={m.id} className="hover:bg-muted/20">
@@ -631,6 +825,9 @@ export function MemberRegistryTable({ guildId, canManageMembers }: MemberRegistr
                                                             🎮 {m.pseudoDofus}
                                                         </span>
                                                     )}
+                                                    <div className="mt-0.5">
+                                                        <RolePill role={topRole} />
+                                                    </div>
                                                 </div>
                                             </div>
                                         </TableCell>
@@ -778,11 +975,80 @@ export function MemberRegistryTable({ guildId, canManageMembers }: MemberRegistr
                                     </TableRow>
                                 );
                             })}
-                            {rows.length === 0 && (
+                            {/* Membres Discord sans profil dashboard : **lecture seule** (aucune
+                                donnée à saisir pour eux) — ils complètent le registre au lieu
+                                d'être invisibles. */}
+                            {discordOnlyRows.map((m) => (
+                                <TableRow key={`discord-${m.discordId}`} className="hover:bg-muted/20">
+                                    <TableCell>
+                                        <div className="flex items-center gap-2.5">
+                                            <Avatar className="h-8 w-8 shrink-0 border border-border">
+                                                <DiscordAvatarImage src={m.avatar} alt={m.displayName} className="object-cover" />
+                                                <AvatarFallback className="bg-elevated text-[10px] font-bold uppercase text-muted-foreground">
+                                                    {m.displayName.slice(0, 1)}
+                                                </AvatarFallback>
+                                            </Avatar>
+                                            <div className="min-w-0">
+                                                <div className="flex items-center gap-1.5">
+                                                    <span className="font-semibold text-sm block truncate" title={m.displayName}>
+                                                        {m.displayName}
+                                                    </span>
+                                                    <button
+                                                        onClick={() => copyDiscordId(m.discordId)}
+                                                        className="text-muted-foreground/50 hover:text-foreground transition-colors"
+                                                        title={`Copier l'ID Discord (${m.discordId})`}
+                                                    >
+                                                        <Copy className="w-3 h-3" />
+                                                    </button>
+                                                </div>
+                                                <div className="mt-0.5 flex items-center gap-2">
+                                                    <DiscordOnlyBadge />
+                                                    <RolePill role={topDiscordRole(m.roles, roleOptions)} />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </TableCell>
+                                    <TableCell><span className="text-xs text-muted-foreground">—</span></TableCell>
+                                    <TableCell>
+                                        <div className="flex flex-col">
+                                            <span className="text-xs font-medium">
+                                                {m.joinedAt ? new Date(m.joinedAt).toLocaleDateString("fr-FR") : "—"}
+                                            </span>
+                                            {m.joinedAt && (
+                                                <span className="text-[11px] text-muted-foreground font-mono">
+                                                    {computeSeniorityDays(m.joinedAt)} j
+                                                </span>
+                                            )}
+                                        </div>
+                                    </TableCell>
+                                    <TableCell><span className="text-xs text-muted-foreground">—</span></TableCell>
+                                    <TableCell><span className="text-xs text-muted-foreground">—</span></TableCell>
+                                    <TableCell><span className="text-xs text-muted-foreground">—</span></TableCell>
+                                    <TableCell><span className="text-xs text-muted-foreground">—</span></TableCell>
+                                    <TableCell className="text-right">
+                                        <span className="text-[10px] uppercase tracking-wide text-muted-foreground">lecture seule</span>
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                            {visibleCount === 0 && (
                                 <TableRow>
                                     <TableCell colSpan={8} className="text-center py-10 text-muted-foreground">
                                         <Clock className="w-5 h-5 mx-auto mb-2" />
                                         Aucun membre dans le registre avec ces filtres.
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            className="mt-3 mx-auto flex"
+                                            onClick={() => {
+                                                setSearch(DEFAULT_REGISTRY_FILTERS.search);
+                                                setTrialFilter(DEFAULT_REGISTRY_FILTERS.trial);
+                                                setRecruiterFilter(DEFAULT_REGISTRY_FILTERS.recruiterId);
+                                                setRoleFilter(DEFAULT_REGISTRY_FILTERS.roleId);
+                                                setDashboardFilter(DEFAULT_REGISTRY_FILTERS.dashboard);
+                                            }}
+                                        >
+                                            Réinitialiser les filtres
+                                        </Button>
                                     </TableCell>
                                 </TableRow>
                             )}

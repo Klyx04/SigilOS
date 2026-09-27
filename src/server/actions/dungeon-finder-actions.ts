@@ -988,13 +988,28 @@ export async function sendDjCustomReminder(guildId: string, postId: string, cust
             return { success: false, error: `Anti-spam : Veuillez attendre encore ${remainingHours}h avant la prochaine relance.` };
         }
 
-        const mentions: string[] = [];
+        const discordIds: string[] = [];
         for (const p of post.participants) {
             const discordId = await getDiscordId(p.profile.userId);
-            if (discordId) mentions.push(`<@${discordId}>`);
+            if (discordId) discordIds.push(discordId);
         }
 
-        if (mentions.length === 0) return { success: false, error: "Aucun participant accepté à pinger" };
+        if (discordIds.length === 0) return { success: false, error: "Aucun participant accepté à pinger" };
+
+        // Filtre vocal « suivre le leader » (fail-open : sans état vocal, on pinge tout le monde).
+        const leaderDiscordId = await getDiscordId(post.profile.userId);
+        const { splitByVoice } = await import("@/server/voice-reminder-service");
+        const { buildRaidReminderMentions } = await import("@/lib/raid-reminder");
+        const split = await splitByVoice(guildId, discordIds, leaderDiscordId);
+        const mentionsStr = buildRaidReminderMentions(split.absentDiscordIds);
+        if (!mentionsStr) {
+            // Tous déjà en vocal avec le leader : on enregistre quand même la relance (anti-spam).
+            await (db as any).djSearchPost.update({
+                where: { id: postId },
+                data: { lastReminderAt: new Date() }
+            });
+            return { success: true, pinged: 0, skipped: split.presentCount };
+        }
 
         const { sendDiscordRawEmbed } = await import("@/server/discord");
 
@@ -1011,20 +1026,20 @@ export async function sendDjCustomReminder(guildId: string, postId: string, cust
 
         const embed = {
             title: `📣 RELANCE DU LEADER — ${modeLabel}`,
-            description: `**${postTitle}**\n\n💬 **Message du leader (${authorName}) :**\n> ${customMessage.trim()}`,
+            description: `**${postTitle}**\n\n💬 **Message du leader (${authorName}) :**\n> ${customMessage.trim()}${split.presentCount > 0 ? `\n\n🔊 ${split.presentCount} déjà en vocal non pingé(s).` : ""}`,
             color: 0xf59e0b, // Amber for custom reminders
-            footer: { text: "SigilOS • Donjon-Finder — Relance personnalisée" },
+            footer: { text: "SigilOS • Donjon-Finder — Relance personnalisée (absents du vocal uniquement)" },
             timestamp: new Date().toISOString(),
         };
 
-        await sendDiscordRawEmbed(guildId, post.discordChannelId, mentions.join(" "), embed);
+        await sendDiscordRawEmbed(guildId, post.discordChannelId, mentionsStr, embed);
 
         await (db as any).djSearchPost.update({
             where: { id: postId },
             data: { lastReminderAt: new Date() }
         });
 
-        return { success: true };
+        return { success: true, pinged: split.absentCount, skipped: split.presentCount };
     } catch (error) {
         logger.error("[sendDjCustomReminder]", error);
         return { success: false, error: "Erreur lors de l'envoi de la relance" };
@@ -1499,7 +1514,7 @@ export async function updateDjPost(
 
         const postBefore = await (db as any).djSearchPost.findFirst({
             where: { id: postId, guildId: guildConfig.id },
-            select: { profileId: true, status: true, maxMembers: true, dungeonsJson: true },
+            select: { profileId: true, status: true, maxMembers: true, dungeonsJson: true, targetDate: true },
         });
 
         if (!postBefore) return { success: false, error: "Post introuvable" };
@@ -1514,6 +1529,24 @@ export async function updateDjPost(
             ? mergeMultiDungeonTargetDates(postBefore.dungeonsJson, data.multiDungeonDates)
             : null;
 
+        // Replanification H-1 : si `targetDate` change (nouvelle heure ou passage
+        // en indéfini), le marqueur `_h1ReminderSentAt` doit repartir à zéro pour
+        // la nouvelle échéance — sinon le rappel du nouvel horaire ne partirait jamais.
+        // Sans date (indéfini) : le cron H-1 ignore le post (`no-date`).
+        const prevTargetMs = postBefore.targetDate ? new Date(postBefore.targetDate).getTime() : null;
+        const nextTargetMs = data.targetDate ? new Date(data.targetDate).getTime() : null;
+        let h1ResetJson: Record<string, unknown> | null = null;
+        if (prevTargetMs !== nextTargetMs) {
+            const baseJson =
+                (multi && typeof multi === "object" && !Array.isArray(multi)
+                    ? (multi as Record<string, unknown>)
+                    : postBefore.dungeonsJson && typeof postBefore.dungeonsJson === "object" && !Array.isArray(postBefore.dungeonsJson)
+                      ? (postBefore.dungeonsJson as Record<string, unknown>)
+                      : {});
+            const { _h1ReminderSentAt: _dropSent, _h1ReminderFor: _dropFor, ...rest } = baseJson as Record<string, unknown>;
+            h1ResetJson = rest;
+        }
+
         await (db as any).djSearchPost.update({
             where: { id: postId },
             data: {
@@ -1522,7 +1555,7 @@ export async function updateDjPost(
                 targetDate: data.targetDate,
                 wantedAchievementIds: data.wantedAchievementIds,
                 requiredClasses: data.requiredClasses,
-                ...(multi ? { dungeonsJson: multi } : {}),
+                ...(multi ? { dungeonsJson: h1ResetJson ?? multi } : h1ResetJson ? { dungeonsJson: h1ResetJson } : {}),
                 // Modifiable uniquement pour les quêtes manuelles (pas de questId valide)
                 ...(data.questName !== undefined && { questName: data.questName }),
                 ...(data.questUrl !== undefined && { questUrl: data.questUrl }),
@@ -3200,5 +3233,67 @@ export async function getDungeonDirectory(
     } catch (error) {
         logger.error("[getDungeonDirectory]", error);
         return { success: false, error: "Erreur lors du chargement de l'annuaire" };
+    }
+}
+
+// ---------------------------------------------------------------------------
+// STATUT VOCAL AVANT RELANCE DJ — lecture seule pour la modale (aucun ping).
+// Visible par : seul le créateur du post (même règle que sendDjCustomReminder).
+// ---------------------------------------------------------------------------
+
+/**
+ * Qui est déjà en vocal avec le leader (règle « suivre le capitaine »).
+ */
+export async function getDjVoiceStatus(
+    guildId: string,
+    postId: string
+): Promise<{ success: boolean; error?: string; total?: number; present?: number; absent?: number; captainInVoice?: boolean }> {
+    const user = await getUserContext(guildId);
+    if (!user.isAuthenticated || !user.profileId) return { success: false, error: "Non authentifié" };
+    try {
+        const guildConfig = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { id: true },
+        });
+        if (!guildConfig) return { success: false, error: "Guilde introuvable" };
+        const post = await (db as any).djSearchPost.findFirst({
+            where: { id: postId, guildId: guildConfig.id },
+            select: {
+                profileId: true,
+                profile: { select: { userId: true } },
+                participants: {
+                    where: { status: "ACCEPTED" },
+                    select: { profile: { select: { userId: true } } },
+                },
+            },
+        });
+        if (!post) return { success: false, error: "Post introuvable" };
+        if (post.profileId !== user.profileId) return { success: false, error: "Seul le leader peut voir ce statut" };
+
+        const acceptedUserIds = post.participants.map((p: any) => p.profile.userId);
+        const accounts = await db.account.findMany({
+            where: { userId: { in: acceptedUserIds }, provider: "discord" },
+            select: { providerAccountId: true },
+        });
+        const leaderAccount = await db.account.findFirst({
+            where: { userId: post.profile.userId, provider: "discord" },
+            select: { providerAccountId: true },
+        });
+        const { splitByVoice } = await import("@/server/voice-reminder-service");
+        const split = await splitByVoice(
+            guildId,
+            accounts.map((a) => a.providerAccountId),
+            leaderAccount?.providerAccountId ?? null
+        );
+        return {
+            success: true,
+            total: accounts.length,
+            present: split.presentCount,
+            absent: split.absentCount,
+            captainInVoice: !!split.captainChannelId,
+        };
+    } catch (error) {
+        logger.error("[getDjVoiceStatus]", error);
+        return { success: false, error: "Erreur lors de la lecture du vocal" };
     }
 }

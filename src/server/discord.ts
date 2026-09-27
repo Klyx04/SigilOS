@@ -1315,19 +1315,72 @@ export async function editInteractionMessage(
 }
 
 /**
- * Delete a Discord message (e.g. run embed when run is closed)
+ * Delete a Discord message (e.g. run embed when run is closed).
+ *
+ * Robuste aux IDs outbox (`outbox:<jobId>`) : quand `DISCORD_OUTBOX_ENABLED=true`,
+ * `sendChannelMessage` renvoie un ID de file et non un snowflake Discord. Si cet ID
+ * est passé ici, on résout d'abord le vrai snowflake dans Redis via `messageKey`
+ * (la clé `storeMessageIdKey` posée à l'envoi, stockée à côté de l'entrée
+ * `reminderMessages`). Sans résolution possible, on ignore (le message n'existe
+ * pas encore côté Discord — rien à supprimer).
  */
-export async function deleteChannelMessage(channelId: string, messageId: string): Promise<boolean> {
+export async function resolveReminderMessageId(
+    messageId: string,
+    messageKey?: string | null
+): Promise<string | null> {
+    const { isDiscordSnowflake, isOutboxMessageId } = await import("@/lib/discord-ids");
+    if (isDiscordSnowflake(messageId)) return messageId;
+    if (!isOutboxMessageId(messageId)) return null;
+    if (!messageKey) return null;
+    try {
+        const { redis } = await import("@/lib/redis");
+        const resolved = await redis.get(messageKey);
+        if (isDiscordSnowflake(resolved)) return resolved;
+    } catch {
+        // Redis indisponible → fail-closed sur la suppression (on réessaiera).
+    }
+    return null;
+}
+
+export async function deleteChannelMessage(channelId: string, messageId: string, messageKey?: string | null): Promise<boolean> {
     const token = process.env.DISCORD_BOT_TOKEN;
     if (!token) return false;
 
+    const { isDiscordSnowflake, isOutboxMessageId } = await import("@/lib/discord-ids");
+
+    // Si l'ID stocké est un ID de file d'attente outbox, résoudre le vrai
+    // snowflake via la clé Redis posée à l'envoi (`storeMessageIdKey`, stockée
+    // à côté de l'entrée `reminderMessages`). Sans clé ou sans résolution
+    // (worker pas encore passé), on ignore : le message n'existe pas encore
+    // côté Discord, il n'y a donc rien à supprimer.
+    let effectiveMessageId = messageId;
+    if (isOutboxMessageId(messageId)) {
+        const resolved = await resolveReminderMessageId(messageId, messageKey);
+        if (!resolved) {
+            logger.warn("[Discord] deleteChannelMessage : messageId outbox non résolu — suppression ignorée", {
+                channelId,
+                messageId,
+            });
+            return false;
+        }
+        effectiveMessageId = resolved;
+    }
+
+    if (!isDiscordSnowflake(effectiveMessageId)) {
+        logger.warn("[Discord] deleteChannelMessage : messageId invalide (ni snowflake ni outbox)", {
+            channelId,
+            messageId,
+        });
+        return false;
+    }
+
     try {
         // Automatically handle Forum Posts/Threads where channelId === messageId
-        if (channelId === messageId) {
+        if (channelId === effectiveMessageId) {
             return await deleteChannel(channelId);
         }
 
-        const res = await fetchWithRetry(`/api/v10/channels/${channelId}/messages/${messageId}`, {
+        const res = await fetchWithRetry(`/api/v10/channels/${channelId}/messages/${effectiveMessageId}`, {
             method: "DELETE",
             headers: {
                 Authorization: `Bot ${token}`,
@@ -2365,3 +2418,78 @@ export async function fetchChannelMessagesDiscord(
     }
 }
 
+// =============================================================================
+// VOICE STATE HELPER
+// Lit les membres actuellement en vocal sur un serveur Discord (API v10).
+// Utilisé par les rappels manuels pour filtrer ceux déjà connectés.
+// =============================================================================
+
+/**
+ * Lit l'état vocal d'un serveur Discord : map userId → channelId.
+ *
+ * Implémentation : endpoint `GET /guilds/:id/voice-states` (v10, paginé 100/page).
+ * Fail-open : en cas d'erreur, map vide (le rappel pinge tout le monde).
+ * Cache in-memory : 20 secondes.
+ */
+export async function getGuildVoiceStates(discordGuildId: string): Promise<Map<string, string>> {
+    const token = process.env.DISCORD_BOT_TOKEN;
+    const empty = new Map<string, string>();
+    if (!token || !discordGuildId) return empty;
+
+    const { isDiscordSnowflake } = await import("@/lib/discord-ids");
+    if (!isDiscordSnowflake(discordGuildId)) return empty;
+
+    const cacheKey = `voice-states:${discordGuildId}`;
+    const cached = getCached<Map<string, string>>(cacheKey);
+    if (cached) return cached;
+
+    const states = new Map<string, string>();
+
+    try {
+        let after: string | undefined;
+        for (let page = 0; page < 20; page++) {
+            const qs = after ? `?limit=100&after=${after}` : "?limit=100";
+            const res = await fetchWithRetry(`/api/v10/guilds/${discordGuildId}/voice-states${qs}`, {
+                headers: {
+                    Authorization: `Bot ${token}`,
+                    "User-Agent": DISCORD_USER_AGENT,
+                },
+                cache: "no-store",
+            });
+
+            if (!res.ok) {
+                if (res.status !== 403) {
+                    logger.warn(`[Discord] getGuildVoiceStates: HTTP ${res.status} sur ${discordGuildId}`);
+                }
+                break;
+            }
+
+            const rows: { user_id?: string; channel_id?: string | null }[] = await res.json();
+            if (!Array.isArray(rows) || rows.length === 0) break;
+
+            for (const row of rows) {
+                if (row.user_id && row.channel_id) states.set(row.user_id, row.channel_id);
+            }
+
+            if (rows.length < 100) break;
+            after = rows[rows.length - 1].user_id;
+        }
+    } catch (err) {
+        logger.warn("[Discord] getGuildVoiceStates: erreur réseau (fail-open)", { error: String(err) });
+    }
+
+    setCached(cacheKey, states, 20 * 1000);
+    return states;
+}
+
+/**
+ * Retourne l'ensemble des Discord snowflakes (user_id) actuellement connectés
+ * dans un salon vocal quelconque du serveur Discord `discordGuildId`.
+ *
+ * Fine couche sur `getGuildVoiceStates` (même endpoint, même cache 20 s).
+ * Fail-open : Set vide si erreur → le rappel pinge tout le monde.
+ */
+export async function getGuildVoiceMemberIds(discordGuildId: string): Promise<Set<string>> {
+    const states = await getGuildVoiceStates(discordGuildId);
+    return new Set(states.keys());
+}

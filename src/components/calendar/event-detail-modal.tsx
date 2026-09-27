@@ -181,7 +181,7 @@ interface EventDetailModalProps {
     onPublish?: () => Promise<void>;
     onComplete?: () => Promise<void>;
     onUndoComplete?: () => Promise<void>;
-    onSendReminder?: (roleId?: string) => Promise<{ success: boolean; sentCount?: number; discordSent?: boolean; error?: string }>;
+    onSendReminder?: (roleId?: string) => Promise<{ success: boolean; sentCount?: number; discordSent?: boolean; pinged?: number; skipped?: number; error?: string }>;
     onShareDiscord?: (roleId?: string) => Promise<{ success: boolean; error?: string }>;
     hasMetamobKey?: boolean;
     discordChannels?: DiscordChannels;

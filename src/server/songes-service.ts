@@ -396,6 +396,8 @@ export async function deleteRunJoinRequestsDiscordMessages(guildId: string, runI
 
 /**
  * Deletes all Discord leader reminder messages sent for a specific run.
+ * Best-effort + awaited (allSettled) : un ID `outbox:<jobId>` non encore résolu
+ * est ignoré par `deleteChannelMessage` (le message n'existe pas encore côté Discord).
  */
 export async function deleteRunRemindersDiscordMessages(guildId: string, runId: string) {
     try {
@@ -406,11 +408,13 @@ export async function deleteRunRemindersDiscordMessages(guildId: string, runId: 
 
         const { deleteChannelMessage } = await import("@/server/discord");
 
+        const tasks: Promise<unknown>[] = [];
         for (const rem of reminders) {
             if (rem.discordChannelId && rem.discordMessageId) {
-                await deleteChannelMessage(rem.discordChannelId, rem.discordMessageId);
+                tasks.push(deleteChannelMessage(rem.discordChannelId, rem.discordMessageId).catch(() => false));
             }
         }
+        if (tasks.length > 0) await Promise.allSettled(tasks);
     } catch (error) {
         console.error("[Songes Service] deleteRunRemindersDiscordMessages Error:", error);
     }
@@ -428,22 +432,33 @@ export async function notifyRunMembers(guildId: string, runId: string, message: 
         const { run, diffConfig, dashboardUrl, fields } = embedData;
         if (!run.discordChannelId) return { success: false, error: "Run ou canal introuvable" };
 
-        const mentions: string[] = [];
+        const discordIds: string[] = [];
         for (const member of run.members) {
             const discordId = await getDiscordId(member.userId);
-            if (discordId) mentions.push(`<@${discordId}>`);
+            if (discordId) discordIds.push(discordId);
         }
 
-        if (mentions.length === 0) return { success: false, error: "Aucun ID Discord trouvé" };
+        if (discordIds.length === 0) return { success: false, error: "Aucun ID Discord trouvé" };
+
+        // Filtre vocal « suivre le leader » (fail-open : sans état, on pinge tout le monde).
+        const leaderDiscordId = await getDiscordId(run.leaderId);
+        const { splitByVoice } = await import("@/server/voice-reminder-service");
+        const { buildRaidReminderMentions } = await import("@/lib/raid-reminder");
+        const split = await splitByVoice(guildId, discordIds, leaderDiscordId);
+        const mentionsStr = buildRaidReminderMentions(split.absentDiscordIds);
+        if (!mentionsStr) {
+            return { success: true, messageId: null, pinged: 0, skipped: split.presentCount };
+        }
 
         const { sendChannelMessage } = await import("@/server/discord");
 
         // Build a nice reminder embed
+        const manualSongesKey = `manual-songes:msg:${runId}:${Date.now()}`;
         const messageId = await sendChannelMessage(
             run.discordChannelId,
             message, // Becomes embed.description
             {
-                mentionContent: mentions.join(" "), // Triggers the ping
+                mentionContent: mentionsStr, // Triggers the ping (absents du vocal uniquement)
                 embedTitle: `🔔 Rappel Songes : ${diffConfig.emoji} ${diffConfig.label}${embedData.run.epreuveCode ? ` — ${getEpreuve(embedData.run.epreuveCode)?.label ?? ""}` : ""}`,
                 embedUrl: dashboardUrl,
                 embedColor: diffConfig.color,
@@ -458,12 +473,14 @@ export async function notifyRunMembers(guildId: string, runId: string, message: 
                         return epreuve ? [{ name: "🏆 Épreuve", value: `**${epreuve.label}**`, inline: true }] : [];
                     })(),
                 ],
-                embedFooter: `SigilOS • Songes Infinis`,
-                embedThumbnail: embedData.thumbnailUrl
+                embedFooter: `SigilOS • Songes Infinis${split.presentCount > 0 ? ` • ${split.presentCount} déjà en vocal` : ""}`,
+                embedThumbnail: embedData.thumbnailUrl,
+                storeMessageIdKey: manualSongesKey,
+                storeMessageIdTTL: 30 * 24 * 3600,
             }
         );
 
-        return { success: true, messageId };
+        return { success: true, messageId, pinged: split.absentCount, skipped: split.presentCount, messageKey: manualSongesKey };
     } catch (error) {
         console.error("[Songes Service] notifyRunMembers Error:", error);
         return { success: false, error: "Erreur serveur" };

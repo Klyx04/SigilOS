@@ -134,6 +134,21 @@ export const KNOWN_CRON_TASKS: Record<string, { name: string; schedule: string; 
         schedule: "Toutes les 10 min",
         logFile: "raid-reminders.log",
     },
+    event_reminders: {
+        name: "Rappel Events — ping des inscrits (fenêtre notifyBefore)",
+        schedule: "Toutes les 10 min",
+        logFile: "event-reminders.log",
+    },
+    dj_reminders: {
+        name: "Rappel DJ/Quêtes — ping des acceptés (1 h avant)",
+        schedule: "Toutes les 10 min",
+        logFile: "dj-reminders.log",
+    },
+    songes_reminders: {
+        name: "Rappel Songes — ping des membres (1 h avant)",
+        schedule: "Toutes les 10 min",
+        logFile: "songes-reminders.log",
+    },
     discord_channel_watch: {
         name: "Surveillance Salons Discord",
         schedule: "Quotidien 07h00",

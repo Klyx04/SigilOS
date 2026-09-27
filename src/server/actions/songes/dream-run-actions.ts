@@ -1643,6 +1643,48 @@ export async function triggerRunNotification(guildId: string, runId: string, mes
     return result;
 }
 
+/**
+ * Statut vocal avant rappel manuel Songes — lecture seule (aucun ping).
+ * Visible par : seul le leader de la run (même règle que `triggerRunNotification`).
+ */
+export async function getSongesVoiceStatus(guildId: string, runId: string) {
+    const ctx = await getGuildUserContext(guildId);
+    if (!ctx) return { success: false, error: "Non authentifié ou non autorisé" };
+    try {
+        const run = await db.dreamRun.findFirst({
+            where: { id: runId, guildId: ctx.guildId },
+            select: { id: true, leaderId: true, members: { select: { userId: true } } },
+        });
+        if (!run) return { success: false, error: "Run non trouvée" };
+        if (run.leaderId !== ctx.userId) return { success: false, error: "Seul le leader peut voir ce statut" };
+
+        const accounts = await db.account.findMany({
+            where: { userId: { in: run.members.map(m => m.userId) }, provider: "discord" },
+            select: { providerAccountId: true },
+        });
+        const leaderAccount = await db.account.findFirst({
+            where: { userId: run.leaderId, provider: "discord" },
+            select: { providerAccountId: true },
+        });
+        const { splitByVoice } = await import("@/server/voice-reminder-service");
+        const split = await splitByVoice(
+            guildId,
+            accounts.map(a => a.providerAccountId),
+            leaderAccount?.providerAccountId ?? null
+        );
+        return {
+            success: true,
+            total: accounts.length,
+            present: split.presentCount,
+            absent: split.absentCount,
+            captainInVoice: !!split.captainChannelId,
+        };
+    } catch (error) {
+        logger.error("[getSongesVoiceStatus] error:", error);
+        return { success: false, error: "Erreur lors de la lecture du vocal" };
+    }
+}
+
 // ============================================
 // CONTRIBUTION POINTS — CLOSE RUN WITH DISTRIBUTION
 // ============================================

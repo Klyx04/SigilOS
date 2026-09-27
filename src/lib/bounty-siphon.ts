@@ -54,10 +54,12 @@ import {
     bountyRaceName,
     bountySlug,
     isBountyRace,
+    isIdSuffixedBountySlug,
     isProvenBounty,
     normalizeBountySubareas,
     pickBountyBattleMap,
     pickBountySubarea,
+    uniqueBountySlug,
     type BountyMapSource,
     type BountySubarea,
 } from "@/lib/bounty";
@@ -207,7 +209,7 @@ export async function syncBounties(raceIds?: readonly number[]): Promise<BountyS
         targets.push({
             id,
             name,
-            slug: bountySlug(name, id),
+            slug: bountySlug(name),
             raceId: Math.floor(Number(monster?.__raceId) || 0),
             raceName: bountyRaceName(monster?.__raceId, meta?.Race?.Name),
             level: bountyLevel(monster?.grades, 1),
@@ -234,6 +236,35 @@ export async function syncBounties(raceIds?: readonly number[]): Promise<BountyS
     const ignoredIds = getIgnoredBountyIds();
     const keptTargets = targets.filter((t) => !isIgnoredBounty(t.id, ignoredIds));
     result.ignored = targets.length - keptTargets.length;
+
+    // 3ter. SLUGS PROPRES (décision user 27/09/2026 : « les avis ont un chiffre dans l'URL,
+    //       c'est pas propre ») — règle unique, appliquée ici pour TOUS les avis :
+    //        · un slug déjà propre est CONSERVÉ (une URL publiée ne bouge pas) ;
+    //        · un slug historique `nom-<id>` est nettoyé au passage (idempotent : la prochaine
+    //          passe findFirst ne fait plus rien) ;
+    //        · homonymes (3 × « Ronce ») ⇒ suffixe `-2`, `-3`… **jamais** l'identifiant.
+    //       Les anciennes URL `nom-<id>` restent servies en 308 par la page publique.
+    if (DB_READABLE) {
+        const rows = await db.bounty.findMany({ select: { dofusdbId: true, slug: true } });
+        const taken = new Set<string>();
+        const currentSlugByDofusdbId = new Map<number, string>();
+        for (const row of rows) {
+            const slug = String(row.slug ?? "").trim();
+            if (slug) taken.add(slug.toLowerCase());
+            const id = Math.floor(Number(row.dofusdbId) || 0);
+            if (id > 0) currentSlugByDofusdbId.set(id, slug);
+        }
+        for (const target of keptTargets) {
+            const current = currentSlugByDofusdbId.get(target.id) ?? "";
+            if (current && !isIdSuffixedBountySlug(current, target.id) && current.toLowerCase() === bountySlug(target.name)) {
+                continue; // slug propre : intouchable
+            }
+            if (current) taken.delete(current.toLowerCase());
+            const next = uniqueBountySlug(target.name, taken);
+            taken.add(next.toLowerCase());
+            target.slug = next;
+        }
+    }
 
     // 4. (Plus de « carte d'emprunt » : un avis n'a AUCUNE carte exposée par la source — la
     //     simulation tourne sur la grille vide, cf. `BOUNTY_MAP_EMPTY_LABEL`. Constat user du

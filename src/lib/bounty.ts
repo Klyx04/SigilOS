@@ -56,18 +56,67 @@ export interface BountySubarea {
     isFavorite?: boolean;
 }
 
-/** Suffixe d'URL publique (slug stable et unique, même pour les homonymes). */
-export function bountySlug(name: string, dofusdbId: number | string | null | undefined): string {
-    const base = String(name ?? "")
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "")
-        .toLowerCase()
-        .replace(/['\u2019`]/g, " ")
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/-+/g, "-")
-        .replace(/^-+|-+$/g, "");
+/**
+ * Slug public d'un avis — **le nom seul** (« fojumo », jamais « fojumo-4015 »).
+ *
+ * 🐛 Décision user du 27/09/2026 : « les avis ont un chiffre dans l'URL, c'est pas propre ».
+ * L'ancienne forme `${nom}-${id}` garantissait l'unicité des homonymes (3 × « Ronce »
+ * 3530/3555/3531, plusieurs « Mouchâme ») au prix d'une URL illisible. L'unicité se règle
+ * désormais **en base** (`uniqueBountySlug`), exactement comme pour les donjons :
+ * `ronce`, `ronce-2`, `ronce-3`. Les anciennes URL `nom-<id>` restent servies en **308**
+ * (cf. `src/app/boss/[dungeonId]/page.tsx`).
+ */
+export function bountySlug(name: string): string {
+    return (
+        String(name ?? "")
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .toLowerCase()
+            .replace(/['\u2019`]/g, " ")
+            .replace(/[^a-z0-9]+/g, "-")
+            .replace(/-+/g, "-")
+            .replace(/^-+|-+$/g, "") || "avis"
+    );
+}
+
+/** Un slug est-il de l'ANCIENNE forme, suffixée par l'identifiant DofusDB (`fojumo-4015`) ? */
+export function isIdSuffixedBountySlug(
+    slug: string | null | undefined,
+    dofusdbId: number | string | null | undefined
+): boolean {
     const id = Math.floor(Number(dofusdbId) || 0);
-    return id > 0 ? `${base || "avis"}-${id}` : base || "avis";
+    const value = String(slug ?? "").trim();
+    return id > 0 && value.endsWith(`-${id}`);
+}
+
+/**
+ * Identifiant DofusDB extrait d'une **ancienne URL** d'avis (`fojumo-4015` → `4015`), sinon `null`.
+ * Sert la redirection 308 : l'ancienne URL est reconnue par son suffixe, puis la page renvoie
+ * vers le slug propre courant (`permanentRedirect`).
+ */
+export function bountyIdFromLegacySlug(slug: string | null | undefined): number | null {
+    const match = /-(\d{1,12})$/.exec(String(slug ?? "").trim());
+    if (!match) return null;
+    const id = Math.floor(Number(match[1]) || 0);
+    return id > 0 ? id : null;
+}
+
+/**
+ * Slug **unique** face à ceux déjà pris (`ronce`, `ronce-2`, `ronce-3`) — insensible à la casse.
+ * Le suffixe numérique n'apparaît QUE s'il y a collision : c'est ce qui distingue une URL propre
+ * d'une URL technique.
+ */
+export function uniqueBountySlug(base: string, taken: Iterable<string | null | undefined>): string {
+    const clean = bountySlug(base);
+    const set = new Set<string>();
+    for (const value of taken ?? []) {
+        const slug = String(value ?? "").trim().toLowerCase();
+        if (slug) set.add(slug);
+    }
+    if (!set.has(clean)) return clean;
+    let suffix = 2;
+    while (set.has(`${clean}-${suffix}`)) suffix++;
+    return `${clean}-${suffix}`;
 }
 
 /** L'id de race appartient-il au périmètre « avis de recherche » ? */

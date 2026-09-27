@@ -21,15 +21,18 @@ import {
     bountyDofensiveUrl,
     bountyDofusDbUrl,
     bountyDropObjectIds,
+    bountyIdFromLegacySlug,
     bountyLevel,
     bountyLevelRange,
     bountyRaceName,
     bountySlug,
     isBountyRace,
     isBountyRaceName,
+    isIdSuffixedBountySlug,
     isProvenBounty,
     pickBountyBattleMap,
     pickBountySubarea,
+    uniqueBountySlug,
 } from "@/lib/bounty";
 
 // ─── Mocks de la chaîne serveur ────────────────────────────────────────────────
@@ -44,11 +47,13 @@ vi.mock("@/lib/dofensive-fetch", () => ({
 }));
 
 const mockFindUniqueBounty = vi.fn();
+const mockFindManyBounty = vi.fn(async (..._args: any[]) => [] as unknown[]);
 const mockCreateBounty = vi.fn();
 const mockUpdateBounty = vi.fn();
 vi.mock("@/lib/prisma", () => ({
     db: {
         bounty: {
+            findMany: (...args: any[]) => mockFindManyBounty(...args),
             findUnique: (...args: any[]) => mockFindUniqueBounty(...args),
             create: (...args: any[]) => mockCreateBounty(...args),
             update: (...args: any[]) => mockUpdateBounty(...args),
@@ -169,11 +174,23 @@ describe("bounty.ts — helpers purs (aucun réseau)", () => {
         expect(pickBountySubarea([{ Id: 0, Name: "invalide" }])).toBeNull();
     });
 
-    it("slug : unique même pour les homonymes « Ronce »", () => {
-        expect(bountySlug("Ronce", 3530)).toBe("ronce-3530");
-        expect(bountySlug("Ronce", 3555)).toBe("ronce-3555");
-        expect(bountySlug("Aermyne 'Braco' Scalptaras", 446)).toBe("aermyne-braco-scalptaras-446");
-        expect(bountySlug("", null)).toBe("avis");
+    it("slug PROPRE : le nom seul, un suffixe seulement en cas de collision d'homonymes", () => {
+        // Décision user du 27/09/2026 : plus d'identifiant dans l'URL (« c'est pas propre »).
+        expect(bountySlug("Fojumo")).toBe("fojumo");
+        expect(bountySlug("Aermyne 'Braco' Scalptaras")).toBe("aermyne-braco-scalptaras");
+        expect(bountySlug("")).toBe("avis");
+
+        // 3 × « Ronce » : l'unicité passe par un suffixe de collision — jamais par l'id DofusDB.
+        const taken = new Set<string>(["ronce"]);
+        expect(uniqueBountySlug("Ronce", taken)).toBe("ronce-2");
+        taken.add("ronce-2");
+        expect(uniqueBountySlug("Ronce", taken)).toBe("ronce-3");
+
+        // L'ancienne forme reste RECONNUE : c'est ce qui permet la reprise et le 308.
+        expect(isIdSuffixedBountySlug("fojumo-4015", 4015)).toBe(true);
+        expect(isIdSuffixedBountySlug("fojumo", 4015)).toBe(false);
+        expect(bountyIdFromLegacySlug("fojumo-4015")).toBe(4015);
+        expect(bountyIdFromLegacySlug("fojumo")).toBeNull();
     });
 
     it("niveaux : 5 ou 7 grades (plage + niveau affiché = plus haut grade)", () => {
@@ -278,7 +295,7 @@ describe("syncBounties — liste, preuve, écriture", () => {
         expect(res.entries[0]).toMatchObject({
             id: 4834,
             name: "Predagob",
-            slug: "predagob-4834",
+            slug: "predagob",
             level: 190,
             raceId: 32,
             raceName: "Avis de recherche",
@@ -343,8 +360,13 @@ describe("syncBounties — liste, preuve, écriture", () => {
 
         const created = mockCreateBounty.mock.calls.map((c) => c[0].data);
         expect(created.map((d) => d.dofusdbId)).toEqual([4834, 3530, 3555, 3531]);
-        expect(created.find((d) => d.dofusdbId === 3530).slug).toBe("ronce-3530");
-        expect(created.find((d) => d.dofusdbId === 3555).slug).toBe("ronce-3555");
+        // 🐛 Décision user 27/09/2026 : plus d'identifiant dans l'URL. Les 3 homonymes « Ronce »
+        // se distinguent par un **suffixe de collision** (`ronce`, `ronce-2`, `ronce-3`), jamais
+        // par l'id DofusDB — l'ancienne forme `ronce-3530` est abandonnée (et redirigée en 308).
+        expect(created.find((d) => d.dofusdbId === 3530).slug).toBe("ronce");
+        expect(created.find((d) => d.dofusdbId === 3555).slug).toBe("ronce-2");
+        // « Ronce animée » (3531) n'est PAS un homonyme : son slug reste proprement dérivé du nom.
+        expect(created.find((d) => d.dofusdbId === 3531).slug).toBe("ronce-animee");
         for (const d of created) {
             expect(d.isBountyMonster).toBe(true);
             expect(d.battleMapId).toBeNull();

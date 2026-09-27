@@ -41,7 +41,7 @@ import { DateTimePicker } from "@/components/ui/date-time-picker";
 import { getDiscordChannelInfo } from "@/server/actions/discord-actions";
 import { getDungeonFinderConfig } from "@/server/actions/dungeon-finder-actions";
 import { Eye } from "lucide-react";
-import { questThumbnail } from "@/lib/dungeon-finder-utils";
+import { questThumbnail, QUEST_ICON_FALLBACK } from "@/lib/dungeon-finder-utils";
 
 /** Les 4 modes du chercheur de groupe. */
 type FinderMode = "DONJON" | "QUETE" | "DEFI" | "TITAN";
@@ -822,7 +822,15 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
                                                                                 {/* Vrai visuel de la quête (carte de départ du jeu, sinon icône de quête
                                                                                     Dofus) et plus aucun id technique `#606` dans la liste. */}
                                                                                 <span className="w-14 h-10 rounded-lg overflow-hidden bg-background border border-border shrink-0">
-                                                                                    <img src={questThumbnail(q)} alt="" className="w-full h-full object-cover" loading="lazy" />
+                                                                                    {/* Carte absente du cache disque ⇒ repli sur l'icône de quête
+                                                                                        (jamais d'image cassée dans la liste). */}
+                                                                                    <img
+                                                                                        src={questThumbnail(q)}
+                                                                                        alt=""
+                                                                                        className="w-full h-full object-cover"
+                                                                                        loading="lazy"
+                                                                                        onError={(e) => { e.currentTarget.src = QUEST_ICON_FALLBACK; }}
+                                                                                    />
                                                                                 </span>
                                                                                 <span className="truncate block font-medium min-w-0">{q.name?.fr}</span>
                                                                             </button>

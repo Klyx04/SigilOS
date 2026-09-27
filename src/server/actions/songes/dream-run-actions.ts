@@ -226,15 +226,21 @@ export async function createDreamRun(guildId: string, data: z.infer<typeof Creat
         });
     }
 
-    // Auto-publish to Discord if requested
+    // Auto-publish to Discord if requested — l'échec n'est jamais MUET : la run existe,
+    // mais si rien n'a été posté dans la guilde, on le remonte au client (avertissement).
+    let discordWarning: string | undefined;
     if (validated.data.publishToDiscord) {
         const { publishDiscordRun } = await import("@/server/songes-service");
-        await publishDiscordRun(ctx.guildId, run.id);
+        const published = await publishDiscordRun(ctx.guildId, run.id);
+        if (!published.success) {
+            discordWarning = published.error ?? "notification Discord non envoyée";
+            logger.warn("[Songes] publication Discord impossible", { runId: run.id, error: discordWarning });
+        }
     }
 
     revalidatePath(`/dashboard/${ctx.guildId}/songes`);
 
-    return { success: true, runId: run.id };
+    return { success: true, runId: run.id, discordWarning };
 }
 
 // ============================================

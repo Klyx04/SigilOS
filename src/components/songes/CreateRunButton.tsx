@@ -174,6 +174,21 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
         }
     }, [open, publishToDiscord, guildId]);
 
+    /**
+     * Enveloppe fail-visible de `createDreamRun` : une action serveur qui jette (réseau,
+     * sérialisation, panne) ne doit JAMAIS laisser « Confirmer & Lancer » sans aucun retour
+     * — le bouton semblait alors mort, sans message ni toast.
+     */
+    const runCreate = async (
+        payload: Parameters<typeof createDreamRun>[1]
+    ): Promise<Awaited<ReturnType<typeof createDreamRun>>> => {
+        try {
+            return await createDreamRun(guildId, payload);
+        } catch (err) {
+            return { success: false, error: err instanceof Error ? err.message : "Erreur inattendue" };
+        }
+    };
+
     const handleCreate = () => {
         const selectedStuff = stuffs.find(s => s.id === selectedStuffId);
         if (mode === "standard") {
@@ -186,7 +201,7 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
                 // Heure LOCALE et réellement optionnelle : vide ⇒ aucune programmation.
                 const scheduledAt = isScheduled && scheduledDateInput ? new Date(scheduledDateInput) : null;
 
-                const result = await createDreamRun(guildId, {
+                const result = await runCreate({
                     difficulty,
                     objectives, 
                     publishToDiscord,
@@ -200,6 +215,7 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
                 });
                 if (result.success) {
                     toast.success("Run créée avec succès !");
+                    if (result.discordWarning) toast.warning("Discord : " + result.discordWarning);
                     setOpen(false);
                     setObjectives([]);
                     router.refresh();
@@ -221,7 +237,7 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
             startTransition(async () => {
                 const scheduledAt = isScheduled && scheduledDateInput ? new Date(scheduledDateInput) : null;
 
-                const result = await createDreamRun(guildId, {
+                const result = await runCreate({
                     difficulty: epreuve.difficulty,
                     objectives: ["SUCCES_NO_ACHAT"],
                     publishToDiscord,
@@ -236,6 +252,7 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
                 });
                 if (result.success) {
                     toast.success(`Épreuve ${epreuve.code} lancée !`);
+                    if (result.discordWarning) toast.warning("Discord : " + result.discordWarning);
                     setOpen(false);
                     setSelectedEpreuve(null);
                     router.refresh();
@@ -278,6 +295,17 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
                         🌙 Nouvelle Run Songes
                     </DialogTitle>
                 </DialogHeader>
+
+                {/* Erreur TOUJOURS visible : elle n'était rendue que dans l'étape 1, donc un
+                    refus à l'étape « Configuration Discord » (une seule run active par
+                    meneur, validation Zod, panne Discord…) ne produisait AUCUN retour visuel
+                    — le bouton « Confirmer & Lancer » semblait ne rien faire. */}
+                {!countdown && error && (
+                    <div className="text-danger text-sm bg-danger/15 p-3 rounded-lg border border-danger/25 flex items-start gap-2">
+                        <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+                        <span>{error}</span>
+                    </div>
+                )}
 
                 <AnimatePresence mode="wait">
                     {step === 1 && (
@@ -576,12 +604,6 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
                             })()}
                         </div>
                     </div>
-
-                    {!countdown && error && (
-                        <div className="text-danger text-sm bg-danger/15 p-3 rounded-lg border border-danger/25">
-                            {error}
-                        </div>
-                    )}
 
                     {/* Submit Step 1 */}
                     <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-2">

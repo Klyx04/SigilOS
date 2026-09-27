@@ -9,6 +9,7 @@ import { JsonLd } from "@/components/shared/json-ld";
 import { auth } from "@/auth";
 import { getAppBaseUrl } from "@/lib/utils";
 import { db } from "@/lib/prisma";
+import { bountyIdFromLegacySlug } from "@/lib/bounty";
 import { getMonsterStats, getDungeonMonsters } from "@/server/actions/game-data-actions";
 import { getBossDofensiveSpells, getDofensiveDungeonForBoss } from "@/server/actions/dofensive-actions";
 import { getAnomalyBossBattleMap, getAnomalyBossFamily } from "@/server/actions/anomaly-boss-actions";
@@ -45,7 +46,17 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const bounty = dungeon || titan
     ? null
     : await db.bounty.findFirst({
-        where: { isBountyMonster: true, OR: [{ id: key }, { slug: key }] },
+        where: {
+          isBountyMonster: true,
+          // 🔁 3ᵉ clé possible : une ANCIENNE URL d'avis `nom-<idDofusDB>` (forme abandonnée le
+          // 27/09/2026, « les avis ont un chiffre dans l'URL »). L'avis est retrouvé, puis la page
+          // redirige en 308 vers le slug propre : Google ne perd pas la page déjà explorée.
+          OR: [
+            { id: key },
+            { slug: key },
+            ...(bountyIdFromLegacySlug(key) ? [{ dofusdbId: bountyIdFromLegacySlug(key)! }] : []),
+          ],
+        },
         select: { name: true, level: true, imageUrl: true, zoneName: true, slug: true },
       });
 

@@ -12,7 +12,7 @@
 import { logger } from "@/lib/logger";
 import { db } from "@/lib/prisma";
 import { DB_READABLE, getLocalDofensiveMapAny, getLocalMonsterStatByIdAny } from "@/lib/dofensive-sync";
-import { BOUNTY_MAP_EMPTY_LABEL } from "@/lib/bounty";
+import { BOUNTY_MAP_EMPTY_LABEL, bountyIdFromLegacySlug } from "@/lib/bounty";
 import {
     buildBountyPublicDungeon,
     buildBountyPublicMeta,
@@ -58,16 +58,25 @@ export interface BountyFichePayload {
     stale: boolean;
 }
 
-/** Résout un avis par **id** (fiche publique) ou par **slug** (URL partageable). */
+/**
+ * Résout un avis par **id**, par **slug** propre, ou par une **ancienne URL** `nom-<idDofusDB>`
+ * (forme abandonnée le 27/09/2026) — dans ce dernier cas la page publique redirige en **308**
+ * vers le slug propre, donc Google suit sans perdre la page.
+ */
 export async function findBountyRow(idOrSlug: string): Promise<BountyRowInput | null> {
     if (!DB_READABLE) return null;
     const key = String(idOrSlug ?? "").trim();
     if (!key) return null;
+    const legacyId = bountyIdFromLegacySlug(key);
     try {
         const row = await db.bounty.findFirst({
             where: {
                 isBountyMonster: true,
-                OR: [{ id: key }, { slug: key }],
+                OR: [
+                    { id: key },
+                    { slug: key },
+                    ...(legacyId ? [{ dofusdbId: legacyId }] : []),
+                ],
             },
             select: BOUNTY_SELECT,
         });

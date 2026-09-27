@@ -12,6 +12,9 @@
 > **Preuves** : **236 fichiers / 2 624 tests ✓** (Paris, UTC, New York, Tokyo) · `tsc` 0 · `eslint` 0 erreur · `git status` propre · **27 emojis créés** (83 au total) · **CI #763 verte** (`Verify & Build` 8m33).
 > **Reste** : merge #763 **fait** (27/09) → déploiement bêta à jouer · synchro prod des 27 (`--env=.env.prod`) · contrôles visuels bêta · **origine unique** (5 copies `appUrl` → `getAppBaseUrl()`, PR dédiée) · pictos calendrier/raid/marché · paliers Songes après réduction de `songes.png`/`anomalie.png`.
 > **Ajout (même session) — tags de forum Songes** : le forum était **déjà** géré par `publishDiscordRun` ; `src/lib/songes/forum-tags.ts` (**pur, testé**) pose le **tag du palier** sur le sujet, retrouvé **par nom** dans `available_tags` (accents/casse/séparateurs/chiffres romains tolérés, « Cauchemar I » ≠ « Cauchemar III »), **jamais créé** (D20) et **jamais bloquant** ; Réglages → Songes liste les 10 noms attendus. ⚠️ **Ops user** : créer ces tags dans le forum Songes pour que le filtre par palier s'applique.
+> **Reste (décidé, NON codé) — bouton God « Émojis Discord »** : onglet *God → Administration → Émojis Discord* (super-admin only) qui synchronise les emojis d'application de **l'environnement courant** en 2 clics ; 5 points d'intégration calqués sur « Commandes Slash » (brique, nav, `page.tsx`, panneau, action `preview`/`apply` par lots). Détail complet dans le bloc du 27/09 de `docs/ROADMAP.md` ; procédure ops actuelle dans `docs/MAINTENANCE.md`.
+
+
 
 
 ## 🧩 Session 26/09/2026 (nuit — DJ/quêtes, Songes, icônes Discord) — **date vraiment optionnelle et honnête (fin du « minuit figé ») · capacité + file d'attente visibles dans les embeds · sujet forum renommé seul · zaap le plus proche durci (guide/overlay/worldmap) · page Songes déslopée (assets Dofus réels, boutons à source unique) · 56 emojis d'application créés** → branche `feat/songes-deslop-icones`

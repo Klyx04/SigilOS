@@ -54,6 +54,15 @@ function imageResponse(body: object = {}) {
     } as any;
 }
 
+function jsonResponse(body: unknown) {
+    return {
+        ok: true,
+        status: 200,
+        headers: new Headers({ "content-type": "application/json" }),
+        json: async () => body,
+    } as any;
+}
+
 beforeEach(() => {
     vi.clearAllMocks();
     mockAssertSafeUrl.mockResolvedValue(undefined);
@@ -98,11 +107,11 @@ describe("GET /api/assets-dofus/[type]/[id] — garde-fous", () => {
         expect(res.headers.get("content-type")).toContain("svg");
     });
 
-    it("id numérique, distant OK → 200 webp + persistance disque", async () => {
+    it("id numérique (ITEM), distant OK → 200 webp + persistance disque", async () => {
         vi.stubGlobal("fetch", vi.fn().mockResolvedValue(imageResponse()));
         mockExistsSync.mockReturnValue(false);
 
-        const res = await GET(req("http://localhost/api/assets-dofus/monsters/456"), ctx("monsters", "456"));
+        const res = await GET(req("http://localhost/api/assets-dofus/items/456"), ctx("items", "456"));
 
         expect(res.status).toBe(200);
         expect(res.headers.get("content-type")).toBe("image/webp");
@@ -117,5 +126,102 @@ describe("GET /api/assets-dofus/[type]/[id] — garde-fous", () => {
 
         expect(res.status).toBe(200);
         expect(res.headers.get("content-type")).toContain("svg");
+    });
+});
+
+/**
+ * 🐛 Mesure du 27/09/2026 (signalement user : « des images ne correspondent pas aux avis ») :
+ * l'apparence d'un monstre est indexée par son **gfxId**, jamais par son id — 100 % des
+ * 300 monstres DofusDB testés ont `gfxId ≠ id` (Predagob 4834 → `img/monsters/1583.png` ;
+ * `img/monsters/4834.png` → **404**) et le dump local `monsters_2x/` est indexé par gfx lui
+ * aussi (281/300 collisions avec un id de monstre). L'ancien ordre servait donc l'apparence
+ * d'un AUTRE monstre — et la figeait 1 an dans le cache (`{id}.webp`).
+ */
+describe("GET /api/assets-dofus/monsters/[id] — l'apparence suit le gfxId (autorité DofusDB)", () => {
+    const MONSTER_ID = 4834;
+    const GFX_ID = 1583;
+    const API_URL = `https://api.dofusdb.fr/monsters/${MONSTER_ID}`;
+    const IMG_URL = `https://api.dofusdb.fr/img/monsters/${GFX_ID}.png`;
+
+    function mockApi(monster: unknown, opts: { fail?: boolean } = {}) {
+        const fetchMock = vi.fn(async (url: string) => {
+            const target = String(url);
+            // Fiche DofusDB du monstre (…/monsters/<id>) — jamais l'URL d'image (`…/img/monsters/x.png`).
+            if (/\/monsters\/\d+$/.test(target)) {
+                if (opts.fail) throw new Error("api down");
+                return jsonResponse(monster);
+            }
+            return imageResponse();
+        });
+        vi.stubGlobal("fetch", fetchMock);
+        return fetchMock;
+    }
+
+    const fetched = (fetchMock: any): string[] => fetchMock.mock.calls.map((c: any[]) => String(c[0]));
+
+    it("résout par l'API puis `img` (gfx) — `img/monsters/{id}.png` n'est PLUS jamais demandé", async () => {
+        const fetchMock = mockApi({ id: MONSTER_ID, gfxId: GFX_ID, img: IMG_URL });
+        mockExistsSync.mockReturnValue(false);
+
+        const res = await GET(req(`http://localhost/api/assets-dofus/monsters/${MONSTER_ID}`), ctx("monsters", String(MONSTER_ID)));
+
+        expect(res.status).toBe(200);
+        expect(res.headers.get("content-type")).toBe("image/webp");
+        const urls = fetched(fetchMock);
+        expect(urls[0]).toBe(API_URL);
+        expect(urls).toContain(IMG_URL);
+        expect(urls.some((u) => u.includes(`img/monsters/${MONSTER_ID}.png`))).toBe(false);
+        // Le cache reste indexé par l'id du MONSTRE (notre clé d'affichage) : jamais de doublon.
+        expect(mockWriteFile).toHaveBeenCalled();
+    });
+
+    it("un `?url=` périmé (apparence d'un AUTRE monstre) ne passe jamais devant l'autorité", async () => {
+        const fetchMock = mockApi({ id: MONSTER_ID, gfxId: GFX_ID, img: IMG_URL });
+        mockExistsSync.mockReturnValue(false);
+
+        await GET(
+            req(`http://localhost/api/assets-dofus/monsters/${MONSTER_ID}?url=${encodeURIComponent("https://api.dofusdb.fr/img/monsters/9999.png")}`),
+            ctx("monsters", String(MONSTER_ID))
+        );
+
+        const urls = fetched(fetchMock);
+        expect(urls.some((u) => u.includes("9999"))).toBe(false);
+        expect(urls).toContain(IMG_URL);
+    });
+
+    it("garde d'identité : une fiche de repli DofusDB (autre id) ⇒ placeholder, jamais son apparence", async () => {
+        const fetchMock = mockApi({ id: 666, gfxId: 1, img: "https://api.dofusdb.fr/img/monsters/1.png" });
+        mockExistsSync.mockReturnValue(false);
+
+        const res = await GET(req(`http://localhost/api/assets-dofus/monsters/999999`), ctx("monsters", "999999"));
+
+        expect(res.headers.get("content-type")).toContain("svg");
+        expect(fetched(fetchMock).some((u) => u.includes("img/monsters/1.png"))).toBe(false);
+    });
+
+    it("API indisponible + `?url=` allowlisté ⇒ repli déclaré (fail-soft, jamais de 404)", async () => {
+        mockApi(null, { fail: true });
+        mockExistsSync.mockReturnValue(false);
+
+        const res = await GET(
+            req(`http://localhost/api/assets-dofus/monsters/${MONSTER_ID}?url=${encodeURIComponent(IMG_URL)}`),
+            ctx("monsters", String(MONSTER_ID))
+        );
+
+        expect(res.status).toBe(200);
+        expect(res.headers.get("content-type")).toBe("image/webp");
+    });
+
+    it("le dump local est interrogé avec le gfxId, jamais avec l'id du monstre", async () => {
+        const fetchMock = mockApi({ id: MONSTER_ID, gfxId: GFX_ID, img: IMG_URL });
+        // Seul le fichier du gfx existe : ni le cache `{id}.webp`, ni `monsters_2x/{id}.png`.
+        mockExistsSync.mockImplementation((p: any) => typeof p === "string" && p.includes("monsters_2x") && p.includes(String(GFX_ID)));
+        mockReadFileSync.mockReturnValue(Buffer.alloc(100));
+
+        const res = await GET(req(`http://localhost/api/assets-dofus/monsters/${MONSTER_ID}`), ctx("monsters", String(MONSTER_ID)));
+
+        expect(res.headers.get("content-type")).toBe("image/webp");
+        expect(mockReadFileSync).toHaveBeenCalledWith(expect.stringContaining(String(GFX_ID)));
+        expect(fetched(fetchMock).some((u) => u.includes("img/monsters"))).toBe(false);
     });
 });

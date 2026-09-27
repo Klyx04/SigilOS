@@ -163,21 +163,39 @@ describe("normalizeDofusAssetStoredUrl — un chemin STOCKÉ n'est jamais rendu 
         );
     });
 
-    it("URL absolue : DofusDB ⇒ proxy interne, autre hôte ⇒ conservée", () => {
+    it("URL absolue : DofusDB ⇒ proxy interne ; tout autre hôte ⇒ jamais publié (repli canonique)", () => {
         const DB = "https://api.dofusdb.fr/img/monsters/4834.png";
         expect(normalizeDofusAssetStoredUrl("monsters", DB)).toBe(
             `/api/assets-dofus/monsters/4834?url=${encodeURIComponent(DB)}`
         );
-        expect(normalizeDofusAssetStoredUrl("monsters", "https://cdn.exemple.fr/monstre.png")).toBe(
-            "https://cdn.exemple.fr/monstre.png"
+        // ⚠️ Un hôte arbitraire ne sort JAMAIS de cette fonction : la donnée stockée ne doit pas
+        // pouvoir désigner une origine tierce (alerte CodeQL `js/xss-through-dom`).
+        expect(normalizeDofusAssetStoredUrl("monsters", "https://cdn.exemple.fr/monstre.png", 4834)).toBe(
+            "/api/assets-dofus/monsters/4834"
         );
+        expect(normalizeDofusAssetStoredUrl("monsters", "https://cdn.exemple.fr/monstre.png")).toBeNull();
     });
 
-    it("nom nu ⇒ proxy ; asset local déclaré (`/game-data/…`) ⇒ conservé", () => {
+    it("nom nu ⇒ proxy ; chemin local accepté seulement dans NOS dossiers (allowlist)", () => {
         expect(normalizeDofusAssetStoredUrl("monsters", "4834.webp")).toBe("/api/assets-dofus/monsters/4834");
         expect(normalizeDofusAssetStoredUrl("monsters", "/game-data/bounties/avis-4834.webp")).toBe(
             "/game-data/bounties/avis-4834.webp"
         );
+        expect(normalizeDofusAssetStoredUrl("monsters", "/uploads/assets-dofus/monsters/4834.webp")).toBe(
+            "/api/assets-dofus/monsters/4834"
+        );
+        // Un asset local qui n'est PAS le cache d'assets (guides, icônes du jeu) passe tel quel :
+        expect(normalizeDofusAssetStoredUrl("monsters", "/uploads/guides/mon-guide.webp")).toBe(
+            "/uploads/guides/mon-guide.webp"
+        );
+        expect(normalizeDofusAssetStoredUrl("monsters", "/assets/dofus/icons/boss.png")).toBe(
+            "/assets/dofus/icons/boss.png"
+        );
+        // Hors de nos dossiers : repli canonique (ou null sans identifiant), jamais la valeur brute.
+        expect(normalizeDofusAssetStoredUrl("monsters", "/autre/chemin.png", 4834)).toBe(
+            "/api/assets-dofus/monsters/4834"
+        );
+        expect(normalizeDofusAssetStoredUrl("monsters", "/autre/chemin.png")).toBeNull();
     });
 });
 

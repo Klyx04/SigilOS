@@ -42,6 +42,29 @@ export function isDofusDbOffline(): boolean {
  * `path` doit commencer par `/` suivi d'une collection de l'allowlist.
  */
 export async function dofusdbFetch<T>(path: string): Promise<T | null> {
+    const json = await fetchDofusDbJson(path);
+    return (json?.data ?? null) as T | null;
+}
+
+/**
+ * Variante **paginée** : renvoie `data` **et** `total`.
+ *
+ * Pourquoi elle existe (rail de veille, 27/09/2026) : `dofusdbFetch` ne rend que `data`, donc le
+ * **restant** d'un dataset serait « inconnu » et la jauge de couverture mentirait. Même garde
+ * SSRF, même interrupteur `DOFUSDB_OFFLINE=1`, même timeout que `dofusdbFetch`.
+ */
+export async function dofusdbFetchPage<T>(path: string): Promise<{ rows: T[]; total: number | null } | null> {
+    const json = await fetchDofusDbJson(path);
+    if (!json) return null;
+    const rows = Array.isArray(json.data) ? (json.data as T[]) : [];
+    const total = Number.isFinite(Number((json as { total?: unknown }).total))
+        ? Math.max(0, Math.floor(Number((json as { total?: unknown }).total)))
+        : null;
+    return { rows, total };
+}
+
+/** Requête gardée commune (offline + SSRF + timeout) — un seul endroit à auditér. */
+async function fetchDofusDbJson(path: string): Promise<{ data?: unknown; total?: unknown } | null> {
     if (isDofusDbOffline()) {
         logger.warn(`[dofusdb] mode OFFLINE (DOFUSDB_OFFLINE=1) — appel refusé: ${path}`);
         return null;
@@ -62,8 +85,7 @@ export async function dofusdbFetch<T>(path: string): Promise<T | null> {
             logger.warn(`[dofusdb] HTTP ${res.status} sur ${path}`);
             return null;
         }
-        const json = (await res.json()) as { data?: T[] };
-        return (json?.data ?? null) as T | null;
+        return (await res.json()) as { data?: unknown; total?: unknown };
     } catch (error) {
         logger.warn(`[dofusdb] Fetch échoué (${path}):`, { error: String(error) });
         return null;

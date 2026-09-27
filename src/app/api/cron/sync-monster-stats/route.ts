@@ -232,7 +232,80 @@ export async function GET(req: Request) {
             logger.warn("[Cron:SyncMonsterStats] Erreur siphon des avis de recherche:", { error: String(err) });
         }
 
-        logger.info(`[Cron:SyncMonsterStats] Terminé: ${synced} monstres synchronisés, ${imagesSiphoned} images siphonnées, ${errors} erreurs, ${skippedFresh} frais ignorés`);
+        // ── PHASE 6 : VEILLE DELTA DES FICHES MONSTRES (rail du 27/09/2026) ──────────────────────
+        // Une passe BORNÉE reprend au filigrane `id` (Redis, sans TTL) : le catalogue (5 135 fiches)
+        // se remplit petit à petit, sans repasser par une passe complète (30 min / 429 / trous).
+        // Le filigrane ne recule JAMAIS : une source indisponible laisse la position intacte.
+        // Budget volontairement modeste (limiteur DofusDB ≈ 30 req/min, et chaque fiche en coûte
+        // plusieurs) → ~2 min par nuit, reprise exacte au prochain passage.
+        //
+        // ⚠️ Étage COUPÉ sous Vitest et par `MONSTER_FICHE_VEILLE_OFF=1` : même convention que
+        // `getMonsterStats` (qui teste `VITEST`) — les tests du cron ne doivent **jamais** appeler
+        // le réseau (DofusDB sollicité pour rien, CI lente et instable). La logique de la passe est
+        // testée à part (`tests/unit/dofusdb-veille.test.ts`), le câblage est verrouillé par ce
+        // même fichier (assertions de source) : rien n'est laissé sans preuve.
+        const veilleDisabled = process.env.VITEST === "true" || process.env.MONSTER_FICHE_VEILLE_OFF === "1";
+        let veilleFiches = {
+            processed: 0,
+            persisted: 0,
+            remaining: null as number | null,
+            done: true,
+            errors: 0,
+            cursor: null as string | null,
+        };
+        if (!veilleDisabled) {
+            try {
+                const { dofusdbFetchPage } = await import("@/lib/dofusdb-fetch");
+                const { runMonsterFichesPass, MONSTER_FICHES_SPEC } = await import("@/lib/monsters-veille-siphon");
+                const { getGameDataVeilleState, setGameDataVeilleState } = await import("@/server/game-data-sync-state-store");
+
+                const state = await getGameDataVeilleState(MONSTER_FICHES_SPEC.id);
+                const pass = await runMonsterFichesPass({
+                    state: state ?? { cursor: null, remaining: null, lastPassAt: null },
+                    limit: 60,
+                    fetchPage: async (endpoint, query) => {
+                        const page = await dofusdbFetchPage<any>(`${endpoint}?${query}`);
+                        if (!page) throw new Error(`${endpoint}?${query} indisponible (filtre, limiteur ou réseau)`);
+                        return {
+                            rows: page.rows.map((m: any) => ({
+                                id: Math.floor(Number(m?.id) || 0),
+                                name: String(m?.name?.fr ?? "").trim(),
+                                updatedAt: typeof m?.updatedAt === "string" ? m.updatedAt : null,
+                            })),
+                            total: page.total,
+                        };
+                    },
+                    persistFiche: async ({ id, name }) => {
+                        const res = await getMonsterStats(name, undefined, true, id);
+                        return !!res?.success;
+                    },
+                });
+
+                await setGameDataVeilleState(MONSTER_FICHES_SPEC.id, {
+                    cursor: pass.cursor,
+                    remaining: pass.remaining,
+                    lastPassAt: new Date().toISOString(),
+                });
+                veilleFiches = {
+                    processed: pass.processed,
+                    persisted: pass.persisted,
+                    remaining: pass.remaining,
+                    done: pass.done,
+                    errors: pass.errors.length,
+                    cursor: pass.cursor,
+                };
+                if (pass.errors.length > 0) {
+                    logger.warn(
+                        `[Cron:SyncMonsterStats] Veille fiches monstres : ${pass.errors.length} erreur(s) unitaire(s).`,
+                        { error: pass.errors.slice(0, 3) }
+                    );
+                }
+            } catch (err) {
+                logger.warn("[Cron:SyncMonsterStats] Veille fiches monstres en échec:", { error: String(err) });
+            }
+        }
+
+        logger.info(`[Cron:SyncMonsterStats] Terminé: ${synced} monstres synchronisés, ${imagesSiphoned} images siphonnées, ${errors} erreurs, ${skippedFresh} frais ignorés · veille fiches: ${veilleFiches.persisted}/${veilleFiches.processed} (reste ~${veilleFiches.remaining ?? "?"} , filigrane ${veilleFiches.cursor ?? "début"})`);
 
         // Visibilité dans le Dashboard GOD (Audit Logs & Alertes) — sans session utilisateur.
         await createSystemAuditLog({
@@ -264,7 +337,7 @@ export async function GET(req: Request) {
         await recordCronExecution("sync_monster_stats", {
             success: errors === 0 && anomalyErrors === 0 && bountyErrors === 0,
             durationMs: Date.now() - startedAt,
-            summary: `${synced} monstres synchronisés, ${errors} erreur(s) sur ${bosses.length} (${skippedFresh} frais ignorés) · ${anomalySynced} gardien(s) d'anomalie · ${anomalyCompanions} monstre(s) de l'anomalie · ${bountySynced} avis de recherche`,
+            summary: `${synced} monstres synchronisés, ${errors} erreur(s) sur ${bosses.length} (${skippedFresh} frais ignorés) · ${anomalySynced} gardien(s) d'anomalie · ${anomalyCompanions} monstre(s) de l'anomalie · ${bountySynced} avis de recherche · veille fiches ${veilleFiches.persisted}/${veilleFiches.processed} (reste ~${veilleFiches.remaining ?? "?"})`,
             details: {
                 synced,
                 errors,
@@ -279,6 +352,8 @@ export async function GET(req: Request) {
                 bountyErrors,
                 bountyIcons,
                 bountyUnproven,
+                /* Rail de veille (27/09/2026) : où en est le catalogue de fiches monstres. */
+                veilleFiches: veilleFiches,
             },
         });
 
@@ -291,6 +366,7 @@ export async function GET(req: Request) {
             anomalyErrors,
             bountySynced,
             bountyErrors,
+            veilleFiches,
         });
     } catch (error: any) {
         logger.error("[Cron:SyncMonsterStats] Erreur globale:", { error: String(error) });

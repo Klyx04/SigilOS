@@ -93,6 +93,8 @@ export const DIFFICULTIES = {
     REVE_I: {
         label: "Rêve I",
         category: "Rêve",
+        // Asset local (source unique : site + embeds) — le même picto partout.
+        asset: "/assets/missions/reve1.png",
         xpBonus: 50,
         vagues: 2,
         couleur: "#22c55e",
@@ -101,6 +103,7 @@ export const DIFFICULTIES = {
     REVE_II: {
         label: "Rêve II",
         category: "Rêve",
+        asset: "/assets/missions/reve2.png",
         xpBonus: 75,
         vagues: 2,
         couleur: "#4ade80",
@@ -109,6 +112,7 @@ export const DIFFICULTIES = {
     REVE_III: {
         label: "Rêve III",
         category: "Rêve",
+        asset: "/assets/missions/reve3.png",
         xpBonus: 100,
         vagues: 2,
         couleur: "#86efac",
@@ -117,6 +121,7 @@ export const DIFFICULTIES = {
     PARADOXE_I: {
         label: "Paradoxe I",
         category: "Paradoxe",
+        asset: "/assets/missions/paradoxe1.png",
         xpBonus: 120,
         vagues: 3,
         couleur: "#60a5fa",
@@ -125,6 +130,7 @@ export const DIFFICULTIES = {
     PARADOXE_II: {
         label: "Paradoxe II",
         category: "Paradoxe",
+        asset: "/assets/missions/paradoxe2.png",
         xpBonus: 140,
         vagues: 3,
         couleur: "#3b82f6",
@@ -133,6 +139,7 @@ export const DIFFICULTIES = {
     PARADOXE_III: {
         label: "Paradoxe III",
         category: "Paradoxe",
+        asset: "/assets/missions/paradoxe3.png",
         xpBonus: 160,
         vagues: 3,
         couleur: "#2563eb",
@@ -141,6 +148,7 @@ export const DIFFICULTIES = {
     PARADOXE_IV: {
         label: "Paradoxe IV",
         category: "Paradoxe",
+        asset: "/assets/missions/paradoxe4.png",
         xpBonus: 190,
         vagues: 3,
         couleur: "#1d4ed8",
@@ -149,6 +157,7 @@ export const DIFFICULTIES = {
     CAUCHEMAR_I: {
         label: "Cauchemar I",
         category: "Cauchemar",
+        asset: "/assets/missions/cauchemar1.png",
         xpBonus: 220,
         vagues: 4,
         couleur: "#f87171",
@@ -157,6 +166,7 @@ export const DIFFICULTIES = {
     CAUCHEMAR_II: {
         label: "Cauchemar II",
         category: "Cauchemar",
+        asset: "/assets/missions/cauchemar2.png",
         xpBonus: 250,
         vagues: 4,
         couleur: "#ef4444",
@@ -165,6 +175,7 @@ export const DIFFICULTIES = {
     CAUCHEMAR_III: {
         label: "Cauchemar III",
         category: "Cauchemar",
+        asset: "/assets/missions/cauchemar3.png",
         xpBonus: 300,
         vagues: 4,
         couleur: "#dc2626",
@@ -176,21 +187,21 @@ export const DIFFICULTIES = {
  * Types de salles
  */
 export const ROOM_TYPES = {
-    COMBAT: { label: "Combat", icon: "⚔️", couleur: "#4ade80" },
-    FONTAINE: { label: "Fontaine Onirique", icon: "⛲", couleur: "#3b82f6" },
-    FAVEUR: { label: "Faveur Onirique", icon: "🌟", couleur: "#a855f7" },
-    BOSS: { label: "Boss Final", icon: "👑", couleur: "#fbbf24" },
+    COMBAT: { label: "Combat", asset: "/assets/dofus/icons/crossedSwords.png", couleur: "#4ade80" },
+    FONTAINE: { label: "Fontaine Onirique", asset: "/assets/dofus/icons/teleport.png", couleur: "#3b82f6" },
+    FAVEUR: { label: "Faveur Onirique", asset: "/assets/dofus/icons/starFilled.png", couleur: "#a855f7" },
+    BOSS: { label: "Boss Final", asset: "/assets/dofus/icons/boss.png", couleur: "#fbbf24" },
 } as const;
 
 /**
  * Objectifs de run
  */
 export const OBJECTIVES = {
-    MISSION_GUILDE: { label: "Mission de Guilde", icon: "🎯" },
-    DROP_LEGENDE: { label: "Farm Légendes", icon: "💎" },
-    SUCCES_NO_ACHAT: { label: "Succès No Achat", icon: "🏆" },
-    FUN: { label: "Fun / Chill", icon: "✨" },
-    QUETE: { label: "Quête", icon: "📜" },
+    MISSION_GUILDE: { label: "Mission de Guilde", asset: "/assets/dofus/icons/guild.png" },
+    DROP_LEGENDE: { label: "Farm Légendes", asset: "/assets/dofus/icons/chest.png" },
+    SUCCES_NO_ACHAT: { label: "Succès No Achat", asset: "/assets/dofus/icons/success.png" },
+    FUN: { label: "Fun / Chill", asset: "/assets/dofus/icons/heart.png" },
+    QUETE: { label: "Quête", asset: "/assets/dofus/icons/quests.png" },
 } as const;
 
 // ============================================
@@ -298,7 +309,7 @@ export const EPREUVES_SONGE = [
         difficulty: "CAUCHEMAR_I" as DifficultyKey,
         difficultyLabel: "Cauchemar I",
         description: "Les armes ont : -1 PA, +1 lancer par tour et +10 dégâts de base. Les monstres ont des PV supplémentaires.",
-        icon: "⚔️",
+        asset: "/assets/dofus/icons/shinySword.png",
         color: "#dc2626",
         borderClass: "border-red-500/40",
         textClass: "text-red-400",
@@ -310,7 +321,7 @@ export const EPREUVES_SONGE = [
         difficulty: "CAUCHEMAR_I" as DifficultyKey,
         difficultyLabel: "Cauchemar I",
         description: "Vous incarnez un boss aléatoire et affrontez des PNJ qui ont l'apparence et les sorts des classes Dofus.",
-        icon: "🔄",
+        asset: "/assets/dofus/icons/boss.png",
         color: "#dc2626",
         borderClass: "border-red-500/40",
         textClass: "text-red-400",
@@ -322,7 +333,7 @@ export const EPREUVES_SONGE = [
         difficulty: "PARADOXE_II" as DifficultyKey,
         difficultyLabel: "Paradoxe II",
         description: "Lorsqu'une entité reçoit des dommages à distance, elle force l'échange de position avec son attaquant et renvoie les dommages en zone.",
-        icon: "🌀",
+        asset: "/assets/dofus/icons/target.png",
         color: "#f59e0b",
         borderClass: "border-amber-500/40",
         textClass: "text-amber-400",
@@ -334,7 +345,7 @@ export const EPREUVES_SONGE = [
         difficulty: "PARADOXE_II" as DifficultyKey,
         difficultyLabel: "Paradoxe II",
         description: "Vous incarnez un Kongoku qui invoque un Moon dès le début du combat.",
-        icon: "🐵",
+        asset: "/assets/dofus/icons/waveMonsters.png",
         color: "#f59e0b",
         borderClass: "border-amber-500/40",
         textClass: "text-amber-400",

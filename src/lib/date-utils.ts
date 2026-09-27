@@ -42,6 +42,22 @@ export function getNextDofusReset(): Date {
 }
 
 /**
+ * Valeur pour un sélecteur date+heure LOCALE (« YYYY-MM-DDTHH:mm »).
+ *
+ * Pourquoi pas `toISOString().slice(0, 16)` : `toISOString` rend l'heure **UTC**,
+ * réinjectée ensuite comme heure locale → l'heure reculait du décalage à chaque
+ * enregistrement, et une date proche de minuit **changeait de jour** (« le jour et
+ * l'heure figés à minuit »). On lit donc les composantes locales.
+ */
+export function toLocalDateTimeInput(value: Date | string | null | undefined): string {
+    if (value == null || value === "") return "";
+    const d = value instanceof Date ? value : new Date(value);
+    if (isNaN(d.getTime())) return "";
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+/**
  * Formats a date range for the Discord embed title (Du DD/MM au DD/MM 07h)
  */
 export function formatDofusRange(): string {

@@ -5,20 +5,14 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import {
     Users, Clock,
-    XCircle, LogIn, LogOut, Bell, MoreHorizontal, CheckCircle2
+    XCircle, LogIn, LogOut, CheckCircle2
 } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ClassIcon } from "@/components/shared/class-icon";
 import { DofusUiIcon, type DofusUiIconName } from "@/components/shared/dofus-ui-icon";
 import { PseudoChip } from "@/components/shared/pseudo-chip";
 import { DiscordAvatarImage } from "@/components/shared/discord-avatar-image";
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { leaveDjPost, sendDjReminder } from "@/server/actions/dungeon-finder-actions";
+import { leaveDjPost } from "@/server/actions/dungeon-finder-actions";
 import { DjPostDetailModal } from "./DjPostDetailModal";
 import { DjCloseModal } from "./DjCloseModal";
 import type { DjPostWithDetails } from "@/server/actions/dungeon-finder-actions";
@@ -26,7 +20,7 @@ import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { getClass } from "@/lib/dofus-assets";
-import { getMultiDungeons, getDjPostTitle, getDjPostSubtitle } from "@/lib/dungeon-finder-utils";
+import { getMultiDungeons, getDjPostTitle, getDjPostSubtitle, formatDjDateLabel } from "@/lib/dungeon-finder-utils";
 import { DjMultiBossAvatars } from "./DjMultiBossAvatars";
 
 // -------------------------------------------------------
@@ -84,17 +78,6 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
                 onRefresh();
             } else {
                 toast.error(res.error);
-            }
-        });
-    }
-
-    function handleReminder() {
-        startTransition(async () => {
-            const res = await sendDjReminder(guildId, post.id);
-            if (res.success) {
-                toast.success("Rappel envoyé sur Discord !");
-            } else {
-                toast.error(res.error || "Erreur lors de l'envoi du rappel.");
             }
         });
     }
@@ -205,9 +188,7 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
                                 "uppercase tracking-tight",
                                 isOpen ? "text-foreground" : "text-muted-foreground"
                             )}>
-                                {new Date(post.targetDate).toLocaleDateString("fr-FR", {
-                                    weekday: "short", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit"
-                                }).replace(/, /g, " à ")}
+                                {formatDjDateLabel(post.targetDate, { shortWeekday: true }) ?? ""}
                             </span>
                         </div>
                     )}
@@ -333,7 +314,7 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
                                         <p className="text-caption text-muted-foreground">
                                             Lvl {d.level}
                                             {(d.wantedAchievementIds?.length ?? 0) > 0 && ` · ${d.wantedAchievementIds.length} succès`}
-                                            {d.targetDate && ` · ${new Date(d.targetDate).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" })}`}
+                                            {d.targetDate ? ` · ${formatDjDateLabel(d.targetDate, { shortMonth: true }) ?? ""}` : ""}
                                         </p>
                                     </div>
                                     <span className="text-caption font-black text-muted-foreground/70 uppercase tracking-widest shrink-0">#{idx + 1}</span>
@@ -488,37 +469,23 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
                             </div>
                         )}
 
-                        {(isOwner || (isAdmin && !isOwner)) && post.status === "OPEN" && (
-                            <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                    <Button
-                                        size="sm"
-                                        variant="outline"
-                                        disabled={isPending}
-                                        title="Actions"
-                                        aria-label="Actions"
-                                        className="h-10 w-10 px-0 shrink-0 border-border text-muted-foreground hover:text-foreground hover:bg-surface transition-colors"
-                                    >
-                                        <MoreHorizontal className="w-4 h-4" />
-                                    </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end" className="min-w-[220px] bg-surface border-border">
-                                    {isOwner && post.participants.length > 0 && (
-                                        <DropdownMenuItem onSelect={handleReminder} disabled={isPending}>
-                                            <Bell className="w-4 h-4 mr-2 text-info" />
-                                            Relancer (Discord)
-                                        </DropdownMenuItem>
-                                    )}
-                                    <DropdownMenuItem
-                                        onSelect={() => setIsCloseModalOpen(true)}
-                                        disabled={isPending}
-                                        className="text-danger focus:text-danger"
-                                    >
-                                        <CheckCircle2 className="w-4 h-4 mr-2" />
-                                        {isOwner ? "Terminer" : "Fermer le post"}
-                                    </DropdownMenuItem>
-                                </DropdownMenuContent>
-                            </DropdownMenu>
+                        {/* Clôture DIRECTE depuis la carte : c'est l'action utile du créateur
+                            (bilan des succès + points + clôture Discord). L'ancien menu « … »
+                            cachait « Terminer » derrière un dropdown, et « Supprimer le groupe »
+                            n'existe plus (la suppression détruisait le bilan sans rien apporter :
+                            les posts inactifs sont déjà purgés par le cron). */}
+                        {(isOwner || (isAdmin && !isOwner)) && (post.status === "OPEN" || post.status === "FULL") && (
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => setIsCloseModalOpen(true)}
+                                disabled={isPending}
+                                title={isOwner ? "Terminer le post (bilan + clôture Discord)" : "Fermer le post (admin)"}
+                                className="flex-1 min-w-[110px] h-10 text-xs font-bold uppercase tracking-wide whitespace-nowrap bg-info/15 text-info border border-info/30 hover:bg-info hover:text-info-foreground transition-colors"
+                            >
+                                <CheckCircle2 className="w-4 h-4 mr-2" />
+                                {isOwner ? "Terminer" : "Fermer"}
+                            </Button>
                         )}
                     </div>
                 </div>

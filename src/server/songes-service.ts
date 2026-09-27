@@ -3,6 +3,8 @@ import { sendChannelMessage, updateChannelMessage, validateChannelBelongsToGuild
 import { getAppBaseUrl } from "@/lib/utils";
 import { createNotification } from "@/server/actions/notification-actions";
 import { buildClassDispatchFields, buildClassSelectRow, type DispatchEntry } from "@/server/discord-class-dispatch";
+import { loadEmojiResolver } from "@/server/discord-app-emojis";
+import { getEpreuve, OBJECTIVES, type ObjectiveKey } from "@/lib/songes/types";
 
 // ============================================
 // CONSTANTS
@@ -21,21 +23,6 @@ const DIFFICULTY_CONFIG: Record<string, { emoji: string; color: number; label: s
     CAUCHEMAR_I: { emoji: "🔴", color: 0xdc2626, label: "Cauchemar I" },
     CAUCHEMAR_II: { emoji: "🔴", color: 0xdc2626, label: "Cauchemar II" },
     CAUCHEMAR_III: { emoji: "🔴", color: 0xdc2626, label: "Cauchemar III" },
-};
-
-const OBJECTIVE_LABELS: Record<string, string> = {
-    MISSION_GUILDE: "🎯 Mission Guilde",
-    DROP_LEGENDE: "💎 Drop Légende",
-    SUCCES_NO_ACHAT: "🏆 Succès No Achat",
-    FUN: "🎮 Fun",
-    QUETE: "📜 Quête",
-};
-
-const EPREUVE_META: Record<string, { icon: string; label: string }> = {
-    FONSOCAC: { icon: "⚔️", label: "Épreuve FONSOCAC" },
-    REVERSED: { icon: "🔄", label: "Épreuve REVERSED" },
-    NILEZAFF: { icon: "🌀", label: "Épreuve NILEZAFF" },
-    SINJSONJ: { icon: "🐵", label: "Épreuve SINJSONJ" },
 };
 
 // ============================================
@@ -94,6 +81,8 @@ async function buildRunEmbedData(guildId: string, runId: string) {
     if (!run) return null;
 
     const diffConfig = DIFFICULTY_CONFIG[run.difficulty] || { emoji: "🌙", color: 0x9333ea, label: run.difficulty };
+    // Pictos Dofus (emojis d'application si la synchro a été jouée, sinon replis unicode).
+    const emo = await loadEmojiResolver();
 
     // Robust URL detection: prioritize app URL but fallback to NextAuth URL
     // If the context suggests we are in a beta environment, force beta link
@@ -122,6 +111,7 @@ async function buildRunEmbedData(guildId: string, runId: string) {
     const teamFields = buildClassDispatchFields(teamEntries, {
         emptyField: { name: `✅ Équipe (${run.members.length})`, value: "*Aucun membre*" },
         maxGroups: 15,
+        emoji: emo,
     });
 
     // Get waitlist details
@@ -137,28 +127,32 @@ async function buildRunEmbedData(guildId: string, runId: string) {
 
     // Format objectives
     const objectivesStr = run.objectives.length > 0
-        ? run.objectives.map(o => OBJECTIVE_LABELS[o] || o).join(", ")
+        ? run.objectives.map((o) => OBJECTIVES[o as ObjectiveKey]?.label ?? o).join(", ")
         : "*Aucun objectif*";
 
     // Épreuve de Songe (if applicable)
-    const epreuveMeta = run.epreuveCode ? EPREUVE_META[run.epreuveCode] : null;
+    const epreuveMeta = getEpreuve(run.epreuveCode);
     const embedTitle = epreuveMeta
-        ? `${epreuveMeta.icon} ${epreuveMeta.label} — ${diffConfig.label}`
+        ? `${epreuveMeta.label} — ${diffConfig.label}`
         : `🌙 Run Songes — ${diffConfig.label}`;
 
     const fields = [
         { name: "💀 Difficulté", value: `${diffConfig.emoji} **${diffConfig.label}**`, inline: true },
-        { name: "👑 Leader", value: `**${leaderProfile.name}**`, inline: true },
-        { name: "👥 Places", value: `**${run.members.length}/${MAX_MEMBERS}**`, inline: true },
-        ...(run.scheduledAt ? [{ 
-            name: "📅 Date & Heure", 
-            value: `<t:${Math.floor(run.scheduledAt.getTime() / 1000)}:F> (<t:${Math.floor(run.scheduledAt.getTime() / 1000)}:R>)`, 
-            inline: false 
-        }] : []),
-        ...(epreuveMeta ? [{ name: "🏆 Épreuve de Songe", value: `${epreuveMeta.icon} **${epreuveMeta.label}**\n*Pas de butin ni d'expérience*`, inline: false }] : []),
-        { name: "🎯 Objectifs", value: objectivesStr, inline: false },
+        { name: `${emo("dofus_leader")} Leader`, value: `**${leaderProfile.name}**`, inline: true },
+        { name: `${emo("dofus_players")} Places`, value: `**${run.members.length}/${MAX_MEMBERS}**`, inline: true },
+        // Date de la session — TOUJOURS affichée : « Sans date pour l'instant » quand le
+        // leader n'en a pas fixé (la date est optionnelle à la création).
+        {
+            name: `${emo("dofus_date")} Date & Heure`,
+            value: run.scheduledAt
+                ? `<t:${Math.floor(run.scheduledAt.getTime() / 1000)}:F> (<t:${Math.floor(run.scheduledAt.getTime() / 1000)}:R>)`
+                : "*Sans date pour l'instant*",
+            inline: false,
+        },
+        ...(epreuveMeta ? [{ name: `${emo("dofus_success")} Épreuve de Songe`, value: `**${epreuveMeta.label}**\n*Pas de butin ni d'expérience*`, inline: false }] : []),
+        { name: `${emo("dofus_trophy")} Objectifs`, value: objectivesStr, inline: false },
         ...teamFields,
-        { name: `⏳ File d'attente (${run.waitlist.length})`, value: waitlistList, inline: true },
+        { name: `${emo("dofus_waitlist")} File d'attente (${run.waitlist.length})`, value: waitlistList, inline: true },
         { name: "🔗 Dashboard", value: `[📋 Voir la Run](${dashboardUrl})`, inline: false },
     ];
 
@@ -438,7 +432,7 @@ export async function notifyRunMembers(guildId: string, runId: string, message: 
             message, // Becomes embed.description
             {
                 mentionContent: mentions.join(" "), // Triggers the ping
-                embedTitle: `🔔 Rappel Songes : ${diffConfig.emoji} ${diffConfig.label}${embedData.run.epreuveCode ? ` — ${EPREUVE_META[embedData.run.epreuveCode]?.label ?? ""}` : ""}`,
+                embedTitle: `🔔 Rappel Songes : ${diffConfig.emoji} ${diffConfig.label}${embedData.run.epreuveCode ? ` — ${getEpreuve(embedData.run.epreuveCode)?.label ?? ""}` : ""}`,
                 embedUrl: dashboardUrl,
                 embedColor: diffConfig.color,
                 fields: [
@@ -447,9 +441,10 @@ export async function notifyRunMembers(guildId: string, runId: string, message: 
                         f.name.includes("Équipe") ||
                         f.name.includes("Places")
                     ),
-                    ...(embedData.run.epreuveCode && EPREUVE_META[embedData.run.epreuveCode]
-                        ? [{ name: "🏆 Épreuve", value: `${EPREUVE_META[embedData.run.epreuveCode].icon} **${EPREUVE_META[embedData.run.epreuveCode].label}**`, inline: true }]
-                        : []),
+                    ...(() => {
+                        const epreuve = getEpreuve(embedData.run.epreuveCode);
+                        return epreuve ? [{ name: "🏆 Épreuve", value: `**${epreuve.label}**`, inline: true }] : [];
+                    })(),
                 ],
                 embedFooter: `SigilOS • Songes Infinis`,
                 embedThumbnail: embedData.thumbnailUrl

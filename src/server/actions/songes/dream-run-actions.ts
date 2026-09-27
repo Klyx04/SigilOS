@@ -226,15 +226,21 @@ export async function createDreamRun(guildId: string, data: z.infer<typeof Creat
         });
     }
 
-    // Auto-publish to Discord if requested
+    // Auto-publish to Discord if requested — l'échec n'est jamais MUET : la run existe,
+    // mais si rien n'a été posté dans la guilde, on le remonte au client (avertissement).
+    let discordWarning: string | undefined;
     if (validated.data.publishToDiscord) {
         const { publishDiscordRun } = await import("@/server/songes-service");
-        await publishDiscordRun(ctx.guildId, run.id);
+        const published = await publishDiscordRun(ctx.guildId, run.id);
+        if (!published.success) {
+            discordWarning = published.error ?? "notification Discord non envoyée";
+            logger.warn("[Songes] publication Discord impossible", { runId: run.id, error: discordWarning });
+        }
     }
 
     revalidatePath(`/dashboard/${ctx.guildId}/songes`);
 
-    return { success: true, runId: run.id };
+    return { success: true, runId: run.id, discordWarning };
 }
 
 // ============================================
@@ -1174,58 +1180,6 @@ export async function respondToJoinRequest(guildId: string, data: z.infer<typeof
             await deleteChannelMessage(request.discordChannelId, request.discordMessageId);
         } catch (error) {
             logger.error("[Songes] Error deleting candidacy message:", error);
-        }
-    }
-
-    revalidatePath(`/dashboard/${ctx.guildId}/songes`);
-    return { success: true };
-}
-
-// ============================================
-// DELETE RUN
-// ============================================
-
-export async function deleteDreamRun(guildId: string, runId: string) {
-    const ctx = await getGuildUserContext(guildId);
-    if (!ctx) return { success: false, error: "Non authentifié ou non autorisé" };
-
-    const run = await db.dreamRun.findFirst({
-        where: { id: runId, guildId: ctx.guildId },
-    });
-
-    if (!run) {
-        return { success: false, error: "Run non trouvée" };
-    }
-
-    // Only leader or admin can delete
-    if (run.leaderId !== ctx.userId && !ctx.isAdmin) {
-        return { success: false, error: "Seul le leader ou un administrateur peut supprimer la run" };
-    }
-
-    // Remove Discord embed if it exists
-    const { deleteDiscordRunEmbed } = await import("@/server/songes-service");
-    await deleteDiscordRunEmbed(ctx.guildId, runId);
-
-    // Delete run (cascade will handle related records)
-    await db.dreamRun.delete({
-        where: { id: runId },
-    });
-
-    // Audit Log for admin deletion
-    if (ctx.isAdmin && run.leaderId !== ctx.userId) {
-        const guildConfig = await db.guildConfig.findUnique({ where: { discordGuildId: guildId }, select: { id: true } });
-        if (guildConfig) {
-            await db.auditLog.create({
-                data: {
-                    guildId: guildConfig.id,
-                    actorUserId: ctx.userId,
-                    actorName: ctx.name || "Admin",
-                    action: "SONGES_RUN_DELETED_BY_ADMIN",
-                    targetType: "DREAM_RUN",
-                    targetId: runId,
-                    metadata: { leaderId: run.leaderId, difficulty: run.difficulty } as any,
-                }
-            });
         }
     }
 

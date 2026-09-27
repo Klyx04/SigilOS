@@ -23,6 +23,7 @@ import {
     embedCoverUrl,
     QUEST_ICON_FALLBACK,
     questStartMapId,
+    questMapImageUrl,
     questThumbnail,
 } from "@/lib/dungeon-finder-utils";
 import { toLocalDateTimeInput } from "@/lib/date-utils";
@@ -334,6 +335,25 @@ describe("dungeon-finder — visuel d'une quête (liste de recherche)", () => {
         expect(questStartMapId(null)).toBeNull();
         expect(questStartMapId("pas une position")).toBeNull();
         expect(questStartMapId([{ mapId: -3 }])).toBeNull();
+    });
+
+    // 🖼️ Source **unique** du chemin de la carte : c'est ce que les siphons écrivent en base
+    // (`quest-siphon` + import God) et ce que `questThumbnail` affiche. Même règle, deux usages.
+    it("construit le chemin interne de la carte du jeu, et rien d'autre", () => {
+        expect(questMapImageUrl(160695296)).toBe("/game-data/hd_maps/160695296.webp");
+        // Un id numérique sous forme de chaîne (réponse JSON) passe ; un id non exploitable ne
+        // produit JAMAIS de chemin (0, négatif, texte, non-fini) — l'appelant écrit alors `null`.
+        expect(questMapImageUrl("101450251")).toBe("/game-data/hd_maps/101450251.webp");
+        expect(questMapImageUrl(0)).toBeNull();
+        expect(questMapImageUrl(-2)).toBeNull();
+        expect(questMapImageUrl("abc")).toBeNull();
+        expect(questMapImageUrl(null)).toBeNull();
+        expect(questMapImageUrl(NaN)).toBeNull();
+        expect(questMapImageUrl(Infinity)).toBeNull();
+        // Cohérence des deux usages : l'affichage rend exactement ce que le siphon écrit.
+        expect(questThumbnail({ startPosition: [{ mapId: 101450251 }] })).toBe(
+            questMapImageUrl(101450251)
+        );
     });
 });
 

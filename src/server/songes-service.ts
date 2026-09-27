@@ -5,6 +5,8 @@ import { createNotification } from "@/server/actions/notification-actions";
 import { buildClassDispatchFields, buildClassSelectRow, type DispatchEntry } from "@/server/discord-class-dispatch";
 import { loadEmojiResolver } from "@/server/discord-app-emojis";
 import { getEpreuve, OBJECTIVES, type ObjectiveKey } from "@/lib/songes/types";
+import { resolveSongesForumTag, songesLevelTagName } from "@/lib/songes/forum-tags";
+import { logger } from "@/lib/logger";
 
 // ============================================
 // CONSTANTS
@@ -255,12 +257,22 @@ export async function publishDiscordRun(guildId: string, runId: string) {
         };
 
         if (channel && channel.type === 15) {
-            // C'est un salon forum
+            // Salon forum : le sujet porte le TAG DU PALIER (un seul) — retrouvé par son nom
+            // dans les tags EXISTANTS du salon. SigilOS ne crée jamais de tag (design A) et
+            // l'absence de tag ne bloque rien : la publication reste normale.
+            const levelTagId = resolveSongesForumTag(channel.available_tags, run.difficulty);
+            if (!levelTagId && channel.available_tags?.length) {
+                logger.info("[Songes] aucun tag de forum ne correspond à ce palier", {
+                    difficulty: run.difficulty,
+                    attendu: songesLevelTagName(run.difficulty),
+                    tagsDisponibles: channel.available_tags.length,
+                });
+            }
             const res = await createForumPost(
                 guildConfig.songesNotifyChannelId,
                 data.embedTitle,
                 mentions,
-                messageOptions
+                { ...messageOptions, appliedTags: levelTagId ? [levelTagId] : undefined }
             );
             if (res) {
                 messageId = res.messageId;

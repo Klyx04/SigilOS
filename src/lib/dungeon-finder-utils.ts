@@ -45,6 +45,26 @@ export function getMultiDungeons(dungeonsJson: unknown): MultiDungeonItem[] {
 }
 
 /**
+ * URL d'illustration d'un embed Discord.
+ *
+ * Un embed ne charge une image que depuis une URL **https absolue** : un chemin relatif
+ * (`/game-data/dungeons/x.webp`) ou du http (localhost en dev) est ignoré SILENCIEUSEMENT
+ * par Discord — l'embed s'affiche alors sans illustration, sans aucune erreur de notre
+ * côté. On résout donc le chemin relatif contre l'origine publique du site et on rend
+ * `null` quand Discord ne pourrait pas la charger.
+ *
+ * @param imageUrl Chemin d'asset local ou URL absolue (`dungeon.imageUrl`, `titan.imageUrl`…).
+ * @param appUrl   Origine publique du site (`getAppBaseUrl()`).
+ */
+export function embedCoverUrl(imageUrl: string | null | undefined, appUrl: string): string | null {
+    if (!imageUrl) return null;
+    const raw = /^https?:\/\//i.test(imageUrl)
+        ? imageUrl
+        : `${appUrl.replace(/\/+$/, "")}${imageUrl.startsWith("/") ? "" : "/"}${imageUrl}`;
+    return raw.startsWith("https://") ? raw : null;
+}
+
+/**
  * Une ligne par succès visé d'un embed Discord : le **picto du succès** (le même asset
  * que la modale du site) quand l'application Discord le porte, sinon la puce historique.
  *

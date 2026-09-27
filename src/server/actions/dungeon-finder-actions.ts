@@ -8,10 +8,11 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { redis } from "@/lib/redis";
 import { getDisplayName } from "@/lib/display-name";
+import { getAppBaseUrl } from "@/lib/utils";
 import { resolveDjContributionPoints } from "@/lib/points-config";
 import { createAuditLog } from "./audit-actions";
 import { sanitizeName } from "@/lib/security";
-import { getMultiDungeons, achievementLines, formatDiscordDateStamp, mergeMultiDungeonTargetDates } from "@/lib/dungeon-finder-utils";
+import { getMultiDungeons, achievementLines, embedCoverUrl, formatDiscordDateStamp, mergeMultiDungeonTargetDates } from "@/lib/dungeon-finder-utils";
 import { buildClassDispatchFields, buildClassSelectRow, type DispatchEntry } from "@/server/discord-class-dispatch";
 import { loadEmojiResolver } from "@/server/discord-app-emojis";
 import { classEmojiName } from "@/lib/discord-emoji-catalog";
@@ -609,6 +610,10 @@ async function buildMultiPostEmbeds(post: any, authorName: string): Promise<any[
     const entries: any[] = getMultiDungeons(post.dungeonsJson);
     const acceptedParts = (post.participants ?? []).filter((p: any) => p.status === "ACCEPTED");
     const isMulti = entries.length > 0;
+    // Origine publique du site (helper partagé `getAppBaseUrl`, déjà utilisé pour le SEO) :
+    // une illustration d'embed doit être une URL **https absolue**, Discord ne sait pas
+    // charger un chemin relatif — ni localhost.
+    const appUrl = getAppBaseUrl();
     const emo = await loadEmojiResolver();
 
     let creatorClasse: string | null = post.profile?.classe ?? null;
@@ -702,7 +707,10 @@ async function buildMultiPostEmbeds(post: any, authorName: string): Promise<any[
             description: `${idx + 1}/${entries.length} · rejoins la session !`,
             color: 0x818cf8,
             fields,
-            thumbnail: entry.imageUrl && entry.imageUrl.startsWith("https://") ? { url: entry.imageUrl } : undefined,
+            thumbnail: (() => {
+                const url = embedCoverUrl(entry.imageUrl, appUrl);
+                return url ? { url } : undefined;
+            })(),
             footer: { text: `SigilOS — Donjon ${idx + 1}/${entries.length}` },
             timestamp: new Date().toISOString(),
         };
@@ -1200,13 +1208,19 @@ async function buildPostEmbed(post: any, authorName: string, guildId: string, ac
         ].filter(Boolean).join("\n"),
         color: post.mode === "DONJON" ? 0x818cf8 : post.mode === "DEFI" ? 0xf59e0b : post.mode === "TITAN" ? 0xf59e0b : 0x34d399,
         fields,
+        // Illustration de l'embed : le « picto du boss » du site (asset partagé), pour le
+        // donjon, le défi comme le titan. Le chemin relatif est résolu contre l'origine
+        // publique — Discord ne charge que du https absolu.
         thumbnail: (() => {
-            if (post.mode === "TITAN" && post.titan?.imageUrl) return post.titan.imageUrl.startsWith("https://") ? { url: post.titan.imageUrl } : undefined;
-            if (!isDungeon || !post.dungeon?.imageUrl) return undefined;
-            const rawUrl = post.dungeon.imageUrl.startsWith("http")
-                ? post.dungeon.imageUrl
-                : `${appUrl}${post.dungeon.imageUrl}`;
-            return rawUrl.startsWith("https://") ? { url: rawUrl } : undefined;
+            const source = post.mode === "TITAN"
+                ? post.titan?.imageUrl
+                : post.mode === "DEFI"
+                ? post.defi?.imageUrl
+                : post.mode === "DONJON"
+                ? post.dungeon?.imageUrl
+                : null;
+            const url = embedCoverUrl(source, appUrl);
+            return url ? { url } : undefined;
         })(),
         footer: {
             text: "SigilOS — Donjons & Quêtes",

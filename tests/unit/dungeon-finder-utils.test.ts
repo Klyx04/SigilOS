@@ -20,6 +20,7 @@ import {
     formatDiscordDateStamp,
     mergeMultiDungeonTargetDates,
     achievementLines,
+    embedCoverUrl,
 } from "@/lib/dungeon-finder-utils";
 import { toLocalDateTimeInput } from "@/lib/date-utils";
 
@@ -256,6 +257,39 @@ describe("achievementLines", () => {
 
     it("liste vide → chaîne vide (le champ n'est alors pas ajouté à l'embed)", () => {
         expect(achievementLines([], picto)).toBe("");
+    });
+});
+
+/**
+ * Illustration des embeds Discord (« picto du boss » : donjon, défi, titan).
+ * Discord n'affiche une image que depuis une URL **https absolue** : un chemin
+ * relatif ou du http localhost est ignoré sans erreur → l'embed perd son illustration.
+ */
+describe("embedCoverUrl", () => {
+    it("résout un chemin relatif contre l'origine publique du site", () => {
+        expect(embedCoverUrl("/game-data/dungeons/donjon-des-squelettes.webp", "https://sigilos.fr")).toBe(
+            "https://sigilos.fr/game-data/dungeons/donjon-des-squelettes.webp"
+        );
+        // Sans « / » initial et avec un « / » final sur l'origine : jamais de « // ».
+        expect(embedCoverUrl("game-data/dungeons/x.webp", "https://beta.sigilos.fr/")).toBe(
+            "https://beta.sigilos.fr/game-data/dungeons/x.webp"
+        );
+    });
+
+    it("garde une URL https absolue telle quelle (assets d'API)", () => {
+        expect(embedCoverUrl("https://api.dofusdb.fr/img/titans/x.png", "https://sigilos.fr")).toBe(
+            "https://api.dofusdb.fr/img/titans/x.png"
+        );
+    });
+
+    it("rend null quand Discord ne pourrait pas charger l'image", () => {
+        // En dev, NEXT_PUBLIC_APP_URL = http://localhost:3000 : Discord ne peut pas
+        // joindre cette origine → l'embed reste sans illustration (comportement historique).
+        expect(embedCoverUrl("/game-data/dungeons/x.webp", "http://localhost:3000")).toBeNull();
+        expect(embedCoverUrl("http://sigilos.fr/x.png", "https://sigilos.fr")).toBeNull();
+        expect(embedCoverUrl(null, "https://sigilos.fr")).toBeNull();
+        expect(embedCoverUrl(undefined, "https://sigilos.fr")).toBeNull();
+        expect(embedCoverUrl("", "https://sigilos.fr")).toBeNull();
     });
 });
 

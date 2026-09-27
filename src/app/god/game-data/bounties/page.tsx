@@ -21,8 +21,11 @@ import { AdvancedEditor } from '@/components/editor/advanced-editor';
 import { AssetGalleryModal } from "@/components/admin/asset-gallery-modal";
 
 import { getAllBounties } from "@/server/actions/admin-actions";
-import { updateGodBountyRecord, syncBountiesCompleteFromDofusDb } from "@/server/actions/game-data-actions";
+import { updateGodBountyRecord } from "@/server/actions/game-data-actions";
 import { deleteBountyAction, getIgnoredBountiesAction, restoreBountyAction } from "@/server/actions/game-data-admin-actions";
+// 🔗 Une seule implémentation du siphon d'avis (courses + suivi d'état serveur) :
+// `src/components/admin/game-data-inline-runners.ts` — la même que le Tableau.
+import { runInlineGameDataDataset } from "@/components/admin/game-data-inline-runners";
 
 const REWARD_TYPES = [
     { id: "Aliton", label: "Alitons", icon: "/assets/avis/aliton.png" },
@@ -176,6 +179,8 @@ export default function GodBountiesPage() {
     };
 
     const [syncingAll, setSyncingAll] = useState(false);
+    /** Avancement du siphon d'avis (`3/5 races`) — affiché dans le bouton, jamais un faux % . */
+    const [syncProgress, setSyncProgress] = useState<string | null>(null);
 
     /**
      * Supprime l'avis sélectionné et l'**exclut du siphon** (liste d'exclusion) : sans cela, la
@@ -224,22 +229,39 @@ export default function GodBountiesPage() {
         }
     };
 
+    /**
+     * Synchronise **tous** les avis par le **rail unique** — `runInlineGameDataDataset("BOUNTIES")` :
+     * les 5 races d'avis DofusDB, race par race, avec suivi d'état serveur (la colonne
+     * « Progression » du Tableau reste vraie quelle que soit la porte d'entrée).
+     *
+     * 🐛 Mesure du 27/09/2026 : ce bouton appelait `syncBountiesCompleteFromDofusDb`, qui
+     * interrogeait DofusDB par `typeId=23` — une requête **morte** (`monsters?typeId=23` →
+     * `total: 0`, mesuré au `curl`) : la passe ne faisait rien et le toast annonçait pourtant
+     * « 0 avis synchronisés **avec succès** ». L'appartenance d'un avis est portée par sa **race**
+     * (`race∈{32,90,127,147,156}`), jamais par un `typeId`. Cette action écrivait en plus **hors
+     * du siphon** (upsert par `name`, sans liste d'exclusion) ⇒ elle pouvait recréer un avis
+     * supprimé dans God. Elle est supprimée : le bouton passe par le rail, seule source de vérité.
+     */
     const handleSyncAllBounties = async () => {
-        if (!confirm("Voulez-vous synchroniser et pré-remplir automatiquement tous les avis de recherche depuis DofusDB & DPNL ?")) return;
+        if (!confirm("Synchroniser les avis de recherche depuis DofusDB (les 5 races d'avis) ?")) return;
         setSyncingAll(true);
+        setSyncProgress(null);
         try {
-            const res = await syncBountiesCompleteFromDofusDb();
-            if (res.success && res.data) {
-                toast.success(`${res.data.synced} Avis synchronisés et pré-remplis avec succès !`);
-                const updated = await getAllBounties();
-                setBounties(updated);
-                setFilteredBounties(updated);
+            const res = await runInlineGameDataDataset("BOUNTIES", {
+                onProgress: (done, total) => setSyncProgress(`${done}/${total} races`),
+            });
+            if (res.ok) {
+                toast.success(res.summary || "Avis synchronisés");
             } else {
-                toast.error(res.error || "Erreur de synchronisation");
+                toast.error(res.error || "Synchronisation incomplète");
             }
+            const updated = await getAllBounties();
+            setBounties(updated);
+            setFilteredBounties(updated);
         } catch {
             toast.error("Erreur de connexion");
         } finally {
+            setSyncProgress(null);
             setSyncingAll(false);
         }
     };
@@ -281,7 +303,7 @@ export default function GodBountiesPage() {
                         className="bg-amber-500 hover:bg-amber-400 text-black font-bold uppercase italic text-xs h-12 px-5 rounded-2xl flex items-center gap-2 shadow-lg shadow-amber-500/20"
                     >
                         {syncingAll ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
-                        Sync & Remplir Tous les Avis
+                        {syncingAll ? (syncProgress ?? "Synchronisation…") : "Sync & Remplir Tous les Avis"}
                     </Button>
 
                     <div className="relative w-full lg:w-80 group">

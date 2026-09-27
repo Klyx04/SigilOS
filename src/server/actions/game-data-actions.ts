@@ -10,6 +10,7 @@ import fs from 'fs';
 import path from 'path';
 import { logger } from "@/lib/logger";
 import { buildBountyBestiaireEntry } from "@/lib/bounty-fiche";
+import { normalizeDofusAssetStoredUrl } from "@/lib/dofus-image-url";
 import { sanitizeHtml } from "@/lib/security";
 import { dofusDbFetch } from "@/lib/dofusdb-limiter";
 import { diffFields, recordGameDataChanges } from "@/lib/game-data-changelog";
@@ -967,7 +968,17 @@ export async function getZoneMonsters(zoneName: string, subAreaId?: number): Pro
     }
 }
 
-/** Fetch bounties (Avis de recherche) for a specific zone from DofusDB */
+/**
+ * Fetch bounties (Avis de recherche) for a specific zone — lecture **locale** (siphon).
+ *
+ * 🐛 Mesure du 27/09/2026 : cette action avait une 2ᵉ jambe (« enrichir l'image depuis DofusDB »)
+ * qui interrogeait `monsters?typeId=23` — requête **morte** (`total: 0`, mesuré au `curl`) : elle
+ * ne pouvait rien enrichir (`dofusDbMatch` restait toujours `undefined`) tout en coûtant un appel
+ * réseau de 5 s dans un écran **public** (volet Worldmap). Supprimée : la ligne `Bounty` produite
+ * par le siphon est la source de vérité, et l'image est publiée sous **une seule forme**, la forme
+ * canonique du proxy d'assets (le chemin du cache disque `/uploads/assets-dofus/monsters/N.webp`
+ * rend 404 ⇒ il n'est jamais publié, même règle que `buildBountyBestiaireEntry`).
+ */
 export async function getBountiesForZone(zoneName: string): Promise<ActionResponse<any[]>> {
     try {
         const norm = (s: string | null | undefined) =>
@@ -984,74 +995,20 @@ export async function getBountiesForZone(zoneName: string): Promise<ActionRespon
 
         logger.debug(`[Bounties] Requested zone: "${zoneName}". Found local: ${localBounties.length}`);
 
-        // 2. Fetch direct depuis DofusDB avec vérification stricte des sous-zones (subareas)
-        let monsters: any[] = [];
-        try {
-            const response = await dofusDbFetch(`https://api.dofusdb.fr/monsters?typeId=23&$limit=100&lang=fr`, {
-                signal: AbortSignal.timeout(5000)
-            });
-            if (response.ok) {
-                const data = await response.json();
-                monsters = data.data || [];
-            }
-        } catch {
-            // Fallback si DofusDB indisponible
-        }
-
-        const externalFiltered = monsters.filter((m: any) => {
-            if (!m.subareas || !Array.isArray(m.subareas)) return false;
-            return m.subareas.some((sa: any) => {
-                const saName = typeof sa.name === 'string' ? sa.name : sa.name?.fr || '';
-                const saNorm = norm(saName);
-                return saNorm === zNorm;
-            });
-        });
-
-        // 3. Merged result
-        const merged = [...localBounties.map(b => {
-            const dofusDbMatch = monsters.find((m: any) => norm(m.name?.fr || m.name) === norm(b.name));
-            let finalImage = b.imageUrl;
-
-            if (finalImage && finalImage.startsWith('/images/bounties/') && dofusDbMatch) {
-                finalImage = dofusDbMatch.img || `https://static.ankama.com/dofus/www/game/monsters/${dofusDbMatch.id}.png`;
-            }
-
-            return {
-                id: b.id,
-                name: b.name,
-                imageUrl: finalImage,
-                mapUrl: b.mapUrl || (b.imageUrl?.startsWith('/images/bounties/') ? b.imageUrl : null),
-                level: b.level,
-                subarea: b.zoneName,
-                guideUrl: b.dpnlUrl,
-                doplons: b.doplons,
-                rewardType: b.rewardType,
-                rewards: b.rewards,
-                milice: b.milice,
-                mechanics: b.mechanics
-            };
-        })];
-
-        // Add external bounties that aren't in local DB yet
-        externalFiltered.forEach((m: any) => {
-            const mNameFr = m.name?.fr || m.name;
-            if (!merged.find(b => norm(b.name) === norm(mNameFr))) {
-                merged.push({
-                    id: m.id,
-                    name: mNameFr,
-                    imageUrl: m.img || `https://static.ankama.com/dofus/www/game/monsters/${m.id}.png`,
-                    mapUrl: null,
-                    level: m.grades?.[0]?.level || 0,
-                    subarea: zoneName,
-                    guideUrl: null,
-                    doplons: 0,
-                    rewardType: "Doplon",
-                    rewards: [],
-                    milice: null,
-                    mechanics: null
-                });
-            }
-        });
+        const merged = localBounties.map(b => ({
+            id: b.id,
+            name: b.name,
+            imageUrl: normalizeDofusAssetStoredUrl("monsters", b.imageUrl, b.dofusdbId),
+            mapUrl: b.mapUrl || (b.imageUrl?.startsWith('/images/bounties/') ? b.imageUrl : null),
+            level: b.level,
+            subarea: b.zoneName,
+            guideUrl: b.dpnlUrl,
+            doplons: b.doplons,
+            rewardType: b.rewardType,
+            rewards: b.rewards,
+            milice: b.milice,
+            mechanics: b.mechanics
+        }));
 
         return { success: true, data: merged };
     } catch (error) {
@@ -1959,125 +1916,7 @@ export async function updateGodBountyRecord(bountyId: string, data: {
 }
 
 /**
- * 🛡️ Synchronisation automatique complète de tous les Avis de Recherche.
- * Récupère tous les avis depuis DofusDB (typeId=23), déduit leurs sous-zones exactes,
- * leurs niveaux, leurs types de récompenses, leurs URLs DPNL et leurs résumés tactiques.
- */
-export async function syncBountiesCompleteFromDofusDb(): Promise<ActionResponse<{ synced: number; total: number }>> {
-    if (!(await canAccessBounties())) return { success: false, error: 'Non autorisé' };
-
-    try {
-        const response = await dofusDbFetch(`https://api.dofusdb.fr/monsters?typeId=23&$limit=150&lang=fr`, {
-            headers: { 'Accept': 'application/json' },
-            signal: AbortSignal.timeout(15000)
-        });
-        if (!response.ok) return { success: false, error: 'Erreur de connexion à DofusDB' };
-
-        const json = await response.json();
-        const monsters: any[] = json.data || [];
-        let synced = 0;
-
-        for (const m of monsters) {
-            const name = typeof m.name === 'string' ? m.name : m.name?.fr;
-            if (!name || !name.trim()) continue;
-
-            const level = Array.isArray(m.grades) && m.grades.length > 0
-                ? m.grades[0].level || m.grades[0].grade
-                : (typeof m.level === 'number' ? m.level : 0);
-
-            const subarea = m.subareas && m.subareas.length > 0
-                ? (typeof m.subareas[0].name === 'string' ? m.subareas[0].name : m.subareas[0].name?.fr || '')
-                : null;
-
-            const imgUrl = m.img || (m.id ? `https://api.dofusdb.fr/img/monsters/${m.id}.png` : null);
-
-            // DPNL slug format
-            const cleanSlug = name
-                .toLowerCase()
-                .normalize('NFD')
-                .replace(/[\u0300-\u036f]/g, '')
-                .replace(/['\s]/g, '-');
-            const dpnlUrl = `https://www.dofuspourlesnoobs.com/on-recherche-${cleanSlug}.html`;
-
-            // Déduction de la milice & du type de récompense
-            let milice = "Astrub";
-            let rewardType = "Aviton";
-            let doplons = level * 10;
-
-            const subLower = (subarea || "").toLowerCase();
-            if (subLower.includes("frigost") || subLower.includes("glace") || subLower.includes("berg")) {
-                milice = "Bourgade de Frigost";
-                rewardType = "Kama de glace";
-            } else if (subLower.includes("saharach") || subLower.includes("dune")) {
-                milice = "Saharach";
-                rewardType = "Aviton";
-            } else if (subLower.includes("amakna") || subLower.includes("château")) {
-                milice = "Château d'Amakna";
-                rewardType = "Aviton";
-            } else if (subLower.includes("sufokia")) {
-                milice = "Sufokia";
-                rewardType = "Aviton";
-            } else if (subLower.includes("enutrosor") || subLower.includes("srambad") || subLower.includes("xelorium") || subLower.includes("ecaflipus")) {
-                milice = "Dimensions Divines";
-                rewardType = "Aviton";
-            }
-
-            const defaultRewards = [{ type: rewardType, amount: doplons }];
-
-            // Résumé tactique automatique
-            const spellsList = Array.isArray(m.spells) && m.spells.length > 0
-                ? m.spells.map((s: any) => typeof s.name === 'string' ? s.name : s.name?.fr).filter(Boolean).slice(0, 4).join(', ')
-                : null;
-            const defaultMechanics = `<p><strong>Zone de traque :</strong> ${subarea || 'Inconnue'}</p><p><strong>Niveau conseillé :</strong> ${level}</p>${spellsList ? `<p><strong>Capacités clés :</strong> ${spellsList}</p>` : ''}<p>Consultez la fiche complète sur DofusPourLesNoobs pour les états d'invulnérabilité et le placement idéal.</p>`;
-
-            const existing = await db.bounty.findFirst({
-                where: { name: name.trim() }
-            });
-
-            if (existing) {
-                await db.bounty.update({
-                    where: { id: existing.id },
-                    data: {
-                        level: existing.level || level,
-                        zoneName: existing.zoneName || subarea,
-                        imageUrl: existing.imageUrl || imgUrl,
-                        dpnlUrl: existing.dpnlUrl || dpnlUrl,
-                        milice: existing.milice || milice,
-                        rewardType: existing.rewardType || rewardType,
-                        doplons: existing.doplons || doplons,
-                        rewards: existing.rewards || defaultRewards,
-                        mechanics: existing.mechanics || defaultMechanics,
-                    }
-                });
-            } else {
-                await db.bounty.create({
-                    data: {
-                        name: name.trim(),
-                        level,
-                        zoneName: subarea,
-                        imageUrl: imgUrl,
-                        dpnlUrl,
-                        milice,
-                        rewardType,
-                        doplons,
-                        rewards: defaultRewards,
-                        mechanics: defaultMechanics,
-                    }
-                });
-            }
-
-            synced++;
-        }
-
-        await logGameDataWrite("sync-all-bounties", `synced-${synced}`);
-        return { success: true, data: { synced, total: monsters.length } };
-    } catch (error) {
-        logger.error('[syncBountiesCompleteFromDofusDb] Error:', { error });
-        return { success: false, error: 'Erreur lors de la synchronisation des avis' };
-    }
-}
-
-/** Fetch quests from the Dofus module that are linked to a specific zone/subarea */
+ * Fetch quests from the Dofus module that are linked to a specific zone/subarea */
 export async function getQuestsByZone(zoneName: string): Promise<ActionResponse<any[]>> {
     try {
         const normalized = zoneName.toLowerCase().trim();
@@ -2566,8 +2405,12 @@ export async function searchArchimonstresForMap(
             try {
                 // Use (?i) inline flag — DofusDB rejects $options=i (not whitelisted)
                 const encodedQuery = encodeURIComponent(`(?i)${query.trim()}`);
-                // Le filtre "boss" n'a de sens que sur les boss de donjon DofusDB (typeId=23)
-                const bossOnly = filter === 'boss' ? `&typeId=23` : '';
+                // Le filtre "boss" interroge le drapeau `isBoss` de DofusDB.
+                // 🐛 Mesure du 27/09/2026 : ce filtre posait `typeId=23` — requête **morte**
+                // (`monsters?typeId=23` → `total: 0`) ⇒ la recherche « boss » du volet Worldmap ne
+                // remontait **jamais** rien par le fallback DofusDB. Vérifié : `isBoss=true` renvoie
+                // bien la cible attendue (`name.fr=(?i)qilby` → 1 entité, 0 avec `typeId=23`).
+                const bossOnly = filter === 'boss' ? `&isBoss=true` : '';
                 const url = `https://api.dofusdb.fr/monsters?lang=fr&name.fr[$regex]=${encodedQuery}${bossOnly}&$limit=10`;
                 const resp = await dofusDbFetch(url, {
                     headers: { 'Accept': 'application/json' },

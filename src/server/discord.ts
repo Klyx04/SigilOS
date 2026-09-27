@@ -414,7 +414,7 @@ export async function fetchGuildMember(guildId: string, userId: string) {
 
 export async function listGuildMembers(guildId: string, limit = 1000) {
     const cacheKey = `members:${guildId}:${limit}`;
-    const cached = getCached<Array<{ user: { id: string; username: string; global_name?: string; avatar?: string | null }; nick?: string | null; avatar?: string | null; roles: string[]; joined_at?: string }>>(cacheKey);
+    const cached = getCached<Array<{ user: { id: string; username: string; global_name?: string; bot?: boolean; avatar?: string | null }; nick?: string | null; avatar?: string | null; roles: string[]; joined_at?: string }>>(cacheKey);
     if (cached !== null) return cached;
 
     const token = process.env.DISCORD_BOT_TOKEN;

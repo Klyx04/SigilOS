@@ -41,6 +41,27 @@ import { DateTimePicker } from "@/components/ui/date-time-picker";
 import { getDiscordChannelInfo } from "@/server/actions/discord-actions";
 import { getDungeonFinderConfig } from "@/server/actions/dungeon-finder-actions";
 import { Eye } from "lucide-react";
+import { questThumbnail, QUEST_ICON_FALLBACK } from "@/lib/dungeon-finder-utils";
+
+/** Les 4 modes du chercheur de groupe. */
+type FinderMode = "DONJON" | "QUETE" | "DEFI" | "TITAN";
+
+/**
+ * Picto **réel** de chaque mode — assets Dofus officiels déjà versionnés dans le dépôt
+ * (`public/assets/dofus/icons`) : fini les icônes génériques (constat user du 27/09/2026 :
+ * « groupe quête : ai slop, suppression icône slop et vrai assets »).
+ */
+const MODE_ASSET: Record<FinderMode, string> = {
+    DONJON: "/assets/dofus/icons/boss.png",
+    QUETE: "/assets/dofus/icons/quests.png",
+    DEFI: "/assets/dofus/icons/challenges.png",
+    TITAN: "/assets/dofus/icons/crown.png",
+};
+
+/** Picto d'un mode (taille et opacité laissées à l'appelant). */
+function ModeGlyph({ mode, className }: { mode: FinderMode; className?: string }) {
+    return <img src={MODE_ASSET[mode]} alt="" className={cn("object-contain shrink-0", className)} />;
+}
 
 interface Dungeon {
     id: string;
@@ -488,7 +509,7 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
                 <div className="p-6 pb-4 border-b border-border bg-surface/40 shrink-0">
                     <DialogTitle className="text-xl font-black flex items-center gap-3">
                         <div className="w-10 h-10 rounded-2xl bg-warning/10 border border-warning/20 flex items-center justify-center">
-                            <Plus className="w-5 h-5 text-warning" />
+                            <ModeGlyph mode={mode} className="w-6 h-6" />
                         </div>
                         <div className="flex flex-col">
                             <span className="text-xl tracking-tight text-foreground leading-none">
@@ -511,28 +532,28 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
                                         onClick={() => setMode("DONJON")}
                                         className={`relative z-10 flex items-center justify-center gap-2 py-3 text-sm font-bold rounded-xl transition-all ${mode === "DONJON" ? "bg-elevated border border-border text-foreground" : "text-muted-foreground hover:text-foreground"}`}
                                     >
-                                        <Swords className={`w-4 h-4 transition-colors ${mode === "DONJON" ? "text-warning" : ""}`} />
+                                        <ModeGlyph mode="DONJON" className={cn("w-4 h-4 transition-opacity", mode === "DONJON" ? "opacity-100" : "opacity-50")} />
                                         Mode Donjons
                                     </button>
                                     <button
                                         onClick={() => setMode("QUETE")}
                                         className={`relative z-10 flex items-center justify-center gap-2 py-3 text-sm font-bold rounded-xl transition-all ${mode === "QUETE" ? "bg-elevated border border-border text-foreground" : "text-muted-foreground hover:text-foreground"}`}
                                     >
-                                        <Map className={`w-4 h-4 transition-colors ${mode === "QUETE" ? "text-success" : ""}`} />
+                                        <ModeGlyph mode="QUETE" className={cn("w-4 h-4 transition-opacity", mode === "QUETE" ? "opacity-100" : "opacity-50")} />
                                         Mode Quêtes
                                     </button>
                                     <button
                                         onClick={() => setMode("DEFI")}
                                         className={`relative z-10 flex items-center justify-center gap-2 py-3 text-sm font-bold rounded-xl transition-all ${mode === "DEFI" ? "bg-elevated border border-border text-foreground" : "text-muted-foreground hover:text-foreground"}`}
                                     >
-                                        <Zap className={`w-4 h-4 transition-colors ${mode === "DEFI" ? "text-amber-500" : ""}`} />
+                                        <ModeGlyph mode="DEFI" className={cn("w-4 h-4 transition-opacity", mode === "DEFI" ? "opacity-100" : "opacity-50")} />
                                         Mode Défi
                                     </button>
                                     <button
                                         onClick={() => setMode("TITAN")}
                                         className={`relative z-10 flex items-center justify-center gap-2 py-3 text-sm font-bold rounded-xl transition-all ${mode === "TITAN" ? "bg-elevated border border-border text-foreground" : "text-muted-foreground hover:text-foreground"}`}
                                     >
-                                        <Crown className={`w-4 h-4 transition-colors ${mode === "TITAN" ? "text-amber-500" : ""}`} />
+                                        <ModeGlyph mode="TITAN" className={cn("w-4 h-4 transition-opacity", mode === "TITAN" ? "opacity-100" : "opacity-50")} />
                                         Mode Titan
                                     </button>
                                 </div>
@@ -796,10 +817,22 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
                                                                             <button
                                                                                 key={q.id}
                                                                                 onClick={() => setSelectedQuest({ id: q.id, name: q.name?.fr || "" })}
-                                                                                className="w-full text-left px-4 py-3 text-sm text-foreground hover:bg-muted hover:text-foreground transition-colors border-b border-border/50 last:border-0 flex gap-3 truncate"
+                                                                                className="w-full text-left px-3 py-2.5 text-sm text-foreground hover:bg-muted hover:text-foreground transition-colors border-b border-border/50 last:border-0 flex items-center gap-3"
                                                                             >
-                                                                                <span className="text-muted-foreground font-mono text-caption w-10 shrink-0 pt-0.5">#{q.id}</span>
-                                                                                <span className="truncate block font-medium">{q.name?.fr}</span>
+                                                                                {/* Vrai visuel de la quête (carte de départ du jeu, sinon icône de quête
+                                                                                    Dofus) et plus aucun id technique `#606` dans la liste. */}
+                                                                                <span className="w-14 h-10 rounded-lg overflow-hidden bg-background border border-border shrink-0">
+                                                                                    {/* Carte absente du cache disque ⇒ repli sur l'icône de quête
+                                                                                        (jamais d'image cassée dans la liste). */}
+                                                                                    <img
+                                                                                        src={questThumbnail(q)}
+                                                                                        alt=""
+                                                                                        className="w-full h-full object-cover"
+                                                                                        loading="lazy"
+                                                                                        onError={(e) => { e.currentTarget.src = QUEST_ICON_FALLBACK; }}
+                                                                                    />
+                                                                                </span>
+                                                                                <span className="truncate block font-medium min-w-0">{q.name?.fr}</span>
                                                                             </button>
                                                                         ))}
                                                                     </>
@@ -860,20 +893,16 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
                                     <div className="flex items-center gap-4 bg-surface/60 rounded-3xl p-5 border border-border shadow-xl relative overflow-hidden group">
                                         <div className="absolute inset-0 bg-gradient-to-r from-warning/5 to-transparent opacity-50" />
                                         <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 border relative z-10 ${mode === "DONJON" ? "bg-background border-border" : mode === "DEFI" ? "bg-amber-500/20 border-amber-500/30" : mode === "TITAN" ? "bg-amber-500/20 border-amber-500/30" : "bg-success/30 border-success/20"}`}>
+                                            {/* Image de l'entité choisie si elle existe, sinon le picto **réel**
+                                                du mode (asset Dofus) — plus d'icônes génériques. */}
                                             {mode === "DONJON" && selectedDungeon?.imageUrl ? (
                                                 <img src={selectedDungeon.imageUrl} alt="" className="w-10 h-10 object-contain group- transition-transform duration-300" />
                                             ) : mode === "DEFI" && selectedDefi?.imageUrl ? (
                                                 <img src={selectedDefi.imageUrl} alt="" className="w-10 h-10 object-contain group- transition-transform duration-300" />
-                                            ) : mode === "DEFI" ? (
-                                                <Zap className="w-6 h-6 text-amber-500" />
                                             ) : mode === "TITAN" && selectedTitan?.imageUrl ? (
                                                 <img src={selectedTitan.imageUrl} alt="" className="w-10 h-10 object-contain group- transition-transform duration-300" />
-                                            ) : mode === "TITAN" ? (
-                                                <Crown className="w-6 h-6 text-amber-500" />
-                                            ) : mode === "DONJON" ? (
-                                                <Swords className="w-6 h-6 text-muted-foreground" />
                                             ) : (
-                                                <Map className="w-6 h-6 text-success" />
+                                                <ModeGlyph mode={mode} className="w-7 h-7" />
                                             )}
                                         </div>
                                         <div className="flex-1 min-w-0 relative z-10">

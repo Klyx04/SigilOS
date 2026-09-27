@@ -21,6 +21,9 @@ import {
     mergeMultiDungeonTargetDates,
     achievementLines,
     embedCoverUrl,
+    QUEST_ICON_FALLBACK,
+    questStartMapId,
+    questThumbnail,
 } from "@/lib/dungeon-finder-utils";
 import { toLocalDateTimeInput } from "@/lib/date-utils";
 
@@ -297,6 +300,40 @@ describe("embedCoverUrl", () => {
         expect(embedCoverUrl(null, "https://sigilos.fr")).toBeNull();
         expect(embedCoverUrl(undefined, "https://sigilos.fr")).toBeNull();
         expect(embedCoverUrl("", "https://sigilos.fr")).toBeNull();
+    });
+});
+
+
+describe("dungeon-finder — visuel d'une quête (liste de recherche)", () => {
+    it("préfère le visuel explicite quand la base en porte un", () => {
+        expect(questThumbnail({ imageUrl: "/game-data/quests/glourmandise.webp" })).toBe(
+            "/game-data/quests/glourmandise.webp"
+        );
+    });
+
+    it("refuse toute valeur brute (garde de forme : seule une URL interne part dans le `<img>`)", () => {
+        expect(questThumbnail({ imageUrl: "https://exemple.fr/x.png" })).toBe(QUEST_ICON_FALLBACK);
+        expect(questThumbnail({ imageUrl: "//exemple.fr/x.png" })).toBe(QUEST_ICON_FALLBACK);
+        expect(questThumbnail({ imageUrl: "javascript:alert(1)" })).toBe(QUEST_ICON_FALLBACK);
+        expect(questThumbnail({ imageUrl: "   " })).toBe(QUEST_ICON_FALLBACK);
+    });
+
+    it("retombe sur la carte de départ de la quête (asset du jeu, carte réelle)", () => {
+        expect(questThumbnail({ startPosition: [{ mapId: 160695296 }] })).toBe(
+            "/game-data/hd_maps/160695296.webp"
+        );
+        expect(questStartMapId([{ mapId: 160695296 }, { mapId: 1 }])).toBe(160695296);
+    });
+
+    it("sans visuel ni carte : icône de quête Dofus (jamais d'image inventée)", () => {
+        expect(questThumbnail(null)).toBe(QUEST_ICON_FALLBACK);
+        expect(questThumbnail(undefined)).toBe(QUEST_ICON_FALLBACK);
+        expect(questThumbnail({})).toBe(QUEST_ICON_FALLBACK);
+        expect(questThumbnail({ startPosition: [] })).toBe(QUEST_ICON_FALLBACK);
+        expect(questThumbnail({ startPosition: [{ mapId: 0 }] })).toBe(QUEST_ICON_FALLBACK);
+        expect(questStartMapId(null)).toBeNull();
+        expect(questStartMapId("pas une position")).toBeNull();
+        expect(questStartMapId([{ mapId: -3 }])).toBeNull();
     });
 });
 

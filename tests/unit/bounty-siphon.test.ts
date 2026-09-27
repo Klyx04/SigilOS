@@ -30,6 +30,7 @@ import {
     isBountyRaceName,
     isIdSuffixedBountySlug,
     isProvenBounty,
+    pickAdoptableBounty,
     pickBountyBattleMap,
     pickBountySubarea,
     uniqueBountySlug,
@@ -50,6 +51,7 @@ const mockFindUniqueBounty = vi.fn();
 const mockFindManyBounty = vi.fn(async (..._args: any[]) => [] as unknown[]);
 const mockCreateBounty = vi.fn();
 const mockUpdateBounty = vi.fn();
+const mockUpdateManyBounty = vi.fn(async (..._args: any[]) => ({ count: 1 }));
 vi.mock("@/lib/prisma", () => ({
     db: {
         bounty: {
@@ -57,6 +59,7 @@ vi.mock("@/lib/prisma", () => ({
             findUnique: (...args: any[]) => mockFindUniqueBounty(...args),
             create: (...args: any[]) => mockCreateBounty(...args),
             update: (...args: any[]) => mockUpdateBounty(...args),
+            updateMany: (...args: any[]) => mockUpdateManyBounty(...args),
         },
     },
 }));
@@ -140,6 +143,7 @@ beforeEach(() => {
     mockFindUniqueBounty.mockResolvedValue(null);
     mockCreateBounty.mockResolvedValue({ id: "b1" });
     mockUpdateBounty.mockResolvedValue({ id: "b1" });
+    mockUpdateManyBounty.mockResolvedValue({ count: 1 });
     mockSiphonMap.mockResolvedValue(true);
     mockSiphonImage.mockResolvedValue({ success: true, localUrl: "/api/assets-dofus/monsters/4834" });
     mockGetMonsterStats.mockResolvedValue({ success: true, data: { id: 4834, name: "Predagob", spells: [{ id: 8589, imageUrl: "https://api.dofusdb.fr/img/spells/sort_1.png" }] } });
@@ -237,6 +241,37 @@ describe("bounty.ts — helpers purs (aucun réseau)", () => {
         expect(bountyDofensiveUrl(4834)).toBe("https://dofensive.com/fr/monster/4834");
         expect(bountyDofusDbUrl(0)).toBeNull();
         expect(bountyDofensiveUrl(null)).toBeNull();
+    });
+
+    /**
+     * Adoption (mesure du 27/09/2026 : 83 lignes historiques curées, 91 avis siphonnés vides à
+     * côté ⇒ l'upsert par `dofusdbId` seul fabrique un jumeau vide, la curation reste orpheline).
+     */
+    it("adoption : la ligne historique du même nom est reconnue, une ligne liée ne l'est jamais", () => {
+        const rows = [
+            { id: "l1", name: "Aigripoil", slug: null, dofusdbId: null, isBountyMonster: false },
+            { id: "l2", name: "Mouchâme", slug: null, dofusdbId: null, isBountyMonster: false },
+            { id: "l3", name: "Predagob", slug: null, dofusdbId: 4834, isBountyMonster: true },
+            { id: "l4", name: "Ronce", slug: null, dofusdbId: null, isBountyMonster: false },
+            { id: "l5", name: "Ronce", slug: null, dofusdbId: null, isBountyMonster: false },
+            { id: "l6", name: "Sans id mais déjà déclaré avis", slug: null, dofusdbId: null, isBountyMonster: true },
+        ];
+
+        // Clé = slug du nom (casse et accents normalisés) : « AIGRIPOIL » ≡ « aigripoil ».
+        expect(pickAdoptableBounty(rows, "Aigripoil")?.id).toBe("l1");
+        expect(pickAdoptableBounty(rows, "AIGRIPOIL")?.id).toBe("l1");
+        expect(pickAdoptableBounty(rows, "mouchâme")?.id).toBe("l2");
+        // Une ligne déjà rattachée à un `dofusdbId` appartient à l'avis : jamais adoptée…
+        expect(pickAdoptableBounty(rows, "Predagob")).toBeNull();
+        // …et une ligne déjà déclarée avis non plus.
+        expect(pickAdoptableBounty(rows, "Sans id mais déjà déclaré avis")).toBeNull();
+        // Homonymes : ambiguïté ⇒ aucune adoption (jamais de choix au hasard).
+        expect(pickAdoptableBounty(rows, "Ronce")).toBeNull();
+        // Aucune correspondance, nom vide, entrée nulle : rien à adopter.
+        expect(pickAdoptableBounty(rows, "Inconnu")).toBeNull();
+        expect(pickAdoptableBounty(rows, "")).toBeNull();
+        expect(pickAdoptableBounty(null, "Aigripoil")).toBeNull();
+        expect(pickAdoptableBounty(undefined, "Aigripoil")).toBeNull();
     });
 });
 
@@ -439,6 +474,9 @@ describe("syncBounties — liste, preuve, écriture", () => {
         standardSources();
         mockFindUniqueBounty.mockResolvedValue({
             id: "b1",
+            name: "Predagob",
+            slug: "predagob",
+            dofusdbId: 4834,
             level: 190,
             zoneName: "Nimotopia",
             raceId: 32,
@@ -456,6 +494,80 @@ describe("syncBounties — liste, preuve, écriture", () => {
         expect(mockUpdateBounty.mock.calls[0][0].where).toEqual({ id: "b1" });
         // La fraîcheur est rafraîchie à chaque passe (l'UI affiche l'âge de la donnée).
         expect(mockUpdateBounty.mock.calls[0][0].data.dofusdbSyncedAt).toBeInstanceOf(Date);
+    });
+
+    /**
+     * 🐛 Mesure du 27/09/2026 (base locale, `psql`) : **83 lignes `Bounty` historiques** portent
+     * TOUTE la curation God (`doplons > 0`, `milice`, `mechanics`, `position`, `dpnlUrl`,
+     * `rewards` — 83/83) face à **91 avis siphonnés vides** (`doplons = 0`, aucun texte). Les
+     * 15+ paires de même nom le montrent : l'upsert par `dofusdbId` seul créait un **jumeau vide**
+     * et la curation restait sur une ligne que les surfaces avis ne servent pas.
+     */
+    const LEGACY_PREDAGOB = {
+        id: "legacy-1",
+        name: "Predagob",
+        slug: null,
+        dofusdbId: null,
+        level: 190,
+        zoneName: "Nimotopia",
+        raceId: null,
+        subareaIds: [],
+        isBountyMonster: false,
+        battleMapId: null,
+        battleMapSource: null,
+    };
+
+    /** `findMany({ where: { dofusdbId: null } })` (l'adoption) renvoie les lignes pilotées. */
+    function legacyRows(rows: any[]) {
+        mockFindManyBounty.mockImplementation(async (args: any) =>
+            args?.where?.dofusdbId === null ? rows : []
+        );
+    }
+
+    it("adopte la ligne historique du même nom au lieu de créer un jumeau vide", async () => {
+        standardSources();
+        legacyRows([LEGACY_PREDAGOB]);
+
+        const res = await syncBounties();
+
+        expect(mockCreateBounty).not.toHaveBeenCalled();
+        expect(mockUpdateBounty).not.toHaveBeenCalled();
+        const call = mockUpdateManyBounty.mock.calls[0][0];
+        // Garde d'état DANS le `WHERE` (invariant anti-course) : la ligne adoptée est bien une
+        // ligne SANS rattachement — au moment d'écrire.
+        expect(call.where).toEqual({ id: "legacy-1", dofusdbId: null });
+        expect(call.data.dofusdbId).toBe(4834);
+        expect(call.data.isBountyMonster).toBe(true);
+        expect(call.data.slug).toBe("predagob");
+        // Le siphon n'écrit QUE ses champs : la curation God n'est jamais dans son payload.
+        for (const curated of ["doplons", "milice", "rewardType", "mechanics", "position", "dpnlUrl", "rewards", "mapUrl", "reward"]) {
+            expect(call.data).not.toHaveProperty(curated);
+        }
+        expect(res.synced).toBe(1);
+    });
+
+    it("ambiguïté (deux lignes historiques du même nom) : aucune adoption, création de la ligne", async () => {
+        standardSources();
+        legacyRows([LEGACY_PREDAGOB, { ...LEGACY_PREDAGOB, id: "legacy-2", zoneName: "Autre zone" }]);
+
+        const res = await syncBounties();
+
+        expect(mockUpdateManyBounty).not.toHaveBeenCalled();
+        expect(mockCreateBounty).toHaveBeenCalledTimes(1);
+        expect(mockCreateBounty.mock.calls[0][0].data.dofusdbId).toBe(4834);
+        expect(res.synced).toBe(1);
+    });
+
+    it("course perdue (la ligne est prise entre-temps) : le siphon crée la sienne", async () => {
+        standardSources();
+        legacyRows([LEGACY_PREDAGOB]);
+        mockUpdateManyBounty.mockResolvedValue({ count: 0 });
+
+        await syncBounties();
+
+        expect(mockUpdateManyBounty).toHaveBeenCalledTimes(1);
+        expect(mockCreateBounty).toHaveBeenCalledTimes(1);
+        expect(mockCreateBounty.mock.calls[0][0].data.dofusdbId).toBe(4834);
     });
 });
 

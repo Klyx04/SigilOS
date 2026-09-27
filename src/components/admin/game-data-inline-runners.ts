@@ -9,6 +9,10 @@
  * qui les déclenche — même suivi d'état que les siphons d'arrière-plan
  * (`beginGameDataSync` / `reportGameDataSync` / `finishGameDataSync`) ⇒ la colonne
  * « Progression » du tableau est vraie, quelle que soit la façon dont on lance.
+ * 2ᵉ porte d'entrée (27/09/2026) : le bouton « Sync & remplir tous les avis » de
+ * `/god/game-data/bounties` appelle `runInlineGameDataDataset("BOUNTIES")` — **le même run**,
+ * jamais une copie de la boucle (il en existait une, hors rail, qui ne faisait rien : sonde
+ * `monsters?typeId=23` → `total: 0`, mesuré).
  *
  * Deux usages :
  *   · **repli** d'un dataset d'arrière-plan quand aucun worker n'écoute la file

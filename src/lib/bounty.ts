@@ -119,6 +119,52 @@ export function uniqueBountySlug(base: string, taken: Iterable<string | null | u
     return `${clean}-${suffix}`;
 }
 
+/**
+ * Ligne `Bounty` **historique** (seed de déploiement / carte du monde) telle qu'il faut la voir
+ * pour décider d'une adoption. Sous-ensemble du modèle Prisma : le strict nécessaire, sans base.
+ */
+export interface BountyAdoptionRow {
+    id: string;
+    name?: string | null;
+    slug?: string | null;
+    dofusdbId?: number | null;
+    isBountyMonster?: boolean | null;
+}
+
+/**
+ * Trouve la ligne `Bounty` à **adopter** pour un avis siphonné — celle qui porte la curation saisie
+ * dans God (`doplons`, `milice`, `rewardType`, `mechanics`, `position`, `dpnlUrl`, `rewards`).
+ *
+ * 🐛 Mesure du 27/09/2026 (base locale, `psql`) : **83 lignes historiques** (`dofusdbId = null`),
+ * dont **83/83** avec `doplons > 0`, `milice`, `mechanics` (≈ 230 caractères) et `position` — face
+ * à **91 avis siphonnés à côté, vides** (`doplons = 0`, `rewardType` « Doplon » par défaut, aucun
+ * texte). Les 15+ paires relevées (`Armada l'Invincible`, `Chevalier de Glace`, `Crasper`, …)
+ * montrent la conséquence : l'upsert par `dofusdbId` seul fabrique un **jumeau vide**, et la
+ * curation reste sur une ligne que les surfaces avis ne servent pas (`isBountyMonster: false`).
+ *
+ * Règles (fail-closed — **jamais** de vol de ligne, **jamais** de choix au hasard) :
+ *   · adoptable seulement si la ligne **n'est liée à aucun `dofusdbId`** (une ligne déjà rattachée
+ *     appartient à un autre avis) et qu'elle n'est **pas déjà** déclarée comme avis ;
+ *   · correspondance par **clé de nom** (`bountySlug` : casse, accents, apostrophes) — la même clé
+ *     que celle des URL publiques ;
+ *   · **ambiguïté ⇒ `null`** : plusieurs lignes candidatent (homonymes) ⇒ le siphon crée la sienne
+ *     (comportement inchangé) plutôt que d'attacher la curation d'un avis à un autre.
+ */
+export function pickAdoptableBounty<T extends BountyAdoptionRow>(
+    rows: T[] | null | undefined,
+    name: string | null | undefined
+): T | null {
+    const key = bountySlug(String(name ?? ""));
+    if (!key) return null;
+    const candidates = (Array.isArray(rows) ? rows : []).filter((row) => {
+        if (row?.dofusdbId != null) return false;
+        if (row?.isBountyMonster === true) return false;
+        const rowKey = bountySlug(String(row?.name ?? "")) || String(row?.slug ?? "").trim().toLowerCase();
+        return rowKey === key;
+    });
+    return candidates.length === 1 ? candidates[0] : null;
+}
+
 /** L'id de race appartient-il au périmètre « avis de recherche » ? */
 export function isBountyRace(raceId: number | string | null | undefined): boolean {
     const id = Math.floor(Number(raceId) || 0);

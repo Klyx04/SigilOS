@@ -22,10 +22,13 @@
  *     affichait une salle sans rapport avec la traque (constat user du 16/09/2026).
  *  6. **Icônes** = monstre + sorts (DofusDB → WebP disque) : zéro dépendance CDN à l'exécution.
  *  7. **Écriture** = une ligne `Bounty` par avis (**upsert par `dofusdbId`** — des homonymes
- *     existent : 3 × « Ronce ») + une fiche `MonsterStat` (stats DofusDB enrichies, sorts de
- *     combat fusionnés, métadonnées `bounty`). Les champs **curés** de `Bounty`
- *     (`rewards`, `doplons`, `milice`, `rewardType`, `mechanics`, `position`, `dpnlUrl`, `mapUrl`,
- *     `reward`) ne sont **jamais** écrasés par le siphon.
+ *     existent : 3 × « Ronce »), sinon **adoption de la ligne historique du même nom** quand elle
+ *     est unique : mesuré le 27/09/2026, 83 lignes historiques portent la curation God face à 91
+ *     avis siphonnés vides ⇒ sans adoption, l'upsert fabrique un **jumeau vide** et la curation
+ *     reste invisible (`pickAdoptableBounty`, `src/lib/bounty.ts`). Plus une fiche `MonsterStat`
+ *     (stats DofusDB enrichies, sorts de combat fusionnés, métadonnées `bounty`). Les champs
+ *     **curés** de `Bounty` (`rewards`, `doplons`, `milice`, `rewardType`, `mechanics`, `position`,
+ *     `dpnlUrl`, `mapUrl`, `reward`) ne sont **jamais** écrasés par le siphon.
  *  8. **Exclusions** = un avis **supprimé dans God** entre dans la liste d'exclusion
  *     (`src/lib/bounty-ignore.ts`) : il n'est ni réécrit ni recréé, et le compte est remonté
  *     (`ignored`) — une suppression ne doit jamais être annulée par le cron.
@@ -57,6 +60,7 @@ import {
     isIdSuffixedBountySlug,
     isProvenBounty,
     normalizeBountySubareas,
+    pickAdoptableBounty,
     pickBountyBattleMap,
     pickBountySubarea,
     uniqueBountySlug,
@@ -391,34 +395,24 @@ async function siphonOneBounty(target: BountyTarget, result: BountySyncResult): 
     return upsertBountyRow(target, monsterImg.localUrl ?? target.imageUrl);
 }
 
-/**
- * Upsert de la ligne `Bounty` d'un avis, **par `dofusdbId`** (3 avis homonymes « Ronce » ⇒
- * l'upsert par nom est impossible). Le siphon n'écrit QUE ses champs : les champs curés
- * (`rewards`, `doplons`, `milice`, `rewardType`, `mechanics`, `position`, `dpnlUrl`, `mapUrl`,
- * `reward`) ne sont jamais écrasés — ils restent la propriété de l'onglet God.
- *
- * `battleMapId` / `battleMapSource` sont **siphonnés** : un avis n'ayant aucune carte exposée,
- * l'écriture vaut `null` / `"none"` (grille vide), ce qui remet aussi à zéro les anciennes
- * lignes pointant sur la carte d'emprunt « Abysses du temps ».
- */
-async function upsertBountyRow(target: BountyTarget, imageUrl: string | null): Promise<boolean> {
-    if (!DB_READABLE) return false;
-    const subareaIds = target.subareas.map((s) => s.id);
-    const existing = await db.bounty.findUnique({
-        where: { dofusdbId: target.id },
-        select: {
-            id: true,
-            level: true,
-            zoneName: true,
-            raceId: true,
-            subareaIds: true,
-            isBountyMonster: true,
-            battleMapId: true,
-            battleMapSource: true,
-        },
-    });
+/** Champs `Bounty` lus pour décider d'une mise à jour / d'une adoption (mêmes colonnes des deux côtés). */
+const BOUNTY_ROW_FIELDS = {
+    id: true,
+    name: true,
+    slug: true,
+    dofusdbId: true,
+    level: true,
+    zoneName: true,
+    raceId: true,
+    subareaIds: true,
+    isBountyMonster: true,
+    battleMapId: true,
+    battleMapSource: true,
+} as const;
 
-    const data = {
+/** Champs `Bounty` écrits par le siphon — les champs curés dans God n'y figurent JAMAIS. */
+function bountySiphonData(target: BountyTarget, imageUrl: string | null) {
+    return {
         name: target.name,
         level: target.level,
         levelMin: target.levelMin,
@@ -427,48 +421,100 @@ async function upsertBountyRow(target: BountyTarget, imageUrl: string | null): P
         slug: target.slug,
         raceId: target.raceId,
         raceName: target.raceName,
-        subareaIds,
+        subareaIds: target.subareas.map((s) => s.id),
         isBountyMonster: true,
         battleMapId: target.mapId > 0 ? target.mapId : null,
         battleMapSource: target.mapSource,
         dofusdbSyncedAt: new Date(),
         imageUrl: imageUrl || undefined,
     };
+}
 
-    if (!existing) {
-        await db.bounty.create({
-            data: {
-                ...data,
-                /* Zone de traque : `null` (jamais « Inconnu ») si la source n'en donne pas. */
-                zoneName: target.subareaName ?? null,
-                imageUrl: imageUrl ?? null,
-            },
-        });
-        // 🔍 Journal (dataset BOUNTIES) : avis de recherche nouvellement créé.
-        await recordGameDataChanges('BOUNTIES', [
-            {
-                entityType: 'bounty',
-                entityId: target.slug,
-                entityName: target.name ?? target.slug,
-                changeType: 'NEW',
-            },
-        ]);
-        return true;
+/**
+ * Ligne `Bounty` **historique** à adopter pour cet avis — `null` s'il n'y en a aucune, ou si
+ * plusieurs candidatent (jamais de choix au hasard). Mesure et règles : `pickAdoptableBounty`.
+ */
+async function adoptLegacyBountyRow(target: BountyTarget) {
+    const rows = await db.bounty.findMany({ where: { dofusdbId: null }, select: BOUNTY_ROW_FIELDS });
+    const adopted = pickAdoptableBounty(rows, target.name);
+    if (adopted) {
+        logger.info(
+            `[bounty-siphon] adoption de la ligne historique « ${adopted.name} » (${adopted.id}) pour l'avis #${target.id} — curation God conservée`,
+        );
     }
+    return adopted;
+}
+
+/** Création de la ligne `Bounty` d'un avis (aucune ligne à mettre à jour ni à adopter) + journal. */
+async function createBountyRow(target: BountyTarget, imageUrl: string | null): Promise<boolean> {
+    await db.bounty.create({
+        data: {
+            ...bountySiphonData(target, imageUrl),
+            /* Zone de traque : `null` (jamais « Inconnu ») si la source n'en donne pas. */
+            zoneName: target.subareaName ?? null,
+            imageUrl: imageUrl ?? null,
+        },
+    });
+    // 🔍 Journal (dataset BOUNTIES) : avis de recherche nouvellement créé.
+    await recordGameDataChanges('BOUNTIES', [
+        {
+            entityType: 'bounty',
+            entityId: target.slug,
+            entityName: target.name ?? target.slug,
+            changeType: 'NEW',
+        },
+    ]);
+    return true;
+}
+
+/**
+ * Upsert de la ligne `Bounty` d'un avis : par **`dofusdbId`** (3 avis homonymes « Ronce » ⇒
+ * l'upsert par nom est impossible), sinon par **adoption** de la ligne historique du même nom
+ * (`adoptLegacyBountyRow` — c'est là que vit la curation God). Le siphon n'écrit QUE ses champs :
+ * les champs curés (`rewards`, `doplons`, `milice`, `rewardType`, `mechanics`, `position`,
+ * `dpnlUrl`, `mapUrl`, `reward`) ne sont jamais écrasés — ils restent la propriété de God.
+ *
+ * `battleMapId` / `battleMapSource` sont **siphonnés** : un avis n'ayant aucune carte exposée,
+ * l'écriture vaut `null` / `"none"` (grille vide), ce qui remet aussi à zéro les anciennes
+ * lignes pointant sur la carte d'emprunt « Abysses du temps ».
+ */
+async function upsertBountyRow(target: BountyTarget, imageUrl: string | null): Promise<boolean> {
+    if (!DB_READABLE) return false;
+    const subareaIds = target.subareas.map((s) => s.id);
+    const existing = (await db.bounty.findUnique({
+        where: { dofusdbId: target.id },
+        select: BOUNTY_ROW_FIELDS,
+    })) ?? (await adoptLegacyBountyRow(target));
+
+    if (!existing) return createBountyRow(target, imageUrl);
+
+    const data = bountySiphonData(target, imageUrl);
 
     const storedMapId = target.mapId > 0 ? target.mapId : null;
     const changed = existing.level !== target.level
         || existing.raceId !== target.raceId
         || existing.battleMapId !== storedMapId
         || existing.battleMapSource !== target.mapSource
+        // `isBountyMonster` faux ⇒ ligne historique non adoptée : c'est LE signal de l'adoption
+        // (une ligne déjà `true` porte forcément son `dofusdbId`, cf. `pickAdoptableBounty`).
         || existing.isBountyMonster !== true
         || (target.subareaName !== null && existing.zoneName !== target.subareaName)
         || JSON.stringify(existing.subareaIds ?? []) !== JSON.stringify(subareaIds);
 
-    await db.bounty.update({
-        where: { id: existing.id },
-        data: { ...data, zoneName: target.subareaName ?? existing.zoneName },
-    });
+    const payload = { ...data, zoneName: target.subareaName ?? existing.zoneName };
+
+    if (existing.dofusdbId == null) {
+        // 🛡️ Ligne HISTORIQUE adoptée : l'écriture est gardée dans le `WHERE` (invariant
+        // anti-course) — deux avis homonymes siphonnés en parallèle ne peuvent pas adopter la
+        // MÊME ligne : le second voit `count = 0` et crée la sienne.
+        const { count } = await db.bounty.updateMany({
+            where: { id: existing.id, dofusdbId: null },
+            data: payload,
+        });
+        if (count === 0) return createBountyRow(target, imageUrl);
+    } else {
+        await db.bounty.update({ where: { id: existing.id }, data: payload });
+    }
 
     // 🔍 Journal : le détail de **ce qui** a changé (niveau, race, carte de combat, zone…).
     if (changed) {

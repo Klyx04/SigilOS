@@ -20,6 +20,8 @@ import {
     updateDungeon,
     deleteDungeon,
     getChallenges,
+    getIgnoredDungeonsAction,
+    restoreDungeonAction,
 } from "@/server/actions/game-data-admin-actions";
 import { ImageDownloader } from "./ImageDownloader";
 import { DungeonMapPicker } from "./DungeonMapPicker";
@@ -30,7 +32,7 @@ import {
     SelectTrigger,
     SelectValue
 } from "@/components/ui/select";
-import { Search, Plus, MapPin, Trophy, ShieldAlert, Swords, Skull, MoreHorizontal, Edit2, Trash2, ImageIcon, Loader2 } from "lucide-react";
+import { Search, Plus, MapPin, Trophy, ShieldAlert, Swords, Skull, MoreHorizontal, Edit2, Trash2, ImageIcon, Loader2, Ban, RotateCcw } from "lucide-react";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -81,6 +83,10 @@ const EXPEDITION_MODES = [
 export default function DungeonManager() {
     const [dungeons, setDungeons] = useState<Dungeon[]>([]);
     const [challenges, setChallenges] = useState<Challenge[]>([]);
+    /* 🗑️ Donjons supprimés (exclus du seed et du siphon) — section « Restaurer » de l'éditeur. */
+    const [ignoredEntries, setIgnoredEntries] = useState<
+        { name: string; bossName: string; slug?: string | null; deletedAt?: string | null }[]
+    >([]);
     const [loading, setLoading] = useState(true);
     const [editing, setEditing] = useState<string | null>(null);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -131,9 +137,11 @@ export default function DungeonManager() {
             }
         }
 
-        const [dungeonsRes, challengesRes] = await Promise.all([
+        const [dungeonsRes, challengesRes, ignoredRes] = await Promise.all([
             getDungeonsWithAchievements(filters),
-            getChallenges()
+            getChallenges(),
+            /* 🗑️ Anti-résurrection : ce que le God a supprimé (jamais recréé par le seed/siphon). */
+            getIgnoredDungeonsAction(),
         ]);
 
         if (dungeonsRes.success && dungeonsRes.data) {
@@ -149,7 +157,22 @@ export default function DungeonManager() {
             setChallenges(challengesRes.data);
         }
 
+        if (ignoredRes.success && ignoredRes.data) {
+            setIgnoredEntries(ignoredRes.data.entries);
+        }
+
         setLoading(false);
+    }
+
+    /** Réintègre un donjon supprimé (le prochain seed/siphon pourra le recréer). */
+    async function handleRestore(entry: { name: string; bossName: string }) {
+        const res = await restoreDungeonAction({ name: entry.name, bossName: entry.bossName });
+        if (res.success && res.data) {
+            setIgnoredEntries(res.data.entries);
+            toast.success(`${entry.bossName} réintégré — le prochain siphon pourra le recréer`);
+        } else {
+            toast.error(res.error || "Erreur lors de la restauration");
+        }
     }
 
     async function handleSubmit(e: React.FormEvent) {
@@ -187,7 +210,7 @@ export default function DungeonManager() {
 
         const result = await deleteDungeon(id);
         if (result.success) {
-            toast.success("Donjon supprimé");
+            toast.success("Donjon supprimé — mémorisé : ni le siphon ni un déploiement ne le recréeront");
             loadData();
         } else {
             toast.error(result.error || "Erreur de suppression");
@@ -313,6 +336,33 @@ export default function DungeonManager() {
                     Nouveau Donjon
                 </Button>
             </div>
+
+            {/* 🗑️ Anti-résurrection (27/09/2026) : ce que le God a supprimé est MÉMORISÉ
+                (`ignored-dungeons.json`) — le siphon d'anomalie et le seed de déploiement ne le
+                recréent plus. « Restaurer » rouvre la porte (le prochain siphon/sync le recrée). */}
+            {ignoredEntries.length > 0 && (
+                <div className="space-y-3 rounded-lg border border-danger/30 bg-danger/5 p-4">
+                    <div className="flex items-center gap-2 text-sm font-semibold text-danger">
+                        <Ban className="w-4 h-4" />
+                        {ignoredEntries.length} entrée(s) supprimée(s) — jamais recréée(s) automatiquement
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                        {ignoredEntries.map((entry) => (
+                            <Button
+                                key={`${entry.name}::${entry.bossName}`}
+                                variant="outline"
+                                size="sm"
+                                className="gap-2 border-border bg-surface text-muted-foreground hover:text-foreground"
+                                onClick={() => handleRestore(entry)}
+                            >
+                                <RotateCcw className="w-3.5 h-3.5" />
+                                {entry.bossName}
+                                <span className="text-muted-foreground/70">({entry.name})</span>
+                            </Button>
+                        ))}
+                    </div>
+                </div>
+            )}
 
             {/* Grid List */}
             {loading ? (

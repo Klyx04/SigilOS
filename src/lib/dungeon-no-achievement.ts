@@ -14,6 +14,7 @@
  */
 import { db } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
+import { isIgnoredChallenge } from "@/lib/game-data-ignores";
 
 /** Slug du challenge système matérialisant « le donjon est validé ». */
 export const NO_ACHIEVEMENT_CHALLENGE_SLUG = "donjon-valide";
@@ -23,6 +24,13 @@ export const NO_ACHIEVEMENT_CHALLENGE_NAME = "Donjon validé";
 
 /** Crée/retourne (upsert idempotent) le challenge système « Donjon validé ». */
 export async function ensureNoAchievementChallengeId(): Promise<string | null> {
+    // 🐛 Correctif 27/09/2026 : ce pseudo-succès était recréé à CHAQUE passe (siphon d'anomalie,
+    // et chaque enregistrement d'un donjon sans succès) ⇒ impossible à supprimer
+    // (« le succès Donjon validé revient tout le temps »). S'il a été supprimé à la main
+    // (`ignored-challenges.json`), il n'est **pas** recréé : les donjons concernés restent
+    // simplement sans pseudo-succès (fail-soft, jamais de résurrection).
+    if (isIgnoredChallenge(NO_ACHIEVEMENT_CHALLENGE_SLUG)) return null;
+
     const existing = await db.challenge.findUnique({ where: { slug: NO_ACHIEVEMENT_CHALLENGE_SLUG } });
     if (existing) return existing.id;
     try {

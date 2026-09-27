@@ -16,6 +16,17 @@ import { resolveUniqueDungeonSlug } from "@/server/game/dungeon-slug";
 import { bossSlugWithFallback } from "@/lib/boss-slug";
 import { NO_ACHIEVEMENT_CHALLENGE_SLUG, ensureNoAchievementChallengeId } from "@/lib/dungeon-no-achievement";
 import { addIgnoredBounty, getIgnoredBounties, removeIgnoredBounty, type IgnoredBountyEntry } from "@/lib/bounty-ignore";
+import {
+    addIgnoredChallenge,
+    addIgnoredDungeon,
+    getIgnoredChallenges,
+    getIgnoredDungeons,
+    isIgnoredChallenge,
+    isIgnoredDungeon,
+    removeIgnoredChallenge,
+    removeIgnoredDungeon,
+    type IgnoredDungeonEntry,
+} from "@/lib/game-data-ignores";
 
 // --- Types ---
 
@@ -290,6 +301,8 @@ export async function createChallenge(
             }
         });
         await logGameDataWrite('create-challenge', challenge.id, { name: challenge.name });
+        // Créer à la main un succès précédemment supprimé lève son exclusion (anti-résurrection).
+        removeIgnoredChallenge(challenge.slug);
 
         revalidatePath('/god/game-data');
         return { success: true, data: challenge };
@@ -319,6 +332,8 @@ export async function updateChallenge(
             }
         });
         await logGameDataWrite('update-challenge', id, { name: challenge.name });
+        // Éditer un succès lève son exclusion (le God l'a réintégré explicitement).
+        removeIgnoredChallenge(challenge.slug);
 
         revalidatePath('/god/game-data');
         return { success: true, data: challenge };
@@ -336,8 +351,12 @@ export async function deleteChallenge(id: string): Promise<ActionResponse> {
     if (!userId) return { success: false, error: "Accès refusé" };
 
     try {
+        /* 🛡️ Anti-résurrection : on lit AVANT de supprimer pour mémoriser ce que le God refuse
+           (le seed de déploiement et les garanties de pseudo-succès respectent cette liste). */
+        const target = await db.challenge.findUnique({ where: { id }, select: { slug: true, name: true } });
         await db.challenge.delete({ where: { id } });
-        await logGameDataWrite('delete-challenge', id);
+        if (target?.slug) addIgnoredChallenge(target.slug, target.name);
+        await logGameDataWrite('delete-challenge', id, { slug: target?.slug, name: target?.name });
         revalidatePath('/god/game-data');
         return { success: true };
     } catch (error: any) {
@@ -446,6 +465,8 @@ export async function createDungeon(
             }
         }
         await logGameDataWrite('create-dungeon', dungeon.id, { name: dungeon.name });
+        // Créer à la main un donjon précédemment supprimé lève son exclusion (anti-résurrection).
+        removeIgnoredDungeon({ name: dungeon.name, bossName: dungeon.bossName });
 
         revalidatePath('/god/game-data');
         revalidatePath('/admin/missions');
@@ -546,6 +567,8 @@ export async function updateDungeon(
         });
 
         await logGameDataWrite('update-dungeon', id, { name: dungeon?.name });
+        // Éditer un donjon lève son exclusion (le God l'a réintégré explicitement).
+        if (dungeon) removeIgnoredDungeon({ name: dungeon.name, bossName: dungeon.bossName });
         revalidatePath('/god/game-data');
         revalidatePath('/admin/missions');
         return { success: true, data: dungeon };
@@ -563,8 +586,15 @@ export async function deleteDungeon(id: string): Promise<ActionResponse> {
     if (!userId) return { success: false, error: "Accès refusé" };
 
     try {
+        /* 🛡️ Anti-résurrection : on lit AVANT de supprimer pour mémoriser ce que le God refuse —
+           sans quoi le seed de déploiement et le siphon d'anomalie le recréaient. */
+        const target = await db.dungeon.findUnique({
+            where: { id },
+            select: { name: true, bossName: true, slug: true, dofusdbId: true },
+        });
         await db.dungeon.delete({ where: { id } });
-        await logGameDataWrite('delete-dungeon', id);
+        if (target) addIgnoredDungeon(target);
+        await logGameDataWrite('delete-dungeon', id, { name: target?.name, bossName: target?.bossName });
         revalidatePath('/god/game-data');
         revalidatePath('/admin/missions');
         return { success: true };
@@ -574,6 +604,37 @@ export async function deleteDungeon(id: string): Promise<ActionResponse> {
             return { success: false, error: 'Impossible de supprimer : des missions sont associées' };
         }
         return { success: false, error: 'Erreur lors de la suppression' };
+    }
+}
+
+/** Donjons supprimés (exclus du seed et du siphon) — affichés dans l'éditeur avec « Restaurer ». */
+export async function getIgnoredDungeonsAction(): Promise<ActionResponse<{ entries: IgnoredDungeonEntry[] }>> {
+    const userId = await requireSuperAdmin();
+    if (!userId) return { success: false, error: "Accès refusé" };
+    return { success: true, data: { entries: getIgnoredDungeons() } };
+}
+
+/** Réintègre un donjon exclu (le prochain seed/siphon peut alors le recréer). */
+export async function restoreDungeonAction(input: {
+    name: string;
+    bossName: string;
+}): Promise<ActionResponse<{ entries: IgnoredDungeonEntry[] }>> {
+    const userId = await requireSuperAdmin();
+    if (!userId) return { success: false, error: "Accès refusé" };
+
+    const name = String(input?.name ?? "").trim();
+    const bossName = String(input?.bossName ?? "").trim();
+    if (!name || !bossName) return { success: false, error: "Donjon invalide" };
+
+    try {
+        const entries = removeIgnoredDungeon({ name, bossName });
+        await logGameDataWrite('restore-dungeon', `${name} / ${bossName}`);
+        revalidatePath('/god/game-data');
+        revalidatePath('/admin/missions');
+        return { success: true, data: { entries } };
+    } catch (error: any) {
+        logger.error('[restoreDungeonAction] Error:', error);
+        return { success: false, error: 'Erreur lors de la restauration' };
     }
 }
 
@@ -1336,7 +1397,13 @@ export async function importGameData(jsonData: string): Promise<ActionResponse<s
             const challengeIdMap = new Map<string, string>(); // oldId → newId
 
             if (parsed.data.challenges) {
+                /* 🛡️ Anti-résurrection : un succès supprimé à la main n'est pas réimporté. */
+                const ignoredChallenges = getIgnoredChallenges();
                 for (const challenge of parsed.data.challenges) {
+                    if (isIgnoredChallenge(challenge.slug, ignoredChallenges)) {
+                        stats.skipped++;
+                        continue;
+                    }
                     // Find by name (natural unique key) — slug as fallback
                     const existing = await tx.challenge.findFirst({
                         where: {
@@ -1435,7 +1502,13 @@ export async function importGameData(jsonData: string): Promise<ActionResponse<s
             // PHASE 4: Import Dungeons + Achievements
             // ============================
             if (parsed.data.dungeons) {
+                /* 🛡️ Anti-résurrection : un donjon supprimé à la main n'est pas réimporté. */
+                const ignoredDungeons = getIgnoredDungeons();
                 for (const dungeon of parsed.data.dungeons) {
+                    if (isIgnoredDungeon({ name: dungeon.name, bossName: dungeon.bossName }, ignoredDungeons)) {
+                        stats.skipped++;
+                        continue;
+                    }
                     // Find by composite natural key: name + bossName
                     const existing = await tx.dungeon.findFirst({
                         where: { name: dungeon.name, bossName: dungeon.bossName }

@@ -214,13 +214,22 @@ const STORED_ASSET_BARE_NAME = /^(\d{1,12})(?:\.(?:webp|png|jpg|jpeg))?$/i;
 export function isSafeDofusImageSrc(raw: string | null | undefined): boolean {
     const value = String(raw ?? "").trim();
     if (value === "") return false;
-    // Chemin interne : un seul slash initial (jamais protocol-relative `//evil.tld`), charset borné.
-    if (value.startsWith("/")) {
-        if (value.startsWith("//")) return false;
-        return /^\/[\w\-./%?&=+:@!$'()*,;]*$/.test(value);
-    }
+    if (value.startsWith("/") && !value.startsWith("//") && isInternalServePath(value)) return true;
     // URL absolue : uniquement le domaine de confiance DofusDB, en HTTPS.
     return /^https:\/\/api\.dofusdb\.fr\/[\w\-./%?&=+:@!$'()*,;]*$/i.test(value);
+}
+
+/**
+ * Chemins internes servis par l'app (allowlist) : ce sont les **seuls** chemins stockés qui
+ * peuvent atteindre le DOM. Un chemin hors de ces préfixes n'est jamais publié tel quel —
+ * `normalizeDofusAssetStoredUrl` retombe alors sur le proxy canonique.
+ */
+const INTERNAL_IMAGE_PREFIXES = ["/api/assets-dofus/", "/game-data/", "/uploads/", "/assets/"] as const;
+
+/** Le chemin (interne) appartient-il à nos dossiers servis, avec une forme d'URL saine ? */
+function isInternalServePath(value: string): boolean {
+    if (!INTERNAL_IMAGE_PREFIXES.some((prefix) => value.startsWith(prefix))) return false;
+    return /^\/[\w\-./%?&=+:@!$'()*,;]*$/.test(value);
 }
 
 /**
@@ -242,7 +251,9 @@ export function isSafeDofusImageSrc(raw: string | null | undefined): boolean {
  *      (**même type** uniquement : on ne sert pas l'asset d'un autre type sous cette route) ;
  *   4. URL absolue DofusDB ⇒ proxy interne ; autre hôte ⇒ conservée ;
  *   5. nom nu (`4834.webp`) ⇒ proxy depuis ce nom ;
- *   6. autre chemin local (`/game-data/…`, `/assets/…`) ⇒ conservé tel quel.
+ *   6. chemin local **dans nos dossiers servis** (`/api/assets-dofus/…`, `/game-data/…`,
+ *      `/uploads/…`, `/assets/…`) ⇒ conservé ; tout autre chemin ou hôte ⇒ **repli canonique**
+ *      (la sortie de cette fonction est posée dans le DOM : elle ne doit jamais être arbitraire).
  */
 export function normalizeDofusAssetStoredUrl(
     type: DofusAssetType,
@@ -262,10 +273,15 @@ export function normalizeDofusAssetStoredUrl(
         return resolveDofusAssetImageUrl(type, stored[2]) ?? fallback ?? value;
     }
 
-    if (/^https?:\/\//i.test(value)) return internalDofusDbImageUrl(value) ?? value;
+    // URL absolue : DofusDB → proxy interne ; tout autre hôte n'est JAMAIS publié (il retombe sur
+    // le proxy canonique) — une donnée stockée ne doit pas pouvoir désigner un hôte arbitraire.
+    if (/^https?:\/\//i.test(value)) return internalDofusDbImageUrl(value) ?? fallback;
 
     const bare = STORED_ASSET_BARE_NAME.exec(value);
     if (bare) return resolveDofusAssetImageUrl(type, bare[1]) ?? fallback;
 
-    return value;
+    // Chemin local : accepté seulement s'il appartient à NOS dossiers servis (allowlist), sinon
+    // on retombe sur le proxy canonique. C'est ce qui rend la sortie de cette fonction sûre à
+    // poser dans le DOM (alerte CodeQL `js/xss-through-dom`).
+    return isInternalServePath(value) ? value : fallback;
 }

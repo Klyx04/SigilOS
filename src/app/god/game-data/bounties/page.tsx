@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
+import Image from "next/image";
 import { normalizeDofusAssetStoredUrl, isSafeDofusImageSrc } from "@/lib/dofus-image-url";
 import { DocContent } from '@/components/doc/doc-content';
 import { AdvancedEditor } from '@/components/editor/advanced-editor';
@@ -55,7 +56,19 @@ function BountyPortrait({
     const [failed, setFailed] = useState(false);
     useEffect(() => { setFailed(false); }, [src]);
     if (!src || failed) return <>{fallback}</>;
-    return <img src={src} alt="" className={className} onError={() => setFailed(true)} />;
+    // `next/image` (et non un `<img>` brut) : le composant est le seul point où l'URL atteint le
+    // DOM, avec des dimensions intrinsèques et `unoptimized` (nos WebP sont déjà optimisés).
+    return (
+        <Image
+            src={src}
+            alt=""
+            width={64}
+            height={64}
+            unoptimized
+            className={className}
+            onError={() => setFailed(true)}
+        />
+    );
 }
 
 export default function GodBountiesPage() {

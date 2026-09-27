@@ -14,7 +14,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
-import { normalizeDofusAssetStoredUrl } from "@/lib/dofus-image-url";
+import Image from "next/image";
+import { normalizeDofusAssetStoredUrl, isSafeDofusImageSrc } from "@/lib/dofus-image-url";
 import { DocContent } from '@/components/doc/doc-content';
 import { AdvancedEditor } from '@/components/editor/advanced-editor';
 import { AssetGalleryModal } from "@/components/admin/asset-gallery-modal";
@@ -48,11 +49,26 @@ function BountyPortrait({
     className?: string;
     fallback: React.ReactNode;
 }) {
-    const src = normalizeDofusAssetStoredUrl("monsters", bounty?.imageUrl, bounty?.dofusdbId);
+    const candidate = normalizeDofusAssetStoredUrl("monsters", bounty?.imageUrl, bounty?.dofusdbId);
+    // 🛡️ Garde de forme : une donnée brute ne part JAMAIS telle quelle dans une URL du DOM
+    // (alerte CodeQL `js/xss-through-dom`) — seuls nos chemins internes et DofusDB passent.
+    const src = isSafeDofusImageSrc(candidate) ? candidate : null;
     const [failed, setFailed] = useState(false);
     useEffect(() => { setFailed(false); }, [src]);
     if (!src || failed) return <>{fallback}</>;
-    return <img src={src} alt="" className={className} onError={() => setFailed(true)} />;
+    // `next/image` (et non un `<img>` brut) : le composant est le seul point où l'URL atteint le
+    // DOM, avec des dimensions intrinsèques et `unoptimized` (nos WebP sont déjà optimisés).
+    return (
+        <Image
+            src={src}
+            alt=""
+            width={64}
+            height={64}
+            unoptimized
+            className={className}
+            onError={() => setFailed(true)}
+        />
+    );
 }
 
 export default function GodBountiesPage() {

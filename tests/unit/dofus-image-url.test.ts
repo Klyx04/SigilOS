@@ -4,6 +4,7 @@ import {
     resolveDofusAssetImageUrl,
     internalDofusDbImageUrl,
     normalizeDofusAssetStoredUrl,
+    isSafeDofusImageSrc,
 } from "@/lib/dofus-image-url";
 
 describe("resolveDofusImageUrl (#206 Dofoobz)", () => {
@@ -177,6 +178,27 @@ describe("normalizeDofusAssetStoredUrl — un chemin STOCKÉ n'est jamais rendu 
         expect(normalizeDofusAssetStoredUrl("monsters", "/game-data/bounties/avis-4834.webp")).toBe(
             "/game-data/bounties/avis-4834.webp"
         );
+    });
+});
+
+describe("isSafeDofusImageSrc — rien d'arbitraire ne part dans une URL du DOM", () => {
+    it("accepte nos chemins internes et DofusDB", () => {
+        expect(isSafeDofusImageSrc("/api/assets-dofus/monsters/4834")).toBe(true);
+        expect(isSafeDofusImageSrc("/game-data/bounties/avis.webp")).toBe(true);
+        expect(isSafeDofusImageSrc("/uploads/assets-dofus/items/9143.webp")).toBe(true);
+        expect(isSafeDofusImageSrc("/api/assets-dofus/spells/4?url=https%3A%2F%2Fapi.dofusdb.fr%2Fx.png")).toBe(true);
+        expect(isSafeDofusImageSrc("https://api.dofusdb.fr/img/monsters/1583.png")).toBe(true);
+    });
+
+    it("refuse le reste (protocole, hôte non allowlisté, données, chaîne vide)", () => {
+        expect(isSafeDofusImageSrc("//evil.example.com/x.png")).toBe(false);
+        expect(isSafeDofusImageSrc("https://evil.example.com/x.png")).toBe(false);
+        expect(isSafeDofusImageSrc("http://api.dofusdb.fr/img/monsters/1.png")).toBe(false); // HTTPS only
+        expect(isSafeDofusImageSrc("javascript:alert(1)")).toBe(false);
+        expect(isSafeDofusImageSrc("data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=")).toBe(false);
+        expect(isSafeDofusImageSrc("25757.webp")).toBe(false); // nom nu : jamais posé brut
+        expect(isSafeDofusImageSrc("")).toBe(false);
+        expect(isSafeDofusImageSrc(null)).toBe(false);
     });
 });
 

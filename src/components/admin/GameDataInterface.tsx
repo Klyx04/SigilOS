@@ -14,6 +14,7 @@ import QuestSyncPanel from "./QuestSyncPanel";
 import { QuestSiphonPanel } from "./QuestSiphonPanel";
 import ArchimonstreManager from "./ArchimonstreManager";
 import { GameDataMonsterManager } from "./GameDataMonsterManager";
+import BountyManager from "./BountyManager";
 import { DofusDbHarvestSyncManager } from "./DofusDbHarvestSyncManager";
 import { GameDataSiphonPanel } from "./GameDataSiphonPanel";
 import { GameItemSiphonPanel } from "./GameItemSiphonPanel";
@@ -67,6 +68,7 @@ const EDITORS: EditorEntry[] = [
     { id: "legendary", label: "Légendaires", caption: "Objets légendaires", render: () => <LegendaryManager /> },
     { id: "archimonstres", label: "Archis & Boss", caption: "Archimonstres & boss d'anomalie", render: () => <ArchimonstreManager /> },
     { id: "monstres-speciaux", label: "Monstres spéciaux", caption: "Monstres hors combat standard", render: () => <GameDataMonsterManager /> },
+    { id: "bounties", label: "Avis de recherche", caption: "Avis siphonnés, zone de traque, récompenses", render: () => <BountyManager /> },
     {
         id: "quests",
         label: "Quêtes",

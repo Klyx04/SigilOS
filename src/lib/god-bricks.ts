@@ -49,7 +49,6 @@ export const GOD_BRICKS = [
     // ─── Game-Data (ouvrable aux sous-gods) ────────────────────────────────
     { id: "game-data",           label: "Données de Jeu",    scope: "game-data", group: "game-data", subGodAccess: true },
     { id: "game-data-quests",    label: "Base Monstres",     scope: "game-data", group: "game-data", subGodAccess: true },
-    { id: "game-data-bounties",  label: "Avis de Recherche", scope: "game-data", group: "game-data", subGodAccess: true },
     { id: "game-data-quetes",    label: "Quêtes Dofus",      scope: "game-data", group: "game-data", subGodAccess: true },
     { id: "game-data-guides",    label: "Guides Optim.",     scope: "game-data", group: "game-data", subGodAccess: true },
     { id: "game-data-rush",      label: "Rush Sylvestre",    scope: "game-data", group: "game-data", subGodAccess: true },

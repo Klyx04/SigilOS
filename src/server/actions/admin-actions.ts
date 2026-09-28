@@ -2099,8 +2099,9 @@ export async function getGuildChannels(guildId: string): Promise<{
 export async function getAllBounties(): Promise<any[]> {
     const { isSuperAdmin, canAccessBrick } = await import("./super-admin-actions");
     const isAdmin = await isSuperAdmin();
-    // #108 — un sous-god avec la brique game-data / game-data-bounties accède au module.
-    const isBrick = isAdmin ? true : (await canAccessBrick("game-data")) || (await canAccessBrick("game-data-bounties"));
+    // #108 — un sous-god avec la brique game-data accède au module (les avis de recherche en
+    // sont un éditeur depuis la fusion D-4 : plus de brique ciblée).
+    const isBrick = isAdmin || (await canAccessBrick("game-data"));
     if (!isAdmin && !isBrick) return [];
 
     try {

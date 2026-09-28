@@ -2,7 +2,8 @@
  * Avis de recherche — **un seul rail de synchronisation**, du bouton God jusqu'à DofusDB.
  *
  * 🐛 Mesure du 27/09/2026 (signalement user : « 0 avis synchronisés » après le bouton
- * « Sync & remplir tous les avis » de `/god/game-data/bounties`) : ce bouton appelait
+ * « Sync & remplir tous les avis » de l'écran God des avis — alors une route dédiée,
+ * aujourd'hui l'onglet « Avis de recherche » des Éditeurs) : ce bouton appelait
  * `syncBountiesCompleteFromDofusDb`, une action **hors rail** qui interrogeait DofusDB par
  * `monsters?typeId=23` → **`total: 0`** (mesuré au `curl`) : la passe ne faisait rien, le toast
  * annonçait pourtant un succès, et l'écriture se faisait par `upsert(name)` **sans** la liste
@@ -30,7 +31,7 @@ const readSource = (relativePath: string) => fs.readFileSync(path.join(REPO_ROOT
 const codeOnly = (source: string) =>
     source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/[^\n]*/g, "$1");
 
-const PAGE = "src/app/god/game-data/bounties/page.tsx";
+const PAGE = "src/components/admin/BountyManager.tsx";
 const RUNNERS = "src/components/admin/game-data-inline-runners.ts";
 const ACTIONS = "src/server/actions/game-data-actions.ts";
 const SIPHON = "src/lib/bounty-siphon.ts";

@@ -69,19 +69,14 @@ type ActionResponse<T = void> = {
  * Autorise super-admin OU un sous-god avec la brique "game-data" (scope game-data).
  * Sans ça, un sous-god légitime voyait des listes vides / erreurs "Non autorisé"
  * (#108 — passe sous-god).
+ *
+ * 🛡️ Fusion **D-4** (28/09/2026) : les avis de recherche sont un **éditeur** de cette interface
+ * (`game-data > Éditeurs > Avis de recherche`) ⇒ la brique ciblée `game-data-bounties` n'existe
+ * plus : cette fonction est la seule garde (une règle, un nom — pas de variante qui diverge).
  */
 async function canAccessGameData(): Promise<boolean> {
     if (await isSuperAdmin()) return true;
     return canAccessBrick("game-data");
-}
-
-/**
- * 🛡️ Variante "Avis de Recherche" : la brique "game-data-bounties" ouvre le module
- * bounties même si le scope global game-data n'est pas actif (grant PIM ciblé).
- */
-async function canAccessBounties(): Promise<boolean> {
-    if (await isSuperAdmin()) return true;
-    return (await canAccessBrick("game-data")) || (await canAccessBrick("game-data-bounties"));
 }
 
 // 🛡️ Trace une écriture God UNIQUEMENT pour un sous-god (qui/quoi/sur quoi).
@@ -1238,7 +1233,7 @@ export async function updateGodBountyRecord(bountyId: string, data: {
     dpnlUrl?: string;
     position?: string;
 }): Promise<ActionResponse> {
-    if (!(await canAccessBounties())) return { success: false, error: 'Non autorisé' };
+    if (!(await canAccessGameData())) return { success: false, error: 'Non autorisé' };
 
     try {
         await db.bounty.update({

@@ -1,8 +1,9 @@
 "use client";
 
 import { Activity, BarChart3, Layers, TrendingDown, Users } from "lucide-react";
-import { MODULE_GROUPS } from "@/lib/module-catalog";
+import { moduleLabel } from "@/lib/module-catalog";
 import { getProductStats } from "@/server/actions/telemetry-product-actions";
+import { TelemetrySampleNote } from "@/components/telemetry/telemetry-sample-note";
 
 /**
  * Vue d'ensemble **produit** (D-2bis) — remplace les 8 cartes « console » du module God
@@ -20,15 +21,6 @@ import { getProductStats } from "@/server/actions/telemetry-product-actions";
  */
 
 type ProductStatsType = Awaited<ReturnType<typeof getProductStats>>;
-
-/** Libellé de module officiel (`src/lib/module-catalog.ts` : une seule source de vérité). */
-const MODULE_LABELS = new Map<string, string>(
-    MODULE_GROUPS.flatMap((group) =>
-        group.modules.map((module) => [String(module.key), module.label] as const)
-    )
-);
-
-const moduleLabel = (key: string) => MODULE_LABELS.get(key) ?? key;
 
 const STATUS_STYLES: Record<string, string> = {
     ACTIVE: "bg-accent-soft text-accent border-accent/20",
@@ -97,7 +89,7 @@ export function TelemetryProductOverview({ product }: { product: ProductStatsTyp
                 />
             </div>
 
-            <SampleStrip sample={sample} truncated={truncated} windowDays={windowDays} />
+            <TelemetrySampleNote sample={sample} truncated={truncated} windowDays={windowDays} />
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                 <section className="lg:col-span-2 p-5 rounded-2xl border border-border bg-surface">
@@ -272,35 +264,3 @@ function OverviewCard({
     );
 }
 
-function SampleStrip({
-    sample,
-    truncated,
-    windowDays,
-}: {
-    sample: { actions: number; distinctActors: number; reliable: boolean };
-    truncated: boolean;
-    windowDays: number;
-}) {
-    return (
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2.5 rounded-xl border border-border bg-surface/60 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-            <span>Échantillon</span>
-            <span className="text-foreground tabular-nums">{sample.actions} action(s)</span>
-            <span className="text-foreground tabular-nums">{sample.distinctActors} membre(s) distinct(s)</span>
-            <span>compteurs sur {windowDays} jours</span>
-            <span className="text-muted-foreground/60">·</span>
-            <span>
-                {sample.reliable
-                    ? "classement nominatif possible (seuil de 15 membres distincts atteint)"
-                    : `classement nominatif non publié : ${sample.distinctActors} membre(s) distinct(s) seulement (seuil 15)`}
-            </span>
-            {truncated && (
-                <>
-                    <span className="text-muted-foreground/60">·</span>
-                    <span className="text-warning">
-                        lecture plafonnée : au-delà du plafond, les totaux affichés sont un échantillon
-                    </span>
-                </>
-            )}
-        </div>
-    );
-}

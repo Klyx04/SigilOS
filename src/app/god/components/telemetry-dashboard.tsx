@@ -13,9 +13,11 @@ import {
     Zap
 } from "lucide-react";
 import { TelemetryRetentionPanel } from "@/components/telemetry/telemetry-retention-panel";
+import { TelemetryPublicPanel } from "@/components/telemetry/telemetry-public-panel";
 import { cn } from "@/lib/utils";
 import { getTelemetryStats, exportTelemetryDataAction } from "@/server/actions/telemetry-actions";
 import { getProductStats } from "@/server/actions/telemetry-product-actions";
+import { getPublicStats } from "@/server/actions/telemetry-public-actions";
 import { TelemetryProductOverview } from "@/components/telemetry/telemetry-product-overview";
 import { TelemetryAdoptionPanel } from "@/components/telemetry/telemetry-adoption-panel";
 import { toast } from "sonner";
@@ -24,6 +26,9 @@ type TelemetryStatsType = Awaited<ReturnType<typeof getTelemetryStats>>;
 
 /** Mesures produit (D-2bis) — chargées à côté de la télémétrie de navigation. */
 type ProductStatsType = Awaited<ReturnType<typeof getProductStats>>;
+
+/** Compteurs anonymes du site public (la partie externe du produit). */
+type PublicStatsType = Awaited<ReturnType<typeof getPublicStats>>;
 
 /**
  * Période du rafraîchissement automatique. 30 s et non 5 s : chaque tick relance 12 requêtes
@@ -34,9 +39,11 @@ const AUTO_REFRESH_SECONDS = 30;
 export function TelemetryDashboard({
     initialStats,
     initialProduct,
+    initialPublic,
 }: {
     initialStats: TelemetryStatsType;
     initialProduct: ProductStatsType | null;
+    initialPublic: PublicStatsType | null;
 }) {
     const [stats, setStats] = useState<TelemetryStatsType>(initialStats);
     const [selectedGuildId, setSelectedGuildId] = useState<string>("all");
@@ -45,7 +52,7 @@ export function TelemetryDashboard({
     const [isPending, setIsPending] = useState(false);
     const [isExporting, setIsExporting] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
-    const [telemetryTab, setTelemetryTab] = useState<"live" | "adoption" | "retention" | "funnel">("live");
+    const [telemetryTab, setTelemetryTab] = useState<"live" | "adoption" | "retention" | "funnel" | "public">("live");
     const isRefreshingRef = useRef(false);
 
     // Stable refresh function — accepts target guild filter
@@ -217,6 +224,7 @@ export function TelemetryDashboard({
                     { id: "adoption", label: "Adoption par module", icon: Layers, count: initialProduct ? initialProduct.adoption.modules.length : null },
                     { id: "retention", label: "Rétention & relances", icon: CalendarClock, count: initialProduct ? initialProduct.freshness.guilds.filter((guild) => guild.status !== "ACTIVE").length : null },
                     { id: "funnel", label: "Entonnoir d'activation", icon: Zap, count: null },
+                    { id: "public", label: "Site public", icon: Globe, count: null },
                 ].map((t) => (
                     <button
                         key={t.id}
@@ -374,6 +382,9 @@ export function TelemetryDashboard({
 
             {/* TAB CONTENT: RÉTENTION & GUILDES À RELANCER (D-2bis) */}
             {telemetryTab === "retention" && <TelemetryRetentionPanel product={initialProduct} />}
+
+            {/* TAB CONTENT: SITE PUBLIC (partie externe, compteur anonyme) */}
+            {telemetryTab === "public" && <TelemetryPublicPanel stats={initialPublic} />}
 
             {/* TAB CONTENT: ACTIVATION FUNNEL */}
             {telemetryTab === "funnel" && (

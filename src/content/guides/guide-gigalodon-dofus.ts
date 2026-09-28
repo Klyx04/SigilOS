@@ -4,7 +4,10 @@ export const guide = {
     description:
         "Guide tactique complet du Gouffre du Gigalodon : checklist de préparation, gestion de la lumière, strats des 3 boss, boucle de raccourci à 20% de drop, énigmes et burst du Gigalodon.",
     publishedAt: "2026-09-20",
-    updatedAt: "2026-10-02",
+    // Vraie date d'écriture (dernier commit du fichier, 27/09) : le `2026-10-02` d'origine était
+    // la date de sortie du raid — un `lastmod` **futur** publié dans le sitemap et affiché
+    // « mis à jour le 2 octobre » en ligne, mesuré le 29/09/2026.
+    updatedAt: "2026-09-27",
     draft: false,
     body: `
         <div class="callout callout-tip">

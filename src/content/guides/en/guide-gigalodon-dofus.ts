@@ -4,7 +4,7 @@ export const guide = {
     description:
         "Complete tactical guide to Gigalodon's Chasm: pre-raid checklist, light management, 3 boss strategies, 20% drop shortcut loop, puzzles and Gigalodon burst.",
     publishedAt: "2026-09-20",
-    updatedAt: "2026-10-02",
+    updatedAt: "2026-09-27",
     draft: false,
     body: `
         <div class="callout callout-tip">

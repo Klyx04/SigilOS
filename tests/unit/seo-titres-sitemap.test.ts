@@ -34,6 +34,9 @@ const TITRES_ABSOLUS: Record<string, number> = {
     "src/app/guilds/[guildId]/page.tsx": 3,
     "src/app/carte-du-monde/page.tsx": 1,
     "src/app/status/page.tsx": 1,
+    // Ajouté le 29/09/2026 : `metaTitle` porte déjà « | SigilOS » et la page le passait sans
+    // `absolute` ⇒ « Journal des mises à jour | SigilOS | SigilOS » mesuré en ligne.
+    "src/app/changelog/page.tsx": 1,
     "src/app/legal/cgu/page.tsx": 1,
     "src/app/legal/faq/page.tsx": 1,
     "src/app/legal/mentions/page.tsx": 1,
@@ -98,9 +101,11 @@ describe("sitemap — les dates de modification sont honnêtes", () => {
         // Google qu'elles changeaient à chaque passage du robot (constat 21/09 puis 24/09/2026).
         expect(src.slice(start, end)).not.toMatch(/lastModified/);
 
-        // Le reste du sitemap continue de publier des dates VRAIES (registre des guides, base).
-        expect(src).toMatch(/lastModified: new Date\(guide\.updatedAt\)/);
-        expect(src).toMatch(/lastModified: guild\.updatedAt/);
+        // Le reste du sitemap continue de publier des dates VRAIES (registre des guides, base),
+        // désormais **plafonnées** : un `updatedAt` dans le futur (02/10 pour un sitemap généré le
+        // 29/09) publiait un `lastmod` que Google ignore (constat 29/09/2026).
+        expect(src).toMatch(/lastModified: clampLastModified\(new Date\(guide\.updatedAt\), now\)/);
+        expect(src).toMatch(/lastModified: clampLastModified\(guild\.updatedAt \?\? now, now\)/);
     });
 });
 

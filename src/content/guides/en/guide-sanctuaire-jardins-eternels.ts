@@ -4,7 +4,7 @@ export const guide = {
     description:
         "Complete guide to the Eternal Gardens Sanctuary raid in Dofus: the 4 interconnected puzzles, the 4 guardians, the 60-monster corridor and the strategies against the Scarlet Queen and the Cursed Princess.",
     publishedAt: "2026-09-22",
-    updatedAt: "2026-10-02",
+    updatedAt: "2026-09-22",
     draft: false,
     body: `
         <div class="callout callout-tip">

@@ -3,6 +3,7 @@ import { db } from "@/lib/prisma";
 import { publishedGuides } from "@/content/guides";
 import { getAppBaseUrl } from "@/lib/utils";
 import { getIndexableGuildSegment } from "@/lib/presentation-constants";
+import { clampLastModified } from "@/lib/seo";
 import { logger } from "@/lib/logger";
 
 /**
@@ -35,7 +36,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         { url: `${baseUrl}/`, changeFrequency: "weekly", priority: 1 },
         { url: `${baseUrl}/modules`, changeFrequency: "weekly", priority: 0.9 },
         { url: `${baseUrl}/carte-du-monde`, changeFrequency: "weekly", priority: 0.9 },
-        { url: `${baseUrl}/guides/rush-sylvestre`, changeFrequency: "weekly", priority: 0.9 },
+        // ⚠️ `/guides/rush-sylvestre` n'est **pas** ici : la page porte `noindex` tant que le
+        // toggle God « Mode Construction » est actif (`OptimizedGuide.isUnderConstruction`). Elle
+        // est publiée **conditionnellement** plus bas, à partir de la même source de vérité —
+        // publier une URL en `noindex` faisait remonter « Exclue par la balise noindex » dans
+        // Search Console (constat du 29/09/2026).
         { url: `${baseUrl}/boss`, changeFrequency: "weekly", priority: 0.8 },
         { url: `${baseUrl}/almanax`, changeFrequency: "daily", priority: 0.9 },
         { url: `${baseUrl}/raids`, changeFrequency: "weekly", priority: 0.9 },
@@ -64,7 +69,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
             // Discord déclenchait une redirection 307 vers le slug (motif « Page avec
             // redirection » dans Search Console, constat 21/09/2026).
             url: `${baseUrl}/guilds/${getIndexableGuildSegment(guild)}`,
-            lastModified: guild.updatedAt ?? new Date(),
+            lastModified: clampLastModified(guild.updatedAt ?? now, now),
             changeFrequency: "weekly" as const,
             priority: 0.6,
         }));
@@ -80,10 +85,31 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     for (const guide of publishedGuides) {
         routes.push({
             url: `${baseUrl}/guides/${guide.slug}`,
-            lastModified: new Date(guide.updatedAt),
+            // `clampLastModified` : deux guides du registre portaient `updatedAt: "2026-10-02"`
+            // (date de sortie du raid, pas date d'écriture) ⇒ un `lastmod` **futur** publié.
+            lastModified: clampLastModified(new Date(guide.updatedAt), now),
             changeFrequency: "monthly",
             priority: 0.5,
         });
+    }
+
+    // Guide « Rush Sylvestre » : page **conditionnelle**, seule de sa catégorie (contenu éditable
+    // en base + toggle God). Elle n'est publiée que si la page ne se déclare pas en `noindex`.
+    // Fail-closed : si l'état n'est pas lisible, on ne publie pas (jamais d'URL en `noindex`).
+    try {
+        const rushGuide = await db.optimizedGuide.findUnique({
+            where: { slug: "rush-sylvestre" },
+            select: { isUnderConstruction: true },
+        });
+        if (rushGuide && !rushGuide.isUnderConstruction) {
+            routes.push({
+                url: `${baseUrl}/guides/rush-sylvestre`,
+                changeFrequency: "weekly",
+                priority: 0.9,
+            });
+        }
+    } catch (error) {
+        logger.error("[Sitemap] Error fetching rush guide state", { error });
     }
 
     // #101 — Almanax : pages indexables par date (/almanax/YYYY-MM-DD). Best-effort :
@@ -119,7 +145,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         for (const d of dungeons) {
             routes.push({
                 url: `${baseUrl}/boss/${d.slug}`,
-                lastModified: d.updatedAt ?? now,
+                lastModified: clampLastModified(d.updatedAt ?? now, now),
                 changeFrequency: "monthly",
                 priority: 0.6,
             });

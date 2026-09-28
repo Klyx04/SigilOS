@@ -511,27 +511,13 @@ export function ZoneDetailModal({ isOpen, onClose, zoneName, position, guildId, 
                                                             </div>
                                                         </div>
 
-                                                        {/* 2. IMAGES CÔTE À CÔTE */}
-                                                        <div className="px-8 grid grid-cols-2 gap-4">
+                                                        {/* 2. PORTRAIT DE LA CIBLE (la « Zone de Spawn » a été retirée — la
+                                                            localisation réelle se lit désormais sur la carte, encart « Localisation »). */}
+                                                        <div className="px-8">
                                                             <div className="relative h-56 rounded-2xl overflow-hidden bg-black/60 border border-border flex items-center justify-center">
                                                                 <div className="absolute inset-0 bg-gradient-to-br from-rose-500/5 to-transparent" />
                                                                 <img src={bounty.imageUrl} alt={bounty.name} className="h-48 w-auto object-contain drop-shadow-[0_0_24px_rgba(244,63,94,0.5)] group- transition-transform duration-300" />
                                                             </div>
-                                                            {bounty.mapUrl ? (
-                                                                <div className="relative h-56 rounded-2xl overflow-hidden bg-black/60 border border-border">
-                                                                    <img src={bounty.mapUrl} alt="Zone de spawn" className="w-full h-full object-cover opacity-70 group-hover:opacity-100 transition-all duration-300" />
-                                                                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
-                                                                    <div className="absolute bottom-3 left-3 flex items-center gap-1.5">
-                                                                        <MapPin size={11} className="text-rose-500" />
-                                                                        <span className="text-caption font-black text-foreground/60 uppercase italic tracking-widest">Zone de Spawn</span>
-                                                                    </div>
-                                                                </div>
-                                                            ) : (
-                                                                <div className="h-56 rounded-2xl bg-black/40 border border-dashed border-border flex flex-col items-center justify-center gap-2">
-                                                                    <MapPin size={22} className="text-foreground/20" />
-                                                                    <span className="text-caption text-foreground/20 uppercase italic font-black tracking-widest">Carte indisponible</span>
-                                                                </div>
-                                                            )}
                                                         </div>
 
                                                         <div className="flex flex-col gap-4 px-8 pb-8 pt-5">

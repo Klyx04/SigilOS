@@ -44,6 +44,7 @@ const BOUNTY_SELECT = {
     raceName: true,
     battleMapId: true,
     battleMapSource: true,
+    subareaIds: true,
     dofusdbSyncedAt: true,
 } as const;
 

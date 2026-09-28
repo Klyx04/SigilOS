@@ -14,7 +14,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { WorldData, MapNode, SubArea, Dungeon } from '@/types/worldmap';
 import { submitGeoguesserScore, getGeoguesserLadder } from '@/server/actions/geoguesser-actions';
 import { getBombLadder } from '@/server/actions/bomb-actions';
-import { searchArchimonstresForMap, getArchimonstresByFilter, type MapSearchFilter } from '@/server/actions/game-data-actions';
+import { searchArchimonstresForMap, getArchimonstresByFilter, getBountiesForMap, type MapSearchFilter } from '@/server/actions/game-data-actions';
 import { getOcreDungeonMapIds } from '@/server/actions/ocre-map-actions';
 import {
     createGeoguesserSession,
@@ -33,6 +33,8 @@ import { io, Socket } from "socket.io-client";
 import { buildWsUrl } from "@/lib/socket-utils";
 import { cn } from "@/lib/utils";
 import { playSoundEffect } from "@/lib/sounds";
+import { parseZoneShape } from "@/lib/zone-minimap";
+import { hasKnownGameCoords } from "@/lib/worldmap-tiles";
 
 const LeafletMapCore = dynamic<any>(() => import('./leaflet-map-core'), {
     ssr: false,
@@ -53,6 +55,7 @@ const MapHelpCard = dynamic<any>(() => import('./MapHelpCard').then(mod => mod.M
 const HarvestOptiFarmPanel = dynamic<any>(() => import('./harvest-opti-farm-panel').then(mod => mod.HarvestOptiFarmPanel), { ssr: false });
 const HarvestGpsController = dynamic<any>(() => import('./harvest-gps-controller').then(mod => mod.HarvestGpsController), { ssr: false });
 const RaidStratDrawer = dynamic<any>(() => import('./RaidStratDrawer').then(mod => mod.RaidStratDrawer), { ssr: false });
+const BountyMapPanel = dynamic<any>(() => import('./bounty-map-panel').then(mod => mod.BountyMapPanel), { ssr: false });
 
 interface InteractiveMapProps {
     worldMap: WorldData;
@@ -211,6 +214,14 @@ export default function InteractiveMapV2({
     const [showZaaps, setShowZaaps] = useState(false);
     const [showPassages, setShowPassages] = useState(false);
     const [showDungeons, setShowDungeons] = useState(false);
+    // Avis de recherche : panneau latéral, zone encadrée et icône clignotante.
+    const [showBountyPanel, setShowBountyPanel] = useState(false);
+    const [bountyPanelQuery, setBountyPanelQuery] = useState('');
+    const [bountyList, setBountyList] = useState<any[]>([]);
+    const [isLoadingBounties, setIsLoadingBounties] = useState(false);
+    const [activeBountyId, setActiveBountyId] = useState<string | null>(null);
+    const [pinnedSubareaId, setPinnedSubareaId] = useState<number | null>(null);
+    const [highlightMarker, setHighlightMarker] = useState<{ gameX: number; gameY: number; iconUrl: string | null; worldId: number } | null>(null);
     const [selectedHarvestJobId, setSelectedHarvestJobId] = useState<number>(2); // Bûcheron
     const [selectedHarvestResourceIds, setSelectedHarvestResourceIds] = useState<Set<number>>(new Set());
     const [activeCircuit, setActiveCircuit] = useState<any | null>(null);
@@ -410,6 +421,28 @@ export default function InteractiveMapV2({
         return () => clearTimeout(timer);
     }, [search, searchFilter]);
 
+    // ── Avis de recherche du panneau latéral : liste locale, filtrée par nom ──
+    useEffect(() => {
+        if (!showBountyPanel) return;
+        let cancelled = false;
+        const term = bountyPanelQuery.trim();
+        const timer = setTimeout(async () => {
+            setIsLoadingBounties(true);
+            try {
+                const res = await getBountiesForMap(term);
+                if (!cancelled) setBountyList(res.success ? (res.data || []) : []);
+            } catch {
+                if (!cancelled) setBountyList([]);
+            } finally {
+                if (!cancelled) setIsLoadingBounties(false);
+            }
+        }, term.length >= 2 ? 300 : 0);
+        return () => {
+            cancelled = true;
+            clearTimeout(timer);
+        };
+    }, [showBountyPanel, bountyPanelQuery]);
+
     // --- HOOKS DE CALCUL (useMemo) ---
     // On les place au début pour éviter les erreurs "Used before assigned" dans les useEffect
     const activeWorld = useMemo(() =>
@@ -489,6 +522,66 @@ export default function InteractiveMapV2({
         }).slice(0, 10) || [];
     }, [search, worldMap.subareas, worldMap.maps, selectedWorldId]);
 
+    /**
+     * Avis choisi dans le panneau latéral : recentre la carte sur sa zone de
+     * traque, l'encadre (rendu du bouton « Zones ») et y fait clignoter l'icône
+     * de l'avis pendant 8 s.
+     */
+    const handleBountySelect = useCallback((bounty: any) => {
+        if (!bounty) return;
+        setActiveBountyId(bounty.id);
+
+        const subAreaIds: number[] = Array.isArray(bounty.subAreaIds) ? bounty.subAreaIds : [];
+        const targetWorld = Number(bounty.worldMapId) > 0 ? Number(bounty.worldMapId) : (selectedWorldId || 1);
+        const needsWorldChange = targetWorld > 0 && targetWorld !== selectedWorldId;
+
+        const applyHighlight = () => {
+            if (bounty.centerX !== null && bounty.centerX !== undefined && bounty.centerY !== null && bounty.centerY !== undefined) {
+                setTriggerCenterPosition({ x: bounty.centerX, y: bounty.centerY });
+            }
+            if (subAreaIds.length === 0) return;
+
+            setPinnedSubareaId(subAreaIds[0]);
+            setHighlightSubareaIds(subAreaIds);
+
+            // Icône clignotante : centroïde du tracé officiel de la zone.
+            const zone = worldMap.subareas?.find((subArea) => subArea.id === subAreaIds[0]);
+            const frame = zone ? parseZoneShape((zone as any).shape) : null;
+            setHighlightMarker(frame ? { gameX: frame.focus.x, gameY: frame.focus.y, iconUrl: bounty.imageUrl ?? null, worldId: targetWorld } : null);
+
+            setTimeout(() => {
+                setHighlightSubareaIds([]);
+                setPinnedSubareaId(null);
+                setHighlightMarker(null);
+            }, 8000);
+        };
+
+        if (needsWorldChange) {
+            // Un SEUL commit React : la nouvelle carte monte déjà centrée sur la
+            // zone, au bon zoom et avec l'encadrement. Avant, elle montait au
+            // centre du monde, chargeait un écran entier de tuiles, puis sautait
+            // sur la cible 650 ms plus tard (double chargement = transition qui
+            // rame, ressenti « lag » de bascule de monde).
+            applyHighlight();
+            setSelectedWorldId(targetWorld);
+        } else {
+            applyHighlight();
+        }
+    }, [selectedWorldId, worldMap.subareas]);
+
+    /**
+     * Bascule de monde MANUELLE (dropdown « Changer de monde ») : la cible
+     * courante (avis, quête, recherche) appartient à l'ancien monde — son
+     * recentrage et son tracé n'ont plus aucun sens ici et sont donc oubliés.
+     */
+    const switchWorld = useCallback((worldId: number) => {
+        setSelectedWorldId(worldId);
+        setTriggerCenterPosition(null);
+        setPinnedSubareaId(null);
+        setHighlightSubareaIds([]);
+        setHighlightMarker(null);
+    }, []);
+
     const handleSearchResultClick = useCallback((item: any) => {
         if (!item) return;
 
@@ -553,7 +646,11 @@ export default function InteractiveMapV2({
 
     const mapsByCoords = useMemo(() => {
         const index = new Map<string, any>();
-        activeMaps.forEach(m => index.set(`${m.x},${m.y}`, m));
+        // Le couple (0, 0) n'est pas un lieu : c'est le tas des maps sans
+        // coordonnées de `worldmap.json` (1 784 maps du monde 1). L'indexer
+        // faisait afficher une zone arbitraire (« Marécages sans fond ») et sa
+        // tuile HD (une map de combat) au clic sur [0, 0].
+        activeMaps.forEach(m => { if (hasKnownGameCoords(m)) index.set(`${m.x},${m.y}`, m); });
         return index;
     }, [activeMaps]);
 
@@ -606,7 +703,9 @@ export default function InteractiveMapV2({
         const index = new Map<string, MapNode[]>();
         worldMap.maps?.forEach(m => {
             const isRelevant = m.worldMap === selectedWorldId || (selectedWorldId === 1 && m.worldMap === -1);
-            if (isRelevant) {
+            // (0, 0) = position inconnue : jamais indexée (le clic/survol y
+            // tombait sur la première map du tas, donc une zone au hasard).
+            if (isRelevant && hasKnownGameCoords(m)) {
                 const key = `${m.x},${m.y}`;
                 if (!index.has(key)) index.set(key, []);
                 index.get(key)!.push(m);
@@ -1331,7 +1430,7 @@ export default function InteractiveMapV2({
                             {visibleWorlds.map(w => (
                                 <button
                                     key={w.id}
-                                    onClick={() => { setSelectedWorldId(w.id); setWorldDropdownOpen(false); }}
+                                    onClick={() => { switchWorld(w.id); setWorldDropdownOpen(false); }}
                                     className={`w-full text-left px-3 py-2 rounded-lg text-xs hover:bg-elevated ${selectedWorldId === w.id ? 'text-success' : 'text-muted-foreground'}`}
                                 >{w.name.fr}</button>
                             ))}
@@ -2083,7 +2182,7 @@ export default function InteractiveMapV2({
                                                             <button
                                                                 key={w.id}
                                                                 onClick={() => {
-                                                                    setSelectedWorldId(w.id);
+                                                                    switchWorld(w.id);
                                                                     setOverlayWorldDropdownOpen(false);
                                                                 }}
                                                                 className={cn(
@@ -2185,6 +2284,21 @@ export default function InteractiveMapV2({
                                         )}
                                         <span className="absolute right-full mr-2.5 top-1/2 -translate-y-1/2 px-2 py-1 rounded-lg bg-black/95 text-white text-[10px] font-black uppercase tracking-widest whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none border border-white/10 shadow-xl">Récolte</span>
                                     </button>
+
+                                    {/* Avis de recherche (liste + zones de traque) */}
+                                    <button
+                                        onClick={() => setShowBountyPanel(!showBountyPanel)}
+                                        title={showBountyPanel ? "Fermer le panneau Avis" : "Avis de recherche — liste et zones de traque"}
+                                        className={cn(
+                                            "w-10 h-10 rounded-xl flex items-center justify-center transition-all border relative group",
+                                            showBountyPanel
+                                                ? "bg-rose-500/30 border-rose-400/80 shadow-[0_0_16px_rgba(244,63,94,0.5)] scale-105"
+                                                : "bg-rose-500/10 border-rose-500/30 hover:bg-rose-500/20 hover:border-rose-500/60 shadow-sm"
+                                        )}
+                                    >
+                                        <img src="/assets/nav/archimonster.png" alt="Avis" className="w-5 h-5 object-contain drop-shadow-[0_0_6px_rgba(244,63,94,0.6)]" />
+                                        <span className="absolute right-full mr-2.5 top-1/2 -translate-y-1/2 px-2 py-1 rounded-lg bg-black/95 text-white text-[10px] font-black uppercase tracking-widest whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none border border-white/10 shadow-xl">Avis de recherche</span>
+                                    </button>
                                 </div>
                             </div>
                         )}
@@ -2198,6 +2312,8 @@ export default function InteractiveMapV2({
                             groupedDungeons={showDungeons ? groupedDungeons : []}
                             showDebugGrid={showDebugGrid}
                             zoneHighlight={zoneHighlight}
+                            pinnedSubareaId={pinnedSubareaId}
+                            highlightMarker={highlightMarker}
                             selectedPosition={selectedPosition}
                             setSelectedPosition={handleMapClick}
                             setSelectedDungeon={isOverlay ? () => {} : setSelectedDungeon}
@@ -2461,6 +2577,18 @@ export default function InteractiveMapV2({
                                 )}
                             </AnimatePresence>
                         )}
+
+                        {/* 🎯 Panneau Avis de recherche (public + interne) */}
+                        <BountyMapPanel
+                            isOpen={showBountyPanel}
+                            onClose={() => setShowBountyPanel(false)}
+                            bounties={bountyList}
+                            loading={isLoadingBounties}
+                            query={bountyPanelQuery}
+                            onQueryChange={setBountyPanelQuery}
+                            activeBountyId={activeBountyId}
+                            onSelect={handleBountySelect}
+                        />
 
                         {/* 🏷️ DofusDB Attribution Badge — déplacé dans le bandeau du haut */}
 

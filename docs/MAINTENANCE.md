@@ -687,6 +687,20 @@ salon de notification est un **forum** (un post de forum est un thread).
   curl -s -o /dev/null -w "%{http_code}\n" https://beta.sigilos.fr/game-data/tiles/w38/1/204.webp   # → 200
   ```
 - ⚠️ Les tuiles (`public/game-data/tiles/...`) sont **ignorées par git** → un `git pull`/`deploy-cd.sh` ne les mettra **jamais** à jour. C'est `sync-assets.sh` qui les synchronise (volume bind-mount `ro`, lu directement par Caddy).
+- **Retirer un monde pour de bon** (ex. **19 « Mappemondes »** et **29 « Ecaflip City »**, supprimés le 28/09/2026) : les **données** sont versionnées (`worlds.json` 38→36 entrées, `worldmap.json` −653 maps, liste `DOFUS_WORLDS` de `src/lib/dofus-assets.ts`, spot de récolte isolé de `harvest-resources.json`) ⇒ un `deploy-cd.sh` les propage. Les **tuiles**, non versionnées, doivent être supprimées **des deux côtés** :
+  ```powershell
+  # Local (déjà fait) : Remove-Item -Recurse public/game-data/tiles/w19, w29
+  # VPS — alias et chemin vivent dans .env.local (VPS_SSH_ALIAS_BETA/PROD, VPS_PATH_BETA/PROD) :
+  ssh $env:VPS_SSH_ALIAS_BETA "rm -rf $env:VPS_PATH_BETA/public/game-data/tiles/w19 $env:VPS_PATH_BETA/public/game-data/tiles/w29"
+  ssh $env:VPS_SSH_ALIAS_BETA "ls $env:VPS_PATH_BETA/public/game-data/tiles | tr '\n' ' '"   # vérif : ni w19 ni w29
+  ```
+  Verrou : `tests/unit/worldmap-worlds.test.ts` échoue si un monde exclu revient — plusieurs scripts régénèrent ces fichiers depuis DofusDB (`sync-worldmap*.ts`, `sync-maps.ts`, `siphon-raids-worlds.js`, `siphon-brigandins.js`).
+- **Filigrane « DofusDB » des tuiles HD** (`public/game-data/hd_maps/*.webp`, **15 356 fichiers / 2 Go**, ignorés par git) : il est incrusté par le CDN DofusDB au téléchargement et s'affiche dans « Tuile HD », le panneau d'analyse, le survol de la carte et le révélé de Sigil Guesser. `scripts/clean-hd-maps-watermark.js` le recouvre par la bande d'image juste au-dessus (fondu sur les bords intérieurs ; dimensions et qualité webp 82 inchangées ⇒ tuile toujours alignée sur la grille) :
+  ```bash
+  node scripts/clean-hd-maps-watermark.js        # tout le dossier (~15-45 min selon les cœurs)
+  ./scripts/sync-assets.sh beta && ./scripts/sync-assets.sh prod   # ~2 Go à repousser (tuiles non versionnées)
+  ```
+  `scripts/sync-world-hd-maps.js` applique le **même** traitement au téléchargement : une nouvelle tuile arrive propre.
 - ✅ **Revalidation cache `/game-data/*` (26/08)** : `/game-data/*` était servi **sans `Cache-Control`** → le navigateur appliquait un cache heuristique et pouvait resservir un `worldmap.json`/`worlds.json` **périmé** après un déploiement (ex : mondes 37/40 absents du sélecteur alors que les données étaient bien sur le VPS). Fix : `handle /game-data/*` + `header Cache-Control "no-cache, must-revalidate"` (revalidation ETag/Last-Modified → 304 si inchangé, 200 si nouveau). Côté app, `src/components/worldmap/map-viewer.tsx` force aussi `{ cache: 'no-cache' }` sur les `fetch` de `worldmap.json`/`worlds.json`. ⚠️ Après un changement `Caddyfile` : `docker exec sigilos-gateway caddy validate --config /etc/caddy/Caddyfile && docker exec sigilos-gateway caddy reload` (bind-mount → **pas de rebuild**).
 - ⏳ **Prod (main)** : ajouter le même `handle /game-data/*` dans le bloc `sigilos.fr` quand le site sera lancé.
 #### 3e. Vitrine prod — assets `/assets/*` servis par Caddy (23/08)

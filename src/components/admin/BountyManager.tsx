@@ -18,6 +18,7 @@ import { normalizeDofusAssetStoredUrl, isSafeDofusImageSrc } from "@/lib/dofus-i
 import { DocContent } from '@/components/doc/doc-content';
 import { AdvancedEditor } from '@/components/editor/advanced-editor';
 import { AssetGalleryModal } from "@/components/admin/asset-gallery-modal";
+import { ZoneLocationCard } from "@/components/worldmap/ZoneLocationCard";
 
 import { getAllBounties } from "@/server/actions/admin-actions";
 import { updateGodBountyRecord } from "@/server/actions/game-data-actions";
@@ -31,6 +32,14 @@ const REWARD_TYPES = [
     { id: "Aviton", label: "Avitons", icon: "/assets/avis/avitons.png" },
     { id: "Kama de glace", label: "Kamas de glace", icon: "/assets/avis/kamas_de_glace.png" },
 ];
+
+/** Sous-zones de traque d'un avis (`Bounty.subareaIds`, Json libre) — ids worldmap valides. */
+function bountySubareaIds(bounty: any): number[] {
+    const raw = bounty?.subareaIds;
+    return (Array.isArray(raw) ? raw : [])
+        .map((value) => Math.floor(Number(value)))
+        .filter((id) => Number.isInteger(id) && id > 0);
+}
 
 /**
  * Portrait d'un avis — rendu **via le proxy d'assets**, jamais depuis le chemin stocké.
@@ -75,8 +84,6 @@ function BountyPortrait({
 
 export default function BountyManager() {
     const [galleryOpen, setGalleryOpen] = useState(false);
-    const [galleryType, setGalleryType] = useState<"portraits" | "maps">("portraits");
-    const [galleryTargetField, setGalleryTargetField] = useState<"imageUrl" | "mapUrl">("imageUrl");
     const [bounties, setBounties] = useState<any[]>([]);
     const [filteredBounties, setFilteredBounties] = useState<any[]>([]);
     const [search, setSearch] = useState("");
@@ -445,13 +452,13 @@ export default function BountyManager() {
                                 <TabsContent value="general" className="mt-0 space-y-12">
                                     <div className="grid grid-cols-2 gap-12">
                                         <div className="space-y-8">
-                                            <div className="grid grid-cols-2 gap-6">
+                                            <div className="grid grid-cols-1 gap-6">
                                                 <div className="space-y-3">
                                                     <label className="text-caption font-black text-amber-500 uppercase tracking-widest italic ml-1 flex items-center gap-2 drop-shadow-sm">
                                                         <Crosshair size={12} /> Portrait Cible
                                                     </label>
                                                     <button 
-                                                        onClick={() => { setGalleryType("portraits"); setGalleryOpen(true); }}
+                                                        onClick={() => setGalleryOpen(true)}
                                                         className="w-full aspect-square rounded-3xl bg-zinc-950/80 border border-white/10 flex items-center justify-center overflow-hidden relative group shadow-xl transition-all hover:border-amber-500/50"
                                                     >
                                                         <BountyPortrait
@@ -472,7 +479,7 @@ export default function BountyManager() {
                                                             className="flex-1 bg-zinc-950/50 border-white/10 font-mono text-caption text-zinc-400 h-11 rounded-xl focus-visible:ring-amber-500/50"
                                                         />
                                                         <Button 
-                                                            onClick={() => { setGalleryType("portraits"); setGalleryOpen(true); }}
+                                                            onClick={() => setGalleryOpen(true)}
                                                             variant="outline"
                                                             className="h-11 w-11 p-0 rounded-xl border-white/10 bg-zinc-950/50 hover:bg-amber-500 hover:text-black"
                                                         >
@@ -483,37 +490,15 @@ export default function BountyManager() {
 
                                                 <div className="space-y-3">
                                                     <label className="text-caption font-black text-amber-500 uppercase tracking-widest italic ml-1 flex items-center gap-2 drop-shadow-sm">
-                                                        <MapIcon size={12} /> Zone de Spawn
+                                                        <MapPin size={12} /> Localisation de la traque
                                                     </label>
-                                                    <button 
-                                                        onClick={() => { setGalleryType("maps"); setGalleryOpen(true); }}
-                                                        className="w-full aspect-square rounded-3xl bg-zinc-950/80 border border-white/10 flex items-center justify-center overflow-hidden relative group shadow-xl transition-all hover:border-amber-500/50"
-                                                    >
-                                                        {selectedBounty.mapUrl ? (
-                                                            <img src={selectedBounty.mapUrl} alt="" className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-all duration-300" />
-                                                        ) : (
-                                                            <MapIcon size={48} className="text-zinc-700" />
-                                                        )}
-                                                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2">
-                                                            <MapIcon size={24} className="text-amber-500" />
-                                                            <span className="text-caption font-black uppercase tracking-widest text-white">Changer</span>
-                                                        </div>
-                                                    </button>
-                                                    <div className="flex gap-2">
-                                                        <Input
-                                                            value={selectedBounty.mapUrl || ""}
-                                                            onChange={(e) => setSelectedBounty({ ...selectedBounty, mapUrl: e.target.value })}
-                                                            placeholder="Minimap URL..."
-                                                            className="flex-1 bg-zinc-950/50 border-white/10 font-mono text-caption text-zinc-400 h-11 rounded-xl focus-visible:ring-amber-500/50"
-                                                        />
-                                                        <Button 
-                                                            onClick={() => { setGalleryType("maps"); setGalleryOpen(true); }}
-                                                            variant="outline"
-                                                            className="h-11 w-11 p-0 rounded-xl border-white/10 bg-zinc-950/50 hover:bg-amber-500 hover:text-black"
-                                                        >
-                                                            <SwatchBook size={18} />
-                                                        </Button>
-                                                    </div>
+                                                    <ZoneLocationCard
+                                                        subareaIds={bountySubareaIds(selectedBounty)}
+                                                        mapId={Number(selectedBounty.battleMapId) > 0 ? Math.floor(Number(selectedBounty.battleMapId)) : null}
+                                                        title="Zone de traque"
+                                                        placeName={selectedBounty.zoneName || selectedBounty.name}
+                                                        openLabel="Ouvrir sur la carte"
+                                                    />
                                                 </div>
                                             </div>
                                         </div>
@@ -795,15 +780,9 @@ export default function BountyManager() {
             <AssetGalleryModal
                 open={galleryOpen}
                 onOpenChange={setGalleryOpen}
-                initialType={galleryType}
-                onSelect={(url) => {
-                    if (galleryType === "portraits") {
-                        setSelectedBounty({ ...selectedBounty, imageUrl: url });
-                    } else {
-                        setSelectedBounty({ ...selectedBounty, mapUrl: url });
-                    }
-                }}
-                title={galleryType === "portraits" ? "Sélecteur de Portraits" : "Sélecteur de Minimaps"}
+                initialType="portraits"
+                onSelect={(url) => setSelectedBounty({ ...selectedBounty, imageUrl: url })}
+                title="Sélecteur de Portraits"
             />
 
             <style jsx global>{`

@@ -35,6 +35,8 @@ export interface BountyRowInput {
     raceName?: string | null;
     battleMapId?: number | null;
     battleMapSource?: string | null;
+    /** Sous-zones de traque (id worldmap.json) — support de l'encart « Localisation ». */
+    subareaIds?: unknown;
     dofusdbSyncedAt?: Date | string | null;
 }
 
@@ -79,6 +81,8 @@ export interface BountyPublicMeta {
     rewardType: string;
     /** Critères de quête RÉELS (siphonnés) — jamais reformulés. */
     criteria: string[];
+    /** Sous-zones de traque (id worldmap.json) — l'encart « Localisation » encadre leur union. */
+    subareaIds: number[];
     /** Carte de simulation : `null` quand une grille réelle est disponible, sinon « Map vide ». */
     battleMapLabel: string | null;
     battleMapId: number | null;
@@ -152,6 +156,9 @@ export function buildBountyPublicMeta(bounty: BountyRowInput, stats?: unknown): 
         rewards.push({ type: rewardType, amount: doplons });
     }
     const position = String(bounty.position ?? "").trim() || null;
+    const subareaIds = (Array.isArray(bounty.subareaIds) ? bounty.subareaIds : [])
+        .map((value) => Math.floor(Number(value)))
+        .filter((value) => Number.isInteger(value) && value > 0);
     return {
         raceName: bountyRaceName(bounty.raceId, bounty.raceName),
         raceId: Number.isFinite(Number(bounty.raceId)) ? Math.floor(Number(bounty.raceId)) : null,
@@ -163,6 +170,7 @@ export function buildBountyPublicMeta(bounty: BountyRowInput, stats?: unknown): 
         doplons,
         rewardType,
         criteria: bountyCriteriaFromStat(stats),
+        subareaIds,
         battleMapLabel: bountyBattleMapLabel(bounty),
         battleMapId: Number(bounty.battleMapId) > 0 ? Math.floor(Number(bounty.battleMapId)) : null,
         dofusdbId: Number.isFinite(Number(bounty.dofusdbId)) ? Math.floor(Number(bounty.dofusdbId)) : null,

@@ -25,6 +25,7 @@ import {
 } from "@/server/actions/game-data-admin-actions";
 import { ImageDownloader } from "./ImageDownloader";
 import { DungeonMapPicker } from "./DungeonMapPicker";
+import { ZoneLocationCard } from "@/components/worldmap/ZoneLocationCard";
 import {
     Select,
     SelectContent,
@@ -659,6 +660,19 @@ export default function DungeonManager() {
                                                 />
                                             </div>
                                         )}
+                                        {/* Localisation — zone du donjon encadrée, même rendu que la fiche publique. */}
+                                        <div className="p-4 rounded-xl border border-border space-y-3">
+                                            <p className="text-xs font-medium text-muted-foreground pl-1">
+                                                Zone du donjon sur la carte du monde (map d&apos;entrée ci-dessus) — l&apos;encart affiché sur la fiche publique.
+                                            </p>
+                                            <ZoneLocationCard
+                                                mapId={formData.mapId ?? null}
+                                                title="Zone du donjon"
+                                                placeName={formData.name}
+                                                openLabel="Ouvrir sur la carte"
+                                                markerIcon="/assets/worldmap/dungeon-boss.png"
+                                            />
+                                        </div>
                                     </div>
 
                                     {/* Expedition Settings */}

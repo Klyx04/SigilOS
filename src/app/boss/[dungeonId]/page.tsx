@@ -316,6 +316,7 @@ export default async function PublicBossDetailPage({ params }: PageProps) {
                   dofensiveDungeonName: dungeon.dofensiveDungeonName,
                   isAnomalyBoss: !!dungeon.isAnomalyBoss,
                   anomalyMapId: dungeon.anomalyMapId ?? null,
+                  mapId: dungeon.mapId ?? null,
                   kind: "boss" as const,
                 }
               : isBounty

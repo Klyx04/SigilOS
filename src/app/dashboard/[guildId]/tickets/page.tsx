@@ -8,7 +8,6 @@ import {
     getTicketStatsAction,
     listTicketJourneysAction,
     listTicketFormsAction,
-    listTicketTeamsAction,
 } from "@/server/actions/ticket-bot-actions";
 import { TicketBotManager } from "./_components/ticket-bot-manager";
 
@@ -40,7 +39,7 @@ export default async function TicketsPage({ params }: TicketsPageProps) {
         if (await isModuleLocked(guildId, "tickets")) redirect(`/dashboard/${guildId}`);
     }
 
-    const [configRes, categoriesRes, panelsRes, recordsRes, statsRes, journeysRes, formsRes, teamsRes] =
+    const [configRes, categoriesRes, panelsRes, recordsRes, statsRes, journeysRes, formsRes] =
         await Promise.all([
             getTicketGuildConfigAction(guildId),
             getTicketCategoriesAction(guildId),
@@ -49,7 +48,6 @@ export default async function TicketsPage({ params }: TicketsPageProps) {
             getTicketStatsAction(guildId),
             listTicketJourneysAction(guildId),
             listTicketFormsAction(guildId),
-            listTicketTeamsAction(guildId),
         ]);
 
     const config = configRes.success ? configRes.data : null;
@@ -57,7 +55,6 @@ export default async function TicketsPage({ params }: TicketsPageProps) {
     const panels = panelsRes.success && Array.isArray(panelsRes.data) ? panelsRes.data : [];
     const journeys = journeysRes.success && Array.isArray(journeysRes.data) ? journeysRes.data : [];
     const forms = formsRes.success && Array.isArray(formsRes.data) ? formsRes.data : [];
-    const teams = teamsRes.success && Array.isArray(teamsRes.data) ? teamsRes.data : [];
     const tickets = recordsRes.success && recordsRes.data?.tickets ? recordsRes.data.tickets : [];
     const stats = statsRes.success && statsRes.data ? statsRes.data : {
         openCount: 0,
@@ -77,7 +74,6 @@ export default async function TicketsPage({ params }: TicketsPageProps) {
                 panels={panels}
                 journeys={journeys}
                 forms={forms}
-                teams={teams}
                 tickets={tickets}
                 stats={stats}
             />

@@ -21,6 +21,14 @@ export default async function GodTicketBotPage() {
         totalTranscripts: 0,
         globalAvgCsat: null,
         totalFeedbackCount: 0,
+        platformLimits: {
+            transcriptsEnabled: true,
+            retentionArchivesDays: 90,
+            retentionNotesDays: 90,
+            retentionAuditDays: 180,
+            maxPerUserCap: 5,
+            maxGuildCap: 100,
+        },
     };
 
     return (

@@ -19,6 +19,11 @@
  *     "additional": { "open": {...}, "closed": {...} },
  *     "everyone": { "open": {...}, "closed": {...} } } }
  * ```
+ *
+ * ⚠️ « Tout le monde » est modifiable (demande explicite) mais reste **refusé
+ * par défaut** : activer « Voir le salon » rend les tickets **publics**. Le
+ * dashboard affiche un avertissement dans ce cas, et `buildTicketOverwrites`
+ * applique tel quel (le chef de guilde assume).
  */
 
 export const TICKET_CHANNEL_GROUPS = ["support", "owner", "additional", "everyone"] as const;
@@ -143,8 +148,6 @@ export function readChannelPermissions(raw: unknown): TicketChannelMatrix {
     const input = root as Record<string, unknown>;
 
     for (const group of TICKET_CHANNEL_GROUPS) {
-        // « Tout le monde » n'est jamais modifiable : un ticket reste privé.
-        if (group === "everyone") continue;
         const groupRaw = input[group];
         if (!groupRaw || typeof groupRaw !== "object" || Array.isArray(groupRaw)) continue;
         const groupInput = groupRaw as Record<string, unknown>;
@@ -173,7 +176,6 @@ export function writeChannelPermissions(
             : {};
     const clean: Record<string, Record<string, Record<string, boolean>>> = {};
     for (const group of TICKET_CHANNEL_GROUPS) {
-        if (group === "everyone") continue;
         clean[group] = {};
         for (const state of TICKET_CHANNEL_STATES) {
             clean[group][state] = {};

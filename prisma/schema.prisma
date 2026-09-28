@@ -195,6 +195,16 @@ model PlatformConfig {
   // deviennent inopérants.
   forceDarkMode Boolean @default(false)
   forceDarkModeUpdatedAt DateTime?
+  // 🎫 Tickets — plafonds plateforme (God) : rétentions, transcripts et quotas
+  // max. Les guildes règlent en dessous (Max/membre), jamais au-dessus.
+  // Voir `src/lib/tickets/platform-limits.ts` (défauts) + migration
+  // `20261228000000_ticket_platform_limits`.
+  ticketTranscriptsEnabled      Boolean @default(true)
+  ticketRetentionArchivesDays   Int     @default(90)
+  ticketRetentionNotesDays      Int     @default(90)
+  ticketRetentionAuditDays      Int     @default(180)
+  ticketMaxPerUserCap           Int     @default(5)
+  ticketMaxGuildCap             Int     @default(100)
   forceDarkModeUpdatedBy String?
 }
 

@@ -1572,13 +1572,14 @@ export async function POST(request: NextRequest) {
                             where: { id: ticketId, discordGuildId: guild_id },
                             select: {
                                 categoryId: true,
+                                journeyId: true,
                                 guild: { select: { ticketConfig: { select: { settingsJson: true } } } },
                             },
                         });
                         const closeSettings = readTicketPermissionSettings(
                             (ticketForClose?.guild?.ticketConfig as { settingsJson?: unknown } | null)?.settingsJson
                         );
-                        if (!requireCloseConfirm(closeSettings, ticketForClose?.categoryId)) {
+                        if (!requireCloseConfirm(closeSettings, ticketForClose?.categoryId ?? ticketForClose?.journeyId)) {
                             return NextResponse.json(closeModal);
                         }
                     }

@@ -10,6 +10,7 @@ import {
     GAME_DATA_CHANGELOG_KEEP_PER_DATASET,
     GAME_DATA_CHANGELOG_MAX_AGE_DAYS,
     GAME_DATA_CHANGELOG_MAX_FIELDS,
+    GAME_DATA_CHANGELOG_MAX_LIST_ITEMS,
     GAME_DATA_CHANGELOG_MAX_VALUE_CHARS,
     GAME_DATA_CHANGELOG_RETENTION_LABEL,
     diffCollection,
@@ -21,6 +22,10 @@ import {
     GAME_DATA_JOURNAL_DATASETS,
     isJournalWiredDataset,
 } from "@/lib/game-data-sync-state";
+import {
+    collectGameDataChangeReferential,
+    formatChangeValue,
+} from "@/lib/game-data-change-format";
 
 describe("journal des changements game-data — diff", () => {
     it("ne journalise rien quand rien n'a changé", () => {
@@ -68,8 +73,21 @@ describe("journal des changements game-data — valeurs bornées", () => {
         expect(out.endsWith("…")).toBe(true);
     });
 
-    it("résume les tableaux au lieu de les recopier", () => {
-        expect(String(summarizeValue([1, 2, 3, 4, 5]))).toContain("[5 :");
+    it("garde un tableau **structuré** : jamais du JSON aplati dans une chaîne", () => {
+        // A3 (28/09/2026) — l'ancien résumé `[5 : 1, 2, …]` était une **chaîne** (issue d'un
+        // `JSON.stringify` tronqué) : c'est exactement ce qui affichait `{"effectId":90,…}` dans la
+        // modale, sans possibilité d'humaniser l'id. La valeur reste donc une **liste** bornée.
+        expect(summarizeValue([1, 2, 3, 4, 5])).toEqual([1, 2, 3, 4, 5]);
+        expect(summarizeValue([{ effectId: 90, from: 1, to: 15 }])).toEqual([
+            { effectId: 90, from: 1, to: 15 },
+        ]);
+        // Au-delà de la borne, un marqueur dit ce qui n'est **pas** écrit (jamais une coupe muette).
+        const long = Array.from({ length: GAME_DATA_CHANGELOG_MAX_LIST_ITEMS + 4 }, (_, i) => i);
+        const summarized = summarizeValue(long) as unknown[];
+        expect(summarized).toHaveLength(GAME_DATA_CHANGELOG_MAX_LIST_ITEMS + 1);
+        expect(String(summarized.at(-1))).toContain("autre(s)");
+        // Et l'élément reste un **objet** — jamais une chaîne `{"effectId":90,…}` aplatie.
+        expect(typeof (summarizeValue([{ effectId: 90 }]) as unknown[])[0]).toBe("object");
     });
 
     it("laisse passer les scalaires et normalise l'absence de valeur", () => {
@@ -180,3 +198,142 @@ describe("journal des changements game-data — rétention annoncée", () => {
         expect(GAME_DATA_CHANGELOG_MAX_AGE_DAYS).toBeLessThanOrEqual(90);
     });
 });
+
+/**
+ * A3 (28/09/2026) — **humanisation des valeurs journalisées**.
+ *
+ * Dette mesurée : la modale affichait `[3 : {"effectId":90,"from":1,…}]`, un JSON brut et tronqué,
+ * là où l'utilisateur attend « Vitalité (1 à 15) ». Les règles sont celles du **marché** (table codée
+ * puis référentiel siphonné puis identifiant) : aucune cascade recopiée, donc aucune divergence entre
+ * ce que voit le marché et ce que voit le Journal.
+ */
+describe("journal des changements game-data — valeurs humanisées", () => {
+    const referential = {
+        labels: { 9001: "Résistance maison" },
+        effectLabels: { 9002: "Effet maison", 90: "libellé court siphonné" },
+    };
+
+    it("suit l'ORDRE du marché : table codée, puis référentiel siphonné, puis identifiant", () => {
+        // 1. Table codée (`CHAR_NAMES`) : jamais écrasée par un libellé siphonné plus court.
+        expect(
+            formatChangeValue([{ effectId: 90, from: 1, to: 15 }], { key: "effects", referential }),
+        ).toBe("Dommages Eau (1 à 15)");
+        // 2. Id absent de la table → libellé du référentiel, humanisé.
+        expect(
+            formatChangeValue([{ effectId: 9002, from: 2, to: 4 }], { key: "effects", referential }),
+        ).toBe("Effet maison (2 à 4)");
+        expect(formatChangeValue({ characteristic: 9001 }, { key: "effects", referential })).toBe(
+            "Résistance maison",
+        );
+        // 3. Inconnu des deux ⇒ l'identifiant reste lisible : jamais un « — » à la place d'une valeur.
+        const unknown = formatChangeValue([{ effectId: 424242, from: 2, to: 4 }], {
+            key: "effects",
+            referential,
+        });
+        expect(unknown).toContain("Effet #424242");
+        expect(unknown).not.toContain("—");
+    });
+
+    it("sans référentiel (base non alimentée), la dégradation reste lisible", () => {
+        expect(formatChangeValue([{ effectId: 90, from: 1, to: 15 }], { key: "effects" })).toBe(
+            "Dommages Eau (1 à 15)",
+        );
+        expect(formatChangeValue("Avis 12 : butin illisible", { key: "name" })).toBe(
+            "Avis 12 : butin illisible",
+        );
+    });
+
+    it("une plage journalisée suit `normalizeNativeRange` : « 10 à 0 » n'existe pas", () => {
+        // `diceSide = 0` = valeur FIXE (règle du marché) ⇒ « 10 », jamais « 10 à 0 ».
+        expect(formatChangeValue([{ effectId: 90, from: 10, to: 0 }], { key: "effects" })).toBe(
+            "Dommages Eau (10)",
+        );
+        expect(formatChangeValue([{ effectId: 90, from: null, to: null }], { key: "effects" })).toBe(
+            "Dommages Eau",
+        );
+    });
+
+    it("un `…Id` est accompagné du nom porté par la fiche (aucune requête en plus)", () => {
+        const fields = { typeId: { before: 8, after: 9 }, typeName: { before: "Coiffe", after: "Cape" } };
+        expect(formatChangeValue(8, { key: "typeId", fields, side: "before" })).toBe("8 — Coiffe");
+        // ⚠️ Le nom d'après ne nomme jamais l'id d'avant : chaque côté reste honnête.
+        expect(formatChangeValue(9, { key: "typeId", fields, side: "after" })).toBe("9 — Cape");
+        expect(formatChangeValue(8, { key: "typeId" })).toBe("8");
+    });
+
+    it("jamais de JSON brut ni de `[object Object]` dans une valeur affichée", () => {
+        expect(formatChangeValue({ apCost: 4, minRange: 1 }, { key: "stats" })).toBe(
+            "apCost : 4 · minRange : 1",
+        );
+        expect(formatChangeValue(null, { key: "name" })).toBe("—");
+        expect(formatChangeValue([], { key: "effects" })).toBe("(vide)");
+        expect(formatChangeValue({}, { key: "effects" })).toBe("(vide)");
+    });
+});
+
+
+/**
+ * A3 — **référentiel borné aux ids affichés**. `loadMarketReferential()` porte tous les effets du
+ * jeu (~3 000) : l'envoyer entier à chaque ouverture de la modale serait du gaspillage. Même
+ * invariant que le `groupBy` borné par dataset : la charge suit ce qu'on affiche.
+ */
+describe("journal des changements game-data — référentiel borné", () => {
+    const referential = {
+        labels: { 9001: "Résistance maison" },
+        effectLabels: { 9002: "Effet maison", 90: "libellé court siphonné" },
+    };
+
+    it("ne garde que les ids présents dans les lignes renvoyées", () => {
+        const rows: { fields?: Record<string, { before: unknown; after: unknown }> | null }[] = [
+            {
+                fields: {
+                    effects: { before: [{ effectId: 9002, from: 1, to: 2 }], after: { characteristic: 9001 } },
+                },
+            },
+            { fields: { autre: { before: null, after: [{ int_id: "9002" }] } } },
+        ];
+        expect(collectGameDataChangeReferential(rows, referential)).toEqual({
+            labels: { 9001: "Résistance maison" },
+            effectLabels: { 9002: "Effet maison" },
+        });
+        expect(collectGameDataChangeReferential([], referential)).toEqual({ labels: {}, effectLabels: {} });
+        // Un id absent du référentiel n'est **jamais inventé**.
+        expect(
+            collectGameDataChangeReferential(
+                [{ fields: { f: { before: { effectId: 424242 }, after: null } } }],
+                referential,
+            ),
+        ).toEqual({ labels: {}, effectLabels: {} });
+    });
+
+    it("le parcours est borné en profondeur (une imbrication abusive ne boucle pas)", () => {
+        const wrap = (value: unknown, times: number) => {
+            let wrapped: unknown = value;
+            for (let i = 0; i < times; i += 1) wrapped = { niveau: wrapped };
+            return wrapped;
+        };
+        const collected = (times: number) =>
+            collectGameDataChangeReferential(
+                [{ fields: { f: { before: wrap({ effectId: 9002 }, times), after: null } } }],
+                referential,
+            ).effectLabels;
+        expect(collected(3)).toEqual({ 9002: "Effet maison" }); // profondeur normale : résolu
+        expect(collected(12)).toEqual({}); // au-delà de la borne : ignoré, jamais un plantage
+    });
+
+    it("l'action serveur fournit CE référentiel (jamais le complet, jamais depuis le client)", () => {
+        const actions = readFileSync(
+            join(process.cwd(), "src/server/actions/game-data-sync-actions.ts"),
+            "utf-8",
+        );
+        expect(actions).toContain("collectGameDataChangeReferential(");
+        expect(actions).toContain("loadMarketReferential()");
+        const modal = readFileSync(
+            join(process.cwd(), "src/components/admin/GameDataChangeLogModal.tsx"),
+            "utf-8",
+        );
+        expect(modal).toContain("formatChangeValue"); // l'UI ne réimplémente pas l'humanisation
+        expect(modal).not.toContain("JSON.stringify");
+    });
+});
+

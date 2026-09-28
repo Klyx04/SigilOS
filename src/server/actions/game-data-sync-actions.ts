@@ -45,13 +45,15 @@ import {
     gameDataQueue,
 } from "@/lib/queue/game-data-queue";
 import { logger } from "@/lib/logger";
+import { sanitizeGameDataErrorMessages } from "@/lib/game-data-error-causes";
 import {
-    GAME_DATA_CHANGELOG_RETENTION_LABEL,
     getGameDataChangeCounts,
-    getGameDataChangeLog as readGameDataChangeLog,
-    type GameDataChangeRow,
+    readGameDataChangeLogPage,
+    type GameDataChangeLogPage,
     type GameDataChangeType,
 } from "@/lib/game-data-changelog";
+import { collectGameDataChangeReferential, type GameDataChangeReferential } from "@/lib/game-data-change-format";
+import { loadMarketReferential } from "@/lib/market/referential";
 
 /** Même garde que le module game-data (super-admin OU brique `game-data`). */
 async function canAccessGameData(): Promise<boolean> {
@@ -89,6 +91,8 @@ export async function getGameDataSyncStates(): Promise<ActionResponse<GameDataRu
                     message: STALE_RUN_MESSAGE,
                     finishedAt: new Date().toISOString(),
                     lastError: "État périmé : aucun job en file (passe interrompue).",
+                    // Causes de la passe précédente : elles ne décrivent pas cet échec-là.
+                    errorGroups: null,
                 };
             }),
         );
@@ -100,16 +104,27 @@ export async function getGameDataSyncStates(): Promise<ActionResponse<GameDataRu
 }
 
 /**
- * 🔍 **Journal des changements** d'un dataset — « quoi a changé, sur quelle fiche, avant → après ».
+ * 🔍 **Journal des changements** d'un dataset — « quoi a changé, sur quelle fiche, avant → après »,
+ * **sur combien** (« 300 derniers sur 471 ») et **en clair** (libellés d'effets résolus).
  *
  * C'est la réponse à « si une quête/fiche a été modifiée, je veux savoir **quoi** » : les cœurs
  * écrivent une entrée par fiche créée/modifiée (`recordGameDataChanges`), et cette action ne
  * fait que **lire** (rétention bornée : 30 j / 500 entrées par dataset).
+ *
+ * A3 (28/09/2026) : la réponse porte les **compteurs réels** (`counts`/`total`/`shown`/`limit`/`max`)
+ * et le **référentiel** d'humanisation (`labels`/`effectLabels`) ⇒ la modale n'appelle jamais la base
+ * elle-même et n'affiche plus d'identifiants bruts. `limit` est borné dans
+ * `readGameDataChangeLogPage` (une seule source de borne : `GAME_DATA_CHANGELOG_PAGE_MAX`).
  */
+export interface GameDataChangeLogPayload extends GameDataChangeLogPage {
+    /** `characteristicId`/`effectId` → libellé FR (jamais deviné côté client). */
+    referential: GameDataChangeReferential;
+}
+
 export async function getGameDataChangeLogAction(
     dataset: string,
     opts: { limit?: number; changeType?: GameDataChangeType | "ALL" } = {},
-): Promise<ActionResponse<{ rows: GameDataChangeRow[]; retention: string }>> {
+): Promise<ActionResponse<GameDataChangeLogPayload>> {
     if (!(await canAccessGameData())) return { success: false, error: "Non autorisé" };
     if (!isDataset(dataset)) return { success: false, error: "Dataset inconnu" };
     const changeType = opts.changeType ?? "ALL";
@@ -117,9 +132,18 @@ export async function getGameDataChangeLogAction(
         return { success: false, error: "Filtre inconnu" };
     }
     try {
-        const rows = await readGameDataChangeLog(dataset, { limit: opts.limit, changeType });
+        const [page, referential] = await Promise.all([
+            readGameDataChangeLogPage(dataset, { limit: opts.limit, changeType }),
+            loadMarketReferential(),
+        ]);
+        // On ne renvoie **que** les libellés des ids réellement présents dans la page (jamais les
+        // ~3 000 effets du référentiel complet) : la charge suit ce qui est affiché.
+        const pruned = collectGameDataChangeReferential(page.rows, {
+            labels: referential.labels,
+            effectLabels: referential.effectLabels,
+        });
         // La rétention vient du **serveur** : une seule source de vérité, jamais recopiée dans l'UI.
-        return { success: true, data: { rows, retention: GAME_DATA_CHANGELOG_RETENTION_LABEL } };
+        return { success: true, data: { ...page, referential: pruned } };
     } catch (error) {
         logger.error("[game-data-changelog] lecture:", error);
         return { success: false, error: "Journal indisponible" };
@@ -160,16 +184,29 @@ export async function reportGameDataSync(
     return { success: true };
 }
 
-/** Fin de run (succès ou échec lisible). */
+/**
+ * Fin de run (succès ou échec lisible).
+ *
+ * 🔢 `errors` = **lot brut** des messages (facultatif). Il est **borné ici** (`sanitizeGameData
+ * ErrorMessages` : types inconnus/aplatis, chaque message tronqué, liste plafonnée) avant d'entrer
+ * dans le store, qui en tire `lastError` chiffré + `errorGroups` par cause. Aucune confiance dans
+ * ce qu'envoie le client, y compris sur la taille.
+ */
 export async function finishGameDataSync(
     dataset: string,
     ok: boolean,
     message?: string,
     error?: string,
+    errors?: unknown,
 ): Promise<ActionResponse> {
     if (!(await canAccessGameData())) return { success: false, error: "Non autorisé" };
     if (!isDataset(dataset)) return { success: false, error: "Dataset inconnu" };
-    await finishGameDataRun(dataset, { ok, message, error });
+    await finishGameDataRun(dataset, {
+        ok,
+        message,
+        error,
+        errors: sanitizeGameDataErrorMessages(errors),
+    });
     return { success: true };
 }
 

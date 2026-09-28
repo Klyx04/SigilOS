@@ -11,6 +11,7 @@ import type { DataHealthRow, BossFicheGap } from '@/lib/data-health';
 import { getSiphonInventory, triggerBatchAssetSiphonAction } from '@/server/actions/asset-siphon-actions';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { responsiveTableSlots, useResponsiveTable } from '@/hooks/use-responsive-table';
 
 function relativeTime(iso: string | null): string {
     if (!iso) return 'Jamais';
@@ -22,6 +23,76 @@ function relativeTime(iso: string | null): string {
     const h = Math.floor(min / 60);
     if (h < 48) return `il y a ${h}h`;
     return new Date(iso).toLocaleDateString('fr-FR');
+}
+
+/**
+ * 🧩 **Cellules partagées tableau / cartes** (chantier A3) : la ligne du tableau et la carte téléphone
+ * peignent **ces** composants — un contenu écrit une fois ne peut pas diverger entre les deux vues.
+ */
+function HealthDataset({ row }: { row: DataHealthRow }) {
+    return (
+        <>
+            <div className="font-bold text-foreground">{row.dataset}</div>
+            {row.fraicheur && <div className="text-caption text-muted-foreground">{row.fraicheur}</div>}
+        </>
+    );
+}
+
+/** Couverture réelle (chiffre + jauge) — le chiffre seul ne disait pas si c'était « presque bon ». */
+function HealthCoverage({ row }: { row: DataHealthRow }) {
+    return (
+        <div>
+            <div className="text-xs font-semibold text-foreground">{row.couverture}</div>
+            {row.couverturePct !== null && (
+                <div className="mt-1 h-1.5 w-28 rounded-full bg-surface overflow-hidden">
+                    <div
+                        className={cn(
+                            'h-full rounded-full',
+                            row.couverturePct >= 90 ? 'bg-emerald-500' : row.couverturePct >= 50 ? 'bg-amber-500' : 'bg-red-500',
+                        )}
+                        style={{ width: `${Math.min(100, row.couverturePct)}%` }}
+                    />
+                </div>
+            )}
+        </div>
+    );
+}
+
+/**
+ * Actions d'une ligne : dry-run (friandises/fiches) puis « ouvrir l'outil ». Le verrou `checking` vit
+ * ici : ajouter une vue (carte) ne peut plus oublier de le poser.
+ */
+function HealthActions({
+    row,
+    checking,
+    onCheck,
+    onGoTab,
+}: {
+    row: DataHealthRow;
+    checking: boolean;
+    onCheck: (kind: 'fiches' | 'images') => void;
+    onGoTab: (tab: string) => void;
+}) {
+    return (
+        <div className="flex flex-wrap items-center justify-end gap-2">
+            {(row.id === 'boss-fiches' || row.id === 'images') && (
+                <Button
+                    size="sm"
+                    variant="outline"
+                    className="text-xs font-bold"
+                    disabled={checking}
+                    onClick={() => onCheck(row.id === 'boss-fiches' ? 'fiches' : 'images')}
+                    title="Dry-run : liste les écarts sans rien écrire"
+                >
+                    <FlaskConical className="w-3.5 h-3.5 mr-1" />
+                    Vérifier
+                </Button>
+            )}
+            <Button size="sm" variant="ghost" className="text-xs font-bold" onClick={() => onGoTab(row.goTab)}>
+                {row.goLabel} <ArrowRight className="w-3.5 h-3.5 ml-1" />
+            </Button>
+        </div>
+    );
 }
 
 interface GapTarget {
@@ -39,6 +110,12 @@ export function DataHealthPanel({ onGoTab }: { onGoTab: (tab: string) => void })
     const [gapKind, setGapKind] = useState<'fiches' | 'images' | null>(null);
     const [selected, setSelected] = useState<Set<string>>(new Set());
     const [syncing, setSyncing] = useState(false);
+    /**
+     * 📱 **Tableau → cartes** (chantier A3) : le seuil (768 px) et le débordement mesuré viennent de
+     * `useResponsiveTable` — la même règle que le tableau d'état des datasets, jamais recopiée ici.
+     */
+    const { containerRef, useCards } = useResponsiveTable();
+    const slots = responsiveTableSlots(useCards);
 
     const loadOverview = async () => {
         setLoading(true);
@@ -154,7 +231,7 @@ export function DataHealthPanel({ onGoTab }: { onGoTab: (tab: string) => void })
                 <span>Lecture seule — source → cible, fraîcheur, couverture réelle, dernier run. Le dry-run n'écrit jamais.</span>
             </div>
 
-            <div className="rounded-2xl border border-border overflow-hidden">
+            <div ref={containerRef} className={cn('rounded-2xl border border-border overflow-hidden', slots.table)}>
                 <table className="w-full text-sm">
                     <thead>
                         <tr className="text-left text-[11px] uppercase tracking-wider text-muted-foreground border-b border-border bg-surface/60">
@@ -169,53 +246,51 @@ export function DataHealthPanel({ onGoTab }: { onGoTab: (tab: string) => void })
                         {rows.map((r) => (
                             <tr key={r.id} className="hover:bg-elevated/40 transition-colors">
                                 <td className="p-3">
-                                    <div className="font-bold text-foreground">{r.dataset}</div>
-                                    {r.fraicheur && <div className="text-caption text-muted-foreground">{r.fraicheur}</div>}
+                                    <HealthDataset row={r} />
                                 </td>
                                 <td className="p-3 hidden md:table-cell text-xs text-muted-foreground">
                                     {r.source} <ArrowRight className="w-3 h-3 inline mx-1" /> {r.cible}
                                 </td>
                                 <td className="p-3">
-                                    <div className="text-xs font-semibold text-foreground">{r.couverture}</div>
-                                    {r.couverturePct !== null && (
-                                        <div className="mt-1 h-1.5 w-28 rounded-full bg-surface overflow-hidden">
-                                            <div
-                                                className={cn("h-full rounded-full", r.couverturePct >= 90 ? "bg-emerald-500" : r.couverturePct >= 50 ? "bg-amber-500" : "bg-red-500")}
-                                                style={{ width: `${Math.min(100, r.couverturePct)}%` }}
-                                            />
-                                        </div>
-                                    )}
+                                    <HealthCoverage row={r} />
                                 </td>
                                 <td className="p-3 hidden lg:table-cell text-xs text-muted-foreground">
                                     {relativeTime(r.dernierRun)}
                                 </td>
-                                <td className="p-3 text-right whitespace-nowrap">
-                                    {(r.id === 'boss-fiches' || r.id === 'images') && (
-                                        <Button
-                                            size="sm"
-                                            variant="outline"
-                                            className="mr-2 text-xs font-bold"
-                                            disabled={checking}
-                                            onClick={() => checkGaps(r.id === 'boss-fiches' ? 'fiches' : 'images')}
-                                            title="Dry-run : liste les écarts sans rien écrire"
-                                        >
-                                            <FlaskConical className="w-3.5 h-3.5 mr-1" />
-                                            Vérifier
-                                        </Button>
-                                    )}
-                                    <Button
-                                        size="sm"
-                                        variant="ghost"
-                                        className="text-xs font-bold"
-                                        onClick={() => onGoTab(r.goTab)}
-                                    >
-                                        {r.goLabel} <ArrowRight className="w-3.5 h-3.5 ml-1" />
-                                    </Button>
+                                <td className="p-3 text-right">
+                                    <HealthActions row={r} checking={checking} onCheck={checkGaps} onGoTab={onGoTab} />
                                 </td>
                             </tr>
                         ))}
                     </tbody>
                 </table>
+            </div>
+
+            {/* 📱 **Cartes** (chantier A3) — sous 768 px (ou si le tableau déborde réellement), les mêmes
+                cellules que la ligne du tableau : un contenu écrit une fois ne peut pas diverger entre
+                les deux vues. */}
+            <div className={slots.cards}>
+                {rows.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">Aucun dataset à afficher.</p>
+                ) : (
+                    rows.map((r) => (
+                        <article key={r.id} className="rounded-2xl border border-border p-3 space-y-2">
+                            <div className="flex flex-wrap items-start justify-between gap-2">
+                                <div className="min-w-0">
+                                    <HealthDataset row={r} />
+                                </div>
+                                <HealthCoverage row={r} />
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                                {r.source} <ArrowRight className="w-3 h-3 inline mx-1" /> {r.cible}
+                            </p>
+                            <p className="text-caption text-muted-foreground">
+                                Dernier run : {relativeTime(r.dernierRun)}
+                            </p>
+                            <HealthActions row={r} checking={checking} onCheck={checkGaps} onGoTab={onGoTab} />
+                        </article>
+                    ))
+                )}
             </div>
 
             {checking && (

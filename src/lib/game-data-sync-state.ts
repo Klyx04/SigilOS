@@ -11,6 +11,8 @@
  * (un siphon ne doit JAMAIS casser parce que l'état est indisponible).
  */
 
+import { normalizeGameDataErrorGroups, type GameDataErrorGroup } from "@/lib/game-data-error-causes";
+
 export type GameDataDataset =
     | "CATALOGUE"        // public/game-data/dungeon-monsters.json
     | "BOUNTIES"         // avis de recherche (5 races)
@@ -168,6 +170,13 @@ export interface GameDataRunState {
     finishedAt: string | null;
     lastError: string | null;
     /**
+     * 🔢 **Erreurs de la dernière passe, regroupées par cause** (chantier A3, 28/09/2026) :
+     * `lastError` reste la ligne courte affichée ; `errorGroups` porte les compteurs
+     * (« aucun butin référencé (92×) · fiche en échec (4×) ») ⇒ une passe n'est plus résumée par
+     * trois messages bruts et deux passes se comparent. `null` = aucune erreur connue.
+     */
+    errorGroups: GameDataErrorGroup[] | null;
+    /**
      * Bilan chiffré de la dernière passe (le Tableau l'affiche tel quel). `null` pour les
      * datasets qui ne le fournissent pas — on n'invente jamais un chiffre.
      */
@@ -234,6 +243,24 @@ export function emptyGameDataRunState(dataset: GameDataDataset): GameDataRunStat
         startedAt: null,
         finishedAt: null,
         lastError: null,
+        errorGroups: null,
         counts: null,
+    };
+}
+
+/**
+ * 🧷 **Relecture d'un état sérialisé** (Redis) — une seule normalisation, jamais recopiée dans le
+ * store : fusion sur un état vierge, `dataset` **réimposé** (jamais celui du payload) et causes
+ * d'erreur revalidées (`normalizeGameDataErrorGroups`). Un payload écrit avant le chantier A3
+ * (sans `errorGroups`) reste lisible : `null`, jamais `undefined` affiché comme un tableau vide.
+ */
+export function hydrateGameDataRunState(dataset: GameDataDataset, raw: unknown): GameDataRunState {
+    if (!raw || typeof raw !== "object") return emptyGameDataRunState(dataset);
+    const parsed = raw as Partial<GameDataRunState>;
+    return {
+        ...emptyGameDataRunState(dataset),
+        ...parsed,
+        dataset,
+        errorGroups: normalizeGameDataErrorGroups(parsed.errorGroups),
     };
 }

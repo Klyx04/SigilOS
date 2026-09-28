@@ -11,7 +11,8 @@
  * sans limite, même si personne ne s'en occupe.
  *
  * ⚠️ **Serveur uniquement** (importe `@/lib/prisma`) : les composants client passent par
- * l'action `getGameDataChangeLog` (`game-data-sync-actions.ts`).
+ * l'action `getGameDataChangeLogAction` (`game-data-sync-actions.ts`), qui renvoie une
+ * `GameDataChangeLogPage` (lignes + compteurs réels + bornes de rétention).
  */
 
 import { db } from "@/lib/prisma";
@@ -26,6 +27,12 @@ export const GAME_DATA_CHANGELOG_MAX_AGE_DAYS = 30;
 export const GAME_DATA_CHANGELOG_MAX_FIELDS = 12;
 /** Taille maximale d'une valeur sérialisée dans le journal (caractères). */
 export const GAME_DATA_CHANGELOG_MAX_VALUE_CHARS = 240;
+/** Éléments conservés d'un tableau (au-delà : marqueur « … N autre(s) »). */
+export const GAME_DATA_CHANGELOG_MAX_LIST_ITEMS = 6;
+/** Clés conservées d'un objet (au-delà : tronqué, jamais recopié). */
+export const GAME_DATA_CHANGELOG_MAX_OBJECT_KEYS = 6;
+/** Taille maximale d'une chaîne **imbriquée** dans une valeur (libellé, texte libre). */
+export const GAME_DATA_CHANGELOG_ITEM_CHARS = 80;
 
 /**
  * Libellé de rétention, **dérivé des constantes ci-dessus** — affiché par la modale (via
@@ -51,36 +58,86 @@ export interface GameDataChangeEntry {
 
 /**
  * 📏 Réduit une valeur à ce qui est utile dans un journal : jamais le payload entier.
- * Objet → JSON tronqué, tableau → `[N : a, b, …]`, chaîne → tronquée.
+ *
+ * ✔️ 28/09/2026 (A3) — **la valeur reste structurée**. Avant : un tableau d'effets était
+ * aplati en **chaîne** (`"[3 : {\"effectId\":90,…}, …]"`), résultat d'un `JSON.stringify` tronqué
+ * ⇒ l'écran affichait des accolades à la place des stats (« Vitalité 1 à 15 »), et aucune
+ * humanisation `effectId → libellé` n'était possible (l'id était noyé dans du texte).
+ * Désormais : liste bornée d'éléments **scalaires ou maps de scalaires** (jamais d'imbrication,
+ * jamais de JSON dans une chaîne) que `@/lib/game-data-change-format` humanise à l'affichage.
+ *
+ * Bornes (invariant : la valeur sérialisée reste ≤ `GAME_DATA_CHANGELOG_MAX_VALUE_CHARS`) :
+ *   · tableau → `GAME_DATA_CHANGELOG_MAX_LIST_ITEMS` éléments + marqueur « … N autre(s) » ;
+ *   · objet → `GAME_DATA_CHANGELOG_MAX_OBJECT_KEYS` clés scalaires ;
+ *   · conteneur imbriqué (tableau/objet dans une liste) → décrit par sa taille (`[4 élément(s)]`)
+ *     plutôt que recopié : on garde l'information utile sans le payload.
  */
 export function summarizeValue(value: unknown): unknown {
     if (value === null || value === undefined) return null;
-    if (typeof value === "string") {
-        return value.length > GAME_DATA_CHANGELOG_MAX_VALUE_CHARS
-            ? `${value.slice(0, GAME_DATA_CHANGELOG_MAX_VALUE_CHARS)}…`
-            : value;
+    if (typeof value === "string") return clampJournalString(value, GAME_DATA_CHANGELOG_MAX_VALUE_CHARS);
+    if (typeof value === "number") return Number.isFinite(value) ? value : String(value);
+    if (typeof value === "boolean") return value;
+    if (Array.isArray(value)) return summarizeList(value);
+    if (typeof value === "object") return summarizeMap(value as Record<string, unknown>);
+    return String(value);
+}
+
+/** Valeur **scalaire** d'une entrée de journal (jamais un conteneur). */
+type JournalScalar = string | number | boolean;
+
+function clampJournalString(value: string, max: number): string {
+    return value.length > max ? `${value.slice(0, max)}…` : value;
+}
+
+/**
+ * Décrit une valeur en **un scalaire lisible** : les conteneurs imbriqués sont résumés par leur
+ * taille (`[4 élément(s)]`, `{7 clé(s)}`) — l'information « ce champ contient une liste de 4
+ * éléments » est conservée, le payload non. `null` = champ absent (ignoré, pas écrit « null »).
+ */
+function describeJournalLeaf(value: unknown): JournalScalar | null {
+    if (value === null || value === undefined) return null;
+    if (typeof value === "number") return Number.isFinite(value) ? value : String(value);
+    if (typeof value === "boolean") return value;
+    if (typeof value === "string") return clampJournalString(value, GAME_DATA_CHANGELOG_ITEM_CHARS);
+    if (Array.isArray(value)) return `[${value.length} élément(s)]`;
+    if (typeof value === "object") return `{${Object.keys(value as object).length} clé(s)}`;
+    return String(value);
+}
+
+/** Objet → map de scalaires bornée (on s'arrête **avant** de dépasser le budget de la valeur). */
+function summarizeMap(source: Record<string, unknown>): Record<string, JournalScalar> {
+    const out: Record<string, JournalScalar> = {};
+    for (const [key, value] of Object.entries(source)) {
+        if (Object.keys(out).length >= GAME_DATA_CHANGELOG_MAX_OBJECT_KEYS) break;
+        const leaf = describeJournalLeaf(value);
+        if (leaf === null) continue;
+        if (JSON.stringify({ ...out, [key]: leaf }).length > GAME_DATA_CHANGELOG_MAX_VALUE_CHARS) break;
+        out[key] = leaf;
     }
-    if (typeof value === "number" || typeof value === "boolean") return value;
-    if (Array.isArray(value)) {
-        if (value.length === 0) return "[]";
-        const head = value
-            .slice(0, 3)
-            .map((v) => (typeof v === "object" && v !== null ? JSON.stringify(v).slice(0, 60) : String(v)))
-            .join(", ");
-        const body =
-            head.length > GAME_DATA_CHANGELOG_MAX_VALUE_CHARS
-                ? `${head.slice(0, GAME_DATA_CHANGELOG_MAX_VALUE_CHARS)}…`
-                : head;
-        return `[${value.length} : ${body}${value.length > 3 ? ", …" : ""}]`;
+    return out;
+}
+
+/**
+ * Tableau → liste bornée d'éléments lisibles. Un élément **objet** devient une map de scalaires
+ * (c'est ce qui permet à l'écran de dire « Vitalité 1 à 15 » au lieu de `{"effectId":90,…}`).
+ */
+function summarizeList(source: unknown[]): (JournalScalar | Record<string, JournalScalar>)[] {
+    const out: (JournalScalar | Record<string, JournalScalar>)[] = [];
+    for (const item of source.slice(0, GAME_DATA_CHANGELOG_MAX_LIST_ITEMS)) {
+        let entry: JournalScalar | Record<string, JournalScalar> | null;
+        if (item !== null && typeof item === "object" && !Array.isArray(item)) {
+            const map = summarizeMap(item as Record<string, unknown>);
+            // Objet sans aucun scalaire (que des listes/objets) : on dit ce qu'il contient.
+            entry = Object.keys(map).length > 0 ? map : describeJournalLeaf(item);
+        } else {
+            entry = describeJournalLeaf(item);
+        }
+        if (entry === null) continue;
+        if (JSON.stringify([...out, entry]).length > GAME_DATA_CHANGELOG_MAX_VALUE_CHARS) break;
+        out.push(entry);
     }
-    try {
-        const json = JSON.stringify(value);
-        return json.length > GAME_DATA_CHANGELOG_MAX_VALUE_CHARS
-            ? `${json.slice(0, GAME_DATA_CHANGELOG_MAX_VALUE_CHARS)}… (${json.length} car.)`
-            : json;
-    } catch {
-        return "(non sérialisable)";
-    }
+    if (out.length < source.length) out.push(`… ${source.length - out.length} autre(s)`);
+    return out;
 }
 
 /**
@@ -237,21 +294,83 @@ export async function pruneGameDataChangeLog(dataset?: GameDataDataset): Promise
     }
 }
 
-/** Journal d'un dataset (le plus récent d'abord) — lu par la modale du Tableau. */
-export async function getGameDataChangeLog(
+/** 📄 Taille de page par défaut de la modale : « les 300 derniers » (A3). */
+export const GAME_DATA_CHANGELOG_PAGE_SIZE = 300;
+/** Plafond d'une page : jamais plus que ce que la purge conserve par dataset. */
+export const GAME_DATA_CHANGELOG_PAGE_MAX = GAME_DATA_CHANGELOG_KEEP_PER_DATASET;
+
+/** Compteurs **réels** d'un dataset (toutes les lignes retenues, filtre ignoré). */
+export interface GameDataChangeCounts {
+    ALL: number;
+    NEW: number;
+    MODIFIED: number;
+    REMOVED: number;
+}
+
+/**
+ * Une page du journal : les lignes **du filtre courant** + les compteurs **réels** du dataset,
+ * c'est-à-dire tout ce qu'il faut pour écrire « 300 derniers sur 471 ».
+ */
+export interface GameDataChangeLogPage {
+    rows: GameDataChangeRow[];
+    counts: GameDataChangeCounts;
+    /** Lignes retenues par le filtre courant (`counts.ALL` si le filtre est `ALL`). */
+    total: number;
+    /** Lignes réellement renvoyées (≤ `limit` **et** ≤ `total`). */
+    shown: number;
+    limit: number;
+    /** Maximum que la rétention peut conserver pour ce dataset. */
+    max: number;
+    retention: string;
+}
+
+
+/**
+ * 📖 Journal d'un dataset — **page + compteurs réels** (A3, 28/09/2026).
+ *
+ * Avant : la modale recevait 100 lignes **sans savoir sur combien** (« 100 derniers » sur 500
+ * possibles, filtres NEW/MODIFIED/REMOVED sans chiffres) ⇒ impossible de dire si la liste était
+ * complète. Ici, on renvoie **les lignes du filtre** *et* les compteurs du dataset, donc l'écran
+ * peut afficher « 300 derniers sur 500 » (et « 471 »).
+ *
+ * Les deux requêtes sont **bornées par `dataset`** : le `groupBy(changeType)` ne découpe que les
+ * lignes que la purge conserve par dataset (≤ 500) — mesuré le 28/09/2026 en base locale :
+ * 3 lignes de regroupement pour 171 entrées (42 ms à froid), `findMany(take=300)` : 17 ms.
+ */
+export async function readGameDataChangeLogPage(
     dataset: GameDataDataset,
     opts: { limit?: number; changeType?: GameDataChangeType | "ALL" } = {},
-): Promise<GameDataChangeRow[]> {
-    const limit = Math.min(Math.max(opts.limit ?? 100, 1), 300);
-    const rows = await db.gameDataChangeLog.findMany({
-        where: {
-            dataset,
-            ...(opts.changeType && opts.changeType !== "ALL" ? { changeType: opts.changeType } : {}),
-        },
-        orderBy: { createdAt: "desc" },
-        take: limit,
-    });
-    return rows.map(toGameDataChangeRow);
+): Promise<GameDataChangeLogPage> {
+    const changeType = opts.changeType ?? "ALL";
+    // Entrée **bornée côté serveur** (l'action valide déjà l'enum ; la taille, c'est ici).
+    const requested = typeof opts.limit === "number" && Number.isFinite(opts.limit)
+        ? Math.trunc(opts.limit)
+        : GAME_DATA_CHANGELOG_PAGE_SIZE;
+    const limit = Math.min(Math.max(requested, 1), GAME_DATA_CHANGELOG_PAGE_MAX);
+    const [grouped, rows] = await Promise.all([
+        db.gameDataChangeLog.groupBy({ by: ["changeType"], where: { dataset }, _count: { _all: true } }),
+        db.gameDataChangeLog.findMany({
+            where: { dataset, ...(changeType !== "ALL" ? { changeType } : {}) },
+            orderBy: { createdAt: "desc" },
+            take: limit,
+        }),
+    ]);
+    const counts: GameDataChangeCounts = { ALL: 0, NEW: 0, MODIFIED: 0, REMOVED: 0 };
+    for (const group of grouped) {
+        const count = group._count._all;
+        counts.ALL += count;
+        const type = group.changeType;
+        if (type === "NEW" || type === "MODIFIED" || type === "REMOVED") counts[type] = count;
+    }
+    return {
+        rows: rows.map(toGameDataChangeRow),
+        counts,
+        total: changeType === "ALL" ? counts.ALL : counts[changeType],
+        shown: rows.length,
+        limit,
+        max: GAME_DATA_CHANGELOG_PAGE_MAX,
+        retention: GAME_DATA_CHANGELOG_RETENTION_LABEL,
+    };
 }
 
 /**

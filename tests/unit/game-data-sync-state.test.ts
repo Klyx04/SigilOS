@@ -11,9 +11,15 @@ import {
     computePercent,
     emptyGameDataRunState,
     gameDataLaunchKind,
+    hydrateGameDataRunState,
     isAutoSyncDataset,
     isWatchedDataset,
 } from "@/lib/game-data-sync-state";
+import { GAME_DATA_ERROR_GROUPS_MAX } from "@/lib/game-data-error-causes";
+import {
+    RESPONSIVE_TABLE_CARD_MAX_WIDTH,
+    responsiveTableSlots,
+} from "@/hooks/use-responsive-table";
 
 const read = (p: string) => readFileSync(p, "utf8");
 
@@ -270,7 +276,9 @@ describe("game-data — siphons en arrière-plan (file + worker)", () => {
     it("le tableau est le SEUL point de lancement (plus de doublon dans les pages, §4.3)", () => {
         const panel = read("src/components/admin/GameDataSyncStatePanel.tsx");
         expect(panel).not.toContain("Bouton direct ci-dessous");
-        expect(panel).toContain("gameDataLaunchKind(state.dataset)");
+        // A3 : la cellule « actions » a été extraite pour être **partagée** tableau/carte mobile —
+        // le mode de lancement reste déclaré par `gameDataLaunchKind`, jamais recopié par vue.
+        expect(panel).toContain("gameDataLaunchKind(dataset)");
         expect(panel).toContain('"Lancer ici"');
         expect(panel).toContain('"Ici"');
         // Les lancements GÉNÉRIQUES ont quitté les panneaux…
@@ -429,3 +437,86 @@ describe("game-data — veille ciblée & bilan de passe", () => {
         expect(panel).toContain("🔭 Veille");
     });
 });
+
+/**
+ * A3 (28/09/2026) — **erreurs regroupées par cause** et **tableaux d'admin en cartes**.
+ *
+ * Dettes mesurées : (1) l'état ne portait que `lastError` (trois lignes brutes) là où une passe
+ * BOUNTIES produit **96 erreurs** ; (2) les tableaux de plus de six colonnes restaient des tableaux
+ * sous 768 px, illisibles sans défilement horizontal.
+ */
+describe("game-data — erreurs par cause dans l'état publié", () => {
+    it("un état sérialisé revalide ses causes : `null` pour un payload d'avant A3", () => {
+        const legacy = hydrateGameDataRunState("BOUNTIES", {
+            status: "ERROR",
+            lastError: "3 erreur(s) : …",
+        });
+        expect(legacy.errorGroups).toBeNull();
+        expect(legacy.lastError).toBe("3 erreur(s) : …"); // la ligne de repli reste lisible
+        // Le dataset du payload n'est jamais cru : seul l'appelant nomme le dataset.
+        const forged = hydrateGameDataRunState("BOUNTIES", {
+            dataset: "ITEMS",
+            errorGroups: [
+                { key: "butin-absent", label: "aucun butin référencé par DofusDB", count: 92, sample: "Avis 1 : …" },
+                { key: "faux", label: "compteur négatif", count: -4, sample: "x" },
+                { label: "sans clé", count: 3, sample: "x" },
+                { key: "sans-libelle", count: 3, sample: "x" },
+            ],
+        });
+        expect(forged.dataset).toBe("BOUNTIES");
+        expect(forged.errorGroups).toEqual([
+            { key: "butin-absent", label: "aucun butin référencé par DofusDB", count: 92, sample: "Avis 1 : …" },
+        ]);
+        // Payload douteux (causes = objet vide, causes = liste vide) ⇒ `null` : l'écran montre
+        // `lastError` plutôt qu'un compteur faux.
+        expect(hydrateGameDataRunState("ITEMS", { errorGroups: {} }).errorGroups).toBeNull();
+        expect(hydrateGameDataRunState("ITEMS", { errorGroups: [] }).errorGroups).toBeNull();
+    });
+
+    it("les causes publiées sont plafonnées (l'écran ne peint pas 60 causes)", () => {
+        const raw = Array.from({ length: GAME_DATA_ERROR_GROUPS_MAX + 8 }, (_, i) => ({
+            key: `cause-${i}`,
+            label: `cause ${i}`,
+            count: 1,
+            sample: "x",
+        }));
+        expect(hydrateGameDataRunState("ITEMS", { errorGroups: raw }).errorGroups).toHaveLength(
+            GAME_DATA_ERROR_GROUPS_MAX,
+        );
+    });
+});
+
+describe("game-data — tableau → cartes sous 768 px (une seule règle, deux panneaux)", () => {
+    it("la règle vit dans le hook : seuil `md`, cartes imposées si le tableau déborde vraiment", () => {
+        const hook = read("src/hooks/use-responsive-table.ts");
+        // Le seuil est **exporté** (donc vérifiable ailleurs) et vaut bien `md` de Tailwind = 768 px.
+        expect(RESPONSIVE_TABLE_CARD_MAX_WIDTH).toBe(768);
+        expect(hook).toContain("export const RESPONSIVE_TABLE_CARD_MAX_WIDTH = 768");
+        expect(hook).toContain("window.innerWidth < RESPONSIVE_TABLE_CARD_MAX_WIDTH");
+        // Le débordement **mesuré** bat le breakpoint (un tableau qui déborde reste illisible).
+        expect(hook).toContain("el.scrollWidth > el.clientWidth + 1");
+        // ⚠️ Conteneur masqué ⇒ mesure fausse : on garde la dernière mesure vraie, sinon un `resize`
+        // réafficherait le tableau qui débordait.
+        expect(hook).toContain("if (el.clientWidth === 0) return;");
+        expect(responsiveTableSlots(false)).toEqual({
+            table: "hidden md:block",
+            cards: "space-y-2 md:hidden",
+        });
+        expect(responsiveTableSlots(true).table).toBe("hidden");
+        expect(responsiveTableSlots(true).cards).not.toContain("md:hidden");
+    });
+
+    it("les deux panneaux d'admin partagent les mêmes emplacements (aucune classe recopiée)", () => {
+        for (const panel of ["GameDataSyncStatePanel", "DataHealthPanel"]) {
+            const code = read(`src/components/admin/${panel}.tsx`);
+            expect(code, `${panel} doit poser la référence de mesure`).toContain("ref={containerRef}");
+            expect(code, `${panel} doit poser les classes partagées`).toContain("slots.table");
+            expect(code, `${panel} doit lire la règle au même endroit`).toContain(
+                "responsiveTableSlots(useCards)",
+            );
+            // Une seule bascule par panneau : les cartes vivent dans UN conteneur, pas deux.
+            expect(code.match(/className=\{slots\.cards\}/g)?.length).toBe(1);
+        }
+    });
+});
+

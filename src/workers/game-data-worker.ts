@@ -172,15 +172,21 @@ async function runBackgroundDataset(
         const { syncMarketReferentialsCore } = await import("../lib/market/referential-siphon");
         await beginGameDataRun("REFERENTIALS", { message: "Référentiels (effets & caractéristiques)" });
         const result = await syncMarketReferentialsCore();
+        // 🚦 Message HONNÊTE : une page abandonnée sur NOTRE limite locale (30 req/min partagées)
+        // ne doit pas s'annoncer « page DofusDB en échec » — c'était le mensonge de la capture
+        // du 28/09/2026, qui envoyait le God chercher une panne chez DofusDB.
+        const cause = result.throttledPages.length > 0
+            ? `${result.throttledPages.length} page(s) en attente sur notre limite locale (30 req/min partagées)`
+            : "page DofusDB en échec";
         await finishGameDataRun("REFERENTIALS", {
             ok: !result.truncated,
             message: `${result.effects} effet(s) · ${result.characteristics} caractéristique(s) lus`,
-            error: result.truncated ? "Référentiel incomplet (page DofusDB en échec)" : undefined,
+            error: result.truncated ? `Référentiel incomplet (${cause})` : undefined,
         });
         return result;
     }
 
-    // ITEMS : cœur descendu dans `src/lib` le 23/09/2026 (21 776 items ≈ 218 lots) — la
+    // ITEMS : cœur descendu dans `src/lib` le 23/09/2026 (21 776 items ≈ 436 lots de 50) — la
     // boucle vivait dans le NAVIGATEUR (un aller-retour d'action par lot, 429 en boucle,
     // fermer l'onglet perdait la passe). Ici elle vit dans la file, avec la progression
     // RÉELLE remontée depuis le `total` exposé par DofusDB.

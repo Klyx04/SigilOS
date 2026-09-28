@@ -14,11 +14,21 @@ import { DOFUSDB_PAGE_SIZE, collectDofusDbPages } from "@/lib/market/referential
  * `skip < json.total`.
  */
 
-type FakePage = { count: number; total?: number } | "fail" | "bad-json" | "empty";
+type FakePage = { count: number; total?: number } | "fail" | "bad-json" | "empty" | "throttled";
 
 interface Fetcher {
     fetchImpl: typeof fetch;
     requested: string[];
+}
+
+/** Réponse de **notre** limiteur : 429 marquée + `retry-after` utilisable (1 s par rejeu). */
+function throttledResponse(): Response {
+    return {
+        ok: false,
+        status: 429,
+        headers: new Headers({ "x-sigilos-throttle": "local", "retry-after": "1" }),
+        json: async () => ({ error: "rate-limited (local)" }),
+    } as unknown as Response;
 }
 
 /** Construit un faux `fetch` : la page est choisie via son `$skip`. */
@@ -39,6 +49,9 @@ function makeFetcher(
 
         if (page === "fail") {
             return { ok: false, status: 500, json: async () => ({}) } as unknown as Response;
+        }
+        if (page === "throttled") {
+            return throttledResponse();
         }
         if (page === "bad-json") {
             return {
@@ -67,12 +80,12 @@ function makeFetcher(
 const urlFor = (skip: number, limit: number) =>
     `https://api.dofusdb.fr/effects?$limit=${limit}&$skip=${skip}`;
 
-/** Faux fetch + options (rejeu instantané). */
+/** Faux fetch + options (rejeu instantané, pas de cadence : ces tests ne mesurent pas le tempo). */
 function setup(pages: Record<number, FakePage>, extra: { retrySucceeds?: Record<number, FakePage> } = {}) {
     const fetcher = makeFetcher(pages, extra);
     return {
         fetcher,
-        opts: { fetchImpl: fetcher.fetchImpl, retryDelayMs: 0, ...extra },
+        opts: { fetchImpl: fetcher.fetchImpl, retryDelayMs: 0, pagePauseMs: 0, ...extra },
     };
 }
 
@@ -209,6 +222,64 @@ describe("collectDofusDbPages — pagination pilotée par le total de l'API", ()
         await collectDofusDbPages(urlFor, opts);
 
         expect(fetcher.requested[0]).toContain(`$limit=${DOFUSDB_PAGE_SIZE}`);
+    });
+});
+
+/**
+ * 🚦 Chantier A2 (28/09/2026) — le « Référentiel incomplet (page DofusDB en échec) » de la
+ * capture God était **notre** limite locale (30 req/min partagées) : aucune cadence entre les
+ * pages (rafale) + un seul rejeu à 1 000 ms (souvent dans la même fenêtre). Ces cas verrouillent
+ * l'attente + rejeu, la **cause distinguée**, et la cadence.
+ */
+describe("collectDofusDbPages — budget local (A2)", () => {
+    it("une page refusée LOCALEMENT est attendue puis rejouée (aucun trou)", async () => {
+        const { fetcher, opts } = setup(
+            { 0: "throttled", 50: { count: 50, total: 100 } },
+            { retrySucceeds: { 0: { count: 50, total: 100 } } }
+        );
+
+        const res = await collectDofusDbPages(urlFor, { ...opts, maxThrottleReplays: 1 });
+
+        expect(res.rows).toHaveLength(100);
+        expect(res.truncated).toBe(false);
+        expect(res.throttledPages).toEqual([]);
+        expect(res.failedPages).toEqual([]);
+        // La page 0 a bien été redemandée (le refus local n'est pas un abandon).
+        expect(fetcher.requested.map(skipOf).slice(0, 2)).toEqual(["0", "0"]);
+    });
+
+    it("refus local sans rejeu possible : `throttledPages`, JAMAIS `failedPages`", async () => {
+        const { opts } = setup({ 0: "throttled", 50: { count: 50, total: 100 } });
+
+        const res = await collectDofusDbPages(urlFor, { ...opts, maxThrottleReplays: 0 });
+
+        expect(res.throttledPages).toEqual([0]);
+        expect(res.failedPages).toEqual([]);
+        expect(res.truncated).toBe(true);
+    });
+
+    it("une vraie panne DofusDB (500) reste dans `failedPages` (causes jamais confondues)", async () => {
+        const { opts } = setup({ 0: { count: 50, total: 100 }, 50: "fail" });
+
+        const res = await collectDofusDbPages(urlFor, opts);
+
+        expect(res.failedPages).toEqual([50]);
+        expect(res.throttledPages).toEqual([]);
+    });
+
+    it("la cadence est appliquée ENTRE deux pages (fin de la rafale qui vidait la fenêtre)", async () => {
+        const { opts } = setup({
+            0: { count: 50, total: 150 },
+            50: { count: 50, total: 150 },
+            100: { count: 50, total: 150 },
+        });
+
+        const started = Date.now();
+        const res = await collectDofusDbPages(urlFor, { ...opts, pagePauseMs: 40 });
+        const elapsed = Date.now() - started;
+
+        expect(res.rows).toHaveLength(150);
+        expect(elapsed).toBeGreaterThanOrEqual(80); // 3 pages ⇒ 2 pauses
     });
 });
 

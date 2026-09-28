@@ -10,16 +10,21 @@
  */
 
 import { DOFUSDB_PAGE_MAX } from "@/lib/dofusdb-pagination";
+import { budgetPauseMs } from "@/lib/dofusdb-throttle";
 
 /** Taille du lot = **plafond réel** de l'API (`DOFUSDB_PAGE_MAX` = 50, mesuré le 24/09/2026). */
 export const GAME_ITEMS_BATCH_SIZE = DOFUSDB_PAGE_MAX;
 
 /**
  * Pause entre deux lots = **cadence du limiteur partagé** (`dofusDbFetch` : fenêtre Redis
- * 30 req/min/hôte ⇒ ~2,1 s). À 350 ms la fenêtre était saturée en ~10 s ⇒ 429 en boucle,
- * retries 2/4/8/16 s, abandon (« le siphon ne marche jamais »).
+ * `DOFUSDB_RATE_LIMIT` = 30 req/min/hôte), avec **marge de sécurité** : `budgetPauseMs()` rend
+ * **2 400 ms** ⇒ 25 req/min (≈ 17 % de marge) au lieu des 2 100 ms d'avant (28,6 req/min, marge
+ * quasi nulle : la moindre requête concurrente faisait déborder la fenêtre ⇒ 429 en boucle).
+ *
+ * Historique : à 350 ms la fenêtre était saturée en ~10 s ⇒ 429, retries 2/4/8/16 s, abandon
+ * (« le siphon ne marche jamais »). La règle pure vit dans `src/lib/dofusdb-throttle.ts`.
  */
-export const GAME_ITEMS_BATCH_PAUSE_MS = 2_100;
+export const GAME_ITEMS_BATCH_PAUSE_MS = budgetPauseMs();
 
 /**
  * Plafond d'une passe **incrémentale** (« veille ciblée ») : 5 000 items = 50 lots ≈ 2 min.

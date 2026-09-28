@@ -16,6 +16,12 @@
  * troncature au lieu de croire à un succès complet.
  */
 import { dofusDbFetch } from "@/lib/dofusdb-limiter";
+import {
+    DOFUSDB_THROTTLE_MAX_REPLAYS,
+    budgetPauseMs,
+    isLocalThrottle,
+    throttleWaitMs,
+} from "@/lib/dofusdb-throttle";
 
 /** Taille de page demandée (l'API en fait son plafond dur). */
 export const DOFUSDB_PAGE_SIZE = 50;
@@ -31,8 +37,14 @@ export interface CollectDofusDbResult<T> {
     truncated: boolean;
     /** Nombre de pages interrogées (tentatives incluses). */
     pages: number;
-    /** Offsets (`$skip`) des pages définitivement en échec. */
+    /** Offsets (`$skip`) des pages abandonnées pour une **autre** cause (réseau, HTTP). */
     failedPages: number[];
+    /**
+     * Offsets des pages restées **refusées par notre budget local** (`x-sigilos-throttle: local`)
+     * après les rejeux. Distinct de `failedPages` : la cause est NOTRE cadence partagée
+     * (30 req/min), **pas** une panne de DofusDB — le God doit pouvoir lire la différence.
+     */
+    throttledPages: number[];
 }
 
 export interface CollectDofusDbOptions {
@@ -44,6 +56,14 @@ export interface CollectDofusDbOptions {
     maxPages?: number;
     /** Attente avant l'unique rejeu d'une page en échec (défaut 1 000 ms). */
     retryDelayMs?: number;
+    /**
+     * Pause entre deux pages = **cadence du budget partagé** (`budgetPauseMs()` ⇒ 2 400 ms,
+     * marge > 10 %). Avant le 28/09/2026 le collecteur tirait ses pages en rafale : il vidait la
+     * fenêtre de 30 req/min et **affamait** les autres siphons (d'où « Référentiel incomplet »).
+     */
+    pagePauseMs?: number;
+    /** Rejeux d'une page refusée **localement**, après attente du reste de fenêtre (défaut 2). */
+    maxThrottleReplays?: number;
     /** Init **par page** (le `signal` de timeout doit être neuf à chaque appel). */
     initFor?: (skip: number) => RequestInit | undefined;
 }
@@ -65,24 +85,48 @@ export async function collectDofusDbPages<T>(
     const limit = opts.pageLimit ?? DOFUSDB_PAGE_SIZE;
     const maxPages = opts.maxPages ?? 60;
     const retryDelayMs = opts.retryDelayMs ?? 1_000;
+    const pagePauseMs = opts.pagePauseMs ?? budgetPauseMs();
+    const maxThrottleReplays = opts.maxThrottleReplays ?? DOFUSDB_THROTTLE_MAX_REPLAYS;
 
     const rows: T[] = [];
     const failedPages: number[] = [];
+    const throttledPages: number[] = [];
     let total = 0;
     let skip = 0;
     let pages = 0;
 
     for (let page = 0; page < maxPages; page++) {
+        // 🚦 Cadence du budget partagé : sans elle, cette boucle vidait la fenêtre de
+        // 30 req/min en rafale et affamait les autres siphons (« Référentiel incomplet »).
+        if (page > 0 && pagePauseMs > 0) await sleep(pagePauseMs);
         pages++;
 
-        /** Une page = 1 essai + 1 rejeu (réseau capricieux / 429 local). */
+        /**
+         * Une page = 1 essai + 1 rejeu (réseau capricieux). Un **refus local**
+         * (`x-sigilos-throttle: local`) n'est pas compté comme un essai : on attend le reste de
+         * fenêtre et on rejoue jusqu'à `maxThrottleReplays` — la cause est notre propre cadence,
+         * pas DofusDB.
+         */
         let json: any = null;
         let empty = false;
-        for (let attempt = 0; attempt < 2 && !empty; attempt++) {
+        let throttled = false;
+        let attempts = 0;
+        let throttleReplays = 0;
+        while (!json && !empty) {
+            attempts++;
             try {
                 const res = await fetchImpl(urlFor(skip, limit), opts.initFor?.(skip));
                 if (!res.ok) {
-                    if (attempt === 0) {
+                    // Le refus local est vu **tel quel** (même sans rejeu possible) : c'est lui
+                    // qui décide de la cause rapportée au God (`throttledPages` vs `failedPages`).
+                    const local = isLocalThrottle(res);
+                    if (local) throttled = true;
+                    if (local && throttleReplays < maxThrottleReplays) {
+                        throttleReplays++;
+                        await sleep(throttleWaitMs(res));
+                        continue;
+                    }
+                    if (attempts === 1) {
                         await sleep(retryDelayMs);
                         continue;
                     }
@@ -94,13 +138,13 @@ export async function collectDofusDbPages<T>(
                     empty = parsed.data.length === 0;
                     break;
                 }
-                if (attempt === 0) {
+                if (attempts === 1) {
                     await sleep(retryDelayMs);
                     continue;
                 }
                 break;
             } catch {
-                if (attempt === 0) {
+                if (attempts === 1) {
                     await sleep(retryDelayMs);
                     continue;
                 }
@@ -109,10 +153,18 @@ export async function collectDofusDbPages<T>(
         }
 
         if (!json) {
-            // Page illisible : on la note et on avance d'une page **pleine** pour
-            // ne pas reprendre les mêmes lignes (le trou est visible via `truncated`).
-            if (!empty) failedPages.push(skip);
+            // Page illisible : on la note (en distinguant NOTRE limite locale d'une vraie panne)
+            // et on avance d'une page **pleine** pour ne pas reprendre les mêmes lignes
+            // (le trou est visible via `truncated`).
+            if (!empty) {
+                if (throttled) throttledPages.push(skip);
+                else failedPages.push(skip);
+            }
             skip += limit;
+            // 🔴 Mesure A2 (28/09/2026) : ce `continue` n'était PAS reborné par le `total`
+            // annoncé ⇒ après une seule page abandonnée, la boucle repartait jusqu'à `maxPages`
+            // (55 requêtes inutiles constatées) et vidait le budget partagé de 30 req/min.
+            if (total > 0 && skip >= total) break;
             continue;
         }
 
@@ -143,5 +195,6 @@ export async function collectDofusDbPages<T>(
         truncated: rows.length < expected,
         pages,
         failedPages,
+        throttledPages,
     };
 }

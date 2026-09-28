@@ -60,6 +60,19 @@ function mockPage(items: unknown[], total: number) {
     });
 }
 
+/**
+ * 🚦 Réponse de **notre** limiteur (chantier A2) : 429 marquée + `retry-after: 1` — une valeur
+ * **utilisable**, donc l'attente de rejeu vaut 1 s et jamais le reste de fenêtre (60 s).
+ */
+function mockLocalThrottle() {
+    return {
+        ok: false,
+        status: 429,
+        headers: new Headers({ "x-sigilos-throttle": "local", "retry-after": "1" }),
+        json: async () => ({ error: "rate-limited (local)" }),
+    };
+}
+
 beforeEach(() => {
     vi.clearAllMocks();
     mockCreate.mockResolvedValue({});
@@ -148,4 +161,35 @@ describe("veille ciblée ITEMS — plafond et reprise (aucun item sauté)", () =
 
         expect(String(mockDofusDbFetch.mock.calls[0][0])).toContain("$skip=300");
     });
+
+    /**
+     * 🚦 Chantier A2 (28/09/2026) — la capture God affichait « DofusDB a renvoyé HTTP 429 » sur
+     * *Items & ressources* alors que le 429 était rendu par **notre** limiteur (30 req/min
+     * partagées). Un refus local doit être **attendu puis rejoué**, jamais transformé en panne
+     * de DofusDB.
+     */
+    it("429 locale : on attend puis on rejoue (le lot passe, aucun item perdu)", async () => {
+        mockDofusDbFetch.mockResolvedValueOnce(mockLocalThrottle());
+        mockPage([remoteItem(7, "Amulette B", "2026-09-20T10:00:00.000Z")], 1);
+
+        const res = await siphonGameItemsIncrementalCore(0, "2026-09-01T00:00:00.000Z");
+
+        expect(res.inserted).toBe(1);
+        expect(mockDofusDbFetch).toHaveBeenCalledTimes(2); // le rejeu
+    }, 10_000);
+
+    it("429 locale persistante : le message NOMME notre budget, jamais « DofusDB a renvoyé »", async () => {
+        mockDofusDbFetch.mockResolvedValue(mockLocalThrottle());
+
+        let message = "(aucune erreur levée)";
+        try {
+            await siphonGameItemsIncrementalCore(0, "2026-09-01T00:00:00.000Z");
+        } catch (e) {
+            message = e instanceof Error ? e.message : String(e);
+        }
+
+        expect(message).toContain("Limite locale atteinte");
+        expect(message).toContain("reprise au prochain passage");
+        expect(message).not.toContain("DofusDB a renvoyé");
+    }, 15_000);
 });

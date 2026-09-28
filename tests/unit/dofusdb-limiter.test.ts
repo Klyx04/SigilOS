@@ -118,7 +118,7 @@ describe("dofusDbFetch", () => {
         expect(fetchMock).toHaveBeenCalledTimes(2);
     }, 10000);
 
-    it("quota épuisé → 429 locale sans fetch", async () => {
+    it("quota épuisé → 429 locale sans fetch, MARQUÉE (`x-sigilos-throttle: local`) + `retry-after`", async () => {
         mockIncr.mockResolvedValue(9999);
         const fetchMock = vi.fn();
         vi.stubGlobal("fetch", fetchMock);
@@ -127,6 +127,13 @@ describe("dofusDbFetch", () => {
 
         expect(res.status).toBe(429);
         expect(fetchMock).not.toHaveBeenCalled();
+        // 🔴 Chantier A2 : ce 429 est le NÔTRE (budget partagé) — il doit le dire, sinon le God
+        // cherche une panne de DofusDB (« DofusDB a renvoyé HTTP 429 », capture du 28/09/2026).
+        expect(res.headers.get("x-sigilos-throttle")).toBe("local");
+        expect(Number(res.headers.get("retry-after"))).toBeGreaterThan(0);
+        const body = (await res.json()) as { error?: string; reason?: string };
+        expect(body.error).toBe("rate-limited (local)");
+        expect(String(body.reason)).toContain("PAS une panne de DofusDB");
     });
 });
 

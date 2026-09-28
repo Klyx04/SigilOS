@@ -8,6 +8,14 @@
 > externes ont été **supprimées le 20/09/2026** (`docs/arbo/ARCHIVES-TEMP-2026-09.md`) — plus rien à
 > ouvrir hors du dépôt.
 > Réouvrir l'historique en mode plan = gaspillage de tokens.
+## 🧩 Session 28/09/2026 (suite 3 — siphons game-data, lots **A2 + A4**) — **la 429 « DofusDB » était la NÔTRE : marquée, attendue, rejouée, nommée — et le collecteur de référentiels a enfin une cadence** · branche `fix/siphons-a2-429-locale` (PR #783)
+> **Demandes user (verbatim)** : « n'oublie pas ces 2 morceaux · attaque morceaux par morceaux » — **second morceau**, après A1 (PR #782) : la capture du Tableau God montre *Items & ressources* en échec « DofusDB a renvoyé HTTP 429 » et *Référentiels (effets, caractéristiques)* « Référentiel incomplet (page DofusDB en échec) ».
+> **Mesures (avant codage)** : ① `src/lib/dofusdb-limiter.ts:137` rend un 429 **local** quand la fenêtre de 30 req/min/hôte est épuisée (`{"error":"rate-limited (local)"}`) mais **sans aucune marque** ⇒ impossible de le distinguer d'une panne de DofusDB ; ② `siphonGameItemsBatchCore` traduisait tout `!res.ok` en `DofusDB a renvoyé HTTP ${res.status}` (message **mensonger**) et **échouait le lot** au lieu d'attendre ; ③ marge quasi nulle : lot 50 + pause 2 100 ms = **28,6 req/min sur 30** ; ④ `collectDofusDbPages` n'avait **aucune cadence** (rafale de pages) et son unique rejeu (1 000 ms) retombait le plus souvent dans **la même fenêtre** ; ⑤ trouvé en écrivant le test : après une page abandonnée la boucle **n'était plus rebornée par le `total`** annoncé ⇒ jusqu'à **55 requêtes inutiles** (budget vidé pour rien).
+> **Fait** : ① `src/lib/dofusdb-throttle.ts` (**PUR**, client-safe) = source unique : budget 30 req/60 s, `budgetPauseMs()` (marge > 10 % ⇒ **2 400 ms**), `isLocalThrottle()`, `throttleWaitMs()` (`retry-after` honoré, sinon reste de fenêtre, borné ≤ 20 s), `dofusDbFailureMessage()` ; ② le limiteur **marque** son refus (`x-sigilos-throttle: local` + `retry-after` calculé) et tire ses constantes de la règle pure ; ③ le siphon d'items **attend puis rejoue** (2 rejeux bornés) et, s'il échoue encore, **nomme notre budget** (« Limite locale atteinte … reprise au prochain passage ») au lieu d'accuser DofusDB ; ④ le collecteur de référentiels gagne une **cadence** (`pagePauseMs`), des **rejeux** de 429 locale, un champ **`throttledPages`** distinct de `failedPages` (cause distinguée jusqu'au Tableau God et au worker) et **ne pagine plus au-delà du `total`** après une page abandonnée ; ⑤ `GAME_ITEMS_BATCH_PAUSE_MS = budgetPauseMs()` (fin de la constante magique) ; ⑥ **A4** : la ligne fausse « lot 50 → 100 + pause 350 ms → 2 100 ms » est corrigée **dans ce commit**, commentaires « 218 lots » compris.
+> **Preuves** : **249 fichiers / 2782 tests ✓** (dont `tests/unit/dofusdb-throttle.test.ts` **6 cas** purs ; marquage du 429 local ; 429 locale attendue puis rejouée dans les 2 siphons ; `throttledPages` ≠ `failedPages` ; cadence mesurée) · `tsc` **0** · `eslint` **0 erreur**.
+> **Reste / ops** : **A3** (compteurs réels du Journal, erreurs regroupées par cause, cartes < 1024 px) · **pas** de jeton Redis « un seul siphon à la fois » : le worker game-data est déjà `concurrency: 1` et le `jobId` par dataset interdit deux passes simultanées — les 5 req/min de marge couvrent les crons et l'UI (mesure écrite dans la section A2) · côté user : `./scripts/deploy-cd.sh beta` puis relancer `Items & ressources` et `Référentiels` (le message doit nommer la limite locale, et la couverture monter).
+
+
 ## 🧩 Session 28/09/2026 (suite 2 — siphons game-data, lot **A1** : `ENOENT /browser/default-stylesheet.css`) — **le CŒUR des siphons est descendu en `src/lib` : plus de jsdom dans le bundle worker (14,5 Mo → 2,3 Mo), garde de graphe à demeure** · branche `fix/siphons-a1-jsdom-worker` (PR #782)
 > **Demande user (verbatim)** : « n'oublie pas ces 2 morceaux · attaque morceaux par morceaux » (captures du Tableau God : `Avis de recherche` et `Boss d'anomalie` en échec `ENOENT: no such file or directory, open '/browser/default-stylesheet.css'`, + la table « Couverture réelle par source → cible »).
 > **Mesure (avant codage)** : chaîne unique `game-data-worker → src/lib/anomaly-boss-siphon.ts → @/server/actions/game-data-actions.ts → src/lib/security.ts → isomorphic-dompurify → jsdom` ; jsdom lit son `browser/default-stylesheet.css` **à l'évaluation du module** ⇒ dans `dist/worker.js` (Dockerfile : `/app/worker.js`) le `path.resolve(__dirname, "…/…/…/browser/…")` tombe sur `/browser/…` ⇒ `ENOENT` **une fois par item** (module réévalué au `import()` suivant), alors que la même passe réussissait « dans l'onglet ». Bundle : **14,5 Mo**, 6 691 entrées `jsdom|dompurify`.
@@ -308,7 +316,7 @@
 ## 🧩 Session 22/09/2026 (suite 11) — **Audit A→Z des boutons game-data + FIN DES 429 : 25 `fetch()` bruts routés vers le limiteur partagé · lot items 100/2,1 s (cadence limiteur) · 5 actions mortes supprimées (340 lignes) · boss de Défi sur le catalogue LOCAL** · branche `fix/sim-previsu-blocs`
 > **Demande user (verbatim)** : « il faut creuser dans les moindres détails chaque bouton, voir si ils sont fonctionnels, utilisés etc · ne me pose plus de questions va au bout des choses A à Z » (après : « 500 000 boutons qui marchent presque jamais », 429, crashes de siphon).
 > **Audit (inventaire scripté)** : module game-data = **15 onglets**, ~**50 boutons**, **101 actions serveur**. Chaque bouton mappé `étiquette → handler → action`. ⚠️ La sonde a produit des métriques LOC/garde **fausses** (annonçait `createZone` = 2 lignes sans garde) : elles ont été **jetées après vérification par lecture**. **Verdicts vérifiés** : « Associer famille (auto) » = réel et **écrit** (`db.zone.update`, l.638) mais dépend d'archimonstres porteurs de zone ⇒ impression « ça ne marche pas » ; « Syn Zones (DofusDB) » = réel (pagination `subareas`) mais **sans retry** et **piloté par le navigateur** ; `siphonGameItemsBatch` plafonné à **100**/appel ⇒ 21 776 items = **218 allers-retours** depuis l'onglet. **Coupable des 429** : `game-data-actions.ts` faisait **25 `await fetch()` bruts** alors qu'un limiteur existe (`src/lib/dofusdb-limiter.ts` : fenêtre Redis **30 req/min/hôte**, `Retry-After` honoré + 1 rejeu, compteur 429 + alerte God) ; et la boucle items patientait **350 ms** ⇒ fenêtre saturée en ~10 s ⇒ 429 en boucle ⇒ retries 2/4/8/16 s ⇒ abandon.
-> **Fait** : ① **25 `fetch()` bruts → `dofusDbFetch`** ; ② **lot items 50 → 100** + **pause 350 ms → 2 100 ms** (cadence du limiteur — ⚠️ **re-mesuré le 24/09/2026** : le plafond réel de l'API est **50**, appliqué par `GAME_ITEMS_BATCH_SIZE = DOFUSDB_PAGE_MAX`, `src/lib/game-items-cadence.ts:15` ; cf. chantier **A4** de « 🚧 Chantiers ouverts ») ⇒ 2× moins d'appels et plus de 429 structurel ; ③ **5 actions mortes supprimées** (jamais appelées : `siphonBountiesAction`, `addDungeonAchievement`, `removeDungeonAchievement`, `updateDungeonAchievementPoints`, `getDofensiveMonster`) = **340 lignes** en moins, test du mort retiré avec lui ; ④ **boss de Défi sur notre catalogue local** (`dungeon-monsters.json`, ≈800 monstres) avant complément `MonsterStat` → fin des « Aucun monstre trouvé » hors donjon. Suppression par **AST TypeScript** (bornes exactes) après qu'une **première passe regex ait emporté des helpers voisins** (`normalizeZone`, `ZoneSchema`) — restaurés depuis git (fichiers propres avant ⇒ aucune perte).
+> **Fait** : ① **25 `fetch()` bruts → `dofusDbFetch`** ; ② **lot items → cadence du limiteur** — ⚠️ **ligne corrigée le 28/09/2026 (chantier A4)** : elle annonçait « lot 50 → 100 + pause 350 ms → 2 100 ms », or le plafond réel de l'API est **50** (`GAME_ITEMS_BATCH_SIZE = DOFUSDB_PAGE_MAX`, mesuré le 24/09/2026) et la pause vaut **2 400 ms** (`GAME_ITEMS_BATCH_PAUSE_MS = budgetPauseMs()`, marge > 10 % du budget partagé — chantier A2 du 28/09) ; ③ **5 actions mortes supprimées** (jamais appelées : `siphonBountiesAction`, `addDungeonAchievement`, `removeDungeonAchievement`, `updateDungeonAchievementPoints`, `getDofensiveMonster`) = **340 lignes** en moins, test du mort retiré avec lui ; ④ **boss de Défi sur notre catalogue local** (`dungeon-monsters.json`, ≈800 monstres) avant complément `MonsterStat` → fin des « Aucun monstre trouvé » hors donjon. Suppression par **AST TypeScript** (bornes exactes) après qu'une **première passe regex ait emporté des helpers voisins** (`normalizeZone`, `ZoneSchema`) — restaurés depuis git (fichiers propres avant ⇒ aucune perte).
 > **Preuves** : `tsc` **0** · **197 fichiers / 2 160 tests** ✓ · `eslint` **0 erreur** (−8 avertissements) · sondes `src/temp` supprimées.
 > **Livré dans la foulée** : ① **état par dataset + progression vraie** — `src/lib/game-data-sync-state.ts` (Redis, TTL 7 j, **sans migration** : statut, `done/total`, %, message, dernière exécution, dernière erreur) + action `getGameDataSyncStates` + **tableau « État des datasets »** monté sur **les 2 onglets** (état ET siphon), rafraîchi toutes les 3 s pendant un run ; le faux « 0 % » devient « en cours… » quand le total est inconnu. ② **exécution en arrière-plan** — `src/lib/queue/game-data-queue.ts` (idempotent par dataset, attempts 3 + backoff) + `src/workers/game-data-worker.ts`, **enregistré dans le worker principal** (`metamob-worker` : en prod le conteneur exécute `node ./worker.js` bundlé, un worker non enregistré ne tournerait **jamais**) ; catalogue JSON et avis de recherche tournent côté serveur, survivent à la fermeture de l'onglet et **reprennent** ; mise en file **fail-closed** (`getWorkers()` = 0 ⇒ refus, jamais de job fantôme). Garde : `tests/unit/game-data-sync-state.test.ts` (**9 cas**, dont « le module importé par un composant client ne tire jamais `bullmq` dans le bundle navigateur »).
 > **Reste** : ③ ~~cartes par dataset~~ → **fait en suite 12** (4 onglets, éditeurs en maître/détail, outils locaux séparés) ; ④ veille des annonces DofusDB ; ⑤ étendre la file aux autres datasets (leur cœur doit d'abord descendre dans `src/lib`).
@@ -625,7 +633,7 @@
 
 | # | Chantier | État | Décision / dépendance ouverte |
 |---|---|---|---|
-| **A** | God **game-data** : les siphons d'arrière-plan échouent, l'écran ne se lit pas (4 lots mesurés) | **A1 livré** (28/09, PR #782) ; A2/A3/A4 ouverts | aucune — **A2 part seul** (la 429 « DofusDB » qui est la nôtre) |
+| **A** | God **game-data** : les siphons d'arrière-plan échouent, l'écran ne se lit pas (4 lots mesurés) | **A1 + A2 + A4 livrés** (28/09) ; **A3 reste** | aucune — **A3 part seul** (Tableau & Journal illisibles) |
 | **B** | `/dashboard/[guildId]/admin/members` : déslop + 1 liste + 1 modale **+ « éditer tout le monde »** | rien codé, cible écrite | **migration** pour le registre hors dashboard ; lot **B-1** (lecture + actions simples) ou **B-2** (éditeurs lourds dans la modale) |
 | **C** | Module **tickets** : finir le module (exécutants SLA/auto-fermeture, i18n EN, doublons FR/EN, langue par serveur) | moteur livré (#778, #779) | **bascule de langue par serveur** = demande user **non mesurée** (mesure à faire avant codage) |
 
@@ -641,15 +649,21 @@ jamais `src/lib/security.ts`). ⚠️ **Ne jamais** « réparer » une régressi
 on remplacerait une panne **explicite** par une panne **silencieuse**.
 
 
-#### A2 — 🟠 « DofusDB a renvoyé HTTP 429 » : ce 429 est souvent **le nôtre**
+#### A2 — ✅ **Livré le 28/09/2026** (PR #783 · branche `fix/siphons-a2-429-locale`)
 
-- `src/lib/dofusdb-limiter.ts:131-142` : slot non acquis → `sleep(2000)` → re-tente → sinon **rend** `new Response('{"error":"rate-limited (local)"}', { status: 429 })` (`:137`) — budget **30 req/min/hôte** (`:18`), fenêtre **60 s** (`:19`).
-- `src/lib/game-items-siphon.ts:102-104` traduit tout `!res.ok` en `DofusDB a renvoyé HTTP ${res.status}` ⇒ message **mensonger**, et la passe entière échoue au lieu d'attendre.
-- **Marge réelle quasi nulle** : lot = **50** (`src/lib/game-items-cadence.ts:15`, `DOFUSDB_PAGE_MAX` mesuré le 24/09) + pause **2 100 ms** (`:22`) ⇒ ~**28,6 req/min sur 30** ⇒ la moindre requête concurrente (veille du cron, autre dataset, autre écran God) fait déborder.
-- Même cause pour **REFERENTIALS** : `src/lib/market/referential-pagination.ts:78` (1 essai + 1 rejeu à 1 000 ms) ⇒ page abandonnée (`failedPages`) ⇒ `truncated` ⇒ « Référentiel incomplet (page DofusDB en échec) ».
+La 429 qui s'affichait partout était **la nôtre** (budget partagé de 30 req/min) : elle est désormais
+**marquée** (`x-sigilos-throttle: local` + `retry-after`), **attendue puis rejouée** (bornée), **nommée**
+honnêtement dans le Tableau, et la cadence est **dérivée** du budget (marge > 10 %) — y compris celle du
+collecteur de référentiels, qui tirait ses pages en rafale. Mesures et preuves dans le bloc
+**« 🧩 Session 28/09/2026 (suite 3 — siphons game-data, lot A2) »** en tête de ce fichier.
 
-**À faire** : marquer la 429 locale (`x-sigilos-throttle: local`) · **attendre et rejouer** (backoff borné) au lieu de lever · message **honnête** (« limite locale atteinte, N pages en attente ») · **un seul siphon réseau à la fois** (jeton Redis partagé worker / cron / « ici ») · cadence avec **marge > 10 %**.
-⚠️ Le titre de la session 22/09 (« FIN DES 429 ») est **démenti** par les mesures ci-dessus : la 429 qui reste est **la nôtre**.
+**Reste (mesuré : non nécessaire)** — le **jeton Redis « un seul siphon réseau à la fois »** que ce lot
+prévoyait n'est **pas** requis par les causes mesurées : le worker game-data tourne en `concurrency: 1`
+et le `jobId` par dataset interdit deux passes simultanées (`src/lib/queue/game-data-queue.ts`), donc les
+siphons d'arrière-plan sont **déjà sérialisés** ; la compétition résiduelle (crons nocturnes + fiches
+ouvertes dans l'UI) tient dans les **5 req/min de marge** dégagés. À rouvrir **seulement** sur une mesure
+montrant deux siphons réseau concurrents.
+⚠️ Le titre de la session 22/09 (« FIN DES 429 ») reste **démenti** : la 429 qui restait était **la nôtre**.
 
 #### A3 — 🟠 Tableau & Journal illisibles, et non responsive
 
@@ -663,16 +677,20 @@ on remplacerait une panne **explicite** par une panne **silencieuse**.
 
 **À faire** : compteurs **réels** côté serveur (groupBy `changeType`) + « 300 derniers sur N » avec chargement jusqu'à la rétention · erreurs **regroupées par cause** + compteur · valeurs du journal rendues **lisibles** (id → nom via les référentiels déjà en base) · tableau → **cartes < 1024 px** (politique : `docs/plans/PLAN-REFONTE-GOD-GUILDES.md` §8.3).
 
-#### A4 — 🔵 Une ligne devenue fausse (mémoire)
+#### A4 — ✅ **Livré le 28/09/2026** (même PR #783 — règle `AGENTS.md` §9)
 
-Le bloc « Audit A→Z des boutons game-data » (session 22/09) annonce « **lot items 50 → 100** + pause 350 ms → 2 100 ms ». Le plafond API **re-mesuré le 24/09** est **50** (`DOFUSDB_PAGE_MAX`, appliqué par `src/lib/game-items-cadence.ts:15`). À corriger **dans le même commit que A2** (règle `AGENTS.md` §9).
+La ligne fausse du bloc « Audit A→Z des boutons game-data » (session 22/09) est **corrigée dans le même
+commit que A2** : elle annonçait « lot items 50 → 100 + pause 350 ms → 2 100 ms », or le plafond API
+re-mesuré le 24/09 est **50** (`DOFUSDB_PAGE_MAX`) et la pause vaut **2 400 ms** depuis A2
+(`GAME_ITEMS_BATCH_PAUSE_MS = budgetPauseMs()`). Même correction dans `src/lib/game-items-siphon.ts`
+(commentaire d'en-tête « 218 lots » → « 436 lots de 50 ») et dans `src/workers/game-data-worker.ts`.
 
 #### A — Definition of Done
 
-- [ ] A1 : plus aucun `@/server/actions/**` importé depuis `src/lib/**` (**garde de test** qui échoue si ça revient) + garde « le bundle worker ne contient pas jsdom » (metafile esbuild).
-- [ ] A2 : test pur « la 429 locale n'est jamais présentée comme une 429 DofusDB » + rejeu borné.
+- [x] A1 : plus aucun `@/server/actions/**` importé depuis `src/lib/**` sur le chemin du worker (**garde** `tests/unit/worker-module-graph.test.ts`, qui échoue si ça revient) + **jsdom banni du graphe du worker** (mesuré au metafile esbuild : 14,5 Mo → 2,3 Mo).
+- [x] A2 : test pur « la 429 locale n'est jamais présentée comme une 429 DofusDB » (`tests/unit/dofusdb-throttle.test.ts`) + attente/rejeu bornés mesurés (`game-items-incremental`, `market-referential-pagination`).
 - [ ] A3 : test des compteurs réels (groupBy) + 3 captures 1440 / 1024 / 390 (dans `src/temp/`, **jamais** versionnées).
-- [ ] `npm run test:run` · `npx tsc --noEmit` · `npm run lint` verts · `git status --short` propre · PR → `dev`.
+- [x] `npm run test:run` · `npx tsc --noEmit` · `npm run lint` verts · `git status --short` propre · PR → `dev` (fait pour A1 et A2/A4).
 
 ### B. `/dashboard/[guildId]/admin/members` — déslop + 1 liste + 1 modale + **« éditer tout le monde »**
 

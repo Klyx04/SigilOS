@@ -16,6 +16,11 @@ import { readFileSync } from "node:fs";
 const DASHBOARD = "src/app/god/components/telemetry-dashboard.tsx";
 const OVERVIEW = "src/components/telemetry/telemetry-product-overview.tsx";
 const ADOPTION = "src/components/telemetry/telemetry-adoption-panel.tsx";
+const RETENTION = "src/components/telemetry/telemetry-retention-panel.tsx";
+const PUBLIC_PANEL = "src/components/telemetry/telemetry-public-panel.tsx";
+const PUBLIC_BEACON = "src/components/telemetry/public-view-beacon.tsx";
+const PUBLIC_ACTION = "src/server/actions/telemetry-public-actions.ts";
+const LAYOUT = "src/app/layout.tsx";
 const SAMPLE = "src/components/telemetry/telemetry-sample-note.tsx";
 const PAGE = "src/app/god/page.tsx";
 const CATALOG = "src/lib/module-catalog.ts";
@@ -28,6 +33,11 @@ function codeOnly(source: string): string {
 const dashboard = codeOnly(readFileSync(DASHBOARD, "utf8"));
 const overview = codeOnly(readFileSync(OVERVIEW, "utf8"));
 const adoption = codeOnly(readFileSync(ADOPTION, "utf8"));
+const retention = codeOnly(readFileSync(RETENTION, "utf8"));
+const publicPanel = codeOnly(readFileSync(PUBLIC_PANEL, "utf8"));
+const publicBeacon = codeOnly(readFileSync(PUBLIC_BEACON, "utf8"));
+const publicAction = codeOnly(readFileSync(PUBLIC_ACTION, "utf8"));
+const layout = codeOnly(readFileSync(LAYOUT, "utf8"));
 const sample = codeOnly(readFileSync(SAMPLE, "utf8"));
 const page = codeOnly(readFileSync(PAGE, "utf8"));
 const catalog = codeOnly(readFileSync(CATALOG, "utf8"));
@@ -112,5 +122,56 @@ describe("bandeau d'échantillon — un seul composant pour tout le module", () 
         expect(sample).toMatch(/sample\.reliable/);
         expect(sample).toMatch(/truncated/);
         expect(sample).toMatch(/seuil 15/);
+    });
+});
+
+describe("site public — la partie externe reste anonyme", () => {
+    it("porte l'onglet et la donnée chargée par la page", () => {
+        expect(dashboard).toContain('id: "public"');
+        expect(dashboard).toContain("<TelemetryPublicPanel stats={initialPublic} />");
+        expect(dashboard).toContain("initialPublic");
+        expect(page).toContain("getPublicStats()");
+        expect(page).toContain("initialPublic={publicStats}");
+    });
+
+    it("monte la balise dans le layout racine, gardée par l'allowlist", () => {
+        expect(layout).toContain("<PublicViewBeacon />");
+        expect(publicBeacon).toContain("publicScreenKey(pathname)");
+    });
+
+    it("n'envoie aucune identité depuis le navigateur", () => {
+        for (const forbidden of ["localStorage", "sessionStorage", "document.cookie", "userAgent", "navigator."]) {
+            expect(publicBeacon, `la balise utilise ${forbidden}`).not.toContain(forbidden);
+        }
+    });
+
+    it("compte un agrégat par jour, jamais une ligne par visite", () => {
+        expect(publicAction).toContain("publicScreenKey");
+        expect(publicAction).toContain("isLikelyBot");
+        expect(publicAction).toContain("publicCounterKey");
+        expect(publicAction).toMatch(/redis\.incr\(/);
+        expect(publicAction).toMatch(/redis\.mget\(/);
+        // Ni `KEYS` (interdit en production), ni une clé par visite.
+        expect(publicAction).not.toMatch(/redis\.keys\(/);
+    });
+
+    it("ne joint JAMAIS les compteurs publics au monde identifié", () => {
+        for (const forbidden of ["telemetryEvent", "TelemetryEvent", "logTelemetryEvent"]) {
+            expect(publicAction, `jointure interdite : ${forbidden}`).not.toContain(forbidden);
+        }
+        expect(publicPanel).toContain("deux mondes séparés");
+    });
+
+    it("annonce ce qu'il ne peut pas mesurer au lieu de le sous-entendre", () => {
+        for (const honest of ["visiteurs uniques", "sessions", "provenance", "requêtes"]) {
+            expect(publicPanel, `l'écran ne dit pas « ${honest} »`).toContain(honest);
+        }
+    });
+
+    it("affiche la rétention des cohortes et les relances dans son onglet", () => {
+        expect(dashboard).toContain("<TelemetryRetentionPanel product={initialProduct} />");
+        expect(retention).toMatch(/minCohortSize/);
+        expect(retention).toMatch(/point\.rate === null/);
+        expect(retention).toMatch(/guild\.status !== "ACTIVE"/);
     });
 });

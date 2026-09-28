@@ -592,16 +592,22 @@ async function GameDataStatsServer() {
 async function TelemetryServer() {
     try {
         const { getProductStats } = await import("@/server/actions/telemetry-product-actions");
-        // Les mesures produit sont chargées **à côté** de la télémétrie de navigation : si elles
-        // échouent, l'écran reste lisible et dit explicitement que les mesures produit manquent
+        const { getPublicStats } = await import("@/server/actions/telemetry-public-actions");
+        // Les mesures produit et les compteurs publics sont chargés **à côté** de la télémétrie de
+        // navigation : si l'un échoue, l'écran reste lisible et dit explicitement ce qui manque
         // (jamais un chiffre de remplacement).
         const product = await getProductStats().catch(async (error: unknown) => {
             const { logger } = await import("@/lib/logger");
             logger.error("[Telemetry PRODUCT ERROR]", { error: String(error) });
             return null;
         });
+        const publicStats = await getPublicStats().catch(async (error: unknown) => {
+            const { logger } = await import("@/lib/logger");
+            logger.error("[Telemetry PUBLIC ERROR]", { error: String(error) });
+            return null;
+        });
         const stats = await getTelemetryStats();
-        return <TelemetryDashboard initialStats={stats} initialProduct={product} />;
+        return <TelemetryDashboard initialStats={stats} initialProduct={product} initialPublic={publicStats} />;
     } catch (err) {
         const { logger } = await import("@/lib/logger");
         logger.error("[Telemetry ERROR]", { error: String(err) });

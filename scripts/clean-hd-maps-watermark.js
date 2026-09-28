@@ -24,7 +24,12 @@
  *
  * ⚠️ Les images ne sont **pas versionnées** (`/public/game-data/hd_maps/` est
  * ignoré par git) : après la passe locale, re-synchroniser le dossier sur le VPS
- * (`./scripts/sync-assets.ps1 beta hd_maps` puis `prod`) — cf. docs/MAINTENANCE.md.
+ * (`./scripts/sync-assets.sh beta` puis `… prod` ; PowerShell : `.\\scripts\\sync-assets.ps1 beta`)
+ * — cf. `docs/MAINTENANCE.md` § 3d, « Rituel — siphonner un nouveau monde ».
+ *
+ * ⚠️ La retouche **n'est pas idempotente** (elle recopie la bande de pixels située
+ * juste au-dessus) : ne la rejouez JAMAIS sur des images déjà nettoyées. Pour un
+ * nouveau monde, préférez `scripts/sync-world-hd-maps.js` (nettoyage au vol).
  */
 const fs = require('fs');
 const path = require('path');
@@ -98,7 +103,7 @@ async function stripWatermarkBuffer(input, { quality = PATCH.quality, effort = P
 async function stripWatermarkFile(filePath) {
     const cleaned = await stripWatermarkBuffer(fs.readFileSync(filePath));
     fs.writeFileSync(filePath, cleaned);
-    return cleaned.length;
+    return cleaned.length;      
 }
 
 async function main() {

@@ -3,7 +3,7 @@
  *
  * Descendu de `src/server/actions/game-item-actions.ts` (23/09/2026) pour être
  * exécutable **sans session Next** : la file BullMQ + le worker peuvent donc le lancer
- * ⇒ la passe complète (21 776 items, 218 lots) **survit à la fermeture de l'onglet** et
+ * ⇒ la passe complète (21 776 items, 436 lots de 50) **survit à la fermeture de l'onglet** et
  * BullMQ rejoue en cas d'échec réseau, au lieu de repartir de zéro dans le navigateur.
  *
  * Invariants (repris **à l'identique** de l'action historique) :
@@ -19,6 +19,12 @@ import crypto from 'crypto';
 import { db } from '@/lib/prisma';
 import { logger } from '@/lib/logger';
 import { dofusDbFetch } from '@/lib/dofusdb-limiter';
+import {
+    DOFUSDB_THROTTLE_MAX_REPLAYS,
+    dofusDbFailureMessage,
+    isLocalThrottle,
+    throttleWaitMs,
+} from '@/lib/dofusdb-throttle';
 import { siphonAndCompressImage } from '@/lib/dofus-asset-siphon';
 import { GAME_ITEMS_BATCH_PAUSE_MS, GAME_ITEMS_BATCH_SIZE, GAME_ITEMS_INCREMENTAL_MAX_ITEMS } from '@/lib/game-items-cadence';
 import { DOFUSDB_PAGE_MAX, hasMorePages } from '@/lib/dofusdb-pagination';
@@ -40,6 +46,11 @@ const ITEM_CHANGE_KEYS = [
 // importe `sharp`/`fs` via `dofus-asset-siphon` et ne doit donc jamais être tiré par un
 // composant client. Réexport pour que les appelants serveur gardent la même porte.
 export { GAME_ITEMS_BATCH_PAUSE_MS, GAME_ITEMS_BATCH_SIZE };
+
+/** Attente entre deux rejeux (le `setTimeout` du module, isolé pour rester testable). */
+function sleep(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 export interface GameItemsBatchResult {
     inserted: number;
@@ -91,16 +102,32 @@ export async function siphonGameItemsBatchCore(
     // ne peut pas trier ni projeter, seulement filtrer.
     const url = since ? `${baseUrl}&updatedAt[$gt]=${encodeURIComponent(since)}` : baseUrl;
 
-    const res = await dofusDbFetch(url, {
-        headers: {
-            Accept: 'application/json',
-            'User-Agent': 'SigilOS/1.0 (+https://sigilos.fr)',
-        },
-        signal: AbortSignal.timeout(15_000),
-    });
+    // 🚦 Budget partagé : une 429 **locale** (notre limiteur) n'est pas une panne de DofusDB.
+    // On attend le reste de fenêtre (`retry-after` posé par le limiteur) et on rejoue, au lieu
+    // d'échouer le lot en annonçant « DofusDB a renvoyé HTTP 429 » (message mensonger mesuré le
+    // 28/09/2026 : *Items & ressources* en échec alors que le budget était le nôtre).
+    const fetchPage = () =>
+        dofusDbFetch(url, {
+            headers: {
+                Accept: 'application/json',
+                'User-Agent': 'SigilOS/1.0 (+https://sigilos.fr)',
+            },
+            // Init NEUF à chaque rejeu : un `AbortSignal.timeout` déjà consommé lèverait aussitôt.
+            signal: AbortSignal.timeout(15_000),
+        });
+
+    let res = await fetchPage();
+    for (
+        let replay = 0;
+        replay < DOFUSDB_THROTTLE_MAX_REPLAYS && !res.ok && isLocalThrottle(res);
+        replay++
+    ) {
+        await sleep(throttleWaitMs(res));
+        res = await fetchPage();
+    }
 
     if (!res.ok) {
-        throw new Error(`DofusDB a renvoyé HTTP ${res.status}`);
+        throw new Error(dofusDbFailureMessage(res.status, isLocalThrottle(res)));
     }
 
     const json = await res.json();

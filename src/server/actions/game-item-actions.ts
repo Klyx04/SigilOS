@@ -504,6 +504,8 @@ export async function siphonMarketReferentials(): Promise<
         effectsStored: number;
         effectsTotal: number;
         truncated: boolean;
+        /** 🚦 Pages abandonnées sur NOTRE limite locale (30 req/min partagées) — chantier A2. */
+        throttledPages: number[];
         orphanFmIds: number[];
     }>
 > {

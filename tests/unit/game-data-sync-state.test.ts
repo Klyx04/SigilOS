@@ -228,14 +228,18 @@ describe("game-data — siphons en arrière-plan (file + worker)", () => {
         expect(core).toContain("where: { ankamaId }");
         expect(core).toContain("siphonAndCompressImage(imageSrc, 'items', ankamaId).catch(() => {})");
         expect(core).toContain("resolveMarketItemFamily({ typeId, superTypeId, typeName })");
-        // Cadence du limiteur partagé : 100 par lot, ~2,1 s entre deux lots (fin des 429).
-        // Les valeurs vivent dans le module PUR `game-items-cadence` (client-safe), que le
-        // cœur réexporte — une seule source, deux étages (voir le build cassé du 23/09).
+        // Cadence du limiteur partagé : lot = plafond réel de l'API, pause DÉRIVÉE du budget
+        // (marge > 10 %). Les valeurs vivent dans le module PUR `game-items-cadence` (client-safe),
+        // que le cœur réexporte — une seule source, deux étages (voir le build cassé du 23/09).
         const cadence = read("src/lib/game-items-cadence.ts");
         // Taille du lot = **plafond réel de l'API** (50, mesuré le 24/09/2026 : demander 100
         // rend 50) — c'était 100, ce qui faisait s'arrêter la passe complète après 50 items.
         expect(cadence).toContain("GAME_ITEMS_BATCH_SIZE = DOFUSDB_PAGE_MAX");
-        expect(cadence).toContain("GAME_ITEMS_BATCH_PAUSE_MS = 2_100");
+        // 🔴 A2 (28/09/2026) : plus de constante « magique » (c'était 2_100 ms ⇒ 28,6 req/min sur
+        // 30, marge quasi nulle) — la pause est **dérivée** de la règle pure `budgetPauseMs()`
+        // (2 400 ms ⇒ 25 req/min, testée dans `tests/unit/dofusdb-throttle.test.ts`).
+        expect(cadence).toContain("GAME_ITEMS_BATCH_PAUSE_MS = budgetPauseMs()");
+        expect(cadence).toContain('from "@/lib/dofusdb-throttle"');
         expect(core).toContain("from '@/lib/game-items-cadence'");
     });
 

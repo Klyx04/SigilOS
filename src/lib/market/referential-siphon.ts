@@ -38,6 +38,7 @@ async function siphonAllCharacteristics(): Promise<{
     received: number;
     truncated: boolean;
     failedPages: number[];
+    throttledPages: number[];
     changes: GameDataChangeEntry[];
 }> {
     const names = new Map<number, string>();
@@ -94,6 +95,7 @@ async function siphonAllCharacteristics(): Promise<{
         received: collected.rows.length,
         truncated: collected.truncated,
         failedPages: collected.failedPages,
+        throttledPages: collected.throttledPages,
         changes,
     };
 }
@@ -113,6 +115,7 @@ async function siphonAllEffects(
     received: number;
     truncated: boolean;
     failedPages: number[];
+    throttledPages: number[];
     changes: GameDataChangeEntry[];
 }> {
     const collected = await collectDofusDbPages<any>(
@@ -207,6 +210,7 @@ async function siphonAllEffects(
         received: collected.rows.length,
         truncated: collected.truncated,
         failedPages: collected.failedPages,
+        throttledPages: collected.throttledPages,
         changes,
     };
 }
@@ -219,7 +223,13 @@ export interface MarketReferentialsSyncResult {
     effects: number;
     effectsStored: number;
     effectsTotal: number;
+    /** `true` si des lignes manquent (`rows < total`) : une page a été abandonnée. */
     truncated: boolean;
+    /**
+     * Offsets des pages abandonnées **par notre budget local** (`x-sigilos-throttle: local`,
+     * 30 req/min partagées) : la cause n'est **pas** DofusDB — l'écran doit le dire (chantier A2).
+     */
+    throttledPages: number[];
     orphanFmIds: number[];
 }
 
@@ -242,6 +252,7 @@ export async function syncMarketReferentialsCore(): Promise<MarketReferentialsSy
     const names = chars.names;
     const truncated = chars.truncated || effs.truncated;
     const failedPages = [...chars.failedPages, ...effs.failedPages];
+    const throttledPages = [...chars.throttledPages, ...effs.throttledPages];
     const orphanFmIds = Object.keys(FM_CHARACTERISTIC_KEYS)
         .map(Number)
         .filter((id) => !names.has(id))
@@ -252,8 +263,14 @@ export async function syncMarketReferentialsCore(): Promise<MarketReferentialsSy
         });
     }
     if (truncated) {
+        // 🚦 Une page abandonnée n'a pas toujours la même cause : « limite locale atteinte »
+        // (notre budget partagé, 30 req/min) n'est PAS « DofusDB en échec ». Le God doit lire
+        // la bonne (capture du 28/09/2026 : « Référentiel incomplet (page DofusDB en échec) »).
+        const localLimit = throttledPages.length > 0
+            ? ` — ${throttledPages.length} page(s) en attente sur NOTRE limite locale (${throttledPages.join(', ')})`
+            : '';
         logger.warn(
-            `[referential-siphon] Référentiel INCOMPLET : ${chars.received}/${chars.expected} caractéristique(s), ${effs.received}/${effs.expected} effet(s) lus — page(s) en échec : ${failedPages.join(', ') || 'aucune'} (relancer le siphon).`
+            `[referential-siphon] Référentiel INCOMPLET : ${chars.received}/${chars.expected} caractéristique(s), ${effs.received}/${effs.expected} effet(s) lus — page(s) en échec : ${failedPages.join(', ') || 'aucune'}${localLimit} (relancer le siphon).`
         );
     }
     logger.info(
@@ -272,6 +289,7 @@ export async function syncMarketReferentialsCore(): Promise<MarketReferentialsSy
         effectsStored: effs.count,
         effectsTotal: effs.expected,
         truncated,
+        throttledPages,
         orphanFmIds,
     };
 }

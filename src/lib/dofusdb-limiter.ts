@@ -14,9 +14,22 @@
  * qui porte la politique d'accès à l'API.
  */
 export { DOFUSDB_PAGE_MAX, hasMorePages } from "@/lib/dofusdb-pagination";
+/**
+ * Budget partagé + en-tête de répression locale : la règle **pure** vit dans
+ * `src/lib/dofusdb-throttle.ts` (une seule source, importable côté client) — ce module n'en est
+ * que l'exécutant. Réexporté ici parce que c'est ce fichier qui porte la politique d'accès.
+ */
+export { DOFUSDB_RATE_LIMIT, DOFUSDB_RATE_WINDOW_MS, LOCAL_THROTTLE_HEADER, LOCAL_THROTTLE_VALUE } from "@/lib/dofusdb-throttle";
+import {
+    DOFUSDB_RATE_LIMIT,
+    DOFUSDB_RATE_WINDOW_MS,
+    LOCAL_THROTTLE_HEADER,
+    LOCAL_THROTTLE_VALUE,
+    throttleWaitMs,
+} from "@/lib/dofusdb-throttle";
 
-const DEFAULT_LIMIT = 30; // requêtes / minute / hôte
-const DEFAULT_WINDOW_MS = 60_000;
+const DEFAULT_LIMIT = DOFUSDB_RATE_LIMIT; // requêtes / minute / hôte
+const DEFAULT_WINDOW_MS = DOFUSDB_RATE_WINDOW_MS;
 const MAX_WAIT_MS = 60_000; // Retry-After jusqu'à 60s (DofusDB peut demander 30-60s)
 const RETRY_AFTER_CAP_MS = 120_000;
 const COURTESY_WAIT_MS = process.env.NODE_ENV === "test" ? 0 : 5_000; // pause minimale si 429 sans Retry-After
@@ -134,10 +147,27 @@ export async function dofusDbFetch(input: string, init?: RequestInit): Promise<R
         if (!(await acquireSlot(host))) {
             await sleep(2000);
             if (!(await acquireSlot(host))) {
-                return new Response(JSON.stringify({ error: "rate-limited (local)" }), {
-                    status: 429,
-                    headers: { "content-type": "application/json" },
-                });
+                // 🔴 Ce 429 n'est **pas** une réponse de DofusDB : c'est NOTRE budget partagé qui
+                // est épuisé. L'en-tête `x-sigilos-throttle: local` (+ `retry-after` calculé sur
+                // le reste de fenêtre) permet aux siphons d'attendre puis de rejouer, au lieu de
+                // publier « DofusDB a renvoyé HTTP 429 » — message mensonger mesuré le 28/09/2026.
+                const waitMs = throttleWaitMs();
+                return new Response(
+                    JSON.stringify({
+                        error: "rate-limited (local)",
+                        reason:
+                            `budget partagé épuisé (${DEFAULT_LIMIT} req/${DEFAULT_WINDOW_MS / 1000} s) ` +
+                            `— ce n'est PAS une panne de DofusDB`,
+                    }),
+                    {
+                        status: 429,
+                        headers: {
+                            "content-type": "application/json",
+                            [LOCAL_THROTTLE_HEADER]: LOCAL_THROTTLE_VALUE,
+                            "retry-after": String(Math.ceil(waitMs / 1000)),
+                        },
+                    }
+                );
             }
         }
     } catch {

@@ -314,8 +314,16 @@ async function runReferentials(ctx: RunContext): Promise<InlineRunResult> {
         `✅ Référentiels : ${d.characteristics}/${d.characteristicsTotal} caractéristique(s) (${d.characteristicsStored} en base), ` +
             `${d.effects}/${d.effectsTotal} effet(s) (${d.effectsStored} en base).`,
     );
+    // 🚦 Cause distinguée : notre limite locale (30 req/min partagées) n'est pas une panne DofusDB.
+    const throttleNote = d.throttledPages.length > 0
+        ? `${d.throttledPages.length} page(s) en attente sur NOTRE limite locale (30 req/min partagées)`
+        : "";
     if (d.truncated) {
-        ctx.log("⚠️ Référentiel INCOMPLET : des pages DofusDB n'ont pas été rendues — relancer pour compléter.");
+        ctx.log(
+            throttleNote
+                ? `⚠️ Référentiel INCOMPLET : ${throttleNote} — ce n'est pas une panne de DofusDB ; relancer pour compléter.`
+                : "⚠️ Référentiel INCOMPLET : des pages DofusDB n'ont pas été rendues — relancer pour compléter.",
+        );
     }
     if (d.orphanFmIds.length > 0) {
         ctx.log(`⚠️ Mapping FM : ${d.orphanFmIds.length} id(s) absents du référentiel (${d.orphanFmIds.join(", ")}).`);
@@ -323,7 +331,11 @@ async function runReferentials(ctx: RunContext): Promise<InlineRunResult> {
     const summary = `Référentiels : ${d.effects} effet(s) et ${d.characteristics} caractéristique(s) lus, ${d.effectsStored + d.characteristicsStored} en base.`;
     await ctx.report(1, 1, summary);
     ctx.log(`🎉 ${summary}`);
-    return { ok: !d.truncated, summary, error: d.truncated ? "Référentiel incomplet" : undefined };
+    return {
+        ok: !d.truncated,
+        summary,
+        error: d.truncated ? `Référentiel incomplet${throttleNote ? ` — ${throttleNote}` : ""}` : undefined,
+    };
 }
 
 

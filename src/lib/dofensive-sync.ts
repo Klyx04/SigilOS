@@ -24,7 +24,7 @@ import {
     isCombatSpellsPayloadOutdated,
     type DofensiveSpellCombat,
 } from "@/lib/dofensive-spells";
-import type { DofensiveDungeonInfo, DofensiveMapData } from "@/server/actions/dofensive-actions";
+import type { DofensiveDungeonInfo, DofensiveMapData } from "@/lib/dofensive-api";
 
 /**
  * 🔍 Blocs d'une fiche monstre/boss suivis par le **journal des changements** (dataset

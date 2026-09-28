@@ -36,7 +36,7 @@ const codeOf = (p: string) =>
 const SYNC_RAW = readFileSync("src/lib/dofensive-sync.ts", "utf8");
 const SPELLS_RAW = readFileSync("src/lib/dofensive-spells.ts", "utf8");
 const SYNC = codeOf("src/lib/dofensive-sync.ts");
-const ACTIONS = codeOf("src/server/actions/dofensive-actions.ts");
+const ACTIONS = codeOf("src/lib/dofensive-api.ts");
 
 describe("version de FORME du payload stocké — règle pure", () => {
     it("la règle et sa raison (0/256 lignes portaient le jet) restent écrites à la source", () => {

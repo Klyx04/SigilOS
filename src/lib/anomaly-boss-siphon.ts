@@ -55,6 +55,11 @@ import {
     type AnomalyMonsterRef,
     type DungeonCurationRow,
 } from "@/lib/anomaly-boss";
+// 🔴 A1 (28/09/2026) — ces deux CŒURS vivent en `src/lib` : le worker BullMQ les charge sans
+// session Next, et surtout **sans** `@/lib/security` → jsdom (dont le `default-stylesheet.css`
+// relatif disparaît une fois le bundle déployé en `/app/` : `ENOENT` par item).
+import { getDofensiveSpells } from "@/lib/dofensive-api";
+import { getMonsterStats } from "@/lib/monster-stats-core";
 
 /** Gardien d'anomalie résolu (sortie du siphon — utilisée par la télémétrie/God). */
 export interface AnomalyGuardian {
@@ -466,10 +471,6 @@ export async function syncAnomalyBosses(): Promise<AnomalyBossSyncResult> {
     // 4. SIPHON unitaire (concurrence bornée) : sorts + fiche + map + icônes + ligne Dungeon.
     await mapWithConcurrency(targets, CONCURRENCY, async (guardian) => {
         try {
-            // Imports dynamiques : ces deux modules tirent la chaîne d'auth Next (`@/auth`) et
-            // n'ont aucune raison d'être chargés pour les helpers purs (ni dans les tests unitaires).
-            const { getMonsterStats } = await import("@/server/actions/game-data-actions");
-            const { getDofensiveSpells } = await import("@/server/actions/dofensive-actions");
             const statsRes = await getMonsterStats(guardian.name, guardian.isCompanion ? undefined : guardian.mapName, true);
             const stats: any = statsRes.success && statsRes.data
                 ? statsRes.data

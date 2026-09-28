@@ -8,6 +8,14 @@
 > externes ont été **supprimées le 20/09/2026** (`docs/arbo/ARCHIVES-TEMP-2026-09.md`) — plus rien à
 > ouvrir hors du dépôt.
 > Réouvrir l'historique en mode plan = gaspillage de tokens.
+## 🧩 Session 28/09/2026 (suite 2 — siphons game-data, lot **A1** : `ENOENT /browser/default-stylesheet.css`) — **le CŒUR des siphons est descendu en `src/lib` : plus de jsdom dans le bundle worker (14,5 Mo → 2,3 Mo), garde de graphe à demeure** · branche `fix/siphons-a1-jsdom-worker` (PR #782)
+> **Demande user (verbatim)** : « n'oublie pas ces 2 morceaux · attaque morceaux par morceaux » (captures du Tableau God : `Avis de recherche` et `Boss d'anomalie` en échec `ENOENT: no such file or directory, open '/browser/default-stylesheet.css'`, + la table « Couverture réelle par source → cible »).
+> **Mesure (avant codage)** : chaîne unique `game-data-worker → src/lib/anomaly-boss-siphon.ts → @/server/actions/game-data-actions.ts → src/lib/security.ts → isomorphic-dompurify → jsdom` ; jsdom lit son `browser/default-stylesheet.css` **à l'évaluation du module** ⇒ dans `dist/worker.js` (Dockerfile : `/app/worker.js`) le `path.resolve(__dirname, "…/…/…/browser/…")` tombe sur `/browser/…` ⇒ `ENOENT` **une fois par item** (module réévalué au `import()` suivant), alors que la même passe réussissait « dans l'onglet ». Bundle : **14,5 Mo**, 6 691 entrées `jsdom|dompurify`.
+> **Fait** : ① `src/lib/dofensive-api.ts` (CŒUR Dofensive, `git mv`) + `src/lib/monster-stats-core.ts` (CŒUR `getMonsterStats`, extrait par script) ; ② les actions `dofensive-actions.ts` / `game-data-actions.ts` redeviennent des **enveloppes minces** (surface publique inchangée) ; ③ les 2 siphons importent les CŒURS en statique ; ④ garde `tests/unit/worker-module-graph.test.ts` (jsdom interdit + arêtes `src/lib → @/server/actions` listées) ; ⑤ gardes de source repointés.
+> **Preuves** : bundle **14,5 Mo / 6 691 → 2,3 Mo / 0** entrées jsdom · graphe **123 → 119 modules** · garde prouvé non vide par mutation · **248 fichiers / 2770 tests ✓** · `tsc` **0** · `eslint` **0 erreur**.
+> **Reste / ops** : A2 (429 locale) puis A3 (Tableau/Journal) ; déploiement bêta + relance des datasets d'avis et de boss d'anomalie côté God.
+
+
 ## 🎯 Session 28/09/2026 (avis de recherche — encart « Prime » à icône locale · fenêtre de jeu PiP) — **une seule source d'icônes pour les 3 fiches (fin du hotlink CDN) · légende hors de la carte, bouton plein écran retiré du PiP** · branche `fix/avis-stats-simulation` (PR #780)
 > **Demande user (verbatim)** : « il faut aussi afficher un petit encart (avis interne et externe publique) la récompense avec la bonne icone locale, aviton aliton, kamas de glace » · « la legende qui bouffe l'overlay » · « le bouton plein ecran n'a pas lieu d'etre dans l'overlay ».
 > **Mesures** : 3 tables d'icônes d'avis coexistaient (onglet Succès, fiche publique, fiche de zone) — celle de la fiche de zone renvoyait `avitons.png` pour **tout** type inconnu et chargeait le « Dofus des glaces » via `https://static.dofusdb.fr/items/11756.png` (**hotlink**) · en PiP (380×680) la légende **et** le prévisu étaient montés en `absolute inset-2 z-40` : légende ouverte ⇒ bas du plateau recouvert · `zoneAnchor` suit `hoveredCell` ⇒ un panneau de dégâts dans le flux ferait trembler la carte à chaque survol.
@@ -610,37 +618,28 @@
 > **3 chantiers + 1 sous-demande** sont ouverts. Une idée hors brief se note **ici**, jamais dans le code.
 > Ordre voulu par le user : **A. les siphons game-data d'abord** (« on a commencé par les pb des siphons »),
 > puis **B. `/admin/members`**, puis **C. les tickets**. 1 chantier = 1 branche = 1 PR → `dev`
-> (jamais `main`/`dev`). Brouillon de travail de la session : `src/temp/chantier-actif.md` (zone volatile,
-> **jamais** versionnée — `docs/agents/zone-volatile.md`).
+> (jamais `main`/`dev`). Le brouillon de session, s'il y en a un, vit dans la **zone volatile**
+> `src/temp/` — **jamais** versionnée (`docs/agents/zone-volatile.md`), et il est **supprimé** avant de rendre.
 > ⚠️ Les compteurs ci-dessous sont ceux **re-mesurés** le 28/09 ; ceux du mémo de la session précédente
 > étaient périmés (ex. `member-management-table.tsx` n'est **pas** sous `members/`).
 
 | # | Chantier | État | Décision / dépendance ouverte |
 |---|---|---|---|
-| **A** | God **game-data** : les siphons d'arrière-plan échouent, l'écran ne se lit pas (4 lots mesurés) | **rien codé** | aucune — **A1 part seul, immédiatement** |
+| **A** | God **game-data** : les siphons d'arrière-plan échouent, l'écran ne se lit pas (4 lots mesurés) | **A1 livré** (28/09, PR #782) ; A2/A3/A4 ouverts | aucune — **A2 part seul** (la 429 « DofusDB » qui est la nôtre) |
 | **B** | `/dashboard/[guildId]/admin/members` : déslop + 1 liste + 1 modale **+ « éditer tout le monde »** | rien codé, cible écrite | **migration** pour le registre hors dashboard ; lot **B-1** (lecture + actions simples) ou **B-2** (éditeurs lourds dans la modale) |
 | **C** | Module **tickets** : finir le module (exécutants SLA/auto-fermeture, i18n EN, doublons FR/EN, langue par serveur) | moteur livré (#778, #779) | **bascule de langue par serveur** = demande user **non mesurée** (mesure à faire avant codage) |
 
 ### A. Siphons game-data — « pk c 300 dans chaque type ? » · « pk toutes ces erreurs ? » · « pk rien n'est responsive nulle part ? » · « ca fait 100x qu'on refais game-data depuis 1 an […] je sature de pas avoir un truc pro à l'épreuve des balles »
 
-#### A1 — 🔴 `ENOENT: /browser/default-stylesheet.css` : les siphons d'arrière-plan échouent (cause racine prouvée)
+#### A1 — ✅ **Livré le 28/09/2026** (PR #782 · branche `fix/siphons-a1-jsdom-worker`)
 
-Chaîne d'import (metafile esbuild du bundle worker) :
+`ENOENT: /browser/default-stylesheet.css` (les 2 siphons d'arrière-plan ne tirent plus jsdom) : cause racine,
+correctif et **mesure avant/après** (bundle worker **14,5 Mo → 2,3 Mo**, 6 691 entrées `jsdom|dompurify` → **0**,
+graphe **123 → 119 modules**) dans le bloc **« 🧩 Session 28/09/2026 (suite 2 — siphons game-data, lot A1) »**
+en tête de ce fichier. Garde à demeure : `tests/unit/worker-module-graph.test.ts` (le worker n'atteint plus
+jamais `src/lib/security.ts`). ⚠️ **Ne jamais** « réparer » une régression de ce type avec `--external:jsdom` :
+on remplacerait une panne **explicite** par une panne **silencieuse**.
 
-```
-src/workers/metamob-worker.ts:14       → import "./game-data-worker"
-src/workers/game-data-worker.ts:83     → await import("../lib/anomaly-boss-siphon")
-src/lib/anomaly-boss-siphon.ts:471-472 → await import("@/server/actions/game-data-actions")
-                                         + await import("@/server/actions/dofensive-actions")
-src/server/actions/game-data-actions.ts → src/lib/security.ts:1 → isomorphic-dompurify → node_modules/jsdom
-```
-
-- jsdom lit `path.resolve(__dirname, "../../../browser/default-stylesheet.css")` (`node_modules/jsdom/lib/jsdom/living/css/helpers/computed-style.js:18`, **vérifié**) ; le bundle esbuild l'**inline tel quel**.
-- `Dockerfile:145` déploie le worker en **`/app/worker.js`** ⇒ trois `..` ⇒ **`/browser/default-stylesheet.css`** = **exactement** le message de la capture user.
-- Un module qui lève pendant son **évaluation** est **réévalué** au `import()` suivant ⇒ **une erreur par item** (1 par avis, 1 par gardien). `BOUNTIES` et `ANOMALY_BOSSES` font partie des datasets d'arrière-plan (`src/lib/game-data-sync-state.ts:63`) : ils échouent **en arrière-plan** et réussissent « dans l'onglet » — l'incohérence constatée.
-
-**À faire (au bon étage)** : ① descendre le **cœur** de `getMonsterStats` (`game-data-actions.ts`) et de `getDofensiveSpells` (`dofensive-actions.ts`) dans `src/lib/**` (I/O injectable, sans `@/auth`), les actions devenant des **enveloppes minces** — **déplacer, pas dupliquer** · ② `src/lib/anomaly-boss-siphon.ts` n'importe **plus jamais** `@/server/actions/**` · ③ **garde de test statique** : « aucun fichier `src/lib/**` n'importe `@/server/actions/**` » · ④ ⚠️ **ne pas** « réparer » avec `--external:jsdom` dans `build:worker` : on remplacerait une panne **explicite** par une panne **silencieuse** (runtime worker sans modules tracés).
-**Fichiers** : `src/lib/anomaly-boss-siphon.ts` · `src/server/actions/game-data-actions.ts` · `src/server/actions/dofensive-actions.ts` · cœur(s) neuf(s) `src/lib/**` · `tests/unit/**`.
 
 #### A2 — 🟠 « DofusDB a renvoyé HTTP 429 » : ce 429 est souvent **le nôtre**
 

@@ -27,6 +27,7 @@ import {
 } from "@/lib/game-data-sync-state";
 import {
     capGameDataErrorGroups,
+    combineGameDataRunError,
     groupGameDataErrors,
     summarizeGameDataErrors,
 } from "@/lib/game-data-error-causes";
@@ -110,7 +111,8 @@ export async function reportGameDataProgress(
  * synthèse se font **ici, une fois** :
  *   · `lastError` = ligne courte chiffrée (« 96 erreur(s) : aucun butin référencé (92×) · … ») ;
  *   · `errorGroups` = compteurs par cause, bornés (`GAME_DATA_ERROR_GROUPS_MAX`).
- * `opts.error` reste prioritaire quand l'appelant a une phrase plus juste que le lot brut.
+ * `opts.error` (phrase de l'appelant, ex. « 2 race(s) en échec ») est **concaténé** au résumé par
+ * cause — jamais substitué (mesure A5 : il écrasait le chiffre, cf. plus bas).
  */
 export async function finishGameDataRun(
     dataset: GameDataDataset,
@@ -133,9 +135,15 @@ export async function finishGameDataRun(
         done: opts.ok && current.total ? current.total : current.done,
         message: opts.message ?? current.message,
         finishedAt: new Date().toISOString(),
+        /**
+         * 🧭 Le **chiffre** ne disparaît plus derrière la phrase (chantier A5, 28/09/2026) :
+         * `opts.error` (« 2 race(s) en échec ») écrasait le résumé par cause ⇒ le God disait qu'il y
+         * avait un échec **sans dire pourquoi ni combien**. Les deux se lisent maintenant ensemble :
+         * « 2 race(s) en échec — 2 erreur(s) : race DofusDB indisponible (2×) ».
+         */
         lastError: opts.ok
             ? null
-            : opts.error ?? summarizeGameDataErrors(failures) ?? current.lastError,
+            : combineGameDataRunError(opts.error, summarizeGameDataErrors(failures)) ?? current.lastError,
         // Une passe réussie efface les causes : garder un compteur d'erreurs d'hier à côté d'un
         // « OK » ferait douter du statut (même règle que `lastError`).
         errorGroups: opts.ok ? null : groups,

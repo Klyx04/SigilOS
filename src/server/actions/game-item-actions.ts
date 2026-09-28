@@ -506,6 +506,11 @@ export async function siphonMarketReferentials(): Promise<
         truncated: boolean;
         /** 🚦 Pages abandonnées sur NOTRE limite locale (30 req/min partagées) — chantier A2. */
         throttledPages: number[];
+        /**
+         * 🚦 Pages **non rendues par DofusDB** (réseau / HTTP) — distinct de `throttledPages`.
+         * Seule cette cause est un échec de passe (chantier A5, 28/09/2026).
+         */
+        failedPages: number[];
         orphanFmIds: number[];
     }>
 > {

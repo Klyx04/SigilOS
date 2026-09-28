@@ -8,6 +8,16 @@
 > externes ont été **supprimées le 20/09/2026** (`docs/arbo/ARCHIVES-TEMP-2026-09.md`) — plus rien à
 > ouvrir hors du dépôt.
 > Réouvrir l'historique en mode plan = gaspillage de tokens.
+## 🎯 Session 28/09/2026 (suite 8 — siphons game-data, lot **A5** : le Tableau ne peint plus en rouge ce qui n'est pas un échec) — **une cause, un chiffre, un `ok` qui dit POURQUOI** · branche `fix/game-data-plus-de-faux-echec`
+
+> **Demande user (verbatim)** : « j'ai tjrs des erreurs » + capture du Tableau God (28/09/2026) — 4 lignes ambiguës : *Avis de recherche* « 2 race(s) en échec », *Référentiels* « … 2 page(s) en attente sur notre limite locale », *Items & ressources* « Veille : 0 créé(s) · 0 modifié(s) · 0 inchangé(s) », *Grimoires* « OK » **et** « 204 icône(s) en échec ».
+> **Mesures (lecture de code, avant codage)** : ① le résumé des avis (`game-data-inline-runners.ts`) comptait `unchanged`/`unproven` mais ne les **publiait pas** ⇒ « 0 écrits » se lisait « rien n'a marché » ; ② le même lanceur **préfixe** le message par le nom de la race (« Amakna : DofusDB monsters?race=12 indisponible ») alors que le registre teste le cœur **ancré** (`^DofusDB monsters\?race=\d+ indisponible`) ⇒ la cause tombait en `autre:<message>` ; ③ `finishGameDataRun` faisait `opts.error ?? résumé-par-cause` ⇒ la phrase courte **écrasait le chiffre** (ni pourquoi, ni combien) ; ④ `ok: !d.truncated` traitait pareil « DofusDB n'a pas rendu la page » (échec) et « notre budget de 30 req/min a refusé la page » (attente) — `failedPages` existait en interne mais **n'était pas exposé** ; ⑤ « 0 · 0 · 0 » de la veille items = **aucun** item modifié chez DofusDB depuis le filigrane (normal, écrit comme une panne) ; ⑥ les icônes en échec étaient **additionnées** aux échecs de classe dans une seule colonne « erreur(s) » (règle à trancher).
+> **Règle tranchée** : une **icône** en échec n'est pas un échec de passe — le sort est siphonné, seule l'image manque et elle est re-tentée au passage suivant ⇒ la passe reste OK **et le dit** ; seule une page **non rendue par DofusDB** est un échec.
+> **Fait** : ① `classifyGameDataError` teste chaque cause **sur le message puis sans son préfixe de contexte** (étiquette bornée : ≤ 60 caractères, sans `:`) — l'ordre reste **causes → candidats** pour que le fourre-tout `^Avis ` ne gagne pas sur « Avis de recherche de Frigost : … » ⇒ « 2 erreur(s) : race DofusDB indisponible (2×) » au lieu d'une phrase brute ; ② `combineGameDataRunError` (règle pure `src/lib`) concatène la phrase et le résumé : « 2 race(s) en échec — 2 erreur(s) : race DofusDB indisponible (2×) » ; ③ résumé des avis **complet** (écrits · inchangés · non prouvés · icônes · erreurs) ; ④ `failedPages` exposé par `referential-siphon` (cœur **et** enveloppe d'action) ⇒ lanceur **et** worker ne passent en rouge que sur une page non rendue par DofusDB, la famine locale s'affiche en message honnête ; ⑤ la veille items sans aucun delta dit « aucun item modifié chez DofusDB depuis le filigrane (rien à faire) » ; ⑥ les icônes ont leur **propre compteur** (`iconsFailed`) et la mention « non bloquant — re-tenté au prochain passage », le `ok` restant `failedRuns === 0`.
+> **Preuves** : **253 fichiers / 2 823 tests ✓** (+1 fichier / +11 tests vs 252 · 2 812 : `tests/game-data-faux-echec.test.ts` — règles pures testées : préfixe de contexte, priorités du registre, concaténation de `lastError` ; points d'écriture verrouillés : avis, référentiel, grimoires, veille items) · `npx tsc --noEmit` **0** · `eslint` **0 erreur** · `git status --short` propre.
+> **Reste / ops** : rien à jouer (0 migration, 0 appel DofusDB nouveau, 0 variable d'env) ⇒ `./scripts/deploy-cd.sh beta` puis relire le Tableau God (les 4 lignes doivent se lire sans chercher la cause) ; file : **D-2** télémétrie v2 → **D-3** `/dofus-guides` → **B-1 → B-2** → **C-1 → C-4**.
+
+
 ## 🎯 Session 28/09/2026 (suite 7 — UI God, lot **D-4** : les avis de recherche rejoignent les **Éditeurs**) — **une seule porte par outil : plus de route `/god/game-data/bounties`, plus de brique `game-data-bounties` · et un avis supprimé qui SURVIT au déploiement** · branche `fix/avis-onglet-editeurs`
 
 > **Demande user (verbatim)** : « en dehors du siphon des avis, fusionne cet onglet dans game-data > editeurs > nouvel onglet avis · revois l'ui en conséquence · vérifie que les avis que je supprime ne reviennent plus au siphon aussi stp ».
@@ -647,7 +657,7 @@
 
 ## 🚧 Chantiers ouverts — ordre d'exécution (état **mesuré le 28/09/2026**)
 
-> **3 chantiers** restent ouverts — **A est clos** (A1 → A4 livrés le 28/09). Une idée hors brief se note **ici**, jamais dans le code.
+> **3 chantiers** restent ouverts — **A est clos** (A1 → A5 livrés le 28/09). Une idée hors brief se note **ici**, jamais dans le code.
 > Ordre voulu par le user : **A. les siphons game-data d'abord** (« on a commencé par les pb des siphons »),
 > puis **B. `/admin/members`**, puis **C. les tickets** — **D.** (UI God) est arrivé le 28/09 après A1/A2 :
 > il se joue **en parallèle** de B/C (même dépôt, fichiers disjoints) et a **commencé par A3** (livré le
@@ -659,7 +669,7 @@
 
 | # | Chantier | État | Décision / dépendance ouverte |
 |---|---|---|---|
-| **A** | God **game-data** : les siphons d'arrière-plan échouent, l'écran ne se lit pas (4 lots mesurés) | **A1 + A2 + A3 + A4 livrés** (28/09) — **chantier A terminé** | aucune — seule reste la prise des **3 captures** 1440 / 1024 / 390, qui exige une session navigateur connectée |
+| **A** | God **game-data** : les siphons d'arrière-plan échouent, l'écran ne se lit pas (4 lots mesurés) | **A1 + A2 + A3 + A4 + A5 livrés** (28/09) — **chantier A terminé** | aucune — seule reste la prise des **3 captures** 1440 / 1024 / 390, qui exige une session navigateur connectée |
 | **B** | `/dashboard/[guildId]/admin/members` : déslop + 1 liste + 1 modale **+ « éditer tout le monde »** | rien codé, cible écrite | ✅ **Tranché le 28/09/2026** : voie **① table dédiée** `MemberRegistryEntry` (② pré-création de profil **écartée** — elle viderait le filtre « hors dashboard ») et **ordre B-1 puis B-2** (migration isolée dans B-2) — cf. § B |
 | **C** | Module **tickets** : finir le module (exécutants SLA/auto-fermeture, i18n EN, doublons FR/EN, langue par serveur) | moteur livré (#778, #779) | ✅ **Tranché le 28/09/2026** : **langue par serveur = reportée** (locale déjà **par utilisateur**), **un réglage sans exécutant se cache ou s'exécute** ; lots **C-1 → C-4** — cf. § C |
 | **D** | **UI God** : « revoir toute l'UI de god, tous les onglets, uniformisé et deslopé partout » — onglets hors-sujet, télémétrie sans valeur ajoutée, `/dofus-guides` à désloper, avis de recherche à fusionner dans game-data | **D-1 + D-4 livrés** (28/09 : purge des 5 onglets morts · avis de recherche = onglet des **Éditeurs** de game-data) | file : **A3 ✅ livré** (28/09, PR #786) → **D-4 ✅ livré** (28/09) → **D-2** télémétrie v2 (vraies stats produit) → **D-3** `/dofus-guides` ; arbitrages ouverts : design « landing » partout, palier tableau→cartes **mesuré** (768 par défaut, cf. A3) |
@@ -719,6 +729,17 @@ commit que A2** : elle annonçait « lot items 50 → 100 + pause 350 ms → 2 1
 re-mesuré le 24/09 est **50** (`DOFUSDB_PAGE_MAX`) et la pause vaut **2 400 ms** depuis A2
 (`GAME_ITEMS_BATCH_PAUSE_MS = budgetPauseMs()`). Même correction dans `src/lib/game-items-siphon.ts`
 (commentaire d'en-tête « 218 lots » → « 436 lots de 50 ») et dans `src/workers/game-data-worker.ts`.
+
+#### A5 — ✅ **Livré le 28/09/2026** (branche `fix/game-data-plus-de-faux-echec`)
+
+« Le Tableau ne peint plus en rouge ce qui n'est pas un échec » — les 6 causes mesurées (résumé d'avis
+incomplet, cause non classée à cause du préfixe de race, `lastError` qui écrasait le chiffre, famine
+locale peinte en rouge, « 0 · 0 · 0 » muet, icônes fondues dans les erreurs) et les règles tranchées
+sont détaillées dans le bloc **« 🎯 Session 28/09/2026 (suite 8 — siphons game-data, lot A5) »** en tête
+de ce fichier. Gardes à demeure : `tests/game-data-faux-echec.test.ts` (règles pures **et** points
+d'écriture). ⚠️ **Ne jamais** re-fusionner « notre limite locale » et « page DofusDB non rendue » dans
+un même `ok` : ce sont deux causes opposées (attente vs échec), la distinction vit dans
+`failedPages` / `throttledPages` (`src/lib/market/referential-pagination.ts`).
 
 #### A — Definition of Done
 

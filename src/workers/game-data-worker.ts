@@ -193,16 +193,22 @@ async function runBackgroundDataset(
         const { syncMarketReferentialsCore } = await import("../lib/market/referential-siphon");
         await beginGameDataRun("REFERENTIALS", { message: "Référentiels (effets & caractéristiques)" });
         const result = await syncMarketReferentialsCore();
-        // 🚦 Message HONNÊTE : une page abandonnée sur NOTRE limite locale (30 req/min partagées)
-        // ne doit pas s'annoncer « page DofusDB en échec » — c'était le mensonge de la capture
-        // du 28/09/2026, qui envoyait le God chercher une panne chez DofusDB.
-        const cause = result.throttledPages.length > 0
+        // 🚦 Message HONNÊTE (chantier A2, renforcé en A5 le 28/09/2026) : une page abandonnée sur
+        // NOTRE limite locale (30 req/min partagées) ne doit pas s'annoncer « page DofusDB en
+        // échec », et n'est **pas** un échec de passe — seule une page non rendue par DofusDB l'est.
+        const failedNote = result.failedPages.length > 0
+            ? `${result.failedPages.length} page(s) non rendues par DofusDB`
+            : "";
+        const throttleNote = result.throttledPages.length > 0
             ? `${result.throttledPages.length} page(s) en attente sur notre limite locale (30 req/min partagées)`
-            : "page DofusDB en échec";
+            : "";
+        const note = [failedNote, throttleNote].filter(Boolean).join(" · ");
         await finishGameDataRun("REFERENTIALS", {
-            ok: !result.truncated,
-            message: `${result.effects} effet(s) · ${result.characteristics} caractéristique(s) lus`,
-            error: result.truncated ? `Référentiel incomplet (${cause})` : undefined,
+            ok: result.failedPages.length === 0,
+            message:
+                `${result.effects} effet(s) · ${result.characteristics} caractéristique(s) lus` +
+                (note ? ` ⚠️ ${note}` : ""),
+            error: failedNote ? `Référentiel incomplet — ${failedNote}` : undefined,
         });
         return result;
     }
@@ -236,10 +242,19 @@ async function runBackgroundDataset(
                 skip: result.truncated ? result.nextSkip : 0,
             });
             const unchanged = Math.max(0, result.processed - result.inserted - result.updated);
+            /**
+             * 🧭 « 0 · 0 · 0 » n'est PAS une panne (chantier A5, 28/09/2026 — capture user :
+             * « Veille : 0 créé(s) · 0 modifié(s) · 0 inchangé(s) », lu comme un échec) : quand
+             * DofusDB ne renvoie **aucun** item modifié depuis le filigrane, il n'y avait rien à
+             * faire — on le dit avec ces mots au lieu d'aligner trois zéros muets.
+             */
+            const detail = result.processed === 0
+                ? "aucun item modifié chez DofusDB depuis le filigrane (rien à faire)"
+                : `${result.inserted} créé(s) · ${result.updated} modifié(s) · ${unchanged} inchangé(s)`;
             await finishGameDataRun("ITEMS", {
                 ok: true,
                 message:
-                    `Veille ciblée depuis ${watch.since} : ${result.inserted} créé(s) · ${result.updated} modifié(s) · ${unchanged} inchangé(s)` +
+                    `Veille ciblée depuis ${watch.since} : ${detail}` +
                     (result.truncated ? " · plafond atteint, reprise au prochain passage" : ""),
                 counts: { inserted: result.inserted, updated: result.updated, unchanged },
             });
@@ -261,7 +276,9 @@ async function runBackgroundDataset(
         const unchanged = Math.max(0, result.processed - result.inserted - result.updated);
         await finishGameDataRun("ITEMS", {
             ok: true,
-            message: `${result.processed} analysé(s) · ${result.inserted} créé(s) · ${result.updated} mis à jour`,
+            message: result.processed === 0
+                ? "aucun item renvoyé par DofusDB (rien à faire)"
+                : `${result.processed} analysé(s) · ${result.inserted} créé(s) · ${result.updated} mis à jour`,
             counts: { inserted: result.inserted, updated: result.updated, unchanged },
         });
         return result;

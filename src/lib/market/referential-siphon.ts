@@ -226,6 +226,13 @@ export interface MarketReferentialsSyncResult {
     /** `true` si des lignes manquent (`rows < total`) : une page a été abandonnée. */
     truncated: boolean;
     /**
+     * Offsets des pages **non rendues par DofusDB** (réseau / HTTP) — distinct de `throttledPages`.
+     * 🚦 Mesure A5 (28/09/2026) : sans ce champ exposé, le lanceur ne pouvait pas distinguer
+     * « DofusDB n'a pas rendu la page » (échec) de « notre budget local a refusé la page »
+     * (simple attente) ⇒ il peignait les deux en rouge.
+     */
+    failedPages: number[];
+    /**
      * Offsets des pages abandonnées **par notre budget local** (`x-sigilos-throttle: local`,
      * 30 req/min partagées) : la cause n'est **pas** DofusDB — l'écran doit le dire (chantier A2).
      */
@@ -289,6 +296,7 @@ export async function syncMarketReferentialsCore(): Promise<MarketReferentialsSy
         effectsStored: effs.count,
         effectsTotal: effs.expected,
         truncated,
+        failedPages,
         throttledPages,
         orphanFmIds,
     };

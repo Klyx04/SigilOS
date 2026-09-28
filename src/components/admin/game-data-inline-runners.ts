@@ -234,7 +234,8 @@ async function runItemBatches(ctx: RunContext): Promise<InlineRunResult> {
 
 /** Grimoires des 19 classes : un appel **par classe** (idempotent, icônes disque). */
 async function runClassSpellbooks(ctx: RunContext): Promise<InlineRunResult> {
-    const totals = { spells: 0, grades: 0, icons: 0, errors: 0 };
+    /** 🔎 `iconsFailed` est compté **à part** des échecs de passe (règle tranchée en A5, 28/09/2026). */
+    const totals = { spells: 0, grades: 0, icons: 0, iconsFailed: 0 };
     let failedRuns = 0;
 
     for (let i = 0; i < GAME_DATA_CLASS_IDS.length; i++) {
@@ -246,7 +247,7 @@ async function runClassSpellbooks(ctx: RunContext): Promise<InlineRunResult> {
                 totals.spells += res.data.spells;
                 totals.grades += res.data.grades;
                 totals.icons += res.data.iconsSiphoned;
-                totals.errors += res.data.iconsFailed;
+                totals.iconsFailed += res.data.iconsFailed;
                 ctx.log(
                     `✅ ${label} : ${res.data.spells} sort(s) (${res.data.grades} grades), ${res.data.iconsSiphoned} icône(s) OK` +
                         (res.data.iconsFailed > 0 ? `, ${res.data.iconsFailed} en échec` : ""),
@@ -262,7 +263,19 @@ async function runClassSpellbooks(ctx: RunContext): Promise<InlineRunResult> {
         await ctx.report(i + 1, GAME_DATA_CLASS_IDS.length, `Classe ${i + 1}/${GAME_DATA_CLASS_IDS.length}`);
     }
 
-    const summary = `Grimoires : ${totals.spells} sort(s) (${totals.grades} grades), ${totals.icons} icône(s), ${totals.errors + failedRuns} erreur(s).`;
+    /**
+     * 🔎 Règle **tranchée** (chantier A5, 28/09/2026) : une **icône** en échec n'est PAS un échec de
+     * passe — le sort est siphonné, seule son image manque, et elle est re-tentée au passage suivant.
+     * La passe n'est rouge que si une **classe** a échoué (`failedRuns`). L'ambiguïté de la capture
+     * user (« OK » à côté de « 204 icône(s) en échec ») venait de là : les deux chiffres étaient
+     * additionnés dans une seule colonne « erreur(s) » sans dire lequel bloquait.
+     */
+    const iconsNote = totals.iconsFailed > 0
+        ? `, ${totals.iconsFailed} icône(s) en échec (non bloquant — re-tenté au prochain passage)`
+        : "";
+    const summary =
+        `Grimoires : ${totals.spells} sort(s) (${totals.grades} grades), ${totals.icons} icône(s) OK` +
+        `${iconsNote}, ${failedRuns} classe(s) en échec.`;
     ctx.log(`🎉 ${summary}`);
     return { ok: failedRuns === 0, summary, error: failedRuns > 0 ? `${failedRuns} classe(s) en échec` : undefined };
 }
@@ -317,7 +330,15 @@ async function runBounties(ctx: RunContext): Promise<InlineRunResult> {
     // cause dominante (et son exemple), au lieu de 96 lignes rouges identiques.
     for (const line of formatGameDataErrorLines(errorMessages)) ctx.log(line);
 
-    const summary = `Avis de recherche : ${totals.total} avis (${totals.synced} écrits, ${totals.images} icônes, ${totals.errors + failedRaces} erreur(s)).`;
+    /**
+     * 📊 Résumé **honnête** (chantier A5, 28/09/2026) : `unchanged` et `unproven` sont comptés par le
+     * lanceur mais n'étaient **pas** affichés ⇒ « 0 écrits » se lisait « rien n'a marché » alors
+     * qu'une passe normale réécrit peu et laisse des dizaines d'avis inchangés (capture user :
+     * « 2 race(s) en échec » sans aucun chiffre lisible).
+     */
+    const summary =
+        `Avis de recherche : ${totals.total} avis (${totals.synced} écrits, ${totals.unchanged} inchangés, ` +
+        `${totals.unproven} non prouvés, ${totals.images} icônes, ${totals.errors + failedRaces} erreur(s)).`;
     ctx.log(`🎉 ${summary}`);
     return {
         ok: failedRaces === 0,
@@ -340,27 +361,42 @@ async function runReferentials(ctx: RunContext): Promise<InlineRunResult> {
         `✅ Référentiels : ${d.characteristics}/${d.characteristicsTotal} caractéristique(s) (${d.characteristicsStored} en base), ` +
             `${d.effects}/${d.effectsTotal} effet(s) (${d.effectsStored} en base).`,
     );
-    // 🚦 Cause distinguée : notre limite locale (30 req/min partagées) n'est pas une panne DofusDB.
+    /**
+     * 🚦 Deux causes **opposées** derrière le même mot « incomplet » (chantier A5, 28/09/2026) :
+     *   · `throttledPages` — NOTRE budget partagé (30 req/min) a refusé la page : ce n'est pas une
+     *     panne, la relance suffit ⇒ la passe **n'est pas peinte en rouge** ;
+     *   · `failedPages` — DofusDB n'a pas rendu la page : là, c'est un échec (couverture partielle).
+     * Avant ce lot, `ok: !d.truncated` faisait passer les deux pour une erreur, et le Tableau
+     * affichait « Référentiel incomplet (2 page(s) en attente sur notre limite locale) » en rouge :
+     * l'opérateur cherchait une panne DofusDB qui n'existait pas.
+     */
     const throttleNote = d.throttledPages.length > 0
-        ? `${d.throttledPages.length} page(s) en attente sur NOTRE limite locale (30 req/min partagées)`
+        ? `${d.throttledPages.length} page(s) en attente sur NOTRE limite locale (30 req/min partagées) — relancer pour compléter`
+        : "";
+    const failedNote = d.failedPages.length > 0
+        ? `${d.failedPages.length} page(s) non rendues par DofusDB — relancer`
         : "";
     if (d.truncated) {
         ctx.log(
-            throttleNote
-                ? `⚠️ Référentiel INCOMPLET : ${throttleNote} — ce n'est pas une panne de DofusDB ; relancer pour compléter.`
-                : "⚠️ Référentiel INCOMPLET : des pages DofusDB n'ont pas été rendues — relancer pour compléter.",
+            failedNote
+                ? `❌ Référentiel INCOMPLET : ${[failedNote, throttleNote].filter(Boolean).join(" · ")}.`
+                : `⚠️ Référentiel incomplet : ${throttleNote} (ce n'est PAS une panne de DofusDB).`,
         );
     }
     if (d.orphanFmIds.length > 0) {
         ctx.log(`⚠️ Mapping FM : ${d.orphanFmIds.length} id(s) absents du référentiel (${d.orphanFmIds.join(", ")}).`);
     }
-    const summary = `Référentiels : ${d.effects} effet(s) et ${d.characteristics} caractéristique(s) lus, ${d.effectsStored + d.characteristicsStored} en base.`;
+    const note = [failedNote, throttleNote].filter(Boolean).join(" · ");
+    const summary =
+        `Référentiels : ${d.effects} effet(s) et ${d.characteristics} caractéristique(s) lus, ` +
+        `${d.effectsStored + d.characteristicsStored} en base.${note ? ` ⚠️ ${note}` : ""}`;
     await ctx.report(1, 1, summary);
     ctx.log(`🎉 ${summary}`);
     return {
-        ok: !d.truncated,
+        // Seule une page **non rendue par DofusDB** est un échec : notre propre cadence se rattrape.
+        ok: d.failedPages.length === 0,
         summary,
-        error: d.truncated ? `Référentiel incomplet${throttleNote ? ` — ${throttleNote}` : ""}` : undefined,
+        error: failedNote ? `Référentiel incomplet — ${failedNote}` : undefined,
     };
 }
 

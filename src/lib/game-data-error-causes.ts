@@ -60,11 +60,47 @@ export function truncateGameDataError(message: string, max = GAME_DATA_ERROR_SAM
     return flat.length > max ? `${flat.slice(0, max)}…` : flat;
 }
 
-/** Classe **un** message dans une cause connue (sinon : cause `autre:<message>` portée par le message). */
+/**
+ * Préfixe de **contexte** qu'un lanceur met devant un message d'erreur : `« Amakna : … »`,
+ * `« Classe Crâ : … »`, `« Lot skip=450 : … »`.
+ *
+ * 🐛 Mesure du 28/09/2026 (capture user : « 2 race(s) en échec » sans cause lisible) : le lanceur
+ * des avis préfixe le message par le **nom de la race** (`game-data-inline-runners.ts`) alors que le
+ * registre teste le message du **cœur** (`/^DofusDB monsters\?race=\d+ indisponible/`) ⇒ la cause
+ * tombait dans `autre:<message>` et le God affichait une phrase brute au lieu de
+ * « race DofusDB indisponible (2×) ».
+ *
+ * Borné volontairement : pas de `:` dans l'étiquette, **60 caractères** au plus — un vrai message
+ * (« DofusDB items indisponible ») n'est donc jamais rogné par erreur. Le contexte n'est jamais
+ * perdu : il reste dans l'`sample` du groupe.
+ */
+const GAME_DATA_ERROR_CONTEXT_PREFIX = /^[^:\n]{1,60} : /;
+
+/** Message débarrassé d'un éventuel préfixe de contexte (`null` s'il n'y en a pas). */
+export function stripGameDataErrorContext(message: string): string | null {
+    const flat = message.replace(/\s+/g, " ").trim();
+    const stripped = flat.replace(GAME_DATA_ERROR_CONTEXT_PREFIX, "").trim();
+    return stripped && stripped !== flat ? stripped : null;
+}
+
+/**
+ * Classe **un** message dans une cause connue (sinon : cause `autre:<message>` portée par le message).
+ *
+ * Le message est testé **tel quel** puis **sans son préfixe de contexte**, **cause par cause dans
+ * l'ordre du registre** : les motifs sont ancrés sur le message du cœur (`^DofusDB …`, `^Avis …`),
+ * donc un préfixe de lanceur les faisait tous échouer (mesure A5, 28/09/2026).
+ *
+ * ⚠️ L'ordre est **causes → candidats** et non l'inverse : boucler d'abord sur les candidats ferait
+ * gagner le fourre-tout `/^Avis /` sur une étiquette de race (« Avis de recherche de Frigost : … »)
+ * alors que le registre le place **en dernier** exprès — la cause spécifique reste prioritaire.
+ */
 export function classifyGameDataError(message: string): { key: string; label: string } {
     const flat = message.replace(/\s+/g, " ").trim();
+    const candidates = [flat, stripGameDataErrorContext(flat)];
     for (const cause of GAME_DATA_ERROR_CAUSES) {
-        if (cause.test.test(flat)) return { key: cause.key, label: cause.label };
+        for (const candidate of candidates) {
+            if (candidate && cause.test.test(candidate)) return { key: cause.key, label: cause.label };
+        }
     }
     // Cause inconnue : le message (tronqué) devient **libellé ET clé** ⇒ deux messages identiques
     // se regroupent (une cause = un chiffre réel) et deux messages **différents** restent deux
@@ -108,6 +144,26 @@ export function summarizeGameDataErrors(messages: readonly string[]): string | u
         .join(" · ");
     const rest = groups.length - GAME_DATA_ERROR_SUMMARY_CAUSES;
     return `${messages.length} erreur(s) : ${head}${rest > 0 ? ` · +${rest} autre(s) cause(s)` : ""}`;
+}
+
+/**
+ * 🧭 Ligne `lastError` d'une passe **en échec** : la **phrase** de l'appelant (« 2 race(s) en
+ * échec ») et le **résumé chiffré par cause** (« 2 erreur(s) : race DofusDB indisponible (2×) ») se
+ * lisent **ensemble** — jamais l'un à la place de l'autre.
+ *
+ * 🐛 Mesure du 28/09/2026 (capture user : « Avis de recherche — 2 race(s) en échec ») :
+ * `opts.error ?? summary` faisait gagner la phrase courte, donc le God disait qu'il y avait un échec
+ * **sans dire ni pourquoi ni combien** — le résumé chiffré, calculé juste avant, n'était jamais vu.
+ * `null` si rien à dire (l'appelant garde alors la ligne précédente).
+ */
+export function combineGameDataRunError(
+    error?: string | null,
+    summary?: string | null,
+): string | null {
+    const parts = [error, summary]
+        .map((part) => (typeof part === "string" ? part.trim() : ""))
+        .filter((part) => part.length > 0);
+    return parts.length > 0 ? parts.join(" — ") : null;
 }
 
 /**

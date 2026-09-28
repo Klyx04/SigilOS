@@ -30,6 +30,7 @@ import { getBestiaireCatalog, type BestiaireEntry } from "@/server/actions/game-
 import { getBountyFiche, type BountyFichePayload } from "@/server/actions/bounty-actions";
 import { SpellRangeGrid } from "@/components/succes/SpellRangeGrid";
 import { SuccesBossEncyclo } from "@/components/succes/SuccesBossEncyclo";
+import { BountyRewardCard } from "@/components/succes/BountyRewardCard";
 import { useBossOverlay } from "@/hooks/use-boss-overlay";
 
 type DetailTab = "info" | "sorts" | "sim" | "loot";
@@ -271,12 +272,7 @@ export function SuccesAvisTab({ guildId }: { guildId: string }) {
                                 </button>
                             )}
                             {fiche.meta.rewards.length > 0 && (
-                                <span className="inline-flex items-center gap-1.5 text-muted-foreground">
-                                    <Gem className="h-3.5 w-3.5 opacity-70" /> Prime :{" "}
-                                    <strong className="font-medium text-foreground/90">
-                                        {fiche.meta.rewards.map((r) => `${r.amount > 0 ? `${r.amount} ` : ""}${r.type}`).join(" + ")}
-                                    </strong>
-                                </span>
+                                <BountyRewardCard rewards={fiche.meta.rewards} />
                             )}
                             {fiche.meta.milice && (
                                 <span className="inline-flex items-center gap-1.5 text-muted-foreground">

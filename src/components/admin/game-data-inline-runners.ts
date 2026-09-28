@@ -263,7 +263,7 @@ async function runClassSpellbooks(ctx: RunContext): Promise<InlineRunResult> {
 
 /** Avis de recherche : un appel **par race** (mesuré : un appel unique de 60 s+ casse). */
 async function runBounties(ctx: RunContext): Promise<InlineRunResult> {
-    const totals = { synced: 0, unchanged: 0, total: 0, unproven: 0, images: 0, errors: 0 };
+    const totals = { synced: 0, unchanged: 0, total: 0, unproven: 0, images: 0, errors: 0, grades: 0, drops: 0 };
     let failedRaces = 0;
 
     for (let i = 0; i < BOUNTY_RACE_IDS.length; i++) {
@@ -278,9 +278,11 @@ async function runBounties(ctx: RunContext): Promise<InlineRunResult> {
                 totals.total += d.total;
                 totals.unproven += d.unproven;
                 totals.images += d.images;
+                totals.grades += d.gradesBackfilled;
+                totals.drops += d.dropsBackfilled;
                 totals.errors += d.errors.length;
                 ctx.log(
-                    `✅ ${raceName} : ${d.total} avis (${d.synced} écrits, ${d.unchanged} inchangés, ${d.unproven} non prouvés, ${d.images} icônes)` +
+                    `✅ ${raceName} : ${d.total} avis (${d.synced} écrits, ${d.unchanged} inchangés, ${d.unproven} non prouvés, ${d.images} icônes, ${d.gradesBackfilled} stats relues, ${d.dropsBackfilled} butins relus)` +
                         (d.errors.length > 0 ? ` — ${d.errors.length} erreur(s)` : ""),
                 );
             } else {

@@ -20,7 +20,9 @@
  * ② la **géométrie** de `Perpend` = ligne perpendiculaire au lancer (`2·size+1` cases, 3 pour
  * `param1: 1`) et **pas** une croix ; ③ les gabarits non calibrés restent honnêtement « Inconnue » ;
  * ④ la **vraie modale** (plateau plein écran, prévisu de dégâts + légende dans un rail, une seule
- * définition des deux panneaux).
+ * définition des deux panneaux) ; ⑤ la **fenêtre de jeu PiP** (retour user 28/09/2026) : les deux
+ * panneaux y prennent leur place **dans le flux** (plus rien de superposé à la carte) et le bouton
+ * « Plein écran » n'y est plus monté.
  */
 
 import { describe, it, expect } from "vitest";
@@ -137,7 +139,7 @@ describe("géométrie — « Ligne perpendiculaire » : 3 cases pour `param1: 1`
     });
 });
 
-describe("simulation tactique — vraie modale plein écran (rail prévisu + légende)", () => {
+describe("simulation tactique — vraie modale plein écran + fenêtre de jeu PiP", () => {
     it("le plateau s'ouvre dans une boîte `Dialog` dimensionnée et titrée", () => {
         expect(GRID).toMatch(/const \[fullscreen, setFullscreen\] = useState<boolean>\(false\);/);
         expect(GRID).toMatch(/<Dialog\r?\n\s*open\r?\n\s*onOpenChange=\{\(next\) => \{/);
@@ -160,9 +162,9 @@ describe("simulation tactique — vraie modale plein écran (rail prévisu + lé
         expect(GRID).toMatch(/\{damagePanel\(true\)\}/);
         expect(GRID).toMatch(/\{legendPanel\(true\)\}/);
         expect(GRID).toMatch(/lg:w-80/);
-        // La rangée flottante n'existe QUE dans la fenêtre de jeu PiP : partout ailleurs les deux
-        // panneaux sont dans un rail (modale plein écran **et** mise en page en ligne).
-        expect(GRID).toMatch(/\{compact && !fullscreen && \(\r?\n\s*<div\r?\n\s*data-no-drag\r?\n\s*className="pointer-events-none absolute inset-2/);
+        // La rangée des deux panneaux n'existe QUE dans la fenêtre de jeu PiP : partout ailleurs
+        // ils sont dans un rail (modale plein écran **et** mise en page en ligne).
+        expect(GRID).toMatch(/\{compact && !fullscreen && \(\r?\n\s*<div\r?\n\s*data-no-drag\r?\n\s*className="flex w-full min-w-0 shrink-0 flex-wrap/);
         expect(GRID).toMatch(/\{!compact && !fullscreen && \(/);
         // Une seule définition de chaque panneau : le rail et le plateau partagent l'instance
         // (aucun markup recopié ⇒ aucun risque de divergence entre les deux emplacements).
@@ -170,16 +172,42 @@ describe("simulation tactique — vraie modale plein écran (rail prévisu + lé
         expect((GRID.match(/<SimulationTacticalLegend/g) || []).length).toBe(1);
     });
 
+    it("fenêtre de jeu PiP : la légende prend sa place sous la carte (plus rien de superposé)", () => {
+        // Retour user 28/09/2026, verbatim : « la légende qui bouffe l'overlay ». Elle était montée
+        // en `absolute inset-2` : ouverte, elle masquait le bas du plateau d'une fenêtre 380×680.
+        const legendRow = GRID.slice(
+            GRID.indexOf("{compact && !fullscreen && ("),
+            GRID.indexOf("{legendPanel(false)}")
+        );
+        expect(legendRow).toContain("shrink-0");
+        expect(legendRow).not.toContain("absolute");
+        expect(legendRow).not.toContain("pointer-events-none");
+        expect(legendRow).not.toContain("damagePanel");
+        // Le prévisu reste superposé et borné par le plateau : il suit le SURVOL (dans le flux, la
+        // carte tremblerait à chaque survol), et il est désormais SEUL dans sa rangée.
+        expect(GRID).toMatch(/pointer-events-none absolute inset-2 z-40 flex min-w-0 flex-wrap items-end justify-end/);
+    });
+
+    it("la fenêtre de jeu PiP n'a pas de bouton « Plein écran » (une seule définition, en ligne)", () => {
+        // Retour user 28/09/2026 : « le bouton plein écran n'a pas lieu d'être dans l'overlay ».
+        expect(GRID).toMatch(/const fullscreenToggle = \(\) => \(/);
+        expect((GRID.match(/\{fullscreenToggle\(\)\}/g) || []).length).toBe(2);
+        // Plus de variante `board` (l'ancienne barre compacte) : une seule apparence, celle du thème.
+        expect(GRID).not.toMatch(/fullscreenToggle\((true|false)\)/);
+        expect(GRID).toMatch(/aria-pressed=\{fullscreen\}/);
+        // La barre compacte (celle du PiP) monte les réglages utiles, plus l'agrandissement.
+        const compactBar = GRID.slice(
+            GRID.indexOf("{compact ? ("),
+            GRID.indexOf("{damageToggle(false)}")
+        );
+        expect(compactBar).toContain("{damageToggle(true)}");
+        expect(compactBar).not.toContain("fullscreenToggle");
+    });
+
     it("le plateau remplit la modale (pan + molette de zoom dedans, rien à faire en dehors)", () => {
         expect(GRID).toMatch(/const fitsViewport = compact \|\| fullscreen;/);
         expect((GRID.match(/fitsViewport/g) || []).length).toBeGreaterThanOrEqual(5);
         expect(GRID).toMatch(/fullscreen && "max-h-full"/);
-    });
-
-    it("un seul bouton « Plein écran », monté dans les deux barres d'outils", () => {
-        expect(GRID).toMatch(/const fullscreenToggle = \(board: boolean\) => \(/);
-        expect((GRID.match(/\{fullscreenToggle\(/g) || []).length).toBe(3);
-        expect(GRID).toMatch(/aria-pressed=\{fullscreen\}/);
     });
 
     it("le panneau de prévisu accepte d'être monté dans le rail (pleine largeur, hauteur libre)", () => {

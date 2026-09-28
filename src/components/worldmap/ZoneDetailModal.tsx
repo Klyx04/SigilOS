@@ -9,6 +9,7 @@ import { DocContent } from '../doc/doc-content';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { bountyRewardIcon } from '@/lib/bounty-fiche';
 import { getZoneMonsters, getBountiesForZone, searchDungeonsAdvanced } from '@/server/actions/game-data-actions';
 import { getZoneArchmonsters, getGuildOcreTrades } from '@/server/actions/ocre-actions';
 
@@ -23,6 +24,17 @@ interface ZoneDetailModalProps {
     mapId?: number;
     /** Mode public : masque les données de guilde (archimonstres, échanges Ocre). */
     isPublic?: boolean;
+}
+
+/**
+ * Icône d'une **récompense d'avis** (encart « Prime » de la fiche de zone) — la résolution du
+ * chemin est **centralisée** dans `bountyRewardIcon` (assets locaux + proxy interne, jamais de
+ * hotlink CDN). Aucune icône quand le type n'est pas reconnu : on n'invente pas un asset.
+ */
+function RewardIcon({ type, className = 'w-7 h-7' }: { type?: string | null; className?: string }) {
+    const src = bountyRewardIcon(type);
+    if (!src) return null;
+    return <img src={src} className={`${className} object-contain`} alt={type || ''} />;
 }
 
 export function ZoneDetailModal({ isOpen, onClose, zoneName, position, guildId, worldId, subAreaId, mapId: mapIdProp, isPublic = false }: ZoneDetailModalProps) {
@@ -526,15 +538,9 @@ export function ZoneDetailModal({ isOpen, onClose, zoneName, position, guildId, 
                                                             <div className="flex flex-wrap gap-2">
                                                                 {Array.isArray(bounty.rewards) && bounty.rewards.length > 0 ? (
                                                                     bounty.rewards.map((reward: any, ridx: number) => {
-                                                                        let iconSrc = '/assets/avis/avitons.png';
-                                                                        const typeLower = (reward.type || '').toLowerCase();
-                                                                        if (typeLower.includes('aliton')) iconSrc = '/assets/avis/aliton.png';
-                                                                        else if (typeLower.includes('kama de glace')) iconSrc = '/assets/avis/kamas_de_glace.png';
-                                                                        else if (typeLower.includes('dofus des glaces')) iconSrc = 'https://static.dofusdb.fr/items/11756.png';
-                                                                        
                                                                         return (
                                                                             <div key={ridx} className="flex items-center gap-2.5 px-4 py-2.5 rounded-2xl bg-surface border border-border hover:bg-surface transition-all">
-                                                                                <img src={iconSrc} className="w-7 h-7 object-contain" alt={reward.type} />
+                                                                                <RewardIcon type={reward?.type} />
                                                                                 <span className="text-base font-black text-foreground">{reward.amount}</span>
                                                                                 <span className="text-caption text-foreground/40 uppercase italic">{reward.type}</span>
                                                                             </div>
@@ -542,17 +548,9 @@ export function ZoneDetailModal({ isOpen, onClose, zoneName, position, guildId, 
                                                                     })
                                                                 ) : bounty.doplons > 0 ? (
                                                                     <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-2xl bg-surface border border-border">
-                                                                        <img
-                                                                            src={
-                                                                                (bounty.rewardType || '').toLowerCase().includes('aliton') ? '/assets/avis/aliton.png' : 
-                                                                                (bounty.rewardType || '').toLowerCase().includes('kama de glace') ? '/assets/avis/kamas_de_glace.png' : 
-                                                                                (bounty.rewardType || '').toLowerCase().includes('dofus des glaces') ? 'https://static.dofusdb.fr/items/11756.png' :
-                                                                                '/assets/avis/avitons.png'
-                                                                            }
-                                                                            className="w-7 h-7 object-contain" alt={bounty.rewardType || 'Aviton'}
-                                                                        />
+                                                                        <RewardIcon type={bounty.rewardType} />
                                                                         <span className="text-base font-black text-foreground">{bounty.doplons}</span>
-                                                                        <span className="text-caption text-foreground/40 uppercase italic">{bounty.rewardType || 'Aviton'}</span>
+                                                                        <span className="text-caption text-foreground/40 uppercase italic">{bounty.rewardType || 'Prime'}</span>
                                                                     </div>
                                                                 ) : null}
                                                             </div>

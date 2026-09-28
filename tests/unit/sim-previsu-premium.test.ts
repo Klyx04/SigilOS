@@ -232,12 +232,23 @@ describe("panneau de prévisu (« Dégâts estimés ») — valeur immédiatemen
 });
 
 describe("légende & prévisu atteignables sans quitter le composant", () => {
-    it("les deux panneaux flottent sur le plateau (plus de zoom/défilement à faire)", () => {
-        // 🔁 22/09/2026 : la rangée couvre désormais TOUTE la hauteur du plateau (`inset-2`) — c'est
-        // la référence dont le panneau a besoin (`max-h-full`) pour ne plus sortir de la carte — et
-        // elle se REPLIE (`flex-wrap`, `min-w-0`) au lieu de pousser le panneau hors du plateau.
-        expect(GRID).toMatch(/absolute inset-2 z-40 flex min-w-0 flex-wrap items-end justify-between gap-2/);
-        // Le panneau ne doit pas intercepter le pan de la carte…
+    it("la légende prend sa place sous la carte — le prévisu reste borné au plateau", () => {
+        // 🔁 21/09/2026 : les deux panneaux vivent désormais DANS le composant (fini le « obligé de
+        // dézoomer et de scroller en dehors pour aller chercher la légende »).
+        // 🔁 28/09/2026 — retour user : « la légende qui bouffe l'overlay ». La légende a donc
+        // quitté l'overlay : rangée **en flux** sous la carte, qui se replie (`flex-wrap`,
+        // `min-w-0`) au lieu d'être poussée hors du plateau. Le prévisu, lui, suit le SURVOL ⇒ il
+        // reste superposé (dans le flux, la carte tremblerait à chaque survol) mais n'a plus la
+        // légende à côté de lui dans la rangée.
+        const legendRow = GRID.slice(
+            GRID.indexOf("{compact && !fullscreen && ("),
+            GRID.indexOf("{legendPanel(false)}")
+        );
+        expect(legendRow).toContain("shrink-0");
+        expect(legendRow).not.toContain("absolute");
+        expect(legendRow).not.toContain("damagePanel");
+        // Le panneau de dégâts, lui, couvre toujours la hauteur du plateau (référence de
+        // `max-h-full`) sans intercepter le pan de la carte…
         expect(GRID).toMatch(/pointer-events-none absolute inset-2/);
         // …et la légende reprend la main sur ses propres clics.
         expect(codeOf("src/components/succes/SimulationTacticalLegend.tsx")).toMatch(/relative z-30 shrink-0/);
@@ -401,7 +412,10 @@ describe("les dégâts ne sortent plus du composant — bornage par le plateau (
         // Jamais plus large que le plateau, et jamais poussé dehors par la légende.
         expect(HUD).toMatch(/ml-auto w-60 min-w-0 max-w-full/);
         // La rangée porteuse couvre toute la hauteur du plateau ⇒ `max-h-full` a une référence.
+        // (28/09/2026 : elle ne porte plus que le prévisu — la légende est passée dans le flux,
+        // elle ne peut donc plus pousser le panneau hors de la carte.)
         expect(GRID).toMatch(/pointer-events-none absolute inset-2 z-40 flex min-w-0 flex-wrap/);
+        expect(GRID).toMatch(/items-end justify-end/);
     });
 
     it("la pastille s'élargit avec son contenu (plus de boîte figée)", () => {

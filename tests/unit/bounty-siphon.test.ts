@@ -106,7 +106,13 @@ const PREDAGOB = {
     name: { fr: "Predagob" },
     gfxId: 1583,
     img: "https://api.dofusdb.fr/img/monsters/1583.png",
-    grades: [{ level: 190 }, { level: 190 }, { level: 190 }, { level: 190 }, { level: 190 }],
+    grades: [
+        { level: 190, lifePoints: 5200, actionPoints: 12, movementPoints: 4, neutralResistance: 10, earthResistance: 10, fireResistance: 10, waterResistance: 10, airResistance: 10 },
+        { level: 190, lifePoints: 5200 },
+        { level: 190, lifePoints: 5200 },
+        { level: 190, lifePoints: 5200 },
+        { level: 190, lifePoints: 5200 },
+    ],
     drops: [{ objectId: 18803 }, { objectId: 26870 }, { objectId: 18803 }],
     subareas: [883],
     spells: [8589, 8590, 8591],
@@ -310,7 +316,9 @@ describe("syncBounties — liste, preuve, écriture", () => {
         const res = await syncBounties();
 
         const paths = mockDofusDbFetch.mock.calls.map((c) => String(c[0]));
-        expect(paths).toEqual([
+        // Les 5 listes de races partent en premier, dans l'ordre (aucun `$select`) ;
+        // le repli butin ajoute ensuite UN appel `items?` borné par avis sans butin.
+        expect(paths.slice(0, 5)).toEqual([
             "/monsters?race=32&lang=fr&$limit=50",
             "/monsters?race=90&lang=fr&$limit=50",
             "/monsters?race=127&lang=fr&$limit=50",
@@ -318,6 +326,7 @@ describe("syncBounties — liste, preuve, écriture", () => {
             "/monsters?race=156&lang=fr&$limit=50",
         ]);
         expect(paths.some((p) => p.includes("$select"))).toBe(false);
+        expect(paths.filter((p) => p.startsWith("/items?")).length).toBeGreaterThan(0);
         expect(res.entries.map((e) => e.id).sort()).toEqual([3530, 3555, 4834]);
         expect(res.perRace).toEqual({ "32": 2, "90": 2 });
     });
@@ -359,6 +368,13 @@ describe("syncBounties — liste, preuve, écriture", () => {
         expect(payload.bounty.subarea).toEqual({ id: 883, name: "Nimotopia" });
         expect(payload.bounty.criteria).toContain("Avoir l'étape #1 de la quête #2 en cours");
         expect(payload.spells.length).toBeGreaterThan(0);    // sorts Dofensive fusionnés
+        // Repli sans appel en plus : la fiche détaillée mockée n'a ni grades ni
+        // drops ⇒ relus depuis la liste (même format que `getMonsterStats`).
+        expect(payload.grades[0]).toMatchObject({ level: 190, lifePoints: 5200, actionPoints: 12 });
+        expect(payload.grades[0].resists.earth).toBe(10);
+        expect(payload.drops.map((d: any) => d.objectId).sort()).toEqual([18803, 18803, 26870]);
+        expect(res.gradesBackfilled).toBeGreaterThan(0);
+        expect(res.dropsBackfilled).toBeGreaterThan(0);
     });
 
     it("homonymes : la fiche est écrite sous l'ID de l'avis, jamais sous celui d'un homonyme", async () => {

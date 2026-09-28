@@ -13,7 +13,6 @@ import {
 import { 
     Activity, 
     MousePointer, 
-    Users, 
     Flame, 
     RefreshCw,
     TrendingUp, 
@@ -29,10 +28,15 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getTelemetryStats, exportTelemetryDataAction } from "@/server/actions/telemetry-actions";
+import { getProductStats } from "@/server/actions/telemetry-product-actions";
+import { TelemetryProductOverview } from "./telemetry-product-overview";
 import { humanizeElementId } from "@/lib/telemetry/normalize";
 import { toast } from "sonner";
 
 type TelemetryStatsType = Awaited<ReturnType<typeof getTelemetryStats>>;
+
+/** Mesures produit (D-2bis) — chargées à côté de la télémétrie de navigation. */
+type ProductStatsType = Awaited<ReturnType<typeof getProductStats>>;
 
 /**
  * Période du rafraîchissement automatique. 30 s et non 5 s : chaque tick relance 12 requêtes
@@ -40,7 +44,13 @@ type TelemetryStatsType = Awaited<ReturnType<typeof getTelemetryStats>>;
  */
 const AUTO_REFRESH_SECONDS = 30;
 
-export function TelemetryDashboard({ initialStats }: { initialStats: TelemetryStatsType }) {
+export function TelemetryDashboard({
+    initialStats,
+    initialProduct,
+}: {
+    initialStats: TelemetryStatsType;
+    initialProduct: ProductStatsType | null;
+}) {
     const [stats, setStats] = useState<TelemetryStatsType>(initialStats);
     const [selectedGuildId, setSelectedGuildId] = useState<string>("all");
     const [isAutoRefresh, setIsAutoRefresh] = useState(true);
@@ -249,94 +259,9 @@ export function TelemetryDashboard({ initialStats }: { initialStats: TelemetrySt
                 ))}
             </div>
 
-            {/* KPI Metrics Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                {/* Pages Views Card */}
-                <div className="p-5 rounded-2xl border border-border bg-surface/70 transition-colors group">
-                    <div className="flex justify-between items-start">
-                        <div className="space-y-3">
-                            <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest block">Pages Vues (24h)</span>
-                            <span className="text-3xl font-black text-foreground tracking-tight block">
-                                {stats.summary.pageViews24h.toLocaleString()}
-                            </span>
-                        </div>
-                        <div className="p-3 rounded-xl bg-accent-soft border border-accent/20 text-accent shrink-0">
-                            <Globe className="w-5 h-5" />
-                        </div>
-                    </div>
-                </div>
+            {/* Vue d'ensemble produit (D-2bis) — remplace les 8 cartes « console » */}
+            <TelemetryProductOverview product={initialProduct} />
 
-                {/* Clicks/Interactions Card */}
-                <div className="p-5 rounded-2xl border border-border bg-surface/70 transition-colors group">
-                    <div className="flex justify-between items-start">
-                        <div className="space-y-3">
-                            <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest block">Interactions (24h)</span>
-                            <span className="text-3xl font-black text-foreground tracking-tight block">
-                                {stats.summary.interactions24h.toLocaleString()}
-                            </span>
-                        </div>
-                        <div className="p-3 rounded-xl bg-accent-soft border border-accent/20 text-accent shrink-0">
-                            <MousePointer className="w-5 h-5" />
-                        </div>
-                    </div>
-                </div>
-
-                {/* Unique Active Users Card */}
-                <div className="p-5 rounded-2xl border border-border bg-surface/70 transition-colors group">
-                    <div className="flex justify-between items-start">
-                        <div className="space-y-3">
-                            <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest block">Users Actifs (24h)</span>
-                            <span className="text-3xl font-black text-foreground tracking-tight block">
-                                {stats.summary.uniqueUsers24h.toLocaleString()}
-                            </span>
-                        </div>
-                        <div className="p-3 rounded-xl bg-accent-soft border border-accent/20 text-accent shrink-0">
-                            <Users className="w-5 h-5" />
-                        </div>
-                    </div>
-                </div>
-
-                {/* Intensity Indicator Card */}
-                <div className="p-5 rounded-2xl border border-border bg-surface/70 transition-colors group">
-                    <div className="flex justify-between items-start">
-                        <div className="space-y-3">
-                            <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest block">Actions Moy. / User</span>
-                            <span className="text-3xl font-black text-foreground tracking-tight block">
-                                {stats.summary.averageActionsPerUser}
-                            </span>
-                        </div>
-                        <div className="p-3 rounded-xl bg-accent-soft border border-accent/20 text-accent shrink-0">
-                            <Flame className="w-5 h-5" />
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            {/* #34 — Volet Data/Product : DAU/WAU, guildes actives, engagement */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="p-4 rounded-2xl border border-border bg-surface/40">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">DAU / WAU</p>
-                    <p className="text-sm font-black text-foreground tabular-nums mt-1">
-                        {stats.summary.uniqueUsers24h} / {stats.summary.uniqueUsers7d}
-                    </p>
-                    <p className="text-[10px] text-muted-foreground mt-0.5">Utilisateurs actifs 24h / 7j (rétention)</p>
-                </div>
-                <div className="p-4 rounded-2xl border border-border bg-surface/40">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Guildes actives (7j)</p>
-                    <p className="text-sm font-black text-foreground tabular-nums mt-1">{stats.summary.guildsActive7d}</p>
-                    <p className="text-[10px] text-muted-foreground mt-0.5">Guildes avec de l'activité cette semaine</p>
-                </div>
-                <div className="p-4 rounded-2xl border border-border bg-surface/40">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Engagement (24h)</p>
-                    <p className="text-sm font-black text-foreground tabular-nums mt-1">{stats.summary.engagementRatio}%</p>
-                    <p className="text-[10px] text-muted-foreground mt-0.5">Interactions / pages vues</p>
-                </div>
-                <div className="p-4 rounded-2xl border border-border bg-surface/40">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Événements totaux</p>
-                    <p className="text-sm font-black text-foreground tabular-nums mt-1">{stats.summary.totalEvents.toLocaleString()}</p>
-                    <p className="text-[10px] text-muted-foreground mt-0.5">Depuis le début de la télémétrie</p>
-                </div>
-            </div>
 
             {/* TAB CONTENT: LIVE FEED */}
             {telemetryTab === "live" && (

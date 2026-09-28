@@ -47,6 +47,9 @@ import { DB_READABLE, mapWithConcurrency, persistMonsterStat } from "@/lib/dofen
 import { mergeDofensiveSpells, type DofensiveSpellCombat } from "@/lib/dofensive-spells";
 import { siphonAndCompressImage } from "@/lib/dofus-asset-siphon";
 import { buildCombatSpellsFromDofusDb, fetchSpellLevels } from "@/lib/anomaly-boss-siphon";
+// 🔴 A1 (28/09/2026) — CŒURS descendus en `src/lib` (worker BullMQ sans session Next, sans jsdom).
+import { getDofensiveSpells } from "@/lib/dofensive-api";
+import { getMonsterStats } from "@/lib/monster-stats-core";
 import {
     BOUNTY_RACE_IDS,
     bountyCriteriaLabels,
@@ -330,11 +333,6 @@ export async function syncBounties(raceIds?: readonly number[]): Promise<BountyS
  * Renvoie `true` si la ligne `Bounty` a été créée ou modifiée, `false` si inchangée.
  */
 async function siphonOneBounty(target: BountyTarget, result: BountySyncResult): Promise<boolean> {
-    // Imports dynamiques : ces deux modules tirent la chaîne d'auth Next (`@/auth`) et n'ont
-    // aucune raison d'être chargés pour les helpers purs (ni dans les tests unitaires).
-    const { getMonsterStats } = await import("@/server/actions/game-data-actions");
-    const { getDofensiveSpells } = await import("@/server/actions/dofensive-actions");
-
     const statsRes = await getMonsterStats(target.name, target.subareaName ?? undefined, true, target.id);
     const stats: any = statsRes.success && statsRes.data
         ? statsRes.data

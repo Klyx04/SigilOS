@@ -83,12 +83,12 @@ vi.mock("@/lib/dofus-asset-siphon", () => ({
 }));
 
 const mockGetMonsterStats = vi.fn();
-vi.mock("@/server/actions/game-data-actions", () => ({
+vi.mock("@/lib/monster-stats-core", () => ({
     getMonsterStats: (...args: any[]) => mockGetMonsterStats(...args),
 }));
 
 const mockGetDofensiveSpells = vi.fn();
-vi.mock("@/server/actions/dofensive-actions", () => ({
+vi.mock("@/lib/dofensive-api", () => ({
     getDofensiveSpells: (...args: any[]) => mockGetDofensiveSpells(...args),
 }));
 

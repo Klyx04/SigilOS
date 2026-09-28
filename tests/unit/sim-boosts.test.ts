@@ -57,7 +57,7 @@ const BOOSTS_RAW = readFileSync("src/lib/dofus-boosts.ts", "utf8");
 const PANEL = codeOf("src/components/succes/SimulationBoostPanel.tsx");
 const SIM_TAB = codeOf("src/components/dofus/dofusbook-simulation-tab.tsx");
 const GRID = codeOf("src/components/succes/SpellRangeGrid.tsx");
-const DOFENSIVE_ACTIONS = codeOf("src/server/actions/dofensive-actions.ts");
+const DOFENSIVE_ACTIONS = codeOf("src/lib/dofensive-api.ts");
 const FR = codeOf("src/lib/i18n/locales/fr.ts");
 const EN = codeOf("src/lib/i18n/locales/en.ts");
 

@@ -41,7 +41,7 @@ const codeOf = (p: string) =>
         .replace(/\/\*[\s\S]*?\*\//g, "")
         .replace(/(^|[^:])\/\/[^\n]*/g, "$1");
 
-const ACTIONS = codeOf("src/server/actions/dofensive-actions.ts");
+const ACTIONS = codeOf("src/lib/dofensive-api.ts");
 const PROXY = codeOf("src/app/api/assets-dofus/[type]/[id]/route.ts");
 
 describe("niveau de sort = celui du GRADE DE MONSTRE (`SpellGrades`)", () => {

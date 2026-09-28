@@ -205,7 +205,7 @@ describe("garde SSRF — allowlist étendue aux 2 collections encyclo", () => {
 
 describe("câblage siphon — le builder persiste l'encyclo", () => {
     it("resultData porte `encyclo` + `carac` par grade (futures lignes resync)", () => {
-        const src = readSource("src/server/actions/game-data-actions.ts");
+        const src = readSource("src/lib/monster-stats-core.ts");
         expect(src).toContain("encyclo: { ...encycloId, names: encycloNames }");
         expect(src).toContain("carac: {");
         expect(src).toContain('from "@/lib/dofus-encyclo"');

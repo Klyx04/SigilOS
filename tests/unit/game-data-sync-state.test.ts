@@ -313,12 +313,17 @@ describe("game-data — siphons en arrière-plan (file + worker)", () => {
 
         // Cause racine des « Error: {} » ×20 : 2 `fetch()` bruts dans `getMonsterStats`
         // contournaient le limiteur partagé (30 req/min) ⇒ 429 local en boucle.
+        // 🔴 A1 (28/09/2026) : ce cœur vit désormais dans `src/lib/monster-stats-core.ts`
+        // (appelable par le worker BullMQ, sans jsdom) — **le garde suit le code**.
+        const core = read("src/lib/monster-stats-core.ts");
         const actions = read("src/server/actions/game-data-actions.ts");
-        expect(actions).not.toMatch(/(?<!Db)fetch\(`https:\/\/api\.dofusdb\.fr/);
-        expect(actions).not.toContain('throw new Error("DofusDB search failed")');
-        expect(actions).not.toContain('throw new Error("DofusDB details failed")');
+        for (const source of [core, actions]) {
+            expect(source).not.toMatch(/(?<!Db)fetch\(`https:\/\/api\.dofusdb\.fr/);
+        }
+        expect(core).not.toContain('throw new Error("DofusDB search failed")');
+        expect(core).not.toContain('throw new Error("DofusDB details failed")');
         // Le refus de quota est EXPLICITE (nom du monstre + raison), plus un throw opaque.
-        expect(actions).toContain("Quota DofusDB atteint (429)");
+        expect(core).toContain("Quota DofusDB atteint (429)");
 
         // Le message d'une erreur ne doit plus être perdu à la sérialisation.
         const logger = read("src/lib/logger.ts");

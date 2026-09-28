@@ -1,31 +1,18 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
-import { 
-    ResponsiveContainer, 
-    AreaChart, 
-    Area, 
-    XAxis, 
-    YAxis, 
-    Tooltip, 
-    CartesianGrid 
-} from "recharts";
-import { 
-    Activity, 
-    MousePointer, 
-    Flame, 
+import {
+    Activity,
+    CalendarClock,
     RefreshCw,
-    TrendingUp, 
-    Calendar,
     Search,
-    UserCheck,
     Globe,
     Cpu,
     Download,
     Layers,
-    Zap,
-    HeartPulse
+    Zap
 } from "lucide-react";
+import { TelemetryRetentionPanel } from "@/components/telemetry/telemetry-retention-panel";
 import { cn } from "@/lib/utils";
 import { getTelemetryStats, exportTelemetryDataAction } from "@/server/actions/telemetry-actions";
 import { getProductStats } from "@/server/actions/telemetry-product-actions";
@@ -58,7 +45,7 @@ export function TelemetryDashboard({
     const [isPending, setIsPending] = useState(false);
     const [isExporting, setIsExporting] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
-    const [telemetryTab, setTelemetryTab] = useState<"live" | "adoption" | "analytics" | "funnel" | "guilds" | "users">("live");
+    const [telemetryTab, setTelemetryTab] = useState<"live" | "adoption" | "retention" | "funnel">("live");
     const isRefreshingRef = useRef(false);
 
     // Stable refresh function — accepts target guild filter
@@ -143,8 +130,6 @@ export function TelemetryDashboard({
         );
     });
 
-    const activeUserCount = stats.usersLastSeen.length;
-
     return (
         <div className="space-y-10">
             {/* Header / Control Bar */}
@@ -228,12 +213,10 @@ export function TelemetryDashboard({
             {/* Sub Tabs Selection */}
             <div className="flex border-b border-border pb-1 gap-2 overflow-x-auto no-scrollbar">
                 {[
-                    { id: "live", label: "Flux Temps Réel", icon: Activity, count: filteredEvents.length },
+                    { id: "live", label: "Usage du site", icon: Activity, count: filteredEvents.length },
                     { id: "adoption", label: "Adoption par module", icon: Layers, count: initialProduct ? initialProduct.adoption.modules.length : null },
-                    { id: "analytics", label: "Analyses & Heatmap 24/7", icon: TrendingUp, count: null },
-                    { id: "funnel", label: "Funnel d'Activation", icon: Zap, count: null },
-                    { id: "guilds", label: "Santé des Guildes", icon: HeartPulse, count: stats.guildHealthList?.length || stats.guildActivity.length },
-                    { id: "users", label: "Membres Actifs", icon: UserCheck, count: activeUserCount },
+                    { id: "retention", label: "Rétention & relances", icon: CalendarClock, count: initialProduct ? initialProduct.freshness.guilds.filter((guild) => guild.status !== "ACTIVE").length : null },
+                    { id: "funnel", label: "Entonnoir d'activation", icon: Zap, count: null },
                 ].map((t) => (
                     <button
                         key={t.id}
@@ -389,229 +372,8 @@ export function TelemetryDashboard({
             {/* TAB CONTENT: ADOPTION RÉELLE DES MODULES (D-2bis) */}
             {telemetryTab === "adoption" && <TelemetryAdoptionPanel product={initialProduct} />}
 
-
-            {/* TAB CONTENT: ANALYTICS & HEATMAP */}
-            {telemetryTab === "analytics" && (
-                <div className="space-y-8 animate-in fade-in duration-200">
-                    {/* #34 / #194 — Heatmap 7 jours x 24 heures */}
-                    <div className="p-6 sm:p-8 rounded-[2rem] border border-border bg-surface shadow-sm">
-                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-                            <div className="space-y-1">
-                                <h3 className="text-sm font-black text-foreground uppercase tracking-wider flex items-center gap-2">
-                                    <Flame className="w-4 h-4 text-amber-500" />
-                                    Heatmap d'Affluence & Activité (7j / 24h)
-                                </h3>
-                                <p className="text-muted-foreground text-caption font-medium">
-                                    Intensité des connexions et actions communautaires par jour et par tranche horaire.
-                                </p>
-                            </div>
-                            <div className="flex items-center gap-2 text-caption font-bold text-muted-foreground">
-                                <span>Faible</span>
-                                <div className="flex gap-1 items-center">
-                                    <span className="w-3 h-3 rounded bg-surface border border-border" />
-                                    <span className="w-3 h-3 rounded bg-accent/20" />
-                                    <span className="w-3 h-3 rounded bg-accent/50" />
-                                    <span className="w-3 h-3 rounded bg-accent/80" />
-                                    <span className="w-3 h-3 rounded bg-accent" />
-                                </div>
-                                <span>Intense</span>
-                            </div>
-                        </div>
-
-                        {/* Heatmap Grid */}
-                        <div className="overflow-x-auto pb-2">
-                            <div className="min-w-[700px] space-y-2">
-                                {/* Hour headers */}
-                                <div className="grid grid-cols-[36px_repeat(24,minmax(0,1fr))] gap-1 text-[10px] font-mono font-bold text-muted-foreground text-center">
-                                    <div className="text-left font-black">Jour</div>
-                                    {Array.from({ length: 24 }).map((_, h) => (
-                                        <div key={h} className="text-center">{h}h</div>
-                                    ))}
-                                </div>
-
-                                {/* Heatmap Rows */}
-                                {stats.heatmapData?.map((dayData: any) => (
-                                    <div key={dayData.day} className="grid grid-cols-[36px_repeat(24,minmax(0,1fr))] gap-1 items-center">
-                                        <div className="w-8 text-caption font-black text-foreground">{dayData.day}</div>
-                                        {dayData.hours.map((hData: any) => {
-                                            const bgClass = hData.count === 0 
-                                                ? "bg-elevated/40 border border-border/30" 
-                                                : hData.intensity > 0.7 
-                                                    ? "bg-accent text-accent-foreground border border-accent" 
-                                                    : hData.intensity > 0.4 
-                                                        ? "bg-accent/60 text-white border border-accent/70" 
-                                                        : hData.intensity > 0.2 
-                                                            ? "bg-accent/35 text-foreground border border-accent/40" 
-                                                            : "bg-accent/15 text-foreground border border-accent/20";
-
-                                            return (
-                                                <div
-                                                    key={hData.hour}
-                                                    title={`${dayData.day} à ${hData.hour}h : ${hData.count} action(s)`}
-                                                    className={cn(
-                                                        "h-7 rounded-md flex items-center justify-center text-[10px] font-mono font-bold transition-transform hover:scale-125 cursor-pointer shadow-xs",
-                                                        bgClass
-                                                    )}
-                                                >
-                                                    {hData.count > 0 ? hData.count : ""}
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Hourly Trend Chart */}
-                    <div className="p-8 rounded-[2rem] border border-border bg-surface shadow-sm">
-                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-                            <div className="space-y-1">
-                                <h3 className="text-sm font-black text-foreground uppercase tracking-wider flex items-center gap-2">
-                                    <TrendingUp className="w-4 h-4 text-accent" />
-                                    Activité par heure (Dernières 24h)
-                                </h3>
-                                <p className="text-muted-foreground text-caption font-medium">Comparatif des consultations de pages et des clics d'interaction.</p>
-                            </div>
-                            <div className="flex gap-4 text-caption font-black uppercase tracking-widest">
-                                <span className="flex items-center gap-1.5 text-accent">
-                                    <span className="w-2.5 h-2.5 rounded-full bg-accent-soft border border-accent" /> Pages Vues
-                                </span>
-                                <span className="flex items-center gap-1.5 text-warning">
-                                    <span className="w-2.5 h-2.5 rounded-full bg-warning/20 border border-warning" /> Clics
-                                </span>
-                            </div>
-                        </div>
-
-                        <div className="h-[280px] w-full mt-4">
-                            {stats.chartData.length === 0 ? (
-                                <div className="h-full w-full flex items-center justify-center text-muted-foreground text-xs font-bold uppercase tracking-wider">
-                                    Pas de données suffisantes pour tracer le graphe.
-                                </div>
-                            ) : (
-                                <ResponsiveContainer width="100%" height="100%">
-                                    <AreaChart data={stats.chartData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
-                                        <defs>
-                                            <linearGradient id="viewsGrad" x1="0" y1="0" x2="0" y2="1">
-                                                <stop offset="5%" stopColor="var(--accent)" stopOpacity={0.4} />
-                                                <stop offset="95%" stopColor="var(--accent)" stopOpacity={0} />
-                                            </linearGradient>
-                                            <linearGradient id="clicksGrad" x1="0" y1="0" x2="0" y2="1">
-                                                <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.3} />
-                                                <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
-                                            </linearGradient>
-                                        </defs>
-                                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(128,128,128,0.1)" vertical={false} />
-                                        <XAxis 
-                                            dataKey="time" 
-                                            stroke="currentColor" 
-                                            className="text-muted-foreground"
-                                            tickLine={false} 
-                                            style={{ fontSize: 9, fontWeight: 800 }} 
-                                        />
-                                        <YAxis 
-                                            stroke="currentColor" 
-                                            className="text-muted-foreground"
-                                            tickLine={false} 
-                                            style={{ fontSize: 9, fontWeight: 800 }} 
-                                        />
-                                        <Tooltip 
-                                            contentStyle={{ 
-                                                backgroundColor: "var(--surface)", 
-                                                borderColor: "var(--border)",
-                                                borderRadius: "16px",
-                                                color: "var(--foreground)"
-                                            }}
-                                        />
-                                        <Area 
-                                            type="monotone" 
-                                            dataKey="views" 
-                                            stroke="var(--accent)" 
-                                            strokeWidth={2.5} 
-                                            fillOpacity={1} 
-                                            fill="url(#viewsGrad)" 
-                                        />
-                                        <Area 
-                                            type="monotone" 
-                                            dataKey="interactions" 
-                                            stroke="#f59e0b" 
-                                            strokeWidth={2.5} 
-                                            fillOpacity={1} 
-                                            fill="url(#clicksGrad)" 
-                                        />
-                                    </AreaChart>
-                                </ResponsiveContainer>
-                            )}
-                        </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        {/* Top Visited Pages */}
-                        <div className="p-6 rounded-3xl border border-border bg-surface">
-                            <h3 className="text-xs font-black text-muted-foreground uppercase tracking-widest mb-6 flex items-center gap-2">
-                                <Globe className="w-4 h-4 text-accent" />
-                                Pages les plus populaires
-                            </h3>
-                            <div className="space-y-4">
-                                {stats.topPaths.length === 0 ? (
-                                    <p className="text-muted-foreground text-xs italic">Aucune visite enregistrée</p>
-                                ) : (
-                                    stats.topPaths.map((item: any) => {
-                                        const maxVal = stats.topPaths[0]?.count || 1;
-                                        const pct = Math.max(5, (item.count / maxVal) * 100);
-                                        return (
-                                            <div key={item.path} className="space-y-1.5">
-                                                <div className="flex justify-between text-xs font-bold text-foreground">
-                                                    <span className="truncate max-w-[350px] font-mono text-caption">{item.path}</span>
-                                                    <span className="text-muted-foreground">{item.count} vues</span>
-                                                </div>
-                                                <div className="h-1.5 w-full bg-elevated rounded-full overflow-hidden">
-                                                    <div 
-                                                        className="h-full bg-accent rounded-full" 
-                                                        style={{ width: `${pct}%` }}
-                                                    />
-                                                </div>
-                                            </div>
-                                        );
-                                    })
-                                )}
-                            </div>
-                        </div>
-
-                        {/* Top Interactions (Clicks) */}
-                        <div className="p-6 rounded-3xl border border-border bg-surface">
-                            <h3 className="text-xs font-black text-muted-foreground uppercase tracking-widest mb-6 flex items-center gap-2">
-                                <MousePointer className="w-4 h-4 text-amber-500" />
-                                Actions les plus cliquées
-                            </h3>
-                            <div className="space-y-4">
-                                {stats.topInteractions.length === 0 ? (
-                                    <p className="text-muted-foreground text-xs italic">Aucune interaction enregistrée</p>
-                                ) : (
-                                    stats.topInteractions.map((item: any) => {
-                                        const maxVal = stats.topInteractions[0]?.count || 1;
-                                        const pct = Math.max(5, (item.count / maxVal) * 100);
-                                        return (
-                                            <div key={item.elementId} className="space-y-1.5">
-                                                <div className="flex justify-between text-xs font-bold text-foreground">
-                                                    <span className="truncate max-w-[350px] font-mono text-caption text-amber-500">{item.elementId}</span>
-                                                    <span className="text-muted-foreground">{item.count} clics</span>
-                                                </div>
-                                                <div className="h-1.5 w-full bg-elevated rounded-full overflow-hidden">
-                                                    <div 
-                                                        className="h-full bg-amber-500 rounded-full" 
-                                                        style={{ width: `${pct}%` }}
-                                                    />
-                                                </div>
-                                            </div>
-                                        );
-                                    })
-                                )}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
+            {/* TAB CONTENT: RÉTENTION & GUILDES À RELANCER (D-2bis) */}
+            {telemetryTab === "retention" && <TelemetryRetentionPanel product={initialProduct} />}
 
             {/* TAB CONTENT: ACTIVATION FUNNEL */}
             {telemetryTab === "funnel" && (
@@ -673,165 +435,6 @@ export function TelemetryDashboard({
                 </div>
             )}
 
-            {/* TAB CONTENT: ACTIVE USERS */}
-            {telemetryTab === "users" && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 animate-in fade-in duration-200">
-                    {/* Top Users */}
-                    <div className="p-6 rounded-3xl border border-border bg-surface">
-                        <h3 className="text-xs font-black text-muted-foreground uppercase tracking-widest mb-6 flex items-center gap-2">
-                            <UserCheck className="w-4 h-4 text-emerald-500" />
-                            Membres les plus actifs
-                        </h3>
-                        <div className="space-y-4">
-                            {stats.topUsers.length === 0 ? (
-                                <p className="text-muted-foreground text-xs italic">Aucun utilisateur actif</p>
-                            ) : (
-                                stats.topUsers.map((item: any) => (
-                                    <div key={item.userId} className="flex justify-between items-center py-2 border-b border-border last:border-0">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-7 h-7 rounded-lg bg-elevated flex items-center justify-center border border-border text-caption font-black text-emerald-500">
-                                                {item.userName.substring(0, 2).toUpperCase()}
-                                            </div>
-                                            <div>
-                                                <span className="text-xs font-bold text-foreground block leading-tight">{item.userName}</span>
-                                                <span className="text-caption text-muted-foreground font-semibold uppercase">{item.guildName}</span>
-                                            </div>
-                                        </div>
-                                        <span className="text-caption font-black uppercase text-muted-foreground bg-elevated px-2 py-1 rounded-md border border-border">
-                                            {item.count} act.
-                                        </span>
-                                    </div>
-                                ))
-                            )}
-                        </div>
-                    </div>
-
-                    {/* Qui s'est connecté quand (Dernières connexions 30 jours) */}
-                    <div className="p-6 rounded-3xl border border-border bg-surface">
-                        <h3 className="text-xs font-black text-muted-foreground uppercase tracking-widest mb-6 flex items-center gap-2">
-                            <Calendar className="w-4 h-4 text-accent" />
-                            Historique des connexions (30j)
-                        </h3>
-                        <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1 scrollbar-thin">
-                            {!stats.usersLastSeen || stats.usersLastSeen.length === 0 ? (
-                                <p className="text-muted-foreground text-xs italic">Aucune connexion enregistrée</p>
-                            ) : (
-                                stats.usersLastSeen.map((item: any) => (
-                                    <div key={item.userId} className="flex justify-between items-center py-2 border-b border-border last:border-0 text-caption">
-                                        <div className="min-w-0">
-                                            <span className="font-bold text-foreground block truncate">{item.userName}</span>
-                                            <span className="text-caption text-muted-foreground font-semibold uppercase truncate block">{item.guildName}</span>
-                                        </div>
-                                        <span className="text-caption font-semibold text-muted-foreground bg-elevated px-2 py-1 rounded border border-border shrink-0">
-                                            {item.lastActive ? new Date(item.lastActive).toLocaleDateString("fr-FR", {
-                                                day: "2-digit",
-                                                month: "2-digit",
-                                                hour: "2-digit",
-                                                minute: "2-digit"
-                                            }) : "Jamais"}
-                                        </span>
-                                    </div>
-                                ))
-                            )}
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* TAB CONTENT: GUILD HEALTH MATRIX */}
-            {telemetryTab === "guilds" && (
-                <div className="space-y-6 animate-in fade-in duration-200">
-                    <div className="p-6 sm:p-8 rounded-[2rem] border border-border bg-surface shadow-sm">
-                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-                            <div className="space-y-1">
-                                <h3 className="text-sm font-black text-foreground uppercase tracking-wider flex items-center gap-2">
-                                    <HeartPulse className="w-4 h-4 text-emerald-500" />
-                                    Matrice de Santé & Rétention des Guildes (Guild Health Index)
-                                </h3>
-                                <p className="text-muted-foreground text-caption font-medium">
-                                    Statut et rang centile dérivés de la distribution observée sur 7 j (quartiles du
-                                    classement d'activité réelle du journal d'audit). Aucun seuil arbitraire n'est
-                                    appliqué : le score est un rang dans l'échantillon, pas une note absolue.
-                                </p>
-                            </div>
-                        </div>
-
-                        {/* Guild Health Table */}
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-left text-xs border-collapse">
-                                <thead>
-                                    <tr className="border-b border-border text-[10px] font-black uppercase text-muted-foreground tracking-wider">
-                                        <th className="py-3 px-4">Guilde</th>
-                                        <th className="py-3 px-4">Santé Produit</th>
-                                        <th className="py-3 px-4">Rang centile</th>
-                                        <th className="py-3 px-4">Activité 7j</th>
-                                        <th className="py-3 px-4 text-right">Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-border/60">
-                                    {stats.guildHealthList?.map((g: any) => {
-                                        const statusBadge = 
-                                            g.healthStatus === "THRIVING" 
-                                                ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
-                                                : g.healthStatus === "HEALTHY"
-                                                    ? "bg-blue-500/10 text-blue-500 border-blue-500/20"
-                                                    : g.healthStatus === "AT_RISK"
-                                                        ? "bg-amber-500/10 text-amber-500 border-amber-500/20"
-                                                        : "bg-zinc-500/10 text-zinc-500 border-zinc-500/20";
-
-                                        const statusLabel = 
-                                            g.healthStatus === "THRIVING" 
-                                                ? "🌟 Hyper-Active"
-                                                : g.healthStatus === "HEALTHY"
-                                                    ? "✅ En Bonne Santé"
-                                                    : g.healthStatus === "AT_RISK"
-                                                        ? "⚠️ À Risque"
-                                                        : "💤 En Sommeil";
-
-                                        return (
-                                            <tr key={g.id} className="hover:bg-elevated/40 transition-colors">
-                                                <td className="py-3 px-4 font-bold text-foreground">
-                                                    {g.name}
-                                                </td>
-                                                <td className="py-3 px-4">
-                                                    <span className={cn("px-2.5 py-1 rounded-full text-[10px] font-black border", statusBadge)}>
-                                                        {statusLabel}
-                                                    </span>
-                                                </td>
-                                                <td className="py-3 px-4">
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="font-mono font-bold text-foreground">{g.healthScore}/100</span>
-                                                        <div className="w-16 h-1.5 bg-elevated rounded-full overflow-hidden">
-                                                            <div 
-                                                                className={cn(
-                                                                    "h-full rounded-full",
-                                                                    g.healthStatus === "THRIVING" ? "bg-emerald-500" : g.healthStatus === "HEALTHY" ? "bg-blue-500" : "bg-amber-500"
-                                                                )}
-                                                                style={{ width: `${g.healthScore}%` }}
-                                                            />
-                                                        </div>
-                                                    </div>
-                                                </td>
-                                                <td className="py-3 px-4 font-mono font-bold text-muted-foreground">
-                                                    {g.actions7d} actions
-                                                </td>
-                                                <td className="py-3 px-4 text-right">
-                                                    <button
-                                                        onClick={() => handleGuildChange(g.id)}
-                                                        className="px-2.5 py-1 rounded-lg bg-surface border border-border text-[11px] font-bold text-muted-foreground hover:text-foreground hover:bg-elevated transition-colors"
-                                                    >
-                                                        Filtrer
-                                                    </button>
-                                                </td>
-                                            </tr>
-                                        );
-                                    })}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-            )}
         </div>
     );
 }

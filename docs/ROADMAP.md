@@ -300,7 +300,7 @@
 ## 🧩 Session 22/09/2026 (suite 11) — **Audit A→Z des boutons game-data + FIN DES 429 : 25 `fetch()` bruts routés vers le limiteur partagé · lot items 100/2,1 s (cadence limiteur) · 5 actions mortes supprimées (340 lignes) · boss de Défi sur le catalogue LOCAL** · branche `fix/sim-previsu-blocs`
 > **Demande user (verbatim)** : « il faut creuser dans les moindres détails chaque bouton, voir si ils sont fonctionnels, utilisés etc · ne me pose plus de questions va au bout des choses A à Z » (après : « 500 000 boutons qui marchent presque jamais », 429, crashes de siphon).
 > **Audit (inventaire scripté)** : module game-data = **15 onglets**, ~**50 boutons**, **101 actions serveur**. Chaque bouton mappé `étiquette → handler → action`. ⚠️ La sonde a produit des métriques LOC/garde **fausses** (annonçait `createZone` = 2 lignes sans garde) : elles ont été **jetées après vérification par lecture**. **Verdicts vérifiés** : « Associer famille (auto) » = réel et **écrit** (`db.zone.update`, l.638) mais dépend d'archimonstres porteurs de zone ⇒ impression « ça ne marche pas » ; « Syn Zones (DofusDB) » = réel (pagination `subareas`) mais **sans retry** et **piloté par le navigateur** ; `siphonGameItemsBatch` plafonné à **100**/appel ⇒ 21 776 items = **218 allers-retours** depuis l'onglet. **Coupable des 429** : `game-data-actions.ts` faisait **25 `await fetch()` bruts** alors qu'un limiteur existe (`src/lib/dofusdb-limiter.ts` : fenêtre Redis **30 req/min/hôte**, `Retry-After` honoré + 1 rejeu, compteur 429 + alerte God) ; et la boucle items patientait **350 ms** ⇒ fenêtre saturée en ~10 s ⇒ 429 en boucle ⇒ retries 2/4/8/16 s ⇒ abandon.
-> **Fait** : ① **25 `fetch()` bruts → `dofusDbFetch`** ; ② **lot items 50 → 100** + **pause 350 ms → 2 100 ms** (cadence du limiteur) ⇒ 2× moins d'appels et plus de 429 structurel ; ③ **5 actions mortes supprimées** (jamais appelées : `siphonBountiesAction`, `addDungeonAchievement`, `removeDungeonAchievement`, `updateDungeonAchievementPoints`, `getDofensiveMonster`) = **340 lignes** en moins, test du mort retiré avec lui ; ④ **boss de Défi sur notre catalogue local** (`dungeon-monsters.json`, ≈800 monstres) avant complément `MonsterStat` → fin des « Aucun monstre trouvé » hors donjon. Suppression par **AST TypeScript** (bornes exactes) après qu'une **première passe regex ait emporté des helpers voisins** (`normalizeZone`, `ZoneSchema`) — restaurés depuis git (fichiers propres avant ⇒ aucune perte).
+> **Fait** : ① **25 `fetch()` bruts → `dofusDbFetch`** ; ② **lot items 50 → 100** + **pause 350 ms → 2 100 ms** (cadence du limiteur — ⚠️ **re-mesuré le 24/09/2026** : le plafond réel de l'API est **50**, appliqué par `GAME_ITEMS_BATCH_SIZE = DOFUSDB_PAGE_MAX`, `src/lib/game-items-cadence.ts:15` ; cf. chantier **A4** de « 🚧 Chantiers ouverts ») ⇒ 2× moins d'appels et plus de 429 structurel ; ③ **5 actions mortes supprimées** (jamais appelées : `siphonBountiesAction`, `addDungeonAchievement`, `removeDungeonAchievement`, `updateDungeonAchievementPoints`, `getDofensiveMonster`) = **340 lignes** en moins, test du mort retiré avec lui ; ④ **boss de Défi sur notre catalogue local** (`dungeon-monsters.json`, ≈800 monstres) avant complément `MonsterStat` → fin des « Aucun monstre trouvé » hors donjon. Suppression par **AST TypeScript** (bornes exactes) après qu'une **première passe regex ait emporté des helpers voisins** (`normalizeZone`, `ZoneSchema`) — restaurés depuis git (fichiers propres avant ⇒ aucune perte).
 > **Preuves** : `tsc` **0** · **197 fichiers / 2 160 tests** ✓ · `eslint` **0 erreur** (−8 avertissements) · sondes `src/temp` supprimées.
 > **Livré dans la foulée** : ① **état par dataset + progression vraie** — `src/lib/game-data-sync-state.ts` (Redis, TTL 7 j, **sans migration** : statut, `done/total`, %, message, dernière exécution, dernière erreur) + action `getGameDataSyncStates` + **tableau « État des datasets »** monté sur **les 2 onglets** (état ET siphon), rafraîchi toutes les 3 s pendant un run ; le faux « 0 % » devient « en cours… » quand le total est inconnu. ② **exécution en arrière-plan** — `src/lib/queue/game-data-queue.ts` (idempotent par dataset, attempts 3 + backoff) + `src/workers/game-data-worker.ts`, **enregistré dans le worker principal** (`metamob-worker` : en prod le conteneur exécute `node ./worker.js` bundlé, un worker non enregistré ne tournerait **jamais**) ; catalogue JSON et avis de recherche tournent côté serveur, survivent à la fermeture de l'onglet et **reprennent** ; mise en file **fail-closed** (`getWorkers()` = 0 ⇒ refus, jamais de job fantôme). Garde : `tests/unit/game-data-sync-state.test.ts` (**9 cas**, dont « le module importé par un composant client ne tire jamais `bullmq` dans le bundle navigateur »).
 > **Reste** : ③ ~~cartes par dataset~~ → **fait en suite 12** (4 onglets, éditeurs en maître/détail, outils locaux séparés) ; ④ veille des annonces DofusDB ; ⑤ étendre la file aux autres datasets (leur cœur doit d'abord descendre dans `src/lib`).
@@ -604,6 +604,127 @@
    (hors dépôt) et `docs/audits/`. (Historique → consultation ponctuelle uniquement.)
 
 ---
+
+## 🚧 Chantiers ouverts — ordre d'exécution (état **mesuré le 28/09/2026**)
+
+> **3 chantiers + 1 sous-demande** sont ouverts. Une idée hors brief se note **ici**, jamais dans le code.
+> Ordre voulu par le user : **A. les siphons game-data d'abord** (« on a commencé par les pb des siphons »),
+> puis **B. `/admin/members`**, puis **C. les tickets**. 1 chantier = 1 branche = 1 PR → `dev`
+> (jamais `main`/`dev`). Brouillon de travail de la session : `src/temp/chantier-actif.md` (zone volatile,
+> **jamais** versionnée — `docs/agents/zone-volatile.md`).
+> ⚠️ Les compteurs ci-dessous sont ceux **re-mesurés** le 28/09 ; ceux du mémo de la session précédente
+> étaient périmés (ex. `member-management-table.tsx` n'est **pas** sous `members/`).
+
+| # | Chantier | État | Décision / dépendance ouverte |
+|---|---|---|---|
+| **A** | God **game-data** : les siphons d'arrière-plan échouent, l'écran ne se lit pas (4 lots mesurés) | **rien codé** | aucune — **A1 part seul, immédiatement** |
+| **B** | `/dashboard/[guildId]/admin/members` : déslop + 1 liste + 1 modale **+ « éditer tout le monde »** | rien codé, cible écrite | **migration** pour le registre hors dashboard ; lot **B-1** (lecture + actions simples) ou **B-2** (éditeurs lourds dans la modale) |
+| **C** | Module **tickets** : finir le module (exécutants SLA/auto-fermeture, i18n EN, doublons FR/EN, langue par serveur) | moteur livré (#778, #779) | **bascule de langue par serveur** = demande user **non mesurée** (mesure à faire avant codage) |
+
+### A. Siphons game-data — « pk c 300 dans chaque type ? » · « pk toutes ces erreurs ? » · « pk rien n'est responsive nulle part ? » · « ca fait 100x qu'on refais game-data depuis 1 an […] je sature de pas avoir un truc pro à l'épreuve des balles »
+
+#### A1 — 🔴 `ENOENT: /browser/default-stylesheet.css` : les siphons d'arrière-plan échouent (cause racine prouvée)
+
+Chaîne d'import (metafile esbuild du bundle worker) :
+
+```
+src/workers/metamob-worker.ts:14       → import "./game-data-worker"
+src/workers/game-data-worker.ts:83     → await import("../lib/anomaly-boss-siphon")
+src/lib/anomaly-boss-siphon.ts:471-472 → await import("@/server/actions/game-data-actions")
+                                         + await import("@/server/actions/dofensive-actions")
+src/server/actions/game-data-actions.ts → src/lib/security.ts:1 → isomorphic-dompurify → node_modules/jsdom
+```
+
+- jsdom lit `path.resolve(__dirname, "../../../browser/default-stylesheet.css")` (`node_modules/jsdom/lib/jsdom/living/css/helpers/computed-style.js:18`, **vérifié**) ; le bundle esbuild l'**inline tel quel**.
+- `Dockerfile:145` déploie le worker en **`/app/worker.js`** ⇒ trois `..` ⇒ **`/browser/default-stylesheet.css`** = **exactement** le message de la capture user.
+- Un module qui lève pendant son **évaluation** est **réévalué** au `import()` suivant ⇒ **une erreur par item** (1 par avis, 1 par gardien). `BOUNTIES` et `ANOMALY_BOSSES` font partie des datasets d'arrière-plan (`src/lib/game-data-sync-state.ts:63`) : ils échouent **en arrière-plan** et réussissent « dans l'onglet » — l'incohérence constatée.
+
+**À faire (au bon étage)** : ① descendre le **cœur** de `getMonsterStats` (`game-data-actions.ts`) et de `getDofensiveSpells` (`dofensive-actions.ts`) dans `src/lib/**` (I/O injectable, sans `@/auth`), les actions devenant des **enveloppes minces** — **déplacer, pas dupliquer** · ② `src/lib/anomaly-boss-siphon.ts` n'importe **plus jamais** `@/server/actions/**` · ③ **garde de test statique** : « aucun fichier `src/lib/**` n'importe `@/server/actions/**` » · ④ ⚠️ **ne pas** « réparer » avec `--external:jsdom` dans `build:worker` : on remplacerait une panne **explicite** par une panne **silencieuse** (runtime worker sans modules tracés).
+**Fichiers** : `src/lib/anomaly-boss-siphon.ts` · `src/server/actions/game-data-actions.ts` · `src/server/actions/dofensive-actions.ts` · cœur(s) neuf(s) `src/lib/**` · `tests/unit/**`.
+
+#### A2 — 🟠 « DofusDB a renvoyé HTTP 429 » : ce 429 est souvent **le nôtre**
+
+- `src/lib/dofusdb-limiter.ts:131-142` : slot non acquis → `sleep(2000)` → re-tente → sinon **rend** `new Response('{"error":"rate-limited (local)"}', { status: 429 })` (`:137`) — budget **30 req/min/hôte** (`:18`), fenêtre **60 s** (`:19`).
+- `src/lib/game-items-siphon.ts:102-104` traduit tout `!res.ok` en `DofusDB a renvoyé HTTP ${res.status}` ⇒ message **mensonger**, et la passe entière échoue au lieu d'attendre.
+- **Marge réelle quasi nulle** : lot = **50** (`src/lib/game-items-cadence.ts:15`, `DOFUSDB_PAGE_MAX` mesuré le 24/09) + pause **2 100 ms** (`:22`) ⇒ ~**28,6 req/min sur 30** ⇒ la moindre requête concurrente (veille du cron, autre dataset, autre écran God) fait déborder.
+- Même cause pour **REFERENTIALS** : `src/lib/market/referential-pagination.ts:78` (1 essai + 1 rejeu à 1 000 ms) ⇒ page abandonnée (`failedPages`) ⇒ `truncated` ⇒ « Référentiel incomplet (page DofusDB en échec) ».
+
+**À faire** : marquer la 429 locale (`x-sigilos-throttle: local`) · **attendre et rejouer** (backoff borné) au lieu de lever · message **honnête** (« limite locale atteinte, N pages en attente ») · **un seul siphon réseau à la fois** (jeton Redis partagé worker / cron / « ici ») · cadence avec **marge > 10 %**.
+⚠️ Le titre de la session 22/09 (« FIN DES 429 ») est **démenti** par les mesures ci-dessus : la 429 qui reste est **la nôtre**.
+
+#### A3 — 🟠 Tableau & Journal illisibles, et non responsive
+
+| Constat | Preuve (re-vérifiée le 28/09/2026) |
+|---|---|
+| « Tout (300) » = un **plafond d'affichage**, pas un total ; la rétention réelle est **500** par dataset | `src/components/admin/GameDataChangeLogModal.tsx:95` (`limit: 300`) vs `src/lib/game-data-changelog.ts:22` (`KEEP_PER_DATASET = 500`) et `:245` (clamp `Math.min(…, 300)`) |
+| Les chips de la modale (« Tous / Nouveaux / Modifiés / Supprimés ») comptent les **lignes chargées**, pas les totaux réels | `GameDataChangeLogModal.tsx:117-121` + `:136` ; le seul `groupBy` existant ventile par **dataset** (`src/lib/game-data-changelog.ts:294-300`) |
+| Erreur brute **non bornée** dans une cellule | `src/components/admin/GameDataSyncStatePanel.tsx:180` (`min-w-[46rem]`) ⇒ une ligne = ~10 lignes de rouge |
+| Valeurs du journal rendues en **JSON brut** | `GameDataChangeLogModal.tsx:64` (`JSON.stringify`) |
+| Erreurs **identiques non regroupées** : une ligne par item | `src/lib/bounty-siphon.ts:312` (`errors.push(\`Avis ${name}: …\`)`) — capture user : ~96 lignes rouges identiques |
+
+**À faire** : compteurs **réels** côté serveur (groupBy `changeType`) + « 300 derniers sur N » avec chargement jusqu'à la rétention · erreurs **regroupées par cause** + compteur · valeurs du journal rendues **lisibles** (id → nom via les référentiels déjà en base) · tableau → **cartes < 1024 px** (politique : `docs/plans/PLAN-REFONTE-GOD-GUILDES.md` §8.3).
+
+#### A4 — 🔵 Une ligne devenue fausse (mémoire)
+
+Le bloc « Audit A→Z des boutons game-data » (session 22/09) annonce « **lot items 50 → 100** + pause 350 ms → 2 100 ms ». Le plafond API **re-mesuré le 24/09** est **50** (`DOFUSDB_PAGE_MAX`, appliqué par `src/lib/game-items-cadence.ts:15`). À corriger **dans le même commit que A2** (règle `AGENTS.md` §9).
+
+#### A — Definition of Done
+
+- [ ] A1 : plus aucun `@/server/actions/**` importé depuis `src/lib/**` (**garde de test** qui échoue si ça revient) + garde « le bundle worker ne contient pas jsdom » (metafile esbuild).
+- [ ] A2 : test pur « la 429 locale n'est jamais présentée comme une 429 DofusDB » + rejeu borné.
+- [ ] A3 : test des compteurs réels (groupBy) + 3 captures 1440 / 1024 / 390 (dans `src/temp/`, **jamais** versionnées).
+- [ ] `npm run test:run` · `npx tsc --noEmit` · `npm run lint` verts · `git status --short` propre · PR → `dev`.
+
+### B. `/dashboard/[guildId]/admin/members` — déslop + 1 liste + 1 modale + **« éditer tout le monde »**
+
+**Demande user (verbatim)** : « il faut désloper le titre etc et appliquer notre politique UI » · « Regrouper “Profils & Actions” “Registre Recrutement” “Audit Discord & Sync” dans une seule boîte » · « on conserverait 2 onglets : Membre et Roster / Blacklist guilde » · « chaque personne est cliquable : on retrouve toutes les infos […] dans une modale par membre » · **« 1 autre feature : on doit pouvoir éditer tout le monde, pas de lecture seule ici »** (capture du 28/09 : lignes « Hors dashboard » du registre).
+
+**Mesures (re-faites le 28/09/2026 — celles du mémo précédent étaient périmées)** :
+
+- **3 785 lignes pour un écran** : `member-management.tsx` **950** · `member-registry-table.tsx` **1 340** · `src/components/admin/member-management-table.tsx` **939** · `member-blacklist.tsx` **451** · `page.tsx` **105**.
+- **Les 2 onglets existent déjà** (`member-management.tsx:420-421` : « 👥 Membres & Roster » / « 🚫 Blacklist Guilde ») ; l'onglet 1 garde **3 sous-vues** en switcher (« Profils & Actions » / « Registre Recrutement » / « Audit Discord & Sync », `:457-500`) ⇒ c'est **là** qu'un même membre apparaît 2-3 fois (racine du « pk les non présents dashboard y sont pas ? »).
+- **Titre en double** : `page.tsx:56` `<h1>Membres & Recrutement</h1>` **et** `member-management.tsx:392` `<h1>Gestion Membres</h1>` (+ sous-titre `italic uppercase tracking-[0.2em]`, `:395`).
+- **Pointeur mort mesuré** : `src/components/tour/tour-provider.tsx:459` cible `[data-tour="admin-members-tools"]` — cet attribut n'existe **nulle part** dans `src/**` ⇒ étape de visite fantôme.
+- **Liens & ancres à ne pas casser** : `src/app/dashboard/[guildId]/admin/recruitment/page.tsx:30` (`?tab=registre`) · `src/components/layout/app-sidebar.tsx` · `src/components/admin/governance-widget.tsx` · `src/app/dashboard/[guildId]/admin/page.tsx` · visite `adminMembers` + ancres `admin-members-header` (`tour-provider.tsx:445`) / `admin-members-table` (`:452`).
+- ⚠️ **`member-management-table.tsx` a 3 consommateurs** (`member-management.tsx:517`, `src/app/god/guilds/[id]/page.tsx:134`, `src/app/dashboard/[guildId]/admin/settings/page.tsx:25`) ⇒ il ne se supprime **qu'après** rebascule de ces deux autres écrans (sinon régression God + Réglages).
+
+**Cible** : **une seule liste** (tous les humains Discord, profil dashboard **ou non**) + filtres de base (recherche libre · inscription Tous / Dashboard / Hors dashboard (N) · rôle Discord · statut Actifs / Archivés / Exclus · tri · pagination **numérotée**) · **modale par membre** = les 3 sections aujourd'hui séparées (Profil & actions · Registre · Discord) · **déslop** : 1 seul `h1`, jetons sémantiques, 0 halo/glow, ≤ 3 rayons, 0 emoji dans un libellé structurant, cartes < 768 px.
+
+**Zéro nouvelle logique serveur** (réutiliser, jamais dupliquer) : vérité Discord = `src/server/actions/member-actions.ts` (`getMemberReconciliation`) · registre RH = `member-lifecycle-actions.ts` (`getGuildLifecycleData`) · rôles par profil + hors dashboard = `getMemberRegistryDiscordIndex` (`:439`) · statut = `getGuildMembers` · règles pures = `src/lib/member-registry.ts` · dialogues réutilisables = `member-registry-comments-dialog.tsx`, `relance-modal.tsx`, `vacation-edit-dialog.tsx`.
+
+**Sous-demande « éditer tout le monde » — cause racine mesurée** : le badge « lecture seule » (`member-registry-table.tsx:1029` ; branche `discordOnlyRows` `:978-1030` desktop / `:723-769` mobile) vient de `getMemberRegistryDiscordIndex` = membres Discord **sans `UserProfile`**. Or **tout** le registre RH vit sur `UserProfile` (`prisma/schema.prisma:654-812` : `pseudoDofus`, `ankamaId`, `guildJoinedAt`, `recruitedById`, `trialValidated`, `trialEndsAt`, `altPseudos`) et le journal `MemberRegistryComment.profileId` est **non nullable** (`:819`) ; les 6 écritures n'acceptent qu'un `profileId` (`member-lifecycle-actions.ts` : `registryIdentitySchema`, `trialStateSchema`, `altsSchema`, `registryCommentSchema`, `updateMemberRecruiter`, `updateMemberAlts`). ⇒ **il n'y a pas d'étagère** pour ces données : lever la lecture seule = **trancher le stockage** (⇒ **migration**, donc arrêt + décision user — `docs/agents/prisma-schema-change.md`).
+
+Deux voies possibles (décision **ouverte**) :
+
+- **① Table dédiée** — `MemberRegistryEntry` (`guildId` + `discordId`, `@@unique`) + `MemberRegistryComment.discordId` nullable (profil **xor** discord, garanti par Zod + test) : additive, « hors dashboard » garde son sens, et la refonte B la consomme. Les écritures prennent un **sujet** (`profileId` **ou** `discordId`) ; RBAC `canManageMembers`, `guildId` résolu **côté serveur** et audit restent inchangés ; le CSV du registre inclut alors les deux natures de lignes.
+- **② Pré-création de profil** — `User` + `UserProfile` + `Account` Discord au premier enregistrement : **0 migration**, mais le membre cesse d'être « hors dashboard » (couverture « Inscrits Dashboard » faussée) et on crée un compte plateforme pour quelqu'un qui ne s'est jamais inscrit.
+
+**Effet de bord à corriger dans le même lot** : `matchesDiscordOnlyFilters` (`src/lib/member-registry.ts`) exclut aujourd'hui les filtres *essai* / *recruteur* pour ces lignes (« elles ne portent pas ces données ») — faux dès qu'on sait les saisir (règle pure + `tests/unit/member-registry-filters.test.ts`).
+
+**Lots** : **B-1** (livrable seul) `src/lib/member-roster.ts` (fusion + filtres purs, testés — *à créer*) · `member-roster-list.tsx` (liste unique, cartes < 768 px — *à créer*) · `member-detail-dialog.tsx` (lecture des 3 sections + actions simples — *à créer*) · réécriture déslopée de `member-management.tsx` · `page.tsx` (1 seul `h1`, ancres conservées) · `tour-provider.tsx` (3 étapes → 2, cible réelle). **B-2** : éditeurs lourds (identité, recruteur, mules, essai, journal) **dans** la modale, puis **suppression** de `member-registry-table.tsx` et de `member-management-table.tsx` (jamais avant : ni doublon, ni code mort — cf. les **3 consommateurs** ci-dessus) · `admin/recruitment/page.tsx` (`?tab=roster`) · `src/lib/docs-catalog.ts` (`admin-members` = 2 onglets) + `npm run seed:docs`.
+
+### C. Module **tickets** — finir le module
+
+**Source de vérité** : `docs/plans/PLAN-REFONTE-TICKETS-V2.md` §1 (« Où en est le chantier », tableau lot par lot) — **ne rien recopier ici**.
+
+**Livré** : moteur v2 (#724) · boutons staff complets FR/EN + matrice 4 groupes × Ouvert/Fermé + Motifs (20Q, qui remplacent Parcours + Catégories) + plafonds God + purge janitor (#778, #779).
+
+**À faire (mesuré)** : ① **SLA / auto-fermeture / purge / quota serveur** = réglages **encore affichés, aucun exécutant** · ② `THREAD_PRIVATE` **ignoré** (dit, non proposé) · ③ **i18n EN du dashboard** (les textes Discord sont FR/EN, l'écran non) · ④ guide in-app `admin-tickets` **existant** (`src/lib/docs-catalog.ts:1171`) à mettre à jour (onglet Motifs, matrice, plafonds) puis `npm run seed:docs` · ⑤ reliquats v1 (`TicketBotCategory`, `TicketJourney`) conservés en base pour les tickets existants : à trancher.
+
+**Demandes user non mesurées (à cadrer AVANT de coder)** : **doublons FR/EN** (textes dupliqués à trancher) · **bascule de langue par serveur** (une langue par guilde) · suppression des reliquats « motif / formulaire ».
+
+**Ops** : « Tout passer en Motifs » (bêta puis prod) + contrôle visuel (modal Motifs, matrice, boutons salon).
+
+### Reste épars — déjà consigné ailleurs (ne pas dupliquer)
+
+- **Ouverture prod / SEO** → « 🔴 Bloquant / Prod » ci-dessous (`#57` + robots.txt / sitemap / llms.txt).
+- **Marché · lot multiple** → « Reste » du bloc 11/09 (assistant, étape Publication, message multi Discord, réservation d'un objet).
+- **Avis** → même forme d'URL à vérifier ailleurs (4 copies de `MonsterImage` + overlay Ocre qui publie encore `/uploads/assets-dofus/…`), bloc 27/09 (suite 2).
+- **Rappels DJ / événements / Songes** → purge `outbox` non résolue = best-effort (décision : colonne `messageKey` ?) + 4 lignes crontab VPS à poser, bloc 28/09 (rappels).
+- **Simulation tactique** → Lot 2 (mesurer les données de dégâts) + Lot 3 (visuel premium), « 🟠 Bloc B » ci-dessous.
+- **Base de jeu** → `MonsterStat` pas encore iso DofusDB par grade (résistances / stats / butin / `bonusCharacteristics`), doublons historiques à supprimer (`qilby-2`, `agonie-la-deterree-2`), backfill ≈ 5 135 fiches (~14 h de temps API), blocs 27/09 (suite 3 et suite 4).
+
+**Règle de tenue de cette section** : un chantier livré **sort** de ce tableau en fin de session (son état part dans un bloc de session, **en haut du fichier**) ; cette section ne contient que l'**ouvert**, et tout chemin cité doit **exister** dans le dépôt.
 
 ## 🔴 Bloquant / Prod
 

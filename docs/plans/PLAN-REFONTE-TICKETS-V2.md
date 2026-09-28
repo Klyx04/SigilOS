@@ -1,5 +1,14 @@
 # 🎫 Refonte « Tickets v2 » — plan vivant (où en est le module, ce qui reste)
 
+> Le **28/09/2026**, l'onglet « Parcours » et « Catégories & Modals » ont été
+> **remplacés par un onglet unique « Motifs »** (`ticket-motifs-tab.tsx`) :
+> un motif = un bouton sur un panneau + salon + équipe + fermeture + questionnaire
+> (20 questions, 4 natures), enregistré = publié. Les tables `TicketBotCategory`
+> (v1) et `TicketJourney` restent en base (tickets existants intacts) ; les
+> catégories se convertissent en un clic (`migrateCategoriesToMotifsAction`,
+> idempotent, panneaux remappés). Fichiers supprimés : `ticket-categories-tab.tsx`,
+> `ticket-journeys-tab.tsx` ; actions d'édition v1 supprimées (lecture gardée).
+
 > **Rôle de ce fichier** : dire **où en est** le module Tickets et **ce qui reste pour le
 > boucler**, dans l'ordre, avec les fichiers exacts. Il remplace le brouillon de session
 > `temp/PROMPT-REPRISE-TICKETS-V2.md` (zone volatile, non versionnée).
@@ -17,7 +26,11 @@
 | Ping de rôles à l'ouverture (parcours, repli équipe) | ✅ écrit + testé (10 cas) | PR #725 · `notifications.ts` + migration `20261222000000_tickets_journey_notify_roles` |
 | **Écran « Parcours »** (onglet + assistant) | ✅ **écrit** (PR #725) | `_components/tabs/ticket-journeys-tab.tsx` (règles : `journey-wizard.ts`, 38 cas) |
 | **Branchement Discord** (panneaux + route + création depuis un parcours) | ✅ **fait** (PR #725) | `journey-dispatch.ts` · `src/server/tickets/journey-open.ts` · route d'interactions · `internalHandleTicketCreate` |
-| Onglets Formulaires (T2) / Équipe (T3) | ❌ | actions serveur livrées (10) |
+| Onglets Formulaires (T2) / Équipe (T3) | ✅ **remplacés** (28/09/2026) | constructeur 20Q **intégré au motif** (`motif-fields.ts`, 4 natures) ; équipes = rôles directs sur le motif (actions `TicketTeam` conservées, sans UI) |
+| **Motifs unifiés (fin des onglets Parcours + Catégories)** | ✅ **fait** (28/09/2026) | `ticket-motifs-tab.tsx` + `saveTicketMotifAction` (motif + questionnaire publiés d'office) + `migrateCategoriesToMotifsAction` (idempotent, panneaux remappés) + `setTicketMotifEnabledAction` |
+| **Everyone modifiable dans la matrice** | ✅ **fait** (28/09/2026) | refusé par défaut + avertissement « tickets publics » si « Voir » activé |
+| **Plafonds plateforme God + purge janitor** | ✅ **fait** (28/09/2026) | migration `20261228000000_ticket_platform_limits` (6 colonnes `PlatformConfig`) · `platform-limits.ts` (défauts 90/90/180, caps 5/100) · captures branchées dessus · quotas guildes plafonnés serveur · carte God · janitor §12 (transcripts expirés, notes, audit) |
+| **UX sobre** : identifiant auto, nommage en Avancé, aperçu live du motif | ✅ **fait** (28/09/2026) | `ticket-motifs-tab.tsx` (`sm:max-w-6xl`, simulateur bouton + embed + boutons staff) |
 | SLA, auto-fermeture, purge, quota serveur | ❌ | réglages **encore affichés**, aucun exécutant |
 | **Boutons complets + confirmations + modération post-fermeture** | ✅ **fait** (28/09/2026) | `ticket-texts.ts` (FR/EN vulgarisé) · `embeds.ts` (`buildCloseConfirmRows`, `buildDeleteConfirmRows`, `buildModerationRows`) · handlers release/add/remove/reopen/transcript/delete + route |
 | **Permissions salon 4 groupes × Ouvert/Fermé (façon TicketTool, à notre sauce)** | ✅ **fait** (28/09/2026, sans migration) | `channel-permissions.ts` (8 perms, Oui/Non) + `category-permissions.ts` (+ `additionalRoleIds`, blacklist) · `settingsJson` · bascule à la clôture/réouverture · matrice dans Réglages, invités par motif |

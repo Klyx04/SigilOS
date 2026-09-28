@@ -17,7 +17,8 @@ import {
     Sliders,
     Sparkles,
 } from "lucide-react";
-import { toggleGodTicketBotModuleAction } from "@/server/actions/ticket-bot-actions";
+import { toggleGodTicketBotModuleAction, setTicketPlatformLimitsAction } from "@/server/actions/ticket-bot-actions";
+import { TICKET_PLATFORM_LIMIT_BOUNDS } from "@/lib/tickets/platform-limits";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -48,6 +49,14 @@ interface GodTicketBotPanelProps {
         totalTranscripts: number;
         globalAvgCsat: number | null;
         totalFeedbackCount: number;
+        platformLimits: {
+            transcriptsEnabled: boolean;
+            retentionArchivesDays: number;
+            retentionNotesDays: number;
+            retentionAuditDays: number;
+            maxPerUserCap: number;
+            maxGuildCap: number;
+        };
     };
 }
 
@@ -55,6 +64,7 @@ export function GodTicketBotPanel({ initialFleet }: GodTicketBotPanelProps) {
     const [guilds, setGuilds] = useState<GuildFleetItem[]>(initialFleet.guilds);
     const [search, setSearch] = useState("");
     const [isPending, startTransition] = useTransition();
+    const [limits, setLimits] = useState(initialFleet.platformLimits);
 
     const filteredGuilds = guilds.filter(
         (g) =>
@@ -66,8 +76,18 @@ export function GodTicketBotPanel({ initialFleet }: GodTicketBotPanelProps) {
     const totalTicketsEver = guilds.reduce((acc, g) => acc + g._count.ticketRecords, 0);
     const totalPanelsEver = guilds.reduce((acc, g) => acc + g._count.ticketPanels, 0);
 
-    const handleToggleGuild = (guildId: string, enabled: boolean) => {
+    const handleSaveLimits = () => {
         startTransition(async () => {
+            const res = await setTicketPlatformLimitsAction(limits);
+            if (res.success) {
+                toast.success("Plafonds plateforme enregistrés");
+            } else {
+                toast.error(res.error || "Erreur de mise à jour");
+            }
+        });
+    };
+
+    const handleToggleGuild = (guildId: string, enabled: boolean) => {        startTransition(async () => {
             const res = await toggleGodTicketBotModuleAction(guildId, enabled);
             if (res.success) {
                 toast.success(enabled ? "Module Ticket Bot activé" : "Module Ticket Bot désactivé");
@@ -165,6 +185,94 @@ export function GodTicketBotPanel({ initialFleet }: GodTicketBotPanelProps) {
                             {initialFleet.globalAvgCsat ? `${initialFleet.globalAvgCsat} / 5` : "N/A"}{" "}
                             <span className="text-xs font-normal text-muted-foreground">({initialFleet.totalFeedbackCount} avis)</span>
                         </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Plafonds plateforme (God) : stockage VPS sous contrôle */}
+            <div className="rounded-2xl border border-border/60 bg-card p-5 space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                        <Sliders className="h-5 w-5 text-amber-400" />
+                        <div>
+                            <h2 className="text-base font-semibold text-foreground">Plafonds plateforme (VPS)</h2>
+                            <p className="text-xs text-muted-foreground">
+                                Copies HTML en base + durées + quotas max. Les guildes règlent en dessous, jamais au-dessus.
+                                Le ménage de nuit purge les expirés.
+                            </p>
+                        </div>
+                    </div>
+                    <Button onClick={handleSaveLimits} disabled={isPending} size="sm" className="bg-amber-600 hover:bg-amber-700 text-white text-xs">
+                        Sauvegarder
+                    </Button>
+                </div>
+
+                <div className="flex items-center justify-between text-xs border-t border-border/40 pt-3">
+                    <div>
+                        <div className="font-semibold text-foreground">Copies des messages (transcripts)</div>
+                        <div className="text-muted-foreground">Archive HTML à la clôture (stockée en base).</div>
+                    </div>
+                    <Switch
+                        checked={limits.transcriptsEnabled}
+                        onCheckedChange={(checked) => setLimits((previous) => ({ ...previous, transcriptsEnabled: checked }))}
+                    />
+                </div>
+
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-3 text-xs">
+                    <div className="space-y-1">
+                        <label className="font-semibold text-foreground">Archives (j)</label>
+                        <Input
+                            type="number"
+                            min={TICKET_PLATFORM_LIMIT_BOUNDS.retentionArchivesDays.min}
+                            max={TICKET_PLATFORM_LIMIT_BOUNDS.retentionArchivesDays.max}
+                            value={limits.retentionArchivesDays}
+                            onChange={(e) => setLimits((previous) => ({ ...previous, retentionArchivesDays: Number(e.target.value) }))}
+                            className="text-xs h-8"
+                        />
+                    </div>
+                    <div className="space-y-1">
+                        <label className="font-semibold text-foreground">Notes (j)</label>
+                        <Input
+                            type="number"
+                            min={TICKET_PLATFORM_LIMIT_BOUNDS.retentionNotesDays.min}
+                            max={TICKET_PLATFORM_LIMIT_BOUNDS.retentionNotesDays.max}
+                            value={limits.retentionNotesDays}
+                            onChange={(e) => setLimits((previous) => ({ ...previous, retentionNotesDays: Number(e.target.value) }))}
+                            className="text-xs h-8"
+                        />
+                    </div>
+                    <div className="space-y-1">
+                        <label className="font-semibold text-foreground">Audit (j)</label>
+                        <Input
+                            type="number"
+                            min={TICKET_PLATFORM_LIMIT_BOUNDS.retentionAuditDays.min}
+                            max={TICKET_PLATFORM_LIMIT_BOUNDS.retentionAuditDays.max}
+                            value={limits.retentionAuditDays}
+                            onChange={(e) => setLimits((previous) => ({ ...previous, retentionAuditDays: Number(e.target.value) }))}
+                            className="text-xs h-8"
+                        />
+                    </div>
+                    <div className="space-y-1">
+                        <label className="font-semibold text-foreground">Max / membre</label>
+                        <Input
+                            type="number"
+                            min={TICKET_PLATFORM_LIMIT_BOUNDS.maxPerUserCap.min}
+                            max={TICKET_PLATFORM_LIMIT_BOUNDS.maxPerUserCap.max}
+                            value={limits.maxPerUserCap}
+                            onChange={(e) => setLimits((previous) => ({ ...previous, maxPerUserCap: Number(e.target.value) }))}
+                            className="text-xs h-8"
+                        />
+                    </div>
+                    <div className="space-y-1">
+                        <label className="font-semibold text-foreground">Max / guilde</label>
+                        <Input
+                            type="number"
+                            min={TICKET_PLATFORM_LIMIT_BOUNDS.maxGuildCap.min}
+                            max={TICKET_PLATFORM_LIMIT_BOUNDS.maxGuildCap.max}
+                            value={limits.maxGuildCap}
+                            onChange={(e) => setLimits((previous) => ({ ...previous, maxGuildCap: Number(e.target.value) }))}
+                            className="text-xs h-8"
+                        />
                     </div>
                 </div>
             </div>
@@ -272,10 +380,10 @@ export function GodTicketBotPanel({ initialFleet }: GodTicketBotPanelProps) {
                                             </td>
 
                                             <td className="py-4 px-4 text-muted-foreground text-xs">
-                                                {guild.ticketConfig?.enableTranscripts ? (
-                                                    <span className="text-emerald-400 font-medium">Activé</span>
+                                                {limits.transcriptsEnabled ? (
+                                                    <span className="text-emerald-400 font-medium">Activé (God)</span>
                                                 ) : (
-                                                    <span className="text-muted-foreground">Désactivé</span>
+                                                    <span className="text-muted-foreground">Désactivé (God)</span>
                                                 )}
                                             </td>
 

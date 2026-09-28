@@ -6,6 +6,8 @@
  * 1. GDPR: Delete User + Account records with no UserProfile (>7 days).
  * 2. Audit: Delete audit logs older than 30 days.
  * 6. Anti-surcharge : purge des notifications de dialogue service.
+ * 12. Tickets : purge des transcripts expirés, notes des tickets clôturés et
+ *    journal d'audit (durées God `PlatformConfig`, 28/09/2026).
  * 
  * Usage:
  *   npx tsx scripts/database-janitor.ts           # Dry-run (default)
@@ -18,6 +20,7 @@ import { PrismaClient } from '@prisma/client';
 import { Pool } from 'pg';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { AUDIT_RETENTION_DAYS, MS_PER_DAY } from '../src/lib/audit-retention-policy';
+import { readTicketPlatformLimits } from '../src/lib/tickets/platform-limits';
 
 const GRACE_PERIOD_DAYS = 7;
 // ⚠️ Politique d'audit : SOURCE UNIQUE dans `src/lib/audit-retention-policy.ts`
@@ -330,6 +333,67 @@ async function main() {
                     }
                 });
                 console.log(`  [DEL] Successfully deleted ${result.count} old service dialogue notifications.`);
+            }
+        }
+
+        // 12. Tickets — purge des expirés (plafonds plateforme God, 28/09/2026).
+        // Les transcripts HTML vivent en Postgres (2 docs/ticket) : sans purge, la
+        // base grossit sans limite sur le VPS. Durées God : archives/notes/audit.
+        const platformRow = await (db as any).platformConfig.findUnique({
+            where: { id: "singleton" },
+        }).catch(() => null);
+        const ticketLimits = readTicketPlatformLimits(platformRow);
+        const ticketNow = new Date();
+
+        const expiredTranscripts = await (db as any).ticketTranscript.count({
+            where: { expiresAt: { lt: ticketNow } },
+        });
+        console.log(`[Tickets] Found ${expiredTranscripts} expired transcript(s) (archives > ${ticketLimits.retentionArchivesDays}d).`);
+        if (expiredTranscripts > 0) {
+            if (isDryRun) {
+                console.log(`  [DRY] Would delete ${expiredTranscripts} expired transcript(s).`);
+            } else {
+                const res = await (db as any).ticketTranscript.deleteMany({
+                    where: { expiresAt: { lt: ticketNow } },
+                });
+                console.log(`  [DEL] Successfully deleted ${res.count} expired transcript(s).`);
+            }
+        }
+
+        const notesCutoff = new Date(ticketNow.getTime() - ticketLimits.retentionNotesDays * MS_PER_DAY);
+        const oldClosedTickets = await (db as any).ticketRecord.findMany({
+            where: { status: "CLOSED", closedAt: { lt: notesCutoff } },
+            select: { id: true },
+        });
+        const oldTicketIds = oldClosedTickets.map((t: { id: string }) => t.id);
+        const oldNotesCount = oldTicketIds.length > 0
+            ? await (db as any).ticketNote.count({ where: { ticketId: { in: oldTicketIds } } })
+            : 0;
+        console.log(`[Tickets] Found ${oldNotesCount} internal note(s) on tickets closed > ${ticketLimits.retentionNotesDays}d.`);
+        if (oldNotesCount > 0) {
+            if (isDryRun) {
+                console.log(`  [DRY] Would delete ${oldNotesCount} old internal note(s).`);
+            } else {
+                const res = await (db as any).ticketNote.deleteMany({
+                    where: { ticketId: { in: oldTicketIds } },
+                });
+                console.log(`  [DEL] Successfully deleted ${res.count} old internal note(s).`);
+            }
+        }
+
+        const ticketAuditCutoff = new Date(ticketNow.getTime() - ticketLimits.retentionAuditDays * MS_PER_DAY);
+        const oldTicketAuditCount = await (db as any).ticketAuditLog.count({
+            where: { createdAt: { lt: ticketAuditCutoff } },
+        });
+        console.log(`[Tickets] Found ${oldTicketAuditCount} ticket audit log(s) older than ${ticketLimits.retentionAuditDays}d.`);
+        if (oldTicketAuditCount > 0) {
+            if (isDryRun) {
+                console.log(`  [DRY] Would delete ${oldTicketAuditCount} old ticket audit log entries.`);
+            } else {
+                const res = await (db as any).ticketAuditLog.deleteMany({
+                    where: { createdAt: { lt: ticketAuditCutoff } },
+                });
+                console.log(`  [DEL] Successfully deleted ${res.count} old ticket audit log entries.`);
             }
         }
 

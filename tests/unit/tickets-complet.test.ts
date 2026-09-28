@@ -30,6 +30,18 @@ import {
     readChannelPermissions,
     writeChannelPermissions,
 } from "@/lib/tickets/channel-permissions";
+import {
+    convertLegacyCategoryQuestions,
+    definitionToMotifQuestions,
+    motifQuestionsToDefinition,
+    newMotifQuestion,
+} from "@/lib/tickets/motif-fields";
+import { TICKET_FORM_MAX_FIELDS } from "@/lib/tickets/form-schema";
+import {
+    clampTicketGuildQuotas,
+    readTicketPlatformLimits,
+    TICKET_PLATFORM_LIMIT_DEFAULTS,
+} from "@/lib/tickets/platform-limits";
 
 describe("tickets complets — libellés FR/EN vulgarisés", () => {
     /** Clés posées sur des **boutons** Discord (80 caractères max). */
@@ -184,11 +196,12 @@ describe("tickets complets — matrice des permissions de salon", () => {
         expect(matrix.everyone.closed.view).toBe(false);
     });
 
-    it("« Tout le monde » n'est jamais modifiable (un ticket reste privé)", () => {
+    it("« Tout le monde » est modifiable mais refusé par défaut (ticket privé sauf choix explicite)", () => {
+        expect(readChannelPermissions(null).everyone.open.view).toBe(false);
         const matrix = readChannelPermissions({
-            channelPermissions: { everyone: { open: { view: true }, closed: { view: true } } },
+            channelPermissions: { everyone: { open: { view: true }, closed: { view: false } } },
         });
-        expect(matrix.everyone.open.view).toBe(false);
+        expect(matrix.everyone.open.view).toBe(true);
         expect(matrix.everyone.closed.view).toBe(false);
     });
 
@@ -238,5 +251,110 @@ describe("tickets complets — matrice des permissions de salon", () => {
             expect(overwrite.allow).toMatch(/^\d+$/);
             expect(overwrite.deny).toMatch(/^\d+$/);
         }
+    });
+});
+
+describe("tickets complets — constructeur de questionnaire du motif", () => {
+    it("propose 4 natures avec des défauts sains", () => {
+        const question = newMotifQuestion("yes_no", 0);
+        expect(question.kind).toBe("yes_no");
+        expect(question.required).toBe(true);
+        expect(question.yesLabel).toBe("Oui");
+        expect(question.onNo).toBe("continue");
+        const choice = newMotifQuestion("select", 1);
+        expect(choice.options.length).toBeGreaterThanOrEqual(2);
+    });
+
+    it("convertit les lignes en contrat v2 avec des ids stables (q1, q2…)", () => {
+        const built = motifQuestionsToDefinition([
+            newMotifQuestion("text_short", 0),
+            { ...newMotifQuestion("yes_no", 1), label: "Règlement lu ?" },
+        ]);
+        expect(built.ok).toBe(true);
+        if (!built.ok) return;
+        expect(built.form.fields.map((field) => field.id)).toEqual(["q1", "q2"]);
+        expect(built.form.fields[1].kind).toBe("yes_no");
+    });
+
+    it(`refuse la 21e question (${TICKET_FORM_MAX_FIELDS} au plus)`, () => {
+        const questions = Array.from({ length: TICKET_FORM_MAX_FIELDS + 1 }, (_, index) =>
+            newMotifQuestion("text_short", index)
+        );
+        const built = motifQuestionsToDefinition(questions);
+        expect(built.ok).toBe(false);
+    });
+
+    it("nettoie les options en double et refuse une liste vide", () => {
+        const question = {
+            ...newMotifQuestion("select", 0),
+            options: [
+                { value: "a", label: "Alpha" },
+                { value: "a", label: "Alpha bis" },
+                { value: "", label: "  " },
+            ],
+        };
+        const built = motifQuestionsToDefinition([question]);
+        expect(built.ok).toBe(true);
+        if (!built.ok) return;
+        const field = built.form.fields[0];
+        expect(field.kind).toBe("select");
+        if (field.kind !== "select") return;
+        expect(field.options.map((option) => option.value)).toEqual(["a"]);
+
+        const empty = motifQuestionsToDefinition([
+            { ...newMotifQuestion("select", 0), options: [] },
+        ]);
+        expect(empty.ok).toBe(false);
+    });
+
+    it("relit un contrat existant et convertit l'ancien format v1", () => {
+        const built = motifQuestionsToDefinition([newMotifQuestion("text_long", 0)]);
+        expect(built.ok).toBe(true);
+        if (!built.ok) return;
+        const back = definitionToMotifQuestions(built.form);
+        expect(back).toHaveLength(1);
+        expect(back[0].kind).toBe("text_long");
+
+        const legacy = convertLegacyCategoryQuestions([
+            { label: "Pseudo", type: "SHORT", required: true },
+            { label: "Motivation", type: "PARAGRAPH", required: false },
+        ]);
+        expect(legacy.map((item) => item.kind)).toEqual(["text_short", "text_long"]);
+        expect(legacy[1].required).toBe(false);
+        expect(convertLegacyCategoryQuestions("pas-un-tableau")).toEqual([]);
+    });
+});
+
+describe("tickets complets — plafonds plateforme (God)", () => {
+    it("défauts sûrs quand la ligne plateforme est absente ou en panne", () => {
+        expect(readTicketPlatformLimits(null)).toEqual({ ...TICKET_PLATFORM_LIMIT_DEFAULTS });
+        expect(readTicketPlatformLimits("panne").retentionArchivesDays).toBe(90);
+    });
+
+    it("borne chaque valeur (jamais de stockage illimité ni de quota absurde)", () => {
+        const limits = readTicketPlatformLimits({
+            ticketTranscriptsEnabled: false,
+            ticketRetentionArchivesDays: 9999,
+            ticketRetentionNotesDays: -5,
+            ticketRetentionAuditDays: 200,
+            ticketMaxPerUserCap: 99,
+            ticketMaxGuildCap: 0,
+        });
+        expect(limits.transcriptsEnabled).toBe(false);
+        expect(limits.retentionArchivesDays).toBe(365);
+        expect(limits.retentionNotesDays).toBe(7);
+        expect(limits.retentionAuditDays).toBe(200);
+        expect(limits.maxPerUserCap).toBe(10);
+        expect(limits.maxGuildCap).toBe(5);
+    });
+
+    it("plafonne les quotas de guilde (la guilde règle en dessous, jamais au-dessus)", () => {
+        const limits = readTicketPlatformLimits(null);
+        expect(
+            clampTicketGuildQuotas({ maxActiveTicketsPerUser: 9, maxTicketsTotalGuild: 400 }, limits)
+        ).toEqual({ maxActiveTicketsPerUser: 5, maxTicketsTotalGuild: 100 });
+        expect(
+            clampTicketGuildQuotas({ maxActiveTicketsPerUser: 2, maxTicketsTotalGuild: 40 }, limits)
+        ).toEqual({ maxActiveTicketsPerUser: 2, maxTicketsTotalGuild: 40 });
     });
 });

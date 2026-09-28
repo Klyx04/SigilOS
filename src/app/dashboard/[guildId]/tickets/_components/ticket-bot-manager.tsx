@@ -9,14 +9,11 @@ import {
     Sliders,
     FileText,
     BarChart3,
-    Sparkles,
-    Route,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { TicketInboxTab } from "./tabs/ticket-inbox-tab";
 import { TicketPanelsTab } from "./tabs/ticket-panels-tab";
-import { TicketCategoriesTab } from "./tabs/ticket-categories-tab";
-import { TicketJourneysTab } from "./tabs/ticket-journeys-tab";
+import { TicketMotifsTab } from "./tabs/ticket-motifs-tab";
 import { TicketSettingsTab } from "./tabs/ticket-settings-tab";
 import { TicketTranscriptsTab } from "./tabs/ticket-transcripts-tab";
 import { TicketAnalyticsTab } from "./tabs/ticket-analytics-tab";
@@ -25,22 +22,21 @@ import { ModuleHelpActions } from "@/components/doc/module-help-actions";
 interface TicketBotManagerProps {
     guildId: string;
     config: any;
+    /** Anciens motifs v1 (bannière de migration + boîte de réception). */
     categories: any[];
     panels: any[];
-    /** 🆕 v2 — parcours (onglet « Parcours » et exposition par les panneaux). */
+    /** Motifs (parcours publiés : l'unité unique du module). */
     journeys: any[];
-    /** 🆕 v2 — formulaires et équipes rattachables à un parcours. */
+    /** Questionnaires (reprise des questions d'un motif). */
     forms: any[];
-    teams: any[];
     tickets: any[];
     stats: any;
 }
 
 type TicketManagerTabId =
     | "inbox"
-    | "journeys"
+    | "motifs"
     | "panels"
-    | "categories"
     | "settings"
     | "transcripts"
     | "analytics";
@@ -52,7 +48,6 @@ export function TicketBotManager({
     panels,
     journeys,
     forms,
-    teams,
     tickets,
     stats,
 }: TicketBotManagerProps) {
@@ -82,9 +77,9 @@ export function TicketBotManager({
             badge: openTicketsCount > 0 ? openTicketsCount : undefined,
         },
         {
-            id: "journeys",
-            label: "Parcours",
-            icon: Route,
+            id: "motifs",
+            label: "Motifs & Formulaires",
+            icon: Tags,
             badge: journeys.length > 0 ? journeys.length : undefined,
         },
         {
@@ -92,12 +87,6 @@ export function TicketBotManager({
             label: "Panneaux Discord",
             icon: Layers,
             badge: panels.length > 0 ? panels.length : undefined,
-        },
-        {
-            id: "categories",
-            label: "Catégories & Modals",
-            icon: Tags,
-            badge: categories.length > 0 ? categories.length : undefined,
         },
         {
             id: "transcripts",
@@ -186,12 +175,13 @@ export function TicketBotManager({
                         onRefresh={onRefresh}
                     />
                 )}
-                {activeTab === "journeys" && (
-                    <TicketJourneysTab
+                {activeTab === "motifs" && (
+                    <TicketMotifsTab
                         guildId={guildId}
                         journeys={journeys}
                         forms={forms}
-                        teams={teams}
+                        legacyCategories={categories}
+                        permissionSettings={config?.settingsJson}
                         onRefresh={onRefresh}
                     />
                 )}
@@ -199,16 +189,8 @@ export function TicketBotManager({
                     <TicketPanelsTab
                         guildId={guildId}
                         panels={panels}
-                        categories={categories}
                         journeys={journeys}
-                        onRefresh={onRefresh}
-                    />
-                )}
-                {activeTab === "categories" && (
-                    <TicketCategoriesTab
-                        guildId={guildId}
-                        categories={categories}
-                        permissionSettings={config?.settingsJson}
+                        legacyCategoryCount={categories.length}
                         onRefresh={onRefresh}
                     />
                 )}

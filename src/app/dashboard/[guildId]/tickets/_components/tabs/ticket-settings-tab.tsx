@@ -57,15 +57,17 @@ export function TicketSettingsTab({ guildId, config, onRefresh }: TicketSettings
     const [enableDmNotifications, setEnableDmNotifications] = useState<boolean>(
         config?.enableDmNotifications ?? true
     );
-    const [enableTranscripts, setEnableTranscripts] = useState<boolean>(
-        config?.enableTranscripts ?? true
-    );
-    // 🆕 v2 — rétention : ces valeurs sont **réellement** appliquées à la capture d'archive.
-    const [transcriptRetentionDays, setTranscriptRetentionDays] = useState<number>(
-        config?.transcriptRetentionDays ?? 365
-    );
-    const [noteRetentionDays, setNoteRetentionDays] = useState<number>(config?.noteRetentionDays ?? 365);
-    const [auditRetentionDays, setAuditRetentionDays] = useState<number>(config?.auditRetentionDays ?? 730);
+    // 🆕 Plateforme (God) : transcripts, durées et plafonds — lecture seule ici.
+    const platformLimits = config?.platformLimits as
+        | {
+              transcriptsEnabled?: boolean;
+              retentionArchivesDays?: number;
+              retentionNotesDays?: number;
+              retentionAuditDays?: number;
+              maxPerUserCap?: number;
+              maxGuildCap?: number;
+          }
+        | undefined;
 
     // 🆕 Permissions globales (sans migration : `settingsJson`).
     const initialPermissions = readTicketPermissionSettings(config?.settingsJson);
@@ -105,10 +107,6 @@ export function TicketSettingsTab({ guildId, config, onRefresh }: TicketSettings
                 // réglage (il n'existe pas d'envoi de MP « réponse du staff »). La colonne
                 // reste en base, sa valeur est simplement conservée telle quelle.
                 enableDmNotifications: config?.enableDmNotifications ?? true,
-                enableTranscripts,
-                transcriptRetentionDays,
-                noteRetentionDays,
-                auditRetentionDays,
             });
 
             if (!res.success) {
@@ -168,18 +166,16 @@ export function TicketSettingsTab({ guildId, config, onRefresh }: TicketSettings
 
                         <div className="flex items-center justify-between pt-3">
                             <div>
-                                <div className="font-semibold text-foreground">Transcripts Automatiques</div>
-                                <div className="text-muted-foreground">Génère une archive HTML complète à la clôture.</div>
-                            </div>
-                            <Switch checked={enableTranscripts} onCheckedChange={setEnableTranscripts} />
-                        </div>
-
-                        <div className="flex items-center justify-between pt-3">
-                            <div>
                                 <div className="font-semibold text-foreground">Enquête de Satisfaction CSAT</div>
                                 <div className="text-muted-foreground">Envoie un sondage 1-5 étoiles en DM Discord à la fermeture.</div>
                             </div>
                             <Switch checked={enableCsat} onCheckedChange={setEnableCsat} />
+                        </div>
+
+                        <div className="pt-3 text-[11px] text-muted-foreground">
+                            Copies des messages : {platformLimits?.transcriptsEnabled === false ? "désactivées" : "activées"} par
+                            la plateforme · conservation archives {platformLimits?.retentionArchivesDays ?? 90} j,
+                            notes {platformLimits?.retentionNotesDays ?? 90} j, audit {platformLimits?.retentionAuditDays ?? 180} j.
                         </div>
                     </div>
                 </div>
@@ -196,7 +192,7 @@ export function TicketSettingsTab({ guildId, config, onRefresh }: TicketSettings
                                 guildId={guildId}
                                 value={staffRoleIds}
                                 onChange={setStaffRoleIds}
-                                description="Ces rôles ont accès à tous les tickets ouverts, quel que soit le parcours."
+                                description="Ces rôles ont accès à tous les tickets ouverts, quel que soit le motif."
                             />
                         </div>
 
@@ -206,7 +202,7 @@ export function TicketSettingsTab({ guildId, config, onRefresh }: TicketSettings
                                 <Input
                                     type="number"
                                     min={1}
-                                    max={10}
+                                    max={platformLimits?.maxPerUserCap ?? 5}
                                     value={maxActiveTicketsPerUser}
                                     onChange={(e) => setMaxActiveTicketsPerUser(Number(e.target.value))}
                                     className="text-xs h-8"
@@ -218,7 +214,7 @@ export function TicketSettingsTab({ guildId, config, onRefresh }: TicketSettings
                                 <Input
                                     type="number"
                                     min={5}
-                                    max={500}
+                                    max={platformLimits?.maxGuildCap ?? 100}
                                     value={maxTicketsTotalGuild}
                                     onChange={(e) => setMaxTicketsTotalGuild(Number(e.target.value))}
                                     className="text-xs h-8"
@@ -226,49 +222,10 @@ export function TicketSettingsTab({ guildId, config, onRefresh }: TicketSettings
                             </div>
                         </div>
 
-                        {/* 🆕 v2 — rétention : ces valeurs SONT appliquées (échéance écrite sur
-                            chaque archive par `captureTicketArchives`). 0 = conservation illimitée. */}
-                        <div className="space-y-2 pt-2 border-t border-border/40">
-                            <label className="font-semibold text-foreground">Durée de conservation (jours)</label>
-                            <div className="grid grid-cols-3 gap-3">
-                                <div className="space-y-1">
-                                    <span className="text-[11px] text-muted-foreground">Archives</span>
-                                    <Input
-                                        type="number"
-                                        min={0}
-                                        max={3650}
-                                        value={transcriptRetentionDays}
-                                        onChange={(e) => setTranscriptRetentionDays(Number(e.target.value))}
-                                        className="text-xs h-8"
-                                    />
-                                </div>
-                                <div className="space-y-1">
-                                    <span className="text-[11px] text-muted-foreground">Notes internes</span>
-                                    <Input
-                                        type="number"
-                                        min={0}
-                                        max={3650}
-                                        value={noteRetentionDays}
-                                        onChange={(e) => setNoteRetentionDays(Number(e.target.value))}
-                                        className="text-xs h-8"
-                                    />
-                                </div>
-                                <div className="space-y-1">
-                                    <span className="text-[11px] text-muted-foreground">Journal d'audit</span>
-                                    <Input
-                                        type="number"
-                                        min={0}
-                                        max={3650}
-                                        value={auditRetentionDays}
-                                        onChange={(e) => setAuditRetentionDays(Number(e.target.value))}
-                                        className="text-xs h-8"
-                                    />
-                                </div>
-                            </div>
-                            <p className="text-[11px] text-muted-foreground">
-                                0 = conservation illimitée. Chaque archive reçoit sa date d'expiration à la clôture.
-                            </p>
-                        </div>
+                        <p className="text-[11px] text-muted-foreground">
+                            Plafonds plateforme : {platformLimits?.maxPerUserCap ?? 5} par membre,{" "}
+                            {platformLimits?.maxGuildCap ?? 100} au total — le serveur plafonne automatiquement.
+                        </p>
                     </div>
                 </div>
             </div>
@@ -312,23 +269,29 @@ export function TicketSettingsTab({ guildId, config, onRefresh }: TicketSettings
                 </div>
             </div>
 
-            {/* 🆕 Matrice des permissions de salon : 3 groupes modifiables × Ouvert/Fermé. */}
+            {/* 🆕 Matrice des permissions de salon : 4 groupes × Ouvert/Fermé. */}
             <div className="rounded-2xl border border-border bg-card p-5 space-y-4 text-xs">
                 <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
                     <Shield className="h-4 w-4 text-amber-400" /> Permissions des salons de ticket
                 </h3>
                 <p className="text-[11px] text-muted-foreground">
                     Qui peut quoi dans le salon, quand il est ouvert puis après fermeture.
-                    « Tout le monde » reste toujours sans accès (un ticket n'est jamais public).
                     Les rôles invités se choisissent par motif, dans l'onglet Motifs.
                 </p>
+
+                {matrix.everyone.open.view && (
+                    <div className="rounded-xl border border-destructive/40 bg-destructive/10 p-3 text-[11px] text-destructive">
+                        ⚠️ « Tout le monde » peut voir les salons ouverts : tes tickets sont publics.
+                        Décoche « Voir le salon » pour les rendre privés à nouveau.
+                    </div>
+                )}
 
                 <div className="overflow-x-auto">
                     <table className="w-full text-xs border-collapse">
                         <thead>
                             <tr className="text-muted-foreground">
                                 <th className="text-left font-semibold p-2">Permission</th>
-                                {TICKET_CHANNEL_GROUPS.filter((group) => group !== "everyone").map((group) => (
+                                {TICKET_CHANNEL_GROUPS.map((group) => (
                                     <th key={group} colSpan={2} className="font-semibold p-2 text-center border-l border-border/40">
                                         {TICKET_CHANNEL_GROUP_LABELS[group]}
                                     </th>
@@ -336,7 +299,7 @@ export function TicketSettingsTab({ guildId, config, onRefresh }: TicketSettings
                             </tr>
                             <tr className="text-muted-foreground">
                                 <th className="p-1" />
-                                {TICKET_CHANNEL_GROUPS.filter((group) => group !== "everyone").map((group) =>
+                                {TICKET_CHANNEL_GROUPS.map((group) =>
                                     TICKET_CHANNEL_STATES.map((state) => (
                                         <th
                                             key={`${group}-${state}`}
@@ -354,7 +317,7 @@ export function TicketSettingsTab({ guildId, config, onRefresh }: TicketSettings
                                     <td className="p-2 text-muted-foreground">
                                         {TICKET_CHANNEL_PERM_META[perm].label}
                                     </td>
-                                    {TICKET_CHANNEL_GROUPS.filter((group) => group !== "everyone").map((group) =>
+                                    {TICKET_CHANNEL_GROUPS.map((group) =>
                                         TICKET_CHANNEL_STATES.map((state) => (
                                             <td key={`${group}-${state}-${perm}`} className="p-2 text-center border-l border-border/40">
                                                 <Switch

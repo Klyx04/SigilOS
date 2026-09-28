@@ -4,6 +4,7 @@ import { z } from "zod";
 import { db } from "@/lib/prisma";
 import { getUserContext } from "./user-actions";
 import { isSuperAdmin } from "./super-admin-actions";
+import { rateLimit } from "@/lib/ratelimit";
 import { logger } from "@/lib/logger";
 import { revalidatePath } from "next/cache";
 import {
@@ -20,6 +21,7 @@ import { clearTicketDraft } from "@/server/tickets/journey-open";
 import {
     evaluateAnswers,
     parseTicketForm,
+    TICKET_FORM_SCHEMA_VERSION,
     type DiscordActionRow,
     type TicketFormDefinition,
 } from "@/lib/tickets/form-schema";
@@ -36,8 +38,13 @@ import {
     readTicketPermissionSettings,
     resolveCategoryClosePolicy,
     writeTicketPermissionSettings,
-    type TicketCategoryPermissionOverride,
 } from "@/lib/tickets/category-permissions";
+import {
+    clampTicketGuildQuotas,
+    readTicketPlatformLimits,
+    TICKET_PLATFORM_LIMIT_BOUNDS,
+    type TicketPlatformLimits,
+} from "@/lib/tickets/platform-limits";
 import {
     buildTicketOverwrites,
     readChannelPermissions,
@@ -75,33 +82,8 @@ const TicketGuildConfigSchema = z.object({
     maxTicketsTotalGuild: z.number().min(5).max(500).default(50),
     enableCsat: z.boolean().default(true),
     enableDmNotifications: z.boolean().default(true),
-    enableTranscripts: z.boolean().default(true),
-    /** 🆕 v2 — rétention par type, en jours (0 = illimité). Consommée par la purge. */
-    transcriptRetentionDays: z.number().int().min(0).max(3650).default(365),
-    noteRetentionDays: z.number().int().min(0).max(3650).default(365),
-    auditRetentionDays: z.number().int().min(0).max(3650).default(730),
     /** Permissions sans migration : objet JSON (voir `category-permissions.ts`). */
     settingsJson: z.record(z.string(), z.unknown()).optional(),
-});
-
-const TicketCategorySchema = z.object({
-    id: z.string().optional(),
-    name: z.string().min(1, "Nom requis"),
-    slug: z.string().min(1, "Identifiant requis"),
-    description: z.string().nullable().optional(),
-    emoji: z.string().nullable().optional(),
-    buttonStyle: z.enum(["PRIMARY", "SECONDARY", "SUCCESS", "DANGER"]).default("PRIMARY"),
-    channelType: z.enum(["CHANNEL_TEXT", "THREAD_PRIVATE"]).default("CHANNEL_TEXT"),
-    channelParentId: z.string().nullable().optional(),
-    staffRoleIds: z.array(z.string()).default([]),
-    namingPattern: z.string().default("ticket-{num}"),
-    formSchemaJson: z.array(z.any()).default([]),
-    slaFirstResponseMin: z.number().nullable().optional(),
-    slaResolutionMin: z.number().nullable().optional(),
-    autoCloseWarningHours: z.number().nullable().optional(),
-    autoCloseHours: z.number().nullable().optional(),
-    order: z.number().default(0),
-    isEnabled: z.boolean().default(true),
 });
 
 const TicketPanelSchema = z.object({
@@ -152,7 +134,10 @@ export async function getTicketGuildConfigAction(guildId: string): Promise<Actio
             });
         }
 
-        return { success: true, data: config };
+        // Plafonds plateforme (God) : le dashboard les affiche en lecture seule.
+        const platformLimits = await getTicketPlatformLimits();
+
+        return { success: true, data: { ...config, platformLimits } };
     } catch (error: any) {
         logger.error("[getTicketGuildConfigAction] Error:", error);
         return { success: false, error: error?.message || "Erreur de configuration" };
@@ -178,14 +163,26 @@ export async function updateTicketGuildConfigAction(
         const parsed = TicketGuildConfigSchema.safeParse(data);
         if (!parsed.success) return { success: false, error: "Données invalides" };
 
+        // 🆕 Plafonds God : une guilde règle en dessous, jamais au-dessus.
+        const platformLimits = await getTicketPlatformLimits();
+        const quotas = clampTicketGuildQuotas(
+            {
+                maxActiveTicketsPerUser: parsed.data.maxActiveTicketsPerUser,
+                maxTicketsTotalGuild: parsed.data.maxTicketsTotalGuild,
+            },
+            platformLimits
+        );
+
         const updated = await db.ticketGuildConfig.upsert({
             where: { guildId: guildConfig.id },
             create: {
                 guildId: guildConfig.id,
                 ...parsed.data,
+                ...quotas,
             },
             update: {
                 ...parsed.data,
+                ...quotas,
             },
         });
 
@@ -249,78 +246,8 @@ export async function saveTicketGuildPermissionsAction(
     }
 }
 
-/**
- * 🆕 Permissions **d'un motif** (sans migration : `settingsJson.categories[<id>]`).
- * La catégorie doit appartenir à cette guilde (fail-closed).
- */
-export async function saveTicketCategoryPermissionsAction(
-    guildId: string,
-    categoryId: string,
-    override: TicketCategoryPermissionOverride
-): Promise<ActionResponse> {
-    try {
-        const user = await getUserContext(guildId);
-        if (!user.canManageTickets && !user.isAdmin) {
-            return { success: false, error: "Non autorisé" };
-        }
-
-        const guildConfig = await db.guildConfig.findUnique({
-            where: { discordGuildId: guildId },
-            select: { id: true },
-        });
-        if (!guildConfig) return { success: false, error: "Guilde introuvable" };
-
-        const category = await db.ticketBotCategory.findFirst({
-            where: { id: categoryId, guildId: guildConfig.id },
-            select: { id: true },
-        });
-        if (!category) return { success: false, error: "Motif introuvable pour cette guilde" };
-
-        if (
-            override.closePolicy !== undefined &&
-            override.closePolicy !== "STAFF_ONLY" &&
-            override.closePolicy !== "STAFF_OR_CREATOR"
-        ) {
-            return { success: false, error: "Politique de fermeture invalide" };
-        }
-        if (override.requireConfirm !== undefined && typeof override.requireConfirm !== "boolean") {
-            return { success: false, error: "Confirmation invalide" };
-        }
-        if (override.additionalRoleIds !== undefined) {
-            if (
-                !Array.isArray(override.additionalRoleIds) ||
-                override.additionalRoleIds.some((roleId) => !/^\d{5,}$/.test(roleId)) ||
-                override.additionalRoleIds.length > 25
-            ) {
-                return { success: false, error: "Rôles invités invalides" };
-            }
-        }
-
-        const current = await db.ticketGuildConfig.findUnique({
-            where: { guildId: guildConfig.id },
-            select: { settingsJson: true },
-        });
-
-        const next = writeTicketPermissionSettings(current?.settingsJson, {
-            category: { id: category.id, override },
-        });
-
-        await db.ticketGuildConfig.upsert({
-            where: { guildId: guildConfig.id },
-            create: { guildId: guildConfig.id, settingsJson: next },
-            update: { settingsJson: next },
-        });
-
-        revalidatePath(`/dashboard/${guildId}/tickets`);
-        return { success: true };
-    } catch (error: any) {
-        logger.error("[saveTicketCategoryPermissionsAction] Error:", error);
-        return { success: false, error: error?.message || "Erreur enregistrement permissions" };
-    }
-}
-
 // =============================================================================
-// 2. CATÉGORIES
+// 2. ANCIENNES CATÉGORIES v1 (lecture + migration — l'édition vit dans « Motifs »)
 // =============================================================================
 
 export async function getTicketCategoriesAction(guildId: string): Promise<ActionResponse> {
@@ -345,109 +272,6 @@ export async function getTicketCategoriesAction(guildId: string): Promise<Action
     } catch (error: any) {
         logger.error("[getTicketCategoriesAction] Error:", error);
         return { success: false, error: error?.message || "Erreur récupération catégories" };
-    }
-}
-
-export async function saveTicketCategoryAction(
-    guildId: string,
-    data: z.infer<typeof TicketCategorySchema>
-): Promise<ActionResponse> {
-    try {
-        const user = await getUserContext(guildId);
-        if (!user.canManageTickets && !user.isAdmin) {
-            return { success: false, error: "Non autorisé" };
-        }
-
-        const guildConfig = await db.guildConfig.findUnique({
-            where: { discordGuildId: guildId },
-            select: { id: true },
-        });
-        if (!guildConfig) return { success: false, error: "Guilde introuvable" };
-
-        const parsed = TicketCategorySchema.safeParse(data);
-        if (!parsed.success) return { success: false, error: "Données invalides" };
-
-        const payload = parsed.data;
-        // Icône normalisée (unicode ou custom `<:nom:id>`, repli 🎫) : Discord ne casse jamais.
-        const cleanEmoji = normalizeTicketIcon(payload.emoji);
-
-        let category;
-        if (payload.id) {
-            category = await db.ticketBotCategory.update({
-                where: { id: payload.id, guildId: guildConfig.id },
-                data: {
-                    name: payload.name,
-                    slug: payload.slug,
-                    description: payload.description,
-                    emoji: cleanEmoji,
-                    buttonStyle: payload.buttonStyle,
-                    channelType: payload.channelType,
-                    channelParentId: payload.channelParentId,
-                    staffRoleIds: payload.staffRoleIds,
-                    namingPattern: payload.namingPattern,
-                    formSchemaJson: payload.formSchemaJson,
-                    slaFirstResponseMin: payload.slaFirstResponseMin,
-                    slaResolutionMin: payload.slaResolutionMin,
-                    autoCloseWarningHours: payload.autoCloseWarningHours,
-                    autoCloseHours: payload.autoCloseHours,
-                    order: payload.order,
-                    isEnabled: payload.isEnabled,
-                },
-            });
-        } else {
-            category = await db.ticketBotCategory.create({
-                data: {
-                    guildId: guildConfig.id,
-                    name: payload.name,
-                    slug: payload.slug,
-                    description: payload.description,
-                    emoji: cleanEmoji,
-                    buttonStyle: payload.buttonStyle,
-                    channelType: payload.channelType,
-                    channelParentId: payload.channelParentId,
-                    staffRoleIds: payload.staffRoleIds,
-                    namingPattern: payload.namingPattern,
-                    formSchemaJson: payload.formSchemaJson,
-                    slaFirstResponseMin: payload.slaFirstResponseMin,
-                    slaResolutionMin: payload.slaResolutionMin,
-                    autoCloseWarningHours: payload.autoCloseWarningHours,
-                    autoCloseHours: payload.autoCloseHours,
-                    order: payload.order,
-                    isEnabled: payload.isEnabled,
-                },
-            });
-        }
-
-        revalidatePath(`/dashboard/${guildId}/tickets`);
-        return { success: true, data: category };
-    } catch (error: any) {
-        logger.error("[saveTicketCategoryAction] Error:", error);
-        return { success: false, error: error?.message || "Erreur enregistrement catégorie" };
-    }
-}
-
-export async function deleteTicketCategoryAction(guildId: string, categoryId: string): Promise<ActionResponse> {
-    try {
-        const user = await getUserContext(guildId);
-        if (!user.canManageTickets && !user.isAdmin) {
-            return { success: false, error: "Non autorisé" };
-        }
-
-        const guildConfig = await db.guildConfig.findUnique({
-            where: { discordGuildId: guildId },
-            select: { id: true },
-        });
-        if (!guildConfig) return { success: false, error: "Guilde introuvable" };
-
-        await db.ticketBotCategory.delete({
-            where: { id: categoryId, guildId: guildConfig.id },
-        });
-
-        revalidatePath(`/dashboard/${guildId}/tickets`);
-        return { success: true };
-    } catch (error: any) {
-        logger.error("[deleteTicketCategoryAction] Error:", error);
-        return { success: false, error: error?.message || "Erreur suppression catégorie" };
     }
 }
 
@@ -992,15 +816,10 @@ export async function closeTicketAction(
 
         // 1. Archives — **une seule source de vérité** (`captureTicketArchives`) :
         // pagination réelle, document partageable sans notes internes, annexe staff
-        // séparée, échéance issue de la rétention de la guilde.
+        // séparée, échéance issue des **plafonds plateforme** (God, jamais la guilde).
         const archive = await captureTicketArchives({
             ticket,
-            config: ticketConfig
-                ? {
-                      enableTranscripts: ticketConfig.enableTranscripts,
-                      transcriptRetentionDays: ticketConfig.transcriptRetentionDays,
-                  }
-                : null,
+            config: await ticketArchiveConfig(),
             closedByName: user.name || "Staff",
             closedReason: reason ?? null,
         });
@@ -1195,7 +1014,7 @@ export async function getGodTicketBotFleetAction(): Promise<ActionResponse> {
         const isGod = await isSuperAdmin();
         if (!isGod) return { success: false, error: "Accès SuperAdmin requis" };
 
-        const [guildConfigs, totalOpenTickets, totalTranscripts, totalFeedback] = await Promise.all([
+        const [guildConfigs, totalOpenTickets, totalTranscripts, totalFeedback, platformRow] = await Promise.all([
             db.guildConfig.findMany({
                 select: {
                     id: true,
@@ -1216,6 +1035,7 @@ export async function getGodTicketBotFleetAction(): Promise<ActionResponse> {
             db.ticketRecord.count({ where: { status: { in: ["OPEN", "CLAIMED"] } } }),
             db.ticketTranscript.count(),
             db.ticketFeedback.findMany({ select: { rating: true } }),
+            db.platformConfig.findUnique({ where: { id: "singleton" } }),
         ]);
 
         const globalAvgCsat =
@@ -1231,6 +1051,7 @@ export async function getGodTicketBotFleetAction(): Promise<ActionResponse> {
                 totalTranscripts,
                 globalAvgCsat,
                 totalFeedbackCount: totalFeedback.length,
+                platformLimits: readTicketPlatformLimits(platformRow),
             },
         };
     } catch (error: any) {
@@ -1286,6 +1107,96 @@ export async function toggleGodTicketBotModuleAction(
     } catch (error: any) {
         logger.error("[toggleGodTicketBotModuleAction] Error:", error);
         return { success: false, error: error?.message || "Erreur toggle module" };
+    }
+}
+
+/**
+ * 🆕 Plafonds plateforme (God) : rétention, transcripts, quotas max.
+ * Ligne absente ou panne ⇒ **défauts sûrs** (90/90/180 j, caps 5/100) : un ticket
+ * continue de s'ouvrir, avec des archives courtes — jamais de stockage illimité.
+ */
+export async function getTicketPlatformLimits(): Promise<TicketPlatformLimits> {
+    try {
+        const platform = await db.platformConfig.findUnique({ where: { id: "singleton" } });
+        return readTicketPlatformLimits(platform);
+    } catch (error: any) {
+        logger.warn("[getTicketPlatformLimits] Lecture impossible, défauts sûrs", { error });
+        return readTicketPlatformLimits(null);
+    }
+}
+
+const TicketPlatformLimitsSchema = z.object({
+    transcriptsEnabled: z.boolean(),
+    retentionArchivesDays: z
+        .number()
+        .int()
+        .min(TICKET_PLATFORM_LIMIT_BOUNDS.retentionArchivesDays.min)
+        .max(TICKET_PLATFORM_LIMIT_BOUNDS.retentionArchivesDays.max),
+    retentionNotesDays: z
+        .number()
+        .int()
+        .min(TICKET_PLATFORM_LIMIT_BOUNDS.retentionNotesDays.min)
+        .max(TICKET_PLATFORM_LIMIT_BOUNDS.retentionNotesDays.max),
+    retentionAuditDays: z
+        .number()
+        .int()
+        .min(TICKET_PLATFORM_LIMIT_BOUNDS.retentionAuditDays.min)
+        .max(TICKET_PLATFORM_LIMIT_BOUNDS.retentionAuditDays.max),
+    maxPerUserCap: z
+        .number()
+        .int()
+        .min(TICKET_PLATFORM_LIMIT_BOUNDS.maxPerUserCap.min)
+        .max(TICKET_PLATFORM_LIMIT_BOUNDS.maxPerUserCap.max),
+    maxGuildCap: z
+        .number()
+        .int()
+        .min(TICKET_PLATFORM_LIMIT_BOUNDS.maxGuildCap.min)
+        .max(TICKET_PLATFORM_LIMIT_BOUNDS.maxGuildCap.max),
+});
+
+/**
+ * 🆕 Règle les plafonds plateforme (God uniquement, 10/min, fail-closed si le
+ * limiteur est en panne — comme les autres écritures God).
+ */
+export async function setTicketPlatformLimitsAction(data: unknown): Promise<ActionResponse> {
+    try {
+        const isGod = await isSuperAdmin();
+        if (!isGod) return { success: false, error: "Accès SuperAdmin requis" };
+
+        const allowed = await rateLimit("god:ticket-limits", 10, 60_000);
+        if (!allowed.success) return { success: false, error: "Trop de requêtes, réessaie dans quelques secondes" };
+
+        const parsed = TicketPlatformLimitsSchema.safeParse(data);
+        if (!parsed.success) {
+            return { success: false, error: parsed.error.issues[0]?.message || "Données invalides" };
+        }
+
+        await db.platformConfig.upsert({
+            where: { id: "singleton" },
+            create: {
+                id: "singleton",
+                ticketTranscriptsEnabled: parsed.data.transcriptsEnabled,
+                ticketRetentionArchivesDays: parsed.data.retentionArchivesDays,
+                ticketRetentionNotesDays: parsed.data.retentionNotesDays,
+                ticketRetentionAuditDays: parsed.data.retentionAuditDays,
+                ticketMaxPerUserCap: parsed.data.maxPerUserCap,
+                ticketMaxGuildCap: parsed.data.maxGuildCap,
+            },
+            update: {
+                ticketTranscriptsEnabled: parsed.data.transcriptsEnabled,
+                ticketRetentionArchivesDays: parsed.data.retentionArchivesDays,
+                ticketRetentionNotesDays: parsed.data.retentionNotesDays,
+                ticketRetentionAuditDays: parsed.data.retentionAuditDays,
+                ticketMaxPerUserCap: parsed.data.maxPerUserCap,
+                ticketMaxGuildCap: parsed.data.maxGuildCap,
+            },
+        });
+
+        revalidatePath("/god/ticket-bot");
+        return { success: true };
+    } catch (error: any) {
+        logger.error("[setTicketPlatformLimitsAction] Error:", error);
+        return { success: false, error: error?.message || "Erreur enregistrement plafonds" };
     }
 }
 
@@ -1735,7 +1646,7 @@ export async function deleteTicketJourneyAction(guildId: string, journeyId: stri
         if (tickets > 0) {
             return {
                 success: false,
-                error: `Ce parcours porte ${tickets} ticket(s) : désactive-le plutôt que de le supprimer.`,
+                error: `Ce motif porte ${tickets} ticket(s) : désactive-le plutôt que de le supprimer.`,
             };
         }
 
@@ -1744,7 +1655,391 @@ export async function deleteTicketJourneyAction(guildId: string, journeyId: stri
         return { success: true };
     } catch (error: any) {
         logger.error("[deleteTicketJourneyAction] Error:", error);
-        return { success: false, error: error?.message || "Erreur suppression parcours" };
+        return { success: false, error: error?.message || "Erreur suppression motif" };
+    }
+}
+
+// ---------------------------------------------------------------------------
+// 8.4 Motifs — l'unité unique du dashboard (parcours + questionnaire, publiés
+// d'office). Remplace l'onglet « Parcours » et « Catégories & Modals ».
+// ---------------------------------------------------------------------------
+
+const TicketMotifSaveSchema = z.object({
+    journeyId: z.string().optional(),
+    name: z.string().min(2, "Nom requis (2 caractères minimum)").max(80),
+    slug: z
+        .string()
+        .min(2, "Identifiant requis")
+        .max(60)
+        .regex(/^[a-z0-9-]+$/, "Identifiant : lettres minuscules, chiffres et tirets"),
+    description: z.string().max(300).nullable().optional(),
+    emoji: z.string().max(32).default("🎫"),
+    buttonStyle: z.enum(["PRIMARY", "SECONDARY", "SUCCESS", "DANGER"]).default("PRIMARY"),
+    channelParentId: z.string().nullable().optional(),
+    staffRoleIds: z.array(z.string().regex(/^\d{5,}$/)).max(25).default([]),
+    notifyRoleIds: z.array(z.string().regex(/^\d{5,}$/)).max(25).default([]),
+    namingPattern: z.string().min(1).max(80).default("ticket-{num}"),
+    closePolicy: z.enum(["STAFF_ONLY", "STAFF_OR_CREATOR"]).default("STAFF_OR_CREATOR"),
+    requireConfirm: z.boolean().default(true),
+    additionalRoleIds: z.array(z.string().regex(/^\d{5,}$/)).max(25).default([]),
+    isEnabled: z.boolean().default(true),
+    order: z.number().int().min(0).max(999).default(0),
+    /** Questionnaire (4 natures, 20 au plus) : validé par le contrat v2. */
+    questions: z.array(z.unknown()).max(20).default([]),
+});
+
+/**
+ * Enregistre un motif **et** son questionnaire, publiés d'office :
+ * parcours (toujours `isPublished`, `INSTANT`, salon texte) + formulaire
+ * (nouvelle version figée seulement si le questionnaire a changé) + réglages
+ * de fermeture dans `settingsJson` (clé = `journeyId`, sans migration).
+ */
+export async function saveTicketMotifAction(guildId: string, data: unknown): Promise<ActionResponse> {
+    try {
+        const guard = await requireTicketManager(guildId);
+        if (!guard.ok) return { success: false, error: guard.error };
+
+        const parsed = TicketMotifSaveSchema.safeParse(data);
+        if (!parsed.success) {
+            return { success: false, error: parsed.error.issues[0]?.message || "Données invalides" };
+        }
+        const payload = parsed.data;
+
+        if (!(await isValidCategoryOfGuild(payload.channelParentId, guildId))) {
+            return { success: false, error: "La catégorie choisie n'appartient pas à ce serveur." };
+        }
+
+        const duplicate = await db.ticketJourney.findFirst({
+            where: {
+                guildId: guard.guildInternalId,
+                slug: payload.slug,
+                ...(payload.journeyId ? { NOT: { id: payload.journeyId } } : {}),
+            },
+            select: { id: true },
+        });
+        if (duplicate) return { success: false, error: "Cet identifiant de motif est déjà utilisé" };
+
+        // 1. Questionnaire → contrat v2 (4 natures acceptées, 20 au plus).
+        const rawFields = payload.questions as Array<Record<string, unknown>>;
+        const normalizedFields = rawFields.map((question, index) => ({
+            id: `q${index + 1}`,
+            ...(question as Record<string, unknown>),
+        }));
+        const formCheck = parseTicketForm({ schemaVersion: TICKET_FORM_SCHEMA_VERSION, fields: normalizedFields });
+        if (!formCheck.ok) {
+            return { success: false, error: `Questionnaire invalide — ${formCheck.errors.slice(0, 3).join(" · ")}` };
+        }
+        for (const field of formCheck.form.fields) {
+            if (field.kind !== "text_short" && field.kind !== "text_long" && field.kind !== "yes_no" && field.kind !== "select") {
+                return { success: false, error: `« ${field.label} » : nature non proposée dans l'éditeur.` };
+            }
+        }
+
+        // 2. Parcours (équipe : aucune — les rôles vivent sur le motif).
+        const emoji = normalizeTicketIcon(payload.emoji);
+        const journeyValues = {
+            name: payload.name,
+            slug: payload.slug,
+            description: payload.description ?? null,
+            emoji,
+            buttonStyle: payload.buttonStyle,
+            channelType: "CHANNEL_TEXT" as const,
+            channelParentId: payload.channelParentId || null,
+            staffRoleIds: payload.staffRoleIds,
+            notifyRoleIds: payload.notifyRoleIds,
+            teamId: null,
+            namingPattern: payload.namingPattern,
+            openMode: "INSTANT" as const,
+            closePolicy: payload.closePolicy,
+            order: payload.order,
+            isEnabled: payload.isEnabled,
+        };
+
+        let journey = payload.journeyId
+            ? await db.ticketJourney.update({
+                  where: { id: payload.journeyId, guildId: guard.guildInternalId },
+                  data: { ...journeyValues, formId: undefined, formVersion: undefined },
+              })
+            : await db.ticketJourney.create({
+                  data: {
+                      guildId: guard.guildInternalId,
+                      ...journeyValues,
+                      isPublished: true,
+                      publishedAt: new Date(),
+                      publishedVersion: 1,
+                  },
+              });
+
+        // 3. Formulaire lié (`q-<slug>`) : nouvelle version figée si changé.
+        const formSlug = `q-${payload.slug}`.slice(0, 60);
+        let form = await db.ticketForm.findFirst({
+            where: { guildId: guard.guildInternalId, slug: formSlug },
+            include: { versions: { orderBy: { version: "desc" }, take: 1 } },
+        });
+        if (!form) {
+            form = await db.ticketForm.create({
+                data: {
+                    guildId: guard.guildInternalId,
+                    name: `Questionnaire — ${payload.name}`.slice(0, 80),
+                    slug: formSlug,
+                    description: null,
+                    draftSchemaJson: formCheck.form as never,
+                },
+                include: { versions: { orderBy: { version: "desc" }, take: 1 } },
+            });
+        } else if (JSON.stringify(form.draftSchemaJson) !== JSON.stringify(formCheck.form)) {
+            form = await db.ticketForm.update({
+                where: { id: form.id },
+                data: { draftSchemaJson: formCheck.form as never },
+                include: { versions: { orderBy: { version: "desc" }, take: 1 } },
+            });
+        }
+
+        const lastSchema = form.versions[0]?.schemaJson;
+        let formVersion = form.publishedVersion;
+        if (formCheck.form.fields.length > 0) {
+            if (!form.publishedVersion || JSON.stringify(lastSchema) !== JSON.stringify(formCheck.form)) {
+                const version = form.currentVersion + 1;
+                await db.ticketFormVersion.create({
+                    data: {
+                        formId: form.id,
+                        guildId: guard.guildInternalId,
+                        version,
+                        schemaJson: formCheck.form as never,
+                    },
+                });
+                await db.ticketForm.update({
+                    where: { id: form.id },
+                    data: { currentVersion: version, publishedVersion: version, status: "PUBLISHED" },
+                });
+                formVersion = version;
+            }
+        } else {
+            formVersion = null;
+        }
+
+        journey = await db.ticketJourney.update({
+            where: { id: journey.id },
+            data: {
+                formId: formCheck.form.fields.length > 0 ? form.id : null,
+                formVersion,
+                isPublished: true,
+                publishedAt: journey.publishedAt ?? new Date(),
+            },
+        });
+
+        // 4. Fermeture du motif dans `settingsJson` (clé = `journeyId`).
+        const current = await db.ticketGuildConfig.findUnique({
+            where: { guildId: guard.guildInternalId },
+            select: { settingsJson: true },
+        });
+        const next = writeTicketPermissionSettings(current?.settingsJson, {
+            category: {
+                id: journey.id,
+                override: {
+                    closePolicy: payload.closePolicy,
+                    requireConfirm: payload.requireConfirm,
+                    ...(payload.additionalRoleIds.length > 0
+                        ? { additionalRoleIds: payload.additionalRoleIds }
+                        : {}),
+                },
+            },
+        });
+        await db.ticketGuildConfig.upsert({
+            where: { guildId: guard.guildInternalId },
+            create: { guildId: guard.guildInternalId, settingsJson: next },
+            update: { settingsJson: next },
+        });
+
+        revalidatePath(`/dashboard/${guildId}/tickets`);
+        return { success: true, data: { id: journey.id, formId: form.id } };
+    } catch (error: any) {
+        logger.error("[saveTicketMotifAction] Error:", error);
+        return { success: false, error: error?.message || "Erreur enregistrement motif" };
+    }
+}
+
+/**
+ * Active/désactive un motif (visible ou non sur les panneaux Discord).
+ * Le questionnaire publié reste figé : on ne touche qu'à `isEnabled`.
+ */
+export async function setTicketMotifEnabledAction(
+    guildId: string,
+    journeyId: string,
+    isEnabled: boolean
+): Promise<ActionResponse> {
+    try {
+        const guard = await requireTicketManager(guildId);
+        if (!guard.ok) return { success: false, error: guard.error };
+
+        const journey = await db.ticketJourney.findFirst({
+            where: { id: journeyId, guildId: guard.guildInternalId },
+            select: { id: true },
+        });
+        if (!journey) return { success: false, error: "Motif introuvable dans cette guilde" };
+
+        await db.ticketJourney.update({ where: { id: journey.id }, data: { isEnabled } });
+        revalidatePath(`/dashboard/${guildId}/tickets`);
+        return { success: true };
+    } catch (error: any) {
+        logger.error("[setTicketMotifEnabledAction] Error:", error);
+        return { success: false, error: error?.message || "Erreur mise à jour motif" };
+    }
+}
+
+/**
+ * Migration « tout passer en Motifs » : chaque `TicketBotCategory` devient un
+ * parcours publié (+ questionnaire publié). Idempotente (reprise sans doublon
+ * via `settingsJson.migratedCategories`), les tickets existants gardent leur
+ * `categoryId`, les panneaux exposent les deux (repli v1 conservé).
+ */
+export async function migrateCategoriesToMotifsAction(guildId: string): Promise<ActionResponse> {
+    try {
+        const guard = await requireTicketManager(guildId);
+        if (!guard.ok) return { success: false, error: guard.error };
+
+        const { convertLegacyCategoryQuestions, motifQuestionsToDefinition } = await import(
+            "@/lib/tickets/motif-fields"
+        );
+
+        const [categories, panels, config] = await Promise.all([
+            db.ticketBotCategory.findMany({
+                where: { guildId: guard.guildInternalId },
+                orderBy: { order: "asc" },
+            }),
+            db.ticketBotPanel.findMany({ where: { guildId: guard.guildInternalId } }),
+            db.ticketGuildConfig.findUnique({ where: { guildId: guard.guildInternalId } }),
+        ]);
+
+        const rawSettings =
+            config?.settingsJson && typeof config.settingsJson === "object" && !Array.isArray(config.settingsJson)
+                ? { ...(config.settingsJson as Record<string, unknown>) }
+                : {};
+        const migrated = (
+            rawSettings.migratedCategories && typeof rawSettings.migratedCategories === "object"
+                ? { ...(rawSettings.migratedCategories as Record<string, string>) }
+                : {}
+        ) as Record<string, string>;
+        const permissionSettings = readTicketPermissionSettings(config?.settingsJson);
+
+        let created = 0;
+        let skipped = 0;
+
+        for (const category of categories) {
+            const existingId = migrated[category.id];
+            if (existingId) {
+                const stillThere = await db.ticketJourney.findFirst({
+                    where: { id: existingId, guildId: guard.guildInternalId },
+                    select: { id: true },
+                });
+                if (stillThere) {
+                    skipped += 1;
+                    continue;
+                }
+            }
+
+            const questions = convertLegacyCategoryQuestions(category.formSchemaJson);
+            const built = motifQuestionsToDefinition(questions);
+
+            const baseSlug = category.slug.toLowerCase().replace(/[^a-z0-9-]/g, "-").replace(/-{2,}/g, "-").slice(0, 60) || `motif-${created + 1}`;
+            let slug = baseSlug;
+            let attempt = 2;
+            while (
+                await db.ticketJourney.findFirst({
+                    where: { guildId: guard.guildInternalId, slug },
+                    select: { id: true },
+                })
+            ) {
+                slug = `${baseSlug.slice(0, 57)}-${attempt}`;
+                attempt += 1;
+            }
+
+            const formSlug = `q-${slug}`.slice(0, 60);
+            const form = await db.ticketForm.create({
+                data: {
+                    guildId: guard.guildInternalId,
+                    name: `Questionnaire — ${category.name}`.slice(0, 80),
+                    slug: formSlug,
+                    description: null,
+                    draftSchemaJson: (built.ok ? built.form : { schemaVersion: 2, fields: [] }) as never,
+                    currentVersion: 1,
+                    publishedVersion: 1,
+                    status: "PUBLISHED",
+                },
+            });
+            if (built.ok && built.form.fields.length > 0) {
+                await db.ticketFormVersion.create({
+                    data: { formId: form.id, guildId: guard.guildInternalId, version: 1, schemaJson: built.form as never },
+                });
+            }
+
+            const override = permissionSettings.categories[category.id];
+            const journey = await db.ticketJourney.create({
+                data: {
+                    guildId: guard.guildInternalId,
+                    name: category.name.slice(0, 80),
+                    slug,
+                    description: category.description?.slice(0, 300) ?? null,
+                    emoji: normalizeTicketIcon(category.emoji),
+                    buttonStyle: category.buttonStyle,
+                    channelType: "CHANNEL_TEXT",
+                    channelParentId: category.channelParentId,
+                    staffRoleIds: category.staffRoleIds,
+                    notifyRoleIds: [],
+                    teamId: null,
+                    formId: built.ok && built.form.fields.length > 0 ? form.id : null,
+                    formVersion: built.ok && built.form.fields.length > 0 ? 1 : null,
+                    namingPattern: category.namingPattern.slice(0, 80),
+                    openMode: "INSTANT",
+                    closePolicy: override?.closePolicy ?? (permissionSettings.allowUserClose ? "STAFF_OR_CREATOR" : "STAFF_ONLY"),
+                    order: category.order,
+                    isEnabled: category.isEnabled,
+                    isPublished: true,
+                    publishedAt: new Date(),
+                    publishedVersion: 1,
+                },
+            });
+
+            migrated[category.id] = journey.id;
+            if (override) {
+                const current2 = await db.ticketGuildConfig.findUnique({
+                    where: { guildId: guard.guildInternalId },
+                    select: { settingsJson: true },
+                });
+                const next2 = writeTicketPermissionSettings(current2?.settingsJson, {
+                    category: { id: journey.id, override },
+                });
+                await db.ticketGuildConfig.upsert({
+                    where: { guildId: guard.guildInternalId },
+                    create: { guildId: guard.guildInternalId, settingsJson: next2 },
+                    update: { settingsJson: next2 },
+                });
+            }
+
+            for (const panel of panels) {
+                if (panel.categoryIds.includes(category.id) && !panel.journeyIds.includes(journey.id)) {
+                    await db.ticketBotPanel.update({
+                        where: { id: panel.id },
+                        data: { journeyIds: [...panel.journeyIds, journey.id] },
+                    });
+                }
+            }
+
+            created += 1;
+        }
+
+        rawSettings.migratedCategories = migrated;
+        await db.ticketGuildConfig.upsert({
+            where: { guildId: guard.guildInternalId },
+            create: { guildId: guard.guildInternalId, settingsJson: rawSettings },
+            update: { settingsJson: rawSettings },
+        });
+
+        revalidatePath(`/dashboard/${guildId}/tickets`);
+        return { success: true, data: { migrated: created, skipped } };
+    } catch (error: any) {
+        logger.error("[migrateCategoriesToMotifsAction] Error:", error);
+        return { success: false, error: error?.message || "Erreur migration motifs" };
     }
 }
 
@@ -1827,6 +2122,21 @@ async function guardTicketAction(input: {
     }
 
     return { ok: true as const, ticket, staffRoleIds, as: decision.as, config };
+}
+
+/**
+ * 🆕 Config d'archive effective : **plafonds plateforme** (God), jamais la guilde.
+ * La guilde ne règle plus ni les transcripts ni les durées (VPS).
+ */
+async function ticketArchiveConfig(): Promise<{
+    enableTranscripts: boolean;
+    transcriptRetentionDays: number;
+}> {
+    const limits = await getTicketPlatformLimits();
+    return {
+        enableTranscripts: limits.transcriptsEnabled,
+        transcriptRetentionDays: limits.retentionArchivesDays,
+    };
 }
 
 /**
@@ -2452,15 +2762,11 @@ export async function internalHandleTicketClose(params: {
         }
 
         // Archives : même service que la fermeture depuis le dashboard (une seule
-        // source de vérité — pagination réelle, partageable / annexe distinctes).
+        // source de vérité — pagination réelle, partageable / annexe distinctes,
+        // échéance issue des **plafonds plateforme**).
         const archive = await captureTicketArchives({
             ticket,
-            config: ticketConfig
-                ? {
-                      enableTranscripts: ticketConfig.enableTranscripts,
-                      transcriptRetentionDays: ticketConfig.transcriptRetentionDays,
-                  }
-                : null,
+            config: await ticketArchiveConfig(),
             closedByName: params.discordUserName,
             closedReason: params.reason ?? null,
         });
@@ -2879,16 +3185,11 @@ export async function internalHandleTicketTranscript(params: {
             actor: params.actor,
         });
         if (!guard.ok) return { success: false, message: guard.message };
-        const { ticket, config: ticketConfig } = guard;
+        const { ticket } = guard;
 
         const archive = await captureTicketArchives({
             ticket,
-            config: ticketConfig
-                ? {
-                      enableTranscripts: true,
-                      transcriptRetentionDays: ticketConfig.transcriptRetentionDays,
-                  }
-                : null,
+            config: await ticketArchiveConfig(),
             closedByName: params.discordUserId,
             closedReason: null,
         });

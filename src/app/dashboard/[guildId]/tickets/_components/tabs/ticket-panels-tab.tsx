@@ -31,13 +31,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 interface TicketPanelsTabProps {
     guildId: string;
     panels: any[];
-    categories: any[];
-    /** 🆕 v2 — parcours disponibles (publiés ou brouillons) : ce sont eux qu'on expose. */
+    /** Motifs exposables (publiés ou non : seuls les activés s'affichent cochables). */
     journeys: any[];
+    /** Anciens motifs v1 non migrés (bannière, jamais bloquants). */
+    legacyCategoryCount: number;
     onRefresh: () => void;
 }
 
-export function TicketPanelsTab({ guildId, panels, categories, journeys, onRefresh }: TicketPanelsTabProps) {
+export function TicketPanelsTab({ guildId, panels, journeys, legacyCategoryCount, onRefresh }: TicketPanelsTabProps) {
     const [modalOpen, setModalOpen] = useState(false);
     const [editingPanel, setEditingPanel] = useState<any | null>(null);
     const [isPending, startTransition] = useTransition();
@@ -54,10 +55,9 @@ export function TicketPanelsTab({ guildId, panels, categories, journeys, onRefre
     const [embedImage, setEmbedImage] = useState("");
     const [embedFooter, setEmbedFooter] = useState("SigilOS Tickets");
     const [style, setStyle] = useState<"BUTTONS" | "SELECT_MENU">("BUTTONS");
-    const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
     const [selectedJourneyIds, setSelectedJourneyIds] = useState<string[]>([]);
 
-    /** Les parcours publiés et activés : ce qu'un panneau peut réellement exposer. */
+    /** Les motifs activés et publiés : ce qu'un panneau peut réellement exposer. */
     const exposableJourneys = journeys.filter((journey) => journey.isPublished && journey.isEnabled);
 
     const openCreateModal = () => {
@@ -71,8 +71,7 @@ export function TicketPanelsTab({ guildId, panels, categories, journeys, onRefre
         setEmbedImage("");
         setEmbedFooter("SigilOS Tickets");
         setStyle("BUTTONS");
-        setSelectedCategoryIds([]);
-        // Par défaut : tous les parcours publiés (un panneau vide n'afficherait rien).
+        // Par défaut : tous les motifs exposables (un panneau vide n'afficherait rien).
         setSelectedJourneyIds(exposableJourneys.map((journey) => journey.id));
         setModalOpen(true);
     };
@@ -88,7 +87,6 @@ export function TicketPanelsTab({ guildId, panels, categories, journeys, onRefre
         setEmbedImage(panel.embedImage || "");
         setEmbedFooter(panel.embedFooter || "SigilOS Tickets");
         setStyle(panel.style || "BUTTONS");
-        setSelectedCategoryIds(panel.categoryIds || []);
         setSelectedJourneyIds(panel.journeyIds || []);
         setModalOpen(true);
     };
@@ -96,8 +94,8 @@ export function TicketPanelsTab({ guildId, panels, categories, journeys, onRefre
     const handleSave = () => {
         if (!name.trim()) return toast.error("Nom du panneau requis");
         if (!channelId.trim()) return toast.error("ID de salon Discord requis");
-        if (selectedJourneyIds.length === 0 && selectedCategoryIds.length === 0) {
-            return toast.error("Sélectionne au moins un parcours (ou une catégorie existante)");
+        if (selectedJourneyIds.length === 0) {
+            return toast.error("Sélectionne au moins un motif");
         }
 
         startTransition(async () => {
@@ -112,7 +110,8 @@ export function TicketPanelsTab({ guildId, panels, categories, journeys, onRefre
                 embedImage: embedImage.trim() || undefined,
                 embedFooter: embedFooter.trim() || undefined,
                 style,
-                categoryIds: selectedCategoryIds,
+                // Anciennes catégories conservées telles quelles (messages déjà déployés).
+                categoryIds: editingPanel?.categoryIds || [],
                 journeyIds: selectedJourneyIds,
                 isActive: true,
             });
@@ -150,12 +149,6 @@ export function TicketPanelsTab({ guildId, panels, categories, journeys, onRefre
                 toast.error(res.error || "Échec déploiement Discord");
             }
         });
-    };
-
-    const toggleCategory = (catId: string) => {
-        setSelectedCategoryIds((prev) =>
-            prev.includes(catId) ? prev.filter((id) => id !== catId) : [...prev, catId]
-        );
     };
 
     const toggleJourney = (journeyId: string) => {
@@ -228,14 +221,16 @@ export function TicketPanelsTab({ guildId, panels, categories, journeys, onRefre
                                         <span className="font-semibold text-foreground">
                                             {(panel.journeyIds || []).length}
                                         </span>{" "}
-                                        parcours ouvert(s)
+                                        motif(s) affiché(s)
                                     </div>
-                                    <div>
-                                        <span className="font-semibold text-foreground">
-                                            {(panel.categoryIds || []).length}
-                                        </span>{" "}
-                                        catégorie(s) (anciens panneaux)
-                                    </div>
+                                    {(panel.categoryIds || []).length > 0 && (
+                                        <div>
+                                            <span className="font-semibold text-foreground">
+                                                {(panel.categoryIds || []).length}
+                                            </span>{" "}
+                                            ancien(s) motif(s) (convertis automatiquement à la migration)
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 
@@ -359,13 +354,19 @@ export function TicketPanelsTab({ guildId, panels, categories, journeys, onRefre
 
                             <div className="space-y-2 pt-2">
                                 <label className="font-semibold text-foreground">
-                                    Parcours affichés sur ce panneau :
+                                    Motifs affichés sur ce panneau :
                                 </label>
+                                {legacyCategoryCount > 0 && (
+                                    <p className="text-[11px] text-amber-200 rounded-lg border border-amber-500/30 bg-amber-500/10 p-2">
+                                        {legacyCategoryCount} ancien(s) motif(s) à convertir dans l'onglet « Motifs »
+                                        (« Tout passer en Motifs ») pour les exposer ici.
+                                    </p>
+                                )}
                                 <div className="space-y-1.5 max-h-44 overflow-y-auto border border-border rounded-lg p-2 bg-surface/30">
                                     {journeys.length === 0 ? (
                                         <p className="text-[11px] text-muted-foreground p-1">
-                                            Aucun parcours pour l'instant : crée-en un dans l'onglet « Parcours »,
-                                            puis publie-le pour qu'il apparaisse ici.
+                                            Aucun motif pour l'instant : crée-en un dans l'onglet « Motifs »,
+                                            il apparaîtra ici.
                                         </p>
                                     ) : (
                                         journeys.map((journey) => {
@@ -386,12 +387,7 @@ export function TicketPanelsTab({ guildId, panels, categories, journeys, onRefre
                                                     <span className="flex items-center gap-2">
                                                         <span>{journey.emoji || "🎫"}</span>
                                                         <span>{journey.name}</span>
-                                                        {!journey.isPublished && (
-                                                            <span className="text-[10px] text-muted-foreground">
-                                                                (brouillon — publie-le pour l'exposer)
-                                                            </span>
-                                                        )}
-                                                        {journey.isPublished && !journey.isEnabled && (
+                                                        {!journey.isEnabled && (
                                                             <span className="text-[10px] text-muted-foreground">
                                                                 (désactivé)
                                                             </span>
@@ -402,33 +398,6 @@ export function TicketPanelsTab({ guildId, panels, categories, journeys, onRefre
                                             );
                                         })
                                     )}
-                                </div>
-                            </div>
-
-                            <div className="space-y-2 pt-2">
-                                <label className="font-semibold text-foreground">
-                                    Catégories (panneaux existants) :
-                                </label>
-                                <div className="space-y-1.5 max-h-36 overflow-y-auto border border-border rounded-lg p-2 bg-surface/30">
-                                    {categories.map((c) => {
-                                        const isChecked = selectedCategoryIds.includes(c.id);
-                                        return (
-                                            <div
-                                                key={c.id}
-                                                onClick={() => toggleCategory(c.id)}
-                                                className={`flex items-center justify-between p-2 rounded-md cursor-pointer text-xs border ${
-                                                    isChecked
-                                                        ? "border-amber-500/50 bg-amber-500/10 text-foreground"
-                                                        : "border-transparent text-muted-foreground hover:bg-surface/50"
-                                                }`}
-                                            >
-                                                <span>
-                                                    {c.emoji} {c.name}
-                                                </span>
-                                                {isChecked && <Check className="h-3.5 w-3.5 text-amber-400" />}
-                                            </div>
-                                        );
-                                    })}
                                 </div>
                             </div>
                         </div>
@@ -482,20 +451,6 @@ export function TicketPanelsTab({ guildId, panels, categories, journeys, onRefre
                                                 >
                                                     <span>{journey.emoji || "🎫"}</span>
                                                     <span>{journey.name}</span>
-                                                </button>
-                                            );
-                                        })}
-                                        {selectedCategoryIds.map((cId) => {
-                                            const cat = categories.find((c) => c.id === cId);
-                                            if (!cat) return null;
-                                            return (
-                                                <button
-                                                    key={cat.id}
-                                                    type="button"
-                                                    className="px-3 py-1.5 rounded bg-[#4e5058] hover:bg-[#5c5f66] text-white text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-sm"
-                                                >
-                                                    <span>{cat.emoji || "🎫"}</span>
-                                                    <span>{cat.name}</span>
                                                 </button>
                                             );
                                         })}

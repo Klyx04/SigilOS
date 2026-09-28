@@ -10,6 +10,7 @@ import fs from 'fs';
 import path from 'path';
 import { logger } from "@/lib/logger";
 import { buildBountyBestiaireEntry } from "@/lib/bounty-fiche";
+import { resolveSubAreaCenter } from "@/lib/zone-minimap";
 import { normalizeDofusAssetStoredUrl } from "@/lib/dofus-image-url";
 import { sanitizeHtml } from "@/lib/security";
 import { dofusDbFetch } from "@/lib/dofusdb-limiter";
@@ -993,7 +994,6 @@ export async function getBountiesForZone(zoneName: string): Promise<ActionRespon
             id: b.id,
             name: b.name,
             imageUrl: normalizeDofusAssetStoredUrl("monsters", b.imageUrl, b.dofusdbId),
-            mapUrl: b.mapUrl || (b.imageUrl?.startsWith('/images/bounties/') ? b.imageUrl : null),
             level: b.level,
             subarea: b.zoneName,
             guideUrl: b.dpnlUrl,
@@ -1555,20 +1555,17 @@ export async function updateDungeonNoobsUrl(
 
 // ─── Bounty / Archimonstre Search (for WorldMap) ──────────────────────
 
-/** Shared: resolve subAreaIds + center coords + worldMapId from a zone name against worldmap.json */
-function resolveZoneInWorldmap(
+/**
+ * Sous-zones d'une cible dont la **zone est nommée** : correspondance exacte sur
+ * le nom de la sous-zone, sinon correspondance partielle (le nom saisi peut être
+ * plus long ou plus court que celui de `worldmap.json`).
+ */
+function matchZoneSubAreaIds(
     zoneName: string | null,
     subareas: any[],
-    mapsBySubAreaId: Map<number, any[]>,
     normalize: (s: string) => string
-): { subAreaIds: number[]; centerX: number | null; centerY: number | null; worldMapId: number } {
-    const subAreaIds: number[] = [];
-    let centerX: number | null = null;
-    let centerY: number | null = null;
-    let worldMapId = 1;
-
-    if (!zoneName || subareas.length === 0) return { subAreaIds, centerX, centerY, worldMapId };
-
+): number[] {
+    if (!zoneName || subareas.length === 0) return [];
     const normalizedZone = normalize(zoneName);
 
     // Strategy 1: exact match
@@ -1584,29 +1581,79 @@ function resolveZoneInWorldmap(
             return n.includes(normalizedZone) || normalizedZone.includes(n);
         });
     }
-    matching.forEach(sa => subAreaIds.push(sa.id));
+    return matching.map(sa => sa.id);
+}
 
-    if (subAreaIds.length > 0) {
-        let bestMap: any = null;
-        for (const saId of subAreaIds) {
-            for (const m of mapsBySubAreaId.get(saId) || []) {
-                if (!bestMap) { bestMap = m; continue; }
-                const mOut = m.outdoor !== false;
-                const bOut = bestMap.outdoor !== false;
-                if (mOut && !bOut) { bestMap = m; continue; }
-                const mW = m.worldMap === -1 ? 1 : m.worldMap;
-                const bW = bestMap.worldMap === -1 ? 1 : bestMap.worldMap;
-                if (mOut === bOut && mW > bW) { bestMap = m; }
+/**
+ * Position d'une cible à partir de ses sous-zones : **une seule règle** pour
+ * tout le dépôt (`resolveSubAreaCenter` — centroïde du tracé officiel, repli sur
+ * la première map positionnée, jamais le tas (0, 0) de `worldmap.json`).
+ * Aucune sous-zone exploitable → aucun centre (jamais (0, 0) « par défaut »).
+ */
+function centerFromSubAreaIds(
+    subAreaIds: number[],
+    subareas: any[],
+    mapsBySubAreaId: Map<number, any[]>
+): { centerX: number | null; centerY: number | null; worldMapId: number } {
+    const center = resolveSubAreaCenter(subAreaIds, subareas, mapsBySubAreaId);
+    return center
+        ? { centerX: center.x, centerY: center.y, worldMapId: center.worldId }
+        : { centerX: null, centerY: null, worldMapId: 1 };
+}
+
+/**
+ * Centre **stocké** d'une cible (colonne `centerX`/`centerY`) : le couple (0, 0)
+ * y est le sentinelle « position inconnue » (507 lignes `Archimonstre` en base)
+ * — il est recalculé depuis les sous-zones au lieu d'être publié tel quel.
+ */
+function readStoredCenter(
+    centerX: number | null,
+    centerY: number | null,
+    worldMapId: number,
+    subAreaIds: number[],
+    subareas: any[],
+    mapsBySubAreaId: Map<number, any[]>
+): { centerX: number | null; centerY: number | null; worldMapId: number } {
+    if (centerX !== 0 || centerY !== 0) return { centerX, centerY, worldMapId };
+    return centerFromSubAreaIds(subAreaIds, subareas, mapsBySubAreaId);
+}
+
+/** Shared: resolve subAreaIds + center coords + worldMapId from a zone name against worldmap.json */
+function resolveZoneInWorldmap(
+    zoneName: string | null,
+    subareas: any[],
+    mapsBySubAreaId: Map<number, any[]>,
+    normalize: (s: string) => string
+): { subAreaIds: number[]; centerX: number | null; centerY: number | null; worldMapId: number } {
+    const subAreaIds = matchZoneSubAreaIds(zoneName, subareas, normalize);
+    return { subAreaIds, ...centerFromSubAreaIds(subAreaIds, subareas, mapsBySubAreaId) };
+}
+
+/** Index `worldmap.json` (sous-zones + maps groupées par sous-zone) — lu une fois par process. */
+let worldmapIndexCache: { subareas: any[]; mapsBySubAreaId: Map<number, any[]> } | null = null;
+
+function loadWorldmapIndex(): { subareas: any[]; mapsBySubAreaId: Map<number, any[]> } {
+    if (worldmapIndexCache) return worldmapIndexCache;
+
+    let subareas: any[] = [];
+    const mapsBySubAreaId = new Map<number, any[]>();
+    try {
+        const filePath = path.join(process.cwd(), 'public', 'game-data', 'worldmap.json');
+        if (fs.existsSync(filePath)) {
+            const raw = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+            subareas = raw.subareas || [];
+            for (const m of (raw.maps || [])) {
+                if (m.subAreaId == null) continue;
+                if (!mapsBySubAreaId.has(m.subAreaId)) mapsBySubAreaId.set(m.subAreaId, []);
+                mapsBySubAreaId.get(m.subAreaId)!.push(m);
             }
         }
-        if (bestMap) {
-            centerX = bestMap.x;
-            centerY = bestMap.y;
-            worldMapId = bestMap.worldMap === -1 ? 1 : bestMap.worldMap;
-        }
+    } catch (error) {
+        logger.error('[loadWorldmapIndex] worldmap.json error:', { error });
     }
 
-    return { subAreaIds, centerX, centerY, worldMapId };
+    worldmapIndexCache = { subareas, mapsBySubAreaId };
+    return worldmapIndexCache;
 }
 
 /**
@@ -1667,23 +1714,8 @@ export async function searchArchimonstresForMap(
             return where;
         };
 
-        // ── 1. Load worldmap.json once (pour résolution zones des bounties & fallback) ──
-        let subareas: any[] = [];
-        const mapsBySubAreaId = new Map<number, any[]>();
-        try {
-            const filePath = path.join(process.cwd(), 'public', 'game-data', 'worldmap.json');
-            if (fs.existsSync(filePath)) {
-                const raw = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
-                subareas = raw.subareas || [];
-                for (const m of (raw.maps || [])) {
-                    if (m.subAreaId == null) continue;
-                    if (!mapsBySubAreaId.has(m.subAreaId)) mapsBySubAreaId.set(m.subAreaId, []);
-                    mapsBySubAreaId.get(m.subAreaId)!.push(m);
-                }
-            }
-        } catch (err) {
-            logger.error('[searchArchimonstresForMap] worldmap.json error:', { error: err });
-        }
+        // ── 1. Index worldmap.json (zones des avis + fallback), mis en cache ──
+        const { subareas, mapsBySubAreaId } = loadWorldmapIndex();
 
         // ── 2. Archimonstre table (LOCAL-FIRST, filtrée par type/isOcre) ──
         const archiRows = await db.archimonstre.findMany({
@@ -1692,20 +1724,21 @@ export async function searchArchimonstresForMap(
             orderBy: { name: 'asc' },
         });
 
-        const archiResults = archiRows.map(a => ({
-            id: a.id,
-            name: a.name,
-            type: a.type,
-            isOcre: a.isOcre,
-            imageUrl: a.imageUrl,
-            level: a.level,
-            zoneName: a.zone,
-            source: 'local' as const,
-            subAreaIds: Array.isArray(a.subareaIds) ? (a.subareaIds as number[]) : [],
-            centerX: a.centerX,
-            centerY: a.centerY,
-            worldMapId: a.worldMapId,
-        }));
+        const archiResults = archiRows.map(a => {
+            const subAreaIds = Array.isArray(a.subareaIds) ? (a.subareaIds as number[]) : [];
+            return {
+                id: a.id,
+                name: a.name,
+                type: a.type,
+                isOcre: a.isOcre,
+                imageUrl: a.imageUrl,
+                level: a.level,
+                zoneName: a.zone,
+                source: 'local' as const,
+                subAreaIds,
+                ...readStoredCenter(a.centerX, a.centerY, a.worldMapId, subAreaIds, subareas, mapsBySubAreaId),
+            };
+        });
 
         const seenFromArchi = new Set(archiResults.map(r => normalize(r.name)));
 
@@ -1804,23 +1837,7 @@ export async function searchArchimonstresForMap(
                         if (firstSa) {
                             zoneName = typeof firstSa.name === 'string' ? firstSa.name : (firstSa.name?.fr || null);
                         }
-                        let bestMap: any = null;
-                        for (const saId of rawSubareaIds) {
-                            for (const map of mapsBySubAreaId.get(saId) || []) {
-                                if (!bestMap) { bestMap = map; continue; }
-                                const mOut = map.outdoor !== false;
-                                const bOut = bestMap.outdoor !== false;
-                                if (mOut && !bOut) { bestMap = map; continue; }
-                                const mW = map.worldMap === -1 ? 1 : map.worldMap;
-                                const bW = bestMap.worldMap === -1 ? 1 : bestMap.worldMap;
-                                if (mOut === bOut && mW > bW) { bestMap = map; }
-                            }
-                        }
-                        if (bestMap) {
-                            centerX = bestMap.x;
-                            centerY = bestMap.y;
-                            worldMapId = bestMap.worldMap === -1 ? 1 : bestMap.worldMap;
-                        }
+                        ({ centerX, centerY, worldMapId } = centerFromSubAreaIds(rawSubareaIds, subareas, mapsBySubAreaId));
                     }
 
                     results.push({
@@ -1935,25 +1952,101 @@ export async function getArchimonstresByFilter(
             orderBy: { name: 'asc' },
         });
 
-        const results = rows.map(a => ({
-            id: a.id,
-            name: a.name,
-            type: a.type,
-            isOcre: a.isOcre,
-            imageUrl: a.imageUrl,
-            level: a.level,
-            zoneName: a.zone,
-            source: 'local' as const,
-            subAreaIds: Array.isArray(a.subareaIds) ? (a.subareaIds as number[]) : [],
-            centerX: a.centerX,
-            centerY: a.centerY,
-            worldMapId: a.worldMapId,
-        }));
+        // ⚠️ Le sentinelle (0, 0) est stocké en base (507 lignes mesurées) : il est
+        // recalculé depuis les sous-zones, jamais publié tel quel.
+        const { subareas, mapsBySubAreaId } = loadWorldmapIndex();
+
+        const results = rows.map(a => {
+            const subAreaIds = Array.isArray(a.subareaIds) ? (a.subareaIds as number[]) : [];
+            return {
+                id: a.id,
+                name: a.name,
+                type: a.type,
+                isOcre: a.isOcre,
+                imageUrl: a.imageUrl,
+                level: a.level,
+                zoneName: a.zone,
+                source: 'local' as const,
+                subAreaIds,
+                ...readStoredCenter(a.centerX, a.centerY, a.worldMapId, subAreaIds, subareas, mapsBySubAreaId),
+            };
+        });
 
         return { success: true, data: results };
     } catch (error) {
         logger.error('[getArchimonstresByFilter] Error:', { error });
         return { success: false, error: 'Erreur chargement filtre' };
+    }
+}
+
+/**
+ * Avis de recherche du panneau « Avis » de la carte du monde (public + interne) :
+ * nom, visuel, niveau, zone de traque et **zone résolue** (les `subareaIds`
+ * stockés en base font foi ; repli sur la résolution du nom contre
+ * `worldmap.json`). LOCAL-ONLY, zéro réseau. `query` vide = toute la liste.
+ */
+export async function getBountiesForMap(query?: string): Promise<ActionResponse<Array<{
+    id: string;
+    name: string;
+    imageUrl: string | null;
+    level: number;
+    zoneName: string | null;
+    subAreaIds: number[];
+    centerX: number | null;
+    centerY: number | null;
+    worldMapId: number;
+    dpnlUrl: string | null;
+}>>> {
+    const normalize = (s: string) =>
+        s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+
+    try {
+        const term = String(query ?? '').trim();
+        const rows = await db.bounty.findMany({
+            where: {
+                isBountyMonster: true,
+                ...(term.length >= 2 ? { name: { contains: term, mode: 'insensitive' as const } } : {}),
+            },
+            select: {
+                id: true,
+                name: true,
+                imageUrl: true,
+                dofusdbId: true,
+                level: true,
+                zoneName: true,
+                subareaIds: true,
+                dpnlUrl: true,
+            },
+            orderBy: { name: 'asc' },
+            take: 200,
+        });
+
+        const { subareas, mapsBySubAreaId } = loadWorldmapIndex();
+
+        const results = rows.map((b) => {
+            const stored = (Array.isArray(b.subareaIds) ? b.subareaIds : [])
+                .map((value: unknown) => Math.floor(Number(value)))
+                .filter((id: number) => Number.isInteger(id) && id > 0);
+            // Les sous-zones STOCKÉES font foi : le centre est calculé sur elles
+            // (et non sur le nom), sinon la carte se recentrait ailleurs que sur
+            // la zone encadrée — voire sur le tas (0, 0) de `worldmap.json`.
+            const subAreaIds = stored.length > 0 ? stored : matchZoneSubAreaIds(b.zoneName, subareas, normalize);
+            return {
+                id: b.id,
+                name: b.name,
+                imageUrl: normalizeDofusAssetStoredUrl("monsters", b.imageUrl, b.dofusdbId),
+                level: b.level,
+                zoneName: b.zoneName,
+                subAreaIds,
+                ...centerFromSubAreaIds(subAreaIds, subareas, mapsBySubAreaId),
+                dpnlUrl: b.dpnlUrl,
+            };
+        });
+
+        return { success: true, data: results };
+    } catch (error) {
+        logger.error('[getBountiesForMap] Error:', { error });
+        return { success: false, error: 'Erreur chargement des avis' };
     }
 }
 

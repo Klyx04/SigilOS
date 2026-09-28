@@ -198,6 +198,9 @@ export default auth(async (req) => {
         nextUrl.pathname.startsWith("/api/webhooks/") ||
         nextUrl.pathname.startsWith("/api/storage") || 
         nextUrl.pathname.startsWith("/api/csp-report") || 
+        // Géométrie des zones de la carte du monde (encarts « Localisation ») :
+        // donnée publique, déjà servie telle quelle par `/game-data/worldmap.json`.
+        nextUrl.pathname.startsWith("/api/worldmap") ||
         nextUrl.pathname.startsWith("/api/og"); 
 
     // ─── IP Rate Limiting on public unauthenticated API routes ────────────────

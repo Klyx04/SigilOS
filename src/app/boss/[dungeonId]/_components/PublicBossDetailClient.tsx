@@ -37,6 +37,7 @@ import { mergeDofensiveSpells } from "@/lib/dofensive-spells";
 import { deriveDofensiveMonsterName } from "@/lib/dofensive-boss";
 import { getWorldName } from "@/lib/dofus-assets";
 import { DungeonMinimapCard } from "./DungeonMinimapCard";
+import { ZoneLocationCard } from "@/components/worldmap/ZoneLocationCard";
 import { getAnomalyBossBattleMap, getAnomalyBossFamily } from "@/server/actions/anomaly-boss-actions";
 import { getBountyBattleMap } from "@/server/actions/bounty-actions";
 import type { BountyPublicMeta } from "@/lib/bounty-fiche";
@@ -57,6 +58,8 @@ interface PublicDungeon {
   /* 🌀 Chantier « boss d'anomalie » — carte de combat + famille siphonnées localement. */
   isAnomalyBoss?: boolean | null;
   anomalyMapId?: number | null;
+  /** Map d'entrée (worldmap.json) — résout la zone de l'encart « Localisation ». */
+  mapId?: number | null;
   /* 🎯 Chantier « Avis de recherche » — 3ᵉ type de fiche (ni donjon, ni titan). */
   kind?: "boss" | "titan" | "bounty";
 }
@@ -356,6 +359,11 @@ export function PublicBossDetailClient({
   const resists = activeGrade?.resists || {};
   const coords = currentStats?.coordinates as { x: number; y: number; worldMapId?: number } | null | undefined;
   const travelCmd = coords ? `/travel ${coords.x} ${coords.y}` : null;
+  /* Encart « Localisation » : la zone de l'avis (subareaIds) ou du donjon (mapId),
+     avec repli sur la carte de l'entrée (coordonnées seules). */
+  const bountySubareaIds = bountyMeta?.subareaIds ?? [];
+  const hasZoneLocation = !!(coords || dungeon.mapId || bountySubareaIds.length > 0);
+  const zoneWorldId = Number(coords?.worldMapId ?? 0) > 0 ? (coords!.worldMapId as number) : 1;
   const resolvedBossName =
     dungeon.dofensiveMonsterName ?? (activeMonsterName ?? deriveDofensiveMonsterName(bossName) ?? bossName);
 
@@ -378,7 +386,7 @@ export function PublicBossDetailClient({
           </button>
         </div>
 
-        <div className={cn("grid gap-4", coords && "lg:grid-cols-[minmax(0,1fr)_minmax(0,0.85fr)] lg:items-start")}>
+        <div className={cn("grid gap-4", hasZoneLocation && "lg:grid-cols-[minmax(0,1fr)_minmax(0,0.85fr)] lg:items-start")}>
           {/* ── Colonne gauche : identité, entrée du donjon, caractéristiques ── */}
           <div className="min-w-0 space-y-3.5">
             <div className="flex items-center gap-4 min-w-0">
@@ -531,15 +539,33 @@ export function PublicBossDetailClient({
             )}
           </div>
 
-          {/* ── Colonne droite : où se trouve le donjon (carte statique 5×3) ── */}
-          {coords && (
-            <DungeonMinimapCard
-              x={coords.x}
-              y={coords.y}
-              worldMapId={coords.worldMapId}
+          {/* ── Colonne droite : où se trouve le donjon (zone encadrée, sinon entrée seule) ── */}
+          {hasZoneLocation && (
+            <ZoneLocationCard
+              subareaIds={bountySubareaIds}
+              mapId={dungeon.mapId ?? null}
+              worldId={zoneWorldId}
+              mapHref={
+                coords
+                  ? `/carte-du-monde?play=1&x=${coords.x}&y=${coords.y}&zoom=-2&world=${zoneWorldId}`
+                  : null
+              }
               title={t.bossPage.minimapTitle}
               placeName={dungeon.name}
               openLabel={t.bossPage.minimapOpen}
+              markerIcon="/assets/worldmap/dungeon-boss.png"
+              fallback={
+                coords ? (
+                  <DungeonMinimapCard
+                    x={coords.x}
+                    y={coords.y}
+                    worldMapId={coords.worldMapId}
+                    title={t.bossPage.minimapTitle}
+                    placeName={dungeon.name}
+                    openLabel={t.bossPage.minimapOpen}
+                  />
+                ) : null
+              }
             />
           )}
         </div>

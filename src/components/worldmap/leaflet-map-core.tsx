@@ -149,7 +149,30 @@ function SigilTilesLayer({ activeWorld, selectedWorldId }: any) {
 // -------------------------------------------------------------------------------------
 const TOOLTIP_THROTTLE_MS = 100;
 
-function MapGridOverlay({ activeWorld, mapsByCoords, mapsBySubAreaId, subAreasById, showDebugGrid, isMiniMap, guessResult, selectedPosition, participants, currentUserId, highlightSubareaIds, zoneHighlight, zaaps, onOpenZoneDetails, setSelectedPosition, isOverHudRef, mouseoutTimerRef }: any) {
+/**
+ * Icônes de cible dessinées DANS le canvas (recherche « avis ») — chargées une
+ * fois puis re-dessinées via `onLoad` (le canvas pulse déjà à 4 Hz).
+ * Seuls les chemins internes sont acceptés : une image distante « teindrait »
+ * le canvas (plus aucun échantillonnage possible ensuite).
+ */
+const mapMarkerImageCache = new Map<string, HTMLImageElement | null>();
+
+function getMapMarkerImage(url: string, onLoad: () => void): HTMLImageElement | null {
+    if (typeof window === 'undefined' || !url.startsWith('/')) return null;
+    const cached = mapMarkerImageCache.get(url);
+    if (cached !== undefined) return cached;
+    mapMarkerImageCache.set(url, null); // réservation : un seul chargement par URL
+    const image = new window.Image();
+    image.onload = () => {
+        mapMarkerImageCache.set(url, image);
+        onLoad();
+    };
+    image.onerror = () => mapMarkerImageCache.set(url, null);
+    image.src = url;
+    return null;
+}
+
+function MapGridOverlay({ activeWorld, mapsByCoords, mapsBySubAreaId, subAreasById, showDebugGrid, isMiniMap, guessResult, selectedPosition, participants, currentUserId, highlightSubareaIds, zoneHighlight, pinnedSubareaId, highlightMarker, zaaps, onOpenZoneDetails, setSelectedPosition, isOverHudRef, mouseoutTimerRef }: any) {
     const map = useMap();
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
     const hoveredCellRef = useRef<string | null>(null);
@@ -225,11 +248,13 @@ function MapGridOverlay({ activeWorld, mapsByCoords, mapsBySubAreaId, subAreasBy
             map.latLngToContainerPoint(L.latLng(-(oy + gy * mh), ox + gx * mw));
 
         // ── 1. Hover SubArea (surbrillance de zone au survol) ──
-        const subAreaId = hoveredSubAreaIdRef.current;
+        // Zone encadrée : survol (bouton « Zones ») ou zone ÉPINGLÉE (avis de
+        // recherche sélectionné dans le panneau latéral).
+        const subAreaId = pinnedSubareaId ?? hoveredSubAreaIdRef.current;
         const cellKey = hoveredCellRef.current;
         const activeSubArea = subAreaId ? subAreasById?.get(subAreaId) : null;
 
-        if (zoneHighlight && subAreaId !== null && mapsBySubAreaId && subAreasById) {
+        if ((zoneHighlight || pinnedSubareaId != null) && subAreaId !== null && mapsBySubAreaId && subAreasById) {
             const subArea = subAreasById.get(subAreaId);
             const mapsInZone = mapsBySubAreaId.get(subAreaId);
             
@@ -365,7 +390,36 @@ function MapGridOverlay({ activeWorld, mapsByCoords, mapsBySubAreaId, subAreasBy
             ctx.restore();
         }
 
-        // ── 1c. Hover cellule individuelle (crochets + badge coordonnées style Duffus) ──
+        // ── 1c. Icône de l'avis épinglé — clignotante, au centre de la zone ──
+        if (highlightMarker && (pinnedSubareaId != null || highlightSubareaIdsRef.current.length > 0)) {
+            const markerWorldId = highlightMarker.worldId;
+            if (markerWorldId === undefined || markerWorldId === null || markerWorldId === world?.id) {
+                const markerPulse = (Math.sin(Date.now() / 200) + 1) / 2; // 0..1, ~0,8 Hz
+                const point = toCP(highlightMarker.gameX, highlightMarker.gameY);
+                const size = 42 + markerPulse * 8;
+                ctx.save();
+                ctx.globalAlpha = 0.5 + markerPulse * 0.5;
+                // Halo orangé : même teinte que la surbrillance de zone
+                ctx.beginPath();
+                ctx.arc(point.x, point.y, 20 + markerPulse * 10, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(251, 146, 60, 0.22)';
+                ctx.fill();
+                const markerIcon = highlightMarker.iconUrl
+                    ? getMapMarkerImage(highlightMarker.iconUrl, drawGrid)
+                    : null;
+                if (markerIcon) {
+                    ctx.drawImage(markerIcon, point.x - size / 2, point.y - size / 2, size, size);
+                } else {
+                    ctx.beginPath();
+                    ctx.arc(point.x, point.y, 7, 0, Math.PI * 2);
+                    ctx.fillStyle = 'rgba(251, 146, 60, 0.95)';
+                    ctx.fill();
+                }
+                ctx.restore();
+            }
+        }
+
+        // ── 1d. Hover cellule individuelle (crochets + badge coordonnées style Duffus) ──
         if (cellKey) {
             const [hx, hy] = cellKey.split(',').map(Number);
             const tl = toCP(hx, hy);
@@ -618,7 +672,7 @@ function MapGridOverlay({ activeWorld, mapsByCoords, mapsBySubAreaId, subAreasBy
         // Labels de coordonnées sur la grille debug
         ctx.font = 'bold 9px Inter, sans-serif';
         // L'affichage du texte des coordonnées en mode debug a été supprimé à la demande de l'utilisateur.
-    }, [map, activeWorld, mapsByCoords, mapsBySubAreaId, subAreasById, showDebugGrid, isMiniMap, guessResult, selectedPosition, participants, currentUserId, highlightSubareaIds, zoneHighlight]);
+    }, [map, activeWorld, mapsByCoords, mapsBySubAreaId, subAreasById, showDebugGrid, isMiniMap, guessResult, selectedPosition, participants, currentUserId, highlightSubareaIds, zoneHighlight, pinnedSubareaId, highlightMarker]);
 
     // ── Sync highlight ref : pulsation à 4 Hz (avant : RAF à 60 fps en continu
     // dès qu'une recherche surlignait des zones → main thread saturé en permanence).
@@ -944,36 +998,16 @@ function MapNarrativeGPS({ activeWorld, triggerCoords, triggerWorldId, currentWo
 // -------------------------------------------------------------------------------------
 // Fix Resize Issue & Autocenter Result
 // -------------------------------------------------------------------------------------
-// Pré-charge les tuiles de la zone cible (réduit le flash au dézoom du rendu de distance)
-function prefetchTilesForBounds(map: any, world: any, bounds: any) {
-    if (!world || !bounds || typeof window === 'undefined') return;
-    const tileSize = world.id === 1 ? 256 : 250;
-    const zoom = Math.round(map.getBoundsZoom(bounds, false));
-    const { scale, bank } = resolveTileBank(world.zoom || [1], zoom);
-    const apiCols = world.id === 1 ? Math.round((world.totalWidth * scale) / tileSize) : Math.ceil((world.totalWidth * scale) / tileSize);
-    const apiRows = world.id === 1 ? Math.round((world.totalHeight * scale) / tileSize) : Math.ceil((world.totalHeight * scale) / tileSize);
+/**
+ * Zoom de cadrage d'une cible (zone d'un avis, étape de quête) : à cette
+ * échelle (~0,8) une zone de ~16 cases tient entièrement à l'écran avec sa
+ * marge. Source unique : le montage (`initialZoom`) ET le vol
+ * (`ExternalController`) l'utilisent, sinon la bascule de monde chargeait les
+ * tuiles deux fois (zoom de montage ≠ zoom de vol).
+ */
+const ZONE_FOCUS_ZOOM = -1;
 
-    const nw = bounds.getNorthWest();
-    const se = bounds.getSouthEast();
-    const nwPx = map.project(nw, zoom);
-    const sePx = map.project(se, zoom);
-    const minX = Math.floor(nwPx.x / tileSize);
-    const maxX = Math.floor(sePx.x / tileSize);
-    const minY = Math.floor(nwPx.y / tileSize);
-    const maxY = Math.floor(sePx.y / tileSize);
-
-    for (let ty = minY; ty <= maxY; ty++) {
-        for (let tx = minX; tx <= maxX; tx++) {
-            if (tx < 0 || tx >= apiCols || ty < 0 || ty >= apiRows) continue;
-            const index = ty * apiCols + tx + 1;
-            const url = `/game-data/tiles/w${world.id}/${bank}/${index}.webp`;
-            const img = new window.Image();
-            img.src = url;
-        }
-    }
-}
-
-function MapViewHandler({ isMiniMap, guessResult, activeWorld, minimapZoomLevel, minimapRecenterTrigger, participants }: any) {
+function MapViewHandler({ isMiniMap, guessResult, activeWorld, minimapZoomLevel, minimapRecenterTrigger, participants, triggerCenterPosition }: any) {
     const map = useMap();
 
     const lastFittedKeyRef = useRef<string>("");
@@ -1014,9 +1048,10 @@ function MapViewHandler({ isMiniMap, guessResult, activeWorld, minimapZoomLevel,
     // BUT only if we don't have a specific quest/trigger position to focus on
     useEffect(() => {
         if (activeWorld && map && !participants) { 
-            // If we have a triggerCenterPosition pending, we let that handler or initial mount take care of it
-            const hasTrigger = (map as any)._hasTriggeredOnce;
-            if (hasTrigger) return;
+            // Une cible explicite (avis, quête, recherche) a déjà cadré le montage
+            // (`initialCenter` + `initialZoom`) : recentrer ici sur le milieu du monde
+            // ferait charger un écran entier de tuiles pour rien, puis sauter à la cible.
+            if (triggerCenterPosition) return;
 
             const world = activeWorld;
             const targetLat = -(world.totalHeight / 2);
@@ -1025,7 +1060,7 @@ function MapViewHandler({ isMiniMap, guessResult, activeWorld, minimapZoomLevel,
             // SetView is immediate which feels better when switching worlds than flyTo
             map.setView([targetLat, targetLng], isMiniMap ? -3 : 0, { animate: false });
         }
-    }, [activeWorld, map, isMiniMap, participants]);
+    }, [activeWorld, map, isMiniMap, participants, triggerCenterPosition]);
 
     // Manual Zoom Control for MiniMap
     useEffect(() => {
@@ -1245,22 +1280,33 @@ function MapInteractionHandler({ activeWorld, mapsByCoords, subAreasById, dungeo
 function ExternalController({ triggerCenterPosition, activeWorld, minimapRecenterTrigger, interactive, initialZoom }: any) {
     const map = useMap();
     const prevTrigger = useRef(minimapRecenterTrigger);
-    const hasCentered = useRef(false);
 
-    useEffect(() => {
-        if (!triggerCenterPosition || !activeWorld) return;
-        const px = activeWorld.origineX + triggerCenterPosition.x * activeWorld.mapWidth + activeWorld.mapWidth / 2;
-        const py = activeWorld.origineY + triggerCenterPosition.y * activeWorld.mapHeight + activeWorld.mapHeight / 2;
-        
+    /**
+     * Cadre la carte sur une cible : **même zoom que le montage** (`initialZoom`,
+     * sinon le zoom de cadrage de zone) et **aucune animation** quand la carte y
+     * est déjà. Sans cela, une bascule de monde chargeait les tuiles deux fois
+     * (montage à un zoom, vol à un autre) avec un saut visible au milieu.
+     */
+    const frameOn = useCallback((x: number, y: number) => {
+        if (!activeWorld) return;
+        const px = activeWorld.origineX + x * activeWorld.mapWidth + activeWorld.mapWidth / 2;
+        const py = activeWorld.origineY + y * activeWorld.mapHeight + activeWorld.mapHeight / 2;
+        const zoom = initialZoom !== undefined ? initialZoom : ZONE_FOCUS_ZOOM;
+
         if (interactive === false) {
             // Mode photo/rendu : setView immédiat sans animation
-            const zoom = initialZoom !== undefined ? initialZoom : -1;
             map.setView([-py, px], zoom, { animate: false });
-        } else {
-            // Mode interactif : flyTo animé
-            map.flyTo([-py, px], -1, { duration: 0.5 });
+            return;
         }
-    }, [triggerCenterPosition, activeWorld, map, interactive, initialZoom]);
+        // Déjà cadré (montage sur la cible) : rien à animer, rien à recharger.
+        if (map.getZoom() === zoom && map.getCenter().equals(L.latLng(-py, px), 0.5)) return;
+        map.flyTo([-py, px], zoom, { duration: 0.5 });
+    }, [activeWorld, initialZoom, interactive, map]);
+
+    useEffect(() => {
+        if (!triggerCenterPosition) return;
+        frameOn(triggerCenterPosition.x, triggerCenterPosition.y);
+    }, [triggerCenterPosition, frameOn]);
 
     useEffect(() => {
         if (minimapRecenterTrigger !== undefined && minimapRecenterTrigger !== prevTrigger.current) {
@@ -1277,18 +1323,11 @@ function ExternalController({ triggerCenterPosition, activeWorld, minimapRecente
                     }
                 } else if (triggerCenterPosition) {
                     // Recenter command
-                    const px = activeWorld.origineX + triggerCenterPosition.x * activeWorld.mapWidth + activeWorld.mapWidth / 2;
-                    const py = activeWorld.origineY + triggerCenterPosition.y * activeWorld.mapHeight + activeWorld.mapHeight / 2;
-                    if (interactive === false) {
-                        const zoom = initialZoom !== undefined ? initialZoom : -1;
-                        map.setView([-py, px], zoom, { animate: false });
-                    } else {
-                        map.flyTo([-py, px], -1, { duration: 0.5 });
-                    }
+                    frameOn(triggerCenterPosition.x, triggerCenterPosition.y);
                 }
             }
         }
-    }, [minimapRecenterTrigger, map, interactive, initialZoom]);
+    }, [minimapRecenterTrigger, map, frameOn]);
 
     return null;
 }
@@ -1354,6 +1393,10 @@ interface LeafletMapCoreProps {
     onHoverMap?: (pos: { x: number, y: number, found: boolean } | null) => void;
     highlightSubareaIds?: number[];
     zoneHighlight?: boolean;
+    /** Zone encadrée même sans survol (avis sélectionné dans le panneau latéral). */
+    pinnedSubareaId?: number | null;
+    /** Cible (avis) dessinée au centre de sa zone, clignotante. */
+    highlightMarker?: { gameX: number; gameY: number; iconUrl?: string | null; worldId?: number | null } | null;
     minZoom?: number;
     zaaps?: any[];
     showZaaps?: boolean;
@@ -1376,6 +1419,7 @@ export default function LeafletMapCore(props: LeafletMapCoreProps) {
         triggerWorldId, isMiniMap, guessResult, minimapZoomLevel, minimapRecenterTrigger,
          participants, currentUserId, isSpectator, hideUI, interactive = true, 
         autoCopyTravel = false, highlightSubareaIds, initialZoom: initialZoomProp, zoneHighlight,
+        pinnedSubareaId = null, highlightMarker = null,
         zaaps, showZaaps, selectedHarvestResources, activeCircuit, completedHarvestSteps, onToggleHarvestStep,
         showPassages = false, onOpenZoneDetails, isOverlay = false
     } = props;
@@ -1422,7 +1466,10 @@ export default function LeafletMapCore(props: LeafletMapCoreProps) {
 
     const initialZoom = useMemo(() => {
         if (initialZoomProp !== undefined) return initialZoomProp;
-        if (triggerCenterPosition) return 0; // Standard for quest focus
+        // Une cible est cadrée (avis, quête) : on monte DIRECTEMENT au zoom de vol
+        // (`ExternalController` utilise le même) — deux zooms différents pour la
+        // même bascule = deux chargements de tuiles, donc la transition qui rame.
+        if (triggerCenterPosition) return ZONE_FOCUS_ZOOM;
         return isMiniMap ? -3 : 0;
     }, [triggerCenterPosition, isMiniMap, initialZoomProp]);
 
@@ -1695,6 +1742,7 @@ export default function LeafletMapCore(props: LeafletMapCoreProps) {
                     minimapZoomLevel={minimapZoomLevel}
                     minimapRecenterTrigger={minimapRecenterTrigger}
                     participants={participants}
+                    triggerCenterPosition={triggerCenterPosition}
                 />
                 {/* 1. Tuiles officielles continues & multi-résolution */}
                 <SigilTilesLayer activeWorld={correctedActiveWorld} selectedWorldId={selectedWorldId} />
@@ -1707,6 +1755,8 @@ export default function LeafletMapCore(props: LeafletMapCoreProps) {
                     subAreasById={subAreasById}
                     showDebugGrid={showDebugGrid}
                     zoneHighlight={zoneHighlight}
+                    pinnedSubareaId={pinnedSubareaId}
+                    highlightMarker={highlightMarker}
                     isMiniMap={isMiniMap}
                     guessResult={guessResult}
                     selectedPosition={selectedPosition}

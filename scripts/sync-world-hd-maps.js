@@ -11,7 +11,7 @@
  */
 const fs = require('fs');
 const path = require('path');
-const sharp = require('sharp');
+const { stripWatermarkBuffer } = require('./clean-hd-maps-watermark.js');
 
 const ROOT = path.join(__dirname, '..');
 const HD_MAPS_DIR = path.join(ROOT, 'public', 'game-data', 'hd_maps');
@@ -57,7 +57,10 @@ async function main() {
                 const res = await fetch(url);
                 if (!res.ok) return 'fail';
                 const buf = Buffer.from(await res.arrayBuffer());
-                await sharp(buf).webp({ quality: 82 }).toFile(dest);
+                // Retrait du filigrane « DofusDB » incrusté par le CDN
+                // (clean-hd-maps-watermark.js) : l'image arrive déjà propre.
+                const cleaned = await stripWatermarkBuffer(buf);
+                await fs.promises.writeFile(dest, cleaned);
                 return 'ok';
             } catch {
                 return 'fail';

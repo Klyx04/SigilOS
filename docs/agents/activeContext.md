@@ -55,8 +55,9 @@
 > **Reste / ops** : rien à jouer (0 migration, 0 appel DofusDB nouveau, 0 variable d'env) ⇒ `./scripts/deploy-cd.sh beta` puis relire le Tableau God ; file : **D-2** télémétrie v2 → **D-3** `/dofus-guides` → **B-1 → B-2** → **C-1 → C-4**.
 
 ## PR / Branche
-- **Session « télémétrie produit » (D-2bis)** → 6 branches `feat/telemetry-produit-*-*` depuis `dev`, **6 PR mergées** : **#791** (règles pures) · **#792** (mesures serveur) · **#793** (vue d'ensemble produit) · **#794** (adoption réelle) · **#795** (rétention, 3 onglets console supprimés) · **#796** (compteur anonyme du site public).
-- Chaque PR a été vérifiée avant merge : `Verify & Build` **verte** (≈ 8 min : `next build` + tests), CodeQL et Analyze verts ; `git status --short` propre entre chaque itération.
+- **Session « SEO — l'indexation cesse de mentir » (29/09/2026)** → branche **`fix/seo-horizon-indexation`**, **PR #798** vers `dev` : `lastmod` jamais futur, `/almanax/<date>` borné (404 hors des 30 jours que la source sert), guide Sylvestre publié selon son toggle, titre `/changelog` corrigé.
+- **Session précédente « télémétrie produit » (D-2bis, 28/09)** → 6 branches `feat/telemetry-produit-*-*` depuis `dev`, **6 PR mergées** : **#791** (règles pures) · **#792** (mesures serveur) · **#793** (vue d'ensemble produit) · **#794** (adoption réelle) · **#795** (rétention, 3 onglets console supprimés) · **#796** (compteur anonyme du site public).
+- Chaque PR est vérifiée avant merge : `Verify & Build` **verte** (≈ 8 min : `next build` + tests), CodeQL et Analyze verts ; `git status --short` propre entre chaque itération.
 
 
 ## NEXT (priorités — à faire)

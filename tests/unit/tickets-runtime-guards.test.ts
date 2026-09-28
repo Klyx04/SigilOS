@@ -73,16 +73,24 @@ describe("tickets v2 — les handlers Discord passent par le gate d'accès", () 
         expect(guard).toContain("ticket.discordGuildId !== input.discordGuildId");
         expect(guard).toContain("mergeStaffRoleIds(");
         expect(guard).toContain("decideTicketAccess(");
-        expect(guard).toContain('closePolicy: ticket.journey?.closePolicy ?? "STAFF_ONLY"');
+        // v2 : politique publiée du parcours, prioritaire ; v1 : réglages sans migration.
+        expect(guard).toContain("ticket.journey?.closePolicy");
+        expect(guard).toContain("resolveCategoryClosePolicy(");
     });
 
-    it("claim, note, fermeture, renommage et CSAT appellent le gate", () => {
+    it("claim, note, fermeture, renommage, ajout/retrait, réouverture, copie, suppression et CSAT appellent le gate", () => {
         const source = read(ACTIONS);
         const guarded: Array<[string, string]> = [
             ["internalHandleTicketClaim", 'access: "staff"'],
+            ["internalHandleTicketRelease", 'access: "staff"'],
             ["internalHandleTicketAddNote", 'access: "staff"'],
             ["internalHandleTicketRename", 'access: "staff"'],
+            ["internalHandleTicketAdd", 'access: "staff"'],
+            ["internalHandleTicketRemove", 'access: "staff"'],
+            ["internalHandleTicketTranscript", 'access: "staff"'],
+            ["internalHandleTicketDelete", 'access: "staff"'],
             ["internalHandleTicketClose", 'access: "staff_or_creator"'],
+            ["internalHandleTicketReopen", 'access: "staff_or_creator"'],
         ];
 
         for (const [name, access] of guarded) {

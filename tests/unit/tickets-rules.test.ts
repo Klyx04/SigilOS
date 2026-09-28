@@ -30,8 +30,10 @@ import {
 import {
     buildActionRows,
     buildApprovalRows,
+    buildCloseConfirmRows,
     buildCsatRows,
-    buildPanelRows,
+    buildDeleteConfirmRows,
+    buildModerationRows,
     buildTicketWelcomeEmbed,
     formatTicketChannelName,
     neutralizeMentions,
@@ -48,13 +50,21 @@ describe("tickets v2 — routage des interactions", () => {
             select_journey: "tb:select_journey:panel1",
             modal_open: "tb:modal_open:panel1:journey1",
             modal_page: "tb:modal_page:journey1:1",
+            modal_add: "tb:modal_add:ticket1",
+            modal_remove: "tb:modal_remove:ticket1",
             pick: "tb_pick:journey1:reglement:yes",
             claim: "tb:claim:ticket1",
             release: "tb:release:ticket1",
             note: "tb:note:ticket1",
             rename: "tb:rename:ticket1",
+            add: "tb:add:ticket1",
+            remove: "tb:remove:ticket1",
             close: "tb:close:ticket1",
+            close_confirm: "tb:close_confirm:ticket1",
             reopen: "tb:reopen:ticket1",
+            transcript: "tb:transcript:ticket1",
+            delete: "tb:delete:ticket1",
+            delete_confirm: "tb:delete_confirm:ticket1",
             csat: "tb:csat:ticket1:5",
             approve: "tb:approve:ticket1",
             refuse: "tb:refuse:ticket1",
@@ -73,9 +83,17 @@ describe("tickets v2 — routage des interactions", () => {
         expect(resolveTicketAccessLevel("tb:modal_page:journey1:2")).toBe("public");
         expect(resolveTicketAccessLevel("tb_pick:journey1:reglement:no")).toBe("public");
         expect(resolveTicketAccessLevel("tb:claim:ticket1")).toBe("staff");
+        expect(resolveTicketAccessLevel("tb:release:ticket1")).toBe("staff");
+        expect(resolveTicketAccessLevel("tb:add:ticket1")).toBe("staff");
+        expect(resolveTicketAccessLevel("tb:remove:ticket1")).toBe("staff");
+        expect(resolveTicketAccessLevel("tb:transcript:ticket1")).toBe("staff");
+        expect(resolveTicketAccessLevel("tb:delete:ticket1")).toBe("staff");
+        expect(resolveTicketAccessLevel("tb:delete_confirm:ticket1")).toBe("staff");
         expect(resolveTicketAccessLevel("tb:note:ticket1")).toBe("staff");
         expect(resolveTicketAccessLevel("tb:csat:ticket1:3")).toBe("creator");
         expect(resolveTicketAccessLevel("tb:close:ticket1")).toBe("staff_or_creator");
+        expect(resolveTicketAccessLevel("tb:close_confirm:ticket1")).toBe("staff_or_creator");
+        expect(resolveTicketAccessLevel("tb:reopen:ticket1")).toBe("staff_or_creator");
     });
 
     it("garde la compatibilité des panneaux v1 (2ᵉ segment = cible, parcours ou catégorie)", () => {
@@ -287,11 +305,48 @@ describe("tickets v2 — messages Discord", () => {
             viewerIsStaff: true,
             viewerIsCreator: false,
         });
+        expect(asStaff).toHaveLength(2);
         expect(asStaff[0].components.map((component) => component.custom_id)).toEqual([
             "tb:claim:t1",
+            "tb:add:t1",
             "tb:note:t1",
             "tb:rename:t1",
+        ]);
+        expect(asStaff[1].components.map((component) => component.custom_id)).toEqual([
             "tb:close:t1",
+            "tb:transcript:t1",
+            "tb:delete:t1",
+        ]);
+
+        const asClaimer = buildActionRows({
+            ticketId: "t1",
+            status: "CLAIMED",
+            viewerIsStaff: true,
+            viewerIsCreator: false,
+            claimed: true,
+        });
+        expect(asClaimer[0].components[0].custom_id).toBe("tb:release:t1");
+
+        // Libellés bilingues FR/EN, jamais plus de 80 caractères (limite Discord).
+        for (const row of [...asStaff, ...creatorWhoMayClose]) {
+            for (const component of row.components) {
+                expect(String(component.label).length).toBeLessThanOrEqual(80);
+                expect(String(component.label)).toContain("/");
+            }
+        }
+
+        expect(buildCloseConfirmRows("t1")[0].components.map((c) => c.custom_id)).toEqual([
+            "tb:close_confirm:t1",
+            "tb:cancel_close:t1",
+        ]);
+        expect(buildDeleteConfirmRows("t1")[0].components.map((c) => c.custom_id)).toEqual([
+            "tb:delete_confirm:t1",
+            "tb:cancel_delete:t1",
+        ]);
+        expect(buildModerationRows("t1")[0].components.map((c) => c.custom_id)).toEqual([
+            "tb:reopen:t1",
+            "tb:transcript:t1",
+            "tb:delete:t1",
         ]);
     });
 

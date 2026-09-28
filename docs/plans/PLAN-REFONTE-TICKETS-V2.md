@@ -19,7 +19,10 @@
 | **Branchement Discord** (panneaux + route + création depuis un parcours) | ✅ **fait** (PR #725) | `journey-dispatch.ts` · `src/server/tickets/journey-open.ts` · route d'interactions · `internalHandleTicketCreate` |
 | Onglets Formulaires (T2) / Équipe (T3) | ❌ | actions serveur livrées (10) |
 | SLA, auto-fermeture, purge, quota serveur | ❌ | réglages **encore affichés**, aucun exécutant |
-| Participants (`$add`/`$remove`), `THREAD_PRIVATE`, suppression de salon observée | ❌ | `setMemberChannelPermissionDiscord` importé, jamais appelé |
+| **Boutons complets + confirmations + modération post-fermeture** | ✅ **fait** (28/09/2026) | `ticket-texts.ts` (FR/EN vulgarisé) · `embeds.ts` (`buildCloseConfirmRows`, `buildDeleteConfirmRows`, `buildModerationRows`) · handlers release/add/remove/reopen/transcript/delete + route |
+| **Permissions salon 4 groupes × Ouvert/Fermé (façon TicketTool, à notre sauce)** | ✅ **fait** (28/09/2026, sans migration) | `channel-permissions.ts` (8 perms, Oui/Non) + `category-permissions.ts` (+ `additionalRoleIds`, blacklist) · `settingsJson` · bascule à la clôture/réouverture · matrice dans Réglages, invités par motif |
+| **Icônes boutons (unicode + custom) + styles 4 couleurs** | ✅ **fait** (28/09/2026) | `ticket-icons.ts` (presets, validation, payload custom) · sélecteur dans Motifs |
+| Participants (`$add`/`$remove`), `THREAD_PRIVATE`, suppression de salon observée | ✅ **partiel** (28/09/2026) | `setMemberChannelPermissionDiscord` **appelé** (add/remove + modales) · suppression **observée** (`ARCHIVE_FAILED` si refus) · `THREAD_PRIVATE` toujours ignoré (dit, non proposé) |
 
 ✅ Depuis la suite 27 (PR #725), le branchement est **fait** : `isPublished` est lu par le
 déploiement des panneaux (`deployTicketPanelAction` → `buildPanelRows`, parcours publiés

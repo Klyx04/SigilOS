@@ -1326,8 +1326,18 @@ export async function POST(request: NextRequest) {
                 const {
                     internalHandleTicketCreate,
                     internalHandleTicketClaim,
+                    internalHandleTicketRelease,
+                    internalHandleTicketAdd,
+                    internalHandleTicketRemove,
+                    internalHandleTicketClose,
+                    internalHandleTicketReopen,
+                    internalHandleTicketTranscript,
+                    internalHandleTicketDelete,
                     internalHandleTicketCsat,
                 } = await import("@/server/actions/ticket-bot-actions");
+                const { buildCloseConfirmRows, buildDeleteConfirmRows } = await import(
+                    "@/lib/tickets/embeds"
+                );
 
                 if (action === "select_open" || action === "open" || action === "select_journey") {
                     const panelId = entityId;
@@ -1335,6 +1345,33 @@ export async function POST(request: NextRequest) {
 
                     if (!categoryId) {
                         return NextResponse.json({ type: 4, data: { content: "Catégorie non spécifiée", flags: 64 } });
+                    }
+
+                    // 🆕 Blacklist : un rôle bloqué ne peut pas ouvrir de ticket.
+                    {
+                        const { db: blacklistDb } = await import("@/lib/prisma");
+                        const { readTicketPermissionSettings, isBlacklisted } = await import(
+                            "@/lib/tickets/category-permissions"
+                        );
+                        const guildForBlacklist = await blacklistDb.guildConfig.findUnique({
+                            where: { discordGuildId: guild_id },
+                            select: {
+                                id: true,
+                                ticketConfig: { select: { settingsJson: true } },
+                            },
+                        });
+                        const blacklistSettings = readTicketPermissionSettings(
+                            (guildForBlacklist?.ticketConfig as { settingsJson?: unknown } | null)?.settingsJson
+                        );
+                        if (isBlacklisted(blacklistSettings, ticketActorContext.discordUserRoleIds)) {
+                            return NextResponse.json({
+                                type: 4,
+                                data: {
+                                    content: "🚫 Tu ne peux pas ouvrir de ticket sur ce serveur. / You cannot open a ticket on this server.",
+                                    flags: 64,
+                                },
+                            });
+                        }
                     }
 
                     // 🆕 Tickets v2 — un **parcours** publié et activé prend la main : c'est lui
@@ -1498,12 +1535,16 @@ export async function POST(request: NextRequest) {
                         },
                     });
                 } else if (action === "close") {
+                    // 🆕 Two Step : `Fermer` affiche d'abord une confirmation éphémère
+                    // (façon TicketTool « Close Ask »), sauf si le motif s'en dispense
+                    // (`requireConfirm: false` dans `settingsJson`). Le motif est demandé
+                    // à l'étape suivante (`close_confirm` → modale `modal_close`).
                     const ticketId = entityId;
-                    return NextResponse.json({
+                    const closeModal = {
                         type: 9, // MODAL
                         data: {
                             custom_id: `tb:modal_close:${ticketId}`,
-                            title: "Fermer le ticket",
+                            title: "Fermer / Close",
                             components: [
                                 {
                                     type: 1,
@@ -1511,11 +1552,185 @@ export async function POST(request: NextRequest) {
                                         {
                                             type: 4,
                                             custom_id: "close_reason",
-                                            label: "Motif de clôture (optionnel)",
+                                            label: "Motif (optionnel) / Reason (optional)",
                                             style: 2,
-                                            placeholder: "Problème résolu, inactivité, doublon...",
+                                            placeholder: "Problème résolu, inactivité, doublon... / Solved, inactive, duplicate...",
                                             required: false,
                                             max_length: 500,
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
+                    } as const;
+                    {
+                        const { db: closeDb } = await import("@/lib/prisma");
+                        const { readTicketPermissionSettings, requireCloseConfirm } = await import(
+                            "@/lib/tickets/category-permissions"
+                        );
+                        const ticketForClose = await closeDb.ticketRecord.findFirst({
+                            where: { id: ticketId, discordGuildId: guild_id },
+                            select: {
+                                categoryId: true,
+                                guild: { select: { ticketConfig: { select: { settingsJson: true } } } },
+                            },
+                        });
+                        const closeSettings = readTicketPermissionSettings(
+                            (ticketForClose?.guild?.ticketConfig as { settingsJson?: unknown } | null)?.settingsJson
+                        );
+                        if (!requireCloseConfirm(closeSettings, ticketForClose?.categoryId)) {
+                            return NextResponse.json(closeModal);
+                        }
+                    }
+                    return NextResponse.json({
+                        type: 4,
+                        data: {
+                            content:
+                                "Fermer ce ticket ? / Close this ticket?\nLe salon restera visible par l'équipe. / The channel stays visible to the staff.",
+                            flags: 64,
+                            components: buildCloseConfirmRows(ticketId),
+                        },
+                    });
+                } else if (action === "close_confirm") {
+                    const ticketId = entityId;
+                    return NextResponse.json({
+                        type: 9, // MODAL
+                        data: {
+                            custom_id: `tb:modal_close:${ticketId}`,
+                            title: "Fermer / Close",
+                            components: [
+                                {
+                                    type: 1,
+                                    components: [
+                                        {
+                                            type: 4,
+                                            custom_id: "close_reason",
+                                            label: "Motif (optionnel) / Reason (optional)",
+                                            style: 2,
+                                            placeholder: "Problème résolu, inactivité, doublon... / Solved, inactive, duplicate...",
+                                            required: false,
+                                            max_length: 500,
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
+                    });
+                } else if (action === "cancel_close" || action === "cancel_delete") {
+                    return NextResponse.json({
+                        type: 4,
+                        data: { content: "Annulé. / Cancelled.", flags: 64 },
+                    });
+                } else if (action === "delete") {
+                    // 🆕 La suppression est un geste explicite avec confirmation.
+                    const ticketId = entityId;
+                    return NextResponse.json({
+                        type: 4,
+                        data: {
+                            content:
+                                "Supprimer ce salon ? / Delete this channel?\nSuppression définitive. La copie reste dans les archives si activée. / Permanently deletes the channel.",
+                            flags: 64,
+                            components: buildDeleteConfirmRows(ticketId),
+                        },
+                    });
+                } else if (action === "delete_confirm") {
+                    const ticketId = entityId;
+                    const { internalHandleTicketDelete: doDelete } = await import(
+                        "@/server/actions/ticket-bot-actions"
+                    );
+                    const res = await doDelete({
+                        discordGuildId: guild_id,
+                        discordUserId: member.user.id,
+                        discordUserName: member.user.global_name || member.user.username,
+                        ticketId,
+                        actor: ticketActorContext,
+                    });
+                    return NextResponse.json({
+                        type: 4,
+                        data: { content: res.message, flags: 64 },
+                    });
+                } else if (action === "reopen") {
+                    const ticketId = entityId;
+                    const res = await internalHandleTicketReopen({
+                        discordGuildId: guild_id,
+                        discordUserId: member.user.id,
+                        discordUserName: member.user.global_name || member.user.username,
+                        ticketId,
+                        actor: ticketActorContext,
+                    });
+                    return NextResponse.json({
+                        type: 4,
+                        data: { content: res.message, flags: 64 },
+                    });
+                } else if (action === "transcript") {
+                    const ticketId = entityId;
+                    const res = await internalHandleTicketTranscript({
+                        discordGuildId: guild_id,
+                        discordUserId: member.user.id,
+                        ticketId,
+                        actor: ticketActorContext,
+                    });
+                    return NextResponse.json({
+                        type: 4,
+                        data: { content: res.message, flags: 64 },
+                    });
+                } else if (action === "release") {
+                    const ticketId = entityId;
+                    const res = await internalHandleTicketRelease({
+                        discordGuildId: guild_id,
+                        discordUserId: member.user.id,
+                        discordUserName: member.user.global_name || member.user.username,
+                        ticketId,
+                        actor: ticketActorContext,
+                    });
+                    return NextResponse.json({
+                        type: 4,
+                        data: { content: res.message, flags: 64 },
+                    });
+                } else if (action === "add") {
+                    const ticketId = entityId;
+                    return NextResponse.json({
+                        type: 9, // MODAL
+                        data: {
+                            custom_id: `tb:modal_add:${ticketId}`,
+                            title: "Ajouter / Add",
+                            components: [
+                                {
+                                    type: 1,
+                                    components: [
+                                        {
+                                            type: 4,
+                                            custom_id: "target_user",
+                                            label: "Membre (ID ou mention) / Member",
+                                            style: 1,
+                                            placeholder: "123456789012345678 ou @pseudo",
+                                            required: true,
+                                            max_length: 64,
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
+                    });
+                } else if (action === "remove") {
+                    const ticketId = entityId;
+                    return NextResponse.json({
+                        type: 9, // MODAL
+                        data: {
+                            custom_id: `tb:modal_remove:${ticketId}`,
+                            title: "Retirer / Remove",
+                            components: [
+                                {
+                                    type: 1,
+                                    components: [
+                                        {
+                                            type: 4,
+                                            custom_id: "target_user",
+                                            label: "Membre (ID ou mention) / Member",
+                                            style: 1,
+                                            placeholder: "123456789012345678 ou @pseudo",
+                                            required: true,
+                                            max_length: 64,
                                         },
                                     ],
                                 },
@@ -2070,6 +2285,39 @@ export async function POST(request: NextRequest) {
                         reason,
                         actor: modalTicketActorContext,
                     });
+                    return NextResponse.json({
+                        type: 4,
+                        data: { content: res.message, flags: 64 },
+                    });
+                } else if (action === "modal_add" || action === "modal_remove") {
+                    const ticketId = entityId;
+                    let target = "";
+                    for (const row of components) {
+                        for (const comp of row.components) {
+                            if (comp.custom_id === "target_user") target = comp.value?.trim() || "";
+                        }
+                    }
+                    const { internalHandleTicketAdd, internalHandleTicketRemove } = await import(
+                        "@/server/actions/ticket-bot-actions"
+                    );
+                    const res =
+                        action === "modal_add"
+                            ? await internalHandleTicketAdd({
+                                  discordGuildId: guild_id,
+                                  discordUserId: member.user.id,
+                                  discordUserName: member.user.global_name || member.user.username,
+                                  ticketId,
+                                  targetDiscordId: target,
+                                  actor: modalTicketActorContext,
+                              })
+                            : await internalHandleTicketRemove({
+                                  discordGuildId: guild_id,
+                                  discordUserId: member.user.id,
+                                  discordUserName: member.user.global_name || member.user.username,
+                                  ticketId,
+                                  targetDiscordId: target,
+                                  actor: modalTicketActorContext,
+                              });
                     return NextResponse.json({
                         type: 4,
                         data: { content: res.message, flags: 64 },

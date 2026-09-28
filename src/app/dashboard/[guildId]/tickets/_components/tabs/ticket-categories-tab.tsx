@@ -19,7 +19,13 @@ import {
 import {
     saveTicketCategoryAction,
     deleteTicketCategoryAction,
+    saveTicketCategoryPermissionsAction,
 } from "@/server/actions/ticket-bot-actions";
+import { TICKET_ICON_PRESETS, normalizeTicketIcon } from "@/lib/tickets/ticket-icons";
+import {
+    readTicketPermissionSettings,
+    type TicketCategoryClosePolicy,
+} from "@/lib/tickets/category-permissions";
 import { TicketCategoryPicker, TicketRolesPicker } from "../ticket-discord-pickers";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,10 +44,12 @@ interface FormFieldItem {
 interface TicketCategoriesTabProps {
     guildId: string;
     categories: any[];
+    /** Réglages sans migration (`TicketGuildConfig.settingsJson`) : permissions par motif. */
+    permissionSettings?: unknown;
     onRefresh: () => void;
 }
 
-export function TicketCategoriesTab({ guildId, categories, onRefresh }: TicketCategoriesTabProps) {
+export function TicketCategoriesTab({ guildId, categories, permissionSettings, onRefresh }: TicketCategoriesTabProps) {
     const [modalOpen, setModalOpen] = useState(false);
     const [editingCategory, setEditingCategory] = useState<any | null>(null);
     const [isPending, startTransition] = useTransition();
@@ -59,6 +67,10 @@ export function TicketCategoriesTab({ guildId, categories, onRefresh }: TicketCa
     const [slaResolutionMin, setSlaResolutionMin] = useState<number | "">("");
     const [autoCloseHours, setAutoCloseHours] = useState<number | "">("");
     const [formFields, setFormFields] = useState<FormFieldItem[]>([]);
+    // 🆕 Permissions du motif (stockées dans `settingsJson`, sans migration).
+    const [closePolicy, setClosePolicy] = useState<TicketCategoryClosePolicy>("STAFF_OR_CREATOR");
+    const [requireConfirm, setRequireConfirm] = useState(true);
+    const [additionalRoleIds, setAdditionalRoleIds] = useState<string[]>([]);
 
     const openCreateModal = () => {
         setEditingCategory(null);
@@ -74,6 +86,9 @@ export function TicketCategoriesTab({ guildId, categories, onRefresh }: TicketCa
         setSlaResolutionMin("");
         setAutoCloseHours("");
         setFormFields([]);
+        setClosePolicy("STAFF_OR_CREATOR");
+        setRequireConfirm(true);
+        setAdditionalRoleIds([]);
         setModalOpen(true);
     };
 
@@ -82,7 +97,7 @@ export function TicketCategoriesTab({ guildId, categories, onRefresh }: TicketCa
         setName(cat.name);
         setSlug(cat.slug);
         setDescription(cat.description || "");
-        setEmoji(cat.emoji || "🎫");
+        setEmoji(normalizeTicketIcon(cat.emoji));
         setButtonStyle(cat.buttonStyle || "PRIMARY");
         setChannelParentId(cat.channelParentId || "");
         setStaffRoleIds(cat.staffRoleIds || []);
@@ -91,6 +106,11 @@ export function TicketCategoriesTab({ guildId, categories, onRefresh }: TicketCa
         setSlaResolutionMin(cat.slaResolutionMin ?? "");
         setAutoCloseHours(cat.autoCloseHours ?? "");
         setFormFields(Array.isArray(cat.formSchemaJson) ? cat.formSchemaJson : []);
+        const settings = readTicketPermissionSettings(permissionSettings);
+        const override = settings.categories[cat.id];
+        setClosePolicy(override?.closePolicy ?? (settings.allowUserClose ? "STAFF_OR_CREATOR" : "STAFF_ONLY"));
+        setRequireConfirm(override?.requireConfirm ?? settings.requireCloseConfirm);
+        setAdditionalRoleIds(override?.additionalRoleIds ?? []);
         setModalOpen(true);
     };
 
@@ -124,7 +144,7 @@ export function TicketCategoriesTab({ guildId, categories, onRefresh }: TicketCa
                 name: name.trim(),
                 slug: cleanSlug,
                 description: description.trim() || undefined,
-                emoji: emoji.trim() || "🎫",
+                emoji: normalizeTicketIcon(emoji.trim() || "🎫"),
                 buttonStyle,
                 channelType: "CHANNEL_TEXT",
                 channelParentId: channelParentId.trim() || undefined,
@@ -138,13 +158,29 @@ export function TicketCategoriesTab({ guildId, categories, onRefresh }: TicketCa
                 isEnabled: true,
             });
 
-            if (res.success) {
-                toast.success("Catégorie enregistrée !");
-                setModalOpen(false);
-                onRefresh();
-            } else {
+            if (!res.success) {
                 toast.error(res.error || "Erreur enregistrement");
+                return;
             }
+
+            // Permissions du motif (sans migration : `settingsJson` de la guilde).
+            const savedId = (res.data?.id as string | undefined) ?? editingCategory?.id;
+            if (savedId) {
+                const permRes = await saveTicketCategoryPermissionsAction(guildId, savedId, {
+                    closePolicy,
+                    requireConfirm,
+                    additionalRoleIds,
+                });
+                if (!permRes.success) {
+                    toast.error(permRes.error || "Catégorie sauvée, permissions non enregistrées");
+                    onRefresh();
+                    return;
+                }
+            }
+
+            toast.success("Catégorie enregistrée !");
+            setModalOpen(false);
+            onRefresh();
         });
     };
 
@@ -232,6 +268,17 @@ export function TicketCategoriesTab({ guildId, categories, onRefresh }: TicketCa
                                                 {fieldsCount > 0 ? `${fieldsCount} question(s)` : "Désactivé (Direct)"}
                                             </span>
                                         </div>
+                                        <div className="flex items-center justify-between">
+                                            <span>Fermeture :</span>
+                                            <span className="text-foreground font-semibold">
+                                                {(() => {
+                                                    const settings = readTicketPermissionSettings(permissionSettings);
+                                                    const policy = settings.categories[cat.id]?.closePolicy
+                                                        ?? (settings.allowUserClose ? "STAFF_OR_CREATOR" : "STAFF_ONLY");
+                                                    return policy === "STAFF_ONLY" ? "Équipe uniquement" : "Équipe + demandeur";
+                                                })()}
+                                            </span>
+                                        </div>
                                         {cat.slaFirstResponseMin && (
                                             <div className="flex items-center justify-between">
                                                 <span>Cible 1ère réponse :</span>
@@ -279,7 +326,7 @@ export function TicketCategoriesTab({ guildId, categories, onRefresh }: TicketCa
                         <div className="space-y-4 text-xs">
                             <div className="grid grid-cols-4 gap-2">
                                 <div className="col-span-1 space-y-1.5">
-                                    <label className="font-semibold text-foreground">Emoji</label>
+                                    <label className="font-semibold text-foreground">Icône</label>
                                     <Input
                                         value={emoji}
                                         onChange={(e) => setEmoji(e.target.value)}
@@ -295,6 +342,27 @@ export function TicketCategoriesTab({ guildId, categories, onRefresh }: TicketCa
                                         className="text-xs h-8"
                                     />
                                 </div>
+                            </div>
+
+                            <div className="flex flex-wrap gap-1.5">
+                                {TICKET_ICON_PRESETS.map((preset) => (
+                                    <button
+                                        key={preset}
+                                        type="button"
+                                        onClick={() => setEmoji(preset)}
+                                        title={`Icône ${preset}`}
+                                        className={`h-8 w-8 rounded-lg border text-base transition-colors ${
+                                            emoji === preset
+                                                ? "border-amber-500/60 bg-amber-500/15"
+                                                : "border-border bg-surface/50 hover:bg-surface"
+                                        }`}
+                                    >
+                                        {preset}
+                                    </button>
+                                ))}
+                                <span className="text-[11px] text-muted-foreground self-center ml-1">
+                                    ou colle un emoji Discord personnalisé (&lt;:nom:id&gt;).
+                                </span>
                             </div>
 
                             <div className="space-y-1.5">
@@ -338,6 +406,42 @@ export function TicketCategoriesTab({ guildId, categories, onRefresh }: TicketCa
                                         value={namingPattern}
                                         onChange={(e) => setNamingPattern(e.target.value)}
                                         className="text-xs h-8 font-mono"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="rounded-xl border border-border bg-surface/40 p-3 space-y-3">
+                                <div className="font-semibold text-foreground">Qui peut fermer ce motif ?</div>
+                                <select
+                                    value={closePolicy}
+                                    onChange={(e) => setClosePolicy(e.target.value as TicketCategoryClosePolicy)}
+                                    className="w-full h-8 px-2 text-xs rounded-lg border border-border bg-background text-foreground"
+                                >
+                                    <option value="STAFF_OR_CREATOR">
+                                        L'équipe et le demandeur (conseillé)
+                                    </option>
+                                    <option value="STAFF_ONLY">L'équipe uniquement</option>
+                                </select>
+                                <label className="flex items-center gap-2 cursor-pointer text-xs text-muted-foreground">
+                                    <input
+                                        type="checkbox"
+                                        checked={requireConfirm}
+                                        onChange={(e) => setRequireConfirm(e.target.checked)}
+                                        className="rounded border-border"
+                                    />
+                                    <span>Demander confirmation avant de fermer (« Oui, fermer / Annuler »)</span>
+                                </label>
+                                <p className="text-[11px] text-muted-foreground">
+                                    Après fermeture, le salon reste visible avec Rouvrir / Copie / Supprimer.
+                                    La suppression demande toujours confirmation.
+                                </p>
+                                <div className="space-y-1.5 pt-1">
+                                    <label className="font-semibold text-foreground">Rôles invités (observateurs)</label>
+                                    <TicketRolesPicker
+                                        guildId={guildId}
+                                        value={additionalRoleIds}
+                                        onChange={setAdditionalRoleIds}
+                                        description="Ces rôles voient le salon sans le traiter (droits réglés dans Configuration)."
                                     />
                                 </div>
                             </div>

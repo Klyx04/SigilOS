@@ -2144,42 +2144,52 @@ export async function createTicketChannelDiscord(
         creatorDiscordId: string;
         staffRoleIds: string[];
         topic?: string;
+        /**
+         * Overwrites calculés par `buildTicketOverwrites` (matrice du dashboard).
+         * Absent = repli historique (équipe + demandeur, tout le monde refusé).
+         */
+        overwrites?: Array<{ id: string; type: 0 | 1; allow: string; deny: string }>;
     }
 ): Promise<{ success: boolean; channelId?: string; error?: string }> {
     const token = process.env.DISCORD_BOT_TOKEN;
     if (!token) return { success: false, error: "Bot token manquant" };
 
     try {
-        // VIEW_CHANNEL: 1024 (0x400), SEND_MESSAGES: 2048 (0x800), READ_MESSAGE_HISTORY: 65536 (0x10000), ATTACH_FILES: 32768 (0x8000), EMBED_LINKS: 16384 (0x4000)
-        const allowBitmask = String(1024 | 2048 | 65536 | 32768 | 16384);
-        const denyBitmask = String(1024); // Deny VIEW_CHANNEL for @everyone
+        let permissionOverwrites: any[];
+        if (options.overwrites && options.overwrites.length > 0) {
+            permissionOverwrites = options.overwrites;
+        } else {
+            // VIEW_CHANNEL: 1024 (0x400), SEND_MESSAGES: 2048 (0x800), READ_MESSAGE_HISTORY: 65536 (0x10000), ATTACH_FILES: 32768 (0x8000), EMBED_LINKS: 16384 (0x4000)
+            const allowBitmask = String(1024 | 2048 | 65536 | 32768 | 16384);
+            const denyBitmask = String(1024); // Deny VIEW_CHANNEL for @everyone
 
-        const permissionOverwrites: any[] = [
-            // Deny everyone
-            {
-                id: guildId, // @everyone role ID is guild ID
-                type: 0, // role
-                allow: "0",
-                deny: denyBitmask,
-            },
-            // Allow ticket creator
-            {
-                id: options.creatorDiscordId,
-                type: 1, // member
-                allow: allowBitmask,
-                deny: "0",
-            },
-        ];
-
-        // Allow staff roles
-        for (const roleId of options.staffRoleIds) {
-            if (roleId) {
-                permissionOverwrites.push({
-                    id: roleId,
+            permissionOverwrites = [
+                // Deny everyone
+                {
+                    id: guildId, // @everyone role ID is guild ID
                     type: 0, // role
+                    allow: "0",
+                    deny: denyBitmask,
+                },
+                // Allow ticket creator
+                {
+                    id: options.creatorDiscordId,
+                    type: 1, // member
                     allow: allowBitmask,
                     deny: "0",
-                });
+                },
+            ];
+
+            // Allow staff roles
+            for (const roleId of options.staffRoleIds) {
+                if (roleId) {
+                    permissionOverwrites.push({
+                        id: roleId,
+                        type: 0, // role
+                        allow: allowBitmask,
+                        deny: "0",
+                    });
+                }
             }
         }
 
@@ -2214,6 +2224,51 @@ export async function createTicketChannelDiscord(
     } catch (error: any) {
         logger.error("[Discord] Error creating ticket channel:", error);
         return { success: false, error: error?.message || "Erreur création salon" };
+    }
+}
+
+/**
+ * Bascule Ouvert/Fermé des overwrites d'un salon de ticket (matrice du dashboard).
+ * Appliqué à la clôture (état `closed`) et à la réouverture (état `open`).
+ * Échec observé par l'appelant (jamais silencieux).
+ */
+export async function applyTicketChannelOverwrites(
+    channelId: string,
+    overwrites: Array<{ id: string; type: 0 | 1; allow: string; deny: string }>
+): Promise<{ success: boolean; error?: string }> {
+    const token = process.env.DISCORD_BOT_TOKEN;
+    if (!token) return { success: false, error: "Bot token manquant" };
+
+    try {
+        for (const overwrite of overwrites) {
+            const res = await fetchWithRetry(
+                `/api/v10/channels/${channelId}/permissions/${overwrite.id}`,
+                {
+                    method: "PUT",
+                    headers: {
+                        Authorization: `Bot ${token}`,
+                        "Content-Type": "application/json",
+                        "User-Agent": DISCORD_USER_AGENT,
+                    },
+                    body: JSON.stringify({
+                        type: overwrite.type,
+                        allow: overwrite.allow,
+                        deny: overwrite.deny,
+                    }),
+                }
+            );
+            if (!res.ok) {
+                const errorData = await res.json().catch(() => ({}));
+                return {
+                    success: false,
+                    error: errorData?.message || `Discord a refusé les permissions (${res.status})`,
+                };
+            }
+        }
+        return { success: true };
+    } catch (error: any) {
+        logger.error("[Discord] Error applying ticket overwrites:", error);
+        return { success: false, error: error?.message || "Erreur permissions salon" };
     }
 }
 

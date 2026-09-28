@@ -13,9 +13,23 @@ import {
     Layers,
     AlertTriangle,
 } from "lucide-react";
-import { updateTicketGuildConfigAction } from "@/server/actions/ticket-bot-actions";
+import { updateTicketGuildConfigAction, saveTicketGuildPermissionsAction } from "@/server/actions/ticket-bot-actions";
 import { DiscordChannelPicker } from "@/components/shared/DiscordChannelPicker";
 import { TicketRolesPicker } from "../ticket-discord-pickers";
+import { readTicketPermissionSettings } from "@/lib/tickets/category-permissions";
+import {
+    TICKET_CHANNEL_GROUPS,
+    TICKET_CHANNEL_GROUP_LABELS,
+    TICKET_CHANNEL_PERMS,
+    TICKET_CHANNEL_PERM_META,
+    TICKET_CHANNEL_STATES,
+    TICKET_CHANNEL_STATE_LABELS,
+    readChannelPermissions,
+    type TicketChannelGroup,
+    type TicketChannelMatrix,
+    type TicketChannelPerm,
+    type TicketChannelState,
+} from "@/lib/tickets/channel-permissions";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -53,6 +67,30 @@ export function TicketSettingsTab({ guildId, config, onRefresh }: TicketSettings
     const [noteRetentionDays, setNoteRetentionDays] = useState<number>(config?.noteRetentionDays ?? 365);
     const [auditRetentionDays, setAuditRetentionDays] = useState<number>(config?.auditRetentionDays ?? 730);
 
+    // 🆕 Permissions globales (sans migration : `settingsJson`).
+    const initialPermissions = readTicketPermissionSettings(config?.settingsJson);
+    const [allowUserClose, setAllowUserClose] = useState<boolean>(initialPermissions.allowUserClose);
+    const [requireCloseConfirm, setRequireCloseConfirm] = useState<boolean>(
+        initialPermissions.requireCloseConfirm
+    );
+    const [blacklistRoleIds, setBlacklistRoleIds] = useState<string[]>(
+        initialPermissions.blacklistRoleIds
+    );
+    // 🆕 Matrice Ouvert/Fermé (4 groupes × 2 états × 8 permissions, sans migration).
+    const [matrix, setMatrix] = useState<TicketChannelMatrix>(() =>
+        readChannelPermissions(config?.settingsJson)
+    );
+
+    const toggleMatrix = (group: TicketChannelGroup, state: TicketChannelState, perm: TicketChannelPerm) => {
+        setMatrix((previous) => ({
+            ...previous,
+            [group]: {
+                ...previous[group],
+                [state]: { ...previous[group][state], [perm]: !previous[group][state][perm] },
+            },
+        }));
+    };
+
     const handleSave = () => {
         startTransition(async () => {
             const res = await updateTicketGuildConfigAction(guildId, {
@@ -73,12 +111,25 @@ export function TicketSettingsTab({ guildId, config, onRefresh }: TicketSettings
                 auditRetentionDays,
             });
 
-            if (res.success) {
-                toast.success("Paramètres enregistrés !");
-                onRefresh();
-            } else {
+            if (!res.success) {
                 toast.error(res.error || "Erreur de mise à jour");
+                return;
             }
+
+            const permRes = await saveTicketGuildPermissionsAction(guildId, {
+                allowUserClose,
+                requireCloseConfirm,
+                blacklistRoleIds,
+                channelPermissions: matrix,
+            });
+
+            if (!permRes.success) {
+                toast.error(permRes.error || "Réglages sauvés, permissions non enregistrées");
+                return;
+            }
+
+            toast.success("Paramètres enregistrés !");
+            onRefresh();
         });
     };
 
@@ -138,7 +189,6 @@ export function TicketSettingsTab({ guildId, config, onRefresh }: TicketSettings
                     <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
                         <Layers className="h-4 w-4 text-amber-400" /> Quotas & Canaux Discord
                     </h3>
-
                     <div className="space-y-3">
                         <div className="space-y-1">
                             <label className="font-semibold text-foreground">Rôles Staff globaux</label>
@@ -220,6 +270,105 @@ export function TicketSettingsTab({ guildId, config, onRefresh }: TicketSettings
                             </p>
                         </div>
                     </div>
+                </div>
+            </div>
+
+            {/* 🆕 Permissions globales : qui ferme, confirmation, blacklist. */}
+            <div className="rounded-2xl border border-border bg-card p-5 space-y-4 text-xs">
+                <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                    <Shield className="h-4 w-4 text-amber-400" /> Permissions des tickets
+                </h3>
+
+                <div className="space-y-3 divide-y divide-border/40">
+                    <div className="flex items-center justify-between pt-2">
+                        <div>
+                            <div className="font-semibold text-foreground">Les demandeurs peuvent fermer</div>
+                            <div className="text-muted-foreground">
+                                Sinon, seule l'équipe ferme. Réglable par motif dans l'onglet Motifs.
+                            </div>
+                        </div>
+                        <Switch checked={allowUserClose} onCheckedChange={setAllowUserClose} />
+                    </div>
+
+                    <div className="flex items-center justify-between pt-3">
+                        <div>
+                            <div className="font-semibold text-foreground">Confirmation avant fermeture</div>
+                            <div className="text-muted-foreground">
+                                « Oui, fermer / Annuler » avant toute clôture. La suppression demande toujours confirmation.
+                            </div>
+                        </div>
+                        <Switch checked={requireCloseConfirm} onCheckedChange={setRequireCloseConfirm} />
+                    </div>
+
+                    <div className="space-y-1 pt-3">
+                        <label className="font-semibold text-foreground">Rôles bloqués (blacklist)</label>
+                        <TicketRolesPicker
+                            guildId={guildId}
+                            value={blacklistRoleIds}
+                            onChange={setBlacklistRoleIds}
+                            description="Ces rôles ne voient aucun bouton d'ouverture et ne peuvent pas agir sur les tickets."
+                        />
+                    </div>
+                </div>
+            </div>
+
+            {/* 🆕 Matrice des permissions de salon : 3 groupes modifiables × Ouvert/Fermé. */}
+            <div className="rounded-2xl border border-border bg-card p-5 space-y-4 text-xs">
+                <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                    <Shield className="h-4 w-4 text-amber-400" /> Permissions des salons de ticket
+                </h3>
+                <p className="text-[11px] text-muted-foreground">
+                    Qui peut quoi dans le salon, quand il est ouvert puis après fermeture.
+                    « Tout le monde » reste toujours sans accès (un ticket n'est jamais public).
+                    Les rôles invités se choisissent par motif, dans l'onglet Motifs.
+                </p>
+
+                <div className="overflow-x-auto">
+                    <table className="w-full text-xs border-collapse">
+                        <thead>
+                            <tr className="text-muted-foreground">
+                                <th className="text-left font-semibold p-2">Permission</th>
+                                {TICKET_CHANNEL_GROUPS.filter((group) => group !== "everyone").map((group) => (
+                                    <th key={group} colSpan={2} className="font-semibold p-2 text-center border-l border-border/40">
+                                        {TICKET_CHANNEL_GROUP_LABELS[group]}
+                                    </th>
+                                ))}
+                            </tr>
+                            <tr className="text-muted-foreground">
+                                <th className="p-1" />
+                                {TICKET_CHANNEL_GROUPS.filter((group) => group !== "everyone").map((group) =>
+                                    TICKET_CHANNEL_STATES.map((state) => (
+                                        <th
+                                            key={`${group}-${state}`}
+                                            className="p-1 text-center text-[11px] font-medium border-l border-border/40"
+                                        >
+                                            {TICKET_CHANNEL_STATE_LABELS[state]}
+                                        </th>
+                                    ))
+                                )}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {TICKET_CHANNEL_PERMS.map((perm) => (
+                                <tr key={perm} className="border-t border-border/40">
+                                    <td className="p-2 text-muted-foreground">
+                                        {TICKET_CHANNEL_PERM_META[perm].label}
+                                    </td>
+                                    {TICKET_CHANNEL_GROUPS.filter((group) => group !== "everyone").map((group) =>
+                                        TICKET_CHANNEL_STATES.map((state) => (
+                                            <td key={`${group}-${state}-${perm}`} className="p-2 text-center border-l border-border/40">
+                                                <Switch
+                                                    checked={matrix[group][state][perm]}
+                                                    onCheckedChange={() => toggleMatrix(group, state, perm)}
+                                                    aria-label={`${TICKET_CHANNEL_GROUP_LABELS[group]} ${TICKET_CHANNEL_STATE_LABELS[state]} ${TICKET_CHANNEL_PERM_META[perm].label}`}
+                                                />
+                                            </td>
+                                        ))
+                                    )}
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>

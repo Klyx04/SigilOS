@@ -936,6 +936,8 @@ export async function siphonBountiesRaceAction(raceId: number): Promise<ActionRe
     total: number;
     unproven: number;
     images: number;
+    gradesBackfilled: number;
+    dropsBackfilled: number;
     errors: string[];
 }>> {
     try {
@@ -967,6 +969,8 @@ export async function siphonBountiesRaceAction(raceId: number): Promise<ActionRe
                 total: result.entries.length,
                 unproven: result.unproven,
                 images: result.imagesSiphoned,
+                gradesBackfilled: result.gradesBackfilled,
+                dropsBackfilled: result.dropsBackfilled,
                 errors: result.errors,
             },
         };

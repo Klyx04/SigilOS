@@ -101,6 +101,10 @@ export interface BountySyncResult {
     defaultMap: number;
     /** Avis **exclus volontairement** (supprimés dans God) — non réécrits, non recréés. */
     ignored: number;
+    /** Fiches dont les grades manquaient et ont été relus depuis la liste (zéro appel en plus). */
+    gradesBackfilled: number;
+    /** Fiches dont le butin manquait et a été relu (1 appel `items?` borné). */
+    dropsBackfilled: number;
     entries: BountySiphonEntry[];
 }
 
@@ -126,6 +130,9 @@ interface BountyTarget {
     validated: boolean;
     source: "DOFENSIVE" | "DOFUSDB";
     meta: any | null;
+    /** Grades + drops bruts de l'appel de liste (repli sans appel en plus). */
+    gradesRaw: any[];
+    dropsRaw: any[];
 }
 
 /** Sous-zones d'un avis : Dofensive (`Subareas`) d'abord, sinon DofusDB (`subareas`). */
@@ -151,6 +158,8 @@ export async function syncBounties(raceIds?: readonly number[]): Promise<BountyS
         perRace: {},
         defaultMap: 0,
         ignored: 0,
+        gradesBackfilled: 0,
+        dropsBackfilled: 0,
         entries: [],
     };
 
@@ -231,6 +240,10 @@ export async function syncBounties(raceIds?: readonly number[]): Promise<BountyS
             validated: !!meta,
             source: meta ? "DOFENSIVE" : "DOFUSDB",
             meta,
+            // Repli sans appel en plus : si la fiche détaillée échoue (429…),
+            // grades + drops se relisent ici (même format que `getMonsterStats`).
+            gradesRaw: Array.isArray(monster?.grades) ? monster.grades : [],
+            dropsRaw: Array.isArray(monster?.drops) ? monster.drops : [],
         });
     }
     result.defaultMap = targets.length;
@@ -305,6 +318,7 @@ export async function syncBounties(raceIds?: readonly number[]): Promise<BountyS
         `[bounty-siphon] ${result.entries.length} avis de recherche résolus ` +
         `(${result.synced} écrits, ${result.unchanged} inchangés, ${result.unproven} non prouvés, ` +
         `${result.ignored} exclu(s), ${result.errors.length} erreur(s), ${result.imagesSiphoned} image(s), ` +
+        `${result.gradesBackfilled} grades relus, ${result.dropsBackfilled} butins relus, ` +
         `simulation sur grille vide).`
     );
     return result;
@@ -376,6 +390,61 @@ async function siphonOneBounty(target: BountyTarget, result: BountySyncResult): 
             source: target.source,
         },
     };
+
+    // Repli grades (28/09/2026) : la fiche détaillée échoue parfois (429, panne) et
+    // le repli `{ id, name, spells: [] }` n'a ni grades ni drops ⇒ barres vides et
+    // résistances à « 0 % ». La liste les porte déjà : on les relit ici même format.
+    const { mapBountyDrops, mapBountyGrades } = await import("@/lib/bounty-grades");
+    if (!Array.isArray((payload as any).grades) || (payload as any).grades.length === 0) {
+        const mapped = mapBountyGrades(target.gradesRaw);
+        if (mapped) {
+            (payload as any).grades = mapped;
+            result.gradesBackfilled++;
+        } else {
+            result.errors.push(`Avis ${target.name} : grades introuvables (ni détail ni liste) — fiche sans stats`);
+        }
+    }
+    if (!Array.isArray((payload as any).drops) || (payload as any).drops.length === 0) {
+        if (target.dropsRaw.length === 0) {
+            result.errors.push(`Avis ${target.name} : aucun butin référencé par DofusDB`);
+        } else {
+            // Un seul appel `items?` borné (40 ids par requête, limiteur partagé).
+            const objectIds = Array.from(
+                new Set(
+                    target.dropsRaw
+                        .map((drop: any) => Math.floor(Number(drop?.objectId) || 0))
+                        .filter((id: number) => id > 0)
+                )
+            ).slice(0, 120);
+            try {
+                const itemsById: Record<number, { nameFr?: string; nameEn?: string | null; img?: string }> = {};
+                for (let index = 0; index < objectIds.length; index += 40) {
+                    const chunk = objectIds.slice(index, index + 40);
+                    const query = chunk.map((id) => `id[$in][]=${id}`).join("&");
+                    const itemsData = await dofusdbFetch<any[]>(`/items?${query}&$limit=50&lang=fr`);
+                    if (!itemsData) throw new Error("DofusDB items indisponible");
+                    for (const item of itemsData) {
+                        const id = Math.floor(Number(item?.id) || 0);
+                        if (id <= 0) continue;
+                        itemsById[id] = {
+                            nameFr: item?.name?.fr ?? (typeof item?.name === "string" ? item.name : undefined),
+                            nameEn: item?.name?.en ?? null,
+                            img: typeof item?.img === "string" ? item.img : undefined,
+                        };
+                    }
+                }
+                const mapped = mapBountyDrops(target.dropsRaw, itemsById);
+                if (mapped) {
+                    (payload as any).drops = mapped;
+                    result.dropsBackfilled++;
+                } else {
+                    result.errors.push(`Avis ${target.name} : butin illisible — onglet masqué`);
+                }
+            } catch (error) {
+                result.errors.push(`Avis ${target.name} : butin non relu (${String(error)})`);
+            }
+        }
+    }
     await persistMonsterStat({ ...payload, dungeonName: target.subareaName });
 
     // Icônes : monstre + sorts (DofusDB → WebP disque, zéro CDN à l'exécution).

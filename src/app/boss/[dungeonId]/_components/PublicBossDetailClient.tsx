@@ -479,15 +479,22 @@ export function PublicBossDetailClient({
 
                 <div className="rounded-lg border border-border bg-surface/60 px-3.5 py-2.5">
                   <span className="block text-[11px] uppercase tracking-wide text-muted-foreground">{t.bossPage.resistance}</span>
+                  {grades.length === 0 && !isLoadingCurrent && (
+                    <p className="mt-1 text-[11px] text-muted-foreground">
+                      {locale === "en"
+                        ? "Characteristics not synced for this wanted poster yet — run the siphon (God → Game data)."
+                        : "Caractéristiques non synchronisées pour cet avis — relance le siphon (God → Données de jeu)."}
+                    </p>
+                  )}
                   <div className="mt-1.5 flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5">
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                       {(
                         [
-                          { key: "neutral", label: t.bossPage.stats.neutral, icon: "/assets/dofus/stats/resNeutre.png", value: resists.neutral ?? 0 },
-                          { key: "earth", label: t.bossPage.stats.earth, icon: "/assets/dofus/stats/resTerre.png", value: resists.earth ?? 0 },
-                          { key: "fire", label: t.bossPage.stats.fire, icon: "/assets/dofus/stats/resFeu.png", value: resists.fire ?? 0 },
-                          { key: "water", label: t.bossPage.stats.water, icon: "/assets/dofus/stats/resEau.png", value: resists.water ?? 0 },
-                          { key: "air", label: t.bossPage.stats.air, icon: "/assets/dofus/stats/resAir.png", value: resists.air ?? 0 },
+                          { key: "neutral", label: t.bossPage.stats.neutral, icon: "/assets/dofus/stats/resNeutre.png", value: resists.neutral ?? null },
+                          { key: "earth", label: t.bossPage.stats.earth, icon: "/assets/dofus/stats/resTerre.png", value: resists.earth ?? null },
+                          { key: "fire", label: t.bossPage.stats.fire, icon: "/assets/dofus/stats/resFeu.png", value: resists.fire ?? null },
+                          { key: "water", label: t.bossPage.stats.water, icon: "/assets/dofus/stats/resEau.png", value: resists.water ?? null },
+                          { key: "air", label: t.bossPage.stats.air, icon: "/assets/dofus/stats/resAir.png", value: resists.air ?? null },
                         ] as const
                       ).map(({ key, label, icon, value }) => (
                         <span key={key} className="inline-flex items-center gap-1.5" title={label + " %"}>
@@ -495,10 +502,10 @@ export function PublicBossDetailClient({
                           <span
                             className={cn(
                               "font-mono text-[13px] tabular-nums",
-                              value < 0 ? "text-rose-400" : "text-foreground/85"
+                              typeof value === "number" && value < 0 ? "text-rose-400" : "text-foreground/85"
                             )}
                           >
-                            {value}%
+                            {typeof value === "number" ? `${value}%` : "—"}
                           </span>
                           <span className="hidden text-[11px] text-muted-foreground sm:inline">{label}</span>
                         </span>

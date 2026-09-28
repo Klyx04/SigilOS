@@ -29,8 +29,8 @@ import {
 import { cn } from "@/lib/utils";
 import { getTelemetryStats, exportTelemetryDataAction } from "@/server/actions/telemetry-actions";
 import { getProductStats } from "@/server/actions/telemetry-product-actions";
-import { TelemetryProductOverview } from "./telemetry-product-overview";
-import { humanizeElementId } from "@/lib/telemetry/normalize";
+import { TelemetryProductOverview } from "@/components/telemetry/telemetry-product-overview";
+import { TelemetryAdoptionPanel } from "@/components/telemetry/telemetry-adoption-panel";
 import { toast } from "sonner";
 
 type TelemetryStatsType = Awaited<ReturnType<typeof getTelemetryStats>>;
@@ -58,7 +58,7 @@ export function TelemetryDashboard({
     const [isPending, setIsPending] = useState(false);
     const [isExporting, setIsExporting] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
-    const [telemetryTab, setTelemetryTab] = useState<"live" | "modules" | "analytics" | "funnel" | "guilds" | "users">("live");
+    const [telemetryTab, setTelemetryTab] = useState<"live" | "adoption" | "analytics" | "funnel" | "guilds" | "users">("live");
     const isRefreshingRef = useRef(false);
 
     // Stable refresh function — accepts target guild filter
@@ -229,7 +229,7 @@ export function TelemetryDashboard({
             <div className="flex border-b border-border pb-1 gap-2 overflow-x-auto no-scrollbar">
                 {[
                     { id: "live", label: "Flux Temps Réel", icon: Activity, count: filteredEvents.length },
-                    { id: "modules", label: "Consommation Modules", icon: Layers, count: stats.moduleStats?.length || 0 },
+                    { id: "adoption", label: "Adoption par module", icon: Layers, count: initialProduct ? initialProduct.adoption.modules.length : null },
                     { id: "analytics", label: "Analyses & Heatmap 24/7", icon: TrendingUp, count: null },
                     { id: "funnel", label: "Funnel d'Activation", icon: Zap, count: null },
                     { id: "guilds", label: "Santé des Guildes", icon: HeartPulse, count: stats.guildHealthList?.length || stats.guildActivity.length },
@@ -386,130 +386,9 @@ export function TelemetryDashboard({
                 </div>
             )}
 
-            {/* TAB CONTENT: MODULES & FEATURES */}
-            {telemetryTab === "modules" && (
-                <div className="space-y-8 animate-in fade-in duration-200">
-                    {/* Header Banner */}
-                    <div className="p-6 rounded-3xl border border-white/5 bg-zinc-900/20 backdrop-blur-md flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                        <div className="space-y-1">
-                            <h3 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
-                                <Cpu className="w-4 h-4 text-violet-400" />
-                                Cartographie des Modules SigilOS
-                            </h3>
-                            <p className="text-zinc-500 text-xs font-semibold">
-                                Analyse de la fréquentation et de l'adoption de chaque module du Dashboard.
-                            </p>
-                        </div>
-                        <div className="text-right">
-                            <span className="text-xs font-black text-violet-400 block font-mono">
-                                {stats.moduleStats?.length || 0} Modules analysés
-                            </span>
-                            <span className="text-caption text-zinc-500 uppercase font-bold">
-                                {selectedGuildId === "all" ? "Périmètre Global" : "Filtre Guilde Actif"}
-                            </span>
-                        </div>
-                    </div>
+            {/* TAB CONTENT: ADOPTION RÉELLE DES MODULES (D-2bis) */}
+            {telemetryTab === "adoption" && <TelemetryAdoptionPanel product={initialProduct} />}
 
-                    {/* Modules Grid */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {stats.moduleStats?.map((mod: any) => {
-                            const maxActions = stats.moduleStats[0]?.totalActions || 1;
-                            const pct = Math.max(5, (mod.totalActions / maxActions) * 100);
-                            
-                            return (
-                                <div key={mod.name} className="p-6 rounded-3xl border border-white/5 bg-zinc-900/10 hover:bg-zinc-900/30 transition-all flex flex-col justify-between space-y-4">
-                                    <div className="space-y-2">
-                                        <div className="flex justify-between items-start">
-                                            <span className="text-xs font-black text-white uppercase tracking-wider block">
-                                                {mod.name}
-                                            </span>
-                                            <span className="text-caption font-black text-violet-300 bg-violet-500/10 border border-violet-500/20 px-2 py-0.5 rounded-md">
-                                                {mod.uniqueUsersCount} membre(s) distinct(s)
-                                            </span>
-                                        </div>
-
-                                        <div className="h-1.5 w-full bg-zinc-950 rounded-full overflow-hidden">
-                                            <div 
-                                                className="h-full bg-gradient-to-r from-violet-500 to-indigo-500 rounded-full" 
-                                                style={{ width: `${pct}%` }}
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <div className="grid grid-cols-3 gap-2 pt-2 border-t border-white/5 text-center">
-                                        <div>
-                                            <span className="text-caption font-black text-zinc-500 uppercase block">Pages Vues</span>
-                                            <span className="text-xs font-black text-zinc-200">{mod.views}</span>
-                                        </div>
-                                        <div>
-                                            <span className="text-caption font-black text-zinc-500 uppercase block">Clics</span>
-                                            <span className="text-xs font-black text-amber-400">{mod.interactions}</span>
-                                        </div>
-                                        <div>
-                                            <span className="text-caption font-black text-zinc-500 uppercase block">Total</span>
-                                            <span className="text-xs font-black text-violet-400">{mod.totalActions}</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            );
-                        })}
-                    </div>
-
-                    {/* Tête vs queue de classement. La queue peut être `null` : avec un échantillon
-                        trop pauvre elle recouvrirait la tête — on l'annonce au lieu d'afficher
-                        les dernières lignes du top comme un « flop » (bug d'origine). */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        {/* Top Features */}
-                        <div className="p-6 rounded-3xl border border-white/5 bg-zinc-900/10 space-y-4">
-                            <h4 className="text-xs font-black text-emerald-400 uppercase tracking-widest flex items-center gap-2">
-                                <Flame className="w-4 h-4" />
-                                Features les plus sollicitées
-                            </h4>
-                            <div className="space-y-3">
-                                {stats.engagement.top.length === 0 ? (
-                                    <p className="text-zinc-500 text-xs italic">Aucun clic instrumenté sur la période.</p>
-                                ) : (
-                                    stats.engagement.top.map((item: any) => (
-                                        <div key={item.elementId} className="flex justify-between items-center text-xs font-bold py-1 border-b border-white/5 last:border-0">
-                                            <code title={item.elementId} className="text-emerald-300 font-mono text-caption bg-zinc-950 px-2 py-0.5 rounded truncate max-w-[300px]">
-                                                {humanizeElementId(item.elementId)}
-                                            </code>
-                                            <span className="text-zinc-400 font-mono text-caption">{item.count} clics</span>
-                                        </div>
-                                    ))
-                                )}
-                            </div>
-                        </div>
-
-                        {/* Queue de classement — jamais un « flop » déduit d'un top tronqué */}
-                        <div className="p-6 rounded-3xl border border-white/5 bg-zinc-900/10 space-y-4">
-                            <h4 className="text-xs font-black text-amber-400 uppercase tracking-widest flex items-center gap-2">
-                                <Activity className="w-4 h-4 text-amber-400" />
-                                Features les moins sollicitées
-                            </h4>
-                            <div className="space-y-3">
-                                {stats.engagement.tail === null ? (
-                                    <p className="text-zinc-500 text-xs italic">
-                                        Queue non affichée : {stats.engagement.distinctCount} élément(s) instrumenté(s)
-                                        seulement, or il faut au moins {stats.engagement.minDistinctForTail} identifiants
-                                        distincts pour que la queue ne recouvre pas la tête. Les lignes affichées ici
-                                        seraient un artefact d'échantillon, pas un signal produit.
-                                    </p>
-                                ) : (
-                                    stats.engagement.tail.map((item: any) => (
-                                        <div key={item.elementId} className="flex justify-between items-center text-xs font-bold py-1 border-b border-white/5 last:border-0">
-                                            <code title={item.elementId} className="text-amber-300/80 font-mono text-caption bg-zinc-950 px-2 py-0.5 rounded truncate max-w-[300px]">
-                                                {humanizeElementId(item.elementId)}
-                                            </code>
-                                            <span className="text-zinc-500 font-mono text-caption">{item.count} clic(s)</span>
-                                        </div>
-                                    ))
-                                )}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
 
             {/* TAB CONTENT: ANALYTICS & HEATMAP */}
             {telemetryTab === "analytics" && (

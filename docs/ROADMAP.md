@@ -639,10 +639,11 @@
 
 ## 🚧 Chantiers ouverts — ordre d'exécution (état **mesuré le 28/09/2026**)
 
-> **3 chantiers + 1 sous-demande** sont ouverts. Une idée hors brief se note **ici**, jamais dans le code.
+> **3 chantiers** restent ouverts — **A est clos** (A1 → A4 livrés le 28/09). Une idée hors brief se note **ici**, jamais dans le code.
 > Ordre voulu par le user : **A. les siphons game-data d'abord** (« on a commencé par les pb des siphons »),
 > puis **B. `/admin/members`**, puis **C. les tickets** — **D.** (UI God) est arrivé le 28/09 après A1/A2 :
-> il se joue **en parallèle** de B/C (même dépôt, fichiers disjoints) et commence par **A3**, déjà mesuré. 1 chantier = 1 branche = 1 PR → `dev`
+> il se joue **en parallèle** de B/C (même dépôt, fichiers disjoints) et a **commencé par A3** (livré le
+> 28/09, PR #786). 1 chantier = 1 branche = 1 PR → `dev`
 > (jamais `main`/`dev`). Le brouillon de session, s'il y en a un, vit dans la **zone volatile**
 > `src/temp/` — **jamais** versionnée (`docs/agents/zone-volatile.md`), et il est **supprimé** avant de rendre.
 > ⚠️ Les compteurs ci-dessous sont ceux **re-mesurés** le 28/09 ; ceux du mémo de la session précédente
@@ -653,7 +654,7 @@
 | **A** | God **game-data** : les siphons d'arrière-plan échouent, l'écran ne se lit pas (4 lots mesurés) | **A1 + A2 + A3 + A4 livrés** (28/09) — **chantier A terminé** | aucune — seule reste la prise des **3 captures** 1440 / 1024 / 390, qui exige une session navigateur connectée |
 | **B** | `/dashboard/[guildId]/admin/members` : déslop + 1 liste + 1 modale **+ « éditer tout le monde »** | rien codé, cible écrite | ✅ **Tranché le 28/09/2026** : voie **① table dédiée** `MemberRegistryEntry` (② pré-création de profil **écartée** — elle viderait le filtre « hors dashboard ») et **ordre B-1 puis B-2** (migration isolée dans B-2) — cf. § B |
 | **C** | Module **tickets** : finir le module (exécutants SLA/auto-fermeture, i18n EN, doublons FR/EN, langue par serveur) | moteur livré (#778, #779) | ✅ **Tranché le 28/09/2026** : **langue par serveur = reportée** (locale déjà **par utilisateur**), **un réglage sans exécutant se cache ou s'exécute** ; lots **C-1 → C-4** — cf. § C |
-| **D** | **UI God** : « revoir toute l'UI de god, tous les onglets, uniformisé et deslopé partout » — onglets hors-sujet, télémétrie sans valeur ajoutée, `/dofus-guides` à désloper, avis de recherche à fusionner dans game-data | **D-1 livré** (28/09 : purge des 5 onglets morts) | file : **A3 livré** (28/09) → **D-2** télémétrie v2 (vraies stats produit) → **D-3** `/dofus-guides` → **D-4** fusion avis → game-data (onglet éditeurs) ; arbitrages ouverts : design « landing » partout, palier tableau→cartes **mesuré** (768 par défaut, cf. A3) |
+| **D** | **UI God** : « revoir toute l'UI de god, tous les onglets, uniformisé et deslopé partout » — onglets hors-sujet, télémétrie sans valeur ajoutée, `/dofus-guides` à désloper, avis de recherche à fusionner dans game-data | **D-1 livré** (28/09 : purge des 5 onglets morts) | file : **A3 ✅ livré** (28/09, PR #786) → **D-2** télémétrie v2 (vraies stats produit) → **D-3** `/dofus-guides` → **D-4** fusion avis → game-data (onglet éditeurs) ; arbitrages ouverts : design « landing » partout, palier tableau→cartes **mesuré** (768 par défaut, cf. A3) |
 
 ### A. Siphons game-data — « pk c 300 dans chaque type ? » · « pk toutes ces erreurs ? » · « pk rien n'est responsive nulle part ? » · « ca fait 100x qu'on refais game-data depuis 1 an […] je sature de pas avoir un truc pro à l'épreuve des balles »
 
@@ -683,7 +684,7 @@ ouvertes dans l'UI) tient dans les **5 req/min de marge** dégagés. À rouvrir 
 montrant deux siphons réseau concurrents.
 ⚠️ Le titre de la session 22/09 (« FIN DES 429 ») reste **démenti** : la 429 qui restait était **la nôtre**.
 
-#### A3 — ✅ **Livré le 28/09/2026** (branche `feat/game-data-journal-compteurs`)
+#### A3 — ✅ **Livré le 28/09/2026** (branche `feat/game-data-journal-compteurs`, PR #786)
 
 **Constat mesuré (avant le lot — le tableau ci-dessous n'est pas une supposition) :**
 

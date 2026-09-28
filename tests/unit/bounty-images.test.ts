@@ -1,8 +1,9 @@
 /**
  * Portraits des **avis de recherche** — une seule forme d'URL, servie par le proxy d'assets.
  *
- * 🐛 Mesure beta du 27/09/2026 (signalement user) : la page God « Avis de recherche »
- * (`/god/game-data/bounties`) affichait les portraits **KO** alors que l'onglet Succès
+ * 🐛 Mesure beta du 27/09/2026 (signalement user) : l'écran God « Avis de recherche »
+ * (alors `/god/game-data/bounties`, aujourd'hui l'onglet des **Éditeurs**) affichait les portraits
+ * **KO** alors que l'onglet Succès
  * (`?view=bounties`, mêmes avis) les affichait correctement.
  * Cause racine mesurée : la valeur stockée est le **chemin du cache disque**
  * (`/uploads/assets-dofus/monsters/N.webp`) — servi par le standalone seulement si le WebP a
@@ -59,8 +60,8 @@ describe("avis de recherche — les portraits passent par le proxy d'assets", ()
         expect(buildBountyPublicDungeon({ ...AVIS, imageUrl: null, dofusdbId: null }).imageUrl).toBeNull();
     });
 
-    it("la page God rend le portrait via la règle partagée (aucun `<img src={imageUrl}>` brut)", () => {
-        const src = readSource("src/app/god/game-data/bounties/page.tsx");
+    it("l'éditeur des avis (onglet des Éditeurs) rend le portrait via la règle partagée (aucun `<img src={imageUrl}>` brut)", () => {
+        const src = readSource("src/components/admin/BountyManager.tsx");
         expect(src).toContain('normalizeDofusAssetStoredUrl("monsters"');
         expect(src).not.toContain("<img src={b.imageUrl}");
         expect(src).not.toContain("<img src={selectedBounty.imageUrl}");

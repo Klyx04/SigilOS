@@ -7,7 +7,6 @@ import {
     Plus, Trash2, Map as MapIcon, SwatchBook,
     Layers, Crosshair, ExternalLink, Copy, Check, MapPin, RotateCcw
 } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -74,11 +73,10 @@ function BountyPortrait({
     );
 }
 
-export default function GodBountiesPage() {
+export default function BountyManager() {
     const [galleryOpen, setGalleryOpen] = useState(false);
     const [galleryType, setGalleryType] = useState<"portraits" | "maps">("portraits");
     const [galleryTargetField, setGalleryTargetField] = useState<"imageUrl" | "mapUrl">("imageUrl");
-    const router = useRouter();
     const [bounties, setBounties] = useState<any[]>([]);
     const [filteredBounties, setFilteredBounties] = useState<any[]>([]);
     const [search, setSearch] = useState("");
@@ -268,57 +266,50 @@ export default function GodBountiesPage() {
 
     if (loading) {
         return (
-            <div className="flex-1 flex items-center justify-center min-h-screen bg-[#050505]">
-                <div className="flex flex-col items-center gap-6">
-                    <div className="relative">
-                        <Loader2 className="animate-spin text-amber-500" size={48} />
-                        <div className="absolute inset-0 blur-2xl bg-amber-500/20 animate-pulse" />
-                    </div>
-                    <span className="text-caption font-black text-zinc-500 uppercase tracking-widest">Chargement des Archives...</span>
-                </div>
+            <div className="flex min-h-[16rem] items-center justify-center gap-3 rounded-2xl border border-white/10 bg-black/20">
+                <Loader2 className="animate-spin text-amber-500" size={28} />
+                <span className="text-caption font-black uppercase tracking-widest text-zinc-500">
+                    Chargement des avis…
+                </span>
             </div>
         );
     }
 
     return (
-        <div className="flex flex-col h-full bg-[#050505] overflow-hidden">
-            {/* Header */}
-            <header className="p-4 sm:p-8 border-b border-white/5 flex flex-col lg:flex-row lg:items-center justify-between bg-black/40 backdrop-blur-2xl shrink-0 z-10 gap-6">
-                <div className="flex items-center gap-8">
-                    <div className="flex flex-col">
-                        <h1 className="text-xl sm:text-3xl font-black text-white uppercase italic tracking-tighter flex items-center gap-4 leading-none">
-                            <ShieldAlert className="text-amber-500" size={24} />
-                            Avis de Recherche
-                        </h1>
-                        <p className="text-zinc-500 text-caption sm:text-caption font-black uppercase tracking-widest mt-2 ml-1">
-                            Base de données tactique · {bounties.length} Records
-                        </p>
-                    </div>
-                </div>
+        <div className="overflow-hidden rounded-2xl border border-white/10 bg-black/20">
+            {/* Barre d'outils — l'onglet « Avis de recherche » des Éditeurs porte déjà le titre et sa
+                légende : ici, les compteurs et les deux actions, rien de plus. */}
+            <header className="flex flex-col gap-3 border-b border-white/5 p-3 sm:flex-row sm:items-center sm:justify-between sm:p-4">
+                <p className="text-caption font-black uppercase tracking-widest text-zinc-500">
+                    {filteredBounties.length === bounties.length
+                        ? `${bounties.length} avis`
+                        : `${filteredBounties.length} / ${bounties.length} avis`}
+                    {ignoredEntries.length > 0 ? ` · ${ignoredEntries.length} supprimé(s)` : ""}
+                </p>
 
                 <div className="flex items-center gap-3">
                     <Button
                         onClick={handleSyncAllBounties}
                         disabled={syncingAll}
-                        className="bg-amber-500 hover:bg-amber-400 text-black font-bold uppercase italic text-xs h-12 px-5 rounded-2xl flex items-center gap-2 shadow-lg shadow-amber-500/20"
+                        className="bg-amber-500 hover:bg-amber-400 text-black font-bold uppercase italic text-xs h-10 px-4 rounded-xl flex items-center gap-2 shadow-lg shadow-amber-500/20"
                     >
                         {syncingAll ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
-                        {syncingAll ? (syncProgress ?? "Synchronisation…") : "Sync & Remplir Tous les Avis"}
+                        {syncingAll ? (syncProgress ?? "Synchronisation…") : "Sync & remplir tous les avis"}
                     </Button>
 
-                    <div className="relative w-full lg:w-80 group">
-                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-600 group-focus-within:text-amber-500 transition-colors" size={18} />
+                    <div className="relative w-full sm:w-72 group">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-600 group-focus-within:text-amber-500 transition-colors" size={16} />
                         <Input
                             placeholder="Rechercher une cible..."
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
-                            className="pl-12 bg-white/5 border-white/5 text-white font-bold italic h-12 rounded-2xl focus-visible:ring-amber-500/50 group-hover:bg-white/[0.07] transition-all"
+                            className="pl-10 bg-white/5 border-white/5 text-white font-bold italic h-10 rounded-xl focus-visible:ring-amber-500/50 group-hover:bg-white/[0.07] transition-all"
                         />
                     </div>
                 </div>
             </header>
 
-            <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
+            <div className="flex min-h-[32rem] flex-col overflow-hidden lg:h-[38rem] lg:flex-row">
                 {/* Bounty List */}
                 <div className={cn(
                     "w-full lg:w-[380px] border-r border-white/5 overflow-y-auto p-4 sm:p-6 space-y-3 bg-black/20 shrink-0 custom-scrollbar transition-all duration-300",

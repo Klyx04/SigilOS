@@ -3,8 +3,8 @@ import { isSuperAdmin, canAccessBrick } from "@/server/actions/super-admin-actio
 
 /**
  * 🛡️ #108 — Passe sous-god : garde fail-closed pour TOUTES les routes sous /god/game-data
- * (archimonstres, bounties, ...). Un sous-god n'y accède que s'il possède au moins une
- * brique du module Données de Jeu (scope "game-data" ou grant PIM ciblé).
+ * (archimonstres, ...). Un sous-god n'y accède que s'il possède au moins une brique du
+ * module Données de Jeu (scope "game-data" ou grant PIM ciblé).
  */
 export default async function GodGameDataLayout({ children }: { children: React.ReactNode }) {
     const isAdmin = await isSuperAdmin();
@@ -13,7 +13,6 @@ export default async function GodGameDataLayout({ children }: { children: React.
     const gameDataBricks = [
         "game-data",
         "game-data-quests",
-        "game-data-bounties",
         "game-data-quetes",
         "game-data-guides",
         "game-data-rush",

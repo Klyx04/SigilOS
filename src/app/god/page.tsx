@@ -1,5 +1,4 @@
 import { redirect } from "next/navigation";
-import Link from "next/link";
 import { auth } from "@/auth";
 import { db } from "@/lib/prisma";
 import { cn } from "@/lib/utils";
@@ -12,7 +11,6 @@ import {
     MapPin,
     Trophy,
     Gamepad2,
-    Flag,
     Book
 } from "lucide-react";
 import {
@@ -73,7 +71,6 @@ export default async function SuperAdminPage(props: {
         storage: "storage",
         notifications: "notifications",
         tickets: "tickets",
-        "game-data/bounties": "game-data-bounties",
     };
     // 🔄 R1/P2 — Résout la cible d'atterrissage la plus pertinente pour un sub-god.
     // Priorité : briques accessibles (PIM), puis scopes globaux. Chaque cible pointe
@@ -378,24 +375,9 @@ export default async function SuperAdminPage(props: {
                                 </Suspense>
                             </div>
 
-                            {/* Avis de Recherche Quick Access */}
-                            <div className="border-t border-border pt-8">
-                                <Link
-                                    href={`${godRoute}/game-data/bounties`}
-                                    className="group flex items-center gap-6 p-6 sm:p-8 rounded-3xl bg-surface border border-rose-500/20 hover:border-rose-500/50 hover:bg-rose-500/5 transition-all shadow-sm"
-                                >
-                                    <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 group-hover:scale-105 transition-all shrink-0">
-                                        <Flag className="w-7 h-7 text-rose-500" />
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <h3 className="text-lg sm:text-xl font-black text-foreground tracking-tight mb-1">Avis de Recherche</h3>
-                                        <p className="text-muted-foreground text-xs sm:text-sm font-medium">
-                                            Éditez les mécaniques, doplons, zones et résumés tactiques de tous les avis de recherche de la base de données.
-                                        </p>
-                                    </div>
-                                    <div className="shrink-0 text-rose-500/40 group-hover:text-rose-500 group-hover:translate-x-1 transition-all text-2xl font-black">→</div>
-                                </Link>
-                            </div>
+                            {/* Avis de recherche : **éditeur** de l'interface Game Data (onglet « Avis de
+                                recherche » des Éditeurs) — plus de route dédiée ni de carte d'accès :
+                                une seule porte d'entrée par outil. */}
                         </div>
                     )}
 

@@ -72,7 +72,35 @@ if ! git diff --quiet -- public/game-data/dungeon-monsters.json 2>/dev/null; the
     dim "🧹 Artefact de siphon régénéré (dungeon-monsters.json) → restauration de la version du dépôt..."
     git checkout -- public/game-data/dungeon-monsters.json
 fi
+# 🔒 Données CURÉES à la main (God). Elles vivent dans un dossier VERSIONNÉ mais sont écrites en
+# production À TRAVERS le bind mount (`~/SigilOS/public/game-data` → `/app/public/game-data`) :
+#   · `ignored-monsters.json` — monstres retirés (le siphon les saute) ;
+#   · `ignored-bounties.json` — avis de recherche supprimés (le siphon les saute).
+# C'est la curation du SERVEUR qui fait foi : on la met de côté avant le pull, on la restaure
+# après. Sans ça, un pull qui touche ces fichiers annule les exclusions — un avis supprimé
+# réapparaît à la passe suivante.
+CURATED=(
+    "public/game-data/ignored-monsters.json"
+    "public/game-data/ignored-bounties.json"
+)
+CURATED_DIR="$(mktemp -d)"
+for f in "${CURATED[@]}"; do
+    [[ -f "$f" ]] || continue
+    git cat-file -e "HEAD:$f" 2>/dev/null || continue
+    if ! git show "HEAD:$f" 2>/dev/null | cmp -s - "$f"; then
+        cp "$f" "$CURATED_DIR/$(basename "$f")"
+        git show "HEAD:$f" > "$f"
+        dim "🔒 Donnée curée mise de côté : $f"
+    fi
+done
 git pull origin "$(git rev-parse --abbrev-ref HEAD)"
+for f in "${CURATED[@]}"; do
+    CURATED_SRC="$CURATED_DIR/$(basename "$f")"
+    [[ -f "$CURATED_SRC" ]] || continue
+    cp "$CURATED_SRC" "$f"
+    dim "🔒 Donnée curée restaurée : $f"
+done
+rm -rf "$CURATED_DIR"
 
 # 3. Mise à jour de l'infrastructure de monitoring (silencieux)
 info "📊 Mise à jour de l'infrastructure de monitoring..."

@@ -911,19 +911,20 @@ export async function siphonDungeonMonstersDatasetAction(): Promise<ActionRespon
     }
 }
 
-// 🛡️ Fail-closed : super-admin OU sous-god avec la brique « game-data » **ou** la brique
-// ciblée « game-data-bounties » (même règle que `canAccessBounties` dans game-data-actions) :
-// un délégué « avis de recherche » peut siphonner sans avoir tout le module de données.
+// 🛡️ Fail-closed : super-admin OU sous-god avec la brique « game-data » — les avis de
+// recherche sont un éditeur de cette interface (fusion D-4) : plus de brique ciblée
+// « game-data-bounties » (un délégué qui ne l'avait que doit recevoir `game-data`).
 async function requireGameDataBounties(): Promise<string | null> {
     const session = await auth();
     if (!session?.user?.id) return null;
 
     if (await isSuperAdmin()) return session.user.id;
     if (await canAccessBrick("game-data")) return session.user.id;
-    if (await canAccessBrick("game-data-bounties")) return session.user.id;
 
     return null;
-}/**
+}
+
+/**
  * Siphon d'UNE race d'avis (journal temps réel côté God : 5 appels courts au
  * lieu d'un seul appel de 60 s+ sujet aux coupures/timeout). Même garde et
  * même idempotence que la passe complète.
@@ -958,7 +959,6 @@ export async function siphonBountiesRaceAction(raceId: number): Promise<ActionRe
             errors: result.errors.length,
         });
         revalidatePath('/god/game-data');
-        revalidatePath('/god/game-data/bounties');
         return {
             success: true,
             data: {
@@ -1008,7 +1008,7 @@ export async function deleteBountyAction(bountyId: string): Promise<ActionRespon
         if (!userId) return { success: false, error: "Accès refusé" };
         const bounty = await db.bounty.findUnique({
             where: { id: String(bountyId) },
-            select: { id: true, name: true, dofusdbId: true, isBountyMonster: true },
+            select: { id: true, name: true, dofusdbId: true },
         });
         if (!bounty) return { success: false, error: "Avis introuvable" };
 
@@ -1017,14 +1017,15 @@ export async function deleteBountyAction(bountyId: string): Promise<ActionRespon
             /* La fiche de combat (sorts/butin/simulation) suit la suppression de l'avis. */
             await db.monsterStat.deleteMany({ where: { monsterId: bounty.dofusdbId } });
         }
-        /* Exclusion **uniquement** pour un avis siphonné : une ligne historique (carte du monde)
-           n'est jamais recréée par le siphon, elle n'a pas besoin d'être exclue. */
-        if (bounty.dofusdbId && bounty.isBountyMonster) {
+        /* 🛡️ Exclusion dès qu'un `dofusdbId` existe : c'est LA clé du siphon (`findUnique({
+           dofusdbId })` puis réécriture). Se fier à `isBountyMonster` laissait une porte ouverte —
+           une ligne portant un `dofusdbId` sans ce drapeau était réécrite à la passe suivante.
+           Une ligne purement historique (`dofusdbId` nul) n'est jamais recréée : rien à exclure. */
+        if (bounty.dofusdbId) {
             addIgnoredBounty(bounty.dofusdbId, bounty.name);
         }
 
         await logGameDataWrite("delete-bounty", bounty.name, { dofusdbId: bounty.dofusdbId });
-        revalidatePath('/god/game-data/bounties');
         revalidatePath('/god/game-data');
         return {
             success: true,
@@ -1046,7 +1047,7 @@ export async function restoreBountyAction(dofusdbId: number): Promise<ActionResp
 
         const entries = removeIgnoredBounty(id);
         await logGameDataWrite("restore-bounty", `dofusdbId-${id}`);
-        revalidatePath('/god/game-data/bounties');
+        revalidatePath('/god/game-data');
         return { success: true, data: { entries } };
     } catch (error: any) {
         logger.error('[restoreBountyAction] Error:', error);

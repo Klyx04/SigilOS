@@ -38,7 +38,6 @@ export const SCOPE_TO_BRICKS: Record<GodScope, string[]> = {
     "game-data": [
         "game-data",
         "game-data-quests",
-        "game-data-bounties",
         "game-data-quetes",
         "game-data-guides",
         "game-data-rush",

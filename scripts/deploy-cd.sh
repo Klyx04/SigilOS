@@ -254,11 +254,13 @@ git_fetch() {
     local GENERATED=(
         "public/game-data/dungeon-monsters.json"
     )
-    # À l'inverse `ignored-monsters.json` est CURÉ à la main (God) : l'écraser ferait
-    # perdre les exclusions configurées sur CE serveur. Il est donc sauvegardé hors
-    # de l'arbre le temps du pull, puis restauré (voir plus bas).
+    # À l'inverse `ignored-monsters.json` et `ignored-bounties.json` sont CURÉS à la main (God) :
+    # l'écraser ferait perdre les exclusions configurées sur CE serveur — un monstre retiré
+    # réapparaîtrait au siphon suivant, un avis supprimé serait recréé. Ils sont donc sauvegardés
+    # hors de l'arbre le temps du pull, puis restaurés (voir plus bas).
     local PRESERVED=(
         "public/game-data/ignored-monsters.json"
+        "public/game-data/ignored-bounties.json"
     )
 
     # ── Git peut être AVEUGLE sur ces fichiers : ne jamais croire l'index ───────

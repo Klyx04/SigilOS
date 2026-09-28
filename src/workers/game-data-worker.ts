@@ -16,6 +16,24 @@ import {
     setGameDataWatchState,
 } from "../server/game-data-sync-state-store";
 import { logger } from "../lib/logger";
+import { formatGameDataErrorLines } from "../lib/game-data-error-causes";
+
+/**
+ * 🔢 **Lot d'erreurs → cause** (chantier A3, 28/09/2026) : les passes qui produisent des erreurs
+ * par item (BOUNTIES : 96 mesurées) publiaient `errors.slice(0, 3).join(" · ")` ⇒ le Tableau
+ * montrait trois lignes brutes **sans un seul compteur**, et l'opérateur ne pouvait pas distinguer
+ * « notre limite locale » de « DofusDB ne référence pas ce butin » (deux actions opposées).
+ *
+ * Ici : le **lot complet** part vers l'état (qui le regroupe : `lastError` chiffré +
+ * `errorGroups`), et le détail regroupé part dans le journal du worker — la même vérité des deux
+ * côtés, sans recalcul.
+ */
+function reportErrorBatch(dataset: GameDataBackgroundDataset, errors: readonly string[]): void {
+    if (errors.length === 0) return;
+    for (const line of formatGameDataErrorLines(errors)) {
+        logger.warn(`[GameData][${dataset}] ${line}`);
+    }
+}
 
 /**
  * Worker game-data — les siphons LOURDS tournent ici, côté serveur.
@@ -67,12 +85,13 @@ async function runBackgroundDataset(
                 message: message ?? `${done}/${total}`,
             });
         });
+        reportErrorBatch("CLASS_SPELLS", result.errors);
         await finishGameDataRun("CLASS_SPELLS", {
             ok: result.errors.length === 0,
             message:
                 `${result.classes}/${CLASS_SPELLBOOK_CLASS_IDS.length} grimoire(s) · ${result.spells} sort(s) · ` +
                 `${result.icons} icône(s)${result.failedIcons > 0 ? ` (${result.failedIcons} en échec)` : ""}`,
-            error: result.errors.length > 0 ? result.errors.slice(0, 3).join(" · ") : undefined,
+            errors: result.errors,
         });
         return result;
     }
@@ -89,12 +108,14 @@ async function runBackgroundDataset(
             errors?: string[];
             guardians?: unknown[];
         };
+        const batch = result?.errors ?? [];
+        reportErrorBatch("ANOMALY_BOSSES", batch);
         await finishGameDataRun("ANOMALY_BOSSES", {
-            ok: (result?.errors?.length ?? 0) === 0,
+            ok: batch.length === 0,
             message: result?.guardians?.length
                 ? `${result.guardians.length} gardiens (${result.synced ?? 0} écrits)`
                 : "Gardiens d'anomalie synchronisés",
-            error: result?.errors?.length ? result.errors.slice(0, 3).join(" · ") : undefined,
+            errors: batch,
         });
         return result;
     }
@@ -253,10 +274,12 @@ async function runBackgroundDataset(
         synced?: number;
         errors?: string[];
     };
+    const batch = result?.errors ?? [];
+    reportErrorBatch("BOUNTIES", batch);
     await finishGameDataRun("BOUNTIES", {
-        ok: (result?.errors?.length ?? 0) === 0,
+        ok: batch.length === 0,
         message: result?.total ? `${result.total} avis (${result.synced ?? 0} écrits)` : "Avis synchronisés",
-        error: result?.errors?.length ? result.errors.slice(0, 3).join(" · ") : undefined,
+        errors: batch,
     });
     return result;
 }
@@ -279,7 +302,7 @@ export const gameDataWorker = new Worker(
             return result;
         } catch (e) {
             const message = e instanceof Error ? e.message : String(e);
-            await finishGameDataRun(dataset, { ok: false, error: message });
+            await finishGameDataRun(dataset, { ok: false, error: message, errors: [message] });
             // ⚠️ La PILE est indispensable : « The argument 'filename' … Received undefined »
             // ne dit pas QUI passe `undefined` (leçon du 24/09/2026 : l'échec venait d'un appel
             // interne au bundle esbuild, invisible sans pile). Logs serveur uniquement.

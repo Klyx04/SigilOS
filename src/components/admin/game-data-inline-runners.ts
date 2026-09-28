@@ -45,6 +45,7 @@ import {
     reportGameDataSync,
 } from "@/server/actions/game-data-sync-actions";
 import { BOUNTY_RACE_IDS, BOUNTY_RACE_NAMES } from "@/lib/bounty";
+import { formatGameDataErrorLines } from "@/lib/game-data-error-causes";
 import { getClassName } from "@/lib/dofusbook-utils";
 import { GAME_ITEMS_BATCH_PAUSE_MS, GAME_ITEMS_BATCH_SIZE } from "@/lib/game-items-cadence";
 import type { GameDataDataset } from "@/lib/game-data-sync-state";
@@ -108,6 +109,11 @@ export interface InlineRunResult {
     ok: boolean;
     summary: string;
     error?: string;
+    /**
+     * 🔢 **Lot brut** des erreurs rencontrées (jamais tronqué ici : c'est le store qui regroupe par
+     * cause et qui chiffre `lastError`). Absent tant qu'aucune passe n'en produit.
+     */
+    errors?: string[];
 }
 
 /** Contexte de run : journal + progression (état serveur **et** barre locale). */
@@ -265,6 +271,12 @@ async function runClassSpellbooks(ctx: RunContext): Promise<InlineRunResult> {
 async function runBounties(ctx: RunContext): Promise<InlineRunResult> {
     const totals = { synced: 0, unchanged: 0, total: 0, unproven: 0, images: 0, errors: 0, grades: 0, drops: 0 };
     let failedRaces = 0;
+    /**
+     * 🔢 Lot **complet** des erreurs (chantier A3) : la passe en produit ~96 (mesure 28/09/2026),
+     * et l'ancien résumé n'en montrait que 3 lignes brutes. Ici on les garde toutes — le store les
+     * regroupe par cause (« aucun butin référencé (92×) · fiche en échec (4×) »).
+     */
+    const errorMessages: string[] = [];
 
     for (let i = 0; i < BOUNTY_RACE_IDS.length; i++) {
         const raceId = BOUNTY_RACE_IDS[i] as number;
@@ -281,24 +293,38 @@ async function runBounties(ctx: RunContext): Promise<InlineRunResult> {
                 totals.grades += d.gradesBackfilled;
                 totals.drops += d.dropsBackfilled;
                 totals.errors += d.errors.length;
+                errorMessages.push(...d.errors);
                 ctx.log(
                     `✅ ${raceName} : ${d.total} avis (${d.synced} écrits, ${d.unchanged} inchangés, ${d.unproven} non prouvés, ${d.images} icônes, ${d.gradesBackfilled} stats relues, ${d.dropsBackfilled} butins relus)` +
                         (d.errors.length > 0 ? ` — ${d.errors.length} erreur(s)` : ""),
                 );
             } else {
                 failedRaces++;
-                ctx.log(`❌ ${raceName} : ${res.error || "échec"} — passe suivante conservée.`);
+                const reason = `${raceName} : ${res.error || "échec"}`;
+                errorMessages.push(reason);
+                ctx.log(`❌ ${reason} — passe suivante conservée.`);
             }
         } catch (e) {
             failedRaces++;
-            ctx.log(`❌ ${raceName} : ${e instanceof Error ? e.message : String(e)} — passe suivante conservée.`);
+            const reason = `${raceName} : ${e instanceof Error ? e.message : String(e)}`;
+            errorMessages.push(reason);
+            ctx.log(`❌ ${reason} — passe suivante conservée.`);
         }
         await ctx.report(i + 1, BOUNTY_RACE_IDS.length, `Race ${i + 1}/${BOUNTY_RACE_IDS.length}`);
     }
 
+    // 🧭 Détail **regroupé par cause** dans le journal live : l'opérateur voit d'un coup d'œil la
+    // cause dominante (et son exemple), au lieu de 96 lignes rouges identiques.
+    for (const line of formatGameDataErrorLines(errorMessages)) ctx.log(line);
+
     const summary = `Avis de recherche : ${totals.total} avis (${totals.synced} écrits, ${totals.images} icônes, ${totals.errors + failedRaces} erreur(s)).`;
     ctx.log(`🎉 ${summary}`);
-    return { ok: failedRaces === 0, summary, error: failedRaces > 0 ? `${failedRaces} race(s) en échec` : undefined };
+    return {
+        ok: failedRaces === 0,
+        summary,
+        error: failedRaces > 0 ? `${failedRaces} race(s) en échec` : undefined,
+        errors: errorMessages,
+    };
 }
 
 /** Référentiels d'effets & de caractéristiques (libellés FR, icônes, « % ») — 1 appel. */
@@ -468,12 +494,14 @@ export async function runInlineGameDataDataset(
         }
     } catch (e) {
         const error = e instanceof Error ? e.message : String(e);
-        await finishGameDataSync(dataset, false, undefined, error);
+        await finishGameDataSync(dataset, false, undefined, error, [error]);
         ctx.log(`❌ Exception : ${error}`);
         return { ok: false, summary: "", error };
     }
 
-    await finishGameDataSync(dataset, result.ok, result.summary || undefined, result.error);
+    // 🔢 `result.errors` = lot **complet** (le store en tire `lastError` chiffré + `errorGroups`) ;
+    // `result.error` reste la phrase courte quand l'appelant en a une plus juste.
+    await finishGameDataSync(dataset, result.ok, result.summary || undefined, result.error, result.errors);
     return result;
 }
 

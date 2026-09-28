@@ -19,11 +19,17 @@ import {
     computePercent,
     emptyGameDataRunState,
     GAME_DATA_DATASETS,
+    hydrateGameDataRunState,
     STALE_RUN_MESSAGE,
     type GameDataDataset,
     type GameDataRunCounts,
     type GameDataRunState,
 } from "@/lib/game-data-sync-state";
+import {
+    capGameDataErrorGroups,
+    groupGameDataErrors,
+    summarizeGameDataErrors,
+} from "@/lib/game-data-error-causes";
 
 const KEY = (dataset: GameDataDataset) => `game-data:sync:${dataset}`;
 const TTL_SECONDS = 7 * 24 * 3600;
@@ -52,7 +58,7 @@ async function readState(dataset: GameDataDataset): Promise<GameDataRunState> {
     const raw = await withRedis((c) => c.get(KEY(dataset)));
     if (!raw) return emptyGameDataRunState(dataset);
     try {
-        return { ...emptyGameDataRunState(dataset), ...(JSON.parse(raw) as GameDataRunState), dataset };
+        return hydrateGameDataRunState(dataset, JSON.parse(raw));
     } catch {
         return emptyGameDataRunState(dataset);
     }
@@ -96,12 +102,30 @@ export async function reportGameDataProgress(
     });
 }
 
-/** Fin de run : succès (OK, 100 %) ou échec (ERROR + message lisible). */
+/**
+ * Fin de run : succès (OK, 100 %) ou échec (ERROR + message lisible).
+ *
+ * 🔢 **Erreurs regroupées par cause** (chantier A3, 28/09/2026) : l'appelant peut désormais passer
+ * le **lot complet** (`errors`, messages bruts) au lieu d'en choisir trois. Le regroupement et la
+ * synthèse se font **ici, une fois** :
+ *   · `lastError` = ligne courte chiffrée (« 96 erreur(s) : aucun butin référencé (92×) · … ») ;
+ *   · `errorGroups` = compteurs par cause, bornés (`GAME_DATA_ERROR_GROUPS_MAX`).
+ * `opts.error` reste prioritaire quand l'appelant a une phrase plus juste que le lot brut.
+ */
 export async function finishGameDataRun(
     dataset: GameDataDataset,
-    opts: { ok: boolean; message?: string; error?: string; counts?: GameDataRunCounts | null } = { ok: true },
+    opts: {
+        ok: boolean;
+        message?: string;
+        error?: string;
+        /** Messages bruts du lot (jamais tronqués à 3 par l'appelant : le compteur vient d'ici). */
+        errors?: readonly string[];
+        counts?: GameDataRunCounts | null;
+    } = { ok: true },
 ): Promise<void> {
     const current = await readState(dataset);
+    const failures = opts.ok ? [] : (opts.errors ?? []);
+    const groups = failures.length > 0 ? capGameDataErrorGroups(groupGameDataErrors(failures)) : null;
     await writeState({
         ...current,
         status: opts.ok ? "OK" : "ERROR",
@@ -109,7 +133,12 @@ export async function finishGameDataRun(
         done: opts.ok && current.total ? current.total : current.done,
         message: opts.message ?? current.message,
         finishedAt: new Date().toISOString(),
-        lastError: opts.ok ? null : opts.error ?? current.lastError,
+        lastError: opts.ok
+            ? null
+            : opts.error ?? summarizeGameDataErrors(failures) ?? current.lastError,
+        // Une passe réussie efface les causes : garder un compteur d'erreurs d'hier à côté d'un
+        // « OK » ferait douter du statut (même règle que `lastError`).
+        errorGroups: opts.ok ? null : groups,
         // Bilan chiffré : écrit seulement quand la passe en fournit un (sinon on conserve le
         // précédent — un échec ne doit pas effacer « 46 modifiés » de la veille réussie).
         counts: opts.ok && opts.counts !== undefined ? opts.counts : current.counts,
@@ -131,6 +160,8 @@ export async function markGameDataRunStale(dataset: GameDataDataset): Promise<vo
         message: STALE_RUN_MESSAGE,
         finishedAt: new Date().toISOString(),
         lastError: "État périmé : aucun job en file (passe interrompue).",
+        // Les causes de la passe **précédente** ne décrivent pas cet échec-là : on ne les montre pas.
+        errorGroups: null,
     });
 }
 
@@ -214,7 +245,7 @@ export async function getGameDataRunStates(): Promise<GameDataRunState[]> {
         const value = raw?.[i];
         if (!value) return emptyGameDataRunState(dataset);
         try {
-            return { ...emptyGameDataRunState(dataset), ...(JSON.parse(value) as GameDataRunState), dataset };
+            return hydrateGameDataRunState(dataset, JSON.parse(value));
         } catch {
             return emptyGameDataRunState(dataset);
         }

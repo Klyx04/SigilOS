@@ -4,6 +4,7 @@ import { logger } from "@/lib/logger";
 import { db } from "@/lib/prisma";
 import {
     MIN_COHORT_SIZE,
+    PRODUCT_FACT_LIMIT,
     PRODUCT_WINDOW_DAYS,
     RETENTION_WEEKS,
     buildRetentionCohorts,
@@ -35,10 +36,10 @@ import { isSuperAdmin } from "./super-admin-actions";
  */
 
 /**
- * Plafond de lecture explicite des faits d'audit. Au-delà, l'écran mesure un échantillon :
- * il doit le dire (`truncated: true`) au lieu de laisser croire à un total.
+ * Plafond de lecture explicite des faits d'audit : il vit dans `src/lib/telemetry/product.ts`
+ * (une logique pure, testable) — un fichier `"use server"` ne peut exporter que des fonctions
+ * `async`, la constante n'a donc rien à faire ici.
  */
-export const PRODUCT_FACT_LIMIT = 20_000;
 
 /** Fenêtre de lecture des faits : elle couvre toute la rétention affichée. */
 const FACT_WINDOW_DAYS = RETENTION_WEEKS * 7;

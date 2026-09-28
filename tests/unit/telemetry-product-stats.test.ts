@@ -35,7 +35,8 @@ vi.mock("@/lib/logger", () => ({ logger: { warn: vi.fn(), error: vi.fn(), info: 
 
 import { db } from "@/lib/prisma";
 import { isSuperAdmin } from "@/server/actions/super-admin-actions";
-import { PRODUCT_FACT_LIMIT, getProductStats } from "@/server/actions/telemetry-product-actions";
+import { PRODUCT_FACT_LIMIT } from "@/lib/telemetry/product";
+import { getProductStats } from "@/server/actions/telemetry-product-actions";
 
 const mockDb = db as unknown as Record<string, Record<string, LooseMock>>;
 const DAY = 86400000;

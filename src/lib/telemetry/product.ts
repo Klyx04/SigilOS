@@ -24,6 +24,12 @@ export const RETENTION_WEEKS = 8;
 /** Fenêtre par défaut des compteurs produit, en jours. */
 export const PRODUCT_WINDOW_DAYS = 30;
 
+/**
+ * Plafond de lecture d'une série de faits (journal d'audit). Au-delà, la mesure porte sur un
+ * **échantillon** : l'écran doit le publier (`truncated`) au lieu de laisser croire à un total.
+ */
+export const PRODUCT_FACT_LIMIT = 20_000;
+
 /** Lundi 00:00 UTC de la semaine contenant `date`. */
 export function startOfIsoWeek(date: Date): Date {
     const day = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));

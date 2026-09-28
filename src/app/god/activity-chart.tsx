@@ -99,12 +99,14 @@ export function ActivityChart({ data }: ActivityChartProps) {
                         cursor={{ stroke: 'rgba(255,255,255,0.1)', strokeWidth: 1 }}
                     />
 
-                    {/* Pulse as Smooth Area (Engagement) */}
+                    {/* Série technique : nombre de lignes du journal d'audit par jour.
+                        Nommée pour ce qu'elle est — l'ancien libellé « Activité Dashboard »
+                        laissait croire à une mesure d'usage produit. */}
                     <Area
                         yAxisId="left"
                         type="monotone"
                         dataKey="pulse"
-                        name="Activité Dashboard"
+                        name="Volume du journal d'audit"
                         stroke="#8b5cf6"
                         strokeWidth={4}
                         fillOpacity={1}

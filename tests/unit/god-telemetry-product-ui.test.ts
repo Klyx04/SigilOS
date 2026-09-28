@@ -49,9 +49,23 @@ describe("télémétrie God — les cartes « console » ne reviennent pas", () 
         );
     });
 
-    it("porte l'onglet d'adoption dans la barre d'onglets", () => {
+    it("porte les onglets produit dans la barre d'onglets", () => {
         expect(dashboard).toContain('id: "adoption"');
+        expect(dashboard).toContain('id: "retention"');
         expect(dashboard).not.toContain('id: "modules"');
+    });
+
+    it("a retiré les trois onglets « console » et leur moteur de rendu", () => {
+        for (const gone of ['id: "analytics"', 'id: "guilds"', 'id: "users"']) {
+            expect(dashboard, `l'onglet ${gone} est revenu`).not.toContain(gone);
+        }
+        // La heatmap de clics et son graphe horaire tiraient `recharts` : plus aucun import.
+        expect(dashboard).not.toContain("recharts");
+        // Les classements nominatifs par membre (artefact d'échantillon) sont partis aussi.
+        for (const gone of ["stats.topUsers", "stats.usersLastSeen", "stats.guildHealthList", "stats.heatmapData"]) {
+            expect(dashboard, `${gone} est encore rendu`).not.toContain(gone);
+        }
+        expect(dashboard).toContain("<TelemetryRetentionPanel product={initialProduct} />");
     });
 });
 

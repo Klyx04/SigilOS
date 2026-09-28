@@ -51,8 +51,6 @@ import { getPlatformConfig } from "@/server/actions/god-mini-games-actions";
 import { getTelemetryStats } from "@/server/actions/telemetry-actions";
 import { TelemetryDashboard } from "./components/telemetry-dashboard";
 import { CronStatusPanel } from "./components/cron-status-panel";
-import { ModuleIconsManager } from "./components/module-icons-manager";
-import { GodBadgesPanel } from "./badges/_components/god-badges-panel";
 import { GodSlashCommandsPanel } from "./components/god-slash-commands-panel";
 import { getGodRoute } from "@/lib/god-route";
 
@@ -334,24 +332,10 @@ export default async function SuperAdminPage(props: {
                         </div>
                     )}
 
-                    {tab === "module-icons" && (
-                        <div className="space-y-8">
-                            <ModuleIconsManager />
-                        </div>
-                    )}
-
                     {tab === "modules" && (
                         <Suspense fallback={<GodLoadingSkeleton rows={4} />}>
                             <PlatformModulesServer />
                         </Suspense>
-                    )}
-
-                    {tab === "badges" && (
-                        <div className="space-y-8">
-                            <Suspense fallback={<div className="animate-pulse bg-surface h-96 rounded-3xl border border-border" />}>
-                                <BadgesServer />
-                            </Suspense>
-                        </div>
                     )}
 
                     {tab === "api-keys" && (
@@ -631,16 +615,6 @@ async function TelemetryServer() {
         const { logger } = await import("@/lib/logger");
         logger.error("[Telemetry ERROR]", { error: String(err) });
         return <div className="p-8 text-center text-red-500 text-xs font-mono">Error loading telemetry data</div>;
-    }
-}
-
-async function BadgesServer() {
-    try {
-        const { getBadgesCatalogAction } = await import("@/server/actions/badge-actions");
-        const res = await getBadgesCatalogAction();
-        return <GodBadgesPanel initialBadges={res.success ? res.data || [] : []} />;
-    } catch {
-        return <div className="p-8 text-center text-red-500 text-xs font-mono">Erreur lors du chargement des badges</div>;
     }
 }
 

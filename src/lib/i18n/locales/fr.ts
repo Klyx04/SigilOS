@@ -48,7 +48,6 @@ export const fr = {
         guildsDir: "Annuaire des guildes",
         guides: "Guides",
         changelog: "Journal des mises à jour",
-        roadmap: "Feuille de route",
         tools: "Outils de jeu",
         legal: "Légal",
         cgu: "CGU",
@@ -419,21 +418,6 @@ export const fr = {
             SECURITY: "Sécurité",
             PERFORMANCE: "Performance",
             DOCUMENTATION: "Documentation",
-        },
-    },
-
-    // Roadmap
-    roadmapPage: {
-        metaTitle: "Feuille de route publique | SigilOS",
-        metaDesc: "Découvrez la feuille de route de SigilOS et les prochaines fonctionnalités en cours de développement.",
-        title: "Roadmap SigilOS",
-        subtitle: "Découvrez la feuille de route publique du projet. Vous pouvez suivre ici nos priorités en cours de développement et nos projets pour l'avenir.",
-        backHome: "Retour accueil",
-        empty: "Aucun item sur la roadmap actuellement",
-        status: {
-            PLANNED: "Planifié",
-            IN_PROGRESS: "En cours",
-            COMPLETED: "Terminé",
         },
     },
 

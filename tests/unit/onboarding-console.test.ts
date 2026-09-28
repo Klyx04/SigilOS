@@ -3,9 +3,13 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 /**
  * Refonte onboarding §9 — console owner & kill-switch.
  * 1. getPermissionsHiddenByModules : masquage d'affichage (mappings conservés).
- * 2. toggleAutoOnboarding : God-only, upsert singleton.
- * 3. updateGuildModules : gate natif (isDiscordAdmin) + rejet des modules
+ * 2. updateGuildModules : gate natif (isDiscordAdmin) + rejet des modules
  *    coupés par le God (guilde **ou** plateforme).
+ *
+ * ⚠️ Le kill-switch « Auto-onboarding » n'est plus testé ici : sa 2ᵉ porte
+ * (`toggleAutoOnboarding`, ex-`god-roadmap-actions.ts`) a été supprimée le
+ * 28/09/2026 (onglet Roadmap Pro mort). La porte unique `updatePlatformConfig`
+ * est couverte par `tests/unit/auto-onboarding-killswitch.test.ts`.
  */
 
 vi.mock("@/lib/prisma", () => ({
@@ -61,7 +65,6 @@ import { db } from "@/lib/prisma";
 import { isSuperAdmin } from "@/server/actions/super-admin-actions";
 import { getUserContext } from "@/server/actions/user-actions";
 import { PERMISSIONS, getPermissionsHiddenByModules, getPermissionsForGuildModule, GUILD_MODULE_LABELS } from "@/lib/permissions";
-import { toggleAutoOnboarding } from "@/server/actions/god-roadmap-actions";
 import { updateGuildModules, setModuleGodLock } from "@/server/actions/module-actions";
 import { invalidatePlatformModuleStateCache } from "@/server/platform-module-state";
 import {
@@ -131,30 +134,6 @@ describe("getPermissionsHiddenByModules", () => {
         expect(hidden).not.toContain(PERMISSIONS.SYSTEM_GOD);
         expect(hidden).not.toContain(PERMISSIONS.SYSTEM_RBAC);
         expect(hidden).not.toContain(PERMISSIONS.SYSTEM_CONFIG);
-    });
-});
-
-describe("toggleAutoOnboarding (kill-switch God)", () => {
-    beforeEach(() => {
-        vi.clearAllMocks();
-        mockAuth.mockResolvedValue({ user: { id: "god-1" } });
-    });
-
-    it("refuse les non-God", async () => {
-        mockIsSuperAdmin.mockResolvedValue(false);
-        const res = await toggleAutoOnboarding(false);
-        expect(res.success).toBe(false);
-        expect(mockDb.platformConfig.upsert).not.toHaveBeenCalled();
-    });
-
-    it("upsert le singleton quand God", async () => {
-        mockIsSuperAdmin.mockResolvedValue("god-1");
-        mockDb.platformConfig.upsert.mockResolvedValue({});
-        const res = await toggleAutoOnboarding(false);
-        expect(res.success).toBe(true);
-        expect(mockDb.platformConfig.upsert).toHaveBeenCalledWith(
-            expect.objectContaining({ update: { autoOnboardingEnabled: false } })
-        );
     });
 });
 

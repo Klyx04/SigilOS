@@ -51,7 +51,6 @@ export const en: Translations = {
         guildsDir: "Guild Directory",
         guides: "Guides",
         changelog: "Changelog",
-        roadmap: "Roadmap",
         tools: "Game Tools",
         legal: "Legal",
         cgu: "Terms of Service",
@@ -422,21 +421,6 @@ export const en: Translations = {
             SECURITY: "Security",
             PERFORMANCE: "Performance",
             DOCUMENTATION: "Documentation",
-        },
-    },
-
-    // Roadmap
-    roadmapPage: {
-        metaTitle: "Public Roadmap | SigilOS",
-        metaDesc: "Discover the SigilOS roadmap and upcoming features currently in development.",
-        title: "SigilOS Roadmap",
-        subtitle: "Explore our public roadmap. Track active development priorities and future plans.",
-        backHome: "Back to Home",
-        empty: "No roadmap items currently scheduled",
-        status: {
-            PLANNED: "Planned",
-            IN_PROGRESS: "In Progress",
-            COMPLETED: "Completed",
         },
     },
 

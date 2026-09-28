@@ -24,7 +24,6 @@ import {
     Handshake,
     Calendar,
     Zap,
-    Rocket,
     History
 } from "lucide-react";
 import { useDebounce } from "use-debounce";
@@ -133,7 +132,6 @@ export function CommandMenu({ guildId, user }: CommandMenuProps) {
         { title: "Validation", href: `/dashboard/${guildId}/admin/validation`, icon: CheckSquare, category: "Supervision", color: "text-danger", bg: "bg-danger/10", border: "border-danger/20", visible: user?.canValidateMissions },
         { title: "Paramètres Admin", href: `/dashboard/${guildId}/admin/settings`, icon: Settings, category: "Supervision", color: "text-danger", bg: "bg-danger/10", border: "border-danger/20", visible: user?.canViewSettings },
         
-        { title: "Roadmap Plateforme", href: `/roadmap`, icon: Rocket, category: "Plateforme", color: "text-warning", bg: "bg-warning/10", border: "border-warning/20" },
         { title: "Mises à jour / Changelog", href: `/changelog`, icon: History, category: "Plateforme", color: "text-info", bg: "bg-info/10", border: "border-info/20" },
     ], [guildId, user]);
 

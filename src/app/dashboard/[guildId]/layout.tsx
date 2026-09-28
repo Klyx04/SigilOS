@@ -64,10 +64,9 @@ export default async function DashboardLayout({
         getGuildHeaderData(guildId),
         getUserGuilds(),
         getGuildModules(guildId),
-        import("@/server/actions/god-roadmap-actions").then(mod => mod.getPlatformConfig())
+        import("@/server/actions/platform-config-actions").then(mod => mod.getPlatformConfig())
     ]);
 
-    const roadmapEnabled = configRes.success && configRes.data ? (configRes.data as any).roadmapEnabled : false;
     const donationsEnabled = configRes.success && configRes.data ? (configRes.data as any).donationsEnabled : true;
 
     // --- MAINTENANCE : verrouille les dashboards loggés (le proxy réécrit les
@@ -292,7 +291,6 @@ export default async function DashboardLayout({
                         guildData={guildData}
                         userGuilds={userGuilds}
                         modules={modules}
-                        roadmapEnabled={roadmapEnabled}
                         className="h-full border-r border-border bg-surface"
                     />
                 </div>
@@ -308,7 +306,6 @@ export default async function DashboardLayout({
                             userId={user.id || ""}
                             sidebarProps={{ guildId, user, guildData, userGuilds, modules }}
                             eventsPromise={eventsPromise}
-                            roadmapEnabled={roadmapEnabled}
                         />
                     </div>
 

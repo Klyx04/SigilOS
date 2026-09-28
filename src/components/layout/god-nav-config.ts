@@ -18,11 +18,8 @@ import {
     Ban,
     Server,
     BookOpen,
-    UserPlus,
     Library,
     Clock,
-    Image as ImageIcon,
-    Award,
     Key,
     ShoppingBag,
     Puzzle,
@@ -86,14 +83,9 @@ export const CONSOLE_PAGES: GodNavItem[] = [
     { id: "bugs", name: "Bugs & Suggs", icon: Bug, color: "text-danger", group: "game-data", sub: "bugs", scope: "all", scopeLabel: "Toutes", brickId: "bugs" },
 
     // Outils
-    { id: "roadmap", name: "Roadmap Pro", icon: Map, color: "text-warning", group: "tools", sub: "roadmap", scope: "all", scopeLabel: "Toutes", brickId: "roadmap" },
     { id: "changelog", name: "Changelog Engine", icon: History, color: "text-info", group: "tools", sub: "changelog", scope: "all", scopeLabel: "Toutes", brickId: "changelog" },
     { id: "docs", name: "Documents", icon: BookOpen, color: "text-info", group: "tools", sub: "docs", scope: "all", scopeLabel: "Toutes", brickId: "docs" },
-    { id: "reaction-roles", name: "Packs Reaction Roles", icon: Sparkles, color: "text-purple-400", group: "tools", sub: "reaction-roles", scope: "all", scopeLabel: "Toutes", brickId: "overview" },
     { id: "ticket-bot", name: "Bot Tickets Flotte", icon: Ticket, color: "text-amber-400", group: "tools", sub: "ticket-bot", scope: "all", scopeLabel: "Toutes", brickId: "overview" },
-    { id: "onboarding", name: "Onboarding B2B", icon: UserPlus, color: "text-success", group: "tools", sub: "onboarding", scope: "all", scopeLabel: "Toutes", brickId: "onboarding" },
-    { id: "module-icons", name: "Icônes Modules", icon: ImageIcon, color: "text-warning", group: "tools", scope: "all", scopeLabel: "Toutes", brickId: "overview" },
-    { id: "badges", name: "Studio Badges", icon: Award, color: "text-amber-400", group: "tools", sub: "badges", scope: "all", scopeLabel: "Toutes", brickId: "overview" },
 ];
 
 export const ALL_SCOPES_COUNT = 6;

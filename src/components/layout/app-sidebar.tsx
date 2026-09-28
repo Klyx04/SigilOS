@@ -38,7 +38,6 @@ import {
     EyeOff,
     Settings,
     CheckCircle,
-    Rocket,
     History,
     Bug,
     Coins,
@@ -76,7 +75,6 @@ interface AppSidebarProps {
     modules?: GuildModulesState;
     userGuilds?: { id: string; name: string; iconUrl: string | null }[];
     className?: string;
-    roadmapEnabled?: boolean;
 }
 
 export function AppSidebar({
@@ -85,7 +83,6 @@ export function AppSidebar({
     guildData,
     userGuilds = [],
     modules = DEFAULT_MODULES,
-    roadmapEnabled = false,
     className
 }: AppSidebarProps) {
     const [mounted, setMounted] = useState(false);
@@ -220,7 +217,6 @@ export function AppSidebar({
         { name: "Mini-Jeux", href: `/dashboard/${guildId}/mini-jeux`, icon: Gamepad2, imgSrc: "/assets/nav/dice.png", color: "cyan", tourKey: "minigames", visible: user.canViewMiniGames && modules.minigames },
         { name: "Sondages", href: `/dashboard/${guildId}/sondages`, icon: Gavel, imgSrc: "/assets/nav/chat.png", color: "cyan", tourKey: "polls", visible: user.canViewPolls && modules.polls },
         { name: "Carte du Monde", href: `/dashboard/${guildId}/worldmap`, icon: Compass, imgSrc: "/assets/dofus/modules/map.png", color: "cyan", visible: user.canViewWorldmap && modules.worldmap },
-        { name: "Roadmap", href: "/roadmap", icon: Rocket, color: "amber", visible: roadmapEnabled },
     ];
 
     const NAV_ADMIN_TOP = {

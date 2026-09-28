@@ -488,7 +488,6 @@ export async function updatePlatformConfig(data: {
 
         revalidatePath('/');
         revalidatePath('/god');
-        revalidatePath('/god/roadmap');
         revalidatePath('/maintenance');
         return { success: true, config };
     } catch (e) {

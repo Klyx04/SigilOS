@@ -53,26 +53,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     //    leur présentation publique (presentationEnabled = true).
     const routes: MetadataRoute.Sitemap = [...staticRoutes];
 
-    // Feuille de route : annoncée à Google **uniquement** quand elle est réellement
-    // publique (toggle God `roadmapEnabled`). Désactivée, la page redirige vers `/`
-    // et Search Console remonterait « Page avec redirection » (constat 19/09/2026).
-    try {
-        const config = await db.platformConfig.findUnique({
-            where: { id: "singleton" },
-            select: { roadmapEnabled: true },
-        });
-        if (config?.roadmapEnabled) {
-            routes.push({
-                url: `${baseUrl}/roadmap`,
-                lastModified: now,
-                changeFrequency: "monthly",
-                priority: 0.4,
-            });
-        }
-    } catch (error) {
-        logger.error("[Sitemap] Error fetching platform config", { error });
-    }
-
     try {
         const publicGuilds = await db.guildConfig.findMany({
             where: { isActive: true, presentationEnabled: true },

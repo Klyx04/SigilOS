@@ -31,14 +31,6 @@ interface GalacticFooterProps {
 }
 
 /** « Tableau de bord » est rendu à part : il déclenche la connexion sans session. */
-const PLATFORM_LINKS = [
-    { label: "Modules de guilde", href: "/modules" },
-    { label: "Annuaire des guildes", href: "/guilds" },
-    { label: "Guides", href: "/guides" },
-    { label: "Journal des mises à jour", href: "/changelog" },
-    { label: "Feuille de route", href: "/roadmap" },
-];
-
 const TOOL_LINKS = [
     { label: "Rush Sylvestre", href: "/guides/rush-sylvestre" },
     { label: "Fiches boss & donjons", href: "/boss" },
@@ -72,7 +64,6 @@ export function GalacticFooter({ variant = "standard", isMember: _isMember = fal
         { label: t.footer.guildsDir, href: "/guilds" },
         { label: t.footer.guides, href: "/guides" },
         { label: t.footer.changelog, href: "/changelog" },
-        { label: t.footer.roadmap, href: "/roadmap" },
     ];
 
     const toolLinks = [

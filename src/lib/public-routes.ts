@@ -18,7 +18,6 @@ const PUBLIC_PREFIXES = [
     "/guilds",
     "/legal",
     "/login",
-    "/roadmap",
     "/status",
     "/auth",
 ] as const;

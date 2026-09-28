@@ -75,7 +75,10 @@ describe("déslop God — recette de carte unique", () => {
         // (second panneau mort) plus deux orphelins mesurés (`guild-manager.tsx`,
         // `docs/_components/doc-outline-sidebar.tsx`, aucun import) disparaissent ; le
         // kit gagne `GodPagination` et l'onglet « Accès délégués » une vue. Net : −1.)
-        const CEILING = 85;
+        // (−8 le 28/09/2026, chantier « purge des onglets morts » : Studio Badges (2),
+        // Icônes Modules (1), Packs Reaction Roles (2), Roadmap Pro (2) et Onboarding
+        // B2B (1) sont supprimés — 85 → 77.)
+        const CEILING = 77;
         const godFiles = walk(GOD_ROOT).filter((f) => /\.tsx?$/.test(f));
         expect(godFiles.length).toBeLessThanOrEqual(CEILING);
     });

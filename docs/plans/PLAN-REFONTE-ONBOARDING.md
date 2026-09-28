@@ -122,7 +122,7 @@ Règles : **zéro écran sans issue** (chaque état a un CTA qui fait avancer), 
 1. Dédupliquer Dégeler (garder UN seul point d'entrée, menu ⋮).
 2. Section « Zone danger » dans le menu : libellés avec sort des données (`Supprimer définitivement (BDD)` / `Bannir (bloque, garde les données)` / `Expulser le bot (garde les données)` / `Révoquer la whitelist`), confirmations inchangées.
 3. Actions visibles hors hover (au minimum le trigger ⋮ toujours visible).
-4. **Kill-switch auto-onboarding** : champ `autoOnboardingEnabled` (default `true`) sur le singleton `PlatformConfig` + migration + toggle God + gate dans `isAllowedForDeployment` (**nouvelles guildes uniquement**, existantes intouchées) + masquage du bloc « En autonomie » quand OFF. Même pattern que `roadmapEnabled`/`donationsEnabled` (`getPlatformConfig`).
+4. **Kill-switch auto-onboarding** : champ `autoOnboardingEnabled` (default `true`) sur le singleton `PlatformConfig` + migration + toggle God + gate dans `isAllowedForDeployment` (**nouvelles guildes uniquement**, existantes intouchées) + masquage du bloc « En autonomie » quand OFF. Même pattern que `donationsEnabled` (`getPlatformConfig`).
 5. SLA visuelle : âge des guildes en attente dans l'onglet + tri par ancienneté (file d'approbation si modèle B, file de surveillance si modèle A).
 
 ### Vague 2 — Acquisition & console owner (2–3 j)

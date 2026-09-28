@@ -87,10 +87,9 @@ const IMAGE_SIZES = {
     legendary: 256,    // Legendary items: 256px max
     defi: 512,         // Défis : 512px max (illustration)
     titan: 512,        // Titans : 512px max (illustration)
-    "module-icon": 128 // Icônes de modules navbar (normalisées 128px max)
 };
 
-export type ImageType = "monster" | "achievement" | "dungeon" | "item" | "legendary" | "defi" | "titan" | "module-icon";
+export type ImageType = "monster" | "achievement" | "dungeon" | "item" | "legendary" | "defi" | "titan";
 
 /**
  * 🔒 CodeQL js/path-injection (fix PR #505) : répertoires de destination FIXES
@@ -107,7 +106,6 @@ function destDirFor(type: ImageType): string {
         case "legendary": return "public/game-data/legendary";
         case "defi": return "public/game-data/defis";
         case "titan": return "public/game-data/titans";
-        case "module-icon": return "public/assets/module-icons";
     }
 }
 

@@ -64,66 +64,12 @@ vi.mock("next/cache", () => ({
 }));
 
 import { db } from "@/lib/prisma";
-import { getBadgesCatalogAction, upsertBadgeAction, grantBadgeToProfileAction, getProfileBadgesAction } from "@/server/actions/badge-actions";
+import { getProfileBadgesAction } from "@/server/actions/badge-actions";
 import { processExpiredTimedRolesAction } from "@/server/actions/reaction-role-actions";
 
-describe("🏅 Lot 2 — Système de Badges & Achievements (#198.2)", () => {
+describe("🏅 Lot 2 — systèmes de Badges (lecture) & Reaction Roles (#198.2 / #222)", () => {
     beforeEach(() => {
         vi.clearAllMocks();
-    });
-
-    it("récupère le catalogue de badges complet", async () => {
-        (db.badge.findMany as any).mockResolvedValue([
-            { id: "b1", slug: "dragon-slayer", name: "Tueur de Dragons", rarity: "LEGENDARY", _count: { userBadges: 5 } }
-        ]);
-
-        const res = await getBadgesCatalogAction();
-        expect(res.success).toBe(true);
-        expect(res.data).toHaveLength(1);
-        expect(res.data?.[0].slug).toBe("dragon-slayer");
-    });
-
-    it("permet au SuperAdmin de créer un badge", async () => {
-        (db.badge.create as any).mockResolvedValue({
-            id: "b2",
-            slug: "dofus-master",
-            name: "Maître des Dofus",
-            imageUrl: "https://example.com/icon.png",
-            rarity: "MYTHIC",
-            category: "GAMEPLAY"
-        });
-
-        const res = await upsertBadgeAction({
-            name: "Maître des Dofus",
-            slug: "dofus-master",
-            imageUrl: "https://example.com/icon.png",
-            rarity: "MYTHIC",
-            category: "GAMEPLAY",
-            isSecret: false,
-            isGodOnly: false,
-            sortOrder: 1,
-            triggerType: "MANUAL",
-        });
-
-        expect(res.success).toBe(true);
-        expect(db.badge.create).toHaveBeenCalled();
-    });
-
-    it("attribue un badge à un profil membre avec succès", async () => {
-        (db.badge.findUnique as any).mockResolvedValue({
-            id: "b1",
-            name: "Tueur de Dragons",
-            isGodOnly: false
-        });
-        (db.userBadge.upsert as any).mockResolvedValue({
-            id: "ub1",
-            badgeId: "b1",
-            profileId: "prof_123"
-        });
-
-        const res = await grantBadgeToProfileAction("guild_1", "prof_123", "b1", "Victoire donjon");
-        expect(res.success).toBe(true);
-        expect(db.userBadge.upsert).toHaveBeenCalled();
     });
 
     it("récupère la liste des badges d'un profil", async () => {

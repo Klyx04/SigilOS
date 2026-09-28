@@ -36,7 +36,6 @@ export const GOD_BRICKS = [
     // L'ancienne brique `security` (même écran, même `AuditLog`) est **fusionnée ici**.
     { id: "logs",           label: "Journaux & audit",        scope: null, group: "admin",       subGodAccess: false },
     { id: "delegates",      label: "Sous-Gods (accès)",     scope: null, group: "admin",       subGodAccess: false },
-    { id: "onboarding",     label: "Onboarding B2B",        scope: null, group: "admin",       subGodAccess: false },
     { id: "api-keys",       label: "Clés d'API & Dev",      scope: null, group: "admin",       subGodAccess: false },
     { id: "slash-commands", label: "Commandes Slash",       scope: null, group: "admin",       subGodAccess: false },
 
@@ -57,7 +56,6 @@ export const GOD_BRICKS = [
 
     // ─── Fermé aux sous-gods (jamais) ──────────────────────────────────────
     { id: "bugs",           label: "Bugs & Suggs",  scope: null, group: "game-data", subGodAccess: false },
-    { id: "roadmap",        label: "Roadmap Pro",   scope: null, group: "tools",     subGodAccess: false },
     { id: "changelog",      label: "Changelog",     scope: null, group: "tools",     subGodAccess: false },
 ] as const;
 

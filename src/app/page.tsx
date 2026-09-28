@@ -50,7 +50,7 @@ export default async function Home({
     [...showcaseGuilds].sort((a, b) => (b.memberCount || 0) - (a.memberCount || 0))[0] ?? null;
 
   const clientId = process.env.DISCORD_CLIENT_ID || process.env.AUTH_DISCORD_ID || "";
-  const { getPlatformConfig } = await import("@/server/actions/god-roadmap-actions");
+  const { getPlatformConfig } = await import("@/server/actions/platform-config-actions");
   const platformRes = await getPlatformConfig().catch(() => null);
   const autoOnboardingOn =
     (platformRes?.success ? (platformRes.data as { autoOnboardingEnabled?: boolean } | undefined)?.autoOnboardingEnabled : undefined) !==

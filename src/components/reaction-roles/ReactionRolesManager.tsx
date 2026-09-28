@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useEffect } from "react";
+import { useState, useTransition } from "react";
 import Image from "next/image";
 import {
     Plus,
@@ -26,7 +26,6 @@ import {
     FileCode,
     Sliders,
     Loader2,
-    Package,
     ArrowLeft,
     Save,
     X,
@@ -60,8 +59,7 @@ import {
     updateReactionRoleGroupAction,
     deleteReactionRoleGroupAction,
     deployReactionRoleGroupAction,
-    checkRoleHierarchyAction,
-    getAvailableIconPacksForGuildAction
+    checkRoleHierarchyAction
 } from "@/server/actions/reaction-role-actions";
 
 /** Valide et assainit une URL d'image pour prévenir toute injection XSS / DOM */
@@ -184,33 +182,6 @@ export function ReactionRolesManager({
     const [formEmbedImage, setFormEmbedImage] = useState("");
     const [formEmbedFooter, setFormEmbedFooter] = useState("");
     const [formOptions, setFormOptions] = useState<any[]>([]);
-
-    // Icon Picker state
-    const [availablePacks, setAvailablePacks] = useState<any[]>([]);
-    const [isIconPickerOpen, setIsIconPickerOpen] = useState(false);
-    const [targetOptionIndex, setTargetOptionIndex] = useState<number | null>(null);
-
-    useEffect(() => {
-        getAvailableIconPacksForGuildAction(guildId).then(res => {
-            if (res.success && res.data) setAvailablePacks(res.data);
-        });
-    }, [guildId]);
-
-    const openIconPicker = (idx: number) => {
-        setTargetOptionIndex(idx);
-        setIsIconPickerOpen(true);
-    };
-
-    const selectIconFromPack = (icon: { name: string; emoji?: string; url?: string }) => {
-        if (targetOptionIndex === null) return;
-        const currentOpt = formOptions[targetOptionIndex];
-        updateOption(targetOptionIndex, {
-            emoji: icon.emoji || icon.name,
-            label: currentOpt?.label ? currentOpt.label : icon.name
-        });
-        setIsIconPickerOpen(false);
-        setTargetOptionIndex(null);
-    };
 
     const openCreate = () => {
         setEditingGroup(null);
@@ -693,17 +664,7 @@ export function ReactionRolesManager({
                                                 {/* Option details row */}
                                                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                                                     <div>
-                                                        <div className="flex items-center justify-between mb-1">
-                                                            <Label className="text-caption font-bold text-muted-foreground">Emoji / Icône</Label>
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => openIconPicker(idx)}
-                                                                className="text-[11px] font-bold text-warning hover:underline flex items-center gap-1"
-                                                            >
-                                                                <Package className="w-3 h-3" />
-                                                                Packs GOD
-                                                            </button>
-                                                        </div>
+                                                        <Label className="text-caption font-bold text-muted-foreground mb-1">Emoji / Icône</Label>
                                                         <Input
                                                             value={opt.emoji || ""}
                                                             onChange={(e) => updateOption(idx, { emoji: e.target.value })}
@@ -1080,70 +1041,6 @@ export function ReactionRolesManager({
                     </div>
                 </div>
 
-                {/* Icon Picker Dialog */}
-                <Dialog open={isIconPickerOpen} onOpenChange={setIsIconPickerOpen}>
-                    <DialogContent className="max-w-xl bg-background border-border max-h-[85vh] overflow-y-auto">
-                        <DialogHeader>
-                            <DialogTitle className="flex items-center gap-2">
-                                <Package className="w-5 h-5 text-warning" />
-                                Choisir une Icône parmi les Packs GOD
-                            </DialogTitle>
-                            <DialogDescription className="text-xs text-muted-foreground">
-                                Cliquez sur une icône pour l'insérer directement dans votre bouton.
-                            </DialogDescription>
-                        </DialogHeader>
-
-                        <div className="space-y-4 py-2">
-                            {availablePacks.length === 0 ? (
-                                <div className="p-8 text-center border border-dashed border-border rounded-xl text-muted-foreground text-xs">
-                                    Aucun pack d'icônes disponible. Rendez-vous dans le panneau SuperAdmin GOD pour importer des packs.
-                                </div>
-                            ) : (
-                                <div className="space-y-4">
-                                    {availablePacks.map((pack) => (
-                                        <div key={pack.id} className="space-y-2 p-3 bg-surface/40 border border-border rounded-xl">
-                                            <div className="flex items-center justify-between">
-                                                <h4 className="font-bold text-xs text-foreground flex items-center gap-1.5">
-                                                    <Sparkles className="w-3.5 h-3.5 text-warning" />
-                                                    {pack.name}
-                                                </h4>
-                                                <span className="text-[10px] text-muted-foreground font-medium uppercase px-1.5 py-0.5 bg-surface rounded border border-border">
-                                                    {pack.category}
-                                                </span>
-                                            </div>
-
-                                            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
-                                                {(pack.icons as any[])?.map((icon, i) => (
-                                                    <button
-                                                        key={i}
-                                                        type="button"
-                                                        onClick={() => selectIconFromPack(icon)}
-                                                        className="flex flex-col items-center justify-center gap-1 p-2 rounded-xl bg-surface hover:bg-warning/10 hover:border-warning/50 border border-border transition-all text-center group"
-                                                    >
-                                                        {icon.url ? (
-                                                            <div className="relative w-7 h-7 rounded overflow-hidden">
-                                                                <Image src={icon.url} alt={icon.name} fill className="object-contain" />
-                                                            </div>
-                                                        ) : (
-                                                            <span className="text-xl">{icon.emoji}</span>
-                                                        )}
-                                                        <span className="text-[10px] font-semibold text-muted-foreground group-hover:text-foreground truncate w-full">
-                                                            {icon.name}
-                                                        </span>
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-
-                        <DialogFooter>
-                            <Button variant="ghost" onClick={() => setIsIconPickerOpen(false)}>Fermer</Button>
-                        </DialogFooter>
-                    </DialogContent>
-                </Dialog>
             </div>
         );
     }

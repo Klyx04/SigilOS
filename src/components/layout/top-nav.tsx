@@ -8,7 +8,6 @@ import {
     ChevronRight,
     Menu,
     Home,
-    Rocket,
     Shield,
     MessageSquare
 } from "lucide-react";
@@ -80,7 +79,6 @@ interface TopNavProps {
     userId: string;
     events?: UpcomingEvent[];
     eventsPromise?: Promise<UpcomingEvent[]>;
-    roadmapEnabled?: boolean;
 }
 
 function DeferredEventChip({ eventsPromise, guildId, canViewCalendar }: {
@@ -92,7 +90,7 @@ function DeferredEventChip({ eventsPromise, guildId, canViewCalendar }: {
     return <HeaderEventChip events={events} guildId={guildId} canViewCalendar={canViewCalendar} />;
 }
 
-export function TopNav({ sidebarProps, userId, events = [], eventsPromise, roadmapEnabled = false }: TopNavProps) {
+export function TopNav({ sidebarProps, userId, events = [], eventsPromise }: TopNavProps) {
     const pathname = usePathname();
     const segments = pathname.split("/").filter(Boolean);
     // segments: ["dashboard", "guildId", "module", "subpage", ...]
@@ -202,12 +200,6 @@ export function TopNav({ sidebarProps, userId, events = [], eventsPromise, roadm
 
                     {/* Interactive Tools */}
                     <div className="flex items-center px-1 gap-0.5">
-                        {roadmapEnabled && (
-                            <Link href="/roadmap" className="flex items-center justify-center h-8 w-8 rounded-lg text-muted-foreground hover:text-success hover:bg-foreground/5 transition-colors" title="Roadmap">
-                                <Rocket className="w-4 h-4" />
-                            </Link>
-                        )}
-
                         {sidebarProps.user.isAdmin && (
                             <Link href={`/dashboard/${sidebarProps.guildId}/admin/permissions`} className="flex items-center justify-center h-8 w-8 rounded-lg text-muted-foreground hover:text-success hover:bg-foreground/5 transition-colors" title="RBAC / Permissions">
                                 <Shield className="w-4 h-4" />

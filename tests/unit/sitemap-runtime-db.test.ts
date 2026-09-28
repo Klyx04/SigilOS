@@ -23,13 +23,16 @@ describe("sitemap — généré au runtime (jamais dans un build sans base)", ()
         expect(src).toMatch(/logger\.error\("\[Sitemap\]/);
     });
 
-    it("garde ses 4 blocs optionnels, chacun isolé des autres", () => {
+    it("garde ses 3 blocs optionnels, chacun isolé des autres", () => {
         const src = code();
-        expect(src).toMatch(/platformConfig\.findUnique/);
+        // ⚠️ Le 4ᵉ bloc (`platformConfig.findUnique`) a disparu le 28/09/2026 avec la
+        // page **publique** `/roadmap` (chantier « purge des onglets morts du God ») :
+        // le sitemap n'a plus rien à conditionner à `roadmapEnabled`.
+        expect(src).not.toMatch(/platformConfig\.findUnique/);
         expect(src).toMatch(/guildConfig\.findMany/);
         expect(src).toMatch(/getUpcomingAlmanax/);
         expect(src).toMatch(/db\.dungeon\.findMany/);
-        // 4 `catch` tracés : un échec (API, base) ne doit jamais priver le sitemap du reste.
-        expect((src.match(/logger\.error\("\[Sitemap\]/g) ?? []).length).toBe(4);
+        // 3 `catch` tracés : un échec (API, base) ne doit jamais priver le sitemap du reste.
+        expect((src.match(/logger\.error\("\[Sitemap\]/g) ?? []).length).toBe(3);
     });
 });

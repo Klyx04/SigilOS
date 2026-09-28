@@ -30,11 +30,10 @@ export default async function DocsLayout({
     const [user, allDocsResult, configRes] = await Promise.all([
         getUserContext(guildId),
         import("@/server/actions/doc-actions").then(mod => mod.getAllDocs(guildId)),
-        import("@/server/actions/god-roadmap-actions").then(mod => mod.getPlatformConfig())
+        import("@/server/actions/platform-config-actions").then(mod => mod.getPlatformConfig())
     ]);
 
     const allDocs = allDocsResult;
-    const roadmapEnabled = configRes.success && configRes.data ? configRes.data.roadmapEnabled : false;
 
     // Check if user is member of at least one guild
     if (!user.isAuthenticated || userGuilds.length === 0) {
@@ -128,7 +127,6 @@ export default async function DocsLayout({
                         userId={user.id || ""}
                         sidebarProps={{ guildId: guildId!, user, guildData, userGuilds, modules }}
                         events={events}
-                        roadmapEnabled={roadmapEnabled}
                     />
                 </div>
 

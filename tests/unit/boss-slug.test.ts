@@ -2,7 +2,6 @@ import { describe, it, expect } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
 import { bossSlugWithFallback, bossUrlSegment, slugifyBossName } from "@/lib/boss-slug";
-import { canViewRoadmap } from "@/lib/roadmap-access";
 
 /**
  * Slug des fiches boss (`/boss/<slug>`) :
@@ -109,29 +108,5 @@ describe("fiches boss — URL en slug, anciens liens conservés", () => {
         expect(readSource("src/components/boss-overlay/BossOverlayClient.tsx")).toContain("selected.slug ?? selected.id");
         expect(readSource("src/app/overlay/guide/[guildId]/[slug]/components/RushOverlayDungeonCard.tsx")).toContain("dj?.slug ?? dj?.id");
         expect(readSource("src/components/succes/SuccesBossGuide.tsx")).toContain("d.id === dungeonParam || d.slug === dungeonParam");
-    });
-});
-
-describe("roadmap — plus de contradiction sitemap / redirection", () => {
-    it("devient publique dès que la feuille de route est activée", () => {
-        expect(canViewRoadmap({ isAdmin: false, roadmapEnabled: true })).toBe(true);
-        expect(canViewRoadmap({ isAdmin: true, roadmapEnabled: false })).toBe(true);
-        // Un crawler n'a ni session ni guilde : seul le toggle God compte.
-        expect(canViewRoadmap({ isAdmin: false, roadmapEnabled: false })).toBe(false);
-
-        const page = readSource("src/app/roadmap/page.tsx");
-        expect(page).toContain("canViewRoadmap({ isAdmin, roadmapEnabled: isEnabled })");
-        expect(page).not.toContain("isInAnyGuild");
-    });
-
-    it("n'annonce la feuille de route au sitemap que si elle est publique", () => {
-        const sitemap = readSource("src/app/sitemap.ts");
-        const roadmapUrl = "url: `${baseUrl}/roadmap`";
-
-        expect(sitemap).toContain("roadmapEnabled: true");
-        // Une seule occurrence, et placée **après** la garde `roadmapEnabled`
-        // (donc dans le bloc conditionnel, pas dans les routes statiques).
-        expect(sitemap.split(roadmapUrl).length - 1).toBe(1);
-        expect(sitemap.indexOf(roadmapUrl)).toBeGreaterThan(sitemap.indexOf("if (config?.roadmapEnabled)"));
     });
 });

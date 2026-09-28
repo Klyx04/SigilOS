@@ -23,24 +23,28 @@ import {
     Globe,
     Cpu,
     Download,
-    ShieldCheck,
     Layers,
     Zap,
-    BarChart3,
-    Filter,
     HeartPulse
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getTelemetryStats, exportTelemetryDataAction } from "@/server/actions/telemetry-actions";
+import { humanizeElementId } from "@/lib/telemetry/normalize";
 import { toast } from "sonner";
 
 type TelemetryStatsType = Awaited<ReturnType<typeof getTelemetryStats>>;
+
+/**
+ * Période du rafraîchissement automatique. 30 s et non 5 s : chaque tick relance 12 requêtes
+ * d'agrégation (`groupBy` + `findMany`) côté serveur pour un panneau lu par un seul super-admin.
+ */
+const AUTO_REFRESH_SECONDS = 30;
 
 export function TelemetryDashboard({ initialStats }: { initialStats: TelemetryStatsType }) {
     const [stats, setStats] = useState<TelemetryStatsType>(initialStats);
     const [selectedGuildId, setSelectedGuildId] = useState<string>("all");
     const [isAutoRefresh, setIsAutoRefresh] = useState(true);
-    const [countdown, setCountdown] = useState(5);
+    const [countdown, setCountdown] = useState(AUTO_REFRESH_SECONDS);
     const [isPending, setIsPending] = useState(false);
     const [isExporting, setIsExporting] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
@@ -57,7 +61,7 @@ export function TelemetryDashboard({ initialStats }: { initialStats: TelemetrySt
             const filterArg = targetGuild === "all" ? undefined : targetGuild;
             const newStats = await getTelemetryStats(filterArg);
             setStats(newStats);
-            setCountdown(5);
+            setCountdown(AUTO_REFRESH_SECONDS);
         } catch (err) {
             console.error("Refresh failed", err);
         } finally {
@@ -107,7 +111,7 @@ export function TelemetryDashboard({ initialStats }: { initialStats: TelemetrySt
             setCountdown((prev) => {
                 if (prev <= 1) {
                     Promise.resolve().then(() => refreshData());
-                    return 5;
+                    return AUTO_REFRESH_SECONDS;
                 }
                 return prev - 1;
             });
@@ -495,7 +499,7 @@ export function TelemetryDashboard({ initialStats }: { initialStats: TelemetrySt
                                                 {mod.name}
                                             </span>
                                             <span className="text-caption font-black text-violet-300 bg-violet-500/10 border border-violet-500/20 px-2 py-0.5 rounded-md">
-                                                {mod.uniqueUsersCount} membres actifs
+                                                {mod.uniqueUsersCount} membre(s) distinct(s)
                                             </span>
                                         </div>
 
@@ -526,7 +530,9 @@ export function TelemetryDashboard({ initialStats }: { initialStats: TelemetrySt
                         })}
                     </div>
 
-                    {/* Top vs Flop Features */}
+                    {/* Tête vs queue de classement. La queue peut être `null` : avec un échantillon
+                        trop pauvre elle recouvrirait la tête — on l'annonce au lieu d'afficher
+                        les dernières lignes du top comme un « flop » (bug d'origine). */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                         {/* Top Features */}
                         <div className="p-6 rounded-3xl border border-white/5 bg-zinc-900/10 space-y-4">
@@ -535,32 +541,45 @@ export function TelemetryDashboard({ initialStats }: { initialStats: TelemetrySt
                                 Features les plus sollicitées
                             </h4>
                             <div className="space-y-3">
-                                {stats.topInteractions.slice(0, 7).map((item: any) => (
-                                    <div key={item.elementId} className="flex justify-between items-center text-xs font-bold py-1 border-b border-white/5 last:border-0">
-                                        <code className="text-emerald-300 font-mono text-caption bg-zinc-950 px-2 py-0.5 rounded truncate max-w-[300px]">
-                                            {item.elementId}
-                                        </code>
-                                        <span className="text-zinc-400 font-mono text-caption">{item.count} clics</span>
-                                    </div>
-                                ))}
+                                {stats.engagement.top.length === 0 ? (
+                                    <p className="text-zinc-500 text-xs italic">Aucun clic instrumenté sur la période.</p>
+                                ) : (
+                                    stats.engagement.top.map((item: any) => (
+                                        <div key={item.elementId} className="flex justify-between items-center text-xs font-bold py-1 border-b border-white/5 last:border-0">
+                                            <code title={item.elementId} className="text-emerald-300 font-mono text-caption bg-zinc-950 px-2 py-0.5 rounded truncate max-w-[300px]">
+                                                {humanizeElementId(item.elementId)}
+                                            </code>
+                                            <span className="text-zinc-400 font-mono text-caption">{item.count} clics</span>
+                                        </div>
+                                    ))
+                                )}
                             </div>
                         </div>
 
-                        {/* Less Used Features (Needs Attention) */}
+                        {/* Queue de classement — jamais un « flop » déduit d'un top tronqué */}
                         <div className="p-6 rounded-3xl border border-white/5 bg-zinc-900/10 space-y-4">
                             <h4 className="text-xs font-black text-amber-400 uppercase tracking-widest flex items-center gap-2">
                                 <Activity className="w-4 h-4 text-amber-400" />
-                                Features à faible engagement (À promouvoir / retravailler)
+                                Features les moins sollicitées
                             </h4>
                             <div className="space-y-3">
-                                {stats.topInteractions.slice(-7).reverse().map((item: any) => (
-                                    <div key={item.elementId} className="flex justify-between items-center text-xs font-bold py-1 border-b border-white/5 last:border-0">
-                                        <code className="text-amber-300/80 font-mono text-caption bg-zinc-950 px-2 py-0.5 rounded truncate max-w-[300px]">
-                                            {item.elementId}
-                                        </code>
-                                        <span className="text-zinc-500 font-mono text-caption">{item.count} clic(s)</span>
-                                    </div>
-                                ))}
+                                {stats.engagement.tail === null ? (
+                                    <p className="text-zinc-500 text-xs italic">
+                                        Queue non affichée : {stats.engagement.distinctCount} élément(s) instrumenté(s)
+                                        seulement, or il faut au moins {stats.engagement.minDistinctForTail} identifiants
+                                        distincts pour que la queue ne recouvre pas la tête. Les lignes affichées ici
+                                        seraient un artefact d'échantillon, pas un signal produit.
+                                    </p>
+                                ) : (
+                                    stats.engagement.tail.map((item: any) => (
+                                        <div key={item.elementId} className="flex justify-between items-center text-xs font-bold py-1 border-b border-white/5 last:border-0">
+                                            <code title={item.elementId} className="text-amber-300/80 font-mono text-caption bg-zinc-950 px-2 py-0.5 rounded truncate max-w-[300px]">
+                                                {humanizeElementId(item.elementId)}
+                                            </code>
+                                            <span className="text-zinc-500 font-mono text-caption">{item.count} clic(s)</span>
+                                        </div>
+                                    ))
+                                )}
                             </div>
                         </div>
                     </div>
@@ -800,23 +819,28 @@ export function TelemetryDashboard({ initialStats }: { initialStats: TelemetrySt
                                 Entonnoir d'Activation des Joueurs (Funnel)
                             </h3>
                             <p className="text-muted-foreground text-caption font-medium">
-                                Progression des membres depuis la création de compte jusqu'à l'adoption durable sur 7 jours.
+                                Chaque marche mesure une population différente (comptes, profils configurés, Dofus
+                                suivis, membres actifs du journal d&apos;audit) : elles ne sont pas strictement
+                                imbriquées. Un écart est donc signalé « population non incluse » au lieu d&apos;être
+                                converti en pourcentage de perte.
                             </p>
                         </div>
 
                         {/* Funnel Steps Visualization */}
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                             {stats.activationFunnel?.map((step: any, index: number) => {
-                                const baseCount = stats.activationFunnel[0]?.count || 1;
-                                const conversionPct = Math.round((step.count / baseCount) * 100);
-
                                 return (
                                     <div key={step.step} className="p-6 rounded-3xl bg-elevated/60 border border-border flex flex-col justify-between gap-4">
                                         <div className="flex items-center justify-between">
                                             <span className="w-7 h-7 rounded-xl bg-accent-soft text-accent flex items-center justify-center font-black text-xs">
                                                 {index + 1}
                                             </span>
-                                            {index > 0 && (
+                                            {index > 0 && step.exceedsPrevious && (
+                                                <span className="text-[10px] font-bold text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
+                                                    population non incluse
+                                                </span>
+                                            )}
+                                            {index > 0 && !step.exceedsPrevious && (
                                                 <span className="text-[10px] font-bold text-rose-500 bg-rose-500/10 px-2 py-0.5 rounded-full border border-rose-500/20">
                                                     -{step.dropoffRate}% perte
                                                 </span>
@@ -830,11 +854,11 @@ export function TelemetryDashboard({ initialStats }: { initialStats: TelemetrySt
 
                                         <div className="space-y-1.5 pt-2 border-t border-border/60">
                                             <div className="flex justify-between text-[10px] font-bold text-muted-foreground">
-                                                <span>Taux global</span>
-                                                <span className="text-foreground">{conversionPct}%</span>
+                                                <span>Part de la 1re marche</span>
+                                                <span className="text-foreground">{step.conversionRate}%</span>
                                             </div>
                                             <div className="h-1.5 w-full bg-surface rounded-full overflow-hidden">
-                                                <div className="h-full bg-accent rounded-full" style={{ width: `${conversionPct}%` }} />
+                                                <div className="h-full bg-accent rounded-full" style={{ width: `${Math.min(100, Math.max(0, step.conversionRate))}%` }} />
                                             </div>
                                         </div>
                                     </div>
@@ -921,7 +945,9 @@ export function TelemetryDashboard({ initialStats }: { initialStats: TelemetrySt
                                     Matrice de Santé & Rétention des Guildes (Guild Health Index)
                                 </h3>
                                 <p className="text-muted-foreground text-caption font-medium">
-                                    Score de santé 0-100 basé sur les interactions réelles, les sorties donjons/quêtes et la fréquentation sur 7 jours.
+                                    Statut et rang centile dérivés de la distribution observée sur 7 j (quartiles du
+                                    classement d'activité réelle du journal d'audit). Aucun seuil arbitraire n'est
+                                    appliqué : le score est un rang dans l'échantillon, pas une note absolue.
                                 </p>
                             </div>
                         </div>
@@ -933,7 +959,7 @@ export function TelemetryDashboard({ initialStats }: { initialStats: TelemetrySt
                                     <tr className="border-b border-border text-[10px] font-black uppercase text-muted-foreground tracking-wider">
                                         <th className="py-3 px-4">Guilde</th>
                                         <th className="py-3 px-4">Santé Produit</th>
-                                        <th className="py-3 px-4">Score</th>
+                                        <th className="py-3 px-4">Rang centile</th>
                                         <th className="py-3 px-4">Activité 7j</th>
                                         <th className="py-3 px-4 text-right">Action</th>
                                     </tr>
@@ -975,7 +1001,7 @@ export function TelemetryDashboard({ initialStats }: { initialStats: TelemetrySt
                                                             <div 
                                                                 className={cn(
                                                                     "h-full rounded-full",
-                                                                    g.healthScore >= 80 ? "bg-emerald-500" : g.healthScore >= 50 ? "bg-blue-500" : "bg-amber-500"
+                                                                    g.healthStatus === "THRIVING" ? "bg-emerald-500" : g.healthStatus === "HEALTHY" ? "bg-blue-500" : "bg-amber-500"
                                                                 )}
                                                                 style={{ width: `${g.healthScore}%` }}
                                                             />

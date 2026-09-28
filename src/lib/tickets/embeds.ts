@@ -16,6 +16,8 @@ import {
     type DiscordComponent,
     type TicketFormDefinition,
 } from "./form-schema";
+import { TICKET_BUTTON_EMOJIS, ticketLabel } from "./ticket-texts";
+import { ticketIconPayload } from "./ticket-icons";
 
 /** Limites Discord appliquées à la construction (jamais dépassées en silence). */
 export const DISCORD_MAX_ROWS = 5;
@@ -135,7 +137,7 @@ export function buildPanelRows(input: {
                         options: targets.map((target) => ({
                             label: truncate(target.label, 100),
                             value: target.id,
-                            emoji: target.emoji ? { name: target.emoji } : undefined,
+                            emoji: target.emoji ? ticketIconPayload(target.emoji) : undefined,
                         })),
                     },
                 ],
@@ -154,7 +156,7 @@ export function buildPanelRows(input: {
                     style: discordButtonStyle(target.style),
                     label: truncate(target.label, 80),
                     custom_id: `tb:open:${input.panelId}:${target.id}`,
-                    emoji: target.emoji ? { name: target.emoji } : undefined,
+                    emoji: target.emoji ? ticketIconPayload(target.emoji) : undefined,
                 })
             ),
         });
@@ -219,11 +221,19 @@ export function buildTicketWelcomeEmbed(input: {
 }
 
 /**
- * 🔒 **Correctif P0-2** — les boutons d'action du ticket.
+ * 🔒 **Correctif P0-2** — les boutons d'action du ticket (complets, bilingues FR/EN).
  *
- * Le demandeur ne reçoit **jamais** les boutons de staff (« Prendre en charge »,
- * « Note interne », « Renommer », « Fermer »). S'il a le droit de fermer lui-même,
- * il reçoit **uniquement** « Fermer », selon la politique publiée du parcours.
+ * Le demandeur ne reçoit **jamais** les boutons de staff. S'il a le droit de
+ * fermer lui-même, il reçoit **uniquement** « Fermer ma demande », selon la
+ * politique publiée du parcours **ou** du motif (v1 : `settingsJson`).
+ *
+ * Staff (2 lignes, 7 boutons au plus) :
+ *   ligne 1 : Je m'en occupe / Ajouter / Note privée / Renommer
+ *   ligne 2 : Fermer / Copie / Supprimer le salon
+ * La fermeture et la suppression passent par une **confirmation** : `tb:close`
+ * affiche `buildCloseConfirmRows`, `tb:delete` affiche `buildDeleteConfirmRows`.
+ * Après fermeture, le salon reçoit `buildModerationRows`
+ * (Rouvrir / Copie / Supprimer).
  */
 export function buildActionRows(input: {
     ticketId: string;
@@ -244,30 +254,56 @@ export function buildActionRows(input: {
                     {
                         type: DISCORD_BUTTON,
                         style: 3,
-                        label: input.claimed ? "Relâcher" : "Prendre en charge",
+                        label: ticketLabel(input.claimed ? "release" : "claim"),
                         custom_id: `tb:${input.claimed ? "release" : "claim"}:${input.ticketId}`,
-                        emoji: { name: "🛡️" },
+                        emoji: { name: TICKET_BUTTON_EMOJIS.claim },
                     },
                     {
                         type: DISCORD_BUTTON,
                         style: 2,
-                        label: "Note interne",
+                        label: ticketLabel("add"),
+                        custom_id: `tb:add:${input.ticketId}`,
+                        emoji: { name: TICKET_BUTTON_EMOJIS.add },
+                    },
+                    {
+                        type: DISCORD_BUTTON,
+                        style: 2,
+                        label: ticketLabel("note"),
                         custom_id: `tb:note:${input.ticketId}`,
-                        emoji: { name: "🔒" },
+                        emoji: { name: TICKET_BUTTON_EMOJIS.note },
                     },
                     {
                         type: DISCORD_BUTTON,
                         style: 2,
-                        label: "Renommer",
+                        label: ticketLabel("rename"),
                         custom_id: `tb:rename:${input.ticketId}`,
-                        emoji: { name: "✏️" },
+                        emoji: { name: TICKET_BUTTON_EMOJIS.rename },
+                    },
+                ],
+            },
+            {
+                type: DISCORD_ACTION_ROW,
+                components: [
+                    {
+                        type: DISCORD_BUTTON,
+                        style: 4,
+                        label: ticketLabel("close"),
+                        custom_id: `tb:close:${input.ticketId}`,
+                        emoji: { name: TICKET_BUTTON_EMOJIS.close },
+                    },
+                    {
+                        type: DISCORD_BUTTON,
+                        style: 2,
+                        label: ticketLabel("transcript"),
+                        custom_id: `tb:transcript:${input.ticketId}`,
+                        emoji: { name: TICKET_BUTTON_EMOJIS.transcript },
                     },
                     {
                         type: DISCORD_BUTTON,
                         style: 4,
-                        label: "Fermer le ticket",
-                        custom_id: `tb:close:${input.ticketId}`,
-                        emoji: { name: "📦" },
+                        label: ticketLabel("delete"),
+                        custom_id: `tb:delete:${input.ticketId}`,
+                        emoji: { name: TICKET_BUTTON_EMOJIS.delete },
                     },
                 ],
             },
@@ -283,9 +319,9 @@ export function buildActionRows(input: {
                     {
                         type: DISCORD_BUTTON,
                         style: 2,
-                        label: "Fermer ma demande",
+                        label: ticketLabel("closeMine"),
                         custom_id: `tb:close:${input.ticketId}`,
-                        emoji: { name: "📦" },
+                        emoji: { name: TICKET_BUTTON_EMOJIS.close },
                     },
                 ],
             },
@@ -293,6 +329,93 @@ export function buildActionRows(input: {
     }
 
     return [];
+}
+
+/** Confirmation de fermeture : « Oui, fermer / Annuler » (éphémère). */
+export function buildCloseConfirmRows(ticketId: string): DiscordActionRow[] {
+    return [
+        {
+            type: DISCORD_ACTION_ROW,
+            components: [
+                {
+                    type: DISCORD_BUTTON,
+                    style: 4,
+                    label: ticketLabel("confirmClose"),
+                    custom_id: `tb:close_confirm:${ticketId}`,
+                    emoji: { name: TICKET_BUTTON_EMOJIS.close },
+                },
+                {
+                    type: DISCORD_BUTTON,
+                    style: 2,
+                    label: ticketLabel("cancel"),
+                    custom_id: `tb:cancel_close:${ticketId}`,
+                    emoji: { name: TICKET_BUTTON_EMOJIS.cancel },
+                },
+            ],
+        },
+    ];
+}
+
+/** Confirmation de suppression : « Oui, supprimer / Annuler » (éphémère). */
+export function buildDeleteConfirmRows(ticketId: string): DiscordActionRow[] {
+    return [
+        {
+            type: DISCORD_ACTION_ROW,
+            components: [
+                {
+                    type: DISCORD_BUTTON,
+                    style: 4,
+                    label: ticketLabel("confirmDelete"),
+                    custom_id: `tb:delete_confirm:${ticketId}`,
+                    emoji: { name: TICKET_BUTTON_EMOJIS.delete },
+                },
+                {
+                    type: DISCORD_BUTTON,
+                    style: 2,
+                    label: ticketLabel("cancel"),
+                    custom_id: `tb:cancel_delete:${ticketId}`,
+                    emoji: { name: TICKET_BUTTON_EMOJIS.cancel },
+                },
+            ],
+        },
+    ];
+}
+
+/**
+ * Message de modération posté **dans le salon après fermeture** (façon
+ * TicketTool « Moderator message ») : Rouvrir / Copie / Supprimer.
+ * Le salon n'est **plus supprimé** à la clôture : la suppression est un geste
+ * explicite avec confirmation.
+ */
+export function buildModerationRows(ticketId: string): DiscordActionRow[] {
+    return [
+        {
+            type: DISCORD_ACTION_ROW,
+            components: [
+                {
+                    type: DISCORD_BUTTON,
+                    style: 3,
+                    label: ticketLabel("reopen"),
+                    custom_id: `tb:reopen:${ticketId}`,
+                    emoji: { name: TICKET_BUTTON_EMOJIS.reopen },
+                },
+                {
+                    type: DISCORD_BUTTON,
+                    style: 2,
+                    label: ticketLabel("transcript"),
+                    custom_id: `tb:transcript:${ticketId}`,
+                    emoji: { name: TICKET_BUTTON_EMOJIS.transcript },
+                },
+                {
+                    type: DISCORD_BUTTON,
+                    style: 4,
+                    label: ticketLabel("delete"),
+                    custom_id: `tb:delete:${ticketId}`,
+                    emoji: { name: TICKET_BUTTON_EMOJIS.delete },
+                },
+            ],
+        },
+    ];
 }
 
 /** Boutons d'approbation d'une demande d'ouverture (aucun salon n'existe encore). */

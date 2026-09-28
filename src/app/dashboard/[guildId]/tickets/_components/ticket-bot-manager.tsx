@@ -208,6 +208,7 @@ export function TicketBotManager({
                     <TicketCategoriesTab
                         guildId={guildId}
                         categories={categories}
+                        permissionSettings={config?.settingsJson}
                         onRefresh={onRefresh}
                     />
                 )}

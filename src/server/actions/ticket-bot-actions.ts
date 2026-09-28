@@ -9,6 +9,7 @@ import { revalidatePath } from "next/cache";
 import {
     deployTicketPanelMessage,
     createTicketChannelDiscord,
+    applyTicketChannelOverwrites,
     setMemberChannelPermissionDiscord,
     renameChannelDiscord,
     deleteChannelDiscord,
@@ -24,11 +25,26 @@ import {
 } from "@/lib/tickets/form-schema";
 import {
     buildActionRows,
+    buildModerationRows,
     buildPanelEmbed,
     buildPanelRows,
     buildTicketWelcomeEmbed,
     formatTicketChannelName,
 } from "@/lib/tickets/embeds";
+import { normalizeTicketIcon } from "@/lib/tickets/ticket-icons";
+import {
+    readTicketPermissionSettings,
+    resolveCategoryClosePolicy,
+    writeTicketPermissionSettings,
+    type TicketCategoryPermissionOverride,
+} from "@/lib/tickets/category-permissions";
+import {
+    buildTicketOverwrites,
+    readChannelPermissions,
+    writeChannelPermissions,
+    type TicketChannelMatrix,
+    type TicketChannelState,
+} from "@/lib/tickets/channel-permissions";
 import {
     buildTicketNotifyContent,
     resolveTicketNotifyRoleIds,
@@ -64,6 +80,8 @@ const TicketGuildConfigSchema = z.object({
     transcriptRetentionDays: z.number().int().min(0).max(3650).default(365),
     noteRetentionDays: z.number().int().min(0).max(3650).default(365),
     auditRetentionDays: z.number().int().min(0).max(3650).default(730),
+    /** Permissions sans migration : objet JSON (voir `category-permissions.ts`). */
+    settingsJson: z.record(z.string(), z.unknown()).optional(),
 });
 
 const TicketCategorySchema = z.object({
@@ -179,6 +197,128 @@ export async function updateTicketGuildConfigAction(
     }
 }
 
+/**
+ * 🆕 Permissions **globales** du module (sans migration : `settingsJson`).
+ * Qui peut fermer par défaut, confirmation exigée, rôles blacklistés.
+ */
+export async function saveTicketGuildPermissionsAction(
+    guildId: string,
+    patch: {
+        allowUserClose?: boolean;
+        requireCloseConfirm?: boolean;
+        blacklistRoleIds?: string[];
+        /** Matrice Ouvert/Fermé (validée permission par permission, jamais en aveugle). */
+        channelPermissions?: TicketChannelMatrix;
+    }
+): Promise<ActionResponse> {
+    try {
+        const user = await getUserContext(guildId);
+        if (!user.canManageTickets && !user.isAdmin) {
+            return { success: false, error: "Non autorisé" };
+        }
+
+        const guildConfig = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { id: true },
+        });
+        if (!guildConfig) return { success: false, error: "Guilde introuvable" };
+
+        const current = await db.ticketGuildConfig.findUnique({
+            where: { guildId: guildConfig.id },
+            select: { settingsJson: true },
+        });
+
+        let next = writeTicketPermissionSettings(current?.settingsJson, patch);
+        if (patch.channelPermissions) {
+            // Relecture stricte : seules les 3 groupes modifiables, booléens exigés.
+            const clean = readChannelPermissions({ channelPermissions: patch.channelPermissions });
+            next = writeChannelPermissions(next, clean);
+        }
+
+        await db.ticketGuildConfig.upsert({
+            where: { guildId: guildConfig.id },
+            create: { guildId: guildConfig.id, settingsJson: next },
+            update: { settingsJson: next },
+        });
+
+        revalidatePath(`/dashboard/${guildId}/tickets`);
+        return { success: true };
+    } catch (error: any) {
+        logger.error("[saveTicketGuildPermissionsAction] Error:", error);
+        return { success: false, error: error?.message || "Erreur enregistrement permissions" };
+    }
+}
+
+/**
+ * 🆕 Permissions **d'un motif** (sans migration : `settingsJson.categories[<id>]`).
+ * La catégorie doit appartenir à cette guilde (fail-closed).
+ */
+export async function saveTicketCategoryPermissionsAction(
+    guildId: string,
+    categoryId: string,
+    override: TicketCategoryPermissionOverride
+): Promise<ActionResponse> {
+    try {
+        const user = await getUserContext(guildId);
+        if (!user.canManageTickets && !user.isAdmin) {
+            return { success: false, error: "Non autorisé" };
+        }
+
+        const guildConfig = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { id: true },
+        });
+        if (!guildConfig) return { success: false, error: "Guilde introuvable" };
+
+        const category = await db.ticketBotCategory.findFirst({
+            where: { id: categoryId, guildId: guildConfig.id },
+            select: { id: true },
+        });
+        if (!category) return { success: false, error: "Motif introuvable pour cette guilde" };
+
+        if (
+            override.closePolicy !== undefined &&
+            override.closePolicy !== "STAFF_ONLY" &&
+            override.closePolicy !== "STAFF_OR_CREATOR"
+        ) {
+            return { success: false, error: "Politique de fermeture invalide" };
+        }
+        if (override.requireConfirm !== undefined && typeof override.requireConfirm !== "boolean") {
+            return { success: false, error: "Confirmation invalide" };
+        }
+        if (override.additionalRoleIds !== undefined) {
+            if (
+                !Array.isArray(override.additionalRoleIds) ||
+                override.additionalRoleIds.some((roleId) => !/^\d{5,}$/.test(roleId)) ||
+                override.additionalRoleIds.length > 25
+            ) {
+                return { success: false, error: "Rôles invités invalides" };
+            }
+        }
+
+        const current = await db.ticketGuildConfig.findUnique({
+            where: { guildId: guildConfig.id },
+            select: { settingsJson: true },
+        });
+
+        const next = writeTicketPermissionSettings(current?.settingsJson, {
+            category: { id: category.id, override },
+        });
+
+        await db.ticketGuildConfig.upsert({
+            where: { guildId: guildConfig.id },
+            create: { guildId: guildConfig.id, settingsJson: next },
+            update: { settingsJson: next },
+        });
+
+        revalidatePath(`/dashboard/${guildId}/tickets`);
+        return { success: true };
+    } catch (error: any) {
+        logger.error("[saveTicketCategoryPermissionsAction] Error:", error);
+        return { success: false, error: error?.message || "Erreur enregistrement permissions" };
+    }
+}
+
 // =============================================================================
 // 2. CATÉGORIES
 // =============================================================================
@@ -228,6 +368,8 @@ export async function saveTicketCategoryAction(
         if (!parsed.success) return { success: false, error: "Données invalides" };
 
         const payload = parsed.data;
+        // Icône normalisée (unicode ou custom `<:nom:id>`, repli 🎫) : Discord ne casse jamais.
+        const cleanEmoji = normalizeTicketIcon(payload.emoji);
 
         let category;
         if (payload.id) {
@@ -237,7 +379,7 @@ export async function saveTicketCategoryAction(
                     name: payload.name,
                     slug: payload.slug,
                     description: payload.description,
-                    emoji: payload.emoji,
+                    emoji: cleanEmoji,
                     buttonStyle: payload.buttonStyle,
                     channelType: payload.channelType,
                     channelParentId: payload.channelParentId,
@@ -259,7 +401,7 @@ export async function saveTicketCategoryAction(
                     name: payload.name,
                     slug: payload.slug,
                     description: payload.description,
-                    emoji: payload.emoji,
+                    emoji: cleanEmoji,
                     buttonStyle: payload.buttonStyle,
                     channelType: payload.channelType,
                     channelParentId: payload.channelParentId,
@@ -890,9 +1032,55 @@ export async function closeTicketAction(
             },
         });
 
-        // 3. Delete / Archive Discord channel
+        // 3. Salon conservé + message de modération (Rouvrir / Copie / Supprimer).
+        // La suppression est un geste explicite depuis Discord (`tb:delete_confirm`)
+        // ou depuis la boîte de réception — jamais un `void .catch()` silencieux.
+        // 🆕 Bascule Ouvert → Fermé de la matrice (le demandeur lit mais n'écrit plus).
         if (ticket.discordChannelId) {
-            void deleteChannelDiscord(ticket.discordChannelId).catch(() => {});
+            const closedOverwrites = ticketOverwritesFor({
+                ticket: {
+                    discordGuildId: ticket.discordGuildId,
+                    creatorDiscordId: ticket.creatorDiscordId,
+                    categoryId: ticket.categoryId,
+                    journeyId: ticket.journeyId,
+                },
+                staffRoleIds: mergeStaffRoleIds(
+                    ticketConfig?.staffRoleIds,
+                    ticket.category?.staffRoleIds,
+                    ticket.journey?.staffRoleIds
+                ),
+                settingsJson: (ticketConfig as { settingsJson?: unknown } | null)?.settingsJson,
+                state: "closed",
+            });
+            const applied = await applyTicketChannelOverwrites(ticket.discordChannelId, closedOverwrites);
+            if (!applied.success) {
+                logger.warn("[closeTicketAction] bascule Fermé non appliquée", {
+                    error: applied.error,
+                    ticketId: ticket.id,
+                });
+            }
+            await sendChannelMessage(
+                ticket.discordChannelId,
+                `📦 Ticket #${ticket.ticketNumber} fermé par **${user.name || "Staff"}**${reason ? ` — ${reason.slice(0, 200)}` : ""}`,
+                {
+                    embedTitle: `📦 Ticket #${ticket.ticketNumber} — Fermé / Closed`,
+                    embedColor: 0x71717a,
+                    embedDescription: [
+                        `Fermé par **${user.name || "Staff"}** / Closed`,
+                        reason ? `Motif / Reason : ${reason.slice(0, 300)}` : null,
+                        archive.note ? `Copie / Transcript : ${archive.note}` : null,
+                    ]
+                        .filter(Boolean)
+                        .join("\n"),
+                    embedFooter: `SigilOS Tickets · #${ticket.ticketNumber}`,
+                    components: buildModerationRows(ticket.id),
+                }
+            ).catch((error) => {
+                logger.warn("[closeTicketAction] message de modération non envoyé", {
+                    error,
+                    ticketId: ticket.id,
+                });
+            });
         }
 
         revalidatePath(`/dashboard/${guildId}/tickets`);
@@ -1612,12 +1800,21 @@ async function guardTicketAction(input: {
         ticket.journey?.team?.staffRoleIds
     );
 
+    // v1 (motifs) : politique lue dans `settingsJson` (aucune migration) ;
+    // v2 (parcours) : politique publiée du parcours, prioritaire.
+    const permissionSettings = readTicketPermissionSettings(
+        (config as { settingsJson?: unknown } | null)?.settingsJson
+    );
+    const closePolicy =
+        ticket.journey?.closePolicy ??
+        resolveCategoryClosePolicy(permissionSettings, ticket.categoryId);
+
     const decision = decideTicketAccess({
         access: input.access,
         actor: actorFromAuthorizationContext(input.actor),
         staffRoleIds,
         creatorDiscordId: ticket.creatorDiscordId,
-        closePolicy: ticket.journey?.closePolicy ?? "STAFF_ONLY",
+        closePolicy,
     });
 
     if (!decision.allowed) {
@@ -1633,6 +1830,35 @@ async function guardTicketAction(input: {
 }
 
 /**
+ * 🆕 Overwrites Discord d'un ticket pour un état (matrice du dashboard, sans migration).
+ * Rôles invités lus dans `settingsJson.categories[<categoryId ?? journeyId>]`.
+ */
+function ticketOverwritesFor(input: {
+    ticket: {
+        discordGuildId: string;
+        creatorDiscordId: string;
+        categoryId?: string | null;
+        journeyId?: string | null;
+    };
+    staffRoleIds: string[];
+    settingsJson: unknown;
+    state: TicketChannelState;
+}): Array<{ id: string; type: 0 | 1; allow: string; deny: string }> {
+    const permissionSettings = readTicketPermissionSettings(input.settingsJson);
+    const matrix = readChannelPermissions(input.settingsJson);
+    const key = input.ticket.categoryId ?? input.ticket.journeyId ?? undefined;
+    const additionalRoleIds = key ? (permissionSettings.categories[key]?.additionalRoleIds ?? []) : [];
+    return buildTicketOverwrites({
+        guildId: input.ticket.discordGuildId,
+        creatorDiscordId: input.ticket.creatorDiscordId,
+        staffRoleIds: input.staffRoleIds,
+        additionalRoleIds,
+        state: input.state,
+        matrix,
+    });
+}
+
+/**
  * 🆕 v2 — **ouverture d'un ticket depuis un parcours**.
  *
  * Tout ce que la route a collecté est **revalidé ici** (`evaluateAnswers` sur la version
@@ -1644,6 +1870,8 @@ async function createTicketFromJourney(input: {
     guildInternalId: string;
     guildStaffRoleIds: string[];
     maxActiveTicketsPerUser: number;
+    /** Réglages sans migration (`TicketGuildConfig.settingsJson`) : matrice + invités. */
+    settingsJson: unknown;
     params: {
         discordGuildId: string;
         discordUserId: string;
@@ -1751,6 +1979,16 @@ async function createTicketFromJourney(input: {
         creatorDiscordId: params.discordUserId,
         staffRoleIds: staffRoles,
         topic: `Ticket #${record.ticketNumber} — ${journey.name} | Demandeur: @${params.discordUserName}`,
+        overwrites: ticketOverwritesFor({
+            ticket: {
+                discordGuildId: params.discordGuildId,
+                creatorDiscordId: params.discordUserId,
+                journeyId: journey.id,
+            },
+            staffRoleIds: staffRoles,
+            settingsJson: input.settingsJson,
+            state: "open",
+        }),
     });
 
     if (!channelRes.success || !channelRes.channelId) {
@@ -1893,6 +2131,7 @@ export async function internalHandleTicketCreate(params: {
                 guildInternalId: guildConfig.id,
                 guildStaffRoleIds: config.staffRoleIds,
                 maxActiveTicketsPerUser: config.maxActiveTicketsPerUser,
+                settingsJson: (config as { settingsJson?: unknown }).settingsJson,
                 params: {
                     discordGuildId: params.discordGuildId,
                     discordUserId: params.discordUserId,
@@ -1961,6 +2200,16 @@ export async function internalHandleTicketCreate(params: {
             creatorDiscordId: params.discordUserId,
             staffRoleIds: staffRoles,
             topic: `Ticket #${record.ticketNumber} — ${category.name} | Demandeur: @${params.discordUserName} (${params.discordUserId})`,
+            overwrites: ticketOverwritesFor({
+                ticket: {
+                    discordGuildId: params.discordGuildId,
+                    creatorDiscordId: params.discordUserId,
+                    categoryId: category.id,
+                },
+                staffRoleIds: staffRoles,
+                settingsJson: (config as { settingsJson?: unknown }).settingsJson,
+                state: "open",
+            }),
         });
 
         if (!channelRes.success || !channelRes.channelId) {
@@ -2294,14 +2543,434 @@ export async function internalHandleTicketClose(params: {
         }
 
         // Delete Discord channel
+        // 🆕 Le salon N'EST PLUS supprimé à la clôture (façon TicketTool « Two Step ») :
+        // il reste visible avec un message de modération (Rouvrir / Copie /
+        // Supprimer). La suppression est un geste explicite avec confirmation
+        // (`tb:delete` → `tb:delete_confirm`), observé et journalisé.
+        // 🆕 Bascule Ouvert → Fermé de la matrice (le demandeur lit mais n'écrit plus).
         if (ticket.discordChannelId) {
-            void deleteChannelDiscord(ticket.discordChannelId).catch(() => {});
+            const closedOverwrites = ticketOverwritesFor({
+                ticket: {
+                    discordGuildId: ticket.discordGuildId,
+                    creatorDiscordId: ticket.creatorDiscordId,
+                    categoryId: ticket.categoryId,
+                    journeyId: ticket.journeyId,
+                },
+                staffRoleIds: guard.staffRoleIds,
+                settingsJson: (ticketConfig as { settingsJson?: unknown } | null)?.settingsJson,
+                state: "closed",
+            });
+            const applied = await applyTicketChannelOverwrites(ticket.discordChannelId, closedOverwrites);
+            if (!applied.success) {
+                logger.warn("[internalHandleTicketClose] bascule Fermé non appliquée", {
+                    error: applied.error,
+                    ticketId: ticket.id,
+                });
+            }
+            await sendChannelMessage(
+                ticket.discordChannelId,
+                `📦 Ticket #${ticket.ticketNumber} fermé par **${params.discordUserName}**${params.reason ? ` — ${params.reason.slice(0, 200)}` : ""}\nTicket #${ticket.ticketNumber} closed by **${params.discordUserName}**.`,
+                {
+                    embedTitle: `📦 Ticket #${ticket.ticketNumber} — Fermé / Closed`,
+                    embedColor: 0x71717a,
+                    embedDescription: [
+                        `Fermé par **${params.discordUserName}** / Closed by **${params.discordUserName}**`,
+                        params.reason ? `Motif / Reason : ${params.reason.slice(0, 300)}` : null,
+                        archive.note ? `Copie / Transcript : ${archive.note}` : null,
+                        "",
+                        "Rouvrir, récupérer une copie ou supprimer le salon ci-dessous. / Reopen, get a copy or delete the channel below.",
+                    ]
+                        .filter(Boolean)
+                        .join("\n"),
+                    embedFooter: `SigilOS Tickets · #${ticket.ticketNumber}`,
+                    components: buildModerationRows(ticket.id),
+                }
+            ).catch((error) => {
+                logger.warn("[internalHandleTicketClose] message de modération non envoyé", {
+                    error,
+                    ticketId: ticket.id,
+                });
+            });
         }
 
         return { success: true, message: `Ticket #${ticket.ticketNumber} clôturé avec succès.` };
     } catch (error: any) {
         logger.error("[internalHandleTicketClose] Error:", error);
         return { success: false, message: error?.message || "Erreur fermeture ticket" };
+    }
+}
+
+/**
+ * 🆕 Remise en file (unclaim) : le ticket redevient OPEN, le claimer est oublié.
+ * Même gate staff que le claim. Observé dans l'audit.
+ */
+export async function internalHandleTicketRelease(params: {
+    discordGuildId: string;
+    discordUserId: string;
+    discordUserName: string;
+    ticketId: string;
+    actor: TicketAuthorizationContext;
+}): Promise<{ success: boolean; message: string }> {
+    try {
+        const guard = await guardTicketAction({
+            ticketId: params.ticketId,
+            discordGuildId: params.discordGuildId,
+            access: "staff",
+            actor: params.actor,
+        });
+        if (!guard.ok) return { success: false, message: guard.message };
+        const { ticket } = guard;
+
+        if (ticket.status === "CLOSED") {
+            return { success: false, message: "Ce ticket est clôturé." };
+        }
+
+        await db.ticketRecord.update({
+            where: { id: ticket.id },
+            data: {
+                status: "OPEN",
+                claimedByDiscordId: null,
+                claimedByName: null,
+                claimedAt: null,
+            },
+        });
+
+        await db.ticketAuditLog.create({
+            data: {
+                ticketId: ticket.id,
+                guildId: ticket.guildId,
+                actorDiscordId: params.discordUserId,
+                actorName: params.discordUserName,
+                action: "RELEASE",
+            },
+        });
+
+        if (ticket.discordChannelId) {
+            await sendChannelMessage(
+                ticket.discordChannelId,
+                `🛡️ **<@${params.discordUserId}>** a remis ce ticket en file. / has released this ticket.`
+            ).catch(() => {});
+        }
+
+        return { success: true, message: `Ticket #${ticket.ticketNumber} remis en file.` };
+    } catch (error: any) {
+        logger.error("[internalHandleTicketRelease] Error:", error);
+        return { success: false, message: error?.message || "Erreur remise en file" };
+    }
+}
+
+/**
+ * 🆕 Ajout d'un membre au salon (façon `$add` TicketTool, `/add` Tickets.bot).
+ * Utilise enfin `setMemberChannelPermissionDiscord` (importé mais jamais appelé).
+ */
+export async function internalHandleTicketAdd(params: {
+    discordGuildId: string;
+    discordUserId: string;
+    discordUserName: string;
+    ticketId: string;
+    targetDiscordId: string;
+    actor: TicketAuthorizationContext;
+}): Promise<{ success: boolean; message: string }> {
+    try {
+        const guard = await guardTicketAction({
+            ticketId: params.ticketId,
+            discordGuildId: params.discordGuildId,
+            access: "staff",
+            actor: params.actor,
+        });
+        if (!guard.ok) return { success: false, message: guard.message };
+        const { ticket } = guard;
+
+        const target = String(params.targetDiscordId ?? "").replace(/[<@!>]/g, "").trim();
+        if (!/^\d{5,}$/.test(target)) {
+            return { success: false, message: "Identifiant de membre invalide : colle un ID ou une mention." };
+        }
+        if (!ticket.discordChannelId) {
+            return { success: false, message: "Aucun salon Discord pour ce ticket." };
+        }
+
+        const res = await setMemberChannelPermissionDiscord(ticket.discordChannelId, target, true);
+        if (!res.success) {
+            return { success: false, message: res.error || "Discord a refusé l'ajout (rôle du bot trop bas ?)." };
+        }
+
+        await db.ticketAuditLog.create({
+            data: {
+                ticketId: ticket.id,
+                guildId: ticket.guildId,
+                actorDiscordId: params.discordUserId,
+                actorName: params.discordUserName,
+                action: "MEMBER_ADD",
+                detailsJson: { targetDiscordId: target },
+            },
+        });
+
+        await sendChannelMessage(
+            ticket.discordChannelId,
+            `👤 <@${target}> a accès au salon. / now has access to the channel.`
+        ).catch(() => {});
+
+        return { success: true, message: `<@${target}> ajouté au ticket.` };
+    } catch (error: any) {
+        logger.error("[internalHandleTicketAdd] Error:", error);
+        return { success: false, message: error?.message || "Erreur ajout membre" };
+    }
+}
+
+/**
+ * 🆕 Retrait d'un membre du salon (jamais le demandeur ni soi-même).
+ */
+export async function internalHandleTicketRemove(params: {
+    discordGuildId: string;
+    discordUserId: string;
+    discordUserName: string;
+    ticketId: string;
+    targetDiscordId: string;
+    actor: TicketAuthorizationContext;
+}): Promise<{ success: boolean; message: string }> {
+    try {
+        const guard = await guardTicketAction({
+            ticketId: params.ticketId,
+            discordGuildId: params.discordGuildId,
+            access: "staff",
+            actor: params.actor,
+        });
+        if (!guard.ok) return { success: false, message: guard.message };
+        const { ticket } = guard;
+
+        const target = String(params.targetDiscordId ?? "").replace(/[<@!>]/g, "").trim();
+        if (!/^\d{5,}$/.test(target)) {
+            return { success: false, message: "Identifiant de membre invalide : colle un ID ou une mention." };
+        }
+        if (target === ticket.creatorDiscordId) {
+            return { success: false, message: "On ne retire pas le demandeur du ticket." };
+        }
+        if (target === params.discordUserId) {
+            return { success: false, message: "On ne se retire pas soi-même : demande à un collègue." };
+        }
+        if (!ticket.discordChannelId) {
+            return { success: false, message: "Aucun salon Discord pour ce ticket." };
+        }
+
+        const res = await setMemberChannelPermissionDiscord(ticket.discordChannelId, target, false);
+        if (!res.success) {
+            return { success: false, message: res.error || "Discord a refusé le retrait." };
+        }
+
+        await db.ticketAuditLog.create({
+            data: {
+                ticketId: ticket.id,
+                guildId: ticket.guildId,
+                actorDiscordId: params.discordUserId,
+                actorName: params.discordUserName,
+                action: "MEMBER_REMOVE",
+                detailsJson: { targetDiscordId: target },
+            },
+        });
+
+        return { success: true, message: `<@${target}> retiré du ticket.` };
+    } catch (error: any) {
+        logger.error("[internalHandleTicketRemove] Error:", error);
+        return { success: false, message: error?.message || "Erreur retrait membre" };
+    }
+}
+
+/**
+ * 🆕 Réouverture d'un ticket fermé (salon conservé depuis la clôture Two Step).
+ * Recrée le salon si supprimé entre-temps ? Non : fail-closed motivé.
+ */
+export async function internalHandleTicketReopen(params: {
+    discordGuildId: string;
+    discordUserId: string;
+    discordUserName: string;
+    ticketId: string;
+    actor: TicketAuthorizationContext;
+}): Promise<{ success: boolean; message: string }> {
+    try {
+        const guard = await guardTicketAction({
+            ticketId: params.ticketId,
+            discordGuildId: params.discordGuildId,
+            access: "staff_or_creator",
+            actor: params.actor,
+        });
+        if (!guard.ok) return { success: false, message: guard.message };
+        const { ticket } = guard;
+
+        if (ticket.status !== "CLOSED") {
+            return { success: false, message: "Ce ticket n'est pas fermé." };
+        }
+        if (!ticket.discordChannelId) {
+            return {
+                success: false,
+                message: "Salon supprimé : ouvre un nouveau ticket au lieu de rouvrir.",
+            };
+        }
+
+        await db.ticketRecord.update({
+            where: { id: ticket.id },
+            data: {
+                status: "OPEN",
+                closedAt: null,
+                closedByDiscordId: null,
+                closedByName: null,
+                closedReason: null,
+            },
+        });
+
+        await db.ticketAuditLog.create({
+            data: {
+                ticketId: ticket.id,
+                guildId: ticket.guildId,
+                actorDiscordId: params.discordUserId,
+                actorName: params.discordUserName,
+                action: "REOPEN",
+            },
+        });
+
+        // 🆕 Bascule Fermé → Ouvert de la matrice (le demandeur réécrit).
+        if (ticket.discordChannelId) {
+            const openOverwrites = ticketOverwritesFor({
+                ticket: {
+                    discordGuildId: ticket.discordGuildId,
+                    creatorDiscordId: ticket.creatorDiscordId,
+                    categoryId: ticket.categoryId,
+                    journeyId: ticket.journeyId,
+                },
+                staffRoleIds: guard.staffRoleIds,
+                settingsJson: (guard.config as { settingsJson?: unknown } | null)?.settingsJson,
+                state: "open",
+            });
+            const applied = await applyTicketChannelOverwrites(ticket.discordChannelId, openOverwrites);
+            if (!applied.success) {
+                logger.warn("[internalHandleTicketReopen] bascule Ouvert non appliquée", {
+                    error: applied.error,
+                    ticketId: ticket.id,
+                });
+            }
+        }
+
+        await sendChannelMessage(
+            ticket.discordChannelId,
+            `🔓 Ticket #${ticket.ticketNumber} rouvert par **${params.discordUserName}**. / reopened.`
+        ).catch(() => {});
+
+        return { success: true, message: `Ticket #${ticket.ticketNumber} rouvert.` };
+    } catch (error: any) {
+        logger.error("[internalHandleTicketReopen] Error:", error);
+        return { success: false, message: error?.message || "Erreur réouverture" };
+    }
+}
+
+/**
+ * 🆕 Copie des messages à la demande (bouton Copie / Transcript).
+ * Relit l'archive déjà capturée à la clôture ; sinon capture à la volée.
+ */
+export async function internalHandleTicketTranscript(params: {
+    discordGuildId: string;
+    discordUserId: string;
+    ticketId: string;
+    actor: TicketAuthorizationContext;
+}): Promise<{ success: boolean; message: string }> {
+    try {
+        const guard = await guardTicketAction({
+            ticketId: params.ticketId,
+            discordGuildId: params.discordGuildId,
+            access: "staff",
+            actor: params.actor,
+        });
+        if (!guard.ok) return { success: false, message: guard.message };
+        const { ticket, config: ticketConfig } = guard;
+
+        const archive = await captureTicketArchives({
+            ticket,
+            config: ticketConfig
+                ? {
+                      enableTranscripts: true,
+                      transcriptRetentionDays: ticketConfig.transcriptRetentionDays,
+                  }
+                : null,
+            closedByName: params.discordUserId,
+            closedReason: null,
+        });
+
+        await db.ticketAuditLog.create({
+            data: {
+                ticketId: ticket.id,
+                guildId: ticket.guildId,
+                actorDiscordId: params.discordUserId,
+                actorName: params.discordUserId,
+                action: "TRANSCRIPT",
+                detailsJson: { kinds: archive.kinds, partial: archive.partial },
+            },
+        });
+
+        if (archive.kinds.length === 0) {
+            return { success: false, message: archive.note || "Aucune copie disponible." };
+        }
+        return { success: true, message: `📄 Copie prête : ${archive.note || archive.kinds.join(", ")}` };
+    } catch (error: any) {
+        logger.error("[internalHandleTicketTranscript] Error:", error);
+        return { success: false, message: error?.message || "Erreur copie des messages" };
+    }
+}
+
+/**
+ * 🆕 Suppression du salon (geste explicite après fermeture, avec confirmation
+ * `tb:delete` → `tb:delete_confirm`). Échec **observé** : le ticket reste et
+ * passe `ARCHIVE_FAILED` au lieu de disparaître en silence.
+ */
+export async function internalHandleTicketDelete(params: {
+    discordGuildId: string;
+    discordUserId: string;
+    discordUserName: string;
+    ticketId: string;
+    actor: TicketAuthorizationContext;
+}): Promise<{ success: boolean; message: string }> {
+    try {
+        const guard = await guardTicketAction({
+            ticketId: params.ticketId,
+            discordGuildId: params.discordGuildId,
+            access: "staff",
+            actor: params.actor,
+        });
+        if (!guard.ok) return { success: false, message: guard.message };
+        const { ticket } = guard;
+
+        if (!ticket.discordChannelId) {
+            return { success: false, message: "Aucun salon Discord à supprimer." };
+        }
+
+        const deleted = await deleteChannelDiscord(ticket.discordChannelId);
+        if (!deleted.success) {
+            await db.ticketRecord.update({
+                where: { id: ticket.id },
+                data: { status: "ARCHIVE_FAILED" },
+            });
+            return {
+                success: false,
+                message: deleted.error || "Suppression Discord refusée — vérifie le rôle du bot.",
+            };
+        }
+
+        await db.ticketRecord.update({
+            where: { id: ticket.id },
+            data: { status: "CLOSED", discordChannelId: null },
+        });
+
+        await db.ticketAuditLog.create({
+            data: {
+                ticketId: ticket.id,
+                guildId: ticket.guildId,
+                actorDiscordId: params.discordUserId,
+                actorName: params.discordUserName,
+                action: "DELETE_CHANNEL",
+            },
+        });
+
+        return { success: true, message: `Ticket #${ticket.ticketNumber} : salon supprimé. / Channel deleted.` };
+    } catch (error: any) {
+        logger.error("[internalHandleTicketDelete] Error:", error);
+        return { success: false, message: error?.message || "Erreur suppression salon" };
     }
 }
 

@@ -31,13 +31,21 @@ export type TicketActionKind =
     | "select_journey"
     | "modal_open"
     | "modal_page"
+    | "modal_add"
+    | "modal_remove"
     | "pick"
     | "claim"
     | "release"
     | "note"
     | "rename"
+    | "add"
+    | "remove"
     | "close"
+    | "close_confirm"
     | "reopen"
+    | "transcript"
+    | "delete"
+    | "delete_confirm"
     | "csat"
     | "approve"
     | "refuse";
@@ -76,10 +84,18 @@ const ACTION_ACCESS: Record<TicketActionKind, TicketAccessLevel> = {
     release: "staff",
     note: "staff",
     rename: "staff",
+    add: "staff",
+    remove: "staff",
+    modal_add: "staff",
+    modal_remove: "staff",
+    transcript: "staff",
+    delete: "staff",
+    delete_confirm: "staff",
     approve: "staff",
     refuse: "staff",
     // Fermeture : staff, ou le demandeur si le parcours le publie.
     close: "staff_or_creator",
+    close_confirm: "staff_or_creator",
     reopen: "staff_or_creator",
     // Avis : seul le demandeur du ticket.
     csat: "creator",
@@ -136,14 +152,22 @@ export function parseTicketCustomId(customId: string): TicketActionDescriptor | 
         open: 4,
         modal_open: 4,
         modal_page: 4,
+        modal_add: 3,
+        modal_remove: 3,
         select_open: 3,
         select_journey: 3,
         claim: 3,
         release: 3,
         note: 3,
         rename: 3,
+        add: 3,
+        remove: 3,
         close: 3,
+        close_confirm: 3,
         reopen: 3,
+        transcript: 3,
+        delete: 3,
+        delete_confirm: 3,
         approve: 3,
         refuse: 3,
         csat: 4,
@@ -157,6 +181,12 @@ export function parseTicketCustomId(customId: string): TicketActionDescriptor | 
             if (!first || !second) return null;
             descriptor.panelId = first;
             descriptor.journeyId = second;
+            return descriptor;
+        }
+        case "modal_add":
+        case "modal_remove": {
+            if (!isTicketIdSegment(first)) return null;
+            descriptor.ticketId = first;
             return descriptor;
         }
         case "modal_page": {
@@ -186,8 +216,14 @@ export function parseTicketCustomId(customId: string): TicketActionDescriptor | 
         case "release":
         case "note":
         case "rename":
+        case "add":
+        case "remove":
         case "close":
+        case "close_confirm":
         case "reopen":
+        case "transcript":
+        case "delete":
+        case "delete_confirm":
         case "approve":
         case "refuse": {
             if (!first) return null;
@@ -211,13 +247,21 @@ export const TICKET_ACTION_LABELS: Record<TicketActionKind, string> = {
     select_journey: "Ouverture d'un ticket (menu des parcours)",
     modal_open: "Formulaire d'ouverture",
     modal_page: "Questionnaire (page suivante)",
+    modal_add: "Ajout d'un membre (formulaire)",
+    modal_remove: "Retrait d'un membre (formulaire)",
     pick: "Réponse à un choix",
     claim: "Prise en charge",
     release: "Remise en file",
     note: "Note interne",
     rename: "Renommage",
+    add: "Ajout d'un membre",
+    remove: "Retrait d'un membre",
     close: "Clôture",
+    close_confirm: "Confirmation de clôture",
     reopen: "Réouverture",
+    transcript: "Copie des messages",
+    delete: "Suppression du salon",
+    delete_confirm: "Confirmation de suppression",
     csat: "Avis de satisfaction",
     approve: "Acceptation de la demande",
     refuse: "Refus de la demande",

@@ -1347,6 +1347,10 @@ export function SpellRangeGrid({
      * ne calcule rien). En plein écran il vit dans le **rail** (`rail` ⇒ pleine largeur, hauteur
      * libre) : c'était le « damage preview à mettre ailleurs » du retour user — il ne flotte plus
      * sur la carte, donc plus aucun chevauchement avec le plateau, les badges ou la légende.
+     * En **fenêtre de jeu PiP** il reste **superposé** (borné par le plateau) : il apparaît au
+     * **survol** de la case visée — monté dans le flux, il redimensionnerait la carte à chaque
+     * survol (la case visée bougerait sous le curseur). La légende, elle, n'a pas ce problème
+     * (elle ne change d'état que sur un clic explicite) : elle est donc sortie de l'overlay.
      */
     const damagePanel = (rail: boolean) =>
         showDamage && damageInfo.lines.length > 0 ? (
@@ -1383,21 +1387,22 @@ export function SpellRangeGrid({
         ) : null;
 
     /**
-     * Bouton **« Plein écran »** — une seule définition, monté dans les DEUX barres d'outils (même
-     * convention que `damageToggle`) : le plateau s'ouvre alors dans la **vraie modale**.
+     * Bouton **« Plein écran »** — une seule définition, montée dans la **mise en page en ligne**
+     * (fiche, landing, onglet stuff) **et** dans l'en-tête de la modale (pour en sortir) : le
+     * plateau s'ouvre alors dans la **vraie modale** (`Dialog`, focus piégé, rail des panneaux).
+     *
+     * 🚫 **Jamais dans la barre compacte** : elle n'existe que dans la fenêtre de jeu PiP
+     * (Document PiP ~380×680), où agrandir n'a aucun sens et où le bouton volait une place
+     * comptée (retour user 28/09/2026 : « le bouton plein écran n'a pas lieu d'être dans
+     * l'overlay »). D'où l'absence de variante : une seule apparence, celle du thème.
      */
-    const fullscreenToggle = (board: boolean) => (
+    const fullscreenToggle = () => (
         <button
             type="button"
             onClick={() => setFullscreen((v) => !v)}
             aria-pressed={fullscreen}
             title={fullscreen ? simT.fullscreenExit : simT.fullscreenTitle}
-            className={cn(
-                "inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-lg border px-2 py-1 text-[11px] font-bold transition-colors",
-                board
-                    ? "border-white/10 bg-zinc-900 text-zinc-400 hover:text-white"
-                    : "border-border bg-surface text-muted-foreground hover:bg-elevated hover:text-foreground"
-            )}
+            className="inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-lg border border-border bg-surface px-2 py-1 text-[11px] font-bold text-muted-foreground transition-colors hover:bg-elevated hover:text-foreground"
         >
             {fullscreen ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
             <span className="hidden sm:inline">{fullscreen ? simT.fullscreenExit : simT.fullscreenTitle}</span>
@@ -1684,8 +1689,11 @@ export function SpellRangeGrid({
                                 estimé de 0 ») — plus besoin de déplier « Options » pour l'allumer. */}
                             {damageToggle(true)}
 
-                            {/* **Plein écran** : même bouton que dans la fiche (source unique). */}
-                            {fullscreenToggle(true)}
+                            {/* 🚫 **Pas de « Plein écran » dans cette barre** : elle n'est montée que
+                                dans la fenêtre de jeu PiP (`compact`, ~380×680 px) — y ouvrir la
+                                modale plein écran n'a pas de sens et le bouton y volait une place
+                                comptée (retour user 28/09/2026). Le bouton reste dans la mise en page
+                                EN LIGNE, seule à pouvoir s'agrandir. */}
 
                             {/* Rangement : une seule rangée visible. Le reste est derrière ce
                                 bouton — avec une pastille du nombre de réglages actifs pour ne
@@ -1976,7 +1984,7 @@ export function SpellRangeGrid({
 
                             {/* **Plein écran** : la fiche ouvre le plateau dans une vraie modale
                                 (pan/zoom dedans, prévisu de dégâts et légende dans un rail). */}
-                            {fullscreenToggle(false)}
+                            {fullscreenToggle()}
 
                             {/* Rangement : la rangée ne montre plus QUE le zoom et ce bouton.
                                 Le reste (alliés, ennemis, placements de départ, boss libre,
@@ -2841,29 +2849,40 @@ export function SpellRangeGrid({
                 </div>
                 </div>
 
-                {/* Légende + prévisu de dégâts **dans le plateau** (mise en page en ligne) :
-                    l'utilisateur n'a plus à dézoomer ni à sortir du composant pour les atteindre
-                    (retour user 21/09/2026). Deux panneaux flottants bornés, qui ne poussent plus
-                    la carte.
+                {/* 🗺️ **Légende de la fenêtre de jeu PiP** : elle prend sa place **DANS LE FLUX**,
+                    sous la carte. Le plateau (`flex-1`) la laisse passer ⇒ elle n'est plus jamais
+                    posée par-dessus.
 
-                    ⚠️ `inset-2` (et non plus `inset-x-2 bottom-2`) : la rangée couvre maintenant
-                    TOUTE la hauteur du plateau. C'est la référence dont le panneau de prévisu a
-                    besoin (`max-h-full`) pour **ne jamais sortir de la carte** — il atteignait
-                    auparavant sa taille maximale même sur un plateau plus petit que lui (retour
-                    user 22/09/2026 : « les dégâts affichés sortent du composant »).
-                    `flex-wrap` + `min-w-0` : sur un plateau étroit (fenêtre de jeu PiP, mobile) le
-                    panneau **passe à la ligne** au lieu d'être poussé hors de la carte.
+                    🔁 28/09/2026 — retour user, verbatim : « la légende qui bouffe l'overlay ».
+                    Elle était montée en `absolute inset-2` : ouverte, elle masquait le bas du
+                    plateau dans une fenêtre de 380×680 où la place est comptée. En flux, elle ne
+                    coûte que la place qu'elle occupe et reste atteignable sans sortir du composant
+                    (retour user 21/09/2026 conservé).
 
-                    🔁 22/09/2026 — cette rangée flottante n'existe QUE dans la fenêtre de jeu PiP
-                    (mode `compact`), où la place est comptée. En ligne (fiche / landing) et en plein
-                    écran, les deux panneaux sont montés dans un **rail** : plus rien de superposé à
-                    la carte, aux badges ou entre eux (« tout se marche dessus »). */}
+                    En ligne (fiche / landing) et en plein écran, elle est montée dans un **rail** :
+                    le markup n'est jamais recopié (une seule définition — `legendPanel`). */}
                 {compact && !fullscreen && (
                     <div
                         data-no-drag
-                        className="pointer-events-none absolute inset-2 z-40 flex min-w-0 flex-wrap items-end justify-between gap-2"
+                        className="flex w-full min-w-0 shrink-0 flex-wrap items-center gap-2 pt-1.5"
                     >
                         {legendPanel(false)}
+                    </div>
+                )}
+
+                {/* 📊 **Prévisu de dégâts** : il apparaît au **survol** de la case visée (`zoneAnchor`
+                    suit le curseur) ⇒ il reste **superposé** au plateau, borné par lui (`inset-2` +
+                    `max-h-full`) : dans le flux, la carte se redimensionnerait à chaque survol et
+                    la case visée bougerait sous le curseur.
+
+                    La rangée ne contient plus QUE lui, calée à droite (`justify-end`) : la légende
+                    ne le pousse plus hors de la carte (bug mesuré le 22/09 : « poussé dehors par la
+                    légende (336 px, shrink-0) »). */}
+                {compact && !fullscreen && (
+                    <div
+                        data-no-drag
+                        className="pointer-events-none absolute inset-2 z-40 flex min-w-0 flex-wrap items-end justify-end gap-2"
+                    >
                         {damagePanel(false)}
                     </div>
                 )}
@@ -2871,8 +2890,9 @@ export function SpellRangeGrid({
             </div>
 
             {/* Rail de la mise en page EN LIGNE : prévisu de dégâts + légende, à CÔTÉ du plateau.
-                En fenêtre de jeu PiP le rail n'existe pas (place comptée : les deux panneaux sont
-                alors flottants, bornés au plateau) ; en plein écran c'est la modale qui le porte. */}
+                En fenêtre de jeu PiP le rail n'existe pas (place comptée : la légende est dans une
+                rangée en flux sous la carte, le prévisu reste superposé et borné au plateau) ; en
+                plein écran c'est la modale qui le porte. */}
             {!compact && !fullscreen && (
                 <aside
                     data-no-drag
@@ -2991,7 +3011,7 @@ export function SpellRangeGrid({
                         </span>
                     </DialogTitle>
                     <div className="flex shrink-0 items-center gap-2">
-                        {fullscreenToggle(false)}
+                        {fullscreenToggle()}
                         <button
                             type="button"
                             onClick={() => setFullscreen(false)}

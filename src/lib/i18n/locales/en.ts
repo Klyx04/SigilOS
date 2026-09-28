@@ -814,7 +814,7 @@ export const en: Translations = {
         map: "Map:",
         tacticalMapName: "Tactical Isometric Map",
         rulesModalTooltip: "How do placement rules work in Dofus?",
-        cellsCovered: "{count} cells covered",
+        cellsCovered: "Range: {count} cells",
         room: "Room:",
         emptyMap: "Empty map",
         allies: "Allies",

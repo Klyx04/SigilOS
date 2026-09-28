@@ -12,7 +12,6 @@ import {
   ArrowRight,
   Target,
   Flame,
-  Gem,
   Loader2,
   MapPin,
   Check,
@@ -26,6 +25,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n/client";
 import { SpellRangeGrid } from "@/components/succes/SpellRangeGrid";
+import { BountyRewardCard } from "@/components/succes/BountyRewardCard";
 import { useBossOverlay } from "@/hooks/use-boss-overlay";
 import { getMonsterStats, getDungeonMonsters } from "@/server/actions/game-data-actions";
 import {
@@ -579,14 +579,7 @@ export function PublicBossDetailClient({
           </div>
 
           <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-            {bountyMeta.rewards.length > 0 && (
-              <span className="inline-flex items-center gap-1.5 text-muted-foreground">
-                <Gem className="w-3.5 h-3.5 opacity-70" /> Prime :{" "}
-                <strong className="font-medium text-foreground/90">
-                  {bountyMeta.rewards.map((r) => `${r.amount > 0 ? `${r.amount} ` : ""}${r.type}`).join(" + ")}
-                </strong>
-              </span>
-            )}
+            {bountyMeta.rewards.length > 0 && <BountyRewardCard rewards={bountyMeta.rewards} />}
             {bountyMeta.battleMapLabel && (
               <span
                 className="inline-flex items-center gap-1.5 text-muted-foreground"

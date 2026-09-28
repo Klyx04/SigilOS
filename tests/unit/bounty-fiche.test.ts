@@ -5,12 +5,18 @@
  * `MonsterStat`), le repli de carte est **annoncé comme tel**, la zone de traque sert
  * d'« emplacement », la prime vient des champs curés (aucune invention) et les critères de
  * quête sont ceux du siphon (texte réel de Dofensive).
+ *
+ * L'encart « Prime » est verrouillé ici aussi : **une seule** résolution d'icônes
+ * (`bountyRewardIcon`), montée telle quelle sur la fiche interne **et** la fiche publique, et
+ * réutilisée par la fiche de zone worldmap (plus de table recopiée, plus de hotlink CDN).
  */
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
 
 import {
     bountyBattleMapLabel,
     bountyCriteriaFromStat,
+    bountyRewardIcon,
     bountyRewardLines,
     buildBountyBestiaireEntry,
     buildBountyPublicDungeon,
@@ -148,3 +154,56 @@ describe("bounty-fiche — entrées de fiche et de catalogue", () => {
         expect(buildBountyBestiaireEntry({ ...PREDAGOB, zoneName: null }).name).toBe("Predagob");
     });
 });
+
+/** Lecture brute d'un composant : ces gardes verrouillent un **emplacement**, pas un rendu. */
+const sourceOf = (path: string) => readFileSync(path, "utf8");
+
+/**
+ * Encart « Prime » — retour user 28/09/2026, verbatim : « il faut aussi afficher un petit encart
+ * (avis interne et externe publique) la récompense avec la bonne icone locale, aviton aliton,
+ * kamas de glace ». Les trois assets vivent dans `public/assets/avis/`
+ * (`avitons.png`, `aliton.png`, `kamas_de_glace.png`).
+ */
+describe("prime d'un avis — encart et icônes locales (une seule source)", () => {
+    it("chaque monnaie d'avis a son asset local — et rien n'est inventé pour le reste", () => {
+        expect(bountyRewardIcon("Aviton")).toBe("/assets/avis/avitons.png");
+        expect(bountyRewardIcon("aliton")).toBe("/assets/avis/aliton.png");
+        expect(bountyRewardIcon(" Aliton ")).toBe("/assets/avis/aliton.png");
+        expect(bountyRewardIcon("Kama de glace")).toBe("/assets/avis/kamas_de_glace.png");
+        // Le « Dofus des glaces » est un **item** du jeu : proxy d'assets interne, jamais le CDN
+        // DofusDB depuis le navigateur (convention du dépôt).
+        expect(bountyRewardIcon("Dofus des glaces")).toBe("/api/assets-dofus/items/11756");
+        // Ce qui n'est pas reconnu reste **sans icône** (texte seul) : on n'affiche pas un
+        // « Aviton » de complaisance pour un type inconnu.
+        for (const unknown of ["Doplon", "Kamas", "", "   ", null, undefined]) {
+            expect(bountyRewardIcon(unknown)).toBeNull();
+        }
+    });
+
+    it("les deux fiches (interne + publique) montent le MÊME encart, sans URL inventée", () => {
+        const interne = sourceOf("src/components/succes/SuccesAvisTab.tsx");
+        const publique = sourceOf("src/app/boss/[dungeonId]/_components/PublicBossDetailClient.tsx");
+        for (const src of [interne, publique]) {
+            expect(src).toContain("<BountyRewardCard rewards=");
+        }
+
+        const card = sourceOf("src/components/succes/BountyRewardCard.tsx");
+        expect(card).toMatch(/bountyRewardIcon\(reward\.type\)/);
+        // Aucun hotlink : les icônes viennent du dépôt (ou du proxy interne via le helper).
+        expect(card).not.toMatch(/https?:\/\//);
+        // Sans récompense : rien du tout — jamais un encart vide.
+        expect(card).toMatch(/if \(lines\.length === 0\) return null;/);
+    });
+
+    it("la fiche de zone worldmap réutilise cette résolution (fin du doublon et du hotlink)", () => {
+        const zone = sourceOf("src/components/worldmap/ZoneDetailModal.tsx");
+        expect(zone).toMatch(/import \{ bountyRewardIcon \} from '@\/lib\/bounty-fiche';/);
+        expect(zone).toMatch(/<RewardIcon type=/);
+        // Les deux défauts mesurés : table d'icônes recopiée en clair, et icône servie par le CDN
+        // DofusDB (`https://static.dofusdb.fr/items/11756.png`) — désormais centralisés.
+        expect(zone).not.toContain("static.dofusdb.fr");
+        expect(zone).not.toContain("dofus des glaces");
+        expect(zone).not.toMatch(/iconSrc = '\/assets\/avis/);
+    });
+});
+

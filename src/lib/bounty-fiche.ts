@@ -44,6 +44,27 @@ export interface BountyRewardLine {
     amount: number;
 }
 
+/**
+ * Icône **locale** d'une récompense d'avis — **source unique** (encart « Prime » de la fiche
+ * interne, de la fiche publique et de la fiche de zone worldmap : jamais trois tables recopiées).
+ *
+ * Types mesurés en base : « Aviton », « Aliton », « Kama de glace », « Doplon ».
+ * `null` = **pas d'icône** (Doplon & libellés inconnus : texte seul — on n'invente jamais un asset
+ * « Aviton » pour un type qu'on ne sait pas reconnaître).
+ */
+export function bountyRewardIcon(type: string | null | undefined): string | null {
+    const value = String(type ?? "").trim();
+    if (!value) return null;
+    if (/aliton/i.test(value)) return "/assets/avis/aliton.png";
+    if (/aviton/i.test(value)) return "/assets/avis/avitons.png";
+    if (/kama/i.test(value) && /glace/i.test(value)) return "/assets/avis/kamas_de_glace.png";
+    // « Dofus des glaces » n'est pas une monnaie d'avis mais un **item** du jeu (11756) : son icône
+    // passe par le **proxy d'assets interne** (jamais le CDN DofusDB depuis le navigateur, comme
+    // partout ailleurs dans le dépôt).
+    if (/dofus/i.test(value) && /glace/i.test(value)) return "/api/assets-dofus/items/11756";
+    return null;
+}
+
 /** Métadonnées d'affichage spécifiques à un avis (entête + encarts de la fiche). */
 export interface BountyPublicMeta {
     raceName: string;

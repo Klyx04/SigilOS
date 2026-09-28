@@ -811,7 +811,7 @@ export const fr = {
         map: "Carte :",
         tacticalMapName: "Map Tactique Isométrique",
         rulesModalTooltip: "Comment fonctionnent les règles de placement sur Dofus ?",
-        cellsCovered: "{count} cases couvertes",
+        cellsCovered: "Portée : {count} cases",
         room: "Salle :",
         emptyMap: "Map vide",
         allies: "Alliés",

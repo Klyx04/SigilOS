@@ -32,7 +32,10 @@ export async function generateMetadata(): Promise<Metadata> {
     const { t } = await getServerI18n();
 
     return {
-        title: t.changelogPage.metaTitle,
+        // `absolute` : la chaîne porte déjà la marque (« Journal des mises à jour | SigilOS ») —
+        // sans elle, le template du layout racine l'ajoutait une 2ᵉ fois (« … | SigilOS | SigilOS »,
+        // mesuré en ligne le 29/09/2026, même défaut que les 14 pages du 21/09/2026).
+        title: { absolute: t.changelogPage.metaTitle },
         description: t.changelogPage.metaDesc,
         alternates: {
             canonical: `${getAppBaseUrl()}/changelog`,

@@ -4,7 +4,9 @@ export const guide = {
     description:
         "Guide complet du raid Sanctuaire des Jardins Éternels sur Dofus : les 4 énigmes interconnectées, les 4 gardiens, le corridor aux 60 monstres et les stratégies contre la Reine Écarlate et la Princesse Maudite.",
     publishedAt: "2026-09-22",
-    updatedAt: "2026-10-02",
+    // Vraie date : le guide est en ligne depuis le 22/09 et n'a pas bougé depuis (le `2026-10-02`
+    // d'origine était la date de sortie du raid, donc un `lastmod` futur).
+    updatedAt: "2026-09-22",
     draft: false,
     body: `
         <div class="callout callout-tip">

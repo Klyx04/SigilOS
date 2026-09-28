@@ -1,5 +1,6 @@
 import { getUpcomingAlmanax, type AlmanaxItem } from "@/server/actions/resources-actions";
 import { getAppBaseUrl } from "@/lib/utils";
+import { isServableAlmanaxDay } from "@/lib/seo";
 import { Metadata } from "next";
 import { headers } from "next/headers";
 import Image from "next/image";
@@ -47,6 +48,10 @@ export async function generateMetadata({
     const parsed = parseDate(date);
     if (!parsed) return {};
 
+    // Hors de la fenêtre servie par la source (30 jours) : la donnée n'existe pas ⇒ la page est
+    // un 404 (métadonnées vides, la page appelle `notFound()`).
+    if (!isServableAlmanaxDay(date)) return {};
+
     const { t, locale } = await getServerI18n();
     const almanaxList = await getUpcomingAlmanax(locale);
     const item = almanaxList.find((a) => a.date.slice(0, 10) === date) as AlmanaxItem | undefined;
@@ -65,6 +70,9 @@ export async function generateMetadata({
         title: { absolute: title },
         description,
         alternates: { canonical: `${baseUrl}/almanax/${date}` },
+        // Source muette (API indisponible) : la page reste servie au visiteur — le message le dit —
+        // mais elle n'est **pas** offerte à l'index : une page vide indexée est un « soft 404 ».
+        robots: item ? { index: true, follow: true } : { index: false, follow: true },
         openGraph: {
             title,
             description,
@@ -82,6 +90,12 @@ export default async function AlmanaxDatePage({
     const { date } = await params;
     const parsed = parseDate(date);
     if (!parsed) notFound();
+
+    // ⚠️ La source Almanax ne sert que **30 jours** (jour courant → +29, Europe/Paris) et **ignore**
+    // `range[date]` : une date passée ou lointaine n'a rien à montrer. Avant ce garde, n'importe
+    // quelle date répondait **200 `index, follow`** avec « Donnée temporairement indisponible »
+    // (`1999-01-01`, `2030-01-01` mesurées le 29/09/2026) ⇒ une usine à pages vides indexables.
+    if (!isServableAlmanaxDay(date)) notFound();
 
     const { t, locale } = await getServerI18n();
     const session = await auth();

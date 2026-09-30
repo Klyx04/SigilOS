@@ -8,6 +8,9 @@ name: SigilOS CI
 # NOTE: paths-ignore removed — using a filter job instead so
 #       the required check is always reported (never stuck in
 #       "Expected" state when only doc/config files change).
+#       Le filtre est évalué en `some-with-excludes` : avec le défaut
+#       (`some`), un positif `**` rendait toute négation inerte.
+#       Garde : tests/unit/verify-paths-filter.test.ts
 # NOTE (F2, 20/09/2026): toute action — y compris first-party
 #       (`actions/*`) — est épinglée sur un SHA de commit complet,
 #       tag rappelé en commentaire (`@<sha40> # vX`, forme suivie par
@@ -54,8 +57,20 @@ jobs:
       - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4
         id: changes
         with:
+          # Quantificateur EXPLICITE — non négociable : le défaut (`some`) évalue
+          # chaque motif indépendamment (`patterns.some(rule => rule.isMatch(file))`,
+          # `src/filter.ts` de l'action), donc le positif `**` matche tout et les `!`
+          # sont inertes ⇒ `should_run` valait `true` même sur une PR 100 % doc
+          # (mesuré le 30/09/2026 : 18 fichiers sur 18 → `true`, ~8 min de CI perdues).
+          # `some-with-excludes` sépare inclusions et exclusions, une exclusion étant
+          # définitive. Garde de non-régression : tests/unit/verify-paths-filter.test.ts
+          predicate-quantifier: 'some-with-excludes'
           filters: |
             src:
+              # Inclusions — au moins une requise (un filtre de seules négations
+              # ne matche jamais rien).
+              - '**'
+              # Exclusions — un changement purement doc/config ne construit rien.
               - '!**.md'
               - '!.gitignore'
               - '!LICENSE'
@@ -63,7 +78,6 @@ jobs:
               - '!.gemini/**'
               - '!scripts/*.sh'
               - '!scripts/*.md'
-              - '**'
 
   # ┌──────────────────────────────────────────────────────────┐
   # │ ✅ VERIFY & BUILD — Single job to save CI minutes        │

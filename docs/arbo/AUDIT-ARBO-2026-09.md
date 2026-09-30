@@ -24,6 +24,22 @@ quelqu'un qui n'a pas suivi les 40 derniers chantiers.
 > (`src/components/landing/registre/*-mockup.tsx`). Le profil Playwright se recrée avec
 > `node scripts/capture-screenshots.mjs --login`.
 
+> ⚠️ **Contre-épreuve du 30/09/2026 — la réécriture du 20/09 n'a pas couvert ces médias.** Les fichiers
+> sortis de `public/uploads/{guides,docs,guilds,proofs}` **et** les 4 visuels de la landing répondent
+> encore **200** en **anonyme** (`…/raw/<ancien commit>/<chemin>`) : leur commit d'**introduction** est un
+> **ancêtre de `dev`** (et de `main`). Ils ne sont plus dans l'arbre, mais **toute copie de l'historique
+> les porte** ⇒ un nettoyage côté GitHub des objets *non référencés* (et des caches) **ne peut rien en
+> faire**, ce qui explique la réponse du support. Méthode : `git/blobs/<id>` (40 hex minuscules ; une
+> forme courte ou majuscule renvoie `422`) et `contents?path=` **ne prouve rien** ici — cette route lit
+> l'arbre **de la tête**, pas l'historique (le `404` lu la veille était donc un faux positif).
+> **Décision (30/09/2026)** : **pas de nouvelle réécriture locale** — tous les SHA changeraient (copies
+> locales, PR ouvertes et `./scripts/deploy-cd.sh <env> [sha]` à reprendre) pour des fichiers qu'aucun
+> **lien vivant** ne pointe (hors arbre, jamais servis par l'app, atteignables **seulement** en
+> connaissant l'ancien commit) ⇒ **risque > bénéfice**.
+> Voie retenue : **relance du support GitHub** pour que le retrait se fasse sur **leur** copie (message
+> rédigé **hors dépôt**, **aucun identifiant d'objet consigné** — dépôt public). Détail, mesures et porte
+> de sortie : `docs/ROADMAP.md` (session du 30/09/2026, dossier `public/uploads`).
+
 ### ✅ Fait
 
 | Lot | Contenu | Preuve / récupération |

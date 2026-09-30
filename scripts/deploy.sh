@@ -83,6 +83,34 @@ CURATED=(
     "public/game-data/ignored-monsters.json"
     "public/game-data/ignored-bounties.json"
 )
+# 🔁 Médias SUIVIS dont le DÉPÔT est la référence (aucun écrivain au runtime) — même règle
+# que `deploy-cd.sh` (classe `REPO_OWNED`, qui porte la mesure complète) : un fichier
+# BINAIRE suivi modifié une fois sur le serveur ne converge jamais (le `git pull` refuse de
+# l'écraser, et `--autostash` le ré-applique) ⇒ les 25 icônes de succès réécrites par la
+# purge du 20/09/2026 restaient « modifiées » à CHAQUE déploiement. On remet la version du
+# dépôt avant le pull : l'arbre redevient propre et le pull peut passer.
+# ⚠️ Ne pas y mettre `public/game-data/{monsters,dungeons,legendary}` : leurs `.webp` SONT
+#    suivis ET réécrits par la galerie God (écriture volontaire côté serveur).
+# Parité des deux listes verrouillée par `tests/unit/deploy-source-sync.test.ts`.
+REPO_OWNED=(
+    "public/game-data/achievements"
+    "public/images"
+    "public/assets"
+    "public/ordres"
+    "public/bonus_guilde"
+    "public/songes"
+    "public/module-dofus"
+    "public/banners"
+)
+for _dir in "${REPO_OWNED[@]}"; do
+    while IFS= read -r _tracked; do
+        [[ -n "$_tracked" ]] || continue
+        git cat-file -e "HEAD:$_tracked" 2>/dev/null || continue
+        git show "HEAD:$_tracked" 2>/dev/null | cmp -s - "$_tracked" && continue
+        git show "HEAD:$_tracked" > "$_tracked"
+        dim "🧹 Média suivi restauré (version du dépôt) : $_tracked"
+    done < <(git ls-files -- "$_dir" 2>/dev/null)
+done
 CURATED_DIR="$(mktemp -d)"
 for f in "${CURATED[@]}"; do
     [[ -f "$f" ]] || continue

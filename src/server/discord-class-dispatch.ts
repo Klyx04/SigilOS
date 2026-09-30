@@ -11,7 +11,7 @@
  *   classe si déjà inscrit.
  */
 
-import { DOFUS_CLASSES } from "@/lib/dofus-assets";
+import { DOFUS_CLASSES, matchDofusClass } from "@/lib/dofus-assets";
 import { classEmojiName } from "@/lib/discord-emoji-catalog";
 
 /** Les 19 classes, dans l'ordre canonique (même référentiel que VALID_CLASSES). */
@@ -19,20 +19,13 @@ export const DISPATCH_CLASSES: string[] = DOFUS_CLASSES.map((c) => c.name);
 
 export const NO_CLASS_LABEL = "Sans classe";
 
-/** Normalise pour le regroupement (« Féca » = « feca » = « Feca »). */
-function normClasse(value: string | null | undefined): string {
-    return (value || "")
-        .trim()
-        .toLowerCase()
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "");
-}
-
-/** Retrouve le libellé canonique d'une classe saisie, ou null si inconnue. */
+/**
+ * Le libellé canonique d'une classe vit dans `@/lib/dofus-assets` (source unique,
+ * importable aussi par les composants clients). Ici, un simple alias pour que les
+ * appelants serveur (DJ, Songes, calendrier) gardent leur vocabulaire de dispatch.
+ */
 export function matchDispatchClass(value: string | null | undefined): string | null {
-    const n = normClasse(value);
-    if (!n) return null;
-    return DISPATCH_CLASSES.find((c) => normClasse(c) === n) ?? null;
+    return matchDofusClass(value);
 }
 
 export type DispatchEntry = {

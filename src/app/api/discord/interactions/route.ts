@@ -400,15 +400,57 @@ export async function POST(request: NextRequest) {
                 }
 
                 if (prefix === "calendar") {
-                    const { updateRegistrationClass, processRegistration } = await import("@/server/calendar-service");
-                    const { buildCalendarInteractionFeedback } = await import("@/lib/calendar-interaction-feedback");
-                    const upd = await updateRegistrationClass(guild_id, entityId, account!.userId, matched);
-                    if (!upd.success) return ephemeralDiscordMessage(`❌ ${upd.error || "Erreur inconnue"}`);
-                    if (upd.updated) {
-                        return ephemeralDiscordMessage(`✅ Ta classe est maintenant **${matched}** !`);
-                    }
-                    const outcome = await processRegistration(guild_id, entityId, account!.userId, { classe: matched });
-                    return ephemeralDiscordMessage(buildCalendarInteractionFeedback("join", outcome));
+                    // Fenêtre « Mes personnages » : le champ est **pré-rempli** avec le
+                    // personnage principal du profil, les classes secondaires sont rappelées
+                    // juste en dessous. L'application (mise à jour si déjà inscrit, sinon
+                    // inscription) suit exactement l'ancien chemin — voir `calendar:class-apply`.
+                    // Aucun bouton en plus : le select existant reste le seul point d'entrée.
+                    const guildConfig = await db.guildConfig.findUnique({
+                        where: { discordGuildId: guild_id },
+                        select: { id: true },
+                    });
+                    const profile = guildConfig
+                        ? await db.userProfile.findFirst({
+                            where: { userId: account!.userId, guildId: guildConfig.id },
+                            select: { classe: true, classeSecondaires: true },
+                        })
+                        : null;
+                    const mainClass = (profile?.classe || "").trim().slice(0, 30);
+                    const secondaries = Array.isArray(profile?.classeSecondaires)
+                        ? (profile!.classeSecondaires as unknown[])
+                            .filter((c): c is string => typeof c === "string" && c.trim().length > 0)
+                            .slice(0, 6)
+                            .join(", ")
+                        : "";
+                    const roster = [mainClass, secondaries].filter(Boolean).join(", ").slice(0, 100);
+
+                    return NextResponse.json({
+                        type: 9, // MODAL
+                        data: {
+                            custom_id: `calendar:class-apply:${entityId}`,
+                            title: "🎭 Mes personnages",
+                            components: [
+                                {
+                                    type: 1, // Action Row
+                                    components: [
+                                        {
+                                            type: 4, // Text Input
+                                            custom_id: "classe",
+                                            label: "Ta classe pour cet événement",
+                                            style: 1, // Short
+                                            placeholder: roster
+                                                ? `Mes personnages : ${roster}`.slice(0, 100)
+                                                : "Ex: Cra, Iop, Eniripsa...",
+                                            required: true,
+                                            min_length: 2,
+                                            max_length: 30,
+                                            ...(mainClass ? { value: mainClass } : {}),
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
+                    });
                 }
 
                 return ephemeralDiscordMessage("❌ Menu non pris en charge ici.");
@@ -1943,6 +1985,44 @@ export async function POST(request: NextRequest) {
                     classe: matchedClass,
                     comment: message || undefined,
                 });
+                return ephemeralDiscordMessage(buildCalendarInteractionFeedback("join", outcome));
+            } else if (prefix === "calendar" && action === "class-apply") {
+                // ── Retour de la fenêtre « Mes personnages » (menu select de classe) ──
+                // Même issue que l'ancien select direct : mise à jour si le membre est déjà
+                // inscrit, sinon inscription avec la classe choisie (aucune règle nouvelle).
+                const account = await findUserByDiscordId(member.user.id);
+                if (!account) {
+                    return ephemeralDiscordRefusal(DISCORD_ACCOUNT_REQUIRED);
+                }
+
+                // RBAC : même carte de permissions que les boutons (une seule source).
+                if (!(await isDiscordPrefixAuthorized(prefix, guild_id, member.user.id))) {
+                    return ephemeralDiscordRefusal(DISCORD_PERMISSION_DENIED);
+                }
+
+                let classe = "";
+                for (const row of components) {
+                    for (const comp of row.components) {
+                        if (comp.custom_id === "classe") classe = comp.value?.trim() || "";
+                    }
+                }
+
+                const { matchDispatchClass } = await import("@/server/discord-class-dispatch");
+                const matchedClass = matchDispatchClass(classe);
+                if (!matchedClass) {
+                    return ephemeralDiscordMessage(
+                        `❌ Classe « ${classe} » non reconnue.\n\n**Classes disponibles :** ${VALID_CLASSES.join(", ")}`
+                    );
+                }
+
+                const { updateRegistrationClass, processRegistration } = await import("@/server/calendar-service");
+                const { buildCalendarInteractionFeedback } = await import("@/lib/calendar-interaction-feedback");
+                const upd = await updateRegistrationClass(guild_id, entityId, account.userId, matchedClass);
+                if (!upd.success) return ephemeralDiscordMessage(`❌ ${upd.error || "Erreur inconnue"}`);
+                if (upd.updated) {
+                    return ephemeralDiscordMessage(`✅ Ta classe est maintenant **${matchedClass}** !`);
+                }
+                const outcome = await processRegistration(guild_id, entityId, account.userId, { classe: matchedClass });
                 return ephemeralDiscordMessage(buildCalendarInteractionFeedback("join", outcome));
             } else if (prefix === "dj" && action === "join") {
                 // #169 — Submit de la modal d'inscription DJ (choix de classe + message optionnel).

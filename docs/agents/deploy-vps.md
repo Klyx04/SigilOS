@@ -54,6 +54,7 @@ décision. Verrouillé par `tests/unit/deploy-sortie-visible.test.ts` :
 | **ÉTAPE 5/5** `✅ Synchronisation terminée : 0 créées, 30 mises à jour` | les fiches de `src/lib/docs-catalog.ts` sont réécrites en base (idempotent : `0 créées` est normal) |
 | `⚠  Des fichiers locaux sont modifiés` | fichiers **suivis** modifiés sur le serveur **hors** des classes connues : à comprendre, pas à ignorer (§ L'arbre de travail) |
 | `ℹ️  N fichier(s) suivi(s) portés par CE serveur — laissés tels quels` | médias/JSON que le serveur écrit lui-même (`SERVER_OWNED`) : comptés **à part**, jamais touchés, **rien à faire** |
+| **Un `1ᵉʳ` passage qui affiche l'ancienne sortie** (barre douteuse, `npm notice`, ancien libellé) | `bash` lit le script **au lancement** : celui qui tourne est la version d'**avant** son propre `git pull` du jour. Une nouveauté du script (barre, message, compte) n'apparaît donc qu'au déploiement **suivant** — ce n'est **pas** une régression, et les images déployées sont bien les nouvelles |
 | `✓ Proxy Caddy à jour` · `✓ / → HTTP 200` · `✓ …/api/health → HTTP 200` | contrôles post-déploiement : config du proxy, robots/sitemap, pages clés, santé |
 
 ### Bruit supprimé et questions déjà posées (mesures du 30/09/2026)

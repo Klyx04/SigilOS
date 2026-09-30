@@ -43,6 +43,51 @@ export function getClass(id: string) {
 }
 
 // -----------------------------------------------------------------------------
+// RÈGLES DE CLASSE (pures — partagées serveur ET client)
+// -----------------------------------------------------------------------------
+// La règle vit ici parce que les composants **clients** (calendrier, inscriptions)
+// ne peuvent pas importer un module `src/server/*` : une seule source, donc, pour
+// les embeds Discord et l'interface du site.
+
+/** Normalise une classe pour comparaison (« Féca » = « feca » = « FECA »). */
+export function normalizeDofusClass(value: string | null | undefined): string {
+    return (value || "")
+        .trim()
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "");
+}
+
+/** Valeur non vide et nettoyée, sinon `null` (jamais une chaîne d'espaces). */
+function nonEmptyClass(value: string | null | undefined): string | null {
+    return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+/** Libellé canonique d'une classe (id `cra` ou nom `Cra`), `null` si inconnue. */
+export function matchDofusClass(value: string | null | undefined): string | null {
+    const n = normalizeDofusClass(value);
+    if (!n) return null;
+    return DOFUS_CLASSES.find((c) => c.id === n || normalizeDofusClass(c.name) === n)?.name ?? null;
+}
+
+/**
+ * Classe **effective** d'un inscrit : celle choisie pour l'inscription, sinon celle du
+ * profil Dofus du membre, sinon `null` (« Sans classe » au regroupement).
+ *
+ * Constat beta : les embeds Songes/DJ faisaient déjà ce repli, pas le calendrier — un
+ * inscrit sans classe choisie apparaissait « Sans classe » alors que son profil la
+ * connaissait. Une valeur inconnue du référentiel est rendue telle quelle (jamais perdue).
+ */
+export function resolveEffectiveClass(
+    stored: string | null | undefined,
+    profile: string | null | undefined
+): string | null {
+    const chosen = matchDofusClass(stored) ?? nonEmptyClass(stored);
+    if (chosen) return chosen;
+    return matchDofusClass(profile) ?? nonEmptyClass(profile);
+}
+
+// -----------------------------------------------------------------------------
 // SERVEURS Dofus Unity
 // -----------------------------------------------------------------------------
 // Vignettes des 13 serveurs officiels (`public/assets/dofus/servers/*.webp`).

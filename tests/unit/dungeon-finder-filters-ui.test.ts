@@ -140,7 +140,10 @@ describe("Copie des pseudos — unitaire partout, globale nulle part", () => {
     it("les rosters affichent le pseudo avec sa classe et sa copie `/w`", () => {
         expect(DJ_MODAL_CODE).toMatch(/<PseudoChip[\s\S]{0,220}?classe=\{p\.classe\}/);
         expect(RUN_CARD_CODE).toMatch(/<PseudoChip[\s\S]{0,220}?classe=\{memberClassId\}/);
-        expect(EVENT_MODAL_CODE).toMatch(/<PseudoChip[\s\S]{0,220}?classe=\{participant\.classe\}/);
+        // Calendrier : la classe affichée est désormais **résolue** (choisie à l'inscription,
+        // sinon celle du profil Dofus) — règle `resolveEffectiveClass`, verrouillée par
+        // `tests/unit/calendar-participant-class.test.ts`.
+        expect(EVENT_MODAL_CODE).toMatch(/<PseudoChip[\s\S]{0,220}?classe=\{effectiveClass\}/);
     });
 });
 

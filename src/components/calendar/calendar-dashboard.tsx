@@ -28,6 +28,7 @@ import { toast } from "sonner";
 import {
     getCalendarEvents,
     getCalendarEventDetails,
+    updateMyRegistrationClass,
     createCalendarEvent,
     deleteCalendarEvent,
     updateCalendarEvent,
@@ -66,6 +67,8 @@ interface CalendarDashboardProps {
     userPseudo?: string;
     discordChannels?: DiscordChannels;
     isAdmin?: boolean;
+    /** Personnages Dofus du membre : raccourci « Mes personnages » des modales d'inscription. */
+    myCharacters?: { main: string | null; secondaries: string[] };
 }
 
 type ViewMode = "grid";
@@ -79,7 +82,7 @@ interface DiscordRole {
 /** Types filtrables (dans l'ordre d'affichage) — libellés/couleurs via `calendarEventTheme`. */
 const FILTER_TYPE_KEYS = ["RAID_OFFICIAL", "EVENT_GUILD", "SESSION_MISSIONS", "SORTIE_FARM"] as const;
 
-export function CalendarDashboard({ guildId, currentUserId, canManage, canManageRaid, userPseudo, discordChannels, isAdmin = false }: CalendarDashboardProps) {
+export function CalendarDashboard({ guildId, currentUserId, canManage, canManageRaid, userPseudo, discordChannels, isAdmin = false, myCharacters }: CalendarDashboardProps) {
     const [displayMode] = useState<ViewMode>("grid");
     const [gridType, setGridType] = useState<"week" | "month">("week");
     // Chantier #87/#88 : `new Date()` en SSR (serveur UTC) vs client (Europe/Paris) peut
@@ -277,6 +280,23 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, canManage
             fetchEvents();
         } else {
             toast.error(result.error);
+        }
+    };
+
+    /**
+     * Change MA classe sur un événement depuis le site — même règle serveur que le menu
+     * classe Discord (`updateRegistrationClass`). Une valeur vide efface la classe choisie :
+     * le profil Dofus reprend alors la main à l'affichage.
+     */
+    const handleMyClassChange = async (classe: string) => {
+        if (!selectedEventId) return;
+        const result = await updateMyRegistrationClass(guildId, selectedEventId, classe);
+        if (result.success) {
+            toast.success(classe ? `Classe mise à jour : ${classe}` : "Classe effacée");
+            fetchEventDetails(selectedEventId);
+            fetchEvents();
+        } else {
+            toast.error(result.error || "Erreur lors du changement de classe");
         }
     };
 
@@ -657,6 +677,8 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, canManage
                 everyoneAllowed={everyoneAllowed}
                 hasMetamobKey={hasMetamobKey}
                 raidEligibility={raidEligibility}
+                myCharacters={myCharacters}
+                onMyClassChange={handleMyClassChange}
                 onRegister={handleRegister}
                 onUnregister={handleUnregister}
                 onEdit={() => {

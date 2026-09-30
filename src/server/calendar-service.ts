@@ -13,6 +13,8 @@ import { resolveEventImageFile } from "@/lib/calendar-event-images";
 import { discordIdKind, isDiscordSnowflake, isOutboxMessageId } from "@/lib/discord-ids";
 import { messageHasCustomId } from "@/lib/discord-components";
 import { buildClassDispatchFields, buildClassSelectRow, type DispatchEntry } from "@/server/discord-class-dispatch";
+import { loadEmojiResolver } from "@/server/discord-app-emojis";
+import { resolveEffectiveClass } from "@/lib/dofus-assets";
 
 // Les visuels (génériques + dédiés par type de raid) vivent dans
 // `src/lib/calendar-event-images.ts` : même source pour l'embed Discord et les
@@ -515,7 +517,7 @@ export async function publishDiscordEvent(guildId: string, eventId: string) {
                                 name: true,
                                 profiles: {
                                     where: { guildId: guildConfig.id },
-                                    select: { discordNickname: true }
+                                    select: { discordNickname: true, classe: true }
                                 }
                             }
                         }
@@ -596,23 +598,33 @@ export async function publishDiscordEvent(guildId: string, eventId: string) {
 
         const raidMeta = isRaid ? (event.metadata as any) : null;
 
+        // Pictos Dofus (emojis d'application si la synchro a été jouée, sinon replis
+        // unicode du catalogue) : même patron que Songes/DJ, UN seul await par embed.
+        const emo = await loadEmojiResolver();
+
         const registered = event.participants.filter(p => p.status === "REGISTERED" || p.status === "CONFIRMED");
         const reserve = event.participants.filter(p => p.status === "RESERVE");
 
+        // Classe affichée = celle choisie à l'inscription, sinon celle du profil Dofus
+        // (`resolveEffectiveClass`) : un inscrit sans classe choisie n'apparaît plus « Sans classe ».
+        const effectiveClass = (p: any): string | null =>
+            resolveEffectiveClass(p.classe, p.user?.profiles?.[0]?.classe);
+
         const formatParticipant = (p: any) => {
             const name = p.user.profiles[0]?.discordNickname || p.user.name || "Inconnu";
-            const classe = p.classe ? `(${p.classe})` : "";
-            return `• ${name} ${classe}`;
+            const classe = effectiveClass(p);
+            return `• ${name}${classe ? ` (${classe})` : ""}`;
         };
 
         // Dispatch par classe : UN field inline PAR classe représentée (grille 3 colonnes).
         const dispatchEntries: DispatchEntry[] = registered.map((p: any) => {
             const name = p.user.profiles[0]?.discordNickname || p.user.name || "Inconnu";
-            return { line: `• ${name}`, classe: p.classe ?? null };
+            return { line: `• ${name}`, classe: effectiveClass(p) };
         });
         const inscritsFields = buildClassDispatchFields(dispatchEntries, {
             emptyField: { name: `✅ Inscrits (${registered.length})`, value: "*Aucun inscrit*" },
             maxGroups: 14,
+            emoji: emo,
         });
 
         const reserveList = reserve.length > 0
@@ -782,7 +794,7 @@ export async function refreshDiscordEventEmbed(guildId: string, eventId: string)
                                 name: true,
                                 profiles: {
                                     where: { guildId: guildConfig.id },
-                                    select: { discordNickname: true }
+                                    select: { discordNickname: true, classe: true }
                                 }
                             }
                         }
@@ -844,23 +856,31 @@ export async function refreshDiscordEventEmbed(guildId: string, eventId: string)
             }
         }
 
+        // Pictos Dofus (un seul await par embed) + classe résolue (inscription → profil) :
+        // la MÊME règle que la publication — un rafraîchissement ne doit pas contredire l'embed.
+        const emo = await loadEmojiResolver();
+
         const registered = event.participants.filter(p => p.status === "REGISTERED" || p.status === "CONFIRMED");
         const reserve = event.participants.filter(p => p.status === "RESERVE");
 
+        const effectiveClass = (p: any): string | null =>
+            resolveEffectiveClass(p.classe, p.user?.profiles?.[0]?.classe);
+
         const formatParticipant = (p: any) => {
             const name = p.user.profiles[0]?.discordNickname || p.user.name || "Inconnu";
-            const classe = p.classe ? `(${p.classe})` : "";
-            return `• ${name} ${classe}`;
+            const classe = effectiveClass(p);
+            return `• ${name}${classe ? ` (${classe})` : ""}`;
         };
 
         // Dispatch par classe : UN field inline PAR classe représentée (grille 3 colonnes).
         const dispatchEntries: DispatchEntry[] = registered.map((p: any) => {
             const name = p.user.profiles[0]?.discordNickname || p.user.name || "Inconnu";
-            return { line: `• ${name}`, classe: p.classe ?? null };
+            return { line: `• ${name}`, classe: effectiveClass(p) };
         });
         const inscritsFields = buildClassDispatchFields(dispatchEntries, {
             emptyField: { name: `✅ Inscrits (${registered.length})`, value: "*Aucun inscrit*" },
             maxGroups: 14,
+            emoji: emo,
         });
 
         const reserveList = reserve.length > 0

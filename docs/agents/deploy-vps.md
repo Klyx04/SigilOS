@@ -34,10 +34,55 @@ Le script fait, dans l'ordre : `git fetch` → `git pull --autostash` → `prism
 deploy` → `docker login` GHCR → `docker pull` des 4 images (`app`, `worker`, `ws`,
 `discord-bot`) → `docker compose up -d` → healthchecks.
 
+## L'arbre de travail du serveur : trois classes, une décision par fichier
+
+Le serveur n'est **pas** un poste de travail : tout fichier **suivi** y est classé, et les
+**deux** scripts (`deploy-cd.sh` **et** `deploy.sh`) appliquent la même règle **avant** leur
+`git pull`. Parité et interdictions verrouillées par `tests/unit/deploy-source-sync.test.ts` :
+
+| Classe | Contenu (suivi) | Décision |
+|---|---|---|
+| `GENERATED` | `public/game-data/dungeon-monsters.json` (réécrit par le siphon via le bind mount) | **version du dépôt restaurée** (fichier éphémère) |
+| `REPO_OWNED` | médias **sans écrivain au runtime** : `game-data/achievements`, `images`, `assets`, `ordres`, `bonus_guilde`, `songes`, `module-dofus`, `banners` | **version du dépôt restaurée** |
+| `PRESERVED` | curation God : `ignored-monsters.json`, `ignored-bounties.json` | **version du serveur conservée** (mise de côté → pull → restaurée) |
+
+🚫 **Ne jamais mettre dans `REPO_OWNED`** : `public/game-data/{monsters,dungeons,legendary}`
+(leurs `.webp` sont **suivis ET réécrits** par la galerie God ⇒ restaurer écraserait une
+écriture volontaire), `public/uploads/**` (contenu utilisateur, **non suivi**), `ignored-*.json`
+(curation, classe `PRESERVED`). Un fichier **non suivi** n'est ni restauré, ni rapporté.
+
+### 🔁 Pourquoi `REPO_OWNED` existe (cause racine mesurée le 30/09/2026)
+
+Un fichier **binaire** suivi, modifié une fois sur le serveur, **ne converge jamais** avec
+`git pull --autostash` : le pop du stash binaire retombe sur l'ancien contenu (conflit →
+stash conservé) ou s'applique proprement quand le blob ne bouge pas dans le merge ⇒ **les
+mêmes fichiers reviennent à chaque déploiement**, indéfiniment. Cas mesuré : les **25**
+icônes de succès réécrites par la purge d'empreintes du 20/09/2026 (`7c69d579`) restaient
+« modifiées » côté serveur, plus `conquerant.png` (dernier changement : `b211517a`) — et
+**aucun** écrivain runtime ne touche ces dossiers (vérifié : tous les `writeFile*` de `src/`
+visent `public/uploads/**`, la galerie God `.webp` ou `prisma/seed-data/**`).
+
+**Diagnostic (10 s)** si un fichier **suivi** revient dans le message :
+
+```bash
+cd ~/SigilOS
+git status --porcelain --untracked-files=no | wc -l   # combien, et rien que du suivi
+git stash list                                        # un stash résiduel ? (git stash clear)
+git log -1 --oneline -- <fichier>                     # dernier changement côté dépôt
+git show HEAD:<fichier> | md5sum ; md5sum <fichier>   # l'écart est-il réel (contenu) ?
+```
+
+Le script écrit, **avant toute restauration**, un patch réversible dans
+`/tmp/sigilos-ecrase-*.patch` (`git apply <patch>` pour revenir) : rien ne disparaît en
+silence. Un média **volontairement** modifié côté serveur se **committe** — pour ces
+dossiers, c'est le dépôt qui fait foi.
+
 ## Déployer quand le VPS a des fichiers curés en local
 
 Les listes God (`public/game-data/ignored-monsters.json`, etc.) sont **modifiées sur
-le serveur** : elles sont donc toujours « sales » pour git.
+le serveur** : elles sont donc toujours « sales » pour git — et c'est **voulu** : elles
+appartiennent à la classe `PRESERVED` (tableau ci-dessus), la curation du serveur fait foi,
+le script les met de côté le temps du pull puis les restaure.
 
 ```bash
 # Le script le fait tout seul (sauvegarde hors de l'arbre → pull → restauration) :
@@ -107,6 +152,7 @@ imprime la cause probable. Il ne modifie rien.
 | Symptôme | Cause réelle | Correctif |
 |---|---|---|
 | `git pull` refuse / « local changes would be overwritten » | fichier curé modifié sur le serveur | géré par `git_fetch` (sauvegarde hors arbre → pull → restauration) |
+| ⚠️ « Des fichiers locaux sont modifiés » à **chaque** déploiement, **toujours les mêmes** | fichier **binaire** suivi modifié côté serveur : `--autostash` ne peut **pas** le résorber | géré par `git_fetch` (classes `GENERATED`/`REPO_OWNED` restaurées **avant** le pull) — voir § L'arbre de travail du serveur |
 | `git stash push` répond « No local changes to save » **puis** le merge refuse | bits `assume-unchanged` / `skip-worktree` → git aveugle | `git update-index --no-assume-unchanged --no-skip-worktree -- <fichier>` (voir juste au-dessus) |
 | Le deploy s'arrête à l'étape **1.5 « Vérification du tag »** | le tag n'a jamais été publié par la CI | regarder **Build & Push** dans Actions, relancer après le vert |
 | `no space left on device` pendant le pull | disque plein | `sudo docker system prune -af --volumes` |

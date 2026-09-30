@@ -34,7 +34,7 @@ Le script fait, dans l'ordre : `git fetch` → `git pull --autostash` → `prism
 deploy` → `docker login` GHCR → `docker pull` des 4 images (`app`, `worker`, `ws`,
 `discord-bot`) → `docker compose up -d` → healthchecks.
 
-## L'arbre de travail du serveur : trois classes, une décision par fichier
+## L'arbre de travail du serveur : quatre classes, une décision par fichier
 
 Le serveur n'est **pas** un poste de travail : tout fichier **suivi** y est classé, et les
 **deux** scripts (`deploy-cd.sh` **et** `deploy.sh`) appliquent la même règle **avant** leur
@@ -43,13 +43,16 @@ Le serveur n'est **pas** un poste de travail : tout fichier **suivi** y est clas
 | Classe | Contenu (suivi) | Décision |
 |---|---|---|
 | `GENERATED` | `public/game-data/dungeon-monsters.json` (réécrit par le siphon via le bind mount) | **version du dépôt restaurée** (fichier éphémère) |
-| `REPO_OWNED` | médias **sans écrivain au runtime** : `game-data/achievements`, `images`, `assets`, `ordres`, `bonus_guilde`, `songes`, `module-dofus`, `banners` | **version du dépôt restaurée** |
+| `REPO_OWNED` | médias **sans écrivain au runtime** : `game-data/achievements`, `images`, `assets`, `ordres`, `bonus_guilde`, `songes`, `module-dofus`, `banners` | **version du dépôt restaurée** (contenu **et** mode) |
 | `PRESERVED` | curation God : `ignored-monsters.json`, `ignored-bounties.json` | **version du serveur conservée** (mise de côté → pull → restaurée) |
+| `SERVER_OWNED` | écrits **par le serveur** : `game-data/{monsters,dungeons,legendary,invader,harvest-icons}` + les 7 JSON générés (`worldmap`, `worlds`, `zaaps`, `harvest-resources`, `bomb-dictionary{,-mixed}`, `secret-passages`) | **aucune écriture** : ni restaurés, ni signalés — **comptés à part** (information) |
 
-🚫 **Ne jamais mettre dans `REPO_OWNED`** : `public/game-data/{monsters,dungeons,legendary}`
-(leurs `.webp` sont **suivis ET réécrits** par la galerie God ⇒ restaurer écraserait une
-écriture volontaire), `public/uploads/**` (contenu utilisateur, **non suivi**), `ignored-*.json`
-(curation, classe `PRESERVED`). Un fichier **non suivi** n'est ni restauré, ni rapporté.
+🚫 **Ne jamais mettre dans `REPO_OWNED`** : `public/game-data/{monsters,dungeons,legendary}`,
+`invader`, `harvest-icons` ni les 7 JSON générés (classe `SERVER_OWNED` : le serveur y écrit —
+galerie God, panneau God, siphons), `public/uploads/**` (contenu utilisateur, **non suivi**),
+`ignored-*.json` (curation, classe `PRESERVED`). Seules les entrées de `git ls-files` sont
+examinées : un fichier **non suivi** n'est ni restauré ni rapporté, donc une **nouvelle** image
+déposée par la galerie God n'est jamais touchée.
 
 ### 🔁 Pourquoi `REPO_OWNED` existe (cause racine mesurée le 30/09/2026)
 
@@ -62,6 +65,21 @@ icônes de succès réécrites par la purge d'empreintes du 20/09/2026 (`7c69d57
 **aucun** écrivain runtime ne touche ces dossiers (vérifié : tous les `writeFile*` de `src/`
 visent `public/uploads/**`, la galerie God `.webp` ou `prisma/seed-data/**`).
 
+### 🔬 2ᵉ mesure (30/09/2026, VPS) : la divergence n'est pas toujours de contenu
+
+448 `M` mesurés sur le serveur (`git diff --numstat` + `stat -c %a`) :
+
+| Constat | Valeur | Conséquence |
+|---|---|---|
+| Divergence de **mode seul** (contenu identique) | **11** fichiers (les JSON) | `100644` → `100755` : git les voit « modifiés » à vie ⇒ la restauration doit remettre **le mode** |
+| Divergence de **contenu** | **436** binaires (+1 JSON curé) | ré-appliqués par le `stash pop` à chaque déploiement (mtime **identique** sur les 448) |
+| Mode des fichiers du serveur | **775** | vient de la synchro d'assets : `sync-assets.ps1` rsync `-a` **sans** `--chmod` (le `.sh` l'impose) |
+
+⚠️ **Défaut corrigé (prouvé, pas déduit)** : `dungeon-monsters.json`, de la classe `GENERATED`,
+figurait quand même dans le rapport — `cmp -s` est **aveugle au mode** et `git show HEAD:$f > $f`
+**préserve** le `775` du fichier local. Les boucles utilisent désormais
+`git diff --quiet HEAD -- "$f"` (garde) et `git checkout -- "$f"` (contenu **et** mode).
+
 **Diagnostic (10 s)** si un fichier **suivi** revient dans le message :
 
 ```bash
@@ -70,19 +88,26 @@ git status --porcelain --untracked-files=no | wc -l   # combien, et rien que du 
 git stash list                                        # un stash résiduel ? (git stash clear)
 git log -1 --oneline -- <fichier>                     # dernier changement côté dépôt
 git show HEAD:<fichier> | md5sum ; md5sum <fichier>   # l'écart est-il réel (contenu) ?
+git diff --numstat -- public/game-data                # `0 0` = MODE SEUL · `- -` = binaire
+git diff --summary -- public/game-data | head -3      # `mode change 100644 => 100755 <f>`
 ```
 
 Le script écrit, **avant toute restauration**, un patch réversible dans
 `/tmp/sigilos-ecrase-*.patch` (`git apply <patch>` pour revenir) : rien ne disparaît en
 silence. Un média **volontairement** modifié côté serveur se **committe** — pour ces
-dossiers, c'est le dépôt qui fait foi.
+dossiers, c'est le dépôt qui fait foi. Pour les chemins `SERVER_OWNED`, c'est l'**inverse** : le
+serveur fait foi, aucune écriture n'a lieu, et une modification du dépôt sur ces chemins ne
+s'applique **pas** toute seule (arbitrage du 30/09/2026 — à rouvrir si la propagation devient
+nécessaire).
 
 Le **rapport de fin** ne nomme que les vraies surprises. Les caches runtime **non suivis**
 (`.webp` de la galerie God, proxy-cache, preuves téléversées) ne sont pas comptés — ils ne
 bloquent pas le pull. Les listes curées non plus : elles sont remises à la version du dépôt
 **avant** le rapport (mise de côté → pull → restaurée juste après), donc elles n'apparaissent
-jamais en avertissement. Ce qui reste = un fichier **hors** des trois classes, c'est-à-dire une
-édition locale assumée : le committer, ou `git checkout -- <fichier>` / `git stash`.
+jamais en avertissement. Les fichiers `SERVER_OWNED` sont affichés en **information**, avec leur
+détail par dossier (`monsters=63 harvest-icons=84 …`), jamais en avertissement. Ce qui reste = un
+fichier **hors** des quatre classes, c'est-à-dire une édition locale assumée : le committer, ou
+`git checkout -- <fichier>` / `git stash`.
 
 ## Déployer quand le VPS a des fichiers curés en local
 
@@ -159,7 +184,8 @@ imprime la cause probable. Il ne modifie rien.
 | Symptôme | Cause réelle | Correctif |
 |---|---|---|
 | `git pull` refuse / « local changes would be overwritten » | fichier curé modifié sur le serveur | géré par `git_fetch` (sauvegarde hors arbre → pull → restauration) |
-| ⚠️ « Des fichiers locaux sont modifiés » à **chaque** déploiement, **toujours les mêmes** | fichier **binaire** suivi modifié côté serveur : `--autostash` ne peut **pas** le résorber | géré par `git_fetch` (classes `GENERATED`/`REPO_OWNED` restaurées **avant** le pull) — voir § L'arbre de travail du serveur |
+| ℹ️ « N fichier(s) suivi(s) portés par CE serveur » | écritures **légitimes** du serveur (galerie God, panneau God, siphons) | **rien à faire** : classe `SERVER_OWNED`, ni restaurée ni signalée ; le détail par dossier est affiché |
+| ⚠️ « Des fichiers suivis modifiés hors des classes connues » à **chaque** déploiement, **toujours les mêmes** | fichier **binaire** suivi modifié côté serveur : `--autostash` ne peut **pas** le résorber | géré par `git_fetch` (classes `GENERATED`/`REPO_OWNED` restaurées **avant** le pull) — voir § L'arbre de travail du serveur |
 | `git stash push` répond « No local changes to save » **puis** le merge refuse | bits `assume-unchanged` / `skip-worktree` → git aveugle | `git update-index --no-assume-unchanged --no-skip-worktree -- <fichier>` (voir juste au-dessus) |
 | Le deploy s'arrête à l'étape **1.5 « Vérification du tag »** | le tag n'a jamais été publié par la CI | regarder **Build & Push** dans Actions, relancer après le vert |
 | `no space left on device` pendant le pull | disque plein | `sudo docker system prune -af --volumes` |

@@ -267,6 +267,19 @@ git_fetch() {
     # suivi —, `public/game-data/{monsters,dungeons,legendary}/*.webp` — galerie God — et
     # `prisma/seed-data/**` — exports God) ⇒ la version du dépôt fait foi, on la RESTAURE
     # avant le pull : l'arbre redevient propre, plus rien à ré-appliquer, le tour est cassé.
+    #
+    # 2e mesure du 30/09/2026 (retour terrain : `git diff --numstat` sur le VPS) — les 448 `M`
+    # de `public/game-data/**` se répartissent en **11 divergences de MODE SEUL** (les JSON :
+    # `old mode 100644` → `new mode 100755`, **zéro** ligne de contenu — le `+x` vient de la
+    # synchro d'assets : `sync-assets.ps1` n'impose pas le `--chmod` que porte déjà
+    # `sync-assets.sh`) et **436 binaires au contenu différent** (génération du dépôt jamais
+    # appliquée : le pop de l'autostash ré-applique les octets du serveur à chaque
+    # déploiement — d'où un mtime IDENTIQUE sur les 448 fichiers).
+    # ⇒ La restauration DOIT couvrir le mode : `git show HEAD:$f > $f` écrit le contenu mais
+    # **préserve** le mode local (`775`) — c'est exactement pourquoi `dungeon-monsters.json`,
+    # pourtant dans la classe ci-dessus, restait listé « modifié » au rapport. `git checkout --`
+    # remet contenu **et** mode de l'index, et la garde `git diff --quiet` (contrairement à
+    # `cmp -s`) voit les deux.
     # ⚠️ Ne JAMAIS y mettre `public/game-data/{monsters,dungeons,legendary}` : leurs `.webp`
     #    SONT suivis ET réécrits par la galerie God (écriture volontaire côté serveur).
     # ➕ Un nouveau dossier de médias suivis sans écrivain runtime s'ajoute ICI — le test
@@ -291,9 +304,41 @@ git_fetch() {
         "public/game-data/ignored-bounties.json"
     )
 
-    # ─── Deux listes, une seule décision par fichier ─────────────────────────────
-    # RESTORE : la version du DÉPÔT fait foi (artefact éphémère + médias ci-dessus).
-    # KEEP    : la CURATION DU SERVEUR fait foi (listes God), mise de côté puis restaurée.
+    # ─── Fichiers SUIVIS que CE SERVEUR porte légitimement : jamais toucher, jamais alerter ───
+    # Mesure du 30/09/2026 sur le VPS (448 `M`) : les 436 binaires de ces 5 dossiers et ces 7
+    # JSON sont réécrits CÔTÉ SERVEUR (galerie d'images God, panneau God, scripts de siphon :
+    # `sync-worldmap*.ts`, `compile-harvest-and-zaaps.ts`, `generate-bomb-dictionary.ts`,
+    # `download-invader-assets.ts`) et git ne les rattrape JAMAIS : le `stash pop` de
+    # `--autostash` les ré-applique à chaque déploiement. Mesure : 100 % des fichiers SUIVIS de
+    # ces dossiers sont concernés (189/189 invader, 84/84 harvest-icons, 84/84 dungeons,
+    # 63/63 monsters, 17/17 legendary).
+    # ⇒ On n'y touche PAS (aucune perte possible) et on cesse de les présenter comme une alerte :
+    #    ils sont comptés à part, à titre d'information, dans le rapport de fin. Un cache
+    #    d'images se régénère (`docs/MAINTENANCE.md` § purge du cache monstres) ; une donnée du
+    #    panneau God, elle, n'existe QUE sur ce serveur.
+    # ⚠️ Conséquence assumée (arbitrage du 30/09/2026, réversible) : une modification du dépôt
+    #    sur ces chemins ne s'applique pas toute seule ici — la donnée du serveur est
+    #    prioritaire. À rouvrir si la propagation devient nécessaire (voir `docs/ROADMAP.md`).
+    local SERVER_OWNED=(
+        "public/game-data/monsters"
+        "public/game-data/dungeons"
+        "public/game-data/legendary"
+        "public/game-data/invader"
+        "public/game-data/harvest-icons"
+        "public/game-data/worldmap.json"
+        "public/game-data/worlds.json"
+        "public/game-data/zaaps.json"
+        "public/game-data/harvest-resources.json"
+        "public/game-data/bomb-dictionary.json"
+        "public/game-data/bomb-dictionary-mixed.json"
+        "public/game-data/secret-passages.json"
+    )
+
+    # ─── Trois listes, une seule décision par fichier ────────────────────────────
+    # RESTORE      : la version du DÉPÔT fait foi (artefact éphémère + médias ci-dessus).
+    # KEEP         : la CURATION DU SERVEUR fait foi (listes God), mise de côté puis restaurée.
+    # SERVER_OWNED : le SERVEUR fait foi et on n'y TOUCHE PAS — ces fichiers ne sont ni
+    #                restaurés ni signalés, seulement comptés à part dans le rapport.
     # Un chemin peut être un FICHIER ou un DOSSIER : `git ls-files` dit ce qui est SUIVI,
     # donc les caches runtime NON suivis (`.webp` de la galerie God, proxy-cache, preuves)
     # ne sont jamais ni restaurés ni rapportés ici.
@@ -343,11 +388,13 @@ git_fetch() {
     for f in "${RESTORE[@]}"; do
         [[ -f "$f" ]] || continue
         git cat-file -e "HEAD:$f" 2>/dev/null || continue
-        if ! git show "HEAD:$f" 2>/dev/null | cmp -s - "$f"; then
-            RESTORED=$((RESTORED + 1))
-            dim "  → fichier suivi : $f (restauration de la version du dépôt)"
-            git show "HEAD:$f" > "$f"
-        fi
+        # `git diff` et pas `cmp` : la divergence peut être une divergence de MODE seul.
+        git diff --quiet HEAD -- "$f" 2>/dev/null && continue
+        RESTORED=$((RESTORED + 1))
+        dim "  → fichier suivi : $f (contenu + mode du dépôt)"
+        # `git checkout` remet contenu ET mode de l'index ; un `>` sur le fichier existant
+        # aurait laissé le `+x` du serveur ⇒ le `M` serait revenu au déploiement suivant.
+        git checkout -- "$f" 2>/dev/null || warn "  → $f : restauration impossible (git checkout en échec)"
     done
 
     if (( RESTORED > 0 )); then
@@ -361,27 +408,50 @@ git_fetch() {
     for f in "${PRESERVED[@]}"; do
         [[ -f "$f" ]] || continue
         git cat-file -e "HEAD:$f" 2>/dev/null || continue
-        if ! git show "HEAD:$f" 2>/dev/null | cmp -s - "$f"; then
-            [[ -n "$PRESERVE_DIR" ]] || PRESERVE_DIR="$(mktemp -d)"
-            cp "$f" "$PRESERVE_DIR/$(basename "$f")"
-            dim "  → donnée locale conservée : $f (mise de côté hors de l'arbre)"
-            git show "HEAD:$f" > "$f"
-        fi
+        # Même garde que ci-dessus : `cmp` serait aveugle au mode, `git diff` non.
+        git diff --quiet HEAD -- "$f" 2>/dev/null && continue
+        [[ -n "$PRESERVE_DIR" ]] || PRESERVE_DIR="$(mktemp -d)"
+        cp "$f" "$PRESERVE_DIR/$(basename "$f")"
+        dim "  → donnée locale conservée : $f (mise de côté hors de l'arbre)"
+        # Version du dépôt remise (contenu + mode) : sans le mode, le rapport ci-dessous la
+        # compterait comme « modifiée » et le pull la stasherait pour rien.
+        git checkout -- "$f" 2>/dev/null || warn "  → $f : mise en conformité impossible (git checkout en échec)"
     done
 
     # ── Rapport : ce qui reste VRAIMENT modifié à la main sur le serveur ─────────
     # `--untracked-files=no` : les caches runtime NON suivis (`.webp` de la galerie God,
     # proxy-cache, preuves téléversées) ne bloquent pas le pull et noyaient le message
-    # (30/09/2026). Ce qui reste = fichiers SUIVIS hors des classes ci-dessus = édition
-    # locale assumée : `--autostash` les met de côté, pull, puis les réapplique.
+    # (30/09/2026). Les fichiers SUIVIS sont séparés en deux :
+    #   · portés par CE serveur (classe `SERVER_OWNED`) → simple information, aucune action ;
+    #   · hors des classes connues → là seulement une alerte (édition locale inattendue).
+    local DIRTY SERVER_DIRTY="" OTHER_DIRTY="" line is_server
     DIRTY="$(git status --porcelain --untracked-files=no 2>/dev/null)"
-    if [[ -n "$DIRTY" ]]; then
-        warn "Des fichiers locaux sont modifiés — ils seront stashed puis réappliqués (--autostash)."
-        printf '%s\n' "$DIRTY" | sed 's/^/     /'
-        dim "  → $(printf '%s\n' "$DIRTY" | grep -c . || true) fichier(s) suivi(s) hors des classes connues (artefact éphémère · média sans écrivain · curation God)."
+    while IFS= read -r line; do
+        [[ -n "$line" ]] || continue
+        f="${line:3}"
+        is_server=0
+        for p in "${SERVER_OWNED[@]}"; do
+            [[ "$f" == "$p" || "$f" == "$p"/* ]] && { is_server=1; break; }
+        done
+        if (( is_server )); then
+            SERVER_DIRTY="${SERVER_DIRTY}${line}"$'\n'
+        else
+            OTHER_DIRTY="${OTHER_DIRTY}${line}"$'\n'
+        fi
+    done <<< "$DIRTY"
+
+    if [[ -n "$SERVER_DIRTY" ]]; then
+        dim "  ℹ️  $(printf '%s\n' "$SERVER_DIRTY" | grep -c . || true) fichier(s) suivi(s) portés par CE serveur — laissés tels quels, rien à faire :"
+        dim "     $(printf '%s\n' "$SERVER_DIRTY" | awk 'length($0)>0 { p=substr($0,4); n=split(p,a,"/"); print (n>3 ? a[3] : "JSON") }' | sort | uniq -c | sort -rn | awk '{printf "%s=%s ", $2, $1}')"
+        dim "     → images de jeu (caches de la galerie God) et données générées par le panneau God."
+    fi
+    if [[ -n "$OTHER_DIRTY" ]]; then
+        warn "Des fichiers suivis modifiés hors des classes connues — ils seront stashed puis réappliqués (--autostash)."
+        printf '%s' "$OTHER_DIRTY" | sed 's/^/     /'
+        dim "  → $(printf '%s\n' "$OTHER_DIRTY" | grep -c . || true) fichier(s) : édition locale assumée sur le serveur."
         dim "  → Pour rétablir à la main : git checkout -- <fichier>   (ou   git stash)"
     else
-        ok "Aucun autre fichier suivi modifié — arbre aligné sur le dépôt."
+        ok "Aucun fichier suivi modifié hors des classes connues — arbre aligné sur le dépôt."
     fi
     # `--autostash` reste la ceinture de sécurité pour tout autre fichier modifié à la
     # main sur le serveur : mise de côté, pull, ré-application. Un conflit de

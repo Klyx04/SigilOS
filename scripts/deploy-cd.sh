@@ -50,14 +50,21 @@ step() {
 # Barre de progression cosmétique (style 2026).
 #   bar <libellé> <fait> <total> <largeur=30>
 bar() {
+    # Une seule ligne, réécrite en place : inutile (et illisible) hors terminal.
+    [[ -t 1 ]] || return 0
+
     local label="$1" done="$2" total="$3" width="${4:-30}"
     local pct=0 filled=0
     if (( total > 0 )); then pct=$(( done * 100 / total )); fi
+    (( pct > 100 )) && pct=100
     filled=$(( pct * width / 100 ))
     local left right
     left="$(printf '█%.0s' $(seq 1 "$filled") 2>/dev/null)"
     right="$(printf '░%.0s' $(seq 1 "$(( width - filled ))") 2>/dev/null)"
-    printf "\r  ${C_DIM}%-20s${C_RESET} [${C_GREEN}%s${C_DIM}%s${C_RESET}] ${C_BOLD}%3d%%${C_RESET}" "$label" "$left" "$right" "$pct"
+    # `\033[K` efface la fin de la ligne : sans lui, le message suivant (plus court
+    # que la barre, ex. « ✓ téléchargée ») laissait un morceau de barre affiché
+    # derrière lui — défaut visuel relevé le 30/09/2026 (« …téléchargée███░] 91%% »).
+    printf "\r\033[K  ${C_DIM}%-20s${C_RESET} [${C_GREEN}%s${C_DIM}%s${C_RESET}] ${C_BOLD}%3d%%${C_RESET}" "$label" "$left" "$right" "$pct"
 }
 
 # -----------------------------------------------------------------------------
@@ -499,7 +506,7 @@ run_conditional_seed() {
         # Borne de sécurité 15 min (le seed peut être long, mais jamais muet :
         # la sortie est désormais affichée en direct).
         compose_exec_streamed "$ENV_FILE" "$APP_SERVICE" 900 "$SEED_LOG" \
-            "npm run seed:game-data:prod" || SEED_RC=$?
+            "NO_UPDATE_NOTIFIER=1 npm_config_update_notifier=false npm run --silent seed:game-data:prod" || SEED_RC=$?
         if (( SEED_RC == 0 )); then
             ok "Données de jeu synchronisées."
         else
@@ -514,10 +521,17 @@ run_conditional_seed() {
         dim "   Données de jeu inchangées — seed ignoré (gain de temps)."
     fi
 
-    # Synchronisation de la documentation officielle
+    # Synchronisation de la documentation officielle.
+    # `--silent` + `NO_UPDATE_NOTIFIER` (comme l'étape 4) : sans eux, npm déversait
+    # son bandeau de script et sa pub de mise à jour (« npm notice New major
+    # version… ») au milieu de la sortie — bruit sans rapport avec le déploiement.
     info "   Synchronisation de la documentation ${TARGET^^}..."
-    sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" exec "$APP_SERVICE" npm run seed:docs:prod || warn "Seed docs ignoré ou non-critique"
-    ok "Documentation à jour."
+    if sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" exec "$APP_SERVICE" \
+        sh -c 'NO_UPDATE_NOTIFIER=1 npm_config_update_notifier=false npm run --silent seed:docs:prod'; then
+        ok "Documentation à jour."
+    else
+        warn "Seed docs ignoré ou non-critique."
+    fi
 }
 
 # -----------------------------------------------------------------------------
@@ -536,8 +550,11 @@ pull_image() {
     fi
     # Docker écrit sa progression avec des \r → on les transforme en \n pour
     # compter les couches téléchargées et afficher un % lisible.
-    # On garde aussi la sortie BRUTE : en cas d'échec on affiche la cause réelle
-    # (disque plein, tag introuvable, 403 GHCR…) au lieu d'un « ✗ ÉCHEC » muet.
+    # La sortie BRUTE est consommée par la boucle ci-dessous et conservée dans
+    # $PULL_LOG : elle ne s'affiche donc PAS à l'écran (mélangée à la barre, elle
+    # laissait des morceaux de texte), mais elle reste disponible pour donner la
+    # cause réelle d'un échec (disque plein, tag introuvable, 403 GHCR…) au lieu
+    # d'un « ✗ ÉCHEC » muet.
     local PULL_LOG
     PULL_LOG="$(mktemp)"
     sudo docker pull "${IMG}:${SHA}" 2>&1 | tr '\r' '\n' | tee "$PULL_LOG" | while IFS= read -r line; do
@@ -551,9 +568,18 @@ pull_image() {
     if sudo docker image inspect "${IMG}:${SHA}" >/dev/null 2>&1; then
         # Retag :latest local (le compose utilise :latest avec --no-build)
         sudo docker tag "${IMG}:${SHA}" "sigilos-${NAME}-${TARGET}:latest" 2>/dev/null
-        printf "\r  ${C_DIM}%-20s${C_RESET} ${C_GREEN}✓ téléchargée${C_RESET}\n" "$NAME"
+        # Dernière trame forcée à 100 % : le % compte les COUCHES (docker peut en
+        # annoncer une de moins que comptées), donc il pouvait s'arrêter à 91 %
+        # alors que l'image est complète — `inspect` vient justement de le prouver.
+        bar "$NAME" 1 1
+        # Puis cette ligne ÉCRASE la barre (`\r\033[K`) et donne la TAILLE réelle :
+        # sans l'effacement, le reste de la barre dépassait après le « ✓ ».
+        local SIZE_BYTES
+        SIZE_BYTES="$(sudo docker image inspect "${IMG}:${SHA}" --format '{{.Size}}' 2>/dev/null || echo 0)"
+        [[ "$SIZE_BYTES" =~ ^[0-9]+$ ]] || SIZE_BYTES=0
+        printf "\r\033[K  ${C_DIM}%-20s${C_RESET} ${C_GREEN}✓ téléchargée${C_RESET} ${C_DIM}(%s Mo)${C_RESET}\n" "$NAME" "$(( SIZE_BYTES / 1048576 ))"
     else
-        printf "\r  ${C_DIM}%-20s${C_RESET} ${C_RED}✗ ÉCHEC${C_RESET}\n" "$NAME"
+        printf "\r\033[K  ${C_DIM}%-20s${C_RESET} ${C_RED}✗ ÉCHEC${C_RESET}\n" "$NAME"
         dim "     cause : docker pull ${IMG}:${SHA}"
         grep -viE 'Pulling fs layer|Waiting|Downloading|Extracting|Pull complete|Already exists|Verifying Checksum|Download complete|^$' "$PULL_LOG" | tail -3 | sed 's/^/     /'
         dim "     repères : espace disque (df -h) · tags publiés (./scripts/deploy-cd.sh list beta) · expiration GHCR_TOKEN"
@@ -788,10 +814,10 @@ deploy() {
         fail "Échec au démarrage des conteneurs."
     fi
 
-    step "4" "Base de données" "Met à jour la structure de la BDD (tables/colonnes), migre les fichiers uploads vers le stockage privé. Les messages npm inutiles sont masqués."
+    step "4" "Base de données" "Met à jour la structure de la base (tables/colonnes) et range les fichiers « uploads » dans le stockage privé. Seules les migrations absentes de la base sont appliquées — aucune ne rejoue, aucune donnée n'est effacée."
     info "   Migration des fichiers uploads..."
     if sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" exec app-${TARGET} sh -c 'NO_UPDATE_NOTIFIER=1 npm_config_update_notifier=false npm run --silent migrate:uploads'; then
-        ok "Uploads migrés."
+        ok "Uploads rangés dans le stockage privé."
     else
         err "Échec migration uploads."
         exit 1
@@ -820,7 +846,17 @@ deploy() {
         "NO_UPDATE_NOTIFIER=1 npm_config_update_notifier=false ${PRISMA_CMD} migrate deploy" || MIGRATE_RC=$?
     if (( MIGRATE_RC == 0 )); then
         if grep -qi "no pending migrations" "$MIGRATE_LOG"; then
-            ok "Base à jour — aucune migration en attente ($(( SECONDS - MIGRATE_T0 ))s)."
+            # « N migrations found in prisma/migrations » : N = les migrations du
+            # DÉPÔT (une par changement de schéma déjà validé). Prisma compare cette
+            # liste à la table `_prisma_migrations` de la base et n'applique QUE la
+            # différence. On redonne le compte : c'est la question n° 1 du lecteur.
+            local KNOWN_MIGRATIONS
+            KNOWN_MIGRATIONS="$(grep -oE '[0-9]+ migrations? found' "$MIGRATE_LOG" | head -1 | cut -d' ' -f1)"
+            if [[ -n "$KNOWN_MIGRATIONS" ]]; then
+                ok "Base à jour — ${KNOWN_MIGRATIONS} migrations connues, aucune à appliquer ($(( SECONDS - MIGRATE_T0 ))s)."
+            else
+                ok "Base à jour — aucune migration en attente ($(( SECONDS - MIGRATE_T0 ))s)."
+            fi
         else
             ok "Migrations appliquées ($(( SECONDS - MIGRATE_T0 ))s)."
         fi

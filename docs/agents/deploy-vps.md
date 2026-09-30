@@ -34,6 +34,55 @@ Le script fait, dans l'ordre : `git fetch` → `git pull --autostash` → `prism
 deploy` → `docker login` GHCR → `docker pull` des 4 images (`app`, `worker`, `ws`,
 `discord-bot`) → `docker compose up -d` → healthchecks.
 
+## Lire la sortie du déploiement, de haut en bas
+
+Le script s'explique lui-même : chaque étape annonce **ce qu'elle fait** et **pourquoi**.
+Tableau de lecture — tout ce qui suit est **normal** ; seules les lignes `⚠` demandent une
+décision. Verrouillé par `tests/unit/deploy-sortie-visible.test.ts` :
+
+| Ce qui s'affiche | Ce que ça veut dire |
+|---|---|
+| `→ donnée locale conservée puis restaurée : <fichier>` | fichier **suivi** mis de côté hors de l'arbre, puis remis en place (classe `PRESERVED`) — voir § L'arbre de travail |
+| `✓ Code source à jour (branche dev, <sha>)` | l'arbre du serveur est au commit de `origin/dev` (le déploiement n'en dépend pas : les images viennent de la CI) |
+| **ÉTAPE 1/5** `✓ Connecté au registre ghcr.io/…` | lecture des images privées avec `GHCR_TOKEN` (droit de **lecture** uniquement) |
+| **ÉTAPE 2/5** `app ✓ téléchargée (312 Mo)` | les **4 images** construites par la CI sont téléchargées — **aucun build** sur le serveur |
+| **ÉTAPE 3/5** `Container … Healthy` | les 6 conteneurs (db, redis, app, worker, ws, bot) redémarrent sur les nouvelles images et passent leur sonde de santé |
+| **ÉTAPE 4/5** `N fichier(s) déplacé(s) de public/uploads vers private_uploads (dossier: N)` | rangement des « uploads » : `public/uploads` est servi **en direct**, `private_uploads` seulement par les routes gardées (`/api/storage/…`, `/api/upload`). Rejoué à **chaque** déploiement |
+| **ÉTAPE 4/5** `262 migrations found in prisma/migrations` puis `Base à jour — 262 migrations connues, aucune à appliquer` | `262` = les migrations **du dépôt** (une par changement de schéma déjà validé). Prisma compare cette liste à la table `_prisma_migrations` de la base et n'applique **que la différence** ⇒ ici rien à faire, **aucune donnée touchée** |
+| **ÉTAPE 4/5** `✓ Schéma déjà à jour` (beta seulement) | `db push` : la base **beta** reçoit les écarts de schéma sans fichier de migration (itération rapide). Volontairement **absent en prod** |
+| **ÉTAPE 5/5** `Données de jeu inchangées — seed ignoré` | le seed de `game-data.json` ne tourne que si son **hash** a changé depuis le dernier déploiement |
+| **ÉTAPE 5/5** `✅ Synchronisation terminée : 0 créées, 30 mises à jour` | les fiches de `src/lib/docs-catalog.ts` sont réécrites en base (idempotent : `0 créées` est normal) |
+| `⚠  Des fichiers locaux sont modifiés` | fichiers **suivis** modifiés sur le serveur **hors** des classes connues : à comprendre, pas à ignorer (§ L'arbre de travail) |
+| `ℹ️  N fichier(s) suivi(s) portés par CE serveur — laissés tels quels` | médias/JSON que le serveur écrit lui-même (`SERVER_OWNED`) : comptés **à part**, jamais touchés, **rien à faire** |
+| `✓ Proxy Caddy à jour` · `✓ / → HTTP 200` · `✓ …/api/health → HTTP 200` | contrôles post-déploiement : config du proxy, robots/sitemap, pages clés, santé |
+
+### Bruit supprimé et questions déjà posées (mesures du 30/09/2026)
+
+- **`npm notice New major version of npm available!`** : c'était npm publiant sa propre mise à
+  jour au milieu de l'étape 5. Tous les appels passent maintenant par `npm run --silent` +
+  `NO_UPDATE_NOTIFIER=1` (dans **les deux** scripts) ⇒ plus de bandeau
+  `> temp-sigil@0.1.0 seed:docs:prod` non plus.
+- **Barre qui semble bloquée à 91 %** (`app ✓ téléchargée█████░░]  91%%`) : deux défauts
+  d'**affichage**, jamais un téléchargement incomplet. (a) le `✓` était écrit avec `\r` **sans
+  effacer la fin de la ligne** ⇒ le reste de la barre (plus longue) restait visible à droite ;
+  (b) le `%` compte les **couches** Docker, pas les octets, et pouvait s'arrêter avant la fin.
+  Désormais : dernière trame forcée à **100 %**, ligne finale effacée puis réécrite avec la
+  **taille** de l'image, et la barre ne s'affiche **que sur un terminal** (dans un log redirigé
+  elle écrirait du bruit — mesuré : **0 octet**).
+- **`310 fichier(s) migré(s) (autres: 310)`** : le libellé venait d'une liste blanche de
+  4 dossiers dans `scripts/migrate-uploads.mjs` ; tout le reste tombait dans « autres ». Le
+  résumé nomme maintenant le **premier dossier réel** (`assets-dofus: 310`, `proofs: 12`…) et
+  dit **d'où viennent** et **où vont** les fichiers. Le nombre compte les fichiers déplacés
+  **lors de ce déploiement** — ce n'est pas un stock qui grossit.
+
+Pour savoir ce que contient `public/uploads` **sans déployer** (et donc ce que la prochaine
+étape 4 va ranger) :
+
+```bash
+sudo docker compose -f docker-compose.prod.yml --env-file .env.beta exec app-beta \
+  sh -c 'find public/uploads -type f | sed "s|^public/uploads/||; s|/[^/]*$||" | sort | uniq -c | sort -rn'
+```
+
 ## L'arbre de travail du serveur : quatre classes, une décision par fichier
 
 Le serveur n'est **pas** un poste de travail : tout fichier **suivi** y est classé, et les

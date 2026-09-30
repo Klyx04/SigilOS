@@ -158,7 +158,10 @@ run_conditional_seed() {
 
     if [ "$SEED_ALWAYS" == "1" ] || [ "$CURRENT_HASH" != "$PREV_HASH" ]; then
         info "🌱 Seeding des données de jeu ${TARGET^^} (données modifiées)..."
-        sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" exec "$APP_SERVICE" npm run seed:game-data:prod
+        # `--silent` + notifier coupé : sans eux, npm déverse son bandeau de script
+        # et sa pub de mise à jour (« npm notice New major version… ») dans la sortie.
+        sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" exec "$APP_SERVICE" \
+            sh -c 'NO_UPDATE_NOTIFIER=1 npm_config_update_notifier=false npm run --silent seed:game-data:prod'
         echo "$CURRENT_HASH" > "$HASH_FILE"
         ok "Seed terminé."
     else
@@ -167,8 +170,12 @@ run_conditional_seed() {
 
     # Documentation synchronization
     info "📚 Synchronisation de la documentation ${TARGET^^}..."
-    sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" exec "$APP_SERVICE" npm run seed:docs:prod || warn "Seed docs ignoré ou non-critique"
-    ok "Documentation à jour."
+    if sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" exec "$APP_SERVICE" \
+        sh -c 'NO_UPDATE_NOTIFIER=1 npm_config_update_notifier=false npm run --silent seed:docs:prod'; then
+        ok "Documentation à jour."
+    else
+        warn "Seed docs ignoré ou non-critique"
+    fi
 }
 
 # -----------------------------------------------------------------------------
@@ -237,7 +244,8 @@ if [ "$TARGET" == "beta" ]; then
     sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" up -d --no-build --wait app-beta worker-beta ws-beta discord-bot-beta
 
     info "📂 Migration des fichiers vers Private Storage BÊTA..."
-    sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" exec app-beta npm run migrate:uploads
+    sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" exec app-beta \
+        sh -c 'NO_UPDATE_NOTIFIER=1 npm_config_update_notifier=false npm run --silent migrate:uploads'
 
     info "🧹 Synchronisation des migrations BÊTA..."
     sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" exec app-beta npx --yes prisma@7.9.1 migrate deploy
@@ -277,7 +285,8 @@ else
     sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" up -d --no-build --wait app-prod worker-prod ws-prod discord-bot-prod
 
     info "📂 Migration des fichiers vers Private Storage PROD..."
-    sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" exec app-prod npm run migrate:uploads
+    sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" exec app-prod \
+        sh -c 'NO_UPDATE_NOTIFIER=1 npm_config_update_notifier=false npm run --silent migrate:uploads'
 
     info "🧹 Synchronisation des migrations PRODUCTION..."
     sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" exec app-prod npx --yes prisma@7.9.1 migrate deploy

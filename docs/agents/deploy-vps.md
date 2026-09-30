@@ -77,6 +77,13 @@ Le script écrit, **avant toute restauration**, un patch réversible dans
 silence. Un média **volontairement** modifié côté serveur se **committe** — pour ces
 dossiers, c'est le dépôt qui fait foi.
 
+Le **rapport de fin** ne nomme que les vraies surprises. Les caches runtime **non suivis**
+(`.webp` de la galerie God, proxy-cache, preuves téléversées) ne sont pas comptés — ils ne
+bloquent pas le pull. Les listes curées non plus : elles sont remises à la version du dépôt
+**avant** le rapport (mise de côté → pull → restaurée juste après), donc elles n'apparaissent
+jamais en avertissement. Ce qui reste = un fichier **hors** des trois classes, c'est-à-dire une
+édition locale assumée : le committer, ou `git checkout -- <fichier>` / `git stash`.
+
 ## Déployer quand le VPS a des fichiers curés en local
 
 Les listes God (`public/game-data/ignored-monsters.json`, etc.) sont **modifiées sur

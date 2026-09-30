@@ -209,7 +209,7 @@ export const guide = {
 
         <div class="callout callout-tip">
             <strong>Two strategies to neutralize Moraympress</strong>
-            <p><strong>Strategy A (Corner lock):</strong> Pandawa isolates Moraympress into a corner and locks her between 2 of her own Murays. By locking both summons with a tanky ally, Moraympress is completely paralyzed and cannot summon.<br /><strong>Strategy B (Safe distance):</strong> Keep all damage dealers at more than 10 Range from Moraympress at start. Without targets in her 10 Range spell cast area, she cannot summon any Muray.</p>
+            <p><strong>Absolute priority:</strong> Kill the 3 regular accompaniment monsters first (Madreporor, Kokapebble, Leviatank) to clear lines of sight.<br /><strong>Strategy A (Corner lock):</strong> Pandawa isolates Moraympress into a corner and locks her between 2 of her own Murays or static summons. By locking both summons with a tanky ally, Moraympress is completely paralyzed and cannot summon.<br /><strong>Strategy B (Safe distance):</strong> Keep all damage dealers at more than 10 Range from Moraympress at start. Without targets in her 10 Range spell cast area, she cannot summon any Muray.</p>
         </div>
 
         <div class="guide-image-container">
@@ -230,12 +230,12 @@ export const guide = {
 
         <div class="guide-image-container">
             <img src="/images/guides/gigalodon/62-mur-luminarium.jpg" alt="The Luminarium wall" class="guide-image" />
-            <span class="guide-caption">4x4 lantern fish grid of the Luminarium</span>
+            <span class="guide-caption">4x4 lantern fish grid on the Luminarium wall</span>
         </div>
 
         <div class="callout callout-warning">
-            <strong>Guild rule: Only 1 player touches the puzzle</strong>
-            <p>Assign <strong>one designated player</strong> to click the 4x4 grid. If several teammates click at once, toggle states will desync and waste precious minutes on the instance timer.</p>
+            <strong>Guild rule: Only 1 player touches the wall grid</strong>
+            <p>Assign <strong>one designated player</strong> to click the 4x4 lantern fish on the vertical wall (click them on the wall, not floor tiles!). If several teammates click at once, toggle states will desync and waste precious minutes on the instance timer.</p>
         </div>
 
         <p><strong>Fast solving method (Lights Out algorithm):</strong></p>
@@ -315,7 +315,7 @@ export const guide = {
 
         <div class="callout callout-important">
             <strong>THE STRATEGIC RAID PIVOT: Shortcut Loop (20% Drop Rate)</strong>
-            <p><strong>Do not dive directly into floor -5!</strong> Key fragment 4 drop rate from Krak'Haine monsters scales with deposited chest score: 1% below 5,000 pts, 5% between 5,000 and 7,000 pts, 10% between 7,000 and 10,000 pts, and <strong>20% beyond 10,000 points</strong>!<br />By heading back to deposit Moraympress (1,000 pts), Crabinator (5,000 pts) and collected minerals (over 4,000 pts), you instantly pass the 10,000 points threshold. Fragment 4 then drops in 1 or 2 fights instead of grinding for 25 minutes!</p>
+            <p><strong>Do not dive directly into floor -5!</strong> Key fragment 4 drop rate from Krak'Haine monsters scales with deposited chest score: 1% below 5,000 pts, 5% between 5,000 and 7,000 pts, 10% between 7,000 and 10,000 pts, and <strong>20% beyond 10,000 points</strong>!<br /><strong>Crucial note: trading is strictly forbidden in raids.</strong> Every player carries their own loot in their personal raid pouch: <strong>all 12 participants must head back up to the chest</strong> to deposit their Moraympress relic (1,000 pts), Crabinator relic (5,000 pts) and collected minerals. Passing 10,000 points unlocks the 20% drop rate so fragment 4 drops in 1 or 2 fights instead of 25 minutes of grinding!</p>
         </div>
 
         <h3>Express Return & Deposit Sequence</h3>
@@ -323,7 +323,7 @@ export const guide = {
             <li>From [6,10], click the lantern fish shortcut to reappear on floor -2 at [4,8].</li>
             <li>Run <pre><code>/travel 2,7</code></pre> then <pre><code>/travel 3,2</code></pre></li>
             <li>Climb the ladder up to the Outpost (-1).</li>
-            <li><strong>Deposit all resources in the Raid Chest</strong> to secure more than 10,000 points.</li>
+            <li><strong>All 12 players deposit their full loot into the Raid Chest</strong> to pass 10,000 points.</li>
             <li>Climb down the ladder, then run <pre><code>/travel 4,3</code></pre> followed by <pre><code>/travel 4,8</code></pre></li>
             <li>Enter the bottom right cave to warp straight back to floor -4.</li>
             <li>Run <pre><code>/travel 9,11</code></pre>, click the pool, and enter the bottom right cave towards floor -5.</li>
@@ -348,7 +348,7 @@ export const guide = {
 
         <h3>Floor -6: Willorka Deep (Boss 3)</h3>
         <p>
-            Enter Willorka room at [11,16]. <strong>Warning: this floor is plunged into Level 0 pitch black. Willorka automatically aggresses targets within 10 Range in 5 seconds!</strong> Enter stacked together and be ready instantly.
+            Enter Willorka room at [11,16]. <strong>Warning: this floor is plunged into Level 0 pitch black. Willorka automatically aggresses targets within 10 Range in 5 seconds!</strong> Enter stacked together and be ready instantly. Willorka is completely alone on the map (no adds, no ghost orcs).
         </p>
         <pre><code>/travel 11,16</code></pre>
 
@@ -363,8 +363,8 @@ export const guide = {
         </ul>
 
         <div class="callout callout-tip">
-            <strong>Pro Strategy « Panda Cheese » (Ignore all 10 lanterns)</strong>
-            <p>Do not waste a single second toggling lanterns! On Turn 1, Pandawa picks up Willorka and throws him into an isolated corner, <strong>more than 3 Range away from any lantern</strong>. Pandawa and a second tanky teammate lock him in melee. The rest of the raid steps back to take minimal Dark Chant damage and pours 100% firepower to crush his 62,000 HP. You claim <em>Willorka Blackness</em> (+10,000 direct score points)!</p>
+            <strong>Pro Strategy « Panda Cheese » (Far from lanterns/statues)</strong>
+            <p>Do not waste a single second toggling lanterns! On Turn 1, Pandawa picks up Willorka and throws him into an isolated corner, <strong>more than 3 Range away from any lantern or statue</strong>. Pandawa and a second tanky teammate lock him in melee. The rest of the raid steps back to stay out of <em>Dark Chant</em> range and pours 100% firepower to crush his 62,000 HP. You claim <em>Willorka Blackness</em> (+10,000 direct score points)!</p>
         </div>
 
         <div class="guide-image-container">

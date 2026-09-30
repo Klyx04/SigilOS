@@ -149,3 +149,62 @@ export function raidReminderLeadLabel(leadMinutes: number): string {
     if (rest === 0) return hours === 1 ? "1 h" : `${hours} h`;
     return `${hours} h ${rest}`;
 }
+
+// ---------------------------------------------------------------------------
+// RAPPEL DE CLÔTURE (post-raid) — 24 h après la fin, UNE seule fois
+// ---------------------------------------------------------------------------
+// Demande user (30/09/2026) : après un raid, plus rien n'existe côté SigilOS — si le
+// capitaine oublie de clôturer (présents + score → XP/Kamas), personne ne le relance
+// jamais. Ce rappel est le SEUL message post-raid : le lead actuel est pingé, jamais
+// les inscrits, jamais un rôle, jamais `@everyone` (même invariant que le rappel H-1).
+
+/** Âge minimum d'un raid terminé avant le rappel de clôture (24 h). */
+export const RAID_CLOSURE_REMINDER_AGE_MS = 24 * 60 * 60 * 1000;
+/**
+ * Âge maximum : au-delà, la passe de fond a déjà clôturé le raid
+ * (`RAID_AUTO_CLOSE_DELAY_MS` = 48 h, `@/lib/calendar-auto-close`). Cette borne garde
+ * aussi le scan du cron borné (aucun historique complet relu à chaque passe).
+ */
+export const RAID_CLOSURE_REMINDER_MAX_AGE_MS = 48 * 60 * 60 * 1000;
+
+export type RaidClosureSkipReason =
+    | "not-raid"
+    | "not-published"
+    | "no-channel"
+    | "already-sent"
+    | "too-early"
+    | "too-old";
+
+export type RaidClosureDecision =
+    | { send: true; ageMinutes: number }
+    | { send: false; reason: RaidClosureSkipReason; ageMinutes: number };
+
+/**
+ * Faut-il envoyer le rappel de clôture ? `reason` explique chaque refus (journal du
+ * cron + télémétrie God), `ageMinutes` alimente le message (« terminé il y a 24 h »).
+ *
+ * Idempotent par `metadata.closureReminderSentAt` : si une passe est perdue (Discord
+ * lent, cron en retard), la suivante reprend le raid tant qu'il n'est pas clôturé.
+ */
+export function shouldSendRaidClosureReminder(args: {
+    type: string;
+    status: string;
+    endDate: Date;
+    now: Date;
+    /** Salon où poster le rappel (embed du raid, sinon salon raid configuré). */
+    channelId: string | null | undefined;
+    /** `metadata.closureReminderSentAt` : le rappel de clôture est déjà parti. */
+    closureReminderSentAt?: string | Date | null;
+}): RaidClosureDecision {
+    const ageMs = args.now.getTime() - args.endDate.getTime();
+    const ageMinutes = Math.max(0, Math.round(ageMs / 60000));
+
+    if (args.type !== "RAID_OFFICIAL") return { send: false, reason: "not-raid", ageMinutes };
+    if (args.status !== "PUBLISHED") return { send: false, reason: "not-published", ageMinutes };
+    if (!args.channelId) return { send: false, reason: "no-channel", ageMinutes };
+    if (args.closureReminderSentAt) return { send: false, reason: "already-sent", ageMinutes };
+    if (ageMs < RAID_CLOSURE_REMINDER_AGE_MS) return { send: false, reason: "too-early", ageMinutes };
+    if (ageMs > RAID_CLOSURE_REMINDER_MAX_AGE_MS) return { send: false, reason: "too-old", ageMinutes };
+
+    return { send: true, ageMinutes };
+}

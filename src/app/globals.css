@@ -866,7 +866,8 @@ html:has(.boss-detail-shell) {
   .reg-content .callout-note {
     border-left-color: var(--border-strong);
   }
-  .reg-content .callout strong {
+  .reg-content .callout > strong:first-child,
+  .reg-content .callout > .callout-title {
     display: flex;
     align-items: center;
     gap: 0.5rem;
@@ -875,6 +876,12 @@ html:has(.boss-detail-shell) {
     font-weight: 600;
     letter-spacing: 0.02em;
     color: var(--foreground);
+  }
+  .reg-content .callout p strong {
+    display: inline;
+    font-weight: 600;
+    color: var(--foreground);
+    margin-bottom: 0;
   }
   .reg-content .callout-icon {
     color: var(--subtle-foreground);

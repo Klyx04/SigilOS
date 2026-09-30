@@ -40,7 +40,7 @@ Appelés depuis le crontab VPS (`crontab -l`) via
 - `/api/cron/avatar-resync` — **resync des hashs d'avatars Discord (#134)** : `GET /guilds/{id}/members`, mise à jour de `User.image` uniquement si le hash a changé ; `null` → avatar par défaut côté UI. Fréquence recommandée : quotidien (`0 5 * * *`).
 - `/api/cron/cleanup-proofs` · `/api/cron/cleanup-logs` · `/api/cron/cleanup-inactive-posts` · `/api/cron/cleanup-inactive-service-requests` — purges (depuis **S5.6**, `cleanup-logs` purge aussi les **logs d'audit du marché**, cf. §Module « Marché »). **Rétention des logs d'audit (audit du 25/09)** : `cleanup-logs` applique **90 j** aux actions plateforme (`isGodLog: true`, sans guilde) et **30 j** aux journaux de guilde — politique unique dans `src/lib/audit-retention-policy.ts`, appliquée par le core `src/server/audit-retention.ts` (par lots de 500, par périmètre, jamais de `deleteMany` global). Le script VPS `scripts/database-janitor.ts` (04h00) consomme la même politique.
 - `/api/cron/daily-summary` · `/api/cron/status-ping` · `/api/cron/mission-reset-notify` · `/api/cron/loan-reminders` — notifications
-- `/api/cron/raid-reminders` — **rappel automatique des raids** : pour chaque raid `PUBLISHED` entré dans sa fenêtre (`GuildEvent.notifyBefore`, **60 min par défaut**), poste UN message dans le salon du raid dont le `content` ne porte que les mentions `<@id>` des **inscrits** (REGISTERED + CONFIRMED) — **jamais** les rôles de l'embed, jamais `@everyone`. Idempotent (`metadata.raidReminderSentAt`) et silencieux si un rappel manuel vient d'être envoyé. Fréquence recommandée : toutes les 10 min (`0,10,20,30,40,50 * * * *`).
+- `/api/cron/raid-reminders` — **rappels des raids, deux passes** (une seule ligne de crontab) : ① **H-1** : pour chaque raid `PUBLISHED` entré dans sa fenêtre (`GuildEvent.notifyBefore`, **60 min par défaut**), poste UN message dans le salon du raid dont le `content` ne porte que les mentions `<@id>` des **inscrits** (REGISTERED + CONFIRMED) — **jamais** les rôles de l'embed, jamais `@everyone`. Idempotent (`metadata.raidReminderSentAt`) et silencieux si un rappel manuel vient d'être envoyé. ② **H+24 — rappel de clôture** : pour chaque raid terminé depuis 24 h et encore `PUBLISHED`, UN message qui ne ping que le **capitaine actuel** (`creatorId`, donc le nouveau lead après un transfert de capitanat) : « reste à clôturer : présents + score → XP/Kamas » + lien vers le raid. Idempotent (`metadata.closureReminderSentAt`). Un raid n'est **pas** clôturé d'office par la passe de fond avant **48 h** (`src/lib/calendar-auto-close.ts`) — sinon le rappel de clôture ne partirait jamais. Fréquence recommandée : toutes les 10 min (`0,10,20,30,40,50 * * * *`).
 - `/api/cron/event-reminders` — **rappel des events calendrier non-raid** (même contrat, fenêtre `notifyBefore`, marqueur `metadata.eventReminderSentAt` ; sans `startDate` → ignoré).
 - `/api/cron/dj-reminders` — **rappel H-1 des posts DJ/Quêtes datés** (`targetDate` ; posts indéfinis ignorés ; marqueur `dungeonsJson._h1ReminderSentAt`).
 - `/api/cron/songes-reminders` — **rappel H-1 des runs Songes planifiées** (`scheduledAt` ; runs indéfinies ignorées ; idempotence Redis par échéance).
@@ -129,8 +129,9 @@ annonces de **prod**) avec `> /dev/null` (⇒ **aucun log**, donc invisible dans
   -H "x-cron-secret: $(cat /home/sigiladmin/.sigilos-cron-secret)" \
   "$APP_URL/api/cron/status-ping" >> "$LOG_DIR/status-ping.log" 2>&1
 
-# Rappel des raids — ping des INSCRITS 1 h avant le départ (toutes les 10 min ;
-# un seul ping par raid, silence si un rappel manuel vient d'être envoyé)
+# Rappels des raids (toutes les 10 min) — ① ping des INSCRITS 1 h avant le départ
+# (un seul ping par raid, silence si un rappel manuel vient d'être envoyé) ;
+# ② rappel de CLÔTURE au capitaine 24 h après la fin (un seul par raid)
 0,10,20,30,40,50 * * * * curl -s -o /dev/null -w "raid-reminders \%{http_code} $(date -Is)\n" \
   -H "x-cron-secret: $(cat /home/sigiladmin/.sigilos-cron-secret)" \
   "$APP_URL/api/cron/raid-reminders" >> "$LOG_DIR/raid-reminders.log" 2>&1

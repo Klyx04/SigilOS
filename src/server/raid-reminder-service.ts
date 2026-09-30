@@ -16,12 +16,16 @@
 import { db } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 import { getAppBaseUrl } from "@/lib/utils";
+import { isDiscordSnowflake } from "@/lib/discord-ids";
 import { sendChannelMessage } from "@/server/discord";
 import {
     buildRaidReminderMentions,
     pickRaidReminderChannelId,
     raidReminderLeadLabel,
     shouldSendRaidReminder,
+    RAID_CLOSURE_REMINDER_AGE_MS,
+    RAID_CLOSURE_REMINDER_MAX_AGE_MS,
+    shouldSendRaidClosureReminder,
     type RaidChannelConfig,
 } from "@/lib/raid-reminder";
 
@@ -330,6 +334,223 @@ export async function sendRaidReminders(
         } catch (error) {
             summary.failed++;
             logger.error("[RaidReminder] Échec du rappel", { eventId: event.id, error: String(error) });
+        }
+    }
+
+    return summary;
+}
+
+// ---------------------------------------------------------------------------
+// RAPPEL DE CLÔTURE (post-raid) — 24 h après la fin, une seule fois
+// ---------------------------------------------------------------------------
+// Demande user (30/09/2026) : rien n'existe en post-raid. Si le capitaine oublie de
+// clôturer (présents + score → XP/Kamas), le raid reste ouvert sans que personne ne
+// soit relancé. Ce rappel est le SEUL message post-raid : le lead actuel est pingé
+// (`creatorId`, donc le nouveau capitaine après transfert), **jamais** les inscrits.
+
+export type RaidClosureReminderRunSummary = {
+    scanned: number;
+    sent: number;
+    failed: number;
+    /** Rappels partis sans ping : le lead n'a pas de compte Discord lié. */
+    withoutLeadPing: number;
+    skipped: Record<string, number>;
+};
+
+type RaidClosureEventRow = {
+    id: string;
+    guildId: string;
+    title: string;
+    type: string;
+    status: string;
+    endDate: Date;
+    discordChannelId: string | null;
+    metadata: unknown;
+    creatorId: string;
+};
+
+/**
+ * Rappel de clôture pour un raid **déjà chargé** : décision (pure) → message → marqueurs.
+ * Le `content` ne porte QUE la mention du lead : c'est la seule source de ping côté
+ * Discord (`allowed_mentions` est construit depuis le contenu), donc ni rôle ni
+ * `@everyone`. Un lead sans compte Discord ⇒ message sans ping (compté dans le bilan).
+ */
+async function deliverRaidClosureReminder(args: {
+    guildId: string;
+    guildConfig: GuildRow;
+    event: RaidClosureEventRow;
+    now: Date;
+}): Promise<{ sent: boolean; reason: string; pinged: boolean }> {
+    const { guildId, guildConfig, event, now } = args;
+    const meta = (event.metadata as Record<string, unknown> | null) || {};
+    const channelId = event.discordChannelId || pickRaidReminderChannelId(guildConfig, meta.raidType);
+
+    const decision = shouldSendRaidClosureReminder({
+        type: event.type,
+        status: event.status,
+        endDate: event.endDate,
+        now,
+        channelId,
+        closureReminderSentAt: (meta.closureReminderSentAt as string | undefined) ?? null,
+    });
+    if (!decision.send) return { sent: false, reason: decision.reason, pinged: false };
+
+    // Lead actuel = `creatorId` (nouveau capitaine après un transfert de capitanat).
+    const leadAccount = await db.account.findFirst({
+        where: { userId: event.creatorId, provider: "discord" },
+        select: { providerAccountId: true },
+    });
+    const leadDiscordId = leadAccount?.providerAccountId ?? null;
+    const leadMention = isDiscordSnowflake(leadDiscordId) ? `<@${leadDiscordId}>` : "";
+
+    const dashboardUrl = `${getAppBaseUrl()}/dashboard/${guildId}/calendar?event=${event.id}`;
+    const ageLabel = raidReminderLeadLabel(decision.ageMinutes);
+    const raidLabel = typeof meta.raidLabel === "string" && meta.raidLabel ? meta.raidLabel : event.title;
+    const headline = `📋 **${raidLabel} terminé il y a ${ageLabel}** — il reste à clôturer : présents + score → XP/Kamas.`;
+    const content = leadMention ? `${leadMention}\n${headline}` : headline;
+
+    // Clé Redis unique par message (outbox) : le worker y ancre le vrai snowflake, sans
+    // quoi la suppression à la clôture appellerait Discord avec un `outbox:<jobId>`.
+    const reminderMsgKey = `raid-closure:msg:${event.id}:${now.getTime()}`;
+    const messageId = await sendChannelMessage(channelId as string, content, {
+        embedTitle: `📋 ${event.title} — à clôturer`,
+        embedColor: 0xf59e0b,
+        embedUrl: dashboardUrl,
+        embedFooter: `SigilOS • ${guildConfig.name ?? "Guilde"} • Seul le capitaine est notifié`,
+        fields: [
+            { name: "🗓️ Terminé", value: `<t:${Math.floor(event.endDate.getTime() / 1000)}:R>`, inline: true },
+            {
+                name: "👑 À clôturer par",
+                value: leadDiscordId ? `<@${leadDiscordId}>` : "Capitaine (compte Discord non lié)",
+                inline: true,
+            },
+            { name: "🔗 Ouvrir le raid", value: `[Tableau de bord](${dashboardUrl})`, inline: true },
+        ],
+        storeMessageIdKey: reminderMsgKey,
+        storeMessageIdTTL: 30 * 24 * 3600,
+    });
+
+    if (!messageId) return { sent: false, reason: "discord-refused", pinged: false };
+
+    const existingReminders = Array.isArray(meta.reminderMessages) ? meta.reminderMessages : [];
+    await db.guildEvent
+        .update({
+            where: { id: event.id, guildId: guildConfig.id },
+            data: {
+                metadata: {
+                    ...meta,
+                    closureReminderSentAt: now.toISOString(),
+                    reminderMessages: [...existingReminders, { channelId, messageId, messageKey: reminderMsgKey }],
+                },
+            },
+        })
+        .catch(() => null);
+
+    logger.info("[RaidClosure] Rappel de clôture envoyé", {
+        eventId: event.id,
+        channelId,
+        leadPinged: Boolean(leadMention),
+    });
+
+    return { sent: true, reason: "sent", pinged: Boolean(leadMention) };
+}
+
+/**
+ * Passe de rappel de clôture pour **tous** les raids terminés depuis 24 h et encore
+ * publiés. Même contrat que `sendRaidReminders` : bornée, idempotente, jamais de double
+ * envoi (`metadata.closureReminderSentAt`), chaque refus compté par raison.
+ *
+ * Appelée par le **même cron** que le rappel H-1 (`/api/cron/raid-reminders`) : une seule
+ * ligne de crontab, un seul journal, une seule entrée de télémétrie God.
+ */
+export async function sendRaidClosureReminders(
+    opts: { now?: Date; limit?: number } = {}
+): Promise<RaidClosureReminderRunSummary> {
+    const now = opts.now ?? new Date();
+    const summary: RaidClosureReminderRunSummary = {
+        scanned: 0,
+        sent: 0,
+        failed: 0,
+        withoutLeadPing: 0,
+        skipped: {},
+    };
+    const bump = (reason: string) => {
+        summary.skipped[reason] = (summary.skipped[reason] ?? 0) + 1;
+    };
+
+    const candidates = await db.guildEvent.findMany({
+        where: {
+            type: "RAID_OFFICIAL",
+            status: "PUBLISHED",
+            // Fenêtre bornée : terminé depuis 24 h au moins, 48 h au plus (au-delà, la
+            // passe de fond a déjà clôturé le raid — `@/lib/calendar-auto-close`).
+            endDate: {
+                gte: new Date(now.getTime() - RAID_CLOSURE_REMINDER_MAX_AGE_MS),
+                lte: new Date(now.getTime() - RAID_CLOSURE_REMINDER_AGE_MS),
+            },
+        },
+        select: {
+            id: true,
+            guildId: true,
+            title: true,
+            type: true,
+            status: true,
+            endDate: true,
+            discordChannelId: true,
+            metadata: true,
+            creatorId: true,
+            guild: { select: { discordGuildId: true } },
+        },
+        orderBy: { endDate: "asc" },
+        take: opts.limit ?? 50,
+    });
+
+    summary.scanned = candidates.length;
+
+    // Une seule lecture de configuration par guilde, quel que soit le nombre de raids.
+    const guildCache = new Map<string, GuildRow | null>();
+
+    for (const event of candidates) {
+        const guildId = event.guild?.discordGuildId;
+        if (!guildId) {
+            bump("guild-not-found");
+            continue;
+        }
+
+        let guildConfig = guildCache.get(event.guildId);
+        if (guildConfig === undefined) {
+            guildConfig = await db.guildConfig.findUnique({
+                where: { id: event.guildId },
+                select: {
+                    id: true,
+                    name: true,
+                    raidNotifyChannelId: true,
+                    raidGigalodonNotifyChannelId: true,
+                    raidSanctuaireNotifyChannelId: true,
+                    calendarNotifyChannelId: true,
+                },
+            });
+            guildCache.set(event.guildId, guildConfig);
+        }
+        if (!guildConfig) {
+            bump("guild-not-found");
+            continue;
+        }
+
+        try {
+            const outcome = await deliverRaidClosureReminder({ guildId, guildConfig, event, now });
+            if (outcome.sent) {
+                summary.sent++;
+                if (!outcome.pinged) summary.withoutLeadPing++;
+            } else {
+                bump(outcome.reason);
+            }
+        } catch (error) {
+            summary.failed++;
+            logger.error("[RaidClosure] Échec du rappel de clôture", {
+                eventId: event.id,
+                error: String(error),
+            });
         }
     }
 

@@ -212,7 +212,7 @@ export const guide = {
 
         <div class="callout callout-tip">
             <strong>Deux stratégies de neutralisation de la Mureine</strong>
-            <p><strong>Stratégie A (Tacle en coin) :</strong> Le Pandawa isole la Mureine dans un angle et la coince entre 2 de ses propres Murares. En taclant ces deux invocations avec un personnage résistant, la Mureine est totalement paralysée et ne peut plus invoquer.<br /><strong>Stratégie B (Distance de sécurité) :</strong> Placez tous vos attaquants à plus de 10 PO de la Mureine au lancement du combat. Sans cible dans sa portée d'incantation de 10 PO, elle ne peut invoquer aucune Murare.</p>
+            <p><strong>Priorité absolue :</strong> Éliminez d'abord les 3 monstres d'accompagnement normaux (Madrépire, Kokayou, Léviatank) pour libérer les lignes de vue et respirer.<br /><strong>Stratégie A (Tacle en coin) :</strong> Le Pandawa isole la Mureine dans un angle et la coince entre 2 de ses propres Murares ou des invocations fixes. En taclant ces deux invocations avec un personnage résistant, la Mureine est totalement paralysée et ne peut plus invoquer.<br /><strong>Stratégie B (Distance de sécurité) :</strong> Placez tous vos attaquants à plus de 10 PO de la Mureine au lancement du combat. Sans cible dans sa portée d'incantation de 10 PO, elle ne peut invoquer aucune Murare.</p>
         </div>
 
         <div class="guide-image-container">
@@ -237,8 +237,8 @@ export const guide = {
         </div>
 
         <div class="callout callout-warning">
-            <strong>Règle d'or de guilde : 1 seul joueur sur le puzzle</strong>
-            <p>Désignez <strong>un seul joueur</strong> pour manipuler la grille 4x4. Si plusieurs équipiers cliquent en simultané, les actions s'annulent et vous perdrez plusieurs minutes sur le chrono global.</p>
+            <strong>Règle d'or de guilde : 1 seul joueur sur le mur</strong>
+            <p>Désignez <strong>un seul joueur</strong> pour manipuler la grille 4x4 de poissons-lanternes sur le mur (il faut cliquer dessus, ce n'est pas une dalle au sol !). Si plusieurs équipiers cliquent en simultané, les actions s'annulent et vous perdrez plusieurs minutes sur le chrono global.</p>
         </div>
 
         <p><strong>Méthode de résolution rapide (Chasse des lumières) :</strong></p>
@@ -318,7 +318,7 @@ export const guide = {
 
         <div class="callout callout-important">
             <strong>LE PIVOT STRATÉGIQUE DU RAID : La Boucle du Raccourci (Drop 20%)</strong>
-            <p><strong>Ne descendez surtout pas directement à l'étage -5 !</strong> Le taux de drop du 4e fragment sur les Krak'Haine dépend directement de votre score déjà déposé au coffre : 1% sous 5 000 pts, 5% entre 5 000 et 7 000 pts, 10% entre 7 000 et 10 000 pts, et <strong>20% au-delà de 10 000 points</strong> !<br />En remontant déposer maintenant les reliques de Mureine (1 000 pts), d'Exécrabe (5 000 pts) et vos minerais (plus de 4 000 pts récoltés), vous franchissez instantanément le cap des 10 000 points. Le 4e fragment tombe alors en 1 ou 2 combats au lieu d'y passer 25 minutes !</p>
+            <p><strong>Ne descendez surtout pas directement à l'étage -5 !</strong> Le taux de drop du 4e fragment sur les Krak'Haine dépend directement de votre score déjà déposé au coffre : 1% sous 5 000 pts, 5% entre 5 000 et 7 000 pts, 10% entre 7 000 et 10 000 pts, et <strong>20% au-delà de 10 000 points</strong> !<br /><strong>Rappel crucial : aucun échange n'est possible en raid.</strong> Chaque joueur transporte son propre butin : <strong>l'ensemble des 12 participants doit remonter au coffre</strong> pour déposer ses reliques de Mureine (1 000 pts), d'Exécrabe (5 000 pts) et ses minerais de sel (plus de 4 000 pts récoltés). En franchissant les 10 000 points, le 4e fragment tombe en 1 ou 2 combats au lieu de 25 minutes !</p>
         </div>
 
         <h3>La Séquence de Remontée & Dépôt Express</h3>
@@ -326,7 +326,7 @@ export const guide = {
             <li>Depuis [6,10], empruntez le poisson-lanterne pour réapparaître à l'étage -2 en [4,8].</li>
             <li>Exécutez <pre><code>/travel 2,7</code></pre> puis <pre><code>/travel 3,2</code></pre></li>
             <li>Montez à l'échelle pour regagner l'Avant-poste (-1).</li>
-            <li><strong>Déposez l'intégralité de vos trésors dans le Coffre du Raid</strong> pour sécuriser plus de 10 000 points.</li>
+            <li><strong>Tous les joueurs déposent l'intégralité de leurs trésors dans le Coffre du Raid</strong> pour sécuriser plus de 10 000 points.</li>
             <li>Redescendez l'échelle, puis faites <pre><code>/travel 4,3</code></pre> suivi de <pre><code>/travel 4,8</code></pre></li>
             <li>Empruntez la grotte en bas à droite pour revenir instantanément à l'étage -4.</li>
             <li>Faites <pre><code>/travel 9,11</code></pre>, cliquez sur le petit lac, puis prenez la grotte en bas à droite pour basculer à l'étage -5.</li>
@@ -351,7 +351,7 @@ export const guide = {
 
         <h3>Étage -6 : Sombrefond de Willorque (Boss 3)</h3>
         <p>
-            Rejoignez la salle de Willorque en [11,16]. <strong>Attention : cet étage est plongé dans une obscurité totale de Niveau 0. Willorque agresse automatiquement à 10 PO en 5 secondes !</strong> Entrez tous groupés et soyez prêts instantanément.
+            Rejoignez la salle de Willorque en [11,16]. <strong>Attention : cet étage est plongé dans une obscurité totale de Niveau 0. Willorque agresse automatiquement à 10 PO en 5 secondes !</strong> Entrez tous groupés et soyez prêts instantanément. Willorque est totalement seul sur la carte (aucun monstre, aucun orque spectre).
         </p>
         <pre><code>/travel 11,16</code></pre>
 
@@ -366,8 +366,8 @@ export const guide = {
         </ul>
 
         <div class="callout callout-tip">
-            <strong>La Stratégie Pro « Panda Cheese » (Ignorez les 10 lanternes)</strong>
-            <p>Ne perdez pas une seule seconde à allumer ou éteindre les lanternes ! Dès le Tour 1, le Pandawa porte Willorque et le jette dans un coin isolé de la carte, <strong>à plus de 3 PO de toute lanterne</strong>. Le Pandawa et un second combattant résistant le bloquent au contact. Le reste du raid se recule pour encaisser un Sombre Chant modéré et concentre 100% de ses sorts pour tomber ses 62 000 PV. Vous encaissez ainsi la <em>Noirceur de Willorque</em> (+10 000 points directs) !</p>
+            <strong>La Stratégie Pro « Panda Cheese » (Loin des lanternes/statues)</strong>
+            <p>Ne perdez pas une seule seconde à allumer ou éteindre les lanternes ! Dès le Tour 1, le Pandawa porte Willorque et le jette dans un coin isolé de la carte, <strong>à plus de 3 PO de toute lanterne et statue</strong>. Le Pandawa et un second combattant résistant le bloquent au contact. Le reste du raid se recule pour rester hors de portée de <em>Sombre Chant</em> et concentre 100% de ses sorts pour tomber ses 62 000 PV. Vous encaissez ainsi la <em>Noirceur de Willorque</em> (+10 000 points directs) !</p>
         </div>
 
         <div class="guide-image-container">

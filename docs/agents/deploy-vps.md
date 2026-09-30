@@ -48,7 +48,7 @@ décision. Verrouillé par `tests/unit/deploy-sortie-visible.test.ts` :
 | **ÉTAPE 2/5** `app ✓ téléchargée (312 Mo)` | les **4 images** construites par la CI sont téléchargées — **aucun build** sur le serveur |
 | **ÉTAPE 3/5** `Container … Healthy` | les 6 conteneurs (db, redis, app, worker, ws, bot) redémarrent sur les nouvelles images et passent leur sonde de santé |
 | **ÉTAPE 4/5** `N fichier(s) déplacé(s) de public/uploads vers private_uploads (dossier: N)` | rangement des « uploads » : `public/uploads` est servi **en direct**, `private_uploads` seulement par les routes gardées (`/api/storage/…`, `/api/upload`). Rejoué à **chaque** déploiement |
-| **ÉTAPE 4/5** `262 migrations found in prisma/migrations` puis `Base à jour — 262 migrations connues, aucune à appliquer` | `262` = les migrations **du dépôt** (une par changement de schéma déjà validé). Prisma compare cette liste à la table `_prisma_migrations` de la base et n'applique **que la différence** ⇒ ici rien à faire, **aucune donnée touchée** |
+| **ÉTAPE 4/5** `Base à jour — 262 migrations connues, aucune à appliquer` (la ligne `262 migrations found…` de Prisma, elle, n'est pas toujours écrite) | `262` = les migrations **du dépôt** (une par changement de schéma déjà validé), **comptées dans le dépôt** (`find prisma/migrations -mindepth 1 -maxdepth 1 -type d \| wc -l`) et non relues du log — mesuré le 30/09/2026 : deux déploiements d'affilée au code identique, la ligne présente au premier, absente au second. Prisma compare cette liste à la table `_prisma_migrations` de la base et n'applique **que la différence** ⇒ ici rien à faire, **aucune donnée touchée** |
 | **ÉTAPE 4/5** `✓ Schéma déjà à jour` (beta seulement) | `db push` : la base **beta** reçoit les écarts de schéma sans fichier de migration (itération rapide). Volontairement **absent en prod** |
 | **ÉTAPE 5/5** `Données de jeu inchangées — seed ignoré` | le seed de `game-data.json` ne tourne que si son **hash** a changé depuis le dernier déploiement |
 | **ÉTAPE 5/5** `✅ Synchronisation terminée : 0 créées, 30 mises à jour` | les fiches de `src/lib/docs-catalog.ts` sont réécrites en base (idempotent : `0 créées` est normal) |
@@ -74,6 +74,21 @@ décision. Verrouillé par `tests/unit/deploy-sortie-visible.test.ts` :
   résumé nomme maintenant le **premier dossier réel** (`assets-dofus: 310`, `proofs: 12`…) et
   dit **d'où viennent** et **où vont** les fichiers. Le nombre compte les fichiers déplacés
   **lors de ce déploiement** — ce n'est pas un stock qui grossit.
+- **`262 migrations found in prisma/migrations`** : ce nombre est le **contenu du dépôt**
+  (une migration par changement de schéma déjà validé), **pas** une file d'attente — la
+  seule chose que Prisma applique est ce qui manque à la base, ici rien. Le compte est
+  désormais **compté dans le dépôt** (`prisma/migrations/*/`) : il ne dépend plus du log de
+  Prisma, qui n'écrit pas toujours sa ligne (mesuré le 30/09/2026 : présente au 1ᵉʳ
+  déploiement, absente au 2ᵉ, **code identique**).
+- **`assets-dofus: 139`** (mesuré au 2ᵉ déploiement du 30/09/2026 ; 310 au 1ᵉʳ) : ce que
+  l'étape 4 range est le **cache de WebP siphonnés**. `src/lib/dofus-asset-siphon.ts` écrit
+  dans `public/uploads/assets-dofus/{monsters,items,spells}`, monté en **volume dédié**
+  (`assets-prod-data` / `assets-beta-data`, précisément pour survivre aux déploiements) et
+  rempli **à la demande** par le proxy d'images. Comme l'étape 4 range **tout** ce qui reste
+  dans `public/uploads`, elle **vide ce cache** à chaque déploiement : l'app le reconstruit
+  ensuite (téléchargements upstream) et une copie dort dans `private_uploads/assets-dofus/`
+  que personne ne lit. **Aucune perte de données**, mais un aller-retour inutile — décision à
+  trancher à froid (`docs/ROADMAP.md`, session du 30/09/2026).
 
 Pour savoir ce que contient `public/uploads` **sans déployer** (et donc ce que la prochaine
 étape 4 va ranger) :

@@ -850,8 +850,18 @@ deploy() {
             # DÉPÔT (une par changement de schéma déjà validé). Prisma compare cette
             # liste à la table `_prisma_migrations` de la base et n'applique QUE la
             # différence. On redonne le compte : c'est la question n° 1 du lecteur.
+            # ⚠️ Le compte est compté DANS LE DÉPÔT (on est à sa racine — `cd` en tête de
+            # script), pas relu du log : mesuré le 30/09/2026, deux déploiements d'affilée
+            # au code IDENTIQUE ont affiché 5 lignes de Prisma puis 1 seule (la ligne
+            # « N migrations found » n'était plus écrite) ⇒ s'y fier faisait retomber sur
+            # le message muet, précisément sur le nombre que le lecteur cherche.
+            # Un dossier `prisma/migrations/<horodatage>_<nom>/` = une migration.
             local KNOWN_MIGRATIONS
-            KNOWN_MIGRATIONS="$(grep -oE '[0-9]+ migrations? found' "$MIGRATE_LOG" | head -1 | cut -d' ' -f1)"
+            KNOWN_MIGRATIONS="$(find prisma/migrations -mindepth 1 -maxdepth 1 -type d 2>/dev/null | wc -l | tr -d '[:space:]')"
+            if [[ -z "$KNOWN_MIGRATIONS" || "$KNOWN_MIGRATIONS" == "0" ]]; then
+                # Repli (dépôt incomplet) : la ligne du log, quand Prisma l'écrit.
+                KNOWN_MIGRATIONS="$(grep -oE '[0-9]+ migrations? found' "$MIGRATE_LOG" | head -1 | cut -d' ' -f1)"
+            fi
             if [[ -n "$KNOWN_MIGRATIONS" ]]; then
                 ok "Base à jour — ${KNOWN_MIGRATIONS} migrations connues, aucune à appliquer ($(( SECONDS - MIGRATE_T0 ))s)."
             else

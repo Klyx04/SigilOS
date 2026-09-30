@@ -14,7 +14,11 @@
  *    avant la fin alors que l'image était complète ;
  *  ④ `npm notice New major version of npm available!` au milieu de l'étape 5 : l'appel
  *    `npm run seed:docs:prod` n'avait ni `--silent` ni `NO_UPDATE_NOTIFIER` (l'étape 4
- *    les portait, pas l'étape 5 — ni `deploy.sh`, 4 fois).
+ *    les portait, pas l'étape 5 — ni `deploy.sh`, 4 fois) ;
+ *  ⑤ (2ᵉ passage du **même** déploiement, code **identique**) la ligne
+ *    `262 migrations found in prisma/migrations` **n'a pas été écrite** : Prisma a
+ *    affiché 5 lignes au 1ᵉʳ passage, 1 seule au 2ᵉ ⇒ un compte **relu du log**
+ *    retombait sur le message muet, sur le nombre même que le lecteur cherche.
  *
  * 🔒 Verrouillé ici :
  *  ① la barre n'écrit **que** sur un terminal (mesuré : 0 octet hors terminal) et efface
@@ -26,7 +30,8 @@
  *  ④ aucun appel npm des **deux** scripts ne déverse son bandeau ni sa pub de version ;
  *  ⑤ le résumé de la migration uploads nomme la **source**, la **destination** et le
  *    premier dossier **réel** (plus de « autres ») ;
- *  ⑥ les migrations Prisma sont annoncées avec leur **compte** et leur **sens**.
+ *  ⑥ les migrations Prisma sont annoncées avec leur **compte**, compté **dans le dépôt**
+ *    (jamais dans le bavardage de Prisma), et leur **sens**.
  */
 import { describe, expect, it } from "vitest";
 import fs from "node:fs";
@@ -101,8 +106,19 @@ describe("Sortie du déploiement — compréhensible sans explication", () => {
 
     it("⑥ les migrations Prisma sont annoncées avec leur compte et leur sens", () => {
         const source = deployCd();
-        expect(source).toContain("[0-9]+ migrations? found");
+        // Le compte vient du DÉPÔT (mesuré le 30/09/2026 : la ligne « N migrations found »
+        // de Prisma n'est pas toujours écrite — 5 lignes puis 1 seule, code identique).
+        expect(source).toContain("find prisma/migrations -mindepth 1 -maxdepth 1 -type d");
         expect(source).toContain("migrations connues, aucune à appliquer");
+        // Jamais un nombre figé : le script compte.
+        expect(source).not.toMatch(/KNOWN_MIGRATIONS:?-?=?\s*262/);
+        // Repli documenté (dépôt incomplet) : la ligne du log, quand Prisma l'écrit.
+        expect(source).toContain("[0-9]+ migrations? found");
+        // …et il ne sert jamais en pratique : le dépôt porte de vraies migrations.
+        const dirs = fs
+            .readdirSync(path.join(REPO_ROOT, "prisma/migrations"), { withFileTypes: true })
+            .filter((entry) => entry.isDirectory());
+        expect(dirs.length).toBeGreaterThan(0);
         // L'intitulé de l'étape dit ce qui est fait… et ce qui ne l'est pas.
         expect(source).toContain("aucune ne rejoue, aucune donnée n'est effacée");
     });

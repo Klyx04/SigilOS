@@ -712,7 +712,7 @@
 | **C** | Module **tickets** : finir le module (exécutants SLA/auto-fermeture, i18n EN, doublons FR/EN, langue par serveur) | moteur livré (#778, #779) | ✅ **Tranché le 28/09/2026** : **langue par serveur = reportée** (locale déjà **par utilisateur**), **un réglage sans exécutant se cache ou s'exécute** ; lots **C-1 → C-4** — cf. § C |
 | **D** | **UI God** : « revoir toute l'UI de god, tous les onglets, uniformisé et deslopé partout » — onglets hors-sujet, télémétrie sans valeur ajoutée, `/dofus-guides` à désloper, avis de recherche à fusionner dans game-data | **D-1 + D-2 + D-2bis + D-4 livrés** (28/09 : purge des 5 onglets morts · **télémétrie v2** : plus de chiffre fabriqué, zéro empreinte · avis de recherche = onglet des **Éditeurs** de game-data) | file : **A3 ✅ livré** (28/09, PR #786) → **D-4 ✅ livré** (28/09) → **D-2 ✅ livré** (28/09, `feat/telemetry-god-v2` — entonnoir borné, membres distincts réels, zéro empreinte ; détail : bloc « suite 12 » ci-dessus) → **D-2bis ✅ livré** (28/09, 6 PR **#791 → #796** : le module télémétrie devient **produit** — 8 cartes console et 4 onglets supprimés, adoption réelle, cohortes de rétention, guildes à relancer, **compteur anonyme du site public** ; détail : bloc « suite 13 » ci-dessus) → **D-3** `/dofus-guides` ; arbitrages ouverts : design « landing » partout, palier tableau→cartes **mesuré** (768 par défaut, cf. A3) |
 
-| **E** | **Acquisition (SEO)** : la beta reste la vitrine indexable « encore quelques mois » (décision user du 29/09) — couvrir les **sujets** que les gros sites couvrent, **jamais leurs textes** | rien codé — **diagnostic mesuré le 29/09** (171 URL publiées / 148 indexées ; `lastmod` honnête, almanax borné, guide Sylvestre cohérent : bloc du 29/09 ci-dessus) | ✅ **Mesuré le 29/09/2026** (sitemaps publics, lecture seule) : dofuspourlesnoobs **2 483** URL (**1 page par quête/donjon**, nommée par le sujet) · dofensive **4 960** dont **4 958 = `/fr/monster/<id>`** · nous **171** ⇒ familles à ouvrir avec la donnée **déjà siphonnée** : **`/monstre/<slug>`** (le plus gros levier), `/quete/<slug>`, `/objet/<slug>` ; **décisions ouvertes** : ordre (**E-1** monstres → **E-2** quêtes → **E-3** objets) et entrée au sitemap **seulement** si la page porte de la donnée réelle (leçon almanax : page vide = `soft 404` = « Explorée, actuellement non indexée ») ; l'acquisition **hors code** (liens entrants vers la beta) reste côté humain, et un **301 beta → prod** est prévu à la bascule (`docs/plans/SEO_REPRISE.md`) |
+| **E** | **Acquisition (SEO)** : la beta reste la vitrine indexable « encore quelques mois » (décision user du 29/09) — couvrir les **sujets** que les gros sites couvrent, **jamais leurs textes** | rien codé — **diagnostic mesuré le 29/09** (171 URL publiées / 148 indexées ; `lastmod` honnête, almanax borné, guide Sylvestre cohérent : bloc du 29/09 ci-dessus) · **dossier par famille mesuré le 30/09** (**§ E** ci-dessous) | ✅ **Mesuré le 29/09/2026** (sitemaps publics, lecture seule) : dofuspourlesnoobs **2 483** URL (**1 page par quête/donjon**, nommée par le sujet) · dofensive **4 960** dont **4 958 = `/fr/monster/<id>`** · nous **171** ⇒ familles candidates : **`/monstre/<slug>`**, `/objet/<slug>`, `/quete/<slug>` — mais **la donnée n'est prête nulle part** (mesure du 30/09 : fiches riches monstres **260/5 135**, recettes d'objets **0/4 858**, contenu de quête **1/1 976**) ⇒ **§ E** ; **décision ouverte** : ordre des lots (**E-1** monstres proposé en premier) et entrée au sitemap **seulement** si la page porte de la donnée réelle (leçon almanax : page vide = `soft 404` = « Explorée, actuellement non indexée ») ; l'acquisition **hors code** (liens entrants vers la beta) reste côté humain, et un **301 beta → prod** est prévu à la bascule (`docs/plans/SEO_REPRISE.md`) |
 
 ### A. Siphons game-data — « pk c 300 dans chaque type ? » · « pk toutes ces erreurs ? » · « pk rien n'est responsive nulle part ? » · « ca fait 100x qu'on refais game-data depuis 1 an […] je sature de pas avoir un truc pro à l'épreuve des balles »
 
@@ -841,6 +841,40 @@ un même `ok` : ce sont deux causes opposées (attente vs échec), la distinctio
 
 **Ops** : « Tout passer en Motifs » (bêta puis prod) + contrôle visuel (modal Motifs, matrice, boutons salon).
 
+### E. Acquisition (SEO) — **le facteur limitant est l'autorité, pas le volume de pages** (dossier mesuré le 30/09/2026)
+
+**Décision user rappelée (29/09/2026)** : la **bêta reste la vitrine indexable** « encore quelques mois » ; on couvre les **sujets** que les gros sites couvrent, **jamais leurs textes** (aucun texte, aucune capture, aucune donnée d'un tiers recopiée). Rien n'est codé à ce jour.
+
+**Mesures (30/09/2026 — base locale, lecture seule, + relevé SERP)**
+
+| Famille | Stocké | Qualité réelle | Ce qu'une page pourrait honnêtement dire |
+|---|---|---|---|
+| **Monstres** | `Monster` **4 728** (nom, famille, niveau, image) | fiches riches `MonsterStat` (grades, stats, résistances, butin, sorts) : **260** sur ≈ **5 135** | nom/famille/niveau + **position monde** (4 901 `Archimonstre` : `subareaIds`, `worldMapId`, `centerX/centerY` — route **publique** `/api/worldmap/location`) + **donjon associé** (`MonsterStat.dungeonName`, rempli sur les fiches riches) |
+| **Objets** | `GameItem` **21 748** | **effets ✓ sur les 21 748**, **recettes stockées : 0** alors que **4 858** items sont `hasRecipe` · prix PNJ 4 700 · panoplie 876 | effets, panoplie, prix PNJ — **pas la recette** (le cœur de la recherche) |
+| **Quêtes** | `GameQuest` **1 976** | nom + niveau ; **1 seule** fiche porte du contenu (`contentJson`) | rien de vérifiable aujourd'hui (ni étapes, ni récompenses détaillées) |
+| Donjons · archis · zones · familles | 134 · 4 901 · 619 · 249 | fiches tactiques Dofensive ✓ (**déjà publiées**) | déjà en ligne — **141 URL** au sitemap, **218 liens** internes, 0 cassé |
+
+**Ce que le SERP du 30/09/2026 dit** (5 requêtes, lecture seule) :
+
+- `dofus` / `guide dofus` → dofus.com, Wikipédia, dofusguide.fr, dofuspourlesnoobs, duffus.fr, papycha.fr : **autorité de marque**, pas attaquable.
+- `site dofus` / `site communautaire dofus` → **des annuaires et des outils** (doflinks.fr présent sur **3 des 5** requêtes, Halles-des-Douze, xixou.io/annuaire-communautaire, dafous.app, dofusplanet, metamob, doradins, enuboard, nokazu).
+- `dashboard dofus` → **notre requête** : dofus-map, retro-toolbox, dofuscreator, e-bou, doradins, enuboard, nokazu, **et** un **article de blog** (`moon-bot.io`, « multi-compte ») **et** un fil Reddit ⇒ les outils **et** les articles s'y placent ⇒ piste d'une **surface outil/tableau de bord public**, pas seulement des pages de contenu.
+
+**Conclusion (c'est la mesure qui commande)** : **xixou.io et dafous.app se placent avec un contenu mince** ⇒ à **171** URL publiées (**148** indexées), le facteur limitant est **l'autorité et les liens entrants**, pas la quantité de pages. Deux leviers, dans cet ordre :
+
+1. **Hors code, côté humain (le moins cher, le plus décisif)** : demander l'indexation des ~14 URL racines dans GSC ; **exporter GSC → Performances → Requêtes (16 mois)** — c'est cette mesure qui doit arbitrer la famille du lot E-1, pas une intuition ; poser des **liens entrants** (doflinks.fr est un annuaire crawlable, puis annuaires communautaires, fil « créations de fans » du forum Dofus, r/DOFUS_FRANCE, Discords de guildes).
+2. **Code, un seul lot à la fois**, avec deux garde-fous **non négociables** (leçon almanax) : ⓐ une page n'est **publiée/liée** que si la **donnée réelle existe** (sinon `noindex` **et** hors sitemap — jamais de page vide, jamais d'entrée contradictoire) ; ⓑ le sitemap ouvre une famille **par lots** (pas 4 728 URL d'un coup sur un domaine bêta).
+
+**Lots proposés (ordre à trancher)**
+
+- **E-1 — `/monstre/<slug>`** (proposé en premier) : la demande est **prouvée** (dofensive : **4 958** URL = `/fr/monster/<id>`) et notre catalogue existe déjà ; il manque le remplissage riche (**260 / 5 135**, mécanisme en place, backfill ≈ 14 h d'API — cf. « Reste épars » : `MonsterStat` pas iso DofusDB). **Différenciateur** : position monde + donjon associé + (à venir) avis / pierres d'âme.
+- **E-2 — `/objet/<slug>`** : matière **prête** (21 748) mais **0 recette** ⇒ publier maintenant donnerait des fiches **sous** DofusDB (qui a les recettes) et 21 748 pages faibles : **siphon des 4 858 recettes d'abord**.
+- **E-3 — `/quete/<slug>`** : c'est le **moat** de dofuspourlesnoobs (**2 483** pages, 1 par quête) mais notre contenu est **quasi inexistant** (1 `contentJson` sur 1 976) ⇒ chantier **éditorial + technique** le plus lourd, à ouvrir en dernier.
+
+**Décision ouverte (elle conditionne tout l'effort)** : tant qu'on ne bascule pas sur **`sigilos.fr`** (section « CHECKLIST … OUVERTURE PROD » de `docs/plans/SEO_REPRISE.md`), tout le référencement capitalise sur `beta.sigilos.fr` et devra être **migré** (redirections 301 + canonicals). À trancher **avant** de produire beaucoup de pages.
+
+**Ops/humain en attente** : `./scripts/deploy-cd.sh beta` (lot du 29/09, CI `dev` verte sur `c7e0bcbc`) + les 3 contrôles live (`/almanax/1999-01-01` → 404, sitemap sans `lastmod` futur, `/changelog` sans marque doublée).
+
 ### Reste épars — déjà consigné ailleurs (ne pas dupliquer)
 
 - **Ouverture prod / SEO** → « 🔴 Bloquant / Prod » ci-dessous (`#57` + robots.txt / sitemap / llms.txt).
@@ -848,7 +882,7 @@ un même `ok` : ce sont deux causes opposées (attente vs échec), la distinctio
 - **Avis** → même forme d'URL à vérifier ailleurs (4 copies de `MonsterImage` + overlay Ocre qui publie encore `/uploads/assets-dofus/…`), bloc 27/09 (suite 2).
 - **Rappels DJ / événements / Songes** → purge `outbox` non résolue = best-effort (décision : colonne `messageKey` ?) + 4 lignes crontab VPS à poser, bloc 28/09 (rappels).
 - **Simulation tactique** → Lot 2 (mesurer les données de dégâts) + Lot 3 (visuel premium), « 🟠 Bloc B » ci-dessous.
-- **Base de jeu** → `MonsterStat` pas encore iso DofusDB par grade (résistances / stats / butin / `bonusCharacteristics`), doublons historiques à supprimer (`qilby-2`, `agonie-la-deterree-2`), backfill ≈ 5 135 fiches (~14 h de temps API), blocs 27/09 (suite 3 et suite 4).
+- **Base de jeu** → `MonsterStat` pas encore iso DofusDB par grade (résistances / stats / butin / `bonusCharacteristics`), doublons historiques à supprimer (`qilby-2`, `agonie-la-deterree-2`), backfill ≈ 5 135 fiches (~14 h de temps API), blocs 27/09 (suite 3 et suite 4) — **prérequis direct de `§ E` E-1** (une fiche monstre ne se publie qu'avec sa fiche riche).
 
 **Règle de tenue de cette section** : un chantier livré **sort** de ce tableau en fin de session (son état part dans un bloc de session, **en haut du fichier**) ; cette section ne contient que l'**ouvert**, et tout chemin cité doit **exister** dans le dépôt.
 

@@ -31,7 +31,12 @@
  *  ⑤ le résumé de la migration uploads nomme la **source**, la **destination** et le
  *    premier dossier **réel** (plus de « autres ») ;
  *  ⑥ les migrations Prisma sont annoncées avec leur **compte**, compté **dans le dépôt**
- *    (jamais dans le bavardage de Prisma), et leur **sens**.
+ *    (jamais dans le bavardage de Prisma), et leur **sens** ;
+ *  ⑦ la **dernière ligne** du log d'une commande s'affiche, même quand le flux ne finit
+ *    pas par un `\n` : Prisma écrit ses messages en **réécrivant la même ligne** (`\r`),
+ *    donc `wc -l` ne voyait qu'une ligne sur trois et le verdict (« 262 migrations
+ *    found… », « No pending migrations… ») restait invisible — mesuré le 30/09/2026
+ *    sur deux déploiements réels au code identique.
  */
 import { describe, expect, it } from "vitest";
 import fs from "node:fs";
@@ -121,5 +126,21 @@ describe("Sortie du déploiement — compréhensible sans explication", () => {
         expect(dirs.length).toBeGreaterThan(0);
         // L'intitulé de l'étape dit ce qui est fait… et ce qui ne l'est pas.
         expect(source).toContain("aucune ne rejoue, aucune donnée n'est effacée");
+    });
+
+    it("⑦ la dernière ligne du log s'affiche, même sans `\\n` final", () => {
+        const source = deployCd();
+        // 🐛 Mesure du 30/09/2026 (2 déploiements réels au code identique) : une SEULE
+        // ligne de Prisma s'affichait (« Loaded Prisma config… ») alors que son verdict
+        // (« 262 migrations found… », « No pending migrations… ») était bien dans le log
+        // — Prisma réécrit la même ligne (`\r`) et n'achève pas le flux par un `\n`,
+        // or `wc -l` ne compte que les `\n`.
+        //   ⇒ au flush (process terminé), le compte inclut la dernière ligne…
+        expect(source).toContain("awk 'END{print NR}' \"$LOG\"");
+        // …et les messages réécrits en place sont remis un par ligne.
+        expect(source).toContain("tr '\\r' '\\n'");
+        // La boucle de sondage, elle, garde `wc -l` : une ligne en cours d'écriture ne
+        // doit pas être réaffichée à chaque tour.
+        expect(source).toMatch(/while kill -0 "\$PID"[\s\S]{0,600}wc -l <"\$LOG"/);
     });
 });

@@ -95,6 +95,9 @@ compose_exec_streamed() {
     ) &
     local PID=$! SHOWN=0 LINES=0
     while kill -0 "$PID" 2>/dev/null; do
+        # `wc -l` ICI (lignes TERMINÉES par un `\n`) : une ligne encore en cours
+        # d'écriture ne doit pas être réaffichée à chaque tour de sondage. Le
+        # reliquat non terminé est repris au flush, ci-dessous.
         LINES="$(wc -l <"$LOG" 2>/dev/null || printf '0')"
         if (( LINES > SHOWN )); then
             sed -n "$(( SHOWN + 1 )),${LINES}p" "$LOG" | sed '/^[[:space:]]*$/d; s/^/     /'
@@ -103,9 +106,17 @@ compose_exec_streamed() {
         sleep 1
     done
     # Dernières lignes écrites juste avant la fin du process (flush).
-    LINES="$(wc -l <"$LOG" 2>/dev/null || printf '0')"
+    # ⚠️ `awk 'END{print NR}'` et NON `wc -l` : `wc -l` compte les `\n`, donc la
+    # DERNIÈRE ligne d'un flux qui ne finit pas par un saut de ligne n'est jamais
+    # affichée. Mesuré le 30/09/2026 sur DEUX déploiements d'affilée : Prisma
+    # terminait par un bloc séparé par des `\r` (réécriture en place, aucun `\n`)
+    # ⇒ `wc -l` ne voyait qu'UNE ligne (« Loaded Prisma config »), et tout le reste
+    # (« 262 migrations found… », « No pending migrations… ») restait INVISIBLE,
+    # alors que le verdict de la migration se lisait dedans. `tr '\r' '\n'` remet
+    # un message par ligne (Prisma réécrit la même ligne au lieu d'en ajouter une).
+    LINES="$(awk 'END{print NR}' "$LOG" 2>/dev/null || printf '0')"
     if (( LINES > SHOWN )); then
-        sed -n "$(( SHOWN + 1 )),${LINES}p" "$LOG" | sed '/^[[:space:]]*$/d; s/^/     /'
+        sed -n "$(( SHOWN + 1 )),${LINES}p" "$LOG" | tr '\r' '\n' | sed '/^[[:space:]]*$/d; s/^/     /'
     fi
     wait "$PID" 2>/dev/null
     local RC; RC="$(cat "$RC_FILE" 2>/dev/null || printf '1')"

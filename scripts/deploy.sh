@@ -106,20 +106,22 @@ for _dir in "${REPO_OWNED[@]}"; do
     while IFS= read -r _tracked; do
         [[ -n "$_tracked" ]] || continue
         git cat-file -e "HEAD:$_tracked" 2>/dev/null || continue
-        git show "HEAD:$_tracked" 2>/dev/null | cmp -s - "$_tracked" && continue
-        git show "HEAD:$_tracked" > "$_tracked"
-        dim "🧹 Média suivi restauré (version du dépôt) : $_tracked"
+        # `git diff` et pas `cmp` : la divergence peut être une divergence de MODE seul
+        # (`100644` → `100755`, mesurée le 30/09/2026 sur 11 JSON de `public/game-data`).
+        git diff --quiet HEAD -- "$_tracked" 2>/dev/null && continue
+        # `git checkout` remet contenu ET mode ; un `>` aurait laissé le `+x` du serveur.
+        git checkout -- "$_tracked" 2>/dev/null || warn "🧹 Restauration impossible : $_tracked"
+        dim "🧹 Média suivi restauré (contenu + mode du dépôt) : $_tracked"
     done < <(git ls-files -- "$_dir" 2>/dev/null)
 done
 CURATED_DIR="$(mktemp -d)"
 for f in "${CURATED[@]}"; do
     [[ -f "$f" ]] || continue
     git cat-file -e "HEAD:$f" 2>/dev/null || continue
-    if ! git show "HEAD:$f" 2>/dev/null | cmp -s - "$f"; then
-        cp "$f" "$CURATED_DIR/$(basename "$f")"
-        git show "HEAD:$f" > "$f"
-        dim "🔒 Donnée curée mise de côté : $f"
-    fi
+    git diff --quiet HEAD -- "$f" 2>/dev/null && continue
+    cp "$f" "$CURATED_DIR/$(basename "$f")"
+    git checkout -- "$f" 2>/dev/null || warn "🔒 Mise en conformité impossible : $f"
+    dim "🔒 Donnée curée mise de côté : $f"
 done
 git pull origin "$(git rev-parse --abbrev-ref HEAD)"
 for f in "${CURATED[@]}"; do

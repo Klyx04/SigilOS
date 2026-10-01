@@ -1213,13 +1213,22 @@ export const RAIDS_DATA_EN: Record<string, RaidData> = {
           dangerWarning: "The 12 players must deposit their gathered resources at the chest to trigger the 10,000 pts threshold!",
           steps: route.steps.map((st) => ({
             ...st,
-            action: st.stepNum === 1
-              ? "From boss or statues room at [9, 11], travel to [6, 10]."
-              : st.stepNum === 2
-              ? "Player with Claw clicks lanternfish at [6, 10]. Everyone crosses to [4, 7] (-2)."
-              : st.stepNum === 3
-              ? "From [4, 7], travel to [2, 7] then click access to return to Floor -1."
-              : "From [4, 3], travel to [3, 2]. All 12 players empty bags at chest (>10,000 pts confirmed).",
+            label:
+              st.stepNum === 1
+                ? "Floor -4 Exit"
+                : st.stepNum === 2
+                ? "Secret Passage (Lanternfish)"
+                : st.stepNum === 3
+                ? "Crossing Floor -2 to -1"
+                : "Arrival at Raid Chest",
+            action:
+              st.stepNum === 1
+                ? "From boss or statues room at [9, 11], travel to [6, 10]."
+                : st.stepNum === 2
+                ? "Player with Claw clicks lanternfish at [6, 10]. Everyone crosses to [4, 7] (-2)."
+                : st.stepNum === 3
+                ? "From [4, 7], travel to [2, 7] then click access to return to Floor -1."
+                : "From [4, 3], travel to [3, 2]. All 12 players empty bags at chest (>10,000 pts confirmed).",
             warning: st.warning ? "Autopilot disconnected: only player holding Execrabe Claw can open!" : undefined,
           })),
         };
@@ -1233,15 +1242,26 @@ export const RAIDS_DATA_EN: Record<string, RaidData> = {
           dangerWarning: "Careful on [12, 13]: clicking the sea bone interrupts autopilot and autofollow!",
           steps: route.steps.map((st) => ({
             ...st,
-            action: st.stepNum === 1
-              ? "From chest [3, 2], travel to [4, 3] and climb down ladder to Floor -2."
-              : st.stepNum === 2
-              ? "At [4, 7], take cave bottom-right to appear directly at [6, 10] (-4)."
-              : st.stepNum === 3
-              ? "Travel to [9, 11], click water (statues solved) then exit bottom-right to -5."
-              : st.stepNum === 4
-              ? "At [12, 13], click sea bone to descend. Autopilot turns off here!"
-              : "Farm Krak'Haine until 4th fragment drops (20%). Entire raid takes diving cage at [10, 14].",
+            label:
+              st.stepNum === 1
+                ? "Descent to Floor -2"
+                : st.stepNum === 2
+                ? "Shortcut Cave to -4"
+                : st.stepNum === 3
+                ? "Under-Lake Access to -5"
+                : st.stepNum === 4
+                ? "Sea Bone Transition"
+                : "Diving Cage to -6",
+            action:
+              st.stepNum === 1
+                ? "From chest [3, 2], travel to [4, 3] and climb down ladder to Floor -2."
+                : st.stepNum === 2
+                ? "At [4, 7], take cave bottom-right to appear directly at [6, 10] (-4)."
+                : st.stepNum === 3
+                ? "Travel to [9, 11], click water (statues solved) then exit bottom-right to -5."
+                : st.stepNum === 4
+                ? "At [12, 13], click sea bone to descend. Autopilot turns off here!"
+                : "Farm Krak'Haine until 4th fragment drops (20%). Entire raid takes diving cage at [10, 14].",
             warning: st.warning ? "Resume manual control on this map to avoid mob aggros!" : undefined,
           })),
         };
@@ -1253,11 +1273,18 @@ export const RAIDS_DATA_EN: Record<string, RaidData> = {
         badge: "Final Phase",
         steps: route.steps.map((st) => ({
           ...st,
-          action: st.stepNum === 1
-            ? "Willorc defeated ➔ Obtain 'Darkness of Willorc' (+10,000 pts at chest)."
-            : st.stepNum === 2
-            ? "Take diving cage back to Floor -5."
-            : "Ascend via shortcut to [3, 2]. Deposit Willorc's relic.",
+          label:
+            st.stepNum === 1
+              ? "Willorc Defeated"
+              : st.stepNum === 2
+              ? "Return to Diving Cage"
+              : "Ascent to Chest",
+          action:
+            st.stepNum === 1
+              ? "Willorc defeated ➔ Obtain 'Darkness of Willorc' (+10,000 pts at chest)."
+              : st.stepNum === 2
+              ? "Take diving cage back to Floor -5."
+              : "Ascend via shortcut to [3, 2]. Deposit Willorc's relic.",
         })),
       };
     }),
@@ -1286,6 +1313,10 @@ export const RAIDS_DATA_EN: Record<string, RaidData> = {
         floor: "Floor -1",
         title: "Base Camp & Mining",
         bossName: "Clear 18 Mob Groups",
+        secondaryImages: [
+          { label: "Sea salt deposits", src: "/images/guides/gigalodon/27-gisement-sel.jpg" },
+          { label: "Camp luminomachine", src: "/images/guides/gigalodon/18-luminomachine.jpg" },
+        ],
         summary: "Base camp. Split the raid into 3 squads of 4 to clear the 5 maps and mine sea salt.",
         bullets: [
           "18 groups split across 3 squads of 4 (no respawn)",
@@ -1315,6 +1346,10 @@ export const RAIDS_DATA_EN: Record<string, RaidData> = {
         floor: "Floor -2",
         title: "Boss 1: Abyssal Moray",
         bossName: "Moray (51,000 HP)",
+        secondaryImages: [
+          { label: "Corner lock technique", src: "/images/guides/gigalodon/58-placement-blocage-mureine.jpg" },
+          { label: "Lair access (central pit)", src: "/images/guides/gigalodon/44-position-mureine.jpg" },
+        ],
         summary: "Colossal eel (51,000 HP). Accompanied by 3 normal mobs: Madrepore, Kokayou, and Leviatank.",
         bullets: [
           "Level 4 Light mandatory before engaging (or 153k HP / +1,000 Power)",
@@ -1344,6 +1379,9 @@ export const RAIDS_DATA_EN: Record<string, RaidData> = {
         floor: "Floor -3",
         title: "Drowned Cliff & Luminarium",
         bossName: "Lanternfish Puzzle",
+        secondaryImages: [
+          { label: "Cascade lighting method", src: "/images/guides/gigalodon/65-methode-solution-luminarium.jpg" },
+        ],
         summary: "Luminarium cave. Puzzle on a vertical wall (4x4 lanternfish grid). Zero combat, safe zone.",
         bullets: [
           "100% safe zone: no monsters, no salt to spend",
@@ -1374,6 +1412,10 @@ export const RAIDS_DATA_EN: Record<string, RaidData> = {
         floor: "Floor -4",
         title: "Boss 2: Execrabe's Burrow",
         bossName: "Execrabe (4 Forms)",
+        secondaryImages: [
+          { label: "Under-lake puzzle statues", src: "/images/guides/gigalodon/89-statues-enigme-execrabe.jpg" },
+          { label: "Shortcut opening at [6, 10]", src: "/images/guides/gigalodon/95-ouverture-raccourci.jpg" },
+        ],
         summary: "Massive crustacean with 4 appearances. Memorization of the 4 forms required to activate the statues under the lake.",
         bullets: [
           "Record the order of the 4 elemental forms at HP thresholds (Shell, Urchin, Pearl, Squid)",
@@ -1462,6 +1504,10 @@ export const RAIDS_DATA_EN: Record<string, RaidData> = {
         floor: "Floor -6",
         title: "Boss 3: Willorc's Deepshade",
         bossName: "Willorc (62,000 HP)",
+        secondaryImages: [
+          { label: "Panda Cheese: corner isolation", src: "/images/guides/gigalodon/116-blocage-willorque-pandawa.jpg" },
+          { label: "Willorc map in darkness", src: "/images/guides/gigalodon/108-map-willorque-sombre.jpg" },
+        ],
         summary: "Rooted boss (62,000 HP), ALONE on map [11, 16]. Permanent complete darkness. Zero mobs, zero phantom orcas.",
         bullets: [
           "Immediate aggro at 10 Range within 5 seconds in the dark (enter grouped and ready)",
@@ -1491,6 +1537,13 @@ export const RAIDS_DATA_EN: Record<string, RaidData> = {
         floor: "Hub -1",
         title: "Final Encounter: The Gigalodon",
         bossName: "Gigalodon (3-Turn Burst)",
+        secondaryImages: [
+          { label: "Hitbox & Amer Teeth", src: "/images/guides/gigalodon/125-glyphe-hitbox-gigalodon.jpg" },
+          { label: "Catch zone (in front of maw)", src: "/images/guides/gigalodon/127-zone-attrapage-gigalodon.jpg" },
+          { label: "Gigarâle area example (3 Range)", src: "/images/guides/gigalodon/131-sort-gigarale-exemple-zones.jpg" },
+          { label: "Ultrasplash spell (lateral cones)", src: "/images/guides/gigalodon/130-sort-ultrasplash.jpg" },
+          { label: "Finturn spell (7-cell knockback)", src: "/images/guides/gigalodon/129-sort-tournageoire.jpg" },
+        ],
         summary: "Timed 3-turn burst phase launched from the chest (-1). Automatic victory on Turn 4 via Gigalodoom. Goal: max burst damage to cap the score (+15,000 pts)!",
         bullets: [
           "3 turns only: automatic victory on Turn 4 via Gigalodoom",
@@ -1552,6 +1605,82 @@ export const RAIDS_DATA_EN: Record<string, RaidData> = {
     zoneName: "Eternal Gardens Sanctuary",
     badge: "16 Players Raid · Lvl 200",
     description: "Cooperative guild raid with 20 shared HP: 4 interconnected wings, 4 area guardians, 60 corridor solo fights, Scarlet Queen and Cursed Princess.",
+    safeRoutes: [
+      {
+        id: "ailes-sanctuaire",
+        title: "4 Wings Navigation",
+        subtitle: "Routes between the 4 puzzle rooms and the central castle",
+        badge: "Puzzle Path",
+        dangerWarning: "Each failure or defeat in combat costs 1 HP on the raid counter!",
+        steps: [
+          {
+            stepNum: 1,
+            label: "Central Courtyard",
+            coords: "[10, 15]",
+            command: "/travel 10,15",
+            action: "Main crossroads connecting the 4 wings of the Eternal Gardens Sanctuary.",
+          },
+          {
+            stepNum: 2,
+            label: "Belladonna's Reserve",
+            coords: "[19, 15]",
+            command: "/travel 19,15",
+            action: "Access to Naval Battle and scouting chessboards.",
+          },
+          {
+            stepNum: 3,
+            label: "Ephedra's Courtyard",
+            coords: "[12, 14]",
+            command: "/travel 12,14",
+            action: "Room of the grand chessboard and garden miniatures.",
+          },
+          {
+            stepNum: 4,
+            label: "Monochrome Work",
+            coords: "[11, 21]",
+            command: "/travel 11,21",
+            action: "Room of paper flowers and the 6 revealing boats.",
+          },
+          {
+            stepNum: 5,
+            label: "Protectors Enclosure",
+            coords: "[11, 19]",
+            command: "/travel 11,19",
+            action: "Garden of steles and statue comparisons.",
+          },
+        ],
+      },
+      {
+        id: "chateau-boss",
+        title: "Castle & Boss Rooms Access",
+        subtitle: "Traversing the 60-fight Corridor to the Queen and Princess",
+        badge: "Boss Access",
+        dangerWarning: "2,601+ Initiative mandatory in the corridor. Fights are strictly solo!",
+        steps: [
+          {
+            stepNum: 1,
+            label: "Corridor Entrance",
+            coords: "[14, 18]",
+            command: "/travel 14,18",
+            action: "Central gate opening after the fall of the 4 zone guardians.",
+          },
+          {
+            stepNum: 2,
+            label: "Scarlet Queen Crypt",
+            coords: "[16, 20]",
+            command: "/travel 16,20",
+            action: "Tower basement: 8-player fight against the Scarlet Queen (50,000 HP).",
+          },
+          {
+            stepNum: 3,
+            label: "Cursed Princess Spire",
+            coords: "[18, 22]",
+            command: "/travel 18,22",
+            action: "Spire summit: 8-player fight against the Cursed Princess (50,000 HP, pure range).",
+          },
+        ],
+      },
+    ],
     steps: [
       {
         ...RAIDS_DATA["jardin-eternel"].steps[0],

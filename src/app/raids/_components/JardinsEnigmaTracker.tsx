@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import {
   Compass,
   Ship,
@@ -21,35 +21,41 @@ export interface JardinsEnigmaTrackerProps {
   onCopyTravel?: (cmd: string) => void;
 }
 
-const PIECES_ECHECS = [
-  { id: "tour-blanche", name: "Tour blanche", sprite: "/images/guides/sanctuaire/enigmes/tour-blanche.png" },
-  { id: "tour-noire", name: "Tour noire", sprite: "/images/guides/sanctuaire/enigmes/tour-noire.png" },
-  { id: "fou-blanc", name: "Fou blanc", sprite: "/images/guides/sanctuaire/enigmes/fou-blanc.png" },
-  { id: "fou-noir", name: "Fou noir", sprite: "/images/guides/sanctuaire/enigmes/fou-noir.png" },
-];
+function getPiecesEchecs(isEn: boolean) {
+  return [
+    { id: "tour-blanche", name: isEn ? "White Rook" : "Tour blanche", sprite: "/images/guides/sanctuaire/enigmes/tour-blanche.png" },
+    { id: "tour-noire", name: isEn ? "Black Rook" : "Tour noire", sprite: "/images/guides/sanctuaire/enigmes/tour-noire.png" },
+    { id: "fou-blanc", name: isEn ? "White Bishop" : "Fou blanc", sprite: "/images/guides/sanctuaire/enigmes/fou-blanc.png" },
+    { id: "fou-noir", name: isEn ? "Black Bishop" : "Fou noir", sprite: "/images/guides/sanctuaire/enigmes/fou-noir.png" },
+  ];
+}
 
 const COLS_ECHECS = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K"];
 const ROWS_ECHECS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11"];
 
-const BELLADONE_ITEMS = [
-  { id: "crayon", name: "Crayons", icon: "/images/guides/sanctuaire/enigmes/crayons.png" },
-  { id: "bobine", name: "Bobine", icon: "/images/guides/sanctuaire/enigmes/bobine.png" },
-  { id: "lanterne", name: "Lanterne", icon: "/images/guides/sanctuaire/enigmes/lanterne.png" },
-  { id: "kamas", name: "Kamas", icon: "/images/guides/sanctuaire/enigmes/kamas.png" },
-  { id: "arakne", name: "Arakne", icon: "/images/guides/sanctuaire/enigmes/arakne.png" },
-  { id: "bougie", name: "Bougie", icon: "/images/guides/sanctuaire/enigmes/bougie.png" },
-  { id: "bague", name: "Bague", icon: "/images/guides/sanctuaire/enigmes/bague.png" },
-  { id: "regle", name: "Règle", icon: "/images/guides/sanctuaire/enigmes/regle.png" },
-];
+function getBelladoneItems(isEn: boolean) {
+  return [
+    { id: "crayon", name: isEn ? "Pencils" : "Crayons", icon: "/images/guides/sanctuaire/enigmes/crayons.png" },
+    { id: "bobine", name: isEn ? "Spool" : "Bobine", icon: "/images/guides/sanctuaire/enigmes/bobine.png" },
+    { id: "lanterne", name: isEn ? "Lantern" : "Lanterne", icon: "/images/guides/sanctuaire/enigmes/lanterne.png" },
+    { id: "kamas", name: "Kamas", icon: "/images/guides/sanctuaire/enigmes/kamas.png" },
+    { id: "arakne", name: "Arakne", icon: "/images/guides/sanctuaire/enigmes/arakne.png" },
+    { id: "bougie", name: isEn ? "Candle" : "Bougie", icon: "/images/guides/sanctuaire/enigmes/bougie.png" },
+    { id: "bague", name: isEn ? "Ring" : "Bague", icon: "/images/guides/sanctuaire/enigmes/bague.png" },
+    { id: "regle", name: isEn ? "Ruler" : "Règle", icon: "/images/guides/sanctuaire/enigmes/regle.png" },
+  ];
+}
 
 const ROMAINS = ["I", "II", "III", "IV"] as const;
 
-const ENIGMA_COLORS = [
-  { id: "orange", label: "Orange / Jaune", hex: "#EF9F27" },
-  { id: "bleu", label: "Bleu", hex: "#38bdf8" },
-  { id: "rouge", label: "Rouge", hex: "#f43f5e" },
-  { id: "vert", label: "Vert", hex: "#10b981" },
-] as const;
+function getEnigmaColors(isEn: boolean) {
+  return [
+    { id: "orange", label: isEn ? "Orange / Yellow" : "Orange / Jaune", hex: "#EF9F27" },
+    { id: "bleu", label: isEn ? "Blue" : "Bleu", hex: "#38bdf8" },
+    { id: "rouge", label: isEn ? "Red" : "Rouge", hex: "#f43f5e" },
+    { id: "vert", label: isEn ? "Green" : "Vert", hex: "#10b981" },
+  ] as const;
+}
 
 const STATUE_SPRITES = [
   { id: "statue1", name: "Fracamélia", sprite: "/images/guides/sanctuaire/enigmes/fracamelia.png" },
@@ -58,55 +64,59 @@ const STATUE_SPRITES = [
   { id: "statue4", name: "Dahliane", sprite: "/images/guides/sanctuaire/enigmes/dahliane.png" },
 ];
 
-const JARDINS_DIRECTIONS = [
-  {
-    id: "haut",
-    label: "Haut (Nord)",
-    arrow: "▲",
-    img1: "/images/guides/sanctuaire/enigmes/top.jpg",
-    img2: "/images/guides/sanctuaire/enigmes/minitop.jpg",
-  },
-  {
-    id: "bas",
-    label: "Bas (Sud)",
-    arrow: "▼",
-    img1: "/images/guides/sanctuaire/enigmes/bottom.jpg",
-    img2: "/images/guides/sanctuaire/enigmes/minibottom.jpg",
-  },
-  {
-    id: "gauche",
-    label: "Gauche (Ouest)",
-    arrow: "◀",
-    img1: "/images/guides/sanctuaire/enigmes/left.jpg",
-    img2: "/images/guides/sanctuaire/enigmes/minileft.jpg",
-  },
-  {
-    id: "droite",
-    label: "Droite (Est)",
-    arrow: "▶",
-    img1: "/images/guides/sanctuaire/enigmes/right.jpg",
-    img2: "/images/guides/sanctuaire/enigmes/miniright.jpg",
-  },
-] as const;
+function getJardinsDirections(isEn: boolean) {
+  return [
+    {
+      id: "haut",
+      label: isEn ? "Top (North)" : "Haut (Nord)",
+      arrow: "▲",
+      img1: "/images/guides/sanctuaire/enigmes/top.jpg",
+      img2: "/images/guides/sanctuaire/enigmes/minitop.jpg",
+    },
+    {
+      id: "bas",
+      label: isEn ? "Bottom (South)" : "Bas (Sud)",
+      arrow: "▼",
+      img1: "/images/guides/sanctuaire/enigmes/bottom.jpg",
+      img2: "/images/guides/sanctuaire/enigmes/minibottom.jpg",
+    },
+    {
+      id: "gauche",
+      label: isEn ? "Left (West)" : "Gauche (Ouest)",
+      arrow: "◀",
+      img1: "/images/guides/sanctuaire/enigmes/left.jpg",
+      img2: "/images/guides/sanctuaire/enigmes/minileft.jpg",
+    },
+    {
+      id: "droite",
+      label: isEn ? "Right (East)" : "Droite (Est)",
+      arrow: "▶",
+      img1: "/images/guides/sanctuaire/enigmes/right.jpg",
+      img2: "/images/guides/sanctuaire/enigmes/miniright.jpg",
+    },
+  ] as const;
+}
 
-const STATUES_TRUTH_TABLE: Record<string, { pos: string; arrow: string; travel: string }> = {
-  orange_statue1: { pos: "[11, 19]", arrow: "▲ Nord", travel: "/travel 11,19" },
-  orange_statue2: { pos: "[10, 20]", arrow: "◀ Ouest", travel: "/travel 10,20" },
-  orange_statue3: { pos: "[12, 20]", arrow: "▶ Est", travel: "/travel 12,20" },
-  orange_statue4: { pos: "[11, 21]", arrow: "▼ Sud", travel: "/travel 11,21" },
-  bleu_statue1: { pos: "[11, 21]", arrow: "▼ Sud", travel: "/travel 11,21" },
-  bleu_statue2: { pos: "[12, 20]", arrow: "▶ Est", travel: "/travel 12,20" },
-  bleu_statue3: { pos: "[10, 20]", arrow: "◀ Ouest", travel: "/travel 10,20" },
-  bleu_statue4: { pos: "[11, 19]", arrow: "▲ Nord", travel: "/travel 11,19" },
-  rouge_statue1: { pos: "[12, 20]", arrow: "▶ Est", travel: "/travel 12,20" },
-  rouge_statue2: { pos: "[11, 19]", arrow: "▲ Nord", travel: "/travel 11,19" },
-  rouge_statue3: { pos: "[11, 21]", arrow: "▼ Sud", travel: "/travel 11,21" },
-  rouge_statue4: { pos: "[10, 20]", arrow: "◀ Ouest", travel: "/travel 10,20" },
-  vert_statue1: { pos: "[10, 20]", arrow: "◀ Ouest", travel: "/travel 10,20" },
-  vert_statue2: { pos: "[11, 21]", arrow: "▼ Sud", travel: "/travel 11,21" },
-  vert_statue3: { pos: "[11, 19]", arrow: "▲ Nord", travel: "/travel 11,19" },
-  vert_statue4: { pos: "[12, 20]", arrow: "▶ Est", travel: "/travel 12,20" },
-};
+function getStatuesTruthTable(isEn: boolean): Record<string, { pos: string; arrow: string; travel: string }> {
+  return {
+    orange_statue1: { pos: "[11, 19]", arrow: isEn ? "▲ North" : "▲ Nord", travel: "/travel 11,19" },
+    orange_statue2: { pos: "[10, 20]", arrow: isEn ? "◀ West" : "◀ Ouest", travel: "/travel 10,20" },
+    orange_statue3: { pos: "[12, 20]", arrow: isEn ? "▶ East" : "▶ Est", travel: "/travel 12,20" },
+    orange_statue4: { pos: "[11, 21]", arrow: isEn ? "▼ South" : "▼ Sud", travel: "/travel 11,21" },
+    bleu_statue1: { pos: "[11, 21]", arrow: isEn ? "▼ South" : "▼ Sud", travel: "/travel 11,21" },
+    bleu_statue2: { pos: "[12, 20]", arrow: isEn ? "▶ East" : "▶ Est", travel: "/travel 12,20" },
+    bleu_statue3: { pos: "[10, 20]", arrow: isEn ? "◀ West" : "◀ Ouest", travel: "/travel 10,20" },
+    bleu_statue4: { pos: "[11, 19]", arrow: isEn ? "▲ North" : "▲ Nord", travel: "/travel 11,19" },
+    rouge_statue1: { pos: "[12, 20]", arrow: isEn ? "▶ East" : "▶ Est", travel: "/travel 12,20" },
+    rouge_statue2: { pos: "[11, 19]", arrow: isEn ? "▲ North" : "▲ Nord", travel: "/travel 11,19" },
+    rouge_statue3: { pos: "[11, 21]", arrow: isEn ? "▼ South" : "▼ Sud", travel: "/travel 11,21" },
+    rouge_statue4: { pos: "[10, 20]", arrow: isEn ? "◀ West" : "◀ Ouest", travel: "/travel 10,20" },
+    vert_statue1: { pos: "[10, 20]", arrow: isEn ? "◀ West" : "◀ Ouest", travel: "/travel 10,20" },
+    vert_statue2: { pos: "[11, 21]", arrow: isEn ? "▼ South" : "▼ Sud", travel: "/travel 11,21" },
+    vert_statue3: { pos: "[11, 19]", arrow: isEn ? "▲ North" : "▲ Nord", travel: "/travel 11,19" },
+    vert_statue4: { pos: "[12, 20]", arrow: isEn ? "▶ East" : "▶ Est", travel: "/travel 12,20" },
+  };
+}
 
 export function JardinsEnigmaTracker({ compact = false, onCopyTravel }: JardinsEnigmaTrackerProps) {
   const [activeTab, setActiveTab] = useState<"echecs" | "objets" | "bateaux" | "statues">("statues");
@@ -191,13 +201,19 @@ export function JardinsEnigmaTracker({ compact = false, onCopyTravel }: JardinsE
     setter((prev) => ({ ...prev, [cell]: !prev[cell] }));
   };
 
-  const currentStatueResult =
-    selectedColor && statueSelected ? STATUES_TRUTH_TABLE[`${selectedColor}_${statueSelected}`] : null;
-
-  const currentDirectionData = JARDINS_DIRECTIONS.find((d) => d.id === activeDirection) || JARDINS_DIRECTIONS[0];
-
   const { locale } = useI18n();
   const isEn = locale === "en";
+
+  const piecesEchecs = useMemo(() => getPiecesEchecs(isEn), [isEn]);
+  const belladoneItems = useMemo(() => getBelladoneItems(isEn), [isEn]);
+  const enigmaColors = useMemo(() => getEnigmaColors(isEn), [isEn]);
+  const jardinsDirections = useMemo(() => getJardinsDirections(isEn), [isEn]);
+  const statuesTruthTable = useMemo(() => getStatuesTruthTable(isEn), [isEn]);
+
+  const currentStatueResult =
+    selectedColor && statueSelected ? statuesTruthTable[`${selectedColor}_${statueSelected}`] : null;
+
+  const currentDirectionData = jardinsDirections.find((d) => d.id === activeDirection) || jardinsDirections[0];
 
   return (
     <div className={cn("rounded-xl border border-border bg-[#0e1117] text-foreground space-y-4", compact ? "p-3" : "p-5")}>
@@ -246,7 +262,15 @@ export function JardinsEnigmaTracker({ compact = false, onCopyTravel }: JardinsE
       {activeTab === "statues" && (
         <div className="space-y-4">
           <p className="text-[11px] text-muted-foreground leading-relaxed">
-            Comparez la vue du <strong>Clos des Protecteurs</strong> à la miniature de la <strong>Cour d'Éphèdre</strong>. Renseignez la statue apparue au centre et la couleur obtenue dans l'Ouvrage : l'outil calcule la position exacte du monstre.
+            {isEn ? (
+              <>
+                Compare the view from <strong>Protectors Enclosure</strong> to the miniature in <strong>Ephedra&apos;s Courtyard</strong>. Enter the statue that appeared at the center and the color obtained in the Work: the tool calculates the exact position of the monster.
+              </>
+            ) : (
+              <>
+                Comparez la vue du <strong>Clos des Protecteurs</strong> à la miniature de la <strong>Cour d&apos;Éphèdre</strong>. Renseignez la statue apparue au centre et la couleur obtenue dans l&apos;Ouvrage : l&apos;outil calcule la position exacte du monstre.
+              </>
+            )}
           </p>
 
           <div className={cn("grid gap-4 items-start", compact ? "grid-cols-1" : "grid-cols-1 lg:grid-cols-12")}>
@@ -255,10 +279,10 @@ export function JardinsEnigmaTracker({ compact = false, onCopyTravel }: JardinsE
               {/* Croix directionnelle */}
               <div className="flex items-center gap-3">
                 <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
-                  Angle de vue :
+                  {isEn ? "Viewing angle:" : "Angle de vue :"}
                 </span>
                 <div className="flex items-center gap-1">
-                  {JARDINS_DIRECTIONS.map((dir) => (
+                  {jardinsDirections.map((dir) => (
                     <button
                       key={dir.id}
                       type="button"
@@ -281,21 +305,21 @@ export function JardinsEnigmaTracker({ compact = false, onCopyTravel }: JardinsE
               <div className="grid grid-cols-2 gap-2">
                 <div className="rounded-lg border border-border bg-black/40 overflow-hidden">
                   <div className="px-2 py-1 bg-white/[0.03] border-b border-border text-[10px] font-medium text-muted-foreground truncate">
-                    Clos des Protecteurs
+                    {isEn ? "Protectors Enclosure" : "Clos des Protecteurs"}
                   </div>
                   <img
                     src={currentDirectionData.img1}
-                    alt="Vue Clos des Protecteurs"
+                    alt={isEn ? "Protectors Enclosure View" : "Vue Clos des Protecteurs"}
                     className="w-full h-32 sm:h-36 object-cover"
                   />
                 </div>
                 <div className="rounded-lg border border-border bg-black/40 overflow-hidden">
                   <div className="px-2 py-1 bg-white/[0.03] border-b border-border text-[10px] font-medium text-muted-foreground truncate">
-                    Cour d'Éphèdre (Miniature)
+                    {isEn ? "Ephedra's Courtyard (Miniature)" : "Cour d'Éphèdre (Miniature)"}
                   </div>
                   <img
                     src={currentDirectionData.img2}
-                    alt="Vue Cour d'Éphèdre"
+                    alt={isEn ? "Ephedra Courtyard View" : "Vue Cour d'Éphèdre"}
                     className="w-full h-32 sm:h-36 object-cover"
                   />
                 </div>
@@ -307,7 +331,7 @@ export function JardinsEnigmaTracker({ compact = false, onCopyTravel }: JardinsE
               {/* Choix des 4 statues */}
               <div>
                 <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider block mb-1.5">
-                  1. Statue apparue au centre :
+                  {isEn ? "1. Statue appeared at center:" : "1. Statue apparue au centre :"}
                 </span>
                 <div className="grid grid-cols-4 gap-1.5">
                   {STATUE_SPRITES.map((st) => (
@@ -333,10 +357,10 @@ export function JardinsEnigmaTracker({ compact = false, onCopyTravel }: JardinsE
               {/* Choix de la couleur */}
               <div>
                 <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider block mb-1.5">
-                  2. Couleur (Ouvrage Monochrome) :
+                  {isEn ? "2. Color (Monochrome Work):" : "2. Couleur (Ouvrage Monochrome) :"}
                 </span>
                 <div className="grid grid-cols-4 gap-1.5">
-                  {ENIGMA_COLORS.map((col) => (
+                  {enigmaColors.map((col) => (
                     <button
                       key={col.id}
                       type="button"
@@ -360,7 +384,7 @@ export function JardinsEnigmaTracker({ compact = false, onCopyTravel }: JardinsE
               {/* Résultat Calculé */}
               <div className="p-3 rounded-lg border border-emerald-500/30 bg-emerald-500/5 space-y-2">
                 <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400 block">
-                  Cible calculée à éliminer :
+                  {isEn ? "Calculated target to eliminate:" : "Cible calculée à éliminer :"}
                 </span>
                 {currentStatueResult ? (
                   <div className="flex items-center justify-between gap-2 flex-wrap">
@@ -369,7 +393,7 @@ export function JardinsEnigmaTracker({ compact = false, onCopyTravel }: JardinsE
                         {currentStatueResult.pos}
                       </div>
                       <span className="text-[11px] text-emerald-300 font-medium">
-                        Orientation : {currentStatueResult.arrow}
+                        {isEn ? "Orientation:" : "Orientation :"} {currentStatueResult.arrow}
                       </span>
                     </div>
 
@@ -384,12 +408,14 @@ export function JardinsEnigmaTracker({ compact = false, onCopyTravel }: JardinsE
                       )}
                     >
                       {copiedKey === "statue-target" ? <Check size={12} /> : <Copy size={11} />}
-                      <span>{copiedKey === "statue-target" ? "Copié" : currentStatueResult.travel}</span>
+                      <span>{copiedKey === "statue-target" ? (isEn ? "Copied" : "Copié") : currentStatueResult.travel}</span>
                     </button>
                   </div>
                 ) : (
                   <p className="text-[11px] text-muted-foreground italic">
-                    Sélectionnez une statue et une couleur pour afficher la position.
+                    {isEn
+                      ? "Select a statue and a color to display position."
+                      : "Sélectionnez une statue et une couleur pour afficher la position."}
                   </p>
                 )}
               </div>
@@ -402,11 +428,13 @@ export function JardinsEnigmaTracker({ compact = false, onCopyTravel }: JardinsE
       {activeTab === "echecs" && (
         <div className="space-y-4">
           <p className="text-[11px] text-muted-foreground leading-relaxed">
-            Renseignez les coordonnées des 4 pièces d'échecs (grille A1 à K11) observées dans la Réserve pour placer vos personnages sur les cases identiques lors du combat en Cour d'Éphèdre.
+            {isEn
+              ? "Enter the coordinates of the 4 chess pieces (grid A1 to K11) observed in the Storehouse to place your characters on identical tiles during the fight in Ephedra Courtyard."
+              : "Renseignez les coordonnées des 4 pièces d'échecs (grille A1 à K11) observées dans la Réserve pour placer vos personnages sur les cases identiques lors du combat en Cour d'Éphèdre."}
           </p>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
-            {PIECES_ECHECS.map((piece) => {
+            {piecesEchecs.map((piece) => {
               const pos = piecesPos[piece.id];
               const isOpen = openPosPickerPieceId === piece.id;
 
@@ -420,7 +448,7 @@ export function JardinsEnigmaTracker({ compact = false, onCopyTravel }: JardinsE
                   <div className="flex items-center gap-1.5">
                     {pos ? (
                       <div className="flex-1 flex items-center justify-between px-2.5 py-1.5 rounded bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 font-mono font-bold text-xs">
-                        <span>Case {pos}</span>
+                        <span>{isEn ? `Tile ${pos}` : `Case ${pos}`}</span>
                         <button
                           type="button"
                           onClick={() => setPiecesPos((prev) => ({ ...prev, [piece.id]: "" }))}
@@ -435,7 +463,7 @@ export function JardinsEnigmaTracker({ compact = false, onCopyTravel }: JardinsE
                         onClick={() => setOpenPosPickerPieceId(isOpen ? null : piece.id)}
                         className="w-full py-1.5 px-2.5 rounded border border-dashed border-border hover:border-emerald-400 text-muted-foreground hover:text-foreground text-xs font-medium transition-all text-center cursor-pointer"
                       >
-                        Choisir une case…
+                        {isEn ? "Choose a tile…" : "Choisir une case…"}
                       </button>
                     )}
                   </div>
@@ -445,7 +473,7 @@ export function JardinsEnigmaTracker({ compact = false, onCopyTravel }: JardinsE
                     <div className="absolute top-full left-0 mt-1 z-30 w-72 bg-[#12161f] border border-white/20 rounded-lg p-2 shadow-2xl space-y-1 animate-in fade-in duration-100">
                       <div className="flex items-center justify-between border-b border-white/10 pb-1 mb-1">
                         <span className="text-[10px] font-bold text-muted-foreground uppercase">
-                          Grille A1..K11 ({piece.name})
+                          {isEn ? `Grid A1..K11 (${piece.name})` : `Grille A1..K11 (${piece.name})`}
                         </span>
                         <button
                           type="button"
@@ -501,7 +529,9 @@ export function JardinsEnigmaTracker({ compact = false, onCopyTravel }: JardinsE
       {activeTab === "objets" && (
         <div className="space-y-4">
           <p className="text-[11px] text-muted-foreground leading-relaxed">
-            Indiquez les 2 objets présents sur chaque piédestal (I à IV). Cochez le bouton 🌸 sur l'objet associé à la fleur en papier découverte dans l'Ouvrage, puis renseignez la couleur obtenue.
+            {isEn
+              ? "Indicate the 2 objects present on each pedestal (I to IV). Check the 🌸 button on the object associated with the paper flower found in the Work, then enter the color obtained."
+              : "Indiquez les 2 objets présents sur chaque piédestal (I à IV). Cochez le bouton 🌸 sur l'objet associé à la fleur en papier découverte dans l'Ouvrage, puis renseignez la couleur obtenue."}
           </p>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
@@ -512,14 +542,18 @@ export function JardinsEnigmaTracker({ compact = false, onCopyTravel }: JardinsE
               return (
                 <div key={roman} className="p-3 rounded-lg border border-border bg-surface/50 space-y-2.5">
                   <div className="flex items-center justify-between border-b border-border pb-1.5">
-                    <span className="font-mono text-xs font-black text-foreground">Stèle {roman}</span>
-                    <span className="text-[10px] text-muted-foreground">2 objets</span>
+                    <span className="font-mono text-xs font-black text-foreground">
+                      {isEn ? `Stele ${roman}` : `Stèle ${roman}`}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground">
+                      {isEn ? "2 items" : "2 objets"}
+                    </span>
                   </div>
 
                   <div className="space-y-1.5">
                     {[0, 1].map((slotIdx) => {
                       const itemId = currentSlots[slotIdx];
-                      const itemDef = itemId ? BELLADONE_ITEMS.find((b) => b.id === itemId) : null;
+                      const itemDef = itemId ? belladoneItems.find((b) => b.id === itemId) : null;
                       const hasFleur = fleurIdx === slotIdx;
                       const isPickerOpen =
                         openObjPicker?.romain === roman && openObjPicker?.slotIdx === slotIdx;
@@ -538,7 +572,7 @@ export function JardinsEnigmaTracker({ compact = false, onCopyTravel }: JardinsE
                                   [roman]: prev[roman] === slotIdx ? null : slotIdx,
                                 }));
                               }}
-                              title="Marquer comme objet portant la fleur en papier"
+                              title={isEn ? "Mark as item carrying paper flower" : "Marquer comme objet portant la fleur en papier"}
                               className={cn(
                                 "w-6 h-6 rounded flex items-center justify-center text-xs border transition-all cursor-pointer shrink-0",
                                 hasFleur
@@ -579,7 +613,7 @@ export function JardinsEnigmaTracker({ compact = false, onCopyTravel }: JardinsE
                                 }
                                 className="flex-1 py-1 px-2 rounded border border-dashed border-border hover:border-emerald-400 text-muted-foreground hover:text-foreground text-[11px] text-left truncate cursor-pointer"
                               >
-                                Choisir objet…
+                                {isEn ? "Choose item…" : "Choisir objet…"}
                               </button>
                             )}
                           </div>
@@ -587,7 +621,7 @@ export function JardinsEnigmaTracker({ compact = false, onCopyTravel }: JardinsE
                           {/* Popover Objets */}
                           {isPickerOpen && (
                             <div className="absolute top-full left-0 mt-1 z-30 w-56 bg-[#12161f] border border-white/20 rounded-lg p-1.5 shadow-2xl grid grid-cols-2 gap-1 animate-in fade-in duration-100">
-                              {BELLADONE_ITEMS.map((obj) => {
+                              {belladoneItems.map((obj) => {
                                 const isDis = used.has(obj.id);
                                 return (
                                   <button
@@ -626,10 +660,10 @@ export function JardinsEnigmaTracker({ compact = false, onCopyTravel }: JardinsE
           {/* Couleur finale */}
           <div className="p-3 rounded-lg border border-border bg-surface/30 flex items-center justify-between gap-3 flex-wrap">
             <span className="text-[11px] font-bold text-muted-foreground uppercase">
-              Couleur finale obtenue :
+              {isEn ? "Final color obtained:" : "Couleur finale obtenue :"}
             </span>
             <div className="flex items-center gap-2">
-              {ENIGMA_COLORS.map((col) => (
+              {enigmaColors.map((col) => (
                 <button
                   key={col.id}
                   type="button"
@@ -657,7 +691,9 @@ export function JardinsEnigmaTracker({ compact = false, onCopyTravel }: JardinsE
       {activeTab === "bateaux" && (
         <div className="space-y-4">
           <p className="text-[11px] text-muted-foreground leading-relaxed">
-            Positionnez les 3 bateaux en papier sur chacune des 2 cartes pour coordonner les tirs entre les deux joueurs de la Réserve.
+            {isEn
+              ? "Position the 3 paper boats on each of the 2 maps to coordinate firing between the two players in the Storehouse."
+              : "Positionnez les 3 bateaux en papier sur chacune des 2 cartes pour coordonner les tirs entre les deux joueurs de la Réserve."}
           </p>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -681,7 +717,7 @@ export function JardinsEnigmaTracker({ compact = false, onCopyTravel }: JardinsE
                         isFull ? "bg-emerald-500/20 text-emerald-300" : "bg-white/[0.04] text-muted-foreground"
                       )}
                     >
-                      {count} / 3 bateaux
+                      {count} / {isEn ? "3 boats" : "3 bateaux"}
                     </span>
                   </div>
 
@@ -714,7 +750,7 @@ export function JardinsEnigmaTracker({ compact = false, onCopyTravel }: JardinsE
                                   ? "bg-sky-500 text-black border-sky-400 font-black shadow-md scale-[1.02]"
                                   : "bg-[#141923] hover:bg-[#1a2230] border-border text-muted-foreground/50 hover:text-white"
                               )}
-                              title={`${col}${row} : cliquer pour ${isBoat ? "retirer" : "placer"} un bateau`}
+                              title={`${col}${row} : ${isEn ? (isBoat ? "click to remove a boat" : "click to place a boat") : (isBoat ? "cliquer pour retirer un bateau" : "cliquer pour placer un bateau")}`}
                             >
                               {isBoat ? "⛵" : `${col}${row}`}
                             </button>

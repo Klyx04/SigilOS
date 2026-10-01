@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useMemo } from "react";
 import {
   X,
   Copy,
@@ -35,72 +35,101 @@ interface RaidOverlayClientProps {
 }
 
 // Les 4 véritables formes élémentaires d'Exécrabe et des statues sous le lac
-const EXECRABE_FORMS = [
-  {
-    id: "coquillage",
-    label: "Coquillage",
-    element: "Terre",
-    color: "#f59e0b",
-    icon: (
-      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <path d="M12 3a9 9 0 0 0-9 9c0 4.97 4.03 9 9 9s9-4.03 9-9c0-2.48-.99-4.73-2.61-6.38" strokeLinecap="round" />
-        <path d="M12 7a5 5 0 0 0-5 5c0 2.76 2.24 5 5 5s5-2.24 5-5c0-1.38-.56-2.63-1.46-3.54" strokeLinecap="round" />
-        <circle cx="12" cy="12" r="1.5" fill="currentColor" />
-      </svg>
-    ),
-  },
-  {
-    id: "oursin",
-    label: "Oursin",
-    element: "Air",
-    color: "#10b981",
-    icon: (
-      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <circle cx="12" cy="12" r="4" fill="currentColor" fillOpacity="0.25" />
-        <path d="M12 2v4M12 18v4M2 12h4M18 12h4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" strokeLinecap="round" />
-      </svg>
-    ),
-  },
-  {
-    id: "perle",
-    label: "Perle",
-    element: "Feu",
-    color: "#f43f5e",
-    icon: (
-      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <circle cx="12" cy="12" r="7" />
-        <path d="M9 9a3 3 0 0 1 3-3" strokeLinecap="round" />
-        <circle cx="12" cy="12" r="2" fill="currentColor" />
-      </svg>
-    ),
-  },
-  {
-    id: "poulpe",
-    label: "Poulpe",
-    element: "Eau",
-    color: "#06b6d4",
-    icon: (
-      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <path d="M12 3a6 6 0 0 0-6 6c0 3 1.5 5 2 6" strokeLinecap="round" />
-        <path d="M12 3a6 6 0 0 1 6 6c0 3-1.5 5-2 6" strokeLinecap="round" />
-        <circle cx="9.5" cy="8.5" r="1" fill="currentColor" />
-        <circle cx="14.5" cy="8.5" r="1" fill="currentColor" />
-        <path d="M8 15c-1 2-2 3.5-3 3.5s-1.5-1-1.5-2" strokeLinecap="round" />
-        <path d="M10 15c0 2-1 4-2 4s-1.5-1-1-3" strokeLinecap="round" />
-        <path d="M14 15c0 2 1 4 2 4s1.5-1 1-3" strokeLinecap="round" />
-        <path d="M16 15c1 2 2 3.5 3 3.5s1.5-1 1.5-2" strokeLinecap="round" />
-      </svg>
-    ),
-  },
-];
+function getExecrabeForms(isEn: boolean) {
+  return [
+    {
+      id: "coquillage",
+      label: isEn ? "Shell" : "Coquillage",
+      element: isEn ? "Earth" : "Terre",
+      color: "#f59e0b",
+      icon: (
+        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M12 3a9 9 0 0 0-9 9c0 4.97 4.03 9 9 9s9-4.03 9-9c0-2.48-.99-4.73-2.61-6.38" strokeLinecap="round" />
+          <path d="M12 7a5 5 0 0 0-5 5c0 2.76 2.24 5 5 5s5-2.24 5-5c0-1.38-.56-2.63-1.46-3.54" strokeLinecap="round" />
+          <circle cx="12" cy="12" r="1.5" fill="currentColor" />
+        </svg>
+      ),
+    },
+    {
+      id: "oursin",
+      label: isEn ? "Sea Urchin" : "Oursin",
+      element: isEn ? "Air" : "Air",
+      color: "#10b981",
+      icon: (
+        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <circle cx="12" cy="12" r="4" fill="currentColor" fillOpacity="0.25" />
+          <path d="M12 2v4M12 18v4M2 12h4M18 12h4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" strokeLinecap="round" />
+        </svg>
+      ),
+    },
+    {
+      id: "perle",
+      label: isEn ? "Pearl" : "Perle",
+      element: isEn ? "Fire" : "Feu",
+      color: "#f43f5e",
+      icon: (
+        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <circle cx="12" cy="12" r="7" />
+          <path d="M9 9a3 3 0 0 1 3-3" strokeLinecap="round" />
+          <circle cx="12" cy="12" r="2" fill="currentColor" />
+        </svg>
+      ),
+    },
+    {
+      id: "poulpe",
+      label: isEn ? "Octopus" : "Poulpe",
+      element: isEn ? "Water" : "Eau",
+      color: "#06b6d4",
+      icon: (
+        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M12 3a6 6 0 0 0-6 6c0 3 1.5 5 2 6" strokeLinecap="round" />
+          <path d="M12 3a6 6 0 0 1 6 6c0 3-1.5 5-2 6" strokeLinecap="round" />
+          <circle cx="9.5" cy="8.5" r="1" fill="currentColor" />
+          <circle cx="14.5" cy="8.5" r="1" fill="currentColor" />
+          <path d="M8 15c-1 2-2 3.5-3 3.5s-1.5-1-1.5-2" strokeLinecap="round" />
+          <path d="M10 15c0 2-1 4-2 4s-1.5-1-1-3" strokeLinecap="round" />
+          <path d="M14 15c0 2 1 4 2 4s1.5-1 1-3" strokeLinecap="round" />
+          <path d="M16 15c1 2 2 3.5 3 3.5s1.5-1 1.5-2" strokeLinecap="round" />
+        </svg>
+      ),
+    },
+  ];
+}
 
-const LIGHT_SCALE = [
-  { lvl: "4", name: "Pleine Lumière", desc: "0 buff monstre · Obligatoire pour Mureine & Exécrabe", color: "#22c55e" },
-  { lvl: "3", name: "Moyenne", desc: "+20% PV / +100 Pui · Confortable pour les couloirs", color: "#eab308" },
-  { lvl: "2", name: "Pénombre", desc: "+50% PV / +250 Pui · Remettre du sel rapidement", color: "#f97316" },
-  { lvl: "1", name: "Obscurité", desc: "+100% PV / +500 Pui / +1 PM · Danger critique", color: "#ef4444" },
-  { lvl: "0", name: "Nuit Noire", desc: "Aggro auto à 10 cases (5s) · +200% PV / +1 000 Pui", color: "#dc2626" },
-];
+function getLightScale(isEn: boolean) {
+  return [
+    {
+      lvl: "4",
+      name: isEn ? "Full Light" : "Pleine Lumière",
+      desc: isEn ? "0 monster buff · Mandatory for Moray & Execrabe" : "0 buff monstre · Obligatoire pour Mureine & Exécrabe",
+      color: "#22c55e",
+    },
+    {
+      lvl: "3",
+      name: isEn ? "Medium" : "Moyenne",
+      desc: isEn ? "+20% HP / +100 Power · Comfortable for corridors" : "+20% PV / +100 Pui · Confortable pour les couloirs",
+      color: "#eab308",
+    },
+    {
+      lvl: "2",
+      name: isEn ? "Dim Light" : "Pénombre",
+      desc: isEn ? "+50% HP / +250 Power · Add salt quickly" : "+50% PV / +250 Pui · Remettre du sel rapidement",
+      color: "#f97316",
+    },
+    {
+      lvl: "1",
+      name: isEn ? "Darkness" : "Obscurité",
+      desc: isEn ? "+100% HP / +500 Power / +1 MP · Critical danger" : "+100% PV / +500 Pui / +1 PM · Danger critique",
+      color: "#ef4444",
+    },
+    {
+      lvl: "0",
+      name: isEn ? "Pitch Black" : "Nuit Noire",
+      desc: isEn ? "Auto-aggro 10 cells (5s) · +200% HP / +1,000 Power" : "Aggro auto à 10 cases (5s) · +200% PV / +1 000 Pui",
+      color: "#dc2626",
+    },
+  ];
+}
 
 /**
  * Normalise toute coordonnée ou commande vers le format `/travel x,y`.
@@ -198,6 +227,9 @@ export function RaidOverlayClient({
   const raid = getLocalizedRaidData(currentRaidSlug, locale);
   const currentStep: RaidStep | undefined = raid.steps[activeStepIdx] || raid.steps[0];
   const hasSalts = Boolean(raid.saltLocations && raid.saltLocations.length > 0);
+
+  const execrabeForms = useMemo(() => getExecrabeForms(isEn), [isEn]);
+  const lightScale = useMemo(() => getLightScale(isEn), [isEn]);
 
   // Onglets principaux : texte pur, simple soulignement
   const [mainView, setMainView] = useState<"step" | "statues" | "safe_travel" | "light" | "burst" | "enigmes">("step");
@@ -581,7 +613,7 @@ export function RaidOverlayClient({
                 <div className="grid grid-cols-4 gap-1.5">
                   {[0, 1, 2, 3].map((slotIdx) => {
                     const val = execrabeShapes[slotIdx];
-                    const formObj = EXECRABE_FORMS.find((s) => s.id === val);
+                    const formObj = execrabeForms.find((s) => s.id === val);
                     return (
                       <div
                         key={slotIdx}
@@ -608,7 +640,7 @@ export function RaidOverlayClient({
 
                 {/* Sélecteurs de formes */}
                 <div className="grid grid-cols-4 gap-1">
-                  {EXECRABE_FORMS.map((form) => {
+                  {execrabeForms.map((form) => {
                     const isSelected = execrabeShapes.includes(form.id);
                     return (
                       <button
@@ -697,7 +729,7 @@ export function RaidOverlayClient({
             <div className="grid grid-cols-4 gap-2">
               {[0, 1, 2, 3].map((slotIdx) => {
                 const val = execrabeShapes[slotIdx];
-                const formObj = EXECRABE_FORMS.find((s) => s.id === val);
+                const formObj = execrabeForms.find((s) => s.id === val);
                 return (
                   <div
                     key={slotIdx}
@@ -726,7 +758,7 @@ export function RaidOverlayClient({
 
             {/* Boutons des 4 formes */}
             <div className="grid grid-cols-2 gap-2">
-              {EXECRABE_FORMS.map((form) => {
+              {execrabeForms.map((form) => {
                 const orderIdx = execrabeShapes.indexOf(form.id);
                 const isSelected = orderIdx !== -1;
                 return (
@@ -930,7 +962,7 @@ export function RaidOverlayClient({
                       </div>
 
                       <div className="flex items-center gap-1 flex-wrap text-[10px]">
-                        <span className="text-white/40">Luminomachine :</span>
+                        <span className="text-white/40">{isEn ? "Luminomachine:" : "Luminomachine :"}</span>
                         {loc.luminomachines.map((lum, idx) => {
                           const key = `lum-${loc.floor}-${idx}`;
                           const isCopied = copiedKey === key;
@@ -945,17 +977,17 @@ export function RaidOverlayClient({
                                   ? "bg-emerald-500 text-black border-emerald-400 font-bold"
                                   : "bg-white/[0.04] hover:bg-white/[0.08] text-white/80 border-white/10"
                               )}
-                              title={`Copier ${cmd}`}
+                              title={isEn ? `Copy ${cmd}` : `Copier ${cmd}`}
                             >
                               <Flame size={9} className={isCopied ? "text-black" : "text-amber-400"} />
-                              <span>{isCopied ? "Copié" : lum.coords}</span>
+                              <span>{isCopied ? (isEn ? "Copied" : "Copié") : lum.coords}</span>
                             </button>
                           );
                         })}
                       </div>
 
                       <div className="flex items-center gap-1 flex-wrap text-[10px]">
-                        <span className="text-white/40">Sels :</span>
+                        <span className="text-white/40">{isEn ? "Salts:" : "Sels :"}</span>
                         {loc.salts.map((s, idx) => {
                           const key = `salt-${loc.floor}-${idx}`;
                           const isCopied = copiedKey === key;
@@ -970,10 +1002,10 @@ export function RaidOverlayClient({
                                   ? "bg-emerald-500 text-black border-emerald-400 font-bold"
                                   : "bg-white/[0.04] hover:bg-white/[0.08] text-white/80 border-white/10"
                               )}
-                              title={`Copier ${cmd}${s.note ? ` (${s.note})` : ""}`}
+                              title={isEn ? `Copy ${cmd}${s.note ? ` (${s.note})` : ""}` : `Copier ${cmd}${s.note ? ` (${s.note})` : ""}`}
                             >
                               <MapPin size={9} className={isCopied ? "text-black" : "text-cyan-400"} />
-                              <span>{isCopied ? "Copié" : s.coords}</span>
+                              <span>{isCopied ? (isEn ? "Copied" : "Copié") : s.coords}</span>
                               {s.note && <span className="opacity-50">({s.note})</span>}
                             </button>
                           );
@@ -1004,7 +1036,7 @@ export function RaidOverlayClient({
             </div>
 
             <div className="space-y-1">
-              {LIGHT_SCALE.map((item) => (
+              {lightScale.map((item) => (
                 <div
                   key={item.lvl}
                   className="p-2 rounded border border-white/[0.06] bg-white/[0.02] flex items-center justify-between text-[11px]"

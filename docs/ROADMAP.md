@@ -7,6 +7,13 @@
 > **Historique long** (`docs/CONTEXT.md` intégral, mémos de chantier) : hors dépôt, et les archives
 > externes ont été **supprimées le 20/09/2026** (`docs/arbo/ARCHIVES-TEMP-2026-09.md`) — plus rien à
 > ouvrir hors du dépôt.
+
+## 🎯 Session 01/10/2026 (Qilby + consignes — **PR #817 mergée sur `dev`**) — **arène 5 îlots complète · map Qilby en fiche dashboard/publique · jets de dégâts du repli DofusDB · fit auto plein écran**
+> **Demandes user (verbatim)** : classes raid/event sans icônes · « Tu es l'organisateur » · consigne volatile + ~20 sujets (mini-jeux, rappel J+1, DJ/songes→calendrier, anomalies, siphon DofusDB, rangs, maps multi-donjons, Monstres, marché, succès imbriqués, services, valider-recrue, logs, ressources, guides, missions, ladder/planning/worldmap, passe globale) · « corrige Qilby » · sorts Qilby sans dégâts simu · plein écran coupé.
+> **Mesures** : îlot ouest hors grille (x négatif via `losToXY`) · `getAnomalyBossBattleMap` → Abysses pour Qilby (fiches) vs overlay OK · repli DofusDB texte seul (zéro `effectDetails.damage`) · zoom persisté > conteneur `overflow-hidden`.
+> **Fait** : `src/lib/qilby-map.ts` (neuf, coins+centre, 125 cases, 0 overlap) · arène servie en fiche dashboard/publique · `buildCombatSpellsFromDofusDb` génère les jets (anomalies + avis sans Dofensive, mapping/scaling `parseEffects`) · fit auto mesuré en plein écran · audits en `src/temp/consigne-2026-09-30-raid-calendrier-mini-jeux.md` (§1-23, volatile gitignoré).
+> **Preuves** : **271 fichiers / 3 033 tests ✓** · `npx tsc --noEmit` **0** · `eslint` **0 erreur** · CI verte · merge `37359644` · `git status --short` propre.
+> **Reste / ops** : `./scripts/deploy-cd.sh beta` puis cron `sync-monster-stats` (re-siphon Qilby) puis contrôler fiche + simulation plein écran.
 > Réouvrir l'historique en mode plan = gaspillage de tokens.
 
 ## 🔧 Session 30/09/2026 (suite 2 — **la sortie de déploiement s'explique toute seule**) — **4 questions sur la sortie de `deploy-cd.sh` (« 262 migrations », « 310 fichiers (autres: 310) », barre qui n'atteint jamais 100 %/`%%`, `npm notice`) · barre réparée + npm muselé + comptes explicites** · branches `fix/deploy-sortie-lisible` + `fix/deploy-compte-migrations`

@@ -755,7 +755,7 @@
 
 ## 🚧 Chantiers ouverts — ordre d'exécution (état **mesuré le 28/09/2026**)
 
-> **5 chantiers** restent ouverts — **A est clos** (A1 → A5 livrés le 28/09) · **E** (acquisition) est **né le 29/09/2026** d'une demande user (« siphonner les sites autour de dofus qui ont le plus de traffic, voir comment ils font pour attirer du monde »), **hors** de la file B/C/D · **F** (orphelins / reprise de relai) est **né le 01/10/2026** de la question user « si le créateur du raid n'est plus dispo / a disparu du dashboard/Discord, départ, ban, qui prend le relai ? […] et ptet bien ailleurs aussi » (même remarque pour DJ/Quêtes, Songes, mini-jeux). Une idée hors brief se note **ici**, jamais dans le code.
+> **6 chantiers** restent ouverts — **A est clos** (A1 → A5 livrés le 28/09) · **E** (acquisition) est **né le 29/09/2026** d'une demande user (« siphonner les sites autour de dofus qui ont le plus de traffic, voir comment ils font pour attirer du monde »), **hors** de la file B/C/D · **F** (orphelins / reprise de relai) est **né le 01/10/2026** de la question user « si le créateur du raid n'est plus dispo / a disparu du dashboard/Discord, départ, ban, qui prend le relai ? […] et ptet bien ailleurs aussi » (même remarque pour DJ/Quêtes, Songes, mini-jeux) · **G** (RAID) est **né le 01/10/2026** du dépouillement de la consigne volatile par sujet → **dossier complet : `docs/plans/PLAN-RAID.md`**. Une idée hors brief se note **ici**, jamais dans le code.
 > Ordre voulu par le user : **A. les siphons game-data d'abord** (« on a commencé par les pb des siphons »),
 > puis **B. `/admin/members`**, puis **C. les tickets** — **D.** (UI God) est arrivé le 28/09 après A1/A2 :
 > il se joue **en parallèle** de B/C (même dépôt, fichiers disjoints) et a **commencé par A3** (livré le
@@ -775,6 +775,8 @@
 | **E** | **Acquisition (SEO)** : la beta reste la vitrine indexable « encore quelques mois » (décision user du 29/09) — couvrir les **sujets** que les gros sites couvrent, **jamais leurs textes** | rien codé — **diagnostic mesuré le 29/09** (171 URL publiées / 148 indexées ; `lastmod` honnête, almanax borné, guide Sylvestre cohérent : bloc du 29/09 ci-dessus) · **dossier par famille mesuré le 30/09** (**§ E** ci-dessous) | ✅ **Mesuré le 29/09/2026** (sitemaps publics, lecture seule) : dofuspourlesnoobs **2 483** URL (**1 page par quête/donjon**, nommée par le sujet) · dofensive **4 960** dont **4 958 = `/fr/monster/<id>`** · nous **171** ⇒ familles candidates : **`/monstre/<slug>`**, `/objet/<slug>`, `/quete/<slug>` — mais **la donnée n'est prête nulle part** (mesure du 30/09 : fiches riches monstres **260/5 135**, recettes d'objets **0/4 858**, contenu de quête **1/1 976**) ⇒ **§ E** ; **décision ouverte** : ordre des lots (**E-1** monstres proposé en premier) et entrée au sitemap **seulement** si la page porte de la donnée réelle (leçon almanax : page vide = `soft 404` = « Explorée, actuellement non indexée ») ; l'acquisition **hors code** (liens entrants vers la beta) reste côté humain, et un **301 beta → prod** est prévu à la bascule (`docs/plans/SEO_REPRISE.md`) |
 
 | **F** | **Orphelins / reprise de relai** : un objet publié dont l'organisateur disparaît n'a **personne aux commandes** — raid (calendrier), post DJ/Quêtes, run Songes, session mini-jeux | **rien codé** — **mesuré le 01/10/2026** (chemin par chemin, cf. **§ F**) | ✅ **Question user (01/10)** : quand le créateur d'un raid part, on **ferme** (comme DJ/Songes) ou on **laisse vivre** pour les inscrits (Kamas Violets) en attendant une reprise ? **Recommandation : laisser vivre + marquer orphelin** ; lots proposés **F-A** (débloquer les impasses réservées au capitaine/leader) → **F-B** (orphelin visible + « Reprendre », et `closeMemberPublishedContent` étendu au calendrier) → **F-C** (succession automatique, patron `handleGuildOwnerSuccession`) |
+
+| **G** | **RAID** : clôture + no-show, strat **dans** la modale raid, agenda miroir lecture seule DJ/Songes, rangs de boss 1-5, cartes multi-donjons, overlay Simulation, déslop raid | **§1 + §3 livrés** (01/10 : #815 classes, #816 rappel de clôture 24 h) — **R1→R10 à faire** (détail : `docs/plans/PLAN-RAID.md`, amorce : `docs/plans/AMORCE-RAID.md`) | ✅ **2 arbitrages attendus** — facteur Kamas Violets (`*10` vs `*10 000`) et stockage de `raidPurpleKamasCost` ⇒ **bloquent R1** ; **1 migration additive** dans R1 ⇒ **accord avant** ; ordre proposé L1 → L2 → L4 → L5 → L6 → L7, L3 dès arbitrages tranchés |
 
 ### A. Siphons game-data — « pk c 300 dans chaque type ? » · « pk toutes ces erreurs ? » · « pk rien n'est responsive nulle part ? » · « ca fait 100x qu'on refais game-data depuis 1 an […] je sature de pas avoir un truc pro à l'épreuve des balles »
 
@@ -959,6 +961,16 @@ un même `ok` : ce sont deux causes opposées (attente vs échec), la distinctio
 **Lots proposés** : **F-A** les impasses (petit, 1 branche) → **F-B** orphelin **visible** et **reprenable** (bandeau, bouton « Reprendre », alerte dans le salon Discord, `closeMemberPublishedContent` étendu au calendrier en mode « marquer orphelin ») → **F-C** succession automatique (patron `handleGuildOwnerSuccession`, à ouvrir seulement si F-B ne suffit pas).
 
 
+
+### G. RAID — calendrier, clôture/no-show, strat, overlay, données (né le 01/10/2026)
+
+> **Dossier complet** : `docs/plans/PLAN-RAID.md` — relevé **mesuré le 01/10/2026** (ancres revérifiées), chantiers
+> **R1→R10**, lots **L1→L7**, décisions à trancher, pièges et portes d'arrêt. **Amorce d'exécution** :
+> `docs/plans/AMORCE-RAID.md` (état, ordre, **bloc à coller** pour la session). **Rien n'est recopié ici** : cette
+> entrée n'est qu'un **pointeur**.
+> **Livré** : §1 classes du calendrier (**PR #815** `9427a9f1`) · §3 rappel de clôture de raid 24 h (**PR #816** `92d7ccd0`).
+> **⏸️ En attente de ta réponse (bloque R1)** : facteur Kamas Violets (`*10` vs `*10 000`) et stockage de `raidPurpleKamasCost`.
+> **Origine** : dépouillement par sujet de la consigne volatile `src/temp/consigne-2026-09-30-raid-calendrier-mini-jeux.md` (§14, §20, §4, §6, §7, §8, §15, §16, §22, §23).
 
 ### Reste épars — déjà consigné ailleurs (ne pas dupliquer)
 

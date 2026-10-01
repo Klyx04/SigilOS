@@ -80,8 +80,15 @@ export function GuideTocSidebar({ contentId = "guide-content", className }: Guid
           href={`#${entry.id}`}
           onClick={(e) => {
             e.preventDefault();
-            document.getElementById(entry.id)?.scrollIntoView({ behavior: "smooth", block: "start" });
-            setActiveId(entry.id);
+            const el = document.getElementById(entry.id);
+            if (el) {
+              const y = el.getBoundingClientRect().top + window.scrollY - 85;
+              window.scrollTo({ top: Math.max(0, y), behavior: "smooth" });
+              setActiveId(entry.id);
+              if (window.history?.pushState) {
+                window.history.pushState(null, "", `#${entry.id}`);
+              }
+            }
           }}
           className={cn(
             "block py-0.5 text-[13px] leading-snug transition-colors duration-150",

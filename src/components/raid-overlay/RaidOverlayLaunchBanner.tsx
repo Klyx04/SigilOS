@@ -5,6 +5,7 @@ import { Swords, Tv2, ChevronRight, Loader2, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useRaidOverlay } from "@/hooks/use-raid-overlay";
 import { isDocumentPipSupported } from "@/hooks/use-guide-pip";
+import { useI18n } from "@/lib/i18n/client";
 import type { RaidSlug } from "@/store/raid-overlay-store";
 
 interface RaidOverlayLaunchBannerProps {
@@ -28,7 +29,14 @@ export function RaidOverlayLaunchBanner({
 }: RaidOverlayLaunchBannerProps) {
   const { openRaidOverlay, closeRaidOverlay, isOpen } = useRaidOverlay();
   const [loading, setLoading] = useState(false);
+  const { locale } = useI18n();
+  const isEn = locale === "en";
   const pipSupported = isDocumentPipSupported();
+
+  const defaultEnName = raidSlug === "jardin-eternel" ? "Eternal Gardens Sanctuary" : "The Gigalodon Abyss";
+  const displayRaidName = isEn
+    ? (raidName === "Sanctuaire des Jardins Éternels" || raidName === "Gouffre du Gigalodon" ? defaultEnName : raidName)
+    : raidName;
 
   const handleLaunch = async () => {
     if (isOpen) {
@@ -60,11 +68,11 @@ export function RaidOverlayLaunchBanner({
               borderColor: `${themeColor}40`,
             }}
           >
-            🦈
+            {raidSlug === "jardin-eternel" ? "🌹" : "🦈"}
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex items-center justify-between gap-1">
-              <span className="text-xs font-bold text-foreground truncate">{raidName}</span>
+              <span className="text-xs font-bold text-foreground truncate">{displayRaidName}</span>
               {pipSupported && (
                 <span
                   className="px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider shrink-0"
@@ -79,7 +87,9 @@ export function RaidOverlayLaunchBanner({
               )}
             </div>
             <p className="text-[11px] text-muted-foreground truncate">
-              {pipSupported ? "Fenêtre PiP détachable" : "Mini-fenêtre flottante"}
+              {pipSupported
+                ? (isEn ? "Detachable PiP window" : "Fenêtre PiP détachable")
+                : (isEn ? "Floating mini-window" : "Mini-fenêtre flottante")}
             </p>
           </div>
         </div>
@@ -111,9 +121,18 @@ export function RaidOverlayLaunchBanner({
           ) : (
             <Swords size={13} />
           )}
-          <span>{loading ? "Ouverture…" : isOpen ? "Fermer l'overlay" : "Lancer l'Overlay"}</span>
+          <span>{loading ? (isEn ? "Opening…" : "Ouverture…") : isOpen ? (isEn ? "Close Overlay" : "Fermer l'overlay") : (isEn ? "Launch Overlay" : "Lancer l'Overlay")}</span>
           {!loading && !isOpen && <ChevronRight size={13} />}
         </button>
+
+        <a
+          href={`/raids?raid=${raidSlug === "jardin-eternel" ? "sanctuaire" : "gigalodon"}`}
+          className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium text-muted-foreground hover:text-foreground bg-white/[0.03] hover:bg-white/[0.07] border border-white/10 transition-colors"
+        >
+          <Swords size={12} style={{ color: themeColor }} />
+          <span>{isEn ? "Raid Studio 3.6 (Tools & Roles)" : "Raid Studio 3.6 (Outils & Rôles)"}</span>
+          <ExternalLink size={10} className="opacity-50" />
+        </a>
       </div>
     );
   }
@@ -141,7 +160,7 @@ export function RaidOverlayLaunchBanner({
             borderColor: `${themeColor}40`,
           }}
         >
-          🦈
+          {raidSlug === "jardin-eternel" ? "🌹" : "🦈"}
         </div>
 
         {/* Texte */}
@@ -150,13 +169,19 @@ export function RaidOverlayLaunchBanner({
             className="text-xs font-black uppercase tracking-widest mb-0.5"
             style={{ color: themeColor }}
           >
-            Overlay In-Game disponible
+            {isEn ? "In-game overlay available" : "Overlay In-Game disponible"}
           </p>
           <p className="text-sm font-semibold text-foreground">
-            Suivez le <strong>{raidName}</strong> étape par étape, sans jamais alt-tab
+            {isEn ? (
+              <>Follow <strong>{displayRaidName}</strong> step by step, zero alt-tab</>
+            ) : (
+              <>Suivez le <strong>{displayRaidName}</strong> étape par étape, sans jamais alt-tab</>
+            )}
           </p>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Mini-fenêtre flottante {pipSupported ? "toujours au premier plan (PiP)" : "détachable"} · Stratégies, mécaniques et coordonnées en 1 clic
+            {isEn
+              ? `Floating mini-window ${pipSupported ? "always on top (PiP)" : "detachable"} · Strats, mechanics and coords in 1 click`
+              : `Mini-fenêtre flottante ${pipSupported ? "toujours au premier plan (PiP)" : "détachable"} · Stratégies, mécaniques et coordonnées en 1 clic`}
           </p>
         </div>
 
@@ -189,15 +214,25 @@ export function RaidOverlayLaunchBanner({
             ) : (
               <Swords size={15} />
             )}
-            <span>{loading ? "Ouverture…" : isOpen ? "Fermer l'overlay" : "Lancer l'Overlay"}</span>
+            <span>{loading ? (isEn ? "Opening…" : "Ouverture…") : isOpen ? (isEn ? "Close Overlay" : "Fermer l'overlay") : (isEn ? "Launch Overlay" : "Lancer l'Overlay")}</span>
             {!loading && !isOpen && <ChevronRight size={14} />}
           </button>
+
+          {/* Lien Raid Studio 3.6 */}
+          <a
+            href={`/raids?raid=${raidSlug === "jardin-eternel" ? "sanctuaire" : "gigalodon"}`}
+            className="px-3 py-2.5 rounded-xl border border-white/10 bg-white/[0.03] hover:bg-white/5 text-white/70 hover:text-white transition-all shrink-0 flex items-center gap-1.5 text-xs font-semibold"
+            title={isEn ? "Open Raid Studio 3.6 (Planner & Tools)" : "Ouvrir Raid Studio 3.6 (Planificateur & Outils)"}
+          >
+            <Swords size={13} style={{ color: themeColor }} />
+            <span className="hidden sm:inline">Raid Studio</span>
+          </a>
 
           {/* Lien guide complet en icon */}
           <a
             href={`/guides/${raidSlug === "gigalodon" ? "raid-gigalodon-dofus-guide" : "guide-sanctuaire-jardins-eternels"}`}
             className="p-2.5 rounded-xl border border-white/10 bg-white/[0.03] hover:bg-white/5 text-white/50 hover:text-white transition-all shrink-0"
-            title="Voir le guide complet"
+            title={isEn ? "View full guide" : "Voir le guide complet"}
           >
             <ExternalLink size={15} />
           </a>

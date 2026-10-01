@@ -15,6 +15,17 @@ export const guide = {
             <p>Le Gouffre du Gigalodon est une instance chronométrée de 60 minutes pour déclencher le combat final. Ce guide condensé rassemble les meilleures stratégies de guilde : réglages clients indispensables, gestion économique de la lumière, élimination des 3 boss intermédiaires, boucle de raccourci à 20% de drop et maximisation du burst sur le Gigalodon pour saturer la frise de 60 000 points.</p>
         </div>
 
+        <div class="callout callout-info">
+            <strong>🛠️ Outils Publics Raid Studio 3.6 & Overlay Détachable</strong>
+            <p>Pour préparer et exécuter votre raid dans les meilleures conditions, SigilOS met à disposition plusieurs outils gratuits et interactifs :</p>
+            <ul>
+                <li><strong>Planificateur d'Escouades 12 Joueurs :</strong> répartissez les 3 escouades de 4, assignez les rôles clés (Tank, Burst T3, Placement CaC, Multiplicateur), vérifiez la jauge d'équilibre et exportez l'annonce en 1 clic pour Discord.</li>
+                <li><strong>Solveur Interactif de Luminarium (Étage -3) :</strong> outil Lights Out 4x4 en cascade pour ouvrir le mur sans gaspiller une seule seconde de chrono.</li>
+                <li><strong>Overlay In-Game Toujours au Premier Plan (PiP) :</strong> activez l'overlay via le bouton en haut de page pour copier les positions <code>/travel</code> d'un clic et noter l'ordre des 4 formes d'Exécrabe sans alt-tab.</li>
+            </ul>
+            <p><a href="/raids?raid=gigalodon"><strong>→ Ouvrir le Planificateur Gigalodon & Solveurs dans Raid Studio 3.6</strong></a></p>
+        </div>
+
         <h2>I. Préparation & Configuration (Checklist Pré-Raid)</h2>
         <p>
             L'ouverture de l'instance s'effectue directement depuis le <strong>Hall de Guilde</strong> (Boutique de Guilde &gt; onglet Raids) par un membre détenant les permissions requises.
@@ -249,6 +260,11 @@ export const guide = {
             <li>Traitez les deux coins inférieurs pour finaliser l'allumage complet et ouvrir le passage vers l'étage -4.</li>
         </ol>
 
+        <div class="callout callout-tip">
+            <strong>Solveur Interactif en Ligne</strong>
+            <p>Un doute sur votre configuration de grille ? Utilisez notre <a href="/raids?raid=gigalodon"><strong>Solveur Luminarium dans Raid Studio 3.6</strong></a> pour reproduire vos lanternes et obtenir la séquence d'allumage exacte en un clin d'œil.</p>
+        </div>
+
         <hr />
 
         <h3>Étage -4 : Terrier d'Exécrabe (Boss 2 & Puzzle Mémoriel)</h3>
@@ -433,6 +449,128 @@ export const guide = {
                 </tr>
             </tbody>
         </table>
+
+        <h3>Compositions Recommandées & Rôles des Classes (Cap 1M Dégâts)</h3>
+        <p>
+            Pour saturer le barème et atteindre le plafond de <strong>1 000 000 de dégâts en 3 tours</strong> (+15 000 points de score), la composition du groupe doit combiner un noyau de placement et d'amplification, des cogneurs monocibles purs, et des synergies de boosts d'équipe.
+        </p>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Classe</th>
+                    <th>Rôle / Catégorie</th>
+                    <th>Sorts Clés & Synergies</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>
+                        <span class="inline-flex items-center gap-2 font-bold text-foreground">
+                            <img src="/assets/dofus/classes/12.png" alt="Pandawa" class="class-icon" width="20" height="20" />
+                            Pandawa
+                        </span>
+                    </td>
+                    <td><strong>Noyau Incontournable</strong> (Placement CaC)</td>
+                    <td><em>Brassage, Vulnérabilité, Portage</em>. Place le Gigalodon en diagonale hors des 3 cases mêlée mortelles et maintient les malus de résistance élémentaire constants.</td>
+                </tr>
+                <tr>
+                    <td>
+                        <span class="inline-flex items-center gap-2 font-bold text-foreground">
+                            <img src="/assets/dofus/classes/8.png" alt="Iop" class="class-icon" width="20" height="20" />
+                            Iop
+                        </span>
+                    </td>
+                    <td><strong>Noyau Incontournable</strong> (Burst T3)</td>
+                    <td><em>Massacre, Colère de Iop T3, Puissance</em>. Synchronise la Colère chargée au Tour 3 avec le second pic du Dofus Nébuleux et les portails pour délivrer le coup de grâce.</td>
+                </tr>
+                <tr>
+                    <td>
+                        <span class="inline-flex items-center gap-2 font-bold text-foreground">
+                            <img src="/assets/dofus/classes/16.png" alt="Eliotrope" class="class-icon" width="20" height="20" />
+                            Eliotrope
+                        </span>
+                    </td>
+                    <td><strong>Noyau Incontournable</strong> (Multiplicateur)</td>
+                    <td><em>Réseau de 4 portails, Entraide, Focalisation</em>. Multiplie les dégâts de tous les alliés frappant à travers le portail final redirigé sur le Gigalodon.</td>
+                </tr>
+                <tr>
+                    <td>
+                        <span class="inline-flex items-center gap-2 font-bold text-foreground">
+                            <img src="/assets/dofus/classes/17.png" alt="Huppermage" class="class-icon" width="20" height="20" />
+                            Huppermage
+                        </span>
+                    </td>
+                    <td><strong>Top DPS Monocible</strong></td>
+                    <td><em>Volcan Terre/Feu, Cycle Élémentaire, Traitement Spécial</em>. Maximise les dégâts bruts par PA et applique des débuffs de résistance supplémentaires.</td>
+                </tr>
+                <tr>
+                    <td>
+                        <span class="inline-flex items-center gap-2 font-bold text-foreground">
+                            <img src="/assets/dofus/classes/13.png" alt="Roublard" class="class-icon" width="20" height="20" />
+                            Roublard
+                        </span>
+                    </td>
+                    <td><strong>Top DPS Monocible</strong></td>
+                    <td><em>Mur de bombes, Poudre, Rebours T3</em>. Fait exploser un mur chargé au Tour 3 sous portails pour pulvériser les compteurs de dégâts.</td>
+                </tr>
+                <tr>
+                    <td>
+                        <span class="inline-flex items-center gap-2 font-bold text-foreground">
+                            <img src="/assets/dofus/classes/9.png" alt="Crâ" class="class-icon" width="20" height="20" />
+                            Crâ
+                        </span>
+                    </td>
+                    <td><strong>Top DPS Monocible</strong> (Distance)</td>
+                    <td><em>Balise tactique, Flèche Destructrice, Flèche Emplie</em>. Tir constant à très longue portée depuis une diagonale sécurisée, sans gêner les lignes de vue alliées.</td>
+                </tr>
+                <tr>
+                    <td>
+                        <span class="inline-flex items-center gap-2 font-bold text-foreground">
+                            <img src="/assets/dofus/classes/4.png" alt="Sram" class="class-icon" width="20" height="20" />
+                            Sram
+                        </span>
+                    </td>
+                    <td><strong>Amplificateur & Boost</strong></td>
+                    <td><em>Marque Mortuaire (+20% dégâts subis), Coupe-Gorge</em>. Permet d'amplifier l'ensemble des frappes de l'équipe pendant le tour de burst.</td>
+                </tr>
+                <tr>
+                    <td>
+                        <span class="inline-flex items-center gap-2 font-bold text-foreground">
+                            <img src="/assets/dofus/classes/14.png" alt="Zobal" class="class-icon" width="20" height="20" />
+                            Zobal
+                        </span>
+                    </td>
+                    <td><strong>Amplificateur & Boost</strong></td>
+                    <td><em>Transfiguration, Masque Psychopathe, Furia, Plastron</em>. Boosts de dégâts de mêlée/distance et boucliers préventifs contre les rebonds de Gigarâle.</td>
+                </tr>
+                <tr>
+                    <td>
+                        <span class="inline-flex items-center gap-2 font-bold text-foreground">
+                            <img src="/assets/dofus/classes/18.png" alt="Ouginak" class="class-icon" width="20" height="20" />
+                            Ouginak
+                        </span>
+                    </td>
+                    <td><strong>Amplificateur & Boost</strong></td>
+                    <td><em>Gibier, Acharnement, Proie</em>. Augmente les dégâts finaux reçus par le Gigalodon pour chaque attaquant.</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h3>Équipements & Synergies Indispensables</h3>
+        <ul>
+            <li><strong>Dofus Nébuleux :</strong> Incontournable sur tous vos DPS principaux. Le combat durant exactement 3 tours, les tours impairs (Tour 1 et Tour 3) profitent du pic de dégâts finaux (+20%), synchronisé parfaitement avec la Colère de Iop et le mur de bombes.</li>
+            <li><strong>Jugement de Thanathena :</strong> Arme légendaire conférant un cumul de +4% de dégâts subis à chaque coup porté. Placez les porteurs de Thanathena en début de tour pour amplifier les frappes suivantes.</li>
+            <li><strong>Trophées Arcaniste / Impétueux & Dofus Vulbis :</strong> Privilégiez le mono-élément pur et la mobilité pour garantir un placement parfait à 3 cases minimum de tout allié.</li>
+        </ul>
+
+        <h3>Déroulé Tactique Tour par Tour (T1 à T3)</h3>
+        <ol>
+            <li><strong>Tour 1 (Préparation & Boosts) :</strong> Le Pandawa positionne le Gigalodon en diagonale. Les soutiens posent les boosts de PA et de Puissance. Les Eliotropes configurent le réseau de portails à distance sécurisée. Les DPS profitent du boost impair du Dofus Nébuleux (+20%) pour entamer les PV.</li>
+            <li><strong>Tour 2 (Montée en Puissance & Débuffs) :</strong> Application massive des malus élémentaires (Vulnérabilité, Cycle Élémentaire, Marque Mortuaire). Préparation de la Colère de Iop et chargement des bombes Roublard. Attention à bien maintenir 3 cases d'écart entre alliés contre Gigarâle.</li>
+            <li><strong>Tour 3 (Burst All-In & Cap 1M) :</strong> Déclenchement de toutes les attaques maximales sous le second pic du Nébuleux (+20% finaux). Envoi de la Colère de Iop et des explosions à travers les portails. Saturez la barre de dégâts pour atteindre le cap de 1 000 000.</li>
+            <li><strong>Début Tour 4 :</strong> Le sort automatique <em>« Gigalodoom »</em> s'exécute, clôture le combat et valide instantanément la victoire avec le bonus maximal de +15 000 points !</li>
+        </ol>
 
         <hr />
 

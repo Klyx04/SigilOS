@@ -85,12 +85,12 @@ export default async function PublicRaidStudioPage() {
                     <span className="text-foreground font-semibold">Raid Studio 3.6</span>
                 </div>
 
-                {/* Hero Header Anti-Slop Registre */}
-                <header className="space-y-3 max-w-3xl">
-                    <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-accent/15 border border-accent/30 text-accent font-mono text-[11px] font-bold uppercase tracking-wider">
-                        <Swords className="w-3.5 h-3.5" />
+                {/* Header Anti-Slop Registre */}
+                <header className="space-y-2 max-w-3xl">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                        <Swords className="w-3.5 h-3.5 text-muted-foreground" />
                         <span>{t.raidStudio.heroTag}</span>
-                    </div>
+                    </p>
 
                     <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight text-foreground">
                         {t.raidStudio.heroTitle}

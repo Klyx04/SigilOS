@@ -5,25 +5,28 @@ import {
   X,
   Copy,
   ExternalLink,
-  Flame,
   RotateCcw,
-  Compass,
-  Sparkles,
-  Target,
-  ZoomIn,
-  ShieldAlert,
-  MapPin,
   Check,
-  ChevronRight,
-  Route,
-  Info,
   Maximize2,
+  ChevronDown,
+  ChevronUp,
+  AlertTriangle,
+  MapPin,
+  Flame,
+  Swords,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { toast } from "sonner";
+
 import { useRaidOverlayStore, type RaidSlug } from "@/store/raid-overlay-store";
-import { RAIDS_DATA, type RaidStep, type SafeTravelRoute } from "@/lib/raid-overlay-data";
+import {
+  getLocalizedRaidData,
+  type RaidStep,
+} from "@/lib/raid-overlay-data";
+import { useI18n } from "@/lib/i18n/client";
+import { getClass } from "@/lib/dofus-assets";
+import { copyToClipboard } from "@/lib/clipboard";
 import { OverlayPinNotice } from "@/components/overlay-pin-notice";
+import { JardinsEnigmaTracker } from "@/app/raids/_components/JardinsEnigmaTracker";
 
 interface RaidOverlayClientProps {
   initialRaidSlug?: RaidSlug;
@@ -31,17 +34,15 @@ interface RaidOverlayClientProps {
   onClose?: () => void;
 }
 
-// Les 4 véritables formes élémentaires d'Exécrabe et de ses statues sous le lac
+// Les 4 véritables formes élémentaires d'Exécrabe et des statues sous le lac
 const EXECRABE_FORMS = [
   {
     id: "coquillage",
     label: "Coquillage",
     element: "Terre",
     color: "#f59e0b",
-    borderColor: "rgba(245, 158, 11, 0.4)",
-    bgColor: "rgba(245, 158, 11, 0.12)",
     icon: (
-      <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
         <path d="M12 3a9 9 0 0 0-9 9c0 4.97 4.03 9 9 9s9-4.03 9-9c0-2.48-.99-4.73-2.61-6.38" strokeLinecap="round" />
         <path d="M12 7a5 5 0 0 0-5 5c0 2.76 2.24 5 5 5s5-2.24 5-5c0-1.38-.56-2.63-1.46-3.54" strokeLinecap="round" />
         <circle cx="12" cy="12" r="1.5" fill="currentColor" />
@@ -53,10 +54,8 @@ const EXECRABE_FORMS = [
     label: "Oursin",
     element: "Air",
     color: "#10b981",
-    borderColor: "rgba(16, 185, 129, 0.4)",
-    bgColor: "rgba(16, 185, 129, 0.12)",
     icon: (
-      <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
         <circle cx="12" cy="12" r="4" fill="currentColor" fillOpacity="0.25" />
         <path d="M12 2v4M12 18v4M2 12h4M18 12h4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" strokeLinecap="round" />
       </svg>
@@ -67,10 +66,8 @@ const EXECRABE_FORMS = [
     label: "Perle",
     element: "Feu",
     color: "#f43f5e",
-    borderColor: "rgba(244, 63, 94, 0.4)",
-    bgColor: "rgba(244, 63, 94, 0.12)",
     icon: (
-      <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
         <circle cx="12" cy="12" r="7" />
         <path d="M9 9a3 3 0 0 1 3-3" strokeLinecap="round" />
         <circle cx="12" cy="12" r="2" fill="currentColor" />
@@ -82,10 +79,8 @@ const EXECRABE_FORMS = [
     label: "Poulpe",
     element: "Eau",
     color: "#06b6d4",
-    borderColor: "rgba(6, 182, 212, 0.4)",
-    bgColor: "rgba(6, 182, 212, 0.12)",
     icon: (
-      <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
         <path d="M12 3a6 6 0 0 0-6 6c0 3 1.5 5 2 6" strokeLinecap="round" />
         <path d="M12 3a6 6 0 0 1 6 6c0 3-1.5 5-2 6" strokeLinecap="round" />
         <circle cx="9.5" cy="8.5" r="1" fill="currentColor" />
@@ -100,18 +95,95 @@ const EXECRABE_FORMS = [
 ];
 
 const LIGHT_SCALE = [
-  { lvl: "4", name: "Pleine Lumière", desc: "0 buff monstre · Requis pour Mureine & Exécrabe", color: "#22c55e" },
-  { lvl: "3", name: "Moyenne", desc: "+20% PV / +100 Pui · Recommandé nettoyage couloirs", color: "#eab308" },
+  { lvl: "4", name: "Pleine Lumière", desc: "0 buff monstre · Obligatoire pour Mureine & Exécrabe", color: "#22c55e" },
+  { lvl: "3", name: "Moyenne", desc: "+20% PV / +100 Pui · Confortable pour les couloirs", color: "#eab308" },
   { lvl: "2", name: "Pénombre", desc: "+50% PV / +250 Pui · Remettre du sel rapidement", color: "#f97316" },
-  { lvl: "1", name: "Obscurité", desc: "+100% PV / +500 Pui / +1 PM · Danger", color: "#ef4444" },
+  { lvl: "1", name: "Obscurité", desc: "+100% PV / +500 Pui / +1 PM · Danger critique", color: "#ef4444" },
   { lvl: "0", name: "Nuit Noire", desc: "Aggro auto à 10 cases (5s) · +200% PV / +1 000 Pui", color: "#dc2626" },
 ];
+
+/**
+ * Normalise toute coordonnée ou commande vers le format `/travel x,y`.
+ * Exemples : "[3, 2]" -> "/travel 3,2", "/travel 4 7" -> "/travel 4,7"
+ */
+function formatTravelCommand(input: string): string {
+  if (!input) return "";
+  const match = input.match(/(-?\d+)\s*[, ]\s*(-?\d+)/);
+  if (match) {
+    return `/travel ${match[1]},${match[2]}`;
+  }
+  return input.startsWith("/travel") ? input : `/travel ${input}`;
+}
+
+/**
+ * Détecte les coordonnées [x, y] ou [x,y] dans un texte et les rend cliquables
+ * pour copier la commande `/travel x,y` dans le presse-papier.
+ */
+function TextWithCoords({
+  text,
+  onCopy,
+  copiedKey,
+  isEn = false,
+}: {
+  text: string;
+  onCopy: (travelCmd: string, key: string, label?: string, e?: React.MouseEvent) => void;
+  copiedKey: string | null;
+  isEn?: boolean;
+}) {
+  const coordRegex = /\[\s*(-?\d+)\s*,\s*(-?\d+)\s*\]/g;
+  const parts: React.ReactNode[] = [];
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = coordRegex.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push(text.slice(lastIndex, match.index));
+    }
+
+    const x = match[1];
+    const y = match[2];
+    const raw = `[${x}, ${y}]`;
+    const travelCmd = `/travel ${x},${y}`;
+    const key = `inline-${x}-${y}-${match.index}`;
+    const isCopied = copiedKey === key;
+
+    parts.push(
+      <button
+        key={key}
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          onCopy(travelCmd, key, isEn ? "Position copied!" : "Position copiée !", e);
+        }}
+        title={isEn ? `Click to copy ${travelCmd}` : `Cliquer pour copier ${travelCmd}`}
+        className={cn(
+          "inline-flex items-center gap-0.5 px-1.5 py-0.5 mx-0.5 rounded font-mono text-[10.5px] font-semibold transition-all cursor-pointer select-none align-baseline border",
+          isCopied
+            ? "bg-emerald-500 text-black border-emerald-400 font-bold scale-105"
+            : "bg-cyan-500/10 hover:bg-cyan-500/25 text-cyan-300 hover:text-cyan-100 border-cyan-500/30 hover:border-cyan-400/60"
+        )}
+      >
+        {isCopied ? <Check size={10} className="shrink-0" /> : <Copy size={9} className="shrink-0 opacity-70" />}
+        <span>{isCopied ? (isEn ? "Copied" : "Copié") : raw}</span>
+      </button>
+    );
+
+    lastIndex = coordRegex.lastIndex;
+  }
+
+  if (lastIndex < text.length) {
+    parts.push(text.slice(lastIndex));
+  }
+
+  return <>{parts}</>;
+}
 
 export function RaidOverlayClient({
   initialRaidSlug = "gigalodon",
   pinned = false,
   onClose,
 }: RaidOverlayClientProps) {
+  const win = useRaidOverlayStore((s) => s.win);
   const payload = useRaidOverlayStore((s) => s.payload);
   const setRaid = useRaidOverlayStore((s) => s.setRaid);
   const activeStepIdx = payload?.activeStepIndex ?? 0;
@@ -121,28 +193,50 @@ export function RaidOverlayClient({
   const clearExecrabeShapes = useRaidOverlayStore((s) => s.clearExecrabeShapes);
 
   const currentRaidSlug = payload?.raidSlug ?? initialRaidSlug;
-  const raid = RAIDS_DATA[currentRaidSlug] || RAIDS_DATA.gigalodon;
+  const { locale } = useI18n();
+  const isEn = locale === "en";
+  const raid = getLocalizedRaidData(currentRaidSlug, locale);
   const currentStep: RaidStep | undefined = raid.steps[activeStepIdx] || raid.steps[0];
+  const hasSalts = Boolean(raid.saltLocations && raid.saltLocations.length > 0);
 
-  // Vues principales : Salles & Boss (défaut), Statues, Trajets Safe, Lumière, Burst
-  const [mainView, setMainView] = useState<"step" | "statues" | "safe_travel" | "light" | "burst">("step");
+  // Onglets principaux : texte pur, simple soulignement
+  const [mainView, setMainView] = useState<"step" | "statues" | "safe_travel" | "light" | "burst" | "enigmes">("step");
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [zoomedImage, setZoomedImage] = useState<{ src: string; title: string } | null>(null);
+  const [imageCollapsed, setImageCollapsed] = useState(false);
+  // Mini-toast PiP inline (ne passe pas par Sonner du dashboard parent)
+  const [pipToast, setPipToast] = useState<string | null>(null);
+  const pipToastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Sous-onglet pour la vue Trajets Safe
-  const [activeTravelRouteId, setActiveTravelRouteId] = useState<string>("remontee-execrabe");
+  // Sous-onglet pour Trajets Safe
+  const [activeTravelRouteId, setActiveTravelRouteId] = useState<string>(
+    raid.safeRoutes?.[0]?.id || "remontee-execrabe"
+  );
   const [travelSubTab, setTravelSubTab] = useState<"routes" | "salts">("routes");
+
+  // Synchronisation stricte de l'état selon le raid actif (aucun reliquat d'onglets ou de sous-onglets)
+  useEffect(() => {
+    if (raid.safeRoutes?.[0]?.id) {
+      setActiveTravelRouteId(raid.safeRoutes[0].id);
+    }
+    setTravelSubTab("routes");
+    if (currentRaidSlug === "jardin-eternel" && (mainView === "statues" || mainView === "light")) {
+      setMainView("step");
+    } else if (currentRaidSlug === "gigalodon" && mainView === "enigmes") {
+      setMainView("step");
+    }
+  }, [currentRaidSlug, raid]);
 
   const floorNavRef = useRef<HTMLDivElement | null>(null);
 
-  // Défilement horizontal avec la molette de la souris
+  // Défilement horizontal à la molette
   const handleHorizontalWheel = (e: React.WheelEvent<HTMLDivElement>) => {
     if (e.deltaY !== 0) {
       e.currentTarget.scrollLeft += e.deltaY;
     }
   };
 
-  // Auto-scroll pour centrer le bouton de la salle active
+  // Centrage auto de l'étage actif
   useEffect(() => {
     if (mainView === "step" && floorNavRef.current) {
       const activeEl = floorNavRef.current.querySelector<HTMLButtonElement>(`[data-step-idx="${activeStepIdx}"]`);
@@ -152,17 +246,32 @@ export function RaidOverlayClient({
     }
   }, [activeStepIdx, mainView]);
 
-  const handleCopy = (text: string, key: string, label = "Position copiée !") => {
-    navigator.clipboard.writeText(text);
-    setCopiedKey(key);
-    toast.success(label, {
-      description: text,
-      icon: <Compass className="w-4 h-4 text-cyan-400" />,
-      duration: 1500,
-    });
-    setTimeout(() => {
-      setCopiedKey((prev) => (prev === key ? null : prev));
-    }, 2000);
+  const handleCopy = async (
+    rawText: string,
+    key: string,
+    _label = "Position copiée !",
+    e?: React.MouseEvent | React.SyntheticEvent
+  ) => {
+    const travelCmd = formatTravelCommand(rawText);
+    const targetDoc =
+      (e?.currentTarget as HTMLElement | undefined)?.ownerDocument ||
+      win?.document ||
+      (typeof document !== "undefined" ? document : undefined);
+
+    const ok = await copyToClipboard(travelCmd, targetDoc);
+
+    // Afficher le mini-toast dans le PiP (pas Sonner du dashboard)
+    if (pipToastTimerRef.current) clearTimeout(pipToastTimerRef.current);
+    if (!ok) {
+      setPipToast(`✕ Erreur : impossible de copier`);
+    } else {
+      setPipToast(`✓ ${travelCmd}`);
+      setCopiedKey(key);
+      pipToastTimerRef.current = setTimeout(() => {
+        setCopiedKey((prev) => (prev === key ? null : prev));
+      }, 2000);
+    }
+    pipToastTimerRef.current = setTimeout(() => setPipToast(null), 1800);
   };
 
   const handleToggleShape = (shapeId: string) => {
@@ -177,15 +286,27 @@ export function RaidOverlayClient({
     }
   };
 
+  // Raccourci clavier Escape pour fermer le zoom d'image ou l'overlay
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        if (zoomedImage) {
+          setZoomedImage(null);
+        } else if (onClose) {
+          onClose();
+        }
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [zoomedImage, onClose]);
+
   return (
-    <div className="w-full h-full min-h-screen bg-[#07080b] text-white flex flex-col font-sans select-none overflow-hidden isolate">
-      {/* ── 1. HEADER HUD IN-GAME ── */}
-      <header className="h-11 shrink-0 px-3 bg-[#0a0b10] border-b border-white/10 flex items-center justify-between z-30">
+    <div className="w-full h-full min-h-screen bg-[#0e1015] text-[#d6d8df] flex flex-col font-sans select-none overflow-hidden isolate text-[12px]">
+      {/* ── 1. HEADER HUD DISCRET (Pas de double bouton fermer avec le PiP) ── */}
+      <header className="h-9 shrink-0 px-3 bg-[#0a0b0e] border-b border-white/[0.08] flex items-center justify-between z-30">
         <div className="flex items-center gap-2 min-w-0">
-          <span
-            className="w-2 h-2 rounded-full shrink-0"
-            style={{ backgroundColor: raid.themeColor, boxShadow: `0 0 8px ${raid.themeColor}` }}
-          />
+          <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 shrink-0" />
           <select
             value={currentRaidSlug}
             onChange={(e) => {
@@ -193,149 +314,117 @@ export function RaidOverlayClient({
               setActiveStep(0);
               setMainView("step");
             }}
-            aria-label="Sélectionner le raid"
-            className="bg-transparent text-xs font-mono font-bold uppercase tracking-wider text-white/90 hover:text-white focus:outline-none cursor-pointer border-none p-0"
+            aria-label={isEn ? "Select raid" : "Sélectionner le raid"}
+            className="bg-transparent text-[11px] font-medium text-white/90 hover:text-white focus:outline-none cursor-pointer border-none p-0"
           >
-            <option value="gigalodon" className="bg-[#0a0b10] text-white">
-              Gouffre Gigalodon
+            <option value="gigalodon" className="bg-[#0a0b0e] text-white">
+              {isEn ? "The Gigalodon Abyss" : "Gouffre Gigalodon"}
             </option>
-            <option value="jardin-eternel" className="bg-[#0a0b10] text-white">
-              Jardin Éternel
+            <option value="jardin-eternel" className="bg-[#0a0b0e] text-white">
+              {isEn ? "Eternal Gardens Sanctuary" : "Jardin Éternel"}
             </option>
           </select>
         </div>
 
         <div className="flex items-center gap-1 shrink-0">
           <a
+            href={`/raids?raid=${currentRaidSlug === "jardin-eternel" ? "sanctuaire" : "gigalodon"}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            title={isEn ? "Open Raid Studio 3.6 (Planner & Tools)" : "Ouvrir Raid Studio 3.6 (Planificateur & Outils)"}
+            className="px-1.5 py-0.5 rounded text-[10px] text-white/50 hover:text-cyan-300 hover:bg-white/5 transition-colors flex items-center gap-1"
+          >
+            <Swords size={11} />
+            <span>Studio 3.6</span>
+          </a>
+          <a
             href={raid.guideUrl}
             target="_blank"
             rel="noopener noreferrer"
-            title="Ouvrir le guide complet"
-            className="p-1.5 rounded-md text-white/50 hover:text-white hover:bg-white/5 transition-colors"
+            title={isEn ? "Open full guide" : "Ouvrir le guide complet"}
+            className="p-1 rounded text-white/40 hover:text-white hover:bg-white/5 transition-colors"
           >
-            <ExternalLink size={13} />
+            <ExternalLink size={12} />
           </a>
-          {onClose && (
-            <button
-              onClick={onClose}
-              title="Fermer l'overlay"
-              className="p-1.5 rounded-md text-white/50 hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
-            >
-              <X size={14} />
-            </button>
-          )}
         </div>
       </header>
 
       {!pinned && <OverlayPinNotice />}
 
-      {/* ── 2. ONGLETS MAJEURS : VUE SALLES VS OUTILS DÉDIÉS ── */}
-      <nav className="grid grid-cols-5 shrink-0 bg-[#090a0f] border-b border-white/10 text-[10.5px] font-mono uppercase tracking-wider text-center">
-        <button
-          onClick={() => setMainView("step")}
-          className={cn(
-            "py-2 px-1 border-b-2 transition-all flex items-center justify-center gap-1 font-semibold",
-            mainView === "step"
-              ? "text-cyan-300 border-cyan-400 bg-white/[0.04]"
-              : "text-white/40 border-transparent hover:text-white/75 hover:bg-white/[0.02]"
-          )}
-        >
-          <Target size={11} className={mainView === "step" ? "text-cyan-400" : "text-white/30"} />
-          <span>Salles</span>
-        </button>
-
-        <button
-          onClick={() => setMainView("statues")}
-          className={cn(
-            "py-2 px-1 border-b-2 transition-all flex items-center justify-center gap-1 font-semibold",
-            mainView === "statues"
-              ? "text-cyan-300 border-cyan-400 bg-white/[0.04]"
-              : "text-white/40 border-transparent hover:text-white/75 hover:bg-white/[0.02]"
-          )}
-        >
-          <Sparkles size={11} className={mainView === "statues" ? "text-cyan-400" : "text-white/30"} />
-          <span>Statues</span>
-        </button>
-
-        <button
-          onClick={() => setMainView("safe_travel")}
-          className={cn(
-            "py-2 px-1 border-b-2 transition-all flex items-center justify-center gap-1 font-semibold",
-            mainView === "safe_travel"
-              ? "text-cyan-300 border-cyan-400 bg-white/[0.04]"
-              : "text-white/40 border-transparent hover:text-white/75 hover:bg-white/[0.02]"
-          )}
-        >
-          <Route size={11} className={mainView === "safe_travel" ? "text-cyan-400" : "text-white/30"} />
-          <span>Trajets</span>
-        </button>
-
-        <button
-          onClick={() => setMainView("light")}
-          className={cn(
-            "py-2 px-1 border-b-2 transition-all flex items-center justify-center gap-1 font-semibold",
-            mainView === "light"
-              ? "text-cyan-300 border-cyan-400 bg-white/[0.04]"
-              : "text-white/40 border-transparent hover:text-white/75 hover:bg-white/[0.02]"
-          )}
-        >
-          <Flame size={11} className={mainView === "light" ? "text-cyan-400" : "text-white/30"} />
-          <span>Lumière</span>
-        </button>
-
-        <button
-          onClick={() => setMainView("burst")}
-          className={cn(
-            "py-2 px-1 border-b-2 transition-all flex items-center justify-center gap-1 font-semibold",
-            mainView === "burst"
-              ? "text-cyan-300 border-cyan-400 bg-white/[0.04]"
-              : "text-white/40 border-transparent hover:text-white/75 hover:bg-white/[0.02]"
-          )}
-        >
-          <Target size={11} className={mainView === "burst" ? "text-cyan-400" : "text-white/30"} />
-          <span>Burst</span>
-        </button>
+      {/* ── 2. NAVIGATION ÉPURÉE (1 SEULE RANGÉE DE TEXTE, DYNAMIQUE PAR RAID) ── */}
+      <nav className="flex items-center justify-between shrink-0 bg-[#0a0b0e] border-b border-white/[0.08] px-3 text-[11px]">
+        {(currentRaidSlug === "jardin-eternel"
+          ? ([
+              { id: "step", label: isEn ? "Rooms" : "Salles" },
+              { id: "enigmes", label: isEn ? "Puzzles" : "Énigmes" },
+              { id: "trajets", label: isEn ? "Routes" : "Trajets" },
+              { id: "burst", label: isEn ? "Boss & Setup" : "Boss & Compo" },
+            ] as const)
+          : ([
+              { id: "step", label: isEn ? "Rooms" : "Salles" },
+              { id: "statues", label: isEn ? "Statues" : "Statues" },
+              { id: "trajets", label: isEn ? "Routes" : "Trajets" },
+              { id: "light", label: isEn ? "Light" : "Lumière" },
+              { id: "burst", label: isEn ? "Burst" : "Burst" },
+            ] as const)
+        ).map((tab) => {
+          const tabKey = tab.id === "trajets" ? "safe_travel" : tab.id;
+          const isActive = mainView === tabKey;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setMainView(tabKey as typeof mainView)}
+              className={cn(
+                "py-2 px-1.5 transition-colors border-b-2 font-medium",
+                isActive
+                  ? "text-white border-cyan-400"
+                  : "text-white/40 border-transparent hover:text-white/80"
+              )}
+            >
+              {tab.label}
+            </button>
+          );
+        })}
       </nav>
 
-      {/* ── 3. SÉLECTEUR DE SALLES HORIZONTAL AVEC DÉFILEMENT À LA MOLETTE ── */}
+      {/* ── 3. SÉLECTEUR D'ÉTAGES COMPACT (DÉFILEMENT MOLETTE) ── */}
       {mainView === "step" && (
         <div
           ref={floorNavRef}
           onWheel={handleHorizontalWheel}
-          className="shrink-0 bg-[#06070a] border-b border-white/10 px-2 py-1.5 flex items-center gap-1.5 overflow-x-auto scrollbar-none select-none cursor-grab active:cursor-grabbing"
-          title="Faites défiler avec la molette de la souris"
+          className="shrink-0 bg-[#0c0d12] border-b border-white/[0.06] px-2 py-1 flex items-center gap-1 overflow-x-auto scrollbar-none"
         >
           {raid.steps.map((st, idx) => {
             const isActive = idx === activeStepIdx;
             const shortLabel =
-              idx === 0
+              currentRaidSlug === "jardin-eternel"
+                ? st.floor
+                : idx === 0
                 ? "-1 Base"
                 : idx === 1
-                ? "-2 Mureine"
+                ? (isEn ? "-2 Moray" : "-2 Mureine")
                 : idx === 2
-                ? "-3 Pont"
+                ? (isEn ? "-3 Bridge" : "-3 Pont")
                 : idx === 3
-                ? "-4 Exécrabe"
+                ? (isEn ? "-4 Execrabe" : "-4 Exécrabe")
                 : idx === 4
-                ? "Coffre 10k"
+                ? (isEn ? "10k Chest" : "Coffre 10k")
                 : idx === 5
-                ? "-5 Krak'Haine"
+                ? "-5 Krak"
                 : idx === 6
-                ? "-6 Willorque"
-                : "★ Gigalodon";
+                ? (isEn ? "-6 Willorc" : "-6 Willorque")
+                : "Gigalodon";
 
             return (
               <button
                 key={st.id}
                 data-step-idx={idx}
-                onClick={() => {
-                  setActiveStep(idx);
-                }}
+                onClick={() => setActiveStep(idx)}
                 className={cn(
-                  "px-2.5 py-1 rounded-md text-[10px] font-mono font-bold uppercase tracking-wider shrink-0 transition-all border whitespace-nowrap",
+                  "px-2 py-0.5 rounded text-[10.5px] shrink-0 transition-colors whitespace-nowrap",
                   isActive
-                    ? "bg-cyan-500/20 border-cyan-400/80 text-cyan-200 shadow-[0_0_12px_rgba(6,182,212,0.3)]"
-                    : "bg-white/[0.03] border-white/5 text-white/50 hover:bg-white/10 hover:text-white/80"
+                    ? "bg-white/10 text-white font-semibold border border-white/20"
+                    : "text-white/40 hover:text-white/80 hover:bg-white/[0.03] border border-transparent"
                 )}
               >
                 {shortLabel}
@@ -345,152 +434,148 @@ export function RaidOverlayClient({
         </div>
       )}
 
-      {/* ── 4. CONTENU PRINCIPAL ADAPTÉ AU JEU ── */}
+      {/* ── 4. CONTENU PRINCIPAL EN LISTE CONTINUE ── */}
       <main className="flex-1 overflow-y-auto p-3 space-y-3 min-h-0 scrollbar-thin scrollbar-thumb-white/10">
         {/* ════════════════════════════════════════════════════════════════════ */}
-        {/* VUE 1 : STRATÉGIE DE LA SALLE SÉLECTIONNÉE                          */}
+        {/* VUE 1 : STRATÉGIE SALLE (LISTE CONTINUE, PAS DE CARTES MULTIPLES)   */}
         {/* ════════════════════════════════════════════════════════════════════ */}
         {mainView === "step" && currentStep && (
-          <div className="space-y-3">
-            {/* Bannière d'en-tête de la salle */}
-            <div className="p-2.5 rounded-xl bg-gradient-to-r from-white/[0.04] to-transparent border border-white/10 flex items-center justify-between gap-2">
-              <div className="min-w-0">
+          <div className="rounded-md border border-white/[0.08] bg-[#121319] p-3 space-y-3">
+            {/* En-tête : Titre & /travel */}
+            <div className="flex items-start justify-between gap-2 pb-2.5 border-b border-white/[0.06]">
+              <div>
                 <div className="flex items-center gap-1.5 flex-wrap">
-                  <span className="text-[10px] font-mono font-bold text-cyan-400 uppercase tracking-wide">
-                    {currentStep.floor}
-                  </span>
-                  <span className="text-white/20 text-xs">·</span>
-                  <span className="text-xs font-bold text-white truncate">
-                    {currentStep.bossName || currentStep.title}
-                  </span>
+                  <h2 className="text-[13px] font-semibold text-white">
+                    {currentStep.floor} · {currentStep.bossName || currentStep.title}
+                  </h2>
                   {currentStep.bossHp && (
-                    <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-rose-500/20 text-rose-300 border border-rose-500/30">
+                    <span className="text-[9.5px] font-mono px-1.5 py-0.2 rounded bg-white/5 text-rose-300 border border-rose-500/20">
                       {currentStep.bossHp}
                     </span>
                   )}
                 </div>
+                <p className="text-[11px] text-white/50 mt-0.5">
+                  <TextWithCoords text={currentStep.summary} onCopy={handleCopy} copiedKey={copiedKey} isEn={isEn} />
+                </p>
               </div>
 
               <button
-                onClick={() => handleCopy(currentStep.travelCommand, `travel-${currentStep.id}`)}
+                onClick={() => handleCopy(currentStep.coords, `travel-${currentStep.id}`)}
                 className={cn(
-                  "flex items-center gap-1 px-2.5 py-1 rounded-md font-mono text-[10px] font-bold uppercase transition-all shrink-0 border",
+                  "flex items-center gap-1 px-2 py-1 rounded font-mono text-[10.5px] transition-colors shrink-0 border",
                   copiedKey === `travel-${currentStep.id}`
-                    ? "bg-emerald-500 text-black border-emerald-400 font-black shadow-[0_0_10px_rgba(16,185,129,0.4)]"
-                    : "bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border-cyan-500/30 active:scale-95"
+                    ? "bg-emerald-500 text-black border-emerald-400 font-bold"
+                    : "bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border-cyan-500/30"
                 )}
-                title="Copier la commande /travel"
+                title={isEn ? `Click to copy ${formatTravelCommand(currentStep.coords)}` : `Copier ${formatTravelCommand(currentStep.coords)}`}
               >
                 {copiedKey === `travel-${currentStep.id}` ? <Check size={11} /> : <Copy size={10} />}
-                <span>{copiedKey === `travel-${currentStep.id}` ? "Copié !" : currentStep.coords}</span>
+                <span>{copiedKey === `travel-${currentStep.id}` ? (isEn ? "Copied" : "Copié") : currentStep.coords}</span>
               </button>
             </div>
 
-            {/* Illustration de la salle / Boss avec option d'agrandissement */}
+            {/* Image compacte & Vignettes secondaires */}
             {currentStep.primaryImage && (
-              <div className="relative group rounded-xl overflow-hidden border border-white/10 bg-black/40">
-                <img
-                  src={currentStep.primaryImage}
-                  alt={currentStep.title}
-                  className="w-full h-36 object-cover object-center group-hover:scale-105 transition-transform duration-300 cursor-zoom-in"
-                  onClick={() => setZoomedImage({ src: currentStep.primaryImage, title: currentStep.title })}
-                />
-                <button
-                  onClick={() => setZoomedImage({ src: currentStep.primaryImage, title: currentStep.title })}
-                  className="absolute bottom-2 right-2 p-1.5 rounded-lg bg-black/70 backdrop-blur-md border border-white/20 text-white/80 hover:text-white transition-colors"
-                  title="Agrandir l'image"
-                >
-                  <Maximize2 size={12} />
-                </button>
-                <div className="absolute bottom-2 left-2 px-2 py-0.5 rounded-md bg-black/70 backdrop-blur-md border border-white/15 text-[9.5px] font-mono text-white/80 truncate max-w-[70%]">
-                  {currentStep.title}
-                </div>
-              </div>
-            )}
-
-            {/* Miniatures secondaires si existantes (blocages, solutions, hitbox) */}
-            {currentStep.secondaryImages && currentStep.secondaryImages.length > 0 && (
-              <div className="grid grid-cols-2 gap-1.5">
-                {currentStep.secondaryImages.map((img, i) => (
-                  <button
-                    key={i}
-                    onClick={() => setZoomedImage({ src: img.src, title: img.label })}
-                    className="p-1.5 rounded-lg bg-white/[0.02] hover:bg-white/[0.06] border border-white/10 flex items-center gap-2 text-left transition-colors group"
+              <div className="space-y-1.5">
+                {!imageCollapsed && (
+                  <div
+                    className="relative rounded-md overflow-hidden border border-white/[0.08] bg-black/40 group cursor-zoom-in"
+                    onClick={() => setZoomedImage({ src: currentStep.primaryImage, title: currentStep.title })}
                   >
                     <img
-                      src={img.src}
-                      alt={img.label}
-                      className="w-10 h-8 rounded object-cover border border-white/10 shrink-0 group-hover:border-cyan-400/50 transition-colors"
+                      src={currentStep.primaryImage}
+                      alt={currentStep.title}
+                      className="w-full h-20 object-cover object-center group-hover:scale-102 transition-transform duration-200"
                     />
-                    <div className="min-w-0">
-                      <p className="text-[10px] font-semibold text-white/80 truncate group-hover:text-cyan-300">
-                        {img.label}
-                      </p>
-                      <span className="text-[8.5px] font-mono text-white/40 flex items-center gap-0.5">
-                        <ZoomIn size={8} /> Cliquer
+                    <div className="absolute inset-0 bg-black/20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                      <span className="px-1.5 py-0.5 rounded bg-black/80 text-[10px] text-white/90 flex items-center gap-1">
+                        <Maximize2 size={10} /> {isEn ? "Enlarge" : "Agrandir"}
                       </span>
                     </div>
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between gap-1 flex-wrap text-[10.5px]">
+                  <div className="flex items-center gap-1 flex-wrap">
+                    {currentStep.secondaryImages?.map((img, i) => (
+                      <button
+                        key={i}
+                        onClick={() => setZoomedImage({ src: img.src, title: img.label })}
+                        className="px-2 py-0.5 rounded border border-white/10 bg-white/[0.02] hover:bg-white/[0.08] text-white/70 hover:text-white text-[10px] transition-colors flex items-center gap-1"
+                      >
+                        <span>[{img.label}]</span>
+                      </button>
+                    ))}
+                  </div>
+
+                  <button
+                    onClick={() => setImageCollapsed((prev) => !prev)}
+                    className="text-[10px] text-white/40 hover:text-white/70 flex items-center gap-0.5 ml-auto"
+                  >
+                    {imageCollapsed ? (
+                      <>
+                        <ChevronDown size={11} /> {isEn ? "Show visual" : "Voir visuel"}
+                      </>
+                    ) : (
+                      <>
+                        <ChevronUp size={11} /> {isEn ? "Hide visual" : "Masquer visuel"}
+                      </>
+                    )}
                   </button>
-                ))}
+                </div>
               </div>
             )}
 
-            {/* Résumé tactique direct */}
-            <div className="p-2.5 rounded-xl bg-white/[0.02] border border-white/5 text-[11px] text-white/80 leading-relaxed">
-              {currentStep.summary}
-            </div>
-
-            {/* Alertes & Dangers majeurs */}
-            <div className="space-y-1.5">
-              {currentStep.keyMechanics.map((m, i) => (
-                <div
-                  key={i}
-                  className={cn(
-                    "p-2.5 rounded-lg border text-[11px] leading-snug",
-                    m.danger
-                      ? "bg-rose-950/20 border-rose-800/40 text-rose-200"
-                      : "bg-white/[0.02] border-white/10 text-white/80"
-                  )}
-                >
-                  <div className="flex items-center gap-1.5 font-bold mb-1 font-mono text-[10px] uppercase">
-                    {m.danger ? (
-                      <span className="text-rose-400 flex items-center gap-1">
-                        <ShieldAlert size={12} className="shrink-0" /> {m.label}
-                      </span>
-                    ) : (
-                      <span className="text-cyan-300 flex items-center gap-1">
-                        <Info size={12} className="shrink-0" /> {m.label}
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-white/70 text-[10.5px] leading-relaxed">{m.desc}</p>
-                </div>
-              ))}
-            </div>
-
-            {/* Outil Pad Exécrabe interactif si étape 4 */}
-            {currentStep.hasExecrabePad && (
-              <div className="p-3 rounded-xl bg-cyan-950/25 border border-cyan-700/40 space-y-2.5">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1.5">
-                    <Sparkles size={12} className="text-cyan-400" />
-                    <span className="text-[10.5px] font-mono uppercase font-bold text-cyan-200">
-                      Mémo Formes Exécrabe (-4)
+            {/* Puces essentielles (lecture en 5-8 mots par puce avec positions cliquables) */}
+            <div className="pt-1">
+              <ul className="space-y-1.5 text-[11.5px] text-white/80">
+                {currentStep.bullets?.map((bullet, idx) => (
+                  <li key={idx} className="flex items-start gap-1.5 leading-snug">
+                    <span className="text-white/30 shrink-0 select-none mt-0.5">•</span>
+                    <span>
+                      <TextWithCoords text={bullet} onCopy={handleCopy} copiedKey={copiedKey} isEn={isEn} />
                     </span>
-                  </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* Alerte critique UNIQUE si applicable */}
+            {currentStep.alert && (
+              <div
+                className={cn(
+                  "p-2 rounded border-l-2 text-[11px] leading-snug",
+                  currentStep.alert.danger
+                    ? "border-l-rose-500 bg-rose-500/[0.06] text-rose-200/90"
+                    : "border-l-amber-500 bg-amber-500/[0.06] text-amber-200/90"
+                )}
+              >
+                <div className="flex items-center gap-1 font-semibold mb-0.5">
+                  <AlertTriangle size={11} className="shrink-0" />
+                  <span>{currentStep.alert.label}</span>
+                </div>
+                <p className="text-white/70">
+                  <TextWithCoords text={currentStep.alert.desc} onCopy={handleCopy} copiedKey={copiedKey} isEn={isEn} />
+                </p>
+              </div>
+            )}
+
+            {/* Mémo Formes interactif pour Exécrabe (si -4) */}
+            {currentStep.hasExecrabePad && (
+              <div className="pt-2 border-t border-white/[0.06] space-y-2">
+                <div className="flex items-center justify-between text-[11px]">
+                  <span className="font-semibold text-white/90">
+                    {isEn ? "Execrabe 4-form sequence :" : "Ordre des 4 formes d'Exécrabe :"}
+                  </span>
                   {execrabeShapes.some(Boolean) && (
                     <button
                       onClick={clearExecrabeShapes}
-                      className="text-[9.5px] font-mono text-white/40 hover:text-white flex items-center gap-1 transition-colors"
+                      className="text-[10px] text-white/40 hover:text-white flex items-center gap-1"
                     >
-                      <RotateCcw size={9} /> Reset
+                      <RotateCcw size={10} /> Reset
                     </button>
                   )}
                 </div>
-
-                <p className="text-[10px] text-white/60 leading-tight">
-                  Notez l&apos;ordre d&apos;apparition des 4 formes pendant le combat :
-                </p>
 
                 {/* Les 4 slots */}
                 <div className="grid grid-cols-4 gap-1.5">
@@ -501,22 +586,20 @@ export function RaidOverlayClient({
                       <div
                         key={slotIdx}
                         className={cn(
-                          "h-14 rounded-lg border flex flex-col items-center justify-center transition-all",
+                          "h-12 rounded border flex flex-col items-center justify-center transition-colors",
                           formObj
-                            ? "bg-cyan-500/20 border-cyan-400 text-cyan-200 shadow-[0_0_8px_rgba(6,182,212,0.2)]"
-                            : "bg-black/40 border-dashed border-white/15 text-white/20"
+                            ? "bg-white/[0.06] border-cyan-400 text-white"
+                            : "bg-black/30 border-dashed border-white/10 text-white/20"
                         )}
                       >
                         <span className="text-[8px] font-mono text-white/40">#{slotIdx + 1}</span>
                         {formObj ? (
-                          <div className="flex flex-col items-center mt-0.5">
-                            <span style={{ color: formObj.color }}>{formObj.icon}</span>
-                            <span className="text-[8px] font-mono font-bold mt-0.5" style={{ color: formObj.color }}>
-                              {formObj.label}
-                            </span>
+                          <div className="flex items-center gap-1 mt-0.5" style={{ color: formObj.color }}>
+                            {formObj.icon}
+                            <span className="text-[8.5px] font-medium">{formObj.label}</span>
                           </div>
                         ) : (
-                          <span className="text-xs font-mono text-white/20">—</span>
+                          <span className="text-xs text-white/20">—</span>
                         )}
                       </div>
                     );
@@ -524,7 +607,7 @@ export function RaidOverlayClient({
                 </div>
 
                 {/* Sélecteurs de formes */}
-                <div className="grid grid-cols-4 gap-1 pt-1">
+                <div className="grid grid-cols-4 gap-1">
                   {EXECRABE_FORMS.map((form) => {
                     const isSelected = execrabeShapes.includes(form.id);
                     return (
@@ -532,15 +615,14 @@ export function RaidOverlayClient({
                         key={form.id}
                         onClick={() => handleToggleShape(form.id)}
                         className={cn(
-                          "p-1.5 rounded-lg border text-center flex flex-col items-center transition-all",
+                          "py-1.5 px-1 rounded border text-center flex flex-col items-center transition-colors",
                           isSelected
                             ? "bg-white/10 border-cyan-400 text-white"
-                            : "bg-white/[0.03] hover:bg-white/[0.08] border-white/10 text-white/70"
+                            : "bg-white/[0.02] hover:bg-white/[0.06] border-white/10 text-white/70"
                         )}
                       >
                         <span style={{ color: form.color }}>{form.icon}</span>
-                        <span className="text-[8.5px] font-mono font-bold mt-0.5">{form.label}</span>
-                        <span className="text-[7.5px] font-mono opacity-50">{form.element}</span>
+                        <span className="text-[9px] font-medium mt-0.5">{form.label}</span>
                       </button>
                     );
                   })}
@@ -548,105 +630,101 @@ export function RaidOverlayClient({
               </div>
             )}
 
-            {/* Plan d'action & Déroulement */}
-            <div className="p-2.5 rounded-xl bg-white/[0.025] border border-white/10 space-y-2">
-              <span className="text-[10px] font-mono uppercase font-bold text-white/40 tracking-wider">
-                Déroulement Tactique
+            {/* Déroulement de salle succinct avec coordonnées cliquables */}
+            <div className="pt-2 border-t border-white/[0.06] space-y-1">
+              <span className="text-[10px] font-medium uppercase tracking-wider text-white/40">
+                {isEn ? "Procedure" : "Déroulement"}
               </span>
-              <div className="space-y-1.5 text-[11px] text-white/70">
+              <ol className="space-y-1 text-[11px] text-white/70">
                 {currentStep.strategy.map((st, i) => (
-                  <div key={i} className="flex items-start gap-2">
-                    <span className="w-4 h-4 rounded-full bg-cyan-500/15 border border-cyan-500/30 text-cyan-300 font-mono text-[9px] font-bold flex items-center justify-center shrink-0 mt-0.5">
-                      {i + 1}
+                  <li key={i} className="flex items-start gap-1.5">
+                    <span className="text-white/40 font-mono text-[10px] shrink-0 mt-0.5">{i + 1}.</span>
+                    <span>
+                      <TextWithCoords text={st} onCopy={handleCopy} copiedKey={copiedKey} isEn={isEn} />
                     </span>
-                    <span className="leading-snug">{st}</span>
-                  </div>
+                  </li>
                 ))}
-              </div>
+              </ol>
             </div>
-
-            {/* Astuces Pro */}
-            {currentStep.proTips && currentStep.proTips.length > 0 && (
-              <div className="p-2.5 rounded-xl bg-white/[0.015] border border-white/5 space-y-1.5 text-[10.5px]">
-                <span className="font-mono font-bold uppercase text-white/40 text-[9.5px]">
-                  💡 Astuces de Guilde
-                </span>
-                <ul className="space-y-1 text-white/60">
-                  {currentStep.proTips.map((tip, idx) => (
-                    <li key={idx} className="flex items-start gap-1.5">
-                      <span className="text-cyan-400/70">›</span>
-                      <span>{tip}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
           </div>
         )}
 
         {/* ════════════════════════════════════════════════════════════════════ */}
-        {/* VUE 2 : OUTIL STATUES D'EXÉCRABE (FORMS RÉELLES DU BOSS)            */}
+        {/* VUE ÉNIGMES : JARDIN ÉTERNEL UNIQUEMENT (4 solveurs interactifs)   */}
         {/* ════════════════════════════════════════════════════════════════════ */}
-        {mainView === "statues" && (
-          <div className="space-y-3">
-            <div className="p-3 rounded-xl bg-gradient-to-b from-white/[0.04] to-transparent border border-white/10 space-y-2.5">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5">
-                  <Sparkles size={13} className="text-cyan-400" />
-                  <span className="text-xs font-bold text-white font-mono uppercase">
-                    Statues du Lac (-4 bis)
-                  </span>
-                </div>
-                {execrabeShapes.some(Boolean) && (
-                  <button
-                    onClick={clearExecrabeShapes}
-                    className="text-[9.5px] font-mono text-white/40 hover:text-white flex items-center gap-1 transition-colors"
-                  >
-                    <RotateCcw size={10} /> Tout Effacer
-                  </button>
-                )}
-              </div>
-              <p className="text-[11px] text-white/70 leading-relaxed">
-                Pendant le combat contre <strong>Exécrabe</strong> (-4), cliquez sur les 4 formes dans l&apos;ordre exact des seuils de PV. Les statues au bord de la map s&apos;illuminent en bleu à chaque transition.
-              </p>
+        {mainView === "enigmes" && (
+          <div className="rounded-md border border-white/[0.08] bg-[#121319] p-3">
+            <JardinsEnigmaTracker
+              compact
+              onCopyTravel={(cmd) => handleCopy(cmd, `enigma-${cmd}`)}
+            />
+          </div>
+        )}
 
-              {/* Les 4 slots d'ordre */}
-              <div className="grid grid-cols-4 gap-2 pt-1">
-                {[0, 1, 2, 3].map((slotIdx) => {
-                  const val = execrabeShapes[slotIdx];
-                  const formObj = EXECRABE_FORMS.find((s) => s.id === val);
-                  return (
-                    <div
-                      key={slotIdx}
-                      className={cn(
-                        "h-16 rounded-xl border flex flex-col items-center justify-center transition-all",
-                        formObj
-                          ? "border-cyan-400 text-cyan-200 shadow-[0_0_12px_rgba(6,182,212,0.25)]"
-                          : "bg-white/[0.02] border-dashed border-white/15 text-white/20"
-                      )}
-                      style={{
-                        backgroundColor: formObj ? formObj.bgColor : undefined,
-                        borderColor: formObj ? formObj.borderColor : undefined,
-                      }}
-                    >
-                      <span className="text-[8.5px] font-mono text-white/40">Seuil #{slotIdx + 1}</span>
-                      {formObj ? (
-                        <div className="flex flex-col items-center mt-1">
-                          <span style={{ color: formObj.color }}>{formObj.icon}</span>
-                          <span className="text-[9px] font-mono font-bold mt-0.5" style={{ color: formObj.color }}>
-                            {formObj.label}
-                          </span>
-                        </div>
-                      ) : (
-                        <span className="text-sm font-mono text-white/20">—</span>
-                      )}
-                    </div>
-                  );
-                })}
+        {/* ════════════════════════════════════════════════════════════════════ */}
+        {/* VUE 2 : OUTIL STATUES D'EXÉCRABE (-4 BIS) — GIGALODON UNIQUEMENT   */}
+        {/* ════════════════════════════════════════════════════════════════════ */}
+        {mainView === "statues" && currentRaidSlug === "gigalodon" && (
+          <div className="rounded-md border border-white/[0.08] bg-[#121319] p-3 space-y-3">
+            <div className="flex items-center justify-between pb-2 border-b border-white/[0.06]">
+              <div>
+                <h2 className="text-[13px] font-semibold text-white">
+                  {isEn ? "Statues beneath the Lake (-4)" : "Statues sous le Lac (-4)"}
+                </h2>
+                <p className="text-[11px] text-white/50">
+                  {isEn
+                    ? "Record the 4 shapes' order of appearance during the Execrabe fight."
+                    : "Notez l'ordre d'apparition des 4 formes pendant le combat contre Exécrabe."}
+                </p>
               </div>
+              {execrabeShapes.some(Boolean) && (
+                <button
+                  onClick={clearExecrabeShapes}
+                  className="text-[10px] text-white/40 hover:text-white flex items-center gap-1"
+                >
+                  <RotateCcw size={10} /> Reset
+                </button>
+              )}
             </div>
 
-            {/* Boutons des 4 formes réelles */}
+            <div className="p-2 rounded border-l-2 border-l-rose-500 bg-rose-500/[0.06] text-[11px] text-rose-200/90">
+              {isEn
+                ? "⚠️ Warning: beneath the lake, each statue mistake subtracts 1,000 points from the raid!"
+                : "⚠️ Attention : sous le lac, chaque erreur de statue retire 1 000 points au raid !"}
+            </div>
+
+            {/* Slots 1 à 4 */}
+            <div className="grid grid-cols-4 gap-2">
+              {[0, 1, 2, 3].map((slotIdx) => {
+                const val = execrabeShapes[slotIdx];
+                const formObj = EXECRABE_FORMS.find((s) => s.id === val);
+                return (
+                  <div
+                    key={slotIdx}
+                    className={cn(
+                      "h-14 rounded border flex flex-col items-center justify-center transition-colors",
+                      formObj
+                        ? "bg-white/[0.08] border-cyan-400 text-white"
+                        : "bg-black/30 border-dashed border-white/10 text-white/20"
+                    )}
+                  >
+                    <span className="text-[8.5px] font-mono text-white/40">
+                      {isEn ? `Threshold #${slotIdx + 1}` : `Seuil #${slotIdx + 1}`}
+                    </span>
+                    {formObj ? (
+                      <div className="flex items-center gap-1 mt-0.5" style={{ color: formObj.color }}>
+                        {formObj.icon}
+                        <span className="text-[9px] font-semibold">{formObj.label}</span>
+                      </div>
+                    ) : (
+                      <span className="text-sm text-white/20">—</span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Boutons des 4 formes */}
             <div className="grid grid-cols-2 gap-2">
               {EXECRABE_FORMS.map((form) => {
                 const orderIdx = execrabeShapes.indexOf(form.id);
@@ -656,67 +734,50 @@ export function RaidOverlayClient({
                     key={form.id}
                     onClick={() => handleToggleShape(form.id)}
                     className={cn(
-                      "p-3 rounded-xl border flex items-center justify-between transition-all",
+                      "p-2.5 rounded border flex items-center justify-between transition-colors",
                       isSelected
-                        ? "border-cyan-400 shadow-[0_0_10px_rgba(6,182,212,0.2)]"
-                        : "bg-white/[0.025] hover:bg-white/[0.06] border-white/10"
+                        ? "bg-white/10 border-cyan-400 text-white"
+                        : "bg-white/[0.02] hover:bg-white/[0.06] border-white/10 text-white/70"
                     )}
-                    style={{
-                      backgroundColor: isSelected ? form.bgColor : undefined,
-                      borderColor: isSelected ? form.color : undefined,
-                    }}
                   >
-                    <div className="flex items-center gap-2.5">
-                      <div className="p-2 rounded-lg bg-black/40 border border-white/10" style={{ color: form.color }}>
-                        {form.icon}
-                      </div>
+                    <div className="flex items-center gap-2">
+                      <span style={{ color: form.color }}>{form.icon}</span>
                       <div className="text-left">
-                        <p className="text-xs font-bold text-white">{form.label}</p>
-                        <p className="text-[9px] font-mono uppercase" style={{ color: form.color }}>
-                          Élément {form.element}
-                        </p>
+                        <p className="text-[11.5px] font-semibold text-white">{form.label}</p>
+                        <p className="text-[9px] text-white/40">{form.element}</p>
                       </div>
                     </div>
-
                     {isSelected ? (
-                      <span className="w-6 h-6 rounded-full bg-cyan-400 text-black text-xs font-mono font-bold flex items-center justify-center">
+                      <span className="w-5 h-5 rounded-full bg-cyan-400 text-black text-[10px] font-bold flex items-center justify-center">
                         #{orderIdx + 1}
                       </span>
                     ) : (
-                      <span className="text-[10px] font-mono text-white/30">+ Ajouter</span>
+                      <span className="text-[10px] text-white/30">{isEn ? "+ Add" : "+ Ajouter"}</span>
                     )}
                   </button>
                 );
               })}
             </div>
 
-            {/* Aperçu des statues du jeu sous le lac */}
-            <div className="p-2.5 rounded-xl bg-white/[0.02] border border-white/5 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-mono uppercase font-bold text-white/50">
-                  Aperçu en jeu des Statues sous le Lac
+            {/* Photo des statues */}
+            <div
+              className="relative rounded overflow-hidden border border-white/[0.08] cursor-zoom-in group"
+              onClick={() =>
+                setZoomedImage({
+                  src: "/images/guides/gigalodon/89-statues-enigme-execrabe.jpg",
+                  title: isEn ? "Statues under the lake puzzle" : "Statues de l'énigme sous le lac",
+                })
+              }
+            >
+              <img
+                src="/images/guides/gigalodon/89-statues-enigme-execrabe.jpg"
+                alt={isEn ? "Statues under the lake" : "Statues sous le lac"}
+                className="w-full h-20 object-cover group-hover:scale-102 transition-transform duration-200"
+              />
+              <div className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                <span className="px-2 py-0.5 rounded bg-black/80 text-[10px] text-white flex items-center gap-1">
+                  <Maximize2 size={10} /> {isEn ? "View in-game layout" : "Voir la disposition en jeu"}
                 </span>
-                <span className="text-[9px] font-mono text-rose-300">⚠️ -1 000 pts / erreur</span>
-              </div>
-              <div
-                className="relative rounded-lg overflow-hidden border border-white/10 cursor-zoom-in group"
-                onClick={() =>
-                  setZoomedImage({
-                    src: "/images/guides/gigalodon/89-statues-enigme-execrabe.jpg",
-                    title: "Statues de l'énigme sous le lac",
-                  })
-                }
-              >
-                <img
-                  src="/images/guides/gigalodon/89-statues-enigme-execrabe.jpg"
-                  alt="Statues sous le lac"
-                  className="w-full h-28 object-cover group-hover:scale-105 transition-transform duration-300"
-                />
-                <div className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                  <span className="px-2 py-1 rounded bg-black/80 text-[10px] font-mono text-white flex items-center gap-1">
-                    <Maximize2 size={10} /> Agrandir la photo des statues
-                  </span>
-                </div>
               </div>
             </div>
           </div>
@@ -726,37 +787,39 @@ export function RaidOverlayClient({
         {/* VUE 3 : TRAJETS SÉCURISÉS & GISEMENTS DE SEL                         */}
         {/* ════════════════════════════════════════════════════════════════════ */}
         {mainView === "safe_travel" && (
-          <div className="space-y-3">
-            {/* Sous-navigation Trajets vs Sels */}
-            <div className="grid grid-cols-2 p-0.5 rounded-lg bg-white/[0.04] border border-white/10 text-[10px] font-mono uppercase">
-              <button
-                onClick={() => setTravelSubTab("routes")}
-                className={cn(
-                  "py-1.5 rounded-md font-bold transition-all",
-                  travelSubTab === "routes"
-                    ? "bg-cyan-500/20 text-cyan-300 border border-cyan-400/40"
-                    : "text-white/40 hover:text-white"
-                )}
-              >
-                Itinéraires Sécurisés
-              </button>
-              <button
-                onClick={() => setTravelSubTab("salts")}
-                className={cn(
-                  "py-1.5 rounded-md font-bold transition-all",
-                  travelSubTab === "salts"
-                    ? "bg-cyan-500/20 text-cyan-300 border border-cyan-400/40"
-                    : "text-white/40 hover:text-white"
-                )}
-              >
-                Gisements de Sel
-              </button>
-            </div>
+          <div className="rounded-md border border-white/[0.08] bg-[#121319] p-3 space-y-3">
+            {/* Sous-onglets Itinéraires vs Sels (affichés UNIQUEMENT si le raid possède des gisements de sel, ex: Gigalodon) */}
+            {hasSalts && (
+              <div className="flex border-b border-white/[0.06] text-[11px]">
+                <button
+                  onClick={() => setTravelSubTab("routes")}
+                  className={cn(
+                    "pb-1.5 px-2 transition-colors border-b-2 font-medium",
+                    travelSubTab === "routes"
+                      ? "text-white border-cyan-400"
+                      : "text-white/40 border-transparent hover:text-white/70"
+                  )}
+                >
+                  {isEn ? "Safe Routes" : "Itinéraires Safe"}
+                </button>
+                <button
+                  onClick={() => setTravelSubTab("salts")}
+                  className={cn(
+                    "pb-1.5 px-2 transition-colors border-b-2 font-medium",
+                    travelSubTab === "salts"
+                      ? "text-white border-cyan-400"
+                      : "text-white/40 border-transparent hover:text-white/70"
+                  )}
+                >
+                  {isEn ? "Salt Deposits" : "Gisements de Sel"}
+                </button>
+              </div>
+            )}
 
-            {travelSubTab === "routes" && (
-              <div className="space-y-3">
+            {(!hasSalts || travelSubTab === "routes") && (
+              <div className="space-y-2.5">
                 {/* Sélecteur d'itinéraire */}
-                <div className="flex gap-1 overflow-x-auto pb-1 scrollbar-none" onWheel={handleHorizontalWheel}>
+                <div className="flex gap-1 overflow-x-auto pb-0.5 scrollbar-none" onWheel={handleHorizontalWheel}>
                   {raid.safeRoutes?.map((route) => {
                     const isSelected = route.id === activeTravelRouteId;
                     return (
@@ -764,101 +827,79 @@ export function RaidOverlayClient({
                         key={route.id}
                         onClick={() => setActiveTravelRouteId(route.id)}
                         className={cn(
-                          "px-2.5 py-1.5 rounded-lg text-[9.5px] font-mono uppercase tracking-wider shrink-0 border transition-all text-left",
+                          "px-2 py-1 rounded text-[10px] whitespace-nowrap transition-colors border",
                           isSelected
-                            ? "bg-cyan-500/20 border-cyan-400 text-cyan-200 shadow-[0_0_10px_rgba(6,182,212,0.2)]"
-                            : "bg-white/[0.02] border-white/5 text-white/40 hover:text-white"
+                            ? "bg-white/10 text-white font-medium border-white/20"
+                            : "bg-white/[0.02] text-white/40 hover:text-white/70 border-transparent"
                         )}
                       >
-                        <div className="font-bold">{route.title.split(" ")[0]} {route.title.split(" ")[1]}</div>
-                        <div className="text-[8px] opacity-60">{route.badge}</div>
+                        {route.title}
                       </button>
                     );
                   })}
                 </div>
 
-                {/* Itinéraire sélectionné */}
                 {(() => {
                   const currentRoute =
                     raid.safeRoutes?.find((r) => r.id === activeTravelRouteId) || raid.safeRoutes?.[0];
                   if (!currentRoute) return null;
 
                   return (
-                    <div className="space-y-2.5">
-                      <div className="p-2.5 rounded-xl bg-white/[0.03] border border-white/10 space-y-1">
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs font-bold text-white font-mono uppercase">
-                            {currentRoute.title}
-                          </span>
-                          <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-cyan-500/10 text-cyan-300 border border-cyan-500/20">
-                            {currentRoute.badge}
-                          </span>
-                        </div>
-                        <p className="text-[10.5px] text-white/60">{currentRoute.subtitle}</p>
-
-                        {currentRoute.dangerWarning && (
-                          <div className="mt-2 p-2 rounded-lg bg-rose-950/30 border border-rose-800/40 text-[10px] text-rose-200 flex items-start gap-1.5 leading-snug">
-                            <ShieldAlert size={12} className="text-rose-400 shrink-0 mt-0.5" />
-                            <span>{currentRoute.dangerWarning}</span>
-                          </div>
-                        )}
+                    <div className="space-y-2">
+                      <div className="pb-1 border-b border-white/[0.06]">
+                        <h3 className="text-[12px] font-semibold text-white">{currentRoute.title}</h3>
+                        <p className="text-[10.5px] text-white/50">{currentRoute.subtitle}</p>
                       </div>
 
-                      {/* Étapes séquentielles */}
-                      <div className="space-y-1.5">
+                      {currentRoute.dangerWarning && (
+                        <div className="p-2 rounded border-l-2 border-l-amber-500 bg-amber-500/[0.06] text-[10.5px] text-amber-200/90">
+                          <TextWithCoords text={currentRoute.dangerWarning} onCopy={handleCopy} copiedKey={copiedKey} isEn={isEn} />
+                        </div>
+                      )}
+
+                      {/* Étapes en liste */}
+                      <div className="space-y-1">
                         {currentRoute.steps.map((st) => (
                           <div
                             key={st.stepNum}
                             className={cn(
-                              "p-2.5 rounded-xl border text-[11px] transition-all space-y-1.5",
+                              "p-2 rounded border text-[11px] space-y-1 transition-colors",
                               st.isBlockPoint
-                                ? "bg-amber-950/20 border-amber-600/40 text-amber-200"
-                                : "bg-white/[0.02] border-white/10 text-white/80"
+                                ? "bg-amber-500/[0.05] border-amber-500/30 text-amber-200/90"
+                                : "bg-white/[0.02] border-white/[0.06] text-white/80"
                             )}
                           >
                             <div className="flex items-center justify-between gap-2">
-                              <div className="flex items-center gap-1.5 font-bold font-mono text-[10px] uppercase">
-                                <span
-                                  className={cn(
-                                    "w-4 h-4 rounded-full flex items-center justify-center text-[9px]",
-                                    st.isBlockPoint
-                                      ? "bg-amber-500 text-black font-black"
-                                      : "bg-cyan-500/20 text-cyan-300 border border-cyan-500/30"
-                                  )}
-                                >
-                                  {st.stepNum}
-                                </span>
-                                <span className={st.isBlockPoint ? "text-amber-300" : "text-white"}>
-                                  {st.label}
-                                </span>
-                              </div>
-
-                              {st.command && (
+                              <span className="font-semibold text-white">
+                                {st.stepNum}. {st.label}
+                              </span>
+                              {st.coords && (
                                 <button
-                                  onClick={() => handleCopy(st.command!, `route-cmd-${st.stepNum}`)}
+                                  onClick={() => handleCopy(st.coords!, `route-cmd-${st.stepNum}`)}
                                   className={cn(
-                                    "px-2 py-0.5 rounded font-mono text-[9px] font-bold uppercase transition-all flex items-center gap-1 border",
+                                    "px-1.5 py-0.5 rounded font-mono text-[9.5px] transition-colors flex items-center gap-1 border",
                                     copiedKey === `route-cmd-${st.stepNum}`
-                                      ? "bg-emerald-500 text-black border-emerald-400"
-                                      : "bg-white/5 hover:bg-white/10 text-cyan-300 border-white/10"
+                                      ? "bg-emerald-500 text-black border-emerald-400 font-bold"
+                                      : "bg-white/[0.04] hover:bg-white/[0.08] text-white/80 border-white/10"
                                   )}
+                                  title={isEn ? `Click to copy ${formatTravelCommand(st.coords)}` : `Copier ${formatTravelCommand(st.coords)}`}
                                 >
                                   {copiedKey === `route-cmd-${st.stepNum}` ? (
                                     <Check size={9} />
                                   ) : (
                                     <Copy size={9} />
                                   )}
-                                  <span>{copiedKey === `route-cmd-${st.stepNum}` ? "Copié" : st.coords}</span>
+                                  <span>{copiedKey === `route-cmd-${st.stepNum}` ? (isEn ? "Copied" : "Copié") : st.coords}</span>
                                 </button>
                               )}
                             </div>
-
-                            <p className="text-[10px] text-white/70 leading-relaxed">{st.action}</p>
-
+                            <p className="text-[10.5px] text-white/60">
+                              <TextWithCoords text={st.action} onCopy={handleCopy} copiedKey={copiedKey} isEn={isEn} />
+                            </p>
                             {st.warning && (
-                              <div className="text-[9.5px] font-mono text-amber-300/90 bg-amber-500/10 px-2 py-1 rounded border border-amber-500/20">
-                                {st.warning}
-                              </div>
+                              <p className="text-[10px] text-amber-300/90 font-mono">
+                                <TextWithCoords text={st.warning} onCopy={handleCopy} copiedKey={copiedKey} isEn={isEn} />
+                              </p>
                             )}
                           </div>
                         ))}
@@ -870,64 +911,73 @@ export function RaidOverlayClient({
             )}
 
             {/* Sous-onglet : Gisements de Sel */}
-            {travelSubTab === "salts" && (
-              <div className="space-y-2.5">
-                <div className="p-2 rounded-xl bg-cyan-950/20 border border-cyan-800/30 text-[10.5px] text-cyan-200/90 leading-relaxed">
-                  Cliquez sur n&apos;importe quelle position pour copier sa commande <code>/travel</code> instantanément :
-                </div>
+            {hasSalts && travelSubTab === "salts" && (
+              <div className="space-y-2">
+                <p className="text-[10.5px] text-white/50">
+                  {isEn
+                    ? "Click on a position to copy the /travel x,y command :"
+                    : "Cliquez sur une position pour copier la commande /travel x,y :"}
+                </p>
 
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   {raid.saltLocations?.map((loc) => (
                     <div
                       key={loc.floor}
-                      className="p-2.5 rounded-xl bg-white/[0.02] border border-white/10 space-y-2"
+                      className="p-2 rounded border border-white/[0.06] bg-white/[0.02] space-y-1.5 text-[11px]"
                     >
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10.5px] font-mono font-bold text-cyan-300 uppercase">
-                          {loc.floor} · {loc.zoneName}
-                        </span>
+                      <div className="font-semibold text-white">
+                        {loc.floor} · {loc.zoneName}
                       </div>
 
-                      {/* Luminomachines de l'étage */}
-                      <div className="flex items-center gap-1.5 flex-wrap text-[10px]">
-                        <span className="text-white/40 font-mono text-[9px]">Luminomachine :</span>
-                        {loc.luminomachines.map((lum, idx) => (
-                          <button
-                            key={idx}
-                            onClick={() => handleCopy(lum.command, `lum-${loc.floor}-${idx}`)}
-                            className={cn(
-                              "px-1.5 py-0.5 rounded font-mono text-[9.5px] border transition-all flex items-center gap-1",
-                              copiedKey === `lum-${loc.floor}-${idx}`
-                                ? "bg-emerald-500 text-black border-emerald-400 font-bold"
-                                : "bg-white/5 hover:bg-white/10 text-white/80 border-white/10"
-                            )}
-                          >
-                            <Flame size={9} className="text-amber-400" />
-                            <span>{lum.coords}</span>
-                          </button>
-                        ))}
+                      <div className="flex items-center gap-1 flex-wrap text-[10px]">
+                        <span className="text-white/40">Luminomachine :</span>
+                        {loc.luminomachines.map((lum, idx) => {
+                          const key = `lum-${loc.floor}-${idx}`;
+                          const isCopied = copiedKey === key;
+                          const cmd = formatTravelCommand(lum.coords || lum.command);
+                          return (
+                            <button
+                              key={idx}
+                              onClick={() => handleCopy(cmd, key)}
+                              className={cn(
+                                "px-1.5 py-0.5 rounded font-mono border transition-colors flex items-center gap-1",
+                                isCopied
+                                  ? "bg-emerald-500 text-black border-emerald-400 font-bold"
+                                  : "bg-white/[0.04] hover:bg-white/[0.08] text-white/80 border-white/10"
+                              )}
+                              title={`Copier ${cmd}`}
+                            >
+                              <Flame size={9} className={isCopied ? "text-black" : "text-amber-400"} />
+                              <span>{isCopied ? "Copié" : lum.coords}</span>
+                            </button>
+                          );
+                        })}
                       </div>
 
-                      {/* Gisements de sel */}
-                      <div className="flex items-center gap-1.5 flex-wrap text-[10px]">
-                        <span className="text-white/40 font-mono text-[9px]">Sels :</span>
-                        {loc.salts.map((s, idx) => (
-                          <button
-                            key={idx}
-                            onClick={() => handleCopy(s.command, `salt-${loc.floor}-${idx}`)}
-                            className={cn(
-                              "px-1.5 py-0.5 rounded font-mono text-[9.5px] border transition-all flex items-center gap-1",
-                              copiedKey === `salt-${loc.floor}-${idx}`
-                                ? "bg-emerald-500 text-black border-emerald-400 font-bold"
-                                : "bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border-cyan-500/20"
-                            )}
-                            title={s.note || "Gisement de sel"}
-                          >
-                            <MapPin size={9} />
-                            <span>{s.coords}</span>
-                            {s.note && <span className="text-[8px] opacity-60">({s.note})</span>}
-                          </button>
-                        ))}
+                      <div className="flex items-center gap-1 flex-wrap text-[10px]">
+                        <span className="text-white/40">Sels :</span>
+                        {loc.salts.map((s, idx) => {
+                          const key = `salt-${loc.floor}-${idx}`;
+                          const isCopied = copiedKey === key;
+                          const cmd = formatTravelCommand(s.coords || s.command);
+                          return (
+                            <button
+                              key={idx}
+                              onClick={() => handleCopy(cmd, key)}
+                              className={cn(
+                                "px-1.5 py-0.5 rounded font-mono border transition-colors flex items-center gap-1",
+                                isCopied
+                                  ? "bg-emerald-500 text-black border-emerald-400 font-bold"
+                                  : "bg-white/[0.04] hover:bg-white/[0.08] text-white/80 border-white/10"
+                              )}
+                              title={`Copier ${cmd}${s.note ? ` (${s.note})` : ""}`}
+                            >
+                              <MapPin size={9} className={isCopied ? "text-black" : "text-cyan-400"} />
+                              <span>{isCopied ? "Copié" : s.coords}</span>
+                              {s.note && <span className="opacity-50">({s.note})</span>}
+                            </button>
+                          );
+                        })}
                       </div>
                     </div>
                   ))}
@@ -938,33 +988,36 @@ export function RaidOverlayClient({
         )}
 
         {/* ════════════════════════════════════════════════════════════════════ */}
-        {/* VUE 4 : RÈGLES DE LA LUMIÈRE & MALUS IDÉES NOIRES                  */}
+        {/* VUE 4 : RÈGLES DE LA LUMIÈRE & MALUS — GIGALODON UNIQUEMENT        */}
         {/* ════════════════════════════════════════════════════════════════════ */}
-        {mainView === "light" && (
-          <div className="space-y-2.5">
-            <div className="p-2.5 rounded-xl bg-cyan-950/20 border border-cyan-800/30 text-[11px] text-cyan-200/90 leading-relaxed">
-              Maintenez <strong>Niveau 3</strong> en nettoyage des couloirs et montez impérativement en <strong>Niveau 4</strong> avant d&apos;engager Mureine et Exécrabe.
+        {mainView === "light" && currentRaidSlug === "gigalodon" && (
+          <div className="rounded-md border border-white/[0.08] bg-[#121319] p-3 space-y-3">
+            <div>
+              <h2 className="text-[13px] font-semibold text-white">
+                {isEn ? "Light Scale" : "Barème de la Lumière"}
+              </h2>
+              <p className="text-[11px] text-white/50">
+                {isEn
+                  ? "Level 3 recommended for corridors · Level 4 required for Moray and Execrabe."
+                  : "Niveau 3 recommandé pour les couloirs · Niveau 4 obligatoire pour Mureine et Exécrabe."}
+              </p>
             </div>
 
-            <div className="space-y-1.5">
+            <div className="space-y-1">
               {LIGHT_SCALE.map((item) => (
                 <div
                   key={item.lvl}
-                  className="p-2.5 rounded-xl bg-white/[0.025] border border-white/10 flex items-center justify-between gap-2"
+                  className="p-2 rounded border border-white/[0.06] bg-white/[0.02] flex items-center justify-between text-[11px]"
                 >
-                  <div className="flex items-center gap-2.5">
+                  <div className="flex items-center gap-2">
                     <span
-                      className="w-6 h-6 rounded flex items-center justify-center text-xs font-mono font-bold border shrink-0"
-                      style={{
-                        color: item.color,
-                        borderColor: `${item.color}40`,
-                        backgroundColor: `${item.color}15`,
-                      }}
+                      className="w-5 h-5 rounded flex items-center justify-center font-mono font-bold text-[10px] shrink-0"
+                      style={{ color: item.color, backgroundColor: `${item.color}15` }}
                     >
                       {item.lvl}
                     </span>
                     <div>
-                      <p className="text-xs font-bold text-white">{item.name}</p>
+                      <p className="font-semibold text-white">{item.name}</p>
                       <p className="text-[10px] text-white/50">{item.desc}</p>
                     </div>
                   </div>
@@ -972,48 +1025,62 @@ export function RaidOverlayClient({
               ))}
             </div>
 
-            <div className="p-2.5 rounded-xl bg-rose-950/20 border border-rose-800/30 text-[10px] text-rose-200/80 leading-relaxed">
-              ⚠️ 100 sels déposés = nuit totale permanente. Ne tentez PAS le succès Sel lors d&apos;un run de score !
+            <div className="p-2 rounded border-l-2 border-l-rose-500 bg-rose-500/[0.06] text-[10.5px] text-rose-200/90">
+              {isEn
+                ? "⚠️ 100 salts deposited = permanent total darkness. Do NOT attempt the Salt achievement during a score run!"
+                : "⚠️ 100 sels déposés = nuit totale permanente. Ne tentez PAS le succès Sel lors d'un run de score !"}
             </div>
           </div>
         )}
 
         {/* ════════════════════════════════════════════════════════════════════ */}
-        {/* VUE 5 : BURST GIGALODON (RÈGLES D'OR & SCORES)                      */}
+        {/* VUE 5 : BURST & COMPOSITIONS — DYNAMIQUE PAR RAID                  */}
         {/* ════════════════════════════════════════════════════════════════════ */}
         {mainView === "burst" && (
-          <div className="space-y-3">
-            <div className="p-3 rounded-xl bg-rose-950/20 border border-rose-800/30 space-y-2 text-[11px]">
-              <div className="font-mono font-bold uppercase text-rose-300 text-xs flex items-center gap-1.5">
-                <Target size={13} /> Les 3 Règles Sacrées du Burst (3 Tours)
-              </div>
-              <div className="space-y-1.5 text-white/80">
-                <p>
-                  🚫 <strong>Jamais devant la gueule (3 cases) :</strong> le boss avale le joueur et pose un glyphe noir. Si un allié marche dessus = mort définitive !
-                </p>
-                <p>
-                  🛡️ <strong>Diagonales uniquement :</strong> esquive les cônes d&apos;eau <em>Ultrasplash</em> et tenez-vous loin des bords pour éviter la repousse de 7 cases de <em>Tournageoire</em>.
-                </p>
-                <p>
-                  ⚠️ <strong>3 cases d&apos;écart entre alliés :</strong> le sort <em>Gigarâle</em> ricoche à 2 PO de distance (700 dégâts par allié). 3 cases d&apos;écart = 0 dégât !
-                </p>
-              </div>
+          <div className="rounded-md border border-white/[0.08] bg-[#121319] p-3 space-y-3">
+            <div>
+              <h2 className="text-[13px] font-semibold text-white">
+                {currentRaidSlug === "jardin-eternel"
+                  ? (isEn ? "Boss & Setup · Sanctuary" : "Boss & Composition · Sanctuaire")
+                  : (isEn ? "Gigalodon Burst · 3 Turns" : "Burst Gigalodon · 3 Tours")}
+              </h2>
+              <p className="text-[11px] text-white/50">
+                {currentRaidSlug === "jardin-eternel"
+                  ? (isEn
+                      ? "Optimal setup for the 60-fight corridor, Scarlet Queen and Cursed Princess."
+                      : "Composition optimale pour le corridor 60 combats, la Reine Écarlate et la Princesse Maudite.")
+                  : (isEn
+                      ? "Automatic end and victory on Turn 4 (Gigalodoom). Goal: max single-target damage."
+                      : "Fin automatique et victoire au Tour 4 (Gigalodoom). But : max de dégâts monocible.")}
+              </p>
             </div>
 
-            <div className="p-2.5 rounded-xl bg-white/[0.025] border border-white/10 space-y-1.5">
-              <span className="text-[10px] font-mono uppercase font-bold text-white/50">
-                Barème de Conversion Dégâts ➔ Score Bonus
+            {/* Règles vitales (dynamiques depuis burstOpti.rules) */}
+            <div className="p-2 rounded border-l-2 border-l-rose-500 bg-rose-500/[0.06] space-y-1 text-[11px] text-rose-200/90">
+              <div className="font-semibold">
+                {currentRaidSlug === "jardin-eternel"
+                  ? (isEn ? "Survival rules :" : "Règles de survie :")
+                  : (isEn ? "3 Sacred Burst Rules :" : "3 Règles Sacrées du Burst :")}
+              </div>
+              <ul className="space-y-0.5 text-white/80">
+                {raid.burstOpti?.rules.map((rule, i) => (
+                  <li key={i}>• {rule}</li>
+                ))}
+              </ul>
+            </div>
+
+            {/* Barème de conversion dégâts */}
+            <div className="space-y-1">
+              <span className="text-[10px] font-medium uppercase tracking-wider text-white/40">
+                {currentRaidSlug === "jardin-eternel"
+                  ? (isEn ? "Progression Milestones ➔ Score" : "Paliers de Progression ➔ Score")
+                  : (isEn ? "Damage Scale ➔ Bonus Score" : "Barème Dégâts ➔ Score Bonus")}
               </span>
-              <div className="space-y-1 font-mono text-[11px]">
-                {[
-                  { dmg: "100 000 dmg", pts: "+5 000 pts" },
-                  { dmg: "250 000 dmg", pts: "+9 000 pts" },
-                  { dmg: "500 000 dmg", pts: "+12 000 pts" },
-                  { dmg: "1 000 000 dmg", pts: "+15 000 pts ★" },
-                ].map((row) => (
+              <div className="grid grid-cols-2 gap-1 font-mono text-[10.5px]">
+                {raid.burstOpti?.scale.map((row) => (
                   <div
                     key={row.dmg}
-                    className="flex items-center justify-between p-1.5 rounded bg-white/[0.02] border border-white/5"
+                    className="p-1.5 rounded bg-white/[0.02] border border-white/[0.06] flex items-center justify-between"
                   >
                     <span className="text-white/60">{row.dmg}</span>
                     <span className="font-bold text-cyan-300">{row.pts}</span>
@@ -1022,32 +1089,97 @@ export function RaidOverlayClient({
               </div>
             </div>
 
-            <div className="p-2 rounded-xl bg-white/[0.02] border border-white/5 text-[10px] text-white/50 space-y-1">
-              <p>• Le Gigalodon joue deux fois par tour (début de tour et milieu de groupe).</p>
-              <p>• Fin automatique au début du Tour 4 via Gigalodoom (victoire garantie).</p>
-              <p>• Priorisez les dégâts monocible (les sorts de zone ne tapent qu&apos;une seule fois sur la hitbox).</p>
+            {/* Compositions & Classes Recommandées (avec vraies icônes de classes) */}
+            <div className="space-y-2 pt-1 border-t border-white/[0.06]">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-medium uppercase tracking-wider text-white/40">
+                  {isEn ? "Key Classes & Synergies" : "Classes Clés & Synergies"}
+                </span>
+                <span className="text-[9.5px] text-white/40">
+                  {currentRaidSlug === "jardin-eternel"
+                    ? (isEn ? "MP Drain & Roles" : "Entrave & Rôles")
+                    : (isEn ? "Pure Single-Target" : "Mono-cible pur")}
+                </span>
+              </div>
+
+              {/* Groupement des classes dynamique */}
+              {Array.from(
+                new Set(raid.burstOpti?.classes.map((c) => c.category) || [])
+              ).map((categoryName) => {
+                const classList =
+                  raid.burstOpti?.classes.filter((c) => c.category === categoryName) || [];
+                if (classList.length === 0) return null;
+
+                return (
+                  <div key={categoryName} className="space-y-1">
+                    <div className="text-[10px] text-white/40 font-medium">{categoryName} :</div>
+                    <div className="space-y-1">
+                      {classList.map((clsItem) => {
+                        const classData = getClass(clsItem.classId);
+                        return (
+                          <div
+                            key={clsItem.classId}
+                            className="p-1.5 rounded border border-white/[0.06] bg-white/[0.02] flex items-start gap-2 text-[11px]"
+                          >
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              {classData?.icon && (
+                                <img
+                                  src={classData.icon}
+                                  alt={classData.name}
+                                  className="w-4 h-4 object-contain rounded"
+                                />
+                              )}
+                              <span className="font-semibold text-white whitespace-nowrap">
+                                {classData?.name || clsItem.classId}
+                              </span>
+                            </div>
+                            <span className="text-[10px] text-white/60 min-w-0 leading-snug">
+                              {clsItem.keySpells}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+
+              {/* Équipements recommandés */}
+              <div className="pt-1.5 space-y-1">
+                <div className="text-[10px] text-white/40 font-medium">
+                  {isEn ? "Key Equipment :" : "Équipements Clés :"}
+                </div>
+                <div className="space-y-0.5 text-[10.5px]">
+                    {raid.burstOpti?.keyItems.map((item) => (
+                      <div key={item.name} className="flex items-start gap-1.5 text-[10.5px]">
+                        <span className="font-semibold text-white whitespace-nowrap shrink-0">• {item.name} :</span>
+                        <span className="text-white/50 min-w-0 leading-snug">{item.desc}</span>
+                      </div>
+                    ))}
+                </div>
+              </div>
             </div>
           </div>
         )}
       </main>
 
-      {/* ── MODALE D'AGRANDISSEMENT D'IMAGE ── */}
+      {/* ── MODALE D'AGRANDISSEMENT D'IMAGE (ZOOM FULLSCREEN) ── */}
       {zoomedImage && (
         <div
-          className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex flex-col items-center justify-center p-3 animate-in fade-in duration-200"
+          className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex flex-col items-center justify-center p-3 animate-in fade-in duration-150"
           onClick={() => setZoomedImage(null)}
         >
           <div
-            className="max-w-[95vw] max-h-[85vh] bg-[#0c0d12] border border-white/20 rounded-2xl overflow-hidden shadow-2xl flex flex-col"
+            className="max-w-[95vw] max-h-[85vh] bg-[#101217] border border-white/20 rounded-md overflow-hidden shadow-2xl flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="px-3 py-2 bg-white/[0.04] border-b border-white/10 flex items-center justify-between gap-2">
-              <span className="text-xs font-mono font-bold text-white truncate">
+              <span className="text-[12px] font-medium text-white truncate">
                 {zoomedImage.title}
               </span>
               <button
                 onClick={() => setZoomedImage(null)}
-                className="p-1 rounded-md text-white/60 hover:text-white hover:bg-white/10 transition-colors"
+                className="p-1 rounded text-white/60 hover:text-white hover:bg-white/10 transition-colors"
               >
                 <X size={14} />
               </button>
@@ -1056,10 +1188,27 @@ export function RaidOverlayClient({
               <img
                 src={zoomedImage.src}
                 alt={zoomedImage.title}
-                className="max-w-full max-h-[70vh] object-contain rounded-lg"
+                className="max-w-full max-h-[70vh] object-contain rounded"
               />
             </div>
           </div>
+        </div>
+      )}
+
+      {/* ── MINI-TOAST PiP (s'affiche dans la fenêtre overlay, pas sur le dashboard) ── */}
+      {pipToast && (
+        <div
+          role="status"
+          aria-live="polite"
+          className={cn(
+            "fixed bottom-3 right-3 z-[60] px-3 py-1.5 rounded text-[11px] font-mono font-semibold shadow-lg pointer-events-none",
+            "animate-in fade-in slide-in-from-bottom-2 duration-150",
+            pipToast.startsWith("✕")
+              ? "bg-red-500/90 text-white"
+              : "bg-emerald-500/90 text-black"
+          )}
+        >
+          {pipToast}
         </div>
       )}
     </div>

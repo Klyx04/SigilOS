@@ -13,33 +13,37 @@
  *
  * @returns `true` si l'écriture a réellement abouti.
  */
-export async function copyToClipboard(text: string): Promise<boolean> {
-  // 1) API moderne
-  if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+export async function copyToClipboard(text: string, targetDoc?: Document): Promise<boolean> {
+  const doc = targetDoc || (typeof document !== "undefined" ? document : null);
+  const win = doc?.defaultView || (typeof window !== "undefined" ? window : null);
+
+  // 1) API moderne sur la fenêtre active/ciblée (ou globale)
+  const clip = win?.navigator?.clipboard || (typeof navigator !== "undefined" ? navigator.clipboard : null);
+  if (clip?.writeText) {
     try {
-      await navigator.clipboard.writeText(text);
+      await clip.writeText(text);
       return true;
     } catch {
-      // La permission a été refusée → on tente le repli.
+      // La permission a été refusée ou le PiP n'est pas le focus principal → repli
     }
   }
 
-  // 2) Repli execCommand (webview / iframe non focalisée)
-  if (typeof document !== "undefined") {
+  // 2) Repli execCommand dans le document ciblé (PiP ou principal)
+  if (doc?.body) {
     try {
-      const ta = document.createElement("textarea");
+      const ta = doc.createElement("textarea");
       ta.value = text;
       ta.setAttribute("readonly", "");
       ta.style.position = "fixed";
       ta.style.left = "-9999px";
       ta.style.top = "0";
       ta.style.opacity = "0";
-      document.body.appendChild(ta);
+      doc.body.appendChild(ta);
       ta.focus();
       ta.select();
       ta.setSelectionRange(0, text.length);
-      const ok = document.execCommand("copy");
-      document.body.removeChild(ta);
+      const ok = doc.execCommand("copy");
+      doc.body.removeChild(ta);
       return ok;
     } catch {
       return false;

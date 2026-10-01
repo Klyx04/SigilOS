@@ -12,6 +12,17 @@ export const guide = {
             <p>Gigalodon's Chasm is a timed instance granting 60 minutes to trigger the final fight. This tactical guide gathers tested guild strategies: mandatory client settings, cost-effective light management, 3 intermediate boss kills, 20% drop shortcut loop and burst optimization against Gigalodon to cap the 60,000 points track.</p>
         </div>
 
+        <div class="callout callout-info">
+            <strong>🛠️ Public Tools: Raid Studio 3.6 & Detachable Overlay</strong>
+            <p>To prepare and run your raid efficiently, SigilOS provides free interactive tools:</p>
+            <ul>
+                <li><strong>12-Player Squad Planner:</strong> assign your 3 squads of 4, balance critical roles (Tank, Burst T3, Melee Positioning, Multiplier), check party synergy and export to Discord in 1 click.</li>
+                <li><strong>Interactive Luminarium Solver (Floor -3):</strong> cascade Lights Out 4x4 solver to clear the puzzle in seconds without wasting instance time.</li>
+                <li><strong>Always-on-Top In-Game Overlay (PiP):</strong> copy <code>/travel</code> positions in 1 click, track Execrab's 4 forms, and read floor guides without alt-tabbing.</li>
+            </ul>
+            <p><a href="/raids?raid=gigalodon"><strong>→ Open Gigalodon Planner & Solvers in Raid Studio 3.6</strong></a></p>
+        </div>
+
         <h2>I. Preparation & Setup (Pre-Raid Checklist)</h2>
         <p>
             Opening the instance is handled directly from the <strong>Guild Hall</strong> (Guild Shop &gt; Raids tab) by a member holding the required permissions.
@@ -246,6 +257,11 @@ export const guide = {
             <li>Solve bottom corners to complete full illumination and open the door to floor -4.</li>
         </ol>
 
+        <div class="callout callout-tip">
+            <strong>Interactive Online Solver</strong>
+            <p>Unsure about your lantern layout? Use our <a href="/raids?raid=gigalodon"><strong>Luminarium Solver in Raid Studio 3.6</strong></a> to mirror your board and get the exact lighting sequence in seconds.</p>
+        </div>
+
         <hr />
 
         <h3>Floor -4: Crabinator Burrow (Boss 2 & Memory Puzzle)</h3>
@@ -430,6 +446,128 @@ export const guide = {
                 </tr>
             </tbody>
         </table>
+
+        <h3>Recommended Compositions & Class Roles (1M Damage Cap)</h3>
+        <p>
+            To reach the maximum <strong>1,000,000 damage cap in 3 turns</strong> (+15,000 bonus score points), your team composition must combine placement and vulnerability debuffs, single-target powerhouses, and team-wide damage amplification.
+        </p>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Class</th>
+                    <th>Role / Category</th>
+                    <th>Key Spells & Synergies</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>
+                        <span class="inline-flex items-center gap-2 font-bold text-foreground">
+                            <img src="/assets/dofus/classes/12.png" alt="Pandawa" class="class-icon" width="20" height="20" />
+                            Pandawa
+                        </span>
+                    </td>
+                    <td><strong>Core Staple</strong> (Melee Placement)</td>
+                    <td><em>Fermentation, Vulnerability, Karcham/Chamrak</em>. Keeps Gigalodon locked in diagonal away from the lethal 3 melee cells and maintains constant elemental debuffs.</td>
+                </tr>
+                <tr>
+                    <td>
+                        <span class="inline-flex items-center gap-2 font-bold text-foreground">
+                            <img src="/assets/dofus/classes/8.png" alt="Iop" class="class-icon" width="20" height="20" />
+                            Iop
+                        </span>
+                    </td>
+                    <td><strong>Core Staple</strong> (Turn 3 Burst)</td>
+                    <td><em>Massacre, Iop's Wrath T3, Power</em>. Unleashes Wrath on Turn 3 synchronized with the Cloudy Dofus peak and Eliotrope portals for extreme damage.</td>
+                </tr>
+                <tr>
+                    <td>
+                        <span class="inline-flex items-center gap-2 font-bold text-foreground">
+                            <img src="/assets/dofus/classes/16.png" alt="Eliotrope" class="class-icon" width="20" height="20" />
+                            Eliotrope
+                        </span>
+                    </td>
+                    <td><strong>Core Staple</strong> (Multiplier)</td>
+                    <td><em>4-Portal Network, Mutual Aid, Focus</em>. Massively amplifies all allied projectile and spell damage redirected through the terminal portal.</td>
+                </tr>
+                <tr>
+                    <td>
+                        <span class="inline-flex items-center gap-2 font-bold text-foreground">
+                            <img src="/assets/dofus/classes/17.png" alt="Huppermage" class="class-icon" width="20" height="20" />
+                            Huppermage
+                        </span>
+                    </td>
+                    <td><strong>Top Single-Target DPS</strong></td>
+                    <td><em>Earth/Fire Volcano, Elemental Cycle</em>. High damage per AP ratio and applies additional elemental resistance debuffs.</td>
+                </tr>
+                <tr>
+                    <td>
+                        <span class="inline-flex items-center gap-2 font-bold text-foreground">
+                            <img src="/assets/dofus/classes/13.png" alt="Rogue" class="class-icon" width="20" height="20" />
+                            Rogue
+                        </span>
+                    </td>
+                    <td><strong>Top Single-Target DPS</strong></td>
+                    <td><em>Bomb Wall, Powder, Countdown T3</em>. Detonates a fully charged bomb wall through portals on Turn 3 to shatter damage thresholds.</td>
+                </tr>
+                <tr>
+                    <td>
+                        <span class="inline-flex items-center gap-2 font-bold text-foreground">
+                            <img src="/assets/dofus/classes/9.png" alt="Cra" class="class-icon" width="20" height="20" />
+                            Cra
+                        </span>
+                    </td>
+                    <td><strong>Top Single-Target DPS</strong> (Ranged)</td>
+                    <td><em>Tactical Beacon, Destructive Arrow, Loaded Arrow</em>. Heavy sustained long-range damage from safe diagonal positions without blocking allied line of sight.</td>
+                </tr>
+                <tr>
+                    <td>
+                        <span class="inline-flex items-center gap-2 font-bold text-foreground">
+                            <img src="/assets/dofus/classes/4.png" alt="Sram" class="class-icon" width="20" height="20" />
+                            Sram
+                        </span>
+                    </td>
+                    <td><strong>Amplifier & Boost</strong></td>
+                    <td><em>Death Mark (+20% damage received), Cut-Throat</em>. Boosts overall raid strike potency throughout the designated burst turn.</td>
+                </tr>
+                <tr>
+                    <td>
+                        <span class="inline-flex items-center gap-2 font-bold text-foreground">
+                            <img src="/assets/dofus/classes/14.png" alt="Masqueraider" class="class-icon" width="20" height="20" />
+                            Masqueraider
+                        </span>
+                    </td>
+                    <td><strong>Amplifier & Boost</strong></td>
+                    <td><em>Transfiguration, Psychopath Mask, Furia, Plastron</em>. Team melee/ranged damage buffs and preventative shields against Gigarumble chain bounces.</td>
+                </tr>
+                <tr>
+                    <td>
+                        <span class="inline-flex items-center gap-2 font-bold text-foreground">
+                            <img src="/assets/dofus/classes/18.png" alt="Ouginak" class="class-icon" width="20" height="20" />
+                            Ouginak
+                        </span>
+                    </td>
+                    <td><strong>Amplifier & Boost</strong></td>
+                    <td><em>Prey, Relentlessness</em>. Increases final damage taken by Gigalodon for every attacking ally.</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h3>Essential Equipment & Synergies</h3>
+        <ul>
+            <li><strong>Cloudy Dofus:</strong> Mandatory on all core damage dealers. Since the battle strictly lasts 3 turns, odd turns (Turn 1 and Turn 3) benefit from the +20% final damage bonus, aligning perfectly with Wrath and bomb detonations.</li>
+            <li><strong>Judgement of Thanathena:</strong> Legendary weapon granting a stacking +4% damage suffered per hit. Position Thanathena users early in the turn order to maximize follow-up damage.</li>
+            <li><strong>Pure Mono-Element Trophies & Vulbis Dofus:</strong> Prioritize pure stats and high mobility to guarantee strict 3-cell spacing from allies at all times.</li>
+        </ul>
+
+        <h3>Turn-by-Turn Battle Execution (T1 to T3)</h3>
+        <ol>
+            <li><strong>Turn 1 (Setup & Boosts):</strong> Pandawa secures Gigalodon on a diagonal. Supports deploy AP and Power buffs. Eliotropes configure the portal grid at safe range. DPS capitalize on the odd-turn Cloudy Dofus boost (+20%).</li>
+            <li><strong>Turn 2 (Debuff Ramping):</strong> Apply elemental debuffs (Vulnerability, Elemental Cycle, Death Mark). Charge Iop's Wrath and prepare Rogue bombs while strictly observing 3-cell spacing.</li>
+            <li><strong>Turn 3 (All-In Burst & 1M Cap):</strong> Unleash all maximum strikes under the second Cloudy Dofus peak (+20% final damage). Fire Wrath and bomb detonations through portals to reach the 1,000,000 cap.</li>
+            <li><strong>Start of Turn 4:</strong> The automated spell <em>« Gigalodoom »</em> triggers, completing the fight with an instant victory and securing the maximum +15,000 bonus score!</li>
+        </ol>
 
         <hr />
 

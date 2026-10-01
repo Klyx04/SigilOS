@@ -25,6 +25,7 @@ import {
     type DofensiveSpellCombat,
 } from "@/lib/dofensive-spells";
 import type { DofensiveDungeonInfo, DofensiveMapData } from "@/lib/dofensive-api";
+import { getQilbyCustomMapData, getQilbyDungeonInfo, QILBY_MAP_ID } from "@/lib/qilby-map";
 
 /**
  * 🔍 Blocs d'une fiche monstre/boss suivis par le **journal des changements** (dataset
@@ -140,6 +141,9 @@ export function pickCombatSpells(spells: unknown): DofensiveSpellCombat[] | null
 /** Lit une map Dofensive SANS contrôle de fraîcheur (Lot 1) — `null` si la ligne est absente. */
 export async function getLocalDofensiveMapAny(mapId: number): Promise<LocalStaleResult<DofensiveMapData> | null> {
     if (!DB_READABLE) return null;
+    if (mapId === QILBY_MAP_ID) {
+        return toStaleResult<DofensiveMapData>(getQilbyCustomMapData(), new Date());
+    }
     try {
         const row = await db.dofensiveMap.findUnique({ where: { mapId } });
         if (!row) return null;
@@ -223,10 +227,17 @@ export async function siphonDofensiveMapById(mapId: number, force = false): Prom
             const existing = await db.dofensiveMap.findUnique({ where: { mapId: id } });
             if (existing && isFresh(existing.lastSyncedAt)) return true;
         }
-        const raw = await dofensiveFetch<any>(`/maps/${id}?lang=fr`, `sync-anomaly-map-${id}`, true);
-        const item = Array.isArray(raw) ? raw[0] : raw;
-        if (!item) return false;
-        const data = normalizeMapItem(item);
+
+        // Cas particulier : map de combat de Qilby générée localement (absente de Dofensive)
+        let data: DofensiveMapData;
+        if (id === QILBY_MAP_ID) {
+            data = getQilbyCustomMapData();
+        } else {
+            const raw = await dofensiveFetch<any>(`/maps/${id}?lang=fr`, `sync-anomaly-map-${id}`, true);
+            const item = Array.isArray(raw) ? raw[0] : raw;
+            if (!item) return false;
+            data = normalizeMapItem(item);
+        }
         const hash = hashPayload(data);
         await db.dofensiveMap.upsert({
             where: { mapId: id },
@@ -269,8 +280,15 @@ export async function getLocalDofensiveDungeonAny(
     dungeonName?: string
 ): Promise<LocalStaleResult<DofensiveDungeonInfo> | null> {
     if (!DB_READABLE || !bossName) return null;
+
+    // Cas particulier : Qilby (Gardien d'anomalie sans donjon Dofensive standard)
+    const key = norm(bossName);
+    const dKey = dungeonName ? norm(dungeonName) : "";
+    if (key === "qilby" || dKey.includes("hauteurs de l'inglorium") || dKey.includes("inglorium")) {
+        return toStaleResult<DofensiveDungeonInfo>(getQilbyDungeonInfo(), new Date());
+    }
+
     try {
-        const key = norm(bossName);
         const rows = await db.dofensiveDungeon.findMany();
         const hits = rows.filter((r) => {
             const monsters = r.monsters as { id: number; name: string }[];

@@ -1022,6 +1022,34 @@ export function SpellRangeGrid({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [zoom]);
 
+    // Fit auto à l'ouverture du plein écran (et au changement de carte) : le zoom
+    // persisté (`sigilos_sim_*`) ou le 100 % par défaut débordent du conteneur
+    // (`overflow-hidden` en plein écran) et forcent un dézoom du navigateur
+    // (constat Qilby). On réduit au ratio mesuré, jamais d'upscale, pan réinitialisé.
+    useEffect(() => {
+        if (!fullscreen || typeof window === "undefined") return;
+        const frame = window.requestAnimationFrame(() => {
+            try {
+                const inner = zoomRef.current;
+                const box = inner?.parentElement;
+                const svg = inner?.querySelector("svg");
+                if (!inner || !box || !svg) return;
+                const r = svg.getBoundingClientRect();
+                const pr = box.getBoundingClientRect();
+                if (r.width <= 0 || r.height <= 0 || pr.width <= 0 || pr.height <= 0) return;
+                const overflow = Math.max(r.width / pr.width, r.height / pr.height);
+                if (overflow > 1) {
+                    setZoom((z) => Math.max(ZOOM_MIN, Number((z / overflow).toFixed(2))));
+                    setPan({ x: 0, y: 0 });
+                }
+            } catch {
+                // Mesure impossible → on garde le zoom courant
+            }
+        });
+        return () => window.cancelAnimationFrame(frame);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [fullscreen, selectedMapId, mapData]);
+
     // Mini-carte : pixels 1 case → 1 px pour l'aperçu global (cliquable → déplacer le lanceur).
     const miniMap = useMemo(() => {
         if (!mapData) return null;

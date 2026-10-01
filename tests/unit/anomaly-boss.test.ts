@@ -23,6 +23,7 @@ import {
     syncAnomalyBosses,
 } from "@/lib/anomaly-boss-siphon";
 import { getAnomalyBossBattleMap } from "@/server/actions/anomaly-boss-actions";
+import { QILBY_MAP_ID, QILBY_MAP_NAME } from "@/lib/qilby-map";
 
 afterEach(() => {
     vi.unstubAllGlobals();
@@ -183,6 +184,40 @@ describe("anomaly-boss-siphon — reconstruction des sorts (repli DofusDB)", () 
         expect(spell.hasCriticalEffects).toBe(false);
     });
 
+    it("extrait les jets numériques (effectDetails.damage) pour la prévisu de dégâts", () => {
+        const spells = buildCombatSpellsFromDofusDb(
+            [{ id: 777, name: "Résonance", description: "Dommages Eau : 451 à 495" }],
+            [
+                {
+                    spellId: 777,
+                    grade: 5,
+                    apCost: 3,
+                    minRange: 1,
+                    range: 63,
+                    effects: [{ effectId: 93, effectElement: 3, diceNum: 400, diceSide: 440 }],
+                },
+            ],
+            { water: 12 }
+        );
+        expect(spells).toHaveLength(1);
+        const details = spells[0].effectDetails ?? [];
+        expect(details.length).toBeGreaterThan(0);
+        // 400 * 1.12 = 448, 440 * 1.12 = 492 (même scaling que parseEffects).
+        expect(details[0].damage).toEqual({ element: "eau", min: 448, max: 492 });
+        // Sans bonus : jets bruts.
+        const raw = buildCombatSpellsFromDofusDb(
+            [{ id: 777, name: "Résonance" }],
+            [{ spellId: 777, grade: 1, effects: [{ effectId: 93, effectElement: 3, diceNum: 400, diceSide: 440 }] }]
+        );
+        expect(raw[0].effectDetails?.[0]?.damage).toEqual({ element: "eau", min: 400, max: 440 });
+        // Sort utilitaire (portail) : aucun jet, mais pas d'invention.
+        const portal = buildCombatSpellsFromDofusDb(
+            [{ id: 778, name: "Portail" }],
+            [{ spellId: 778, grade: 1, effects: [{ effectId: 160, diceNum: 0, diceSide: 0 }] }]
+        );
+        expect(portal[0].effectDetails).toEqual([]);
+    });
+
     it("replie sur les champs du sort DofusDB quand DofusDB n'a aucun niveau", () => {
         const spells = buildCombatSpellsFromDofusDb(
             [{ id: 999, name: "Sort inconnu", apCost: 2, minRange: 0, range: 5 }],
@@ -254,13 +289,21 @@ describe("anomaly-boss — indépendance (fail-closed)", () => {
     });
 
     it("getAnomalyBossBattleMap sert la MAP PAR DÉFAUT quand rien n'est siphonné (jamais de map vide)", async () => {
-        const res = await getAnomalyBossBattleMap("Qilby", null);
+        const res = await getAnomalyBossBattleMap("Agonie la Déterrée", null);
         expect(res.success).toBe(true);
         expect(res.data?.maps).toHaveLength(1);
         expect(res.data?.maps[0].id).toBe(DEFAULT_ANOMALY_MAP.id);
         expect(res.data?.dungeonName).toBe(DEFAULT_ANOMALY_MAP.name);
         // Identifiant synthétique négatif : jamais de collision avec un donjon Dofensive.
         expect(res.data?.dungeonId).toBe(-DEFAULT_ANOMALY_MAP.id);
+    });
+
+    it("getAnomalyBossBattleMap sert l'arène sur-mesure de Qilby (même source que l'overlay)", async () => {
+        const res = await getAnomalyBossBattleMap("Qilby", null);
+        expect(res.success).toBe(true);
+        expect(res.data?.maps).toHaveLength(1);
+        expect(res.data?.maps[0].id).toBe(QILBY_MAP_ID);
+        expect(res.data?.dungeonName).toBe(QILBY_MAP_NAME);
     });
 });
 

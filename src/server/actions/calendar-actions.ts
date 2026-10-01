@@ -158,7 +158,7 @@ export async function getCalendarEvents(guildId: string, start: Date, end: Date)
                                 image: true,
                                 profiles: {
                                     where: { guildId: guildConfig.id },
-                                    select: { discordNickname: true }
+                                    select: { discordNickname: true, classe: true }
                                 }
                             }
                         }
@@ -316,7 +316,7 @@ export async function getCalendarEventDetails(guildId: string, eventId: string) 
                                 image: true,
                                 profiles: {
                                     where: { guildId: guildConfig.id },
-                                    select: { discordNickname: true }
+                                    select: { discordNickname: true, classe: true }
                                 }
                             }
                         }
@@ -1400,6 +1400,36 @@ export async function registerForEvent(
     } catch (error) {
         logger.error("[Calendar] registerForEvent Error:", error);
         return { success: false, error: "Erreur lors de l'inscription" };
+    }
+}
+
+/**
+ * Change **ma** classe d'inscription depuis le site (dashboard).
+ *
+ * Même règle serveur que le menu classe Discord (`updateRegistrationClass`) :
+ * mise à jour si je suis inscrit, sinon inscription avec cette classe. Aucune garde
+ * « créateur » : l'organisateur change SA classe comme n'importe quel inscrit.
+ * Une valeur vide efface la classe choisie (le profil reprend la main à l'affichage).
+ */
+export async function updateMyRegistrationClass(guildId: string, eventId: string, classe: string) {
+    const ctx = await getUserContext(guildId);
+    if (!ctx.isAuthenticated) return { success: false, error: "Non authentifié" };
+    if (!ctx.isMember) return { success: false, error: "Membre requis" };
+
+    try {
+        const raw = (classe ?? "").trim().slice(0, 30);
+        // Classe FACULTATIVE : une valeur inconnue reste un refus explicite (jamais écrit).
+        const { matchDispatchClass } = await import("@/server/discord-class-dispatch");
+        const matched = raw ? matchDispatchClass(raw) : "";
+        if (matched === null) return { success: false, error: "Classe inconnue" };
+
+        const { updateRegistrationClass } = await import("@/server/calendar-service");
+        const outcome = await updateRegistrationClass(guildId, eventId, ctx.id!, matched);
+        if (outcome.success) revalidatePath(`/dashboard/${guildId}/calendar`);
+        return outcome;
+    } catch (error) {
+        logger.error("[Calendar] updateMyRegistrationClass Error:", error);
+        return { success: false, error: "Erreur lors du changement de classe" };
     }
 }
 

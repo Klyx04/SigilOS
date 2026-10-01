@@ -50,6 +50,7 @@ import { DofusUiIcon, type DofusUiIconName } from "@/components/shared/dofus-ui-
 import { resolveEventImagePath } from "@/lib/calendar-event-images";
 import { calendarEventTheme } from "@/lib/calendar-event-theme";
 import { PseudoChip } from "@/components/shared/pseudo-chip";
+import { DOFUS_CLASSES, getClass, resolveEffectiveClass } from "@/lib/dofus-assets";
 import { RegistrationModal } from "./registration-modal";
 import { CalendarDiscordDialog } from "./calendar-discord-dialog";
 import { getMissionsByIds } from "@/server/actions/mission-actions";
@@ -127,7 +128,7 @@ interface Participant {
         id: string;
         name: string | null;
         image: string | null;
-        profiles?: { discordNickname: string | null }[];
+        profiles?: { discordNickname: string | null; classe?: string | null }[];
     };
 }
 
@@ -188,6 +189,10 @@ interface EventDetailModalProps {
     donationsEnabled?: boolean;
     /** Kamas eligibility for RAID_OFFICIAL events. Null = loading or not a raid. */
     raidEligibility?: { isEligible: boolean; totalDonated: number } | null;
+    /** Personnages Dofus du membre (« Mes personnages » des modales d'inscription). */
+    myCharacters?: { main: string | null; secondaries: string[] };
+    /** Change MA classe sur cet événement (même règle serveur que le menu classe Discord). */
+    onMyClassChange?: (classe: string) => Promise<void>;
 }
 
 // ============================================
@@ -218,6 +223,8 @@ export function EventDetailModal({
     discordChannels,
     donationsEnabled = true,
     raidEligibility = null,
+    myCharacters,
+    onMyClassChange,
 }: EventDetailModalProps) {
     const [isLoading, setIsLoading] = useState(false);
     const [showRegistration, setShowRegistration] = useState(false);
@@ -821,6 +828,8 @@ export function EventDetailModal({
                                                         isCreator={participant.user.id === event.creator.id}
                                                         isCurrentUser={participant.user.id === currentUserId}
                                                         isRaid={isRaid}
+                                                        canEditClass={isOpen && !isExternal && participant.user.id === currentUserId}
+                                                        onClassChange={onMyClassChange}
                                                         onUnregister={!isExternal && onUnregister ? () => handleAction(onUnregister) : undefined}
                                                         onKick={!isKrala && (isRaid ? event.creator.id === currentUserId : (canManage || event.creator.id === currentUserId)) && participant.user.id !== event.creator.id
                                                              ? () => handleAction(async () => {
@@ -1238,6 +1247,7 @@ export function EventDetailModal({
                 onOpenChange={setShowRegistration}
                 eventTitle={event.title}
                 isFull={isFull}
+                myCharacters={myCharacters}
                 onSubmit={handleRegistration}
             />
 
@@ -1286,23 +1296,37 @@ function ParticipantRow({
     isReserve = false,
     isCurrentUser = false,
     isRaid = false,
+    canEditClass = false,
     onUnregister,
     onKick,
-    onTransferCaptaincy
+    onTransferCaptaincy,
+    onClassChange
 }: {
     participant: Participant;
     isCreator?: boolean;
     isReserve?: boolean;
     isCurrentUser?: boolean;
     isRaid?: boolean;
+    /** Ma ligne sur un événement ouvert : sélecteur de MA classe (même règle que Discord). */
+    canEditClass?: boolean;
     onUnregister?: () => void;
     onKick?: () => void;
     onTransferCaptaincy?: () => Promise<void>;
+    onClassChange?: (classe: string) => Promise<void>;
 }) {
     const [isConfirming, setIsConfirming] = useState(false);
     const [isKickConfirming, setIsKickConfirming] = useState(false);
     const [isTransferPending, setIsTransferPending] = useState(false);
     const [isTransferConfirming, setIsTransferConfirming] = useState(false);
+    const [isClassPending, setIsClassPending] = useState(false);
+
+    // Classe affichée : celle de l'inscription, sinon celle du profil Dofus — la MÊME
+    // règle que les embeds Discord (`resolveEffectiveClass`). « Sans classe » seulement
+    // si les deux sont vides : plus de pseudo nu alors que le profil connaît la classe.
+    const effectiveClass = resolveEffectiveClass(participant.classe, participant.user.profiles?.[0]?.classe);
+    // Le `<select>` travaille en libellés canoniques : une classe stockée en id (`cra`)
+    // doit correspondre à une option (`Cra`), sinon le champ paraîtrait vide.
+    const effectiveClassOption = getClass(effectiveClass ?? "")?.name ?? "";
 
     return (
         <div className={cn(
@@ -1326,7 +1350,7 @@ function ParticipantRow({
                     <div className="flex items-center gap-2">
                         <PseudoChip
                             pseudo={(participant.user.profiles?.[0]?.discordNickname || participant.user.name || "Anonyme").replace(/\s\(\d+\)$/, "")}
-                            classe={participant.classe}
+                            classe={effectiveClass}
                             className="text-sm font-medium text-foreground"
                         />
                         {isCurrentUser && <span className="text-caption font-bold text-muted-foreground shrink-0">(Moi)</span>}
@@ -1351,6 +1375,28 @@ function ParticipantRow({
                             <span className="text-caption text-muted-foreground truncate max-w-[100px]">
                                 "{participant.comment}"
                             </span>
+                        )}
+                        {canEditClass && onClassChange && (
+                            <select
+                                aria-label="Ma classe pour cet événement"
+                                title="Changer ma classe"
+                                disabled={isClassPending}
+                                className="h-5 rounded border border-border bg-surface/60 px-1 text-caption font-bold text-foreground disabled:opacity-50"
+                                value={effectiveClassOption}
+                                onChange={async (e) => {
+                                    setIsClassPending(true);
+                                    try {
+                                        await onClassChange(e.target.value);
+                                    } finally {
+                                        setIsClassPending(false);
+                                    }
+                                }}
+                            >
+                                <option value="">Sans classe</option>
+                                {DOFUS_CLASSES.map((c) => (
+                                    <option key={c.id} value={c.name}>{c.name}</option>
+                                ))}
+                            </select>
                         )}
                     </div>
                 </div>

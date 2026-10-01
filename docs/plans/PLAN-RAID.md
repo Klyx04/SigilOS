@@ -4,13 +4,19 @@ description: Plan RAID — tout ce qui est prévu autour des raids (calendrier, 
 
 # ⚔️ Plan RAID — calendrier, clôture/no-show, strat, overlay, données
 
-> **Source** : consigne volatile `src/temp/consigne-2026-09-30-raid-calendrier-mini-jeux.md` (§1→§23, **gitignorée**)
-> + mesures du **01/10/2026** sur `dev` = `7f6d3930`. La consigne sera **supprimée** en fin de chantier : **ce fichier
-> est le dossier durable de tout ce qui touche au RAID**. Le reste de la consigne (mini-jeux, marché, succès,
-> services, logs, ressources, missions, guides, ladder) vit dans la consigne puis au `docs/ROADMAP.md`.
+> **Source** : consigne volatile `src/temp/consigne-2026-09-30-raid-calendrier-mini-jeux.md` (§1→§25, **gitignorée**),
+> **restructurée le 01/10/2026** : chaque lot porte BESOIN → ÉTAT MESURÉ → CHANGEMENTS numérotés (fichiers:lignes)
+> → TESTS → ACCEPTATION → VIGILANCE, avec une **taille indicative** (`[S]` < 1 j, `[M]` quelques jours, `[L]` chantier).
+> La consigne sera **supprimée** en fin de chantier : **ce fichier est le dossier durable de tout ce qui touche au
+> RAID** ; le reste (mini-jeux, marché, succès, services, logs, ressources, missions, guides, ladder) reste dans la
+> consigne puis au `docs/ROADMAP.md`.
 > **Amorce d'exécution** : `docs/plans/AMORCE-RAID.md` (elle cadre la session ; **ce plan porte le contenu**).
-> **Statut 01/10/2026** : **§1 + §3 livrés** (PR #815 `9427a9f1`, PR #816 `92d7ccd0`) · **2 chantiers de fond**
-> (R1, R2) · **5 correctifs qui touchent directement le raid** (R3→R7) · **3 qui l'effleurent** (R8→R10).
+> **L'ordre qui fait foi** est celui de la consigne, section « **Ordre de réalisation (reste)** » :
+> **P0 sécu (RBAC `bounties`/`calendar`/`relance`, §23)** → **§4** miroir → **§14** no-show → §12 → §10 → §5 → §6 →
+> §7 → §8 → §9 → §11 → §15 → §16 → §17 → §18 → §19 → **§20** Guides + modale raid → §21 → §22 → §23 → §2 mini-jeux.
+> **Statut 01/10/2026** : **livrés** — §1 classes (PR #815), §3 rappel de clôture 24 h (PR #816), §24 Qilby (#817),
+> §25 overlay raid `/travel` (#819). **Restent côté raid** : R0 (P0 sécu), R1 clôture/no-show, R2 strat + guides,
+> R3 agenda miroir, R4 overlay Simulation, R5 rangs 1-5, R6 maps multi-donjons, R7 vignettes, R8/R9/R10 (déslop).
 
 ## 0. Déjà livré — ne pas refaire
 
@@ -18,8 +24,22 @@ description: Plan RAID — tout ce qui est prévu autour des raids (calendrier, 
 |---|---|---|
 | **§1** | **PR #815** `9427a9f1` | Classes du calendrier : règle **unique** `resolveEffectiveClass` (`src/lib/dofus-assets.ts`, repli `UserProfile.classe`), pictos sur les **2** constructeurs d'embed (`src/server/calendar-service.ts`), fenêtre Discord « Mes personnages » (sans nouveau bouton), raccourci côté site, sélecteur « ma classe » (`updateMyRegistrationClass`). |
 | **§3** | **PR #816** `92d7ccd0` | Rappel de clôture de raid **24 h** : `shouldSendRaidClosureReminder` + `sendRaidClosureReminders()` branchés **dans la tâche `raid-reminders` existante** (0 ligne de crontab en plus), ping du **seul** `creatorId`, message nettoyé à la clôture ; un raid n'est **plus** clôturé d'office avant **+48 h** (règle unique `src/lib/calendar-auto-close.ts`, **4** appels). Détails : `docs/ROADMAP.md`, bloc 01/10/2026. |
+| **§24** | **PR #817** `37359644` | Qilby : map d'arène (`src/lib/qilby-map.ts`), sorts du repli DofusDB avec `effectDetails.damage`, fit auto en plein écran — **c'est la donnée de la simulation de l'overlay** ⇒ **ne pas casser** en R4. |
+| **§25** | **PR #819** `7f6d3930` | **Overlay raid** : `/travel` cliquables (`parseCoordinates`), retour Willorque guidé (`linkedRouteId`, FR+EN), boutons Overlay + Guide sur `/raids`. **La base de l'overlay raid existe** : R2 la complète (strat dans la modale), elle ne la remplace pas. |
 
-## 1. R1 — Clôture raid + no-show (consigne §14) — **le cœur du chantier**
+## 1. R0 — P0 SÉCURITÉ : RBAC du module calendrier (consigne §23, « critiques ») — **à faire EN PREMIER**
+
+**Constat mesuré (consigne §23)** : parmi les écrans « critiques », **`calendar/page` est signalé « zéro auth »**, aux côtés de `bounties/page` (client sans gate + action God) et de `relance` (redirect sans contrôle de droits). L'ordre officiel de la consigne place ce **P0 sécu en premier**, **avant** le miroir (§4) et le no-show (§14).
+
+**À faire** : garde d'accès **fail-closed** sur `src/app/dashboard/[guildId]/calendar/page.tsx` (patron des autres pages : `getUserContext` + `canViewCalendar` + module ON) **et** vérification que **chaque action serveur** du calendrier re-garde (règle AGENTS §5.1 : page **et** action). Audit si un correctif touche une action God.
+
+**Preuve** : un membre **sans** droit calendrier reçoit le refus (capture) ; test unitaire de la garde (contexte absent ⇒ **refus**, jamais d'accès par défaut).
+
+**⚠️ Hors raid** : `bounties` et `relance` relèvent du volet God/admin de §23 — les traiter **dans le même P0** (même PR ou PR sœur), sinon le P0 reste à moitié fait.
+
+**Vigilance** : c'est le **premier** lot de l'ordre officiel ⇒ **aucune décision ni migration** à attendre pour le démarrer.
+
+## 2. R1 — Clôture raid + no-show (consigne §14) — **le cœur du chantier**
 
 **Écart mesuré le 01/10/2026 (ancres revérifiées sur `dev`)**
 
@@ -32,14 +52,15 @@ description: Plan RAID — tout ce qui est prévu autour des raids (calendrier, 
 | **Aucun audit** de clôture (alors que bonus et marché en ont) | — |
 | **Statuts de présence inexistants** : `EventParticipant` n'a que `REGISTERED/RESERVE/CONFIRMED`, et `metadata.raidPresentUserIds` n'est **pas requêtable** | `prisma/schema.prisma` (`EventParticipant`) |
 
-**À faire**
-1. **Table de présences** requêtable (membre × raid × `PRESENT / PREVENU / EXCUSE / NO_SHOW`) + **motif obligatoire** par absent (défaut « Prévenu »).
-2. **Clôture bloquante** : impossible de valider sans avoir statué sur chacun ; XP/Kamas **aux présents seuls** ; garde élargie **capitaine / organisateur / `canManageRaid`** (`RAID_OFFICER` utilisé pour de vrai).
-3. **`undo` complet** : défait présences **+** points **+** Kamas **+** no-show (aujourd'hui il ne restitue que Kamas/XP).
-4. **Compteur 90 j** calculé, visible **officier seul** — jamais de badge no-show public (référence Raid Helper : statuts privés + points, pas de stigmatisation).
-5. **Audit** de clôture **et** de correction (patron bonus/marché) + journal de correction officier.
-6. **Modale** : plus de tout-coché par défaut, bloc « absents » avec motif, attestation **revérifiée côté serveur**.
-7. **Tag staff** posé par le créateur à la clôture, visible **staff seul** dans `/admin/members` (registre), jamais sur la fiche publique.
+**Changements (spec de la consigne §14, revérifiée le 01/10/2026)**
+1. **Table `RaidPresence`** (`guildId`, `eventId`, `userId`, statut `PRESENT / PREVENU / EXCUSE / NO_SHOW`, `@@unique[eventId, userId]`, **index 90 j**) : **écriture dans `completeRaidEvent`** (`calendar-actions.ts:1146`, aujourd'hui `metadata.raidPresentUserIds` `:1182`) et **suppression dans `undoCompleteRaidEvent`** (`:1231`) — aujourd'hui ce `metadata` n'est **pas requêtable**.
+2. **Modale** : bloc « Absents » **dès la décoche** + `select` de motif + **validation bloquante** + attestation **chiffrée** (« X présents débités, N no-shows ») — aujourd'hui tout est coché par défaut et l'attestation n'est **pas** vérifiée côté serveur.
+3. **Droits** : brancher `RAID_OFFICER` / `canManageRaid` + `creatorId` / `raidCaptainId` (aujourd'hui `canManageCalendar` **seul**) ; **trancher** le facteur Kamas `*10` vs `*10 000` (`:1203`) **et** stocker `raidPurpleKamasCost` (`:1265`, repli `?? 30`).
+4. **Colonne « registre »** après Journal (gate **staff**, **jamais** l'annuaire public) + enrichir `getGuildMembers` / `LifecycleMemberSummary` (`xp` / `kamas` existent en base mais ne sont pas sélectionnés).
+5. **Correction officier** + `createAuditLog` **avant → après** (aucun audit de clôture aujourd'hui, alors que bonus et marché en ont).
+
+**Tests attendus** : motif obligatoire (on ne valide pas sans statuer sur chacun), `undo` **restaure tout**, compteur 90 j juste, RBAC (un membre lambda est **refusé**).
+**Vigilance** : **aucune sanction automatique** au départ d'un membre (mesurer d'abord — une règle « 2 no-shows / 30 j » pourra venir plus tard).
 
 **2 arbitrages à trancher AVANT de coder**
 - **Facteur Kamas Violets** : `*10` (`calendar-actions.ts:1203`) vs `*10 000` (seuil d'inscription) — incohérence signalée par la consigne ;
@@ -49,7 +70,7 @@ description: Plan RAID — tout ce qui est prévu autour des raids (calendrier, 
 
 **DoD** : statuts privés (aucune fuite publique), `undo` = état **exactement** d'avant clôture (test sur les 4 dimensions), audit présent sur clôture **et** correction, compteur visible officier seulement, non-régression : un participant **actif** garde ses droits actuels.
 
-## 2. R2 — Modale raid « strat » + overlay + guides internes (consigne §20)
+## 3. R2 — Modale raid « strat » + guides internes (consigne §20, `[S/M]`)
 
 **À faire**
 1. **Bloc « strat » dans la modale raid** (`src/components/calendar/event-detail-modal.tsx`, après le bloc `raidLabel`) sur le **patron du bloc « Objectifs »** : `DialogContent sm:max-w-3xl` + `ScrollArea` + `DocContent` + `GuideTocSidebar`, **sans redirection** (on ne quitte pas le raid pour lire la strat).
@@ -59,7 +80,7 @@ description: Plan RAID — tout ce qui est prévu autour des raids (calendrier, 
 
 **DoD** : la strat s'ouvre dans la modale du raid (aucune redirection), l'overlay s'ouvre en PiP depuis le raid, les cartes de guides affichent leur vignette et se filtrent, non-régression : `use-boss-overlay` et les fiches boss sont **intactes**.
 
-## 3. Correctifs qui touchent directement le raid (R3 → R7)
+## 4. Correctifs qui touchent directement le raid (R3 → R7)
 
 ### R3 — Agenda : miroir lecture seule DJ/Songes (consigne §4)
 - **Principe** : la source reste le post DJ (`DjSearchPost`) / la run Songes (`DreamRun`) — **cartes et embeds Discord intouchés**. Le calendrier ne reçoit qu'une **copie miroir** `GuildEvent` : `metadata.source = { kind: 'DJ'|'SONGES', djPostId|dreamRunId }`, titre `[DJ] <donjon>` / `[Songes] <palier>`, `start/end` dérivés (`targetDate` / `scheduledAt`, durée par défaut 2 h), lien profond vers le post d'origine.
@@ -86,7 +107,7 @@ description: Plan RAID — tout ce qui est prévu autour des raids (calendrier, 
 - `RaidHeroBanner` : **texte seul** aujourd'hui ⇒ visuel.
 - Activité guilde : la source actuelle ignore DJ, marché, succès ⇒ ajouter 3 requêtes (DJ `CLOSED`, marché `SOLD`, succès `VALIDATED`) + mapping (labels morts `ACHIEVEMENT/DJ_POST/STUFF` jamais émis).
 
-## 4. Effleurent le raid (R8 → R10)
+## 5. Effleurent le raid (R8 → R10)
 
 ### R8 — Filtre et en-têtes du calendrier (consigne §16, partie calendrier)
 - `FILTER_TYPE_KEYS` = **4** clés, et `OTHERS` est **créable** dans le formulaire mais **aucun bouton** ne le filtre (⇒ événements infiltrables) : ajouter `OTHERS` (+ replier `SONGES` / `DUNGEON`).
@@ -99,23 +120,32 @@ description: Plan RAID — tout ce qui est prévu autour des raids (calendrier, 
 ### R10 — Modales et boutons (consigne §23, volet modales)
 - Passe de déslop **ciblée** sur les modales du raid (fiche d'événement + dialogs de clôture) : registre `globals.css` (rayons 3/4/6 px, **0** glow/gradient/blur, vert action, mono), `w-[95vw]` en mobile, jamais de `rounded-[2rem]`/`blur-xl`.
 
-## 5. Lots proposés — **1 lot = 1 branche = 1 PR → `dev`**
+## 6. Ordre d'exécution — **celui de la consigne** (« Ordre de réalisation (reste) »), 1 lot = 1 branche = 1 PR → `dev`**
 
-| Lot | Chantier | Ampleur | Migration |
-|---|---|---|---|
-| **L1** | **R2** strat + overlay + guides internes (branche des données et hooks **déjà** en place) | moyen | non |
-| **L2** | **R3** agenda : miroir lecture seule DJ/Songes | moyen + | non |
-| **L3** | **R1** clôture + no-show — **le cœur** (après les 2 arbitrages) | gros | **OUI** (additive) |
-| **L4** | **R5** rangs G1-G10 (règle pure + 3 producteurs) | petit/moyen | non |
-| **L5** | **R6** maps multi-donjons | petit/moyen | non |
-| **L6** | **R4** overlay Simulation + anomalies | moyen | non |
-| **L7** | **R7** vignettes raid + activité guilde, puis **R8/R9/R10** (déslop ciblé) | petit | non |
+> L'ordre qui fait foi est **celui de la consigne** (elle liste aussi les lots non-raid) : **P0 sécu** → §4 → §14 →
+> §12 → §10 → §5 → §6 → §7 → §8 → §9 → §11 → §15 → §16 → §17 → §18 → §19 → §20 → §21 → §22 → §23 → §2.
+> Ci-dessous, **les lots raid dans cet ordre** (les lots non-raid s'intercalent — ils ne sont pas dans ce dossier).
 
-**Ordre proposé (à trancher)** : **L1 → L2 → L4 → L5 → L6 → L7**, avec **L3 (clôture/no-show) dès que ses 2 arbitrages sont tranchés** — c'est lui qui a le plus de valeur raid, mais il porte la seule migration du plan. Si tu veux le cœur d'abord, dis « L3 d'abord » et je remonte le lot (il faudra alors trancher les 2 arbitrages avant d'écrire une ligne).
+| Lot | Chantier | Position dans l'ordre officiel | Ampleur | Migration |
+|---|---|---|---|---|
+| **R0** | **P0 sécu** — RBAC `calendar` (+ `bounties`, `relance`) | **1ᵉʳ** | petit | non |
+| **R1** | §4 agenda : miroir lecture seule DJ/Songes | **2ᵉ** | moyen + | non |
+| **R2** | §14 clôture + no-show — **le cœur** | **3ᵉ** | **M/L** | **OUI** (additive) |
+| **R3** | §6 anomalies sans stats + overlay Simulation | 8ᵉ | M | non |
+| **R4** | §7 rangs de monstre 1-5 | 9ᵉ | M | non |
+| **R5** | §8 maps multi-donjons (générique) | 10ᵉ | M | non |
+| **R6** | §15 dashboard vie (vignettes raid/agenda + activité) | 14ᵉ | S/M | non |
+| **R7** | §20 guides internes + **modale raid strat** | 20ᵉ | S/M | non |
+| *(R8)* | §16 volet **calendrier** (filtre `OTHERS`, en-têtes) | 15ᵉ | M (lot partagé) | non |
+| *(R9)* | §22/§23 volet **rosters responsive + modales** | 23ᵉ | M/L (lot partagé) | non |
 
-## 6. Pièges et hygiène (mesurés le 01/10/2026)
+**Ce que ça change par rapport à la première version de ce plan** : **R2 (no-show) passe de « en dernier » à 3ᵉ** ⇒
+les 2 arbitrages (**facteur Kamas Violets**, **stockage de `raidPurpleKamasCost`**) deviennent **urgents**, et **R7
+(strat + guides) passe en fin de file** (20ᵉ). Le **P0 sécu ouvre le bal** et ne dépend d'aucune décision.
 
-1. **Défauts du fichier de consigne** (à ne pas propager dans les lots) : `## 12. Services…` **en double** ; **3 blocs « Ordre proposé »** contradictoires ; les **2 bullets du §13** (gate salon « valider-recrue ») sont **recopiées à la fin de ~8 sections** — dont **§20**, où elles laissent croire que la modale raid strat parle de valider-recrue.
+## 7. Pièges et hygiène (mesurés le 01/10/2026)
+
+1. **La consigne a été restructurée et détaillée le 01/10/2026** (BESOIN → ÉTAT MESURÉ → CHANGEMENTS → TESTS → ACCEPTATION → VIGILANCE, tailles `[S]/[M]/[L]`) : **ses défauts précédents sont corrigés** (plus de `## 12` en double, plus de blocs « Ordre proposé » contradictoires, plus de bullets §13 recopiées), et **son « Ordre de réalisation (reste) » fait foi** — il est repris intégralement au §6 de ce plan.
 2. **Les numéros de ligne de la consigne sont périmés** (±10-15 après les merges) : **re-mesurer à chaque lot** (règle AGENTS §7.1, « mesurer avant de corriger ») — les ancres de ce fichier ont été revérifiées le 01/10/2026.
 3. **`git add -A` interdit dans ce dépôt** : le propriétaire y travaille **en parallèle** (incident du 01/10 : sa refonte overlay/guide a été happée par un `git add -A`, récupérée par lui, PR #820 fermée en no-op). ⇒ **stager fichier par fichier**.
 4. **`src/temp/` est volatile et gitignoré** : la consigne ne sera **jamais** committée — **ce fichier** (et le `ROADMAP`) est ce qui survit.

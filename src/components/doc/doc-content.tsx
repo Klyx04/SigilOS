@@ -54,7 +54,7 @@ export function DocContent({ content, className }: DocContentProps) {
         callouts.forEach(callout => {
             const classes = Array.from(callout.classList);
             const type = classes.find(c => c.startsWith('callout-'))?.replace('callout-', '');
-            const title = callout.querySelector('strong');
+            const title = callout.querySelector(':scope > strong') || callout.querySelector(':scope > .callout-title') || callout.querySelector('strong');
             if (title && type && icons[type] && !title.querySelector('.callout-icon')) {
                 const icon = document.createElement('span');
                 icon.className = 'callout-icon shrink-0';

@@ -5,7 +5,7 @@
  * Uses existing ClassIcon from shared components
  */
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Check, Loader2, User, MessageSquare } from "lucide-react";
 import {
     Dialog,
@@ -19,7 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
-import { DOFUS_CLASSES } from "@/lib/dofus-assets";
+import { DOFUS_CLASSES, getClass } from "@/lib/dofus-assets";
 import { ClassIcon, getClassColor } from "@/components/shared/class-icon";
 
 interface RegistrationModalProps {
@@ -28,6 +28,8 @@ interface RegistrationModalProps {
     eventTitle: string;
     isFull: boolean;
     onSubmit: (data: { classe?: string; comment?: string }) => Promise<void>;
+    /** Personnages Dofus du membre : raccourci « Mes personnages » (classe + secondaires). */
+    myCharacters?: { main: string | null; secondaries: string[] };
 }
 
 export function RegistrationModal({
@@ -36,10 +38,28 @@ export function RegistrationModal({
     eventTitle,
     isFull,
     onSubmit,
+    myCharacters,
 }: RegistrationModalProps) {
     const [selectedClass, setSelectedClass] = useState<string | null>(null);
     const [comment, setComment] = useState("");
     const [submitting, setSubmitting] = useState(false);
+
+    // « Mes personnages » : mes classes connues (principale d'abord), en référentiel unique.
+    // Un profil vide ⇒ aucune rangée : l'écran reste exactement celui d'avant.
+    const myRoster = useMemo(() => {
+        const values = [myCharacters?.main, ...(myCharacters?.secondaries ?? [])];
+        const found = values
+            .map((c) => getClass((c ?? "").trim()))
+            .filter((c): c is NonNullable<ReturnType<typeof getClass>> => Boolean(c));
+        return Array.from(new Map(found.map((c) => [c.id, c])).values());
+    }, [myCharacters?.main, myCharacters?.secondaries]);
+
+    // Personnage principal pré-sélectionné à l'ouverture : un clic suffit à confirmer.
+    useEffect(() => {
+        if (!open) return;
+        const main = getClass((myCharacters?.main ?? "").trim());
+        if (main) setSelectedClass(main.id);
+    }, [open, myCharacters?.main]);
 
     const handleSubmit = async () => {
         setSubmitting(true);
@@ -75,6 +95,35 @@ export function RegistrationModal({
                             <User className="h-4 w-4" />
                             Classe Dofus (optionnel)
                         </Label>
+
+                        {/* « Mes personnages » — une rangée fine, uniquement si le profil en
+                            connaît : un clic au lieu de chercher parmi les 19 icônes. */}
+                        {myRoster.length > 0 && (
+                            <div className="flex flex-wrap items-center gap-1.5">
+                                <span className="text-caption font-bold uppercase tracking-wider text-muted-foreground">
+                                    Mes personnages
+                                </span>
+                                {myRoster.map((classe) => {
+                                    const isPicked = selectedClass === classe.id;
+                                    return (
+                                        <button
+                                            key={classe.id}
+                                            type="button"
+                                            onClick={() => setSelectedClass(isPicked ? null : classe.id)}
+                                            className={cn(
+                                                "flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-caption font-bold transition-colors",
+                                                isPicked
+                                                    ? "border-foreground/40 bg-foreground/10 text-foreground"
+                                                    : "border-border bg-surface/50 text-muted-foreground hover:text-foreground"
+                                            )}
+                                        >
+                                            <ClassIcon classId={classe.id} size={14} />
+                                            {classe.name}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        )}
 
                         <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
                             {DOFUS_CLASSES.map((classe) => {

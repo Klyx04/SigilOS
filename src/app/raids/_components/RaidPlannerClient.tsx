@@ -16,7 +16,6 @@ import {
     Plus,
     Trash2,
     Clock,
-    Coins,
     Sparkles,
     Info,
     Crown,
@@ -25,8 +24,10 @@ import {
     ChevronUp,
     BookOpen,
     UserPlus,
+    Tv2,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n/client";
+import { useRaidOverlay } from "@/hooks/use-raid-overlay";
 import { DOFUS_CLASSES, RAID_ROLES, RaidId, RaidSlot, RoleKey } from "../types";
 import { LuminariumSolver } from "./LuminariumSolver";
 import { JardinsEnigmaTracker } from "./JardinsEnigmaTracker";
@@ -63,6 +64,35 @@ const RAID_ASSETS: Record<RaidId, { icon: string; banner: string; maxPlayers: nu
         wingSlotsDefault: 6,
     },
 };
+
+/* ─── Compositions et rôles optimisés Gigalodon (Burst 1M) ─── */
+const GIGALODON_BURST_CLASSES = [
+    { id: 12, name: "Pandawa", category: "Noyau Incontournable", role: "Placement CaC & Vulnérabilité", spells: "Brassage, Vulné, Portage hors des 3 cases mêlée" },
+    { id: 8, name: "Iop", category: "Noyau Incontournable", role: "Burst T3", spells: "Colère T3 synchro Nébuleux, Massacre, Puissance" },
+    { id: 16, name: "Eliotrope", category: "Noyau Incontournable", role: "Multiplicateur", spells: "Réseau 4 portails, Entraide, Focalisation" },
+    { id: 17, name: "Huppermage", category: "Top DPS Monocible", role: "Dégâts bruts & Débuff", spells: "Volcan Terre/Feu, Cycle Élémentaire" },
+    { id: 13, name: "Roublard", category: "Top DPS Monocible", role: "Explosion T3", spells: "Mur de bombes sous portails, Poudre, Rebours" },
+    { id: 9, name: "Crâ", category: "Top DPS Monocible", role: "DPS Distance", spells: "Balise tactique, Flèches Destructrice & Emplie" },
+    { id: 4, name: "Sram", category: "Amplificateurs", role: "Amplification dégâts", spells: "Marque Mortuaire (+20% subis), Coupe-Gorge" },
+    { id: 14, name: "Zobal", category: "Amplificateurs", role: "Boosts & Boucliers", spells: "Transfiguration, Masque Psychopathe, Furia" },
+    { id: 18, name: "Ouginak", category: "Amplificateurs", role: "Augmentation dégâts finaux", spells: "Gibier, Acharnement, Proie" },
+];
+
+/* ─── Compositions et rôles optimisés Sanctuaire (Entrave PM Autowin & Double Boss) ─── */
+const SANCTUAIRE_BURST_CLASSES = [
+    { id: 3, name: "Enutrof", category: "Entrave PM (Autowin)", role: "Retrait PM & Malus Esquive", spells: "Obsolescence (-20 esq PM), Clef de Bras (1 PM inesq/2 PA), Maladresse, Boîte à Outils" },
+    { id: 10, name: "Sadida", category: "Entrave PM (Autowin)", role: "Retrait PM & Malus Esquive", spells: "Sève Paralysante (-15 esq PM), Ronce Apaisante, Herbes Folles, Mangrove" },
+    { id: 16, name: "Eliotrope", category: "Entrave PM (Autowin)", role: "Réseau Portails & Distance", spells: "Portails pour retirer PM et taper à >16 PO hors de portée de la Princesse" },
+    { id: 9, name: "Crâ", category: "Noyau Incontournable", role: "DPS Distance & Malus Esquive", spells: "Pluie de Flèches (-20 esq PM), Tir Éloigné, flèches sans LDV sur la Princesse" },
+    { id: 12, name: "Pandawa", category: "Noyau Incontournable", role: "Placement CaC & Clôture Tour", spells: "Bloque la Reine loin des Évadés + joue dernier pour replacer l'escouade" },
+    { id: 18, name: "Ouginak", category: "Entrave PM (Optionnel)", role: "Malus Esquive PM Lourd", spells: "Mâchoire (-30 esquive PM pendant 2 tours)" },
+    { id: 17, name: "Huppermage", category: "Top DPS Distance", role: "Mobilité & Glyphes", spells: "Cycle Élémentaire, Volcan, récupération rapide des glyphes violets d'Incantation" },
+    { id: 13, name: "Roublard", category: "Top DPS Burst", role: "Nettoyage Volontés & Floracle", spells: "Mur de bombes chargé pour one-shot le Floracle (5k HP) et les Volontés (30k HP)" },
+    { id: 8, name: "Iop", category: "Finisher Reine", role: "Burst Reine Délockée", spells: "Colère de Iop, Massacre, Puissance après destruction Pommeau & Lame" },
+    { id: 1, name: "Féca", category: "Support & Protection", role: "Boucliers Globaux", spells: "Rempart, Trêve, Bouclier Féca pour préserver les 20 PV partagés" },
+    { id: 7, name: "Éniripsa", category: "Support & Soins", role: "Soin de Raid & Anti-Heal", spells: "Soins de raid, don PA aux retraits PM, Mot Décourageant (anti-soin sur Tempête Florale)" },
+    { id: 14, name: "Zobal", category: "Support & Protection", role: "Boucliers à distance", spells: "Plastron, Tortoruga à distance, Masque Psychopathe" },
+];
 
 /* ─── Role codes for compact URLs ─── */
 const ROLE_TO_CODE: Record<RoleKey, string> = {
@@ -443,8 +473,10 @@ function SlotCard({
    MAIN COMPONENT
 ═══════════════════════════════════════════════════ */
 export function RaidPlannerClient() {
-    const { t } = useI18n();
+    const { t, locale } = useI18n();
     const l10n = t.raidStudio;
+    const isEn = locale === "en";
+    const { openRaidOverlay, closeRaidOverlay, isOpen: isOverlayOpen } = useRaidOverlay();
 
     const [selectedRaid, setSelectedRaid] = useState<RaidId>("sanctuaire");
     const [activeTab, setActiveTab] = useState<"planner" | "luminarium" | "enigmes" | "strategy">("planner");
@@ -457,6 +489,7 @@ export function RaidPlannerClient() {
 
     const assets = RAID_ASSETS[selectedRaid];
     const raidI18n = l10n.raids[selectedRaid];
+    const overlaySlug = selectedRaid === "sanctuaire" ? "jardin-eternel" : "gigalodon";
 
     /* ─── Load from Share URL or LocalStorage ─── */
     useEffect(() => {
@@ -620,15 +653,12 @@ export function RaidPlannerClient() {
                 <div className="flex items-center justify-between pb-3 border-b border-border/70">
                     <div className="space-y-0.5">
                         <div className="flex items-center gap-2">
-                            <span className={`w-2.5 h-2.5 rounded-full ${accentBg}`} />
                             <h3 className="text-sm font-bold text-foreground">{wingName}</h3>
                         </div>
                         <p className="text-[11px] text-muted-foreground leading-tight">{wingDesc}</p>
                     </div>
                     <div className="flex items-center gap-2">
-                        <span className={`px-2 py-0.5 rounded-full text-xs font-mono font-bold border ${
-                            isFull ? "bg-accent/15 text-accent border-accent/30" : "bg-muted/50 text-muted-foreground border-border"
-                        }`}>
+                        <span className="px-2 py-0.5 rounded text-xs font-mono font-bold border bg-muted/50 text-muted-foreground border-border">
                             {wingSlots.length} / {assets.wingSlotsDefault}
                         </span>
                         {!isEmpty && (
@@ -748,10 +778,21 @@ export function RaidPlannerClient() {
                     <button
                         onClick={() => setIsExportOpen(true)}
                         title={l10n.ui.exportTooltip}
-                        className="px-3.5 py-1.5 rounded-xl bg-accent text-accent-foreground text-xs font-bold shadow-md hover:bg-accent/90 transition-all flex items-center gap-1.5"
+                        className="px-3.5 py-1.5 rounded-xl bg-accent text-accent-foreground text-xs font-bold hover:bg-accent/90 transition-all flex items-center gap-1.5"
                     >
                         <Copy className="w-3.5 h-3.5" />
                         <span>{l10n.exportDiscordBtn}</span>
+                    </button>
+                    <button
+                        onClick={() => {
+                            if (isOverlayOpen) closeRaidOverlay();
+                            else openRaidOverlay({ raidSlug: overlaySlug });
+                        }}
+                        title={isEn ? "Open the raid overlay (detachable window with rooms, routes and strategy)" : "Ouvrir l'overlay du raid (fenêtre détachable : salles, trajets, stratégie)"}
+                        className="px-3.5 py-1.5 rounded-xl border border-info/30 bg-info/10 hover:bg-info/20 text-xs font-bold text-info transition-all flex items-center gap-1.5"
+                    >
+                        <Tv2 className="w-3.5 h-3.5" />
+                        <span>{isOverlayOpen ? (isEn ? "Close Overlay" : "Fermer l'overlay") : (isEn ? "Raid Overlay" : "Overlay du raid")}</span>
                     </button>
                 </div>
             </div>
@@ -762,19 +803,13 @@ export function RaidPlannerClient() {
                     const a = RAID_ASSETS[raidId];
                     const ri = l10n.raids[raidId];
                     const active = selectedRaid === raidId;
-                    const isSanctuaire = raidId === "sanctuaire";
-                    const accentGlow = isSanctuaire ? "shadow-emerald-500/15" : "shadow-cyan-500/15";
-                    const accentBorder = isSanctuaire ? "border-success/60" : "border-accent/60";
-                    const accentText = isSanctuaire ? "text-success" : "text-accent";
-                    const accentBg = isSanctuaire ? "bg-success/15" : "bg-accent/15";
-
                     return (
                         <button
                             key={raidId}
                             onClick={() => handleSwitchRaid(raidId)}
                             className={`relative overflow-hidden rounded-2xl border p-4 text-left transition-all group ${
                                 active
-                                    ? `${accentBorder} shadow-lg ${accentGlow} bg-surface/80 ring-1 ${isSanctuaire ? "ring-success/40" : "ring-accent/40"}`
+                                    ? "border-accent/30 bg-surface/80"
                                     : "border-border/80 bg-surface/30 hover:border-border hover:bg-surface/50 opacity-70 hover:opacity-100"
                             }`}
                         >
@@ -789,18 +824,15 @@ export function RaidPlannerClient() {
                             </div>
 
                             <div className="relative z-10 flex items-center gap-3.5">
-                                <div className={`relative w-12 h-12 rounded-xl overflow-hidden border-2 shrink-0 shadow-md ${
-                                    active ? accentBorder : "border-border"
+                                <div className={`relative w-12 h-12 rounded-xl overflow-hidden border shrink-0 ${
+                                    active ? "border-accent/30" : "border-border"
                                 }`}>
                                     <Image src={a.icon} alt={ri.shortName} fill className="object-cover" />
                                 </div>
 
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-2 mb-0.5">
-                                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider border ${
-                                            active ? `${accentBg} ${accentText} ${accentBorder}` : "bg-muted/40 text-muted-foreground border-border"
-                                        }`}>
-                                            <Sparkles className="w-2.5 h-2.5" />
+                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider border bg-muted/40 text-muted-foreground border-border">
                                             {ri.badge}
                                         </span>
                                     </div>
@@ -812,18 +844,18 @@ export function RaidPlannerClient() {
                                     </div>
 
                                     <div className="flex items-center gap-2.5 mt-1 text-[11px] text-muted-foreground flex-wrap">
-                                        <span className={`font-semibold ${active ? accentText : ""}`}>
+                                        <span className="font-semibold">
                                             👥 {a.maxPlayers} {l10n.ui.maxPlayersLabel}
                                         </span>
                                         <span>•</span>
                                         <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{ri.timer}</span>
                                         <span>•</span>
-                                        <span className="flex items-center gap-1 text-warning/90"><Coins className="w-3 h-3" />{ri.cost}</span>
+                                        <span className="flex items-center gap-1 text-warning/90"><img src="/assets/dofus/kamas-guilde.png" alt="" aria-hidden="true" className="w-3 h-3 object-contain" />{ri.cost}</span>
                                     </div>
                                 </div>
 
                                 {active && (
-                                    <div className={`shrink-0 w-2.5 h-2.5 rounded-full ${isSanctuaire ? "bg-success" : "bg-accent"} shadow-sm`} />
+                                    <span className="shrink-0 text-muted-foreground text-xs font-bold">✓</span>
                                 )}
                             </div>
                         </button>
@@ -853,11 +885,11 @@ export function RaidPlannerClient() {
                             title={l10n.ui.enigmesTabTooltip}
                             className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 shrink-0 ${
                                 activeTab === "enigmes"
-                                    ? "bg-success/20 text-success border border-success/40 shadow-sm"
+                                    ? "bg-accent text-accent-foreground shadow-sm"
                                     : "text-muted-foreground hover:text-foreground hover:bg-surface"
                             }`}
                         >
-                            <Compass className="w-4 h-4 text-success" />
+                            <Compass className="w-4 h-4" />
                             <span>{l10n.tabs.enigmes}</span>
                         </button>
                     )}
@@ -907,7 +939,7 @@ export function RaidPlannerClient() {
                         <span>Init:</span>
                         <span className="font-mono font-bold text-foreground">{averageInitiative || "—"}</span>
                         {isCorridorFastEnough && slots.length > 0 && (
-                            <span className="w-2 h-2 rounded-full bg-success ml-0.5" title={l10n.stats.corridorOk} />
+                            <span className="text-muted-foreground text-[10px] font-bold ml-0.5" title={l10n.stats.corridorOk}>✓</span>
                         )}
                     </span>
 
@@ -941,7 +973,7 @@ export function RaidPlannerClient() {
                             className="flex items-center gap-1 bg-background/60 px-2.5 py-1 rounded-lg border border-border/80 cursor-help"
                             title="Mureine +1k · Exécrabe +5k · Willorque +10k"
                         >
-                            <Coins className="w-3.5 h-3.5 text-warning" />
+                            <img src="/assets/dofus/kamas-guilde.png" alt="" aria-hidden="true" className="w-3.5 h-3.5 object-contain" />
                             <span className="text-muted-foreground">Drops:</span>
                             <span className="text-foreground font-mono font-bold">+1k / +5k / +10k</span>
                         </span>
@@ -1005,9 +1037,16 @@ export function RaidPlannerClient() {
                 <div className="space-y-6 animate-in fade-in-0 duration-200">
                     {/* Briefing en 3 points clés */}
                     <div className="rounded-2xl border border-border bg-surface/50 p-5 sm:p-6 space-y-4">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                             <Sparkles className="w-4 h-4 text-accent" />
                             <h3 className="text-sm font-bold text-foreground">Briefing & Règles Tactiques — {raidI18n.name}</h3>
+                            <a
+                                href={selectedRaid === "sanctuaire" ? "/guides/raid-sanctuaire-jardins-eternels-dofus-guide" : "/guides/raid-gigalodon-dofus-guide"}
+                                className="ml-auto inline-flex items-center gap-1 text-[11px] font-semibold text-info hover:text-foreground transition-colors"
+                            >
+                                <BookOpen className="w-3.5 h-3.5" />
+                                <span>{isEn ? "Full guide" : "Guide complet"}</span>
+                            </a>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                             {raidI18n.briefing.map((item: string, idx: number) => (
@@ -1044,6 +1083,129 @@ export function RaidPlannerClient() {
                             ))}
                         </div>
                     </div>
+
+                    {/* Synergies & Compositions Gigalodon */}
+                    {selectedRaid === "gigalodon" && (
+                        <div className="rounded-2xl border border-border bg-surface/50 p-5 sm:p-6 space-y-4">
+                            <div className="flex items-center justify-between gap-2 flex-wrap">
+                                <div className="flex items-center gap-2">
+                                    <Sparkles className="w-4 h-4 text-accent" />
+                                    <h3 className="text-sm font-bold text-foreground">Compositions & Synergies Recommandées (Cap 1M Burst)</h3>
+                                </div>
+                                <span className="text-[11px] font-mono text-accent bg-accent/10 border border-accent/30 px-2.5 py-0.5 rounded-md font-semibold">
+                                    Burst 3 Tours · +15 000 pts
+                                </span>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                {GIGALODON_BURST_CLASSES.map((cls) => {
+                                    const classDef = DOFUS_CLASSES.find((c) => c.id === cls.id);
+                                    return (
+                                        <div key={cls.id} className="p-3 rounded-xl bg-background/60 border border-border flex items-start gap-2.5">
+                                            {classDef?.icon ? (
+                                                <img src={classDef.icon} alt={cls.name} className="w-7 h-7 rounded object-contain shrink-0 mt-0.5" />
+                                            ) : (
+                                                <div className="w-7 h-7 rounded bg-muted flex items-center justify-center shrink-0 text-xs font-bold">
+                                                    {cls.name.slice(0, 2)}
+                                                </div>
+                                            )}
+                                            <div className="min-w-0 flex-1">
+                                                <div className="flex items-center justify-between gap-1">
+                                                    <span className="text-xs font-bold text-foreground truncate">{cls.name}</span>
+                                                    <span className="text-[9px] uppercase tracking-wider text-muted-foreground font-semibold shrink-0">
+                                                        {cls.category}
+                                                    </span>
+                                                </div>
+                                                <p className="text-[11px] text-accent/90 font-medium truncate mt-0.5">{cls.role}</p>
+                                                <p className="text-[10px] text-muted-foreground leading-tight mt-0.5">{cls.spells}</p>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+
+                            <div className="mt-3 p-3 rounded-xl bg-background/40 border border-border/80 flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
+                                <span className="font-bold text-foreground">Équipements indispensables :</span>
+                                <span className="bg-surface px-2 py-0.5 rounded border border-border/60 text-foreground font-medium">Dofus Nébuleux (T1 &amp; T3 +20%)</span>
+                                <span className="bg-surface px-2 py-0.5 rounded border border-border/60 text-foreground font-medium">Jugement de Thanathena (+4%/coup)</span>
+                                <span className="bg-surface px-2 py-0.5 rounded border border-border/60 text-foreground font-medium">Trophées mono-élément &amp; Vulbis</span>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Synergies & Compositions Sanctuaire */}
+                    {selectedRaid === "sanctuaire" && (
+                        <div className="rounded-2xl border border-border bg-surface/50 p-5 sm:p-6 space-y-4">
+                            <div className="flex items-center justify-between gap-2 flex-wrap">
+                                <div className="flex items-center gap-2">
+                                    <Sparkles className="w-4 h-4 text-accent" />
+                                    <h3 className="text-sm font-bold text-foreground">Compositions &amp; Synergies Recommandées (Stratégie Entrave PM Autowin)</h3>
+                                </div>
+                                <span className="text-[11px] font-mono text-accent bg-accent/10 border border-accent/30 px-2.5 py-0.5 rounded-md font-semibold">
+                                    Double Boss · Entrave 300+ PM
+                                </span>
+                            </div>
+
+                            {/* Alerte Stratégie Autowin Princesse */}
+                            <div className="p-3.5 rounded-xl bg-background/60 border border-border space-y-2 text-xs">
+                                <div className="font-bold text-foreground flex items-center gap-1.5">
+                                    <span>🎯 Stratégie Autowin Princesse Maudite (Retrait Total PM) :</span>
+                                </div>
+                                <p className="text-muted-foreground leading-relaxed">
+                                    Retirer l&apos;intégralité des PM de la Princesse (350 d&apos;esquive de base) pour la parquer dans un coin et placer l&apos;escouade à l&apos;angle opposé (hors de ses 16 PO de zone). Deux classes entrave (Enutrof et Sadida) à <strong>300+ Retrait PM</strong> (full Sagesse + Éclat Entravant).
+                                </p>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 text-[11px]">
+                                    <div className="p-2 rounded bg-surface/40 border border-border/60">
+                                        <span className="font-bold text-foreground">Ordre d&apos;Initiative :</span>
+                                        <p className="text-muted-foreground mt-0.5">1. Retraits PM (Enutrof puis Sadida) ➔ 2. Éliotrope (portails) ➔ 3. Équipe (DPS) ➔ 4. Pandawa en dernier (replacer les alliés avancés).</p>
+                                    </div>
+                                    <div className="p-2 rounded bg-surface/40 border border-border/60">
+                                        <span className="font-bold text-foreground">Malus Esquive PM Clés :</span>
+                                        <p className="text-muted-foreground mt-0.5">Mâchoire Ougi (-30), Obsolescence Enu (-20), Pluie Flèches Crâ (-20), Sève Paralysante Sadi (-15). Retrait PM actif sur les 2 tours P2.</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                {SANCTUAIRE_BURST_CLASSES.map((cls) => {
+                                    const classDef = DOFUS_CLASSES.find((c) => c.id === cls.id);
+                                    return (
+                                        <div key={cls.id} className="p-3 rounded-xl bg-background/60 border border-border flex items-start gap-2.5">
+                                            {classDef?.icon ? (
+                                                <img src={classDef.icon} alt={cls.name} className="w-7 h-7 rounded object-contain shrink-0 mt-0.5" />
+                                            ) : (
+                                                <div className="w-7 h-7 rounded bg-muted flex items-center justify-center shrink-0 text-xs font-bold">
+                                                    {cls.name.slice(0, 2)}
+                                                </div>
+                                            )}
+                                            <div className="min-w-0 flex-1">
+                                                <div className="flex items-center justify-between gap-1">
+                                                    <span className="text-xs font-bold text-foreground truncate">{cls.name}</span>
+                                                    <span className="text-[9px] uppercase tracking-wider text-muted-foreground font-semibold shrink-0">
+                                                        {cls.category}
+                                                    </span>
+                                                </div>
+                                                <p className="text-[11px] text-accent/90 font-medium truncate mt-0.5">{cls.role}</p>
+                                                <p className="text-[10px] text-muted-foreground leading-tight mt-0.5">{cls.spells}</p>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+
+                            <div className="mt-3 p-3 rounded-xl bg-background/40 border border-border/80 flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
+                                <span className="font-bold text-foreground">Équipements indispensables :</span>
+                                <span className="bg-surface px-2 py-0.5 rounded border border-border/60 text-foreground font-medium flex items-center gap-1.5">
+                                    <img src="/assets/dofus/eclat-entravant.png" alt="" className="w-3.5 h-3.5 object-contain" />
+                                    Éclat Entravant (+30 Retrait PM/PA)
+                                </span>
+                                <span className="bg-surface px-2 py-0.5 rounded border border-border/60 text-foreground font-medium">Stuff 300+ Retrait PM (Full Sagesse)</span>
+                                <span className="bg-surface px-2 py-0.5 rounded border border-border/60 text-foreground font-medium">Trophée Initiative (2 601+ Corridor)</span>
+                                <span className="bg-surface px-2 py-0.5 rounded border border-border/60 text-foreground font-medium">Dofus Nébuleux (Burst Volontés)</span>
+                                <span className="bg-surface px-2 py-0.5 rounded border border-border/60 text-foreground font-medium">Anti-Soin (Leçon de Grunob / Insoignable)</span>
+                            </div>
+                        </div>
+                    )}
                 </div>
             )}
 

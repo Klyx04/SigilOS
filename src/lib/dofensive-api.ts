@@ -46,6 +46,7 @@ import {
     persistDofensiveMap,
     persistStoredCombatSpells,
 } from "@/lib/dofensive-sync";
+import { getQilbyCustomMapData, getQilbyDungeonInfo, QILBY_MAP_ID } from "@/lib/qilby-map";
 
 type ActionResponse<T = void> = {
     success: boolean;
@@ -142,6 +143,18 @@ export async function getDofensiveDungeonForBoss(
     opts?: { dofensiveMonsterName?: string | null; dofensiveDungeonName?: string | null }
 ): Promise<ActionResponse<DofensiveDungeonInfo>> {
     if (!bossName || !bossName.trim()) return { success: false, error: "Nom de boss manquant" };
+
+    // Cas particulier : Qilby (Gardien d'anomalie, arène sur-mesure Hauteurs de l'Inglorium)
+    const normalizedBoss = norm(bossName);
+    const normalizedDungeon = dungeonName ? norm(dungeonName) : "";
+    if (
+        normalizedBoss === "qilby" ||
+        opts?.dofensiveMonsterName?.toLowerCase().includes("qilby") ||
+        normalizedDungeon.includes("hauteurs de l'inglorium") ||
+        normalizedDungeon.includes("inglorium")
+    ) {
+        return { success: true, data: getQilbyDungeonInfo() };
+    }
 
     // 🛰️ Lot 1 « stale-while-offline » : la LECTURE LOCALE passe AVANT tout appel réseau.
     // Une ligne **périmée** est servie (datée) — seul « aucune ligne » autorise le live.
@@ -343,6 +356,13 @@ export async function getDofensiveMap(mapId: number | string): Promise<ActionRes
         if (local) return localStaleResponse(local);
     } catch {
         // Fallback live ci-dessous
+    }
+
+    // Cas particulier : map sur-mesure de Qilby (5 îlots carrés 5x5)
+    if (id === QILBY_MAP_ID) {
+        const qilbyData = getQilbyCustomMapData();
+        persistDofensiveMap(qilbyData).catch(() => {});
+        return { success: true, data: qilbyData };
     }
 
     // 2. Fetch live Dofensive

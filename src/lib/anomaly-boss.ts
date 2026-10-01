@@ -12,6 +12,7 @@
  * transformations pures (testables sans réseau ni base).
  */
 import type { DofensiveSpellZone, DofensiveZoneShape } from "@/lib/dofensive-spells";
+import { QILBY_MAP_ID, QILBY_MAP_NAME, QILBY_MONSTER_ID } from "@/lib/qilby-map";
 
 /** Race DofusDB des gardiens d'anomalie (« Gardiens des anomalies »). */
 export const ANOMALY_RACE_ID = 191;
@@ -25,10 +26,13 @@ export const ANOMALY_FAMILY_NAME = "Cr\u00e9atures des Anomalies Temporelles";
  *
  * Utilisée quand aucune carte n'est siphonnée pour le gardien : DofusDB n'expose aucune
  * localisation pour cette race (`subareas: []`) et les gardiens les plus récents
- * (Qilby, id 8131) ne sont pas encore exposés par Dofensive (pas de `PreferredMaps`).
+ * ne sont pas encore exposés par Dofensive (pas de `PreferredMaps`).
  * On retombe alors sur le hub des anomalies temporelles — jamais une carte vide.
  */
 export const DEFAULT_ANOMALY_MAP = { id: 196089348, name: "Abysses du temps" } as const;
+
+/** Map personnalisée dédiée au combat de Qilby (5 îlots carrés de 5x5). */
+export const QILBY_ANOMALY_MAP = { id: QILBY_MAP_ID, name: QILBY_MAP_NAME } as const;
 
 /** Libellé de repli quand ni la carte siphonnée ni la map par défaut ne sont exploitables. */
 export const ANOMALY_MAP_FALLBACK_LABEL = "Anomalie temporelle";
@@ -109,9 +113,12 @@ export function groupAnomalyGuardiansByMap(
     return groups;
 }
 
-/** Résout la carte de combat d'un gardien : carte siphonnée > map par défaut. */
+/**
+ * Résout la carte de combat d'un gardien : carte siphonnée > carte dédiée (Qilby) > map par défaut.
+ */
 export function resolveAnomalyMap(
-    preferredMaps: { id?: unknown; name?: unknown }[] | null | undefined
+    preferredMaps: { id?: unknown; name?: unknown }[] | null | undefined,
+    monsterId?: number | null
 ): { id: number; name: string; isDefault: boolean } {
     const list = Array.isArray(preferredMaps) ? preferredMaps : [];
     for (const m of list) {
@@ -120,6 +127,10 @@ export function resolveAnomalyMap(
         if (Number.isFinite(id) && id > 0) {
             return { id: Math.floor(id), name: buildAnomalyDungeonName(name), isDefault: false };
         }
+    }
+    // Cas particulier : Qilby (non exposé par Dofensive) dispose d'une carte d'arène sur-mesure (5 îlots 5x5)
+    if (monsterId && Math.floor(Number(monsterId)) === QILBY_MONSTER_ID) {
+        return { id: QILBY_ANOMALY_MAP.id, name: QILBY_ANOMALY_MAP.name, isDefault: false };
     }
     return { id: DEFAULT_ANOMALY_MAP.id, name: DEFAULT_ANOMALY_MAP.name, isDefault: true };
 }

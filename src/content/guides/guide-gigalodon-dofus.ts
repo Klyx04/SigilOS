@@ -15,6 +15,17 @@ export const guide = {
             <p>Le Gouffre du Gigalodon est une instance chronométrée de 60 minutes pour déclencher le combat final. Ce guide condensé rassemble les meilleures stratégies de guilde : réglages clients indispensables, gestion économique de la lumière, élimination des 3 boss intermédiaires, boucle de raccourci à 20% de drop et maximisation du burst sur le Gigalodon pour saturer la frise de 60 000 points.</p>
         </div>
 
+        <div class="callout callout-info">
+            <strong>🛠️ Outils Publics Raid Studio 3.6 & Overlay Détachable</strong>
+            <p>Pour préparer et exécuter votre raid dans les meilleures conditions, SigilOS met à disposition plusieurs outils gratuits et interactifs :</p>
+            <ul>
+                <li><strong>Planificateur d'Escouades 12 Joueurs :</strong> répartissez les 3 escouades de 4, assignez les rôles clés (Tank, Burst T3, Placement CaC, Multiplicateur), vérifiez la jauge d'équilibre et exportez l'annonce en 1 clic pour Discord.</li>
+                <li><strong>Solveur Interactif de Luminarium (Étage -3) :</strong> outil Lights Out 4x4 en cascade pour ouvrir le mur sans gaspiller une seule seconde de chrono.</li>
+                <li><strong>Overlay In-Game Toujours au Premier Plan (PiP) :</strong> activez l'overlay via le bouton en haut de page pour copier les positions <code>/travel</code> d'un clic et noter l'ordre des 4 formes d'Exécrabe sans alt-tab.</li>
+            </ul>
+            <p><a href="/raids?raid=gigalodon"><strong>→ Ouvrir le Planificateur Gigalodon & Solveurs dans Raid Studio 3.6</strong></a></p>
+        </div>
+
         <h2>I. Préparation & Configuration (Checklist Pré-Raid)</h2>
         <p>
             L'ouverture de l'instance s'effectue directement depuis le <strong>Hall de Guilde</strong> (Boutique de Guilde &gt; onglet Raids) par un membre détenant les permissions requises.
@@ -212,7 +223,7 @@ export const guide = {
 
         <div class="callout callout-tip">
             <strong>Deux stratégies de neutralisation de la Mureine</strong>
-            <p><strong>Stratégie A (Tacle en coin) :</strong> Le Pandawa isole la Mureine dans un angle et la coince entre 2 de ses propres Murares. En taclant ces deux invocations avec un personnage résistant, la Mureine est totalement paralysée et ne peut plus invoquer.<br /><strong>Stratégie B (Distance de sécurité) :</strong> Placez tous vos attaquants à plus de 10 PO de la Mureine au lancement du combat. Sans cible dans sa portée d'incantation de 10 PO, elle ne peut invoquer aucune Murare.</p>
+            <p><strong>Priorité absolue :</strong> Éliminez d'abord les 3 monstres d'accompagnement normaux (Madrépire, Kokayou, Léviatank) pour libérer les lignes de vue et respirer.<br /><strong>Stratégie A (Tacle en coin) :</strong> Le Pandawa isole la Mureine dans un angle et la coince entre 2 de ses propres Murares ou des invocations fixes. En taclant ces deux invocations avec un personnage résistant, la Mureine est totalement paralysée et ne peut plus invoquer.<br /><strong>Stratégie B (Distance de sécurité) :</strong> Placez tous vos attaquants à plus de 10 PO de la Mureine au lancement du combat. Sans cible dans sa portée d'incantation de 10 PO, elle ne peut invoquer aucune Murare.</p>
         </div>
 
         <div class="guide-image-container">
@@ -237,8 +248,8 @@ export const guide = {
         </div>
 
         <div class="callout callout-warning">
-            <strong>Règle d'or de guilde : 1 seul joueur sur le puzzle</strong>
-            <p>Désignez <strong>un seul joueur</strong> pour manipuler la grille 4x4. Si plusieurs équipiers cliquent en simultané, les actions s'annulent et vous perdrez plusieurs minutes sur le chrono global.</p>
+            <strong>Règle d'or de guilde : 1 seul joueur sur le mur</strong>
+            <p>Désignez <strong>un seul joueur</strong> pour manipuler la grille 4x4 de poissons-lanternes sur le mur (il faut cliquer dessus, ce n'est pas une dalle au sol !). Si plusieurs équipiers cliquent en simultané, les actions s'annulent et vous perdrez plusieurs minutes sur le chrono global.</p>
         </div>
 
         <p><strong>Méthode de résolution rapide (Chasse des lumières) :</strong></p>
@@ -248,6 +259,11 @@ export const guide = {
             <li>Répétez sur la rangée 3 vers la rangée 4.</li>
             <li>Traitez les deux coins inférieurs pour finaliser l'allumage complet et ouvrir le passage vers l'étage -4.</li>
         </ol>
+
+        <div class="callout callout-tip">
+            <strong>Solveur Interactif en Ligne</strong>
+            <p>Un doute sur votre configuration de grille ? Utilisez notre <a href="/raids?raid=gigalodon"><strong>Solveur Luminarium dans Raid Studio 3.6</strong></a> pour reproduire vos lanternes et obtenir la séquence d'allumage exacte en un clin d'œil.</p>
+        </div>
 
         <hr />
 
@@ -318,7 +334,7 @@ export const guide = {
 
         <div class="callout callout-important">
             <strong>LE PIVOT STRATÉGIQUE DU RAID : La Boucle du Raccourci (Drop 20%)</strong>
-            <p><strong>Ne descendez surtout pas directement à l'étage -5 !</strong> Le taux de drop du 4e fragment sur les Krak'Haine dépend directement de votre score déjà déposé au coffre : 1% sous 5 000 pts, 5% entre 5 000 et 7 000 pts, 10% entre 7 000 et 10 000 pts, et <strong>20% au-delà de 10 000 points</strong> !<br />En remontant déposer maintenant les reliques de Mureine (1 000 pts), d'Exécrabe (5 000 pts) et vos minerais (plus de 4 000 pts récoltés), vous franchissez instantanément le cap des 10 000 points. Le 4e fragment tombe alors en 1 ou 2 combats au lieu d'y passer 25 minutes !</p>
+            <p><strong>Ne descendez surtout pas directement à l'étage -5 !</strong> Le taux de drop du 4e fragment sur les Krak'Haine dépend directement de votre score déjà déposé au coffre : 1% sous 5 000 pts, 5% entre 5 000 et 7 000 pts, 10% entre 7 000 et 10 000 pts, et <strong>20% au-delà de 10 000 points</strong> !<br /><strong>Rappel crucial : aucun échange n'est possible en raid.</strong> Chaque joueur transporte son propre butin : <strong>l'ensemble des 12 participants doit remonter au coffre</strong> pour déposer ses reliques de Mureine (1 000 pts), d'Exécrabe (5 000 pts) et ses minerais de sel (plus de 4 000 pts récoltés). En franchissant les 10 000 points, le 4e fragment tombe en 1 ou 2 combats au lieu de 25 minutes !</p>
         </div>
 
         <h3>La Séquence de Remontée & Dépôt Express</h3>
@@ -326,7 +342,7 @@ export const guide = {
             <li>Depuis [6,10], empruntez le poisson-lanterne pour réapparaître à l'étage -2 en [4,8].</li>
             <li>Exécutez <pre><code>/travel 2,7</code></pre> puis <pre><code>/travel 3,2</code></pre></li>
             <li>Montez à l'échelle pour regagner l'Avant-poste (-1).</li>
-            <li><strong>Déposez l'intégralité de vos trésors dans le Coffre du Raid</strong> pour sécuriser plus de 10 000 points.</li>
+            <li><strong>Tous les joueurs déposent l'intégralité de leurs trésors dans le Coffre du Raid</strong> pour sécuriser plus de 10 000 points.</li>
             <li>Redescendez l'échelle, puis faites <pre><code>/travel 4,3</code></pre> suivi de <pre><code>/travel 4,8</code></pre></li>
             <li>Empruntez la grotte en bas à droite pour revenir instantanément à l'étage -4.</li>
             <li>Faites <pre><code>/travel 9,11</code></pre>, cliquez sur le petit lac, puis prenez la grotte en bas à droite pour basculer à l'étage -5.</li>
@@ -351,7 +367,7 @@ export const guide = {
 
         <h3>Étage -6 : Sombrefond de Willorque (Boss 3)</h3>
         <p>
-            Rejoignez la salle de Willorque en [11,16]. <strong>Attention : cet étage est plongé dans une obscurité totale de Niveau 0. Willorque agresse automatiquement à 10 PO en 5 secondes !</strong> Entrez tous groupés et soyez prêts instantanément.
+            Rejoignez la salle de Willorque en [11,16]. <strong>Attention : cet étage est plongé dans une obscurité totale de Niveau 0. Willorque agresse automatiquement à 10 PO en 5 secondes !</strong> Entrez tous groupés et soyez prêts instantanément. Willorque est totalement seul sur la carte (aucun monstre, aucun orque spectre).
         </p>
         <pre><code>/travel 11,16</code></pre>
 
@@ -366,8 +382,8 @@ export const guide = {
         </ul>
 
         <div class="callout callout-tip">
-            <strong>La Stratégie Pro « Panda Cheese » (Ignorez les 10 lanternes)</strong>
-            <p>Ne perdez pas une seule seconde à allumer ou éteindre les lanternes ! Dès le Tour 1, le Pandawa porte Willorque et le jette dans un coin isolé de la carte, <strong>à plus de 3 PO de toute lanterne</strong>. Le Pandawa et un second combattant résistant le bloquent au contact. Le reste du raid se recule pour encaisser un Sombre Chant modéré et concentre 100% de ses sorts pour tomber ses 62 000 PV. Vous encaissez ainsi la <em>Noirceur de Willorque</em> (+10 000 points directs) !</p>
+            <strong>La Stratégie Pro « Panda Cheese » (Loin des lanternes/statues)</strong>
+            <p>Ne perdez pas une seule seconde à allumer ou éteindre les lanternes ! Dès le Tour 1, le Pandawa porte Willorque et le jette dans un coin isolé de la carte, <strong>à plus de 3 PO de toute lanterne et statue</strong>. Le Pandawa et un second combattant résistant le bloquent au contact. Le reste du raid se recule pour rester hors de portée de <em>Sombre Chant</em> et concentre 100% de ses sorts pour tomber ses 62 000 PV. Vous encaissez ainsi la <em>Noirceur de Willorque</em> (+10 000 points directs) !</p>
         </div>
 
         <div class="guide-image-container">
@@ -433,6 +449,128 @@ export const guide = {
                 </tr>
             </tbody>
         </table>
+
+        <h3>Compositions Recommandées & Rôles des Classes (Cap 1M Dégâts)</h3>
+        <p>
+            Pour saturer le barème et atteindre le plafond de <strong>1 000 000 de dégâts en 3 tours</strong> (+15 000 points de score), la composition du groupe doit combiner un noyau de placement et d'amplification, des cogneurs monocibles purs, et des synergies de boosts d'équipe.
+        </p>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Classe</th>
+                    <th>Rôle / Catégorie</th>
+                    <th>Sorts Clés & Synergies</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>
+                        <span class="inline-flex items-center gap-2 font-bold text-foreground">
+                            <img src="/assets/dofus/classes/12.png" alt="Pandawa" class="class-icon" width="20" height="20" />
+                            Pandawa
+                        </span>
+                    </td>
+                    <td><strong>Noyau Incontournable</strong> (Placement CaC)</td>
+                    <td><em>Brassage, Vulnérabilité, Portage</em>. Place le Gigalodon en diagonale hors des 3 cases mêlée mortelles et maintient les malus de résistance élémentaire constants.</td>
+                </tr>
+                <tr>
+                    <td>
+                        <span class="inline-flex items-center gap-2 font-bold text-foreground">
+                            <img src="/assets/dofus/classes/8.png" alt="Iop" class="class-icon" width="20" height="20" />
+                            Iop
+                        </span>
+                    </td>
+                    <td><strong>Noyau Incontournable</strong> (Burst T3)</td>
+                    <td><em>Massacre, Colère de Iop T3, Puissance</em>. Synchronise la Colère chargée au Tour 3 avec le second pic du Dofus Nébuleux et les portails pour délivrer le coup de grâce.</td>
+                </tr>
+                <tr>
+                    <td>
+                        <span class="inline-flex items-center gap-2 font-bold text-foreground">
+                            <img src="/assets/dofus/classes/16.png" alt="Eliotrope" class="class-icon" width="20" height="20" />
+                            Eliotrope
+                        </span>
+                    </td>
+                    <td><strong>Noyau Incontournable</strong> (Multiplicateur)</td>
+                    <td><em>Réseau de 4 portails, Entraide, Focalisation</em>. Multiplie les dégâts de tous les alliés frappant à travers le portail final redirigé sur le Gigalodon.</td>
+                </tr>
+                <tr>
+                    <td>
+                        <span class="inline-flex items-center gap-2 font-bold text-foreground">
+                            <img src="/assets/dofus/classes/17.png" alt="Huppermage" class="class-icon" width="20" height="20" />
+                            Huppermage
+                        </span>
+                    </td>
+                    <td><strong>Top DPS Monocible</strong></td>
+                    <td><em>Volcan Terre/Feu, Cycle Élémentaire, Traitement Spécial</em>. Maximise les dégâts bruts par PA et applique des débuffs de résistance supplémentaires.</td>
+                </tr>
+                <tr>
+                    <td>
+                        <span class="inline-flex items-center gap-2 font-bold text-foreground">
+                            <img src="/assets/dofus/classes/13.png" alt="Roublard" class="class-icon" width="20" height="20" />
+                            Roublard
+                        </span>
+                    </td>
+                    <td><strong>Top DPS Monocible</strong></td>
+                    <td><em>Mur de bombes, Poudre, Rebours T3</em>. Fait exploser un mur chargé au Tour 3 sous portails pour pulvériser les compteurs de dégâts.</td>
+                </tr>
+                <tr>
+                    <td>
+                        <span class="inline-flex items-center gap-2 font-bold text-foreground">
+                            <img src="/assets/dofus/classes/9.png" alt="Crâ" class="class-icon" width="20" height="20" />
+                            Crâ
+                        </span>
+                    </td>
+                    <td><strong>Top DPS Monocible</strong> (Distance)</td>
+                    <td><em>Balise tactique, Flèche Destructrice, Flèche Emplie</em>. Tir constant à très longue portée depuis une diagonale sécurisée, sans gêner les lignes de vue alliées.</td>
+                </tr>
+                <tr>
+                    <td>
+                        <span class="inline-flex items-center gap-2 font-bold text-foreground">
+                            <img src="/assets/dofus/classes/4.png" alt="Sram" class="class-icon" width="20" height="20" />
+                            Sram
+                        </span>
+                    </td>
+                    <td><strong>Amplificateur & Boost</strong></td>
+                    <td><em>Marque Mortuaire (+20% dégâts subis), Coupe-Gorge</em>. Permet d'amplifier l'ensemble des frappes de l'équipe pendant le tour de burst.</td>
+                </tr>
+                <tr>
+                    <td>
+                        <span class="inline-flex items-center gap-2 font-bold text-foreground">
+                            <img src="/assets/dofus/classes/14.png" alt="Zobal" class="class-icon" width="20" height="20" />
+                            Zobal
+                        </span>
+                    </td>
+                    <td><strong>Amplificateur & Boost</strong></td>
+                    <td><em>Transfiguration, Masque Psychopathe, Furia, Plastron</em>. Boosts de dégâts de mêlée/distance et boucliers préventifs contre les rebonds de Gigarâle.</td>
+                </tr>
+                <tr>
+                    <td>
+                        <span class="inline-flex items-center gap-2 font-bold text-foreground">
+                            <img src="/assets/dofus/classes/18.png" alt="Ouginak" class="class-icon" width="20" height="20" />
+                            Ouginak
+                        </span>
+                    </td>
+                    <td><strong>Amplificateur & Boost</strong></td>
+                    <td><em>Gibier, Acharnement, Proie</em>. Augmente les dégâts finaux reçus par le Gigalodon pour chaque attaquant.</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h3>Équipements & Synergies Indispensables</h3>
+        <ul>
+            <li><strong>Dofus Nébuleux :</strong> Incontournable sur tous vos DPS principaux. Le combat durant exactement 3 tours, les tours impairs (Tour 1 et Tour 3) profitent du pic de dégâts finaux (+20%), synchronisé parfaitement avec la Colère de Iop et le mur de bombes.</li>
+            <li><strong>Jugement de Thanathena :</strong> Arme légendaire conférant un cumul de +4% de dégâts subis à chaque coup porté. Placez les porteurs de Thanathena en début de tour pour amplifier les frappes suivantes.</li>
+            <li><strong>Trophées Arcaniste / Impétueux & Dofus Vulbis :</strong> Privilégiez le mono-élément pur et la mobilité pour garantir un placement parfait à 3 cases minimum de tout allié.</li>
+        </ul>
+
+        <h3>Déroulé Tactique Tour par Tour (T1 à T3)</h3>
+        <ol>
+            <li><strong>Tour 1 (Préparation & Boosts) :</strong> Le Pandawa positionne le Gigalodon en diagonale. Les soutiens posent les boosts de PA et de Puissance. Les Eliotropes configurent le réseau de portails à distance sécurisée. Les DPS profitent du boost impair du Dofus Nébuleux (+20%) pour entamer les PV.</li>
+            <li><strong>Tour 2 (Montée en Puissance & Débuffs) :</strong> Application massive des malus élémentaires (Vulnérabilité, Cycle Élémentaire, Marque Mortuaire). Préparation de la Colère de Iop et chargement des bombes Roublard. Attention à bien maintenir 3 cases d'écart entre alliés contre Gigarâle.</li>
+            <li><strong>Tour 3 (Burst All-In & Cap 1M) :</strong> Déclenchement de toutes les attaques maximales sous le second pic du Nébuleux (+20% finaux). Envoi de la Colère de Iop et des explosions à travers les portails. Saturez la barre de dégâts pour atteindre le cap de 1 000 000.</li>
+            <li><strong>Début Tour 4 :</strong> Le sort automatique <em>« Gigalodoom »</em> s'exécute, clôture le combat et valide instantanément la victoire avec le bonus maximal de +15 000 points !</li>
+        </ol>
 
         <hr />
 

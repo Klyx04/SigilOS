@@ -27,13 +27,13 @@ vi.mock("@/lib/prisma", () => ({
     },
 }));
 vi.mock("@/lib/ratelimit", () => ({ rateLimit: vi.fn() }));
-vi.mock("@/server/discord", () => ({ sendChannelMessage: vi.fn() }));
+vi.mock("@/server/discord", () => ({ sendChannelMessage: vi.fn(), buildSafeRoleMention: vi.fn().mockResolvedValue("") }));
 vi.mock("@/lib/logger", () => ({ logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() } }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 
 import { db } from "@/lib/prisma";
 import { rateLimit } from "@/lib/ratelimit";
-import { sendChannelMessage } from "@/server/discord";
+import { sendChannelMessage, buildSafeRoleMention } from "@/server/discord";
 import { notifyGod } from "@/server/actions/god-notif-actions";
 import { runInOutboxFailureContext } from "@/lib/discord-outbox-context";
 
@@ -75,6 +75,26 @@ describe("notifyGod — l'alerte d'échec d'écriture ne repart JAMAIS sur Disco
         expect(sendChannelMessage).toHaveBeenCalledTimes(1);
         const calls = (sendChannelMessage as unknown as { mock: { calls: unknown[][] } }).mock.calls;
         expect(calls[0][0]).toBe("1547020288380637305");
+    });
+
+    it("ping ⇒ la mention passe par `buildSafeRoleMention` (jamais « @rôle inconnu »)", async () => {
+        (buildSafeRoleMention as any).mockResolvedValue("<@&123456789012345678>");
+
+        await notifyGod({ title: "Veille Discord", message: "x", type: "SYSTEM", success: false, ping: true });
+
+        expect(buildSafeRoleMention).toHaveBeenCalledWith("1547020288380637305", "999");
+        const calls = (sendChannelMessage as unknown as { mock: { calls: unknown[][] } }).mock.calls;
+        expect(calls[0][1]).toBe("<@&123456789012345678>");
+    });
+
+    it("rôle absent du serveur de l'alerte ⇒ AUCUNE mention (pas de « @rôle inconnu »)", async () => {
+        (buildSafeRoleMention as any).mockResolvedValue("");
+
+        await notifyGod({ title: "Veille Discord", message: "x", type: "SYSTEM", success: false, ping: true });
+
+        const calls = (sendChannelMessage as unknown as { mock: { calls: unknown[][] } }).mock.calls;
+        expect(calls[0][1]).toBe("");
+        expect(String(calls[0][1])).not.toContain("<@&");
     });
 
     it("`dedupeKey` déjà alerté dans la fenêtre ⇒ ni ligne, ni envoi (anti-rafale)", async () => {

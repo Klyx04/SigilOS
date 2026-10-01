@@ -4,7 +4,7 @@ import { logger } from "@/lib/logger";
 import { db } from "@/lib/prisma";
 import { rateLimit } from "@/lib/ratelimit";
 import { isOutboxFailureContext } from "@/lib/discord-outbox-context";
-import { sendChannelMessage } from "@/server/discord";
+import { sendChannelMessage, buildSafeRoleMention } from "@/server/discord";
 import { revalidatePath } from "next/cache";
 
 /**
@@ -48,10 +48,15 @@ export async function notifyGod(params: {
      */
     dedupeKey?: string;
     dedupeWindowMs?: number;
+    /**
+     * Champs d'embed prêts à l'emploi (libellés humains). Fournis par l'appelant pour
+     * remplacer le rendu brut de `metadata` (qui expose des noms de variables techniques).
+     */
+    fields?: { name: string; value: string; inline?: boolean }[];
 }) {
     const {
         title, message, type, success = true, metadata, ping = false, forceChannelId,
-        webOnly = false, dedupeKey, dedupeWindowMs,
+        webOnly = false, dedupeKey, dedupeWindowMs, fields,
     } = params;
 
     // 🛑 INVARIANT ANTI-BOUCLE (structurel, pas une convention d'appel) : une alerte
@@ -115,10 +120,12 @@ export async function notifyGod(params: {
         const targetChannelId = forceChannelId || (platformConfig as any)?.godNotifyChannelId;
 
         if (targetChannelId && !effectiveWebOnly) {
-            let mention = "";
-            if (ping && (platformConfig as any).godNotifyRoleId) {
-                mention = `<@&${(platformConfig as any).godNotifyRoleId}>`;
-            }
+            // Mention **fail-safe** : jamais « @rôle inconnu ». Le rôle configuré est une
+            // valeur de PLATEFORME ; s'il n'existe pas dans le serveur de ce salon (bêta vs
+            // prod), on omet la mention plutôt qu'un ping cassé qui n'atteint personne.
+            const mention = ping
+                ? await buildSafeRoleMention(targetChannelId, (platformConfig as any)?.godNotifyRoleId)
+                : "";
 
             const embedColor = success ? (type === "SYSTEM" ? 0x3b82f6 : 0x10b981) : 0xef4444;
             const emoji = success ? "✅" : "❌";
@@ -132,12 +139,12 @@ export async function notifyGod(params: {
                         embedDescription: message,
                         embedColor,
                         embedFooter: `SigilOS Alert System • ${type}`,
-                        fields: metadata && typeof metadata === 'object' ? 
+                        fields: fields ?? (metadata && typeof metadata === 'object' ? 
                             Object.entries(metadata).slice(0, 5).map(([k, v]) => ({
                                 name: k,
                                 value: String(v),
                                 inline: true
-                            })) : undefined
+                            })) : undefined)
                     }
                 );
                 // Contrat strict : `string | null` — un salon en pause d'écriture (ou sans

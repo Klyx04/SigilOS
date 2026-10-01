@@ -14,6 +14,7 @@ import { getUserContext } from "@/server/actions/user-actions";
 import { deleteChannelMessage } from "@/server/discord";
 import { buildClassSelectRow } from "@/server/discord-class-dispatch";
 import { rateLimit } from "@/lib/ratelimit";
+import { blindAutoCloseWhere, shouldBlindAutoClose } from "@/lib/calendar-auto-close";
 import { startOfWeek, addDays } from "date-fns";
 
 // ============================================
@@ -128,13 +129,11 @@ export async function getCalendarEvents(guildId: string, start: Date, end: Date)
 
         const now = new Date();
 
-        // Auto-complete past events that are still PUBLISHED
+        // Clôture d'office des événements terminés — règle partagée (`blindAutoCloseWhere`) :
+        // un RAID_OFFICIAL n'est clôturé qu'à +48 h, sinon le rappel de clôture (24 h après
+        // la fin) ne pourrait jamais partir (raid déjà COMPLETED, embed supprimé).
         await db.guildEvent.updateMany({
-            where: {
-                guildId: guildConfig.id,
-                endDate: { lt: now },
-                status: "PUBLISHED"
-            },
+            where: blindAutoCloseWhere(guildConfig.id, now),
             data: { status: "COMPLETED" }
         }).catch(() => {});
 
@@ -204,7 +203,10 @@ export async function getCalendarEvents(guildId: string, start: Date, end: Date)
         }
 
         const patchedEvents = events.map(event => {
-            const isPast = event.endDate && new Date(event.endDate) < now;
+            // Même règle que la passe de fond : un raid qui attend sa clôture reste affiché
+            // « Publié » (le rappel de clôture part à +24 h, la clôture d'office n'a lieu
+            // qu'à +48 h) — sinon l'agenda annoncerait « terminé » un raid non clôturé.
+            const isPast = shouldBlindAutoClose(event.type, event.endDate, now);
             const effectiveStatus = (isPast && event.status === "PUBLISHED") ? "COMPLETED" : event.status;
             const meta = event.metadata as any;
             if (meta?.isKralamoure) {
@@ -328,7 +330,9 @@ export async function getCalendarEventDetails(guildId: string, eventId: string) 
 
         // Auto-complete past event if still PUBLISHED
         const now = new Date();
-        const isPast = event.endDate && new Date(event.endDate) < now;
+        // Même règle que la passe de fond : un raid n'est « terminé » qu'à +48 h, pour que
+        // le rappel de clôture (24 h après la fin) ait le temps de partir.
+        const isPast = shouldBlindAutoClose(event.type, event.endDate, now);
         const effectiveStatus = (isPast && event.status === "PUBLISHED") ? "COMPLETED" : event.status;
 
         if (isPast && event.status === "PUBLISHED") {
@@ -2017,13 +2021,10 @@ export async function autoCloseExpiredEvents(guildId: string) {
 
         const now = new Date();
 
-        // Find published events that have ended
+        // Événements terminés à clôturer d'office — règle partagée (`blindAutoCloseWhere`) :
+        // à +48 h seulement pour les raids, dès la fin pour tous les autres types.
         const expiredEvents = await db.guildEvent.findMany({
-            where: {
-                guildId: guildConfig.id,
-                status: "PUBLISHED",
-                endDate: { lt: now }
-            },
+            where: blindAutoCloseWhere(guildConfig.id, now),
             select: { id: true, title: true, metadata: true, discordChannelId: true, discordMessageId: true }
         });
 

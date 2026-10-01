@@ -12,6 +12,17 @@ export const guide = {
             <p>Gigalodon's Chasm is a timed instance granting 60 minutes to trigger the final fight. This tactical guide gathers tested guild strategies: mandatory client settings, cost-effective light management, 3 intermediate boss kills, 20% drop shortcut loop and burst optimization against Gigalodon to cap the 60,000 points track.</p>
         </div>
 
+        <div class="callout callout-info">
+            <strong>🛠️ Public Tools: Raid Studio 3.6 & Detachable Overlay</strong>
+            <p>To prepare and run your raid efficiently, SigilOS provides free interactive tools:</p>
+            <ul>
+                <li><strong>12-Player Squad Planner:</strong> assign your 3 squads of 4, balance critical roles (Tank, Burst T3, Melee Positioning, Multiplier), check party synergy and export to Discord in 1 click.</li>
+                <li><strong>Interactive Luminarium Solver (Floor -3):</strong> cascade Lights Out 4x4 solver to clear the puzzle in seconds without wasting instance time.</li>
+                <li><strong>Always-on-Top In-Game Overlay (PiP):</strong> copy <code>/travel</code> positions in 1 click, track Execrab's 4 forms, and read floor guides without alt-tabbing.</li>
+            </ul>
+            <p><a href="/raids?raid=gigalodon"><strong>→ Open Gigalodon Planner & Solvers in Raid Studio 3.6</strong></a></p>
+        </div>
+
         <h2>I. Preparation & Setup (Pre-Raid Checklist)</h2>
         <p>
             Opening the instance is handled directly from the <strong>Guild Hall</strong> (Guild Shop &gt; Raids tab) by a member holding the required permissions.
@@ -209,7 +220,7 @@ export const guide = {
 
         <div class="callout callout-tip">
             <strong>Two strategies to neutralize Moraympress</strong>
-            <p><strong>Strategy A (Corner lock):</strong> Pandawa isolates Moraympress into a corner and locks her between 2 of her own Murays. By locking both summons with a tanky ally, Moraympress is completely paralyzed and cannot summon.<br /><strong>Strategy B (Safe distance):</strong> Keep all damage dealers at more than 10 Range from Moraympress at start. Without targets in her 10 Range spell cast area, she cannot summon any Muray.</p>
+            <p><strong>Absolute priority:</strong> Kill the 3 regular accompaniment monsters first (Madreporor, Kokapebble, Leviatank) to clear lines of sight.<br /><strong>Strategy A (Corner lock):</strong> Pandawa isolates Moraympress into a corner and locks her between 2 of her own Murays or static summons. By locking both summons with a tanky ally, Moraympress is completely paralyzed and cannot summon.<br /><strong>Strategy B (Safe distance):</strong> Keep all damage dealers at more than 10 Range from Moraympress at start. Without targets in her 10 Range spell cast area, she cannot summon any Muray.</p>
         </div>
 
         <div class="guide-image-container">
@@ -230,12 +241,12 @@ export const guide = {
 
         <div class="guide-image-container">
             <img src="/images/guides/gigalodon/62-mur-luminarium.jpg" alt="The Luminarium wall" class="guide-image" />
-            <span class="guide-caption">4x4 lantern fish grid of the Luminarium</span>
+            <span class="guide-caption">4x4 lantern fish grid on the Luminarium wall</span>
         </div>
 
         <div class="callout callout-warning">
-            <strong>Guild rule: Only 1 player touches the puzzle</strong>
-            <p>Assign <strong>one designated player</strong> to click the 4x4 grid. If several teammates click at once, toggle states will desync and waste precious minutes on the instance timer.</p>
+            <strong>Guild rule: Only 1 player touches the wall grid</strong>
+            <p>Assign <strong>one designated player</strong> to click the 4x4 lantern fish on the vertical wall (click them on the wall, not floor tiles!). If several teammates click at once, toggle states will desync and waste precious minutes on the instance timer.</p>
         </div>
 
         <p><strong>Fast solving method (Lights Out algorithm):</strong></p>
@@ -245,6 +256,11 @@ export const guide = {
             <li>Repeat on row 3 clicking into row 4.</li>
             <li>Solve bottom corners to complete full illumination and open the door to floor -4.</li>
         </ol>
+
+        <div class="callout callout-tip">
+            <strong>Interactive Online Solver</strong>
+            <p>Unsure about your lantern layout? Use our <a href="/raids?raid=gigalodon"><strong>Luminarium Solver in Raid Studio 3.6</strong></a> to mirror your board and get the exact lighting sequence in seconds.</p>
+        </div>
 
         <hr />
 
@@ -315,7 +331,7 @@ export const guide = {
 
         <div class="callout callout-important">
             <strong>THE STRATEGIC RAID PIVOT: Shortcut Loop (20% Drop Rate)</strong>
-            <p><strong>Do not dive directly into floor -5!</strong> Key fragment 4 drop rate from Krak'Haine monsters scales with deposited chest score: 1% below 5,000 pts, 5% between 5,000 and 7,000 pts, 10% between 7,000 and 10,000 pts, and <strong>20% beyond 10,000 points</strong>!<br />By heading back to deposit Moraympress (1,000 pts), Crabinator (5,000 pts) and collected minerals (over 4,000 pts), you instantly pass the 10,000 points threshold. Fragment 4 then drops in 1 or 2 fights instead of grinding for 25 minutes!</p>
+            <p><strong>Do not dive directly into floor -5!</strong> Key fragment 4 drop rate from Krak'Haine monsters scales with deposited chest score: 1% below 5,000 pts, 5% between 5,000 and 7,000 pts, 10% between 7,000 and 10,000 pts, and <strong>20% beyond 10,000 points</strong>!<br /><strong>Crucial note: trading is strictly forbidden in raids.</strong> Every player carries their own loot in their personal raid pouch: <strong>all 12 participants must head back up to the chest</strong> to deposit their Moraympress relic (1,000 pts), Crabinator relic (5,000 pts) and collected minerals. Passing 10,000 points unlocks the 20% drop rate so fragment 4 drops in 1 or 2 fights instead of 25 minutes of grinding!</p>
         </div>
 
         <h3>Express Return & Deposit Sequence</h3>
@@ -323,7 +339,7 @@ export const guide = {
             <li>From [6,10], click the lantern fish shortcut to reappear on floor -2 at [4,8].</li>
             <li>Run <pre><code>/travel 2,7</code></pre> then <pre><code>/travel 3,2</code></pre></li>
             <li>Climb the ladder up to the Outpost (-1).</li>
-            <li><strong>Deposit all resources in the Raid Chest</strong> to secure more than 10,000 points.</li>
+            <li><strong>All 12 players deposit their full loot into the Raid Chest</strong> to pass 10,000 points.</li>
             <li>Climb down the ladder, then run <pre><code>/travel 4,3</code></pre> followed by <pre><code>/travel 4,8</code></pre></li>
             <li>Enter the bottom right cave to warp straight back to floor -4.</li>
             <li>Run <pre><code>/travel 9,11</code></pre>, click the pool, and enter the bottom right cave towards floor -5.</li>
@@ -348,7 +364,7 @@ export const guide = {
 
         <h3>Floor -6: Willorka Deep (Boss 3)</h3>
         <p>
-            Enter Willorka room at [11,16]. <strong>Warning: this floor is plunged into Level 0 pitch black. Willorka automatically aggresses targets within 10 Range in 5 seconds!</strong> Enter stacked together and be ready instantly.
+            Enter Willorka room at [11,16]. <strong>Warning: this floor is plunged into Level 0 pitch black. Willorka automatically aggresses targets within 10 Range in 5 seconds!</strong> Enter stacked together and be ready instantly. Willorka is completely alone on the map (no adds, no ghost orcs).
         </p>
         <pre><code>/travel 11,16</code></pre>
 
@@ -363,8 +379,8 @@ export const guide = {
         </ul>
 
         <div class="callout callout-tip">
-            <strong>Pro Strategy « Panda Cheese » (Ignore all 10 lanterns)</strong>
-            <p>Do not waste a single second toggling lanterns! On Turn 1, Pandawa picks up Willorka and throws him into an isolated corner, <strong>more than 3 Range away from any lantern</strong>. Pandawa and a second tanky teammate lock him in melee. The rest of the raid steps back to take minimal Dark Chant damage and pours 100% firepower to crush his 62,000 HP. You claim <em>Willorka Blackness</em> (+10,000 direct score points)!</p>
+            <strong>Pro Strategy « Panda Cheese » (Far from lanterns/statues)</strong>
+            <p>Do not waste a single second toggling lanterns! On Turn 1, Pandawa picks up Willorka and throws him into an isolated corner, <strong>more than 3 Range away from any lantern or statue</strong>. Pandawa and a second tanky teammate lock him in melee. The rest of the raid steps back to stay out of <em>Dark Chant</em> range and pours 100% firepower to crush his 62,000 HP. You claim <em>Willorka Blackness</em> (+10,000 direct score points)!</p>
         </div>
 
         <div class="guide-image-container">
@@ -430,6 +446,128 @@ export const guide = {
                 </tr>
             </tbody>
         </table>
+
+        <h3>Recommended Compositions & Class Roles (1M Damage Cap)</h3>
+        <p>
+            To reach the maximum <strong>1,000,000 damage cap in 3 turns</strong> (+15,000 bonus score points), your team composition must combine placement and vulnerability debuffs, single-target powerhouses, and team-wide damage amplification.
+        </p>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Class</th>
+                    <th>Role / Category</th>
+                    <th>Key Spells & Synergies</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>
+                        <span class="inline-flex items-center gap-2 font-bold text-foreground">
+                            <img src="/assets/dofus/classes/12.png" alt="Pandawa" class="class-icon" width="20" height="20" />
+                            Pandawa
+                        </span>
+                    </td>
+                    <td><strong>Core Staple</strong> (Melee Placement)</td>
+                    <td><em>Fermentation, Vulnerability, Karcham/Chamrak</em>. Keeps Gigalodon locked in diagonal away from the lethal 3 melee cells and maintains constant elemental debuffs.</td>
+                </tr>
+                <tr>
+                    <td>
+                        <span class="inline-flex items-center gap-2 font-bold text-foreground">
+                            <img src="/assets/dofus/classes/8.png" alt="Iop" class="class-icon" width="20" height="20" />
+                            Iop
+                        </span>
+                    </td>
+                    <td><strong>Core Staple</strong> (Turn 3 Burst)</td>
+                    <td><em>Massacre, Iop's Wrath T3, Power</em>. Unleashes Wrath on Turn 3 synchronized with the Cloudy Dofus peak and Eliotrope portals for extreme damage.</td>
+                </tr>
+                <tr>
+                    <td>
+                        <span class="inline-flex items-center gap-2 font-bold text-foreground">
+                            <img src="/assets/dofus/classes/16.png" alt="Eliotrope" class="class-icon" width="20" height="20" />
+                            Eliotrope
+                        </span>
+                    </td>
+                    <td><strong>Core Staple</strong> (Multiplier)</td>
+                    <td><em>4-Portal Network, Mutual Aid, Focus</em>. Massively amplifies all allied projectile and spell damage redirected through the terminal portal.</td>
+                </tr>
+                <tr>
+                    <td>
+                        <span class="inline-flex items-center gap-2 font-bold text-foreground">
+                            <img src="/assets/dofus/classes/17.png" alt="Huppermage" class="class-icon" width="20" height="20" />
+                            Huppermage
+                        </span>
+                    </td>
+                    <td><strong>Top Single-Target DPS</strong></td>
+                    <td><em>Earth/Fire Volcano, Elemental Cycle</em>. High damage per AP ratio and applies additional elemental resistance debuffs.</td>
+                </tr>
+                <tr>
+                    <td>
+                        <span class="inline-flex items-center gap-2 font-bold text-foreground">
+                            <img src="/assets/dofus/classes/13.png" alt="Rogue" class="class-icon" width="20" height="20" />
+                            Rogue
+                        </span>
+                    </td>
+                    <td><strong>Top Single-Target DPS</strong></td>
+                    <td><em>Bomb Wall, Powder, Countdown T3</em>. Detonates a fully charged bomb wall through portals on Turn 3 to shatter damage thresholds.</td>
+                </tr>
+                <tr>
+                    <td>
+                        <span class="inline-flex items-center gap-2 font-bold text-foreground">
+                            <img src="/assets/dofus/classes/9.png" alt="Cra" class="class-icon" width="20" height="20" />
+                            Cra
+                        </span>
+                    </td>
+                    <td><strong>Top Single-Target DPS</strong> (Ranged)</td>
+                    <td><em>Tactical Beacon, Destructive Arrow, Loaded Arrow</em>. Heavy sustained long-range damage from safe diagonal positions without blocking allied line of sight.</td>
+                </tr>
+                <tr>
+                    <td>
+                        <span class="inline-flex items-center gap-2 font-bold text-foreground">
+                            <img src="/assets/dofus/classes/4.png" alt="Sram" class="class-icon" width="20" height="20" />
+                            Sram
+                        </span>
+                    </td>
+                    <td><strong>Amplifier & Boost</strong></td>
+                    <td><em>Death Mark (+20% damage received), Cut-Throat</em>. Boosts overall raid strike potency throughout the designated burst turn.</td>
+                </tr>
+                <tr>
+                    <td>
+                        <span class="inline-flex items-center gap-2 font-bold text-foreground">
+                            <img src="/assets/dofus/classes/14.png" alt="Masqueraider" class="class-icon" width="20" height="20" />
+                            Masqueraider
+                        </span>
+                    </td>
+                    <td><strong>Amplifier & Boost</strong></td>
+                    <td><em>Transfiguration, Psychopath Mask, Furia, Plastron</em>. Team melee/ranged damage buffs and preventative shields against Gigarumble chain bounces.</td>
+                </tr>
+                <tr>
+                    <td>
+                        <span class="inline-flex items-center gap-2 font-bold text-foreground">
+                            <img src="/assets/dofus/classes/18.png" alt="Ouginak" class="class-icon" width="20" height="20" />
+                            Ouginak
+                        </span>
+                    </td>
+                    <td><strong>Amplifier & Boost</strong></td>
+                    <td><em>Prey, Relentlessness</em>. Increases final damage taken by Gigalodon for every attacking ally.</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h3>Essential Equipment & Synergies</h3>
+        <ul>
+            <li><strong>Cloudy Dofus:</strong> Mandatory on all core damage dealers. Since the battle strictly lasts 3 turns, odd turns (Turn 1 and Turn 3) benefit from the +20% final damage bonus, aligning perfectly with Wrath and bomb detonations.</li>
+            <li><strong>Judgement of Thanathena:</strong> Legendary weapon granting a stacking +4% damage suffered per hit. Position Thanathena users early in the turn order to maximize follow-up damage.</li>
+            <li><strong>Pure Mono-Element Trophies & Vulbis Dofus:</strong> Prioritize pure stats and high mobility to guarantee strict 3-cell spacing from allies at all times.</li>
+        </ul>
+
+        <h3>Turn-by-Turn Battle Execution (T1 to T3)</h3>
+        <ol>
+            <li><strong>Turn 1 (Setup & Boosts):</strong> Pandawa secures Gigalodon on a diagonal. Supports deploy AP and Power buffs. Eliotropes configure the portal grid at safe range. DPS capitalize on the odd-turn Cloudy Dofus boost (+20%).</li>
+            <li><strong>Turn 2 (Debuff Ramping):</strong> Apply elemental debuffs (Vulnerability, Elemental Cycle, Death Mark). Charge Iop's Wrath and prepare Rogue bombs while strictly observing 3-cell spacing.</li>
+            <li><strong>Turn 3 (All-In Burst & 1M Cap):</strong> Unleash all maximum strikes under the second Cloudy Dofus peak (+20% final damage). Fire Wrath and bomb detonations through portals to reach the 1,000,000 cap.</li>
+            <li><strong>Start of Turn 4:</strong> The automated spell <em>« Gigalodoom »</em> triggers, completing the fight with an instant victory and securing the maximum +15,000 bonus score!</li>
+        </ol>
 
         <hr />
 

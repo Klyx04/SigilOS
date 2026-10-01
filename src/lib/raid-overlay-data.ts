@@ -43,6 +43,11 @@ export interface RaidStep {
   hasExecrabePad?: boolean;
   hasBurstGuide?: boolean;
   hasSafeTravelGuide?: boolean;
+  /**
+   * Itinéraire détaillé lié (onglet Trajets) : rend un bouton « Voir le trajet »
+   * qui saute exactement sur la route (id de `safeRoutes`). Jamais de chemin en dur.
+   */
+  linkedRouteId?: string;
 }
 
 export interface BurstOptiData {
@@ -385,6 +390,7 @@ export const RAIDS_DATA: Record<string, RaidData> = {
         bossHp: "62 000 PV",
         coords: "[11, 16]",
         travelCommand: "/travel 11,16",
+        linkedRouteId: "remontee-willorque",
         primaryImage: "/images/guides/gigalodon/103-boss-willorque.jpg",
         secondaryImages: [
           { label: "Panda Cheese : isolement en coin", src: "/images/guides/gigalodon/116-blocage-willorque-pandawa.jpg" },
@@ -423,7 +429,7 @@ export const RAIDS_DATA: Record<string, RaidData> = {
           "Entrer prêts sur la carte [11, 16] pour contrer l'agression immédiate.",
           "Tour 1 : Le Pandawa porte Willorque et le bloque dans un coin dégagé loin des lanternes.",
           "Tank au contact, reste du raid à mi-distance (hors de Sombre Chant 10 PO).",
-          "Après victoire : remonter au coffre (-1) poser la relique (+10 000 pts) et engager le Gigalodon !"
+          "Après victoire : remonter au coffre (-1) via le trajet détaillé ci-dessous, poser la relique (+10 000 pts) et engager le Gigalodon !"
         ],
         proTips: [
           "Option du jeu : 'Afficher les entités au premier plan' pour cibler Willorque facilement.",
@@ -577,6 +583,7 @@ export const RAIDS_DATA: Record<string, RaidData> = {
         title: "Remontée Post-Willorque",
         subtitle: "Dépôt des 10 000 pts de Willorque & Engagement du Combat Final",
         badge: "Phase Finale",
+        dangerWarning: "Noirceur de Willorque sur le dos : en cas de défaite vous êtes téléporté en haut et vous perdez les ressources ! Suivez les positions une par une.",
         steps: [
           {
             stepNum: 1,
@@ -594,13 +601,38 @@ export const RAIDS_DATA: Record<string, RaidData> = {
           },
           {
             stepNum: 3,
-            label: "Remontée vers le Coffre",
-            coords: "[3, 2]",
-            command: "/travel 3,2",
-            action: "Remonter via le raccourci vers [3, 2]. Déposer la relique de Willorque."
+            label: "Traversée -5 vers le Raccourci",
+            coords: "[6, 10]",
+            command: "/travel 6,10",
+            action: "Depuis [10, 14], passer par [12, 13] (attention : l'os marin coupe l'autopilote, reprendre en manuel !) puis [9, 11] jusqu'en [6, 10]. Rester en lumière pour éviter les aggros à 10 PO.",
+            isBlockPoint: true,
+            warning: "Reprendre le contrôle manuel dès [12, 13] : l'autopilote est coupé, les monstres agressent jusqu'à 10 cases !"
           },
           {
             stepNum: 4,
+            label: "Raccourci Poisson-Lanterne",
+            coords: "[4, 7]",
+            command: "/travel 4,7",
+            action: "Le porteur de la Pince clique sur le poisson-lanterne en [6, 10]. Tout le monde traverse vers [4, 7] (-2). Le raccourci coupe l'autopilote : continuer en manuel.",
+            isBlockPoint: true,
+            warning: "Coupure autopilote à la traversée : seul le porteur de la Pince d'Exécrabe peut ouvrir !"
+          },
+          {
+            stepNum: 5,
+            label: "Traversée Étage -2 vers -1",
+            coords: "[2, 7]",
+            command: "/travel 2,7",
+            action: "Depuis [4, 7], travel vers [2, 7] puis cliquer sur l'accès pour remonter à l'étage -1."
+          },
+          {
+            stepNum: 6,
+            label: "Arrivée au Coffre du Raid",
+            coords: "[3, 2]",
+            command: "/travel 3,2",
+            action: "Depuis [4, 3], travel vers [3, 2]. Les 12 joueurs vident leur sacoche au coffre (relique de Willorque incluse)."
+          },
+          {
+            stepNum: 7,
             label: "Lancement Gigalodon",
             coords: "[3, 2]",
             command: "/travel 3,2",
@@ -1271,6 +1303,7 @@ export const RAIDS_DATA_EN: Record<string, RaidData> = {
         title: "Post-Willorc Ascent",
         subtitle: "Deposit Willorc's 10,000 pts & Launch Final Encounter",
         badge: "Final Phase",
+        dangerWarning: "Darkness of Willorc on your back: losing a fight teleports you up top and you lose your resources! Follow positions one by one.",
         steps: route.steps.map((st) => ({
           ...st,
           label:
@@ -1278,13 +1311,35 @@ export const RAIDS_DATA_EN: Record<string, RaidData> = {
               ? "Willorc Defeated"
               : st.stepNum === 2
               ? "Return to Diving Cage"
-              : "Ascent to Chest",
+              : st.stepNum === 3
+              ? "Crossing -5 to Shortcut"
+              : st.stepNum === 4
+              ? "Lanternfish Shortcut"
+              : st.stepNum === 5
+              ? "Crossing Floor -2 to -1"
+              : st.stepNum === 6
+              ? "Arrival at Raid Chest"
+              : "Launch Gigalodon",
           action:
             st.stepNum === 1
               ? "Willorc defeated ➔ Obtain 'Darkness of Willorc' (+10,000 pts at chest)."
               : st.stepNum === 2
               ? "Take diving cage back to Floor -5."
-              : "Ascend via shortcut to [3, 2]. Deposit Willorc's relic.",
+              : st.stepNum === 3
+              ? "From [10, 14], go through [12, 13] (warning: sea bone cuts autopilot, resume manual!) then [9, 11] to [6, 10]. Stay lit to avoid 10-range aggros."
+              : st.stepNum === 4
+              ? "Claw holder clicks lanternfish at [6, 10]. Everyone crosses to [4, 7] (-2). The shortcut cuts autopilot: continue manually."
+              : st.stepNum === 5
+              ? "From [4, 7], travel to [2, 7] then click access to return to Floor -1."
+              : st.stepNum === 6
+              ? "From [4, 3], travel to [3, 2]. All 12 players empty bags at chest (Willorc relic included)."
+              : "Talk to chest at [3, 2] to trigger the 3-turn Gigalodon fight!",
+          warning:
+            st.stepNum === 3
+              ? "Resume manual control from [12, 13]: autopilot is cut, mobs aggro up to 10 cells!"
+              : st.stepNum === 4
+              ? "Autopilot cut on crossing: only the Execrabe Claw holder can open!"
+              : undefined,
         })),
       };
     }),
@@ -1525,7 +1580,7 @@ export const RAIDS_DATA_EN: Record<string, RaidData> = {
           "Enter ready on map [11, 16] to handle immediate aggro.",
           "Turn 1: Pandawa carries Willorc and locks him in a clear corner far from lanterns.",
           "Tank in melee, rest of raid at mid-range (outside Dark Chant 10 Range).",
-          "After victory: return to chest (-1) to deposit relic (+10,000 pts) and engage Gigalodon!",
+          "After victory: return to chest (-1) via the detailed route below, deposit relic (+10,000 pts) and engage Gigalodon!",
         ],
         proTips: [
           "Game setting: 'Show entities in foreground' to target Willorc easily in darkness.",

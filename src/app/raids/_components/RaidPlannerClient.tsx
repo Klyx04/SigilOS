@@ -24,8 +24,10 @@ import {
     ChevronUp,
     BookOpen,
     UserPlus,
+    Tv2,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n/client";
+import { useRaidOverlay } from "@/hooks/use-raid-overlay";
 import { DOFUS_CLASSES, RAID_ROLES, RaidId, RaidSlot, RoleKey } from "../types";
 import { LuminariumSolver } from "./LuminariumSolver";
 import { JardinsEnigmaTracker } from "./JardinsEnigmaTracker";
@@ -471,8 +473,10 @@ function SlotCard({
    MAIN COMPONENT
 ═══════════════════════════════════════════════════ */
 export function RaidPlannerClient() {
-    const { t } = useI18n();
+    const { t, locale } = useI18n();
     const l10n = t.raidStudio;
+    const isEn = locale === "en";
+    const { openRaidOverlay, closeRaidOverlay, isOpen: isOverlayOpen } = useRaidOverlay();
 
     const [selectedRaid, setSelectedRaid] = useState<RaidId>("sanctuaire");
     const [activeTab, setActiveTab] = useState<"planner" | "luminarium" | "enigmes" | "strategy">("planner");
@@ -485,6 +489,7 @@ export function RaidPlannerClient() {
 
     const assets = RAID_ASSETS[selectedRaid];
     const raidI18n = l10n.raids[selectedRaid];
+    const overlaySlug = selectedRaid === "sanctuaire" ? "jardin-eternel" : "gigalodon";
 
     /* ─── Load from Share URL or LocalStorage ─── */
     useEffect(() => {
@@ -778,6 +783,17 @@ export function RaidPlannerClient() {
                         <Copy className="w-3.5 h-3.5" />
                         <span>{l10n.exportDiscordBtn}</span>
                     </button>
+                    <button
+                        onClick={() => {
+                            if (isOverlayOpen) closeRaidOverlay();
+                            else openRaidOverlay({ raidSlug: overlaySlug });
+                        }}
+                        title={isEn ? "Open the raid overlay (detachable window with rooms, routes and strategy)" : "Ouvrir l'overlay du raid (fenêtre détachable : salles, trajets, stratégie)"}
+                        className="px-3.5 py-1.5 rounded-xl border border-info/30 bg-info/10 hover:bg-info/20 text-xs font-bold text-info transition-all flex items-center gap-1.5"
+                    >
+                        <Tv2 className="w-3.5 h-3.5" />
+                        <span>{isOverlayOpen ? (isEn ? "Close Overlay" : "Fermer l'overlay") : (isEn ? "Raid Overlay" : "Overlay du raid")}</span>
+                    </button>
                 </div>
             </div>
 
@@ -1021,9 +1037,16 @@ export function RaidPlannerClient() {
                 <div className="space-y-6 animate-in fade-in-0 duration-200">
                     {/* Briefing en 3 points clés */}
                     <div className="rounded-2xl border border-border bg-surface/50 p-5 sm:p-6 space-y-4">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                             <Sparkles className="w-4 h-4 text-accent" />
                             <h3 className="text-sm font-bold text-foreground">Briefing & Règles Tactiques — {raidI18n.name}</h3>
+                            <a
+                                href={selectedRaid === "sanctuaire" ? "/guides/raid-sanctuaire-jardins-eternels-dofus-guide" : "/guides/raid-gigalodon-dofus-guide"}
+                                className="ml-auto inline-flex items-center gap-1 text-[11px] font-semibold text-info hover:text-foreground transition-colors"
+                            >
+                                <BookOpen className="w-3.5 h-3.5" />
+                                <span>{isEn ? "Full guide" : "Guide complet"}</span>
+                            </a>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                             {raidI18n.briefing.map((item: string, idx: number) => (

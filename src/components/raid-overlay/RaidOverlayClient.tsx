@@ -25,6 +25,7 @@ import {
 } from "@/lib/raid-overlay-data";
 import { useI18n } from "@/lib/i18n/client";
 import { getClass } from "@/lib/dofus-assets";
+import { parseCoordinates } from "@/lib/rush-guide-utils";
 import { copyToClipboard } from "@/lib/clipboard";
 import { OverlayPinNotice } from "@/components/overlay-pin-notice";
 import { JardinsEnigmaTracker } from "@/app/raids/_components/JardinsEnigmaTracker";
@@ -146,8 +147,10 @@ function formatTravelCommand(input: string): string {
 }
 
 /**
- * Détecte les coordonnées [x, y] ou [x,y] dans un texte et les rend cliquables
- * pour copier la commande `/travel x,y` dans le presse-papier.
+ * Détecte les coordonnées `[x, y]` ET les commandes `/travel x,y` / `/w x,y`
+ * dans un texte et les rend cliquables pour copier la commande dans le
+ * presse-papier. La normalisation (affichage canonique `[x, y]`, commande
+ * copiée) passe par `parseCoordinates`, source unique du produit.
  */
 function TextWithCoords({
   text,
@@ -160,7 +163,7 @@ function TextWithCoords({
   copiedKey: string | null;
   isEn?: boolean;
 }) {
-  const coordRegex = /\[\s*(-?\d+)\s*,\s*(-?\d+)\s*\]/g;
+  const coordRegex = /\/\s*(?:w|travel)\s+(-?\d+)\s*[,;]?\s*(-?\d+)(?!\d)|\[\s*(-?\d+)\s*,\s*(-?\d+)\s*\]/gi;
   const parts: React.ReactNode[] = [];
   let lastIndex = 0;
   let match: RegExpExecArray | null;
@@ -170,10 +173,15 @@ function TextWithCoords({
       parts.push(text.slice(lastIndex, match.index));
     }
 
-    const x = match[1];
-    const y = match[2];
+    const parsed = parseCoordinates(match[0]);
+    if (!parsed) {
+      parts.push(match[0]);
+      lastIndex = coordRegex.lastIndex;
+      continue;
+    }
+    const { x, y, travelCommand } = parsed;
     const raw = `[${x}, ${y}]`;
-    const travelCmd = `/travel ${x},${y}`;
+    const travelCmd = travelCommand;
     const key = `inline-${x}-${y}-${match.index}`;
     const isCopied = copiedKey === key;
 
@@ -765,6 +773,26 @@ export function RaidOverlayClient({
                   </li>
                 ))}
               </ol>
+              {(() => {
+                const linkedRoute = currentStep.linkedRouteId
+                  ? raid.safeRoutes?.find((r) => r.id === currentStep.linkedRouteId)
+                  : undefined;
+                if (!linkedRoute) return null;
+                return (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTravelSubTab("routes");
+                      setActiveTravelRouteId(linkedRoute.id);
+                      setMainView("safe_travel");
+                    }}
+                    className="mt-1.5 inline-flex items-center gap-1.5 rounded-md border border-cyan-500/30 bg-cyan-500/10 px-2 py-1 text-[10.5px] font-semibold text-cyan-200 transition-colors hover:bg-cyan-500/20 hover:text-white"
+                  >
+                    <MapPin size={11} className="shrink-0" />
+                    <span>{isEn ? `View route: ${linkedRoute.title}` : `Voir le trajet : ${linkedRoute.title}`}</span>
+                  </button>
+                );
+              })()}
             </div>
           </div>
         )}

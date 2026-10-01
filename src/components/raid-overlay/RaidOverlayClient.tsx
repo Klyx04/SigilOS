@@ -480,7 +480,7 @@ export function RaidOverlayClient({
       {!pinned && <OverlayPinNotice />}
 
       {/* ── 2. NAVIGATION ÉPURÉE (1 SEULE RANGÉE DE TEXTE, DYNAMIQUE PAR RAID) ── */}
-      <nav className="flex items-center justify-between shrink-0 bg-[#0a0b0e] border-b border-white/[0.08] px-3 text-[11px]">
+      <nav className="flex items-center justify-between shrink-0 bg-[#14161d] border-b border-white/[0.14] px-3 text-[11px]">
         {(currentRaidSlug === "jardin-eternel"
           ? ([
               { id: "step", label: isEn ? "Rooms" : "Salles" },
@@ -506,7 +506,7 @@ export function RaidOverlayClient({
                 "py-2 px-1.5 transition-colors border-b-2 font-medium",
                 isActive
                   ? "text-white border-cyan-400"
-                  : "text-white/40 border-transparent hover:text-white/80"
+                  : "text-white/60 border-transparent hover:text-white"
               )}
             >
               {tab.label}
@@ -520,7 +520,7 @@ export function RaidOverlayClient({
         <div
           ref={floorNavRef}
           onWheel={handleHorizontalWheel}
-          className="shrink-0 bg-[#0c0d12] border-b border-white/[0.06] px-2 py-1 flex items-center gap-1 overflow-x-auto scrollbar-none"
+          className="shrink-0 bg-[#16181f] border-b border-white/[0.12] px-2 py-1 flex items-center gap-1 overflow-x-auto scrollbar-none"
         >
           {raid.steps.map((st, idx) => {
             const isActive = idx === activeStepIdx;
@@ -551,8 +551,8 @@ export function RaidOverlayClient({
                 className={cn(
                   "px-2 py-0.5 rounded text-[10.5px] shrink-0 transition-colors whitespace-nowrap",
                   isActive
-                    ? "bg-white/10 text-white font-semibold border border-white/20"
-                    : "text-white/40 hover:text-white/80 hover:bg-white/[0.03] border border-transparent"
+                    ? "bg-white/[0.16] text-white font-semibold border border-white/30"
+                    : "text-white/60 hover:text-white hover:bg-white/[0.06] border border-transparent"
                 )}
               >
                 {shortLabel}
@@ -786,7 +786,7 @@ export function RaidOverlayClient({
                       setActiveTravelRouteId(linkedRoute.id);
                       setMainView("safe_travel");
                     }}
-                    className="mt-1.5 inline-flex items-center gap-1.5 rounded-md border border-cyan-500/30 bg-cyan-500/10 px-2 py-1 text-[10.5px] font-semibold text-cyan-200 transition-colors hover:bg-cyan-500/20 hover:text-white"
+                    className="mt-1.5 inline-flex items-center gap-1.5 rounded-md border border-white/25 bg-white/[0.08] px-2 py-1 text-[10.5px] font-semibold text-white transition-colors hover:bg-white/[0.14]"
                   >
                     <MapPin size={11} className="shrink-0" />
                     <span>{isEn ? `View route: ${linkedRoute.title}` : `Voir le trajet : ${linkedRoute.title}`}</span>

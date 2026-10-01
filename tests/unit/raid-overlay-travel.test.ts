@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { readFileSync } from "node:fs";
 import { RAIDS_DATA, RAIDS_DATA_EN } from "@/lib/raid-overlay-data";
 import { parseCoordinates } from "@/lib/rush-guide-utils";
 
@@ -49,5 +50,12 @@ describe("overlay raid — positions cliquables", () => {
         }
         const willorque = RAIDS_DATA.gigalodon.steps.find((s) => s.id === "step-7");
         expect(willorque?.linkedRouteId).toBe("remontee-willorque");
+    });
+
+    it("tracker jardin : zéro vert premium en dur (jetons success, hex Vert jeu conservé)", () => {
+        const code = readFileSync("src/app/raids/_components/JardinsEnigmaTracker.tsx", "utf8");
+        expect(code, "emerald-* restant").not.toMatch(/emerald-\d/);
+        // La couleur Vert du jeu (ouvrage monochrome) est une donnée, pas du slop.
+        expect(code).toContain("#10b981");
     });
 });

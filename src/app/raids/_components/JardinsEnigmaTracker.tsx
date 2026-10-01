@@ -237,7 +237,7 @@ export function JardinsEnigmaTracker({ compact = false, onCopyTravel }: JardinsE
               className={cn(
                 "px-2.5 py-1 rounded text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer select-none",
                 activeTab === tab.id
-                  ? "bg-emerald-500/15 text-emerald-300 border border-emerald-500/40"
+                  ? "bg-success/15 text-success border border-success/40"
                   : "text-muted-foreground hover:text-foreground hover:bg-white/[0.04] border border-transparent"
               )}
             >
@@ -290,7 +290,7 @@ export function JardinsEnigmaTracker({ compact = false, onCopyTravel }: JardinsE
                       className={cn(
                         "w-7 h-7 rounded flex items-center justify-center font-bold text-xs border transition-all cursor-pointer",
                         activeDirection === dir.id
-                          ? "bg-emerald-500 text-black border-emerald-400 font-black shadow-sm"
+                          ? "bg-success text-black border-success font-black shadow-sm"
                           : "bg-surface border-border text-muted-foreground hover:text-foreground"
                       )}
                       title={dir.label}
@@ -342,7 +342,7 @@ export function JardinsEnigmaTracker({ compact = false, onCopyTravel }: JardinsE
                       className={cn(
                         "p-1.5 rounded-lg border flex flex-col items-center justify-center gap-1 transition-all cursor-pointer",
                         statueSelected === st.id
-                          ? "bg-emerald-500/20 border-emerald-400 text-emerald-200 shadow-sm"
+                          ? "bg-success/20 border-success text-success shadow-sm"
                           : "bg-surface border-border text-muted-foreground hover:text-foreground hover:bg-white/[0.02]"
                       )}
                       title={st.name}
@@ -382,8 +382,8 @@ export function JardinsEnigmaTracker({ compact = false, onCopyTravel }: JardinsE
               </div>
 
               {/* Résultat Calculé */}
-              <div className="p-3 rounded-lg border border-emerald-500/30 bg-emerald-500/5 space-y-2">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400 block">
+              <div className="p-3 rounded-lg border border-success/30 bg-success/5 space-y-2">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-success block">
                   {isEn ? "Calculated target to eliminate:" : "Cible calculée à éliminer :"}
                 </span>
                 {currentStatueResult ? (
@@ -392,7 +392,7 @@ export function JardinsEnigmaTracker({ compact = false, onCopyTravel }: JardinsE
                       <div className="text-xl font-mono font-black text-foreground">
                         {currentStatueResult.pos}
                       </div>
-                      <span className="text-[11px] text-emerald-300 font-medium">
+                      <span className="text-[11px] text-success font-medium">
                         {isEn ? "Orientation:" : "Orientation :"} {currentStatueResult.arrow}
                       </span>
                     </div>
@@ -403,8 +403,8 @@ export function JardinsEnigmaTracker({ compact = false, onCopyTravel }: JardinsE
                       className={cn(
                         "px-2.5 py-1.5 rounded font-mono text-[11px] font-bold border transition-all cursor-pointer flex items-center gap-1",
                         copiedKey === "statue-target"
-                          ? "bg-emerald-500 text-black border-emerald-400"
-                          : "bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border-emerald-500/40"
+                          ? "bg-success text-black border-success"
+                          : "bg-success/20 hover:bg-success/30 text-success border-success/40"
                       )}
                     >
                       {copiedKey === "statue-target" ? <Check size={12} /> : <Copy size={11} />}
@@ -447,7 +447,7 @@ export function JardinsEnigmaTracker({ compact = false, onCopyTravel }: JardinsE
 
                   <div className="flex items-center gap-1.5">
                     {pos ? (
-                      <div className="flex-1 flex items-center justify-between px-2.5 py-1.5 rounded bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 font-mono font-bold text-xs">
+                      <div className="flex-1 flex items-center justify-between px-2.5 py-1.5 rounded bg-success/15 border border-success/40 text-success font-mono font-bold text-xs">
                         <span>{isEn ? `Tile ${pos}` : `Case ${pos}`}</span>
                         <button
                           type="button"
@@ -461,7 +461,7 @@ export function JardinsEnigmaTracker({ compact = false, onCopyTravel }: JardinsE
                       <button
                         type="button"
                         onClick={() => setOpenPosPickerPieceId(isOpen ? null : piece.id)}
-                        className="w-full py-1.5 px-2.5 rounded border border-dashed border-border hover:border-emerald-400 text-muted-foreground hover:text-foreground text-xs font-medium transition-all text-center cursor-pointer"
+                        className="w-full py-1.5 px-2.5 rounded border border-dashed border-border hover:border-success text-muted-foreground hover:text-foreground text-xs font-medium transition-all text-center cursor-pointer"
                       >
                         {isEn ? "Choose a tile…" : "Choisir une case…"}
                       </button>
@@ -486,7 +486,7 @@ export function JardinsEnigmaTracker({ compact = false, onCopyTravel }: JardinsE
                       <div className="space-y-0.5 max-h-56 overflow-y-auto reg-scrollbar pr-0.5">
                         {COLS_ECHECS.map((col) => (
                           <div key={col} className="flex items-center gap-0.5">
-                            <span className="w-4 font-mono text-[10px] font-bold text-emerald-400 shrink-0 text-center">
+                            <span className="w-4 font-mono text-[10px] font-bold text-success shrink-0 text-center">
                               {col}
                             </span>
                             <div className="flex-1 grid grid-cols-11 gap-0.5">
@@ -504,8 +504,8 @@ export function JardinsEnigmaTracker({ compact = false, onCopyTravel }: JardinsE
                                     className={cn(
                                       "h-5 rounded text-[9px] font-mono font-semibold transition-all cursor-pointer flex items-center justify-center",
                                       isCurrent
-                                        ? "bg-emerald-500 text-black font-black"
-                                        : "bg-white/[0.04] hover:bg-emerald-500/30 text-white/80"
+                                        ? "bg-success text-black font-black"
+                                        : "bg-white/[0.04] hover:bg-success/30 text-white/80"
                                     )}
                                   >
                                     {row}
@@ -611,7 +611,7 @@ export function JardinsEnigmaTracker({ compact = false, onCopyTravel }: JardinsE
                                 onClick={() =>
                                   setOpenObjPicker(isPickerOpen ? null : { romain: roman, slotIdx })
                                 }
-                                className="flex-1 py-1 px-2 rounded border border-dashed border-border hover:border-emerald-400 text-muted-foreground hover:text-foreground text-[11px] text-left truncate cursor-pointer"
+                                className="flex-1 py-1 px-2 rounded border border-dashed border-border hover:border-success text-muted-foreground hover:text-foreground text-[11px] text-left truncate cursor-pointer"
                               >
                                 {isEn ? "Choose item…" : "Choisir objet…"}
                               </button>
@@ -714,7 +714,7 @@ export function JardinsEnigmaTracker({ compact = false, onCopyTravel }: JardinsE
                     <span
                       className={cn(
                         "text-[11px] font-mono font-bold px-2 py-0.5 rounded",
-                        isFull ? "bg-emerald-500/20 text-emerald-300" : "bg-white/[0.04] text-muted-foreground"
+                        isFull ? "bg-success/20 text-success" : "bg-white/[0.04] text-muted-foreground"
                       )}
                     >
                       {count} / {isEn ? "3 boats" : "3 bateaux"}

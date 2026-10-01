@@ -789,7 +789,7 @@ export function RaidPlannerClient() {
                             else openRaidOverlay({ raidSlug: overlaySlug });
                         }}
                         title={isEn ? "Open the raid overlay (detachable window with rooms, routes and strategy)" : "Ouvrir l'overlay du raid (fenêtre détachable : salles, trajets, stratégie)"}
-                        className="px-3.5 py-1.5 rounded-xl border border-cyan-500/30 bg-cyan-500/10 hover:bg-cyan-500/20 text-xs font-bold text-cyan-200 transition-all flex items-center gap-1.5"
+                        className="px-3.5 py-1.5 rounded-xl border border-info/30 bg-info/10 hover:bg-info/20 text-xs font-bold text-info transition-all flex items-center gap-1.5"
                     >
                         <Tv2 className="w-3.5 h-3.5" />
                         <span>{isOverlayOpen ? (isEn ? "Close Overlay" : "Fermer l'overlay") : (isEn ? "Raid Overlay" : "Overlay du raid")}</span>
@@ -1042,7 +1042,7 @@ export function RaidPlannerClient() {
                             <h3 className="text-sm font-bold text-foreground">Briefing & Règles Tactiques — {raidI18n.name}</h3>
                             <a
                                 href={selectedRaid === "sanctuaire" ? "/guides/raid-sanctuaire-jardins-eternels-dofus-guide" : "/guides/raid-gigalodon-dofus-guide"}
-                                className="ml-auto inline-flex items-center gap-1 text-[11px] font-semibold text-cyan-300 hover:text-white transition-colors"
+                                className="ml-auto inline-flex items-center gap-1 text-[11px] font-semibold text-info hover:text-foreground transition-colors"
                             >
                                 <BookOpen className="w-3.5 h-3.5" />
                                 <span>{isEn ? "Full guide" : "Guide complet"}</span>

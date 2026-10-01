@@ -776,7 +776,7 @@
 
 | **F** | **Orphelins / reprise de relai** : un objet publié dont l'organisateur disparaît n'a **personne aux commandes** — raid (calendrier), post DJ/Quêtes, run Songes, session mini-jeux | **rien codé** — **mesuré le 01/10/2026** (chemin par chemin, cf. **§ F**) | ✅ **Question user (01/10)** : quand le créateur d'un raid part, on **ferme** (comme DJ/Songes) ou on **laisse vivre** pour les inscrits (Kamas Violets) en attendant une reprise ? **Recommandation : laisser vivre + marquer orphelin** ; lots proposés **F-A** (débloquer les impasses réservées au capitaine/leader) → **F-B** (orphelin visible + « Reprendre », et `closeMemberPublishedContent` étendu au calendrier) → **F-C** (succession automatique, patron `handleGuildOwnerSuccession`) |
 
-| **G** | **RAID** : clôture + no-show, strat **dans** la modale raid, agenda miroir lecture seule DJ/Songes, rangs de boss 1-5, cartes multi-donjons, overlay Simulation, déslop raid | **§1 + §3 livrés** (01/10 : #815 classes, #816 rappel de clôture 24 h) — **R1→R10 à faire** (détail : `docs/plans/PLAN-RAID.md`, amorce : `docs/plans/AMORCE-RAID.md`) | ✅ **2 arbitrages attendus** — facteur Kamas Violets (`*10` vs `*10 000`) et stockage de `raidPurpleKamasCost` ⇒ **bloquent R1** ; **1 migration additive** dans R1 ⇒ **accord avant** ; ordre proposé L1 → L2 → L4 → L5 → L6 → L7, L3 dès arbitrages tranchés |
+| **G** | **RAID** : clôture + no-show, strat **dans** la modale raid, agenda miroir lecture seule DJ/Songes, rangs de boss 1-5, cartes multi-donjons, overlay Simulation, déslop raid | **§1 + §3 livrés** (01/10 : #815 classes, #816 rappel de clôture 24 h) — **R0→R7 à faire** (détail : `docs/plans/PLAN-RAID.md`, amorce : `docs/plans/AMORCE-RAID.md`) | ✅ **Ordre officiel de la consigne** (elle fait foi) : **P0 sécu** → §4 → **§14** → §12 → §10 → §5 → §6 → §7 → §8 → §9 → §11 → §15 → §16 → §17 → §18 → §19 → §20 → §21 → §22 → §23 → §2 ; **2 arbitrages attendus** (facteur Kamas Violets · stockage du coût) ⇒ bloquent **§14** ; **1 migration additive** dans §14 ⇒ accord avant |
 
 ### A. Siphons game-data — « pk c 300 dans chaque type ? » · « pk toutes ces erreurs ? » · « pk rien n'est responsive nulle part ? » · « ca fait 100x qu'on refais game-data depuis 1 an […] je sature de pas avoir un truc pro à l'épreuve des balles »
 
@@ -969,7 +969,8 @@ un même `ok` : ce sont deux causes opposées (attente vs échec), la distinctio
 > `docs/plans/AMORCE-RAID.md` (état, ordre, **bloc à coller** pour la session). **Rien n'est recopié ici** : cette
 > entrée n'est qu'un **pointeur**.
 > **Livré** : §1 classes du calendrier (**PR #815** `9427a9f1`) · §3 rappel de clôture de raid 24 h (**PR #816** `92d7ccd0`).
-> **⏸️ En attente de ta réponse (bloque R1)** : facteur Kamas Violets (`*10` vs `*10 000`) et stockage de `raidPurpleKamasCost`.
+> **Ordre officiel** — écrit dans la consigne (« Ordre de réalisation (reste) »), **il fait foi** : **P0 sécu (RBAC `bounties`/`calendar`/`relance`)** → §4 miroir → **§14 no-show** → §12 → §10 → §5 → §6 → §7 → §8 → §9 → §11 → §15 → §16 → §17 → §18 → §19 → §20 strat → §21 → §22 → §23 → §2 mini-jeux (repris tel quel au `docs/plans/PLAN-RAID.md` §6).
+> **⏸️ En attente de ta réponse (bloque §14 = 3ᵉ lot)** : facteur Kamas Violets (`*10` vs `*10 000`) et stockage de `raidPurpleKamasCost`.
 > **Origine** : dépouillement par sujet de la consigne volatile `src/temp/consigne-2026-09-30-raid-calendrier-mini-jeux.md` (§14, §20, §4, §6, §7, §8, §15, §16, §22, §23).
 
 ### Reste épars — déjà consigné ailleurs (ne pas dupliquer)

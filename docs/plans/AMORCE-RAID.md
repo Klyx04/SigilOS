@@ -11,26 +11,29 @@ description: Amorce de session — exécuter les chantiers RAID du plan `docs/pl
 > (**PR #816**) sont **livrés : ne pas refaire**. ⏸️ **2 arbitrages bloquent le lot L3** (facteur Kamas Violets
 > `*10` vs `*10 000` ; stockage de `raidPurpleKamasCost`) ⇒ **les poser AVANT d'écrire la première ligne de L3**.
 > **Mode demandé** : « *one shot* » ⇒ enchaîner les lots **sans redemander la suite**, **1 lot = 1 branche = 1 PR → `dev`**.
-> **Arrêt uniquement** si : une **mesure** contredit le plan · une **migration** devient nécessaire (L3 en porte
+> **Arrêt uniquement** si : une **mesure** contredit le plan · une **migration** devient nécessaire (L2 en porte
 > une : accord explicite) · une **interface publique Discord** change · une **suppression de données** devient
-> nécessaire · ou un des 2 arbitrages de L3 n'est pas tranché.
+> nécessaire · ou un des 2 arbitrages de L2 n'est pas tranché.
 
-## 0. État d'exécution (01/10/2026) — **il reste les lots L1 → L7**
+## 0. État d'exécution (01/10/2026) — **il reste les lots L0 → L7**, dans **l'ordre officiel de la consigne**
 
-| Lot | Chantier | Branche | PR | État |
-|---|---|---|---|---|
-| — | **§1** classes du calendrier | `fix/calendrier-classes` | **#815** | ✅ **mergé** `9427a9f1` |
-| — | **§3** rappel de clôture de raid 24 h | `feat/rappel-cloture-raid` | **#816** (absorbée) | ✅ **mergé** `92d7ccd0` |
-| **L1** | R2 strat + overlay + guides internes | `feat/raid-strat-overlay` | — | ⏳ à faire |
-| **L2** | R3 agenda : miroir lecture seule DJ/Songes | `feat/agenda-miroir-dj-songes` | — | ⏳ à faire |
-| **L3** | R1 clôture + no-show (**1 migration**) | `feat/raid-cloture-noshow` | — | ⏸️ **bloqué par 2 arbitrages** |
-| **L4** | R5 rangs de monstre 1-5 (fin des `G1-G10`) | `fix/rangs-monstre-1-5` | — | ⏳ à faire |
-| **L5** | R6 maps multi-donjons | `fix/maps-multi-donjons` | — | ⏳ à faire |
-| **L6** | R4 overlay Simulation + anomalies sans stats | `fix/overlay-simulation-anomalies` | — | ⏳ à faire |
-| **L7** | R7 vignettes raid/agenda + R8/R9/R10 (déslop ciblé) | `fix/raid-vignettes-deslop` | — | ⏳ à faire |
+| Lot | Chantier | Position officielle | Branche | PR | État |
+|---|---|---|---|---|---|
+| — | **§1** classes du calendrier | livré | `fix/calendrier-classes` | **#815** | ✅ mergé `9427a9f1` |
+| — | **§3** rappel de clôture de raid 24 h | livré | `feat/rappel-cloture-raid` | **#816** | ✅ mergé `92d7ccd0` |
+| — | **§24** Qilby (map/sorts/fit) · **§25** overlay raid `/travel` | livré | `feat/qilby-arena-dashboard` · `feat/raid-overlay-travel-chips` | **#817** · **#819** | ✅ mergés |
+| **L0** | **R0** — P0 sécu : RBAC `calendar` (+ `bounties`, `relance`) | **1ᵉʳ** | `fix/rbac-calendar-bounties-relance` | — | ⏳ à faire (**aucune décision**) |
+| **L1** | **R1** — §4 agenda : miroir lecture seule DJ/Songes | **2ᵉ** | `feat/agenda-miroir-dj-songes` | — | ⏳ à faire |
+| **L2** | **R2** — §14 clôture + no-show (**1 migration**) | **3ᵉ** | `feat/raid-cloture-noshow` | — | ⏸️ **bloqué par 2 arbitrages** |
+| **L3** | **R3** — §6 anomalies sans stats + overlay Simulation | 8ᵉ | `fix/overlay-simulation-anomalies` | — | ⏳ à faire |
+| **L4** | **R4** — §7 rangs de monstre 1-5 (fin des `G1-G10`) | 9ᵉ | `fix/rangs-monstre-1-5` | — | ⏳ à faire |
+| **L5** | **R5** — §8 maps multi-donjons (générique encyclopédie) | 10ᵉ | `fix/maps-multi-donjons` | — | ⏳ à faire |
+| **L6** | **R6** — §15 dashboard vie (vignettes raid/agenda) | 14ᵉ | `fix/dashboard-vie-vignettes` | — | ⏳ à faire |
+| **L7** | **R7** — §20 guides internes + **modale raid strat** | 20ᵉ | `feat/raid-strat-guides` | — | ⏳ à faire |
+| *(partagés)* | §16 volet **calendrier** (15ᵉ) · §22/§23 volet **rosters + modales** (23ᵉ) | — | — | — | ⏳ dans leurs lots |
 
 > 👉 **Pour reprendre : le bloc §6 suffit** (il porte l'état, l'ordre et les arbitrages, tel quel).
-> Branches **à créer depuis `dev`** (état de `dev` au 01/10/2026 : `2a316143`), **une par lot**, et toujours
+> Branches **à créer depuis `dev`** (état de `dev` au 01/10/2026 : `b986b97d`), **une par lot**, et toujours
 > **après** le merge du lot précédent (`git fetch origin dev && git merge origin/dev` avant d'ouvrir la PR).
 
 ## 1. Brief
@@ -55,50 +58,59 @@ description: Amorce de session — exécuter les chantiers RAID du plan `docs/pl
 | **D4** | **Stocker `raidPurpleKamasCost`** au moment de la clôture (sinon `undo` rembourse une valeur de repli) | ⏸️ **à trancher** — bloque L3 |
 | **D5** | **Pas de badge no-show public** : statuts privés + compteur **officier seul**, jamais de stigmatisation (référence Raid Helper) | ✅ acté (consigne §14, « cible validée ») |
 | **D6** | **Miroirs DJ/Songes = lecture seule** pour **tout le monde**, admin compris (seul CTA « Ouvrir le post d'origine ») | ✅ acté (consigne §4, « principe validé ») |
-| **D7** | **Ordre des lots** : L1 → L2 → L4 → L5 → L6 → L7, avec **L3 dès que D3/D4 sont tranchés** | ⏳ à confirmer par le user |
+| **D7** | **Ordre des lots** : c'est **celui de la consigne** (« Ordre de réalisation (reste) ») — **L0 sécu → L1 (§4 miroir) → L2 (§14 no-show) → L3 (§6 overlay) → L4 (§7 rangs) → L5 (§8 maps) → L6 (§15) → L7 (§20 strat)**, les lots non-raid s'intercalant | ✅ **acté** (écrit dans la consigne, il fait foi) |
 
-## 3. Ordre d'exécution — **7 lots, 1 lot = 1 branche = 1 PR → `dev`**
+## 3. Ordre d'exécution — **8 lots (L0 → L7), 1 lot = 1 branche = 1 PR → `dev`**
 
 > Règle : **on merge un lot avant d'ouvrir le suivant** (branche créée depuis `dev` **après** le merge du précédent).
 > Mode « one shot » : on n'attend pas de feu vert entre les lots, **sauf** aux portes d'arrêt (§0).
 
-### L1 — La strat entre dans la modale raid (R2) — risque faible, zéro migration
-Livrer : bloc « strat » **dans** la modale du raid (patron du bloc « Objectifs », `DocContent` + sommaire, **sans redirection**), branchement des slugs de guides raid existants, bouton overlay via `use-raid-overlay` (PiP), cartes de guides internes **avec vignette + filtre**.
-Preuve : capture de la modale raid **avec** la strat ouverte + l'overlay en PiP ; non-régression : `use-boss-overlay` et fiches boss **intactes**.
+### L0 — Le P0 sécu d'abord : le calendrier n'est plus ouvert à tout le monde (R0 · §23) — aucune décision
+Livrer : garde **fail-closed** sur la page calendrier (`getUserContext` + `canViewCalendar` + module ON) **et** re-vérification que **chaque action serveur** du calendrier re-garde ; **même P0** pour `bounties` et `relance` (§23 « critiques »).
+Preuve : un membre **sans** droit calendrier est **refusé** (capture) ; test unitaire de la garde (contexte absent ⇒ refus, jamais d'accès par défaut).
 
-### L2 — L'agenda n'invente plus rien (R3) — table partagée
-Livrer : **copie miroir** `GuildEvent` des posts DJ / runs Songes (`metadata.source`), sync complète (création / patch de dates / `CANCELLED` puis purge / rien sans date / 1 Event chapeau pour le multi-dates), **modale lecture seule** pour tous (aucune action), filtre d'agenda **sans surcharge** (2 pastilles repliées + compteurs).
-Preuve : un post DJ daté apparaît dans l'agenda et **aucun** bouton d'action n'est cliquable (capture) ; un post fermé ⇒ miroir `CANCELLED` puis purgé ; test d'isolation `guildId`.
+### L1 — L'agenda n'invente plus rien (R1 · §4) — table partagée
+Livrer : **copie miroir** `GuildEvent` des posts DJ / runs Songes (`metadata.source`), règle **pure** dans `src/lib/`, appels **explicites** après `createDjPost` / `createDjPosts` / `updateDjPost` / `createDreamRun` / `updateDreamRun` (+ clôture / suppression) avec **garde `WHERE` + idempotence `metadata`**, `guildId` serveur, Zod borné, rate-limit Redis, fail-closed — **jamais** de trigger Prisma ni de logique client ; multi 2-5 dates ⇒ **1 Event chapeau** ; **modale lecture seule** (`EventDetailReadonly`) pour **tous**, admin compris ; filtre d'agenda **sans surcharge** (2 pastilles repliées + compteurs).
+Preuve : un post DJ daté apparaît et **aucun** bouton d'action n'est cliquable (capture) ; post fermé ⇒ miroir `CANCELLED` puis purgé ; double appel ⇒ **1** event ; test d'isolation `guildId`.
+⚠️ **Vigilance** : courses DJ ↔ calendrier (garde `WHERE`) ; catégories **QUETE / DEFI / TITAN** sans équivalent natif ⇒ **à trancher** (repli `DUNGEON_FARM` + label).
 
-### L3 — La clôture devient un vrai acte (R1) — **1 migration, ARRÊT avant**
-Livrer : table de **présences** (`PRESENT/PREVENU/EXCUSE/NO_SHOW`) + **motif obligatoire** (défaut « Prévenu »), clôture **bloquante** (XP/Kamas **présents seuls**), garde **capitaine / organisateur / `canManageRaid`** (`RAID_OFFICER` enfin utilisé), **`undo` qui défait tout**, **compteur 90 j officier seul**, **audit** clôture + correction, modale sans tout-coché + attestation **revérifiée serveur**, tag staff privé dans le registre.
-Preuve : `undo` ramène l'état **exactement** d'avant (présences, points, Kamas, no-show) ; l'audit contient clôture **et** correction ; aucune donnée de no-show lisible côté membre.
+### L2 — La clôture devient un vrai acte (R2 · §14) — **1 migration, ARRÊT avant**
+Livrer : table **`RaidPresence`** (`@@unique[eventId,userId]`, index 90 j) **écrite** dans `completeRaidEvent` et **supprimée** dans `undo` ; modale (bloc Absents **dès la décoche**, `select` de motif, **validation bloquante**, attestation **chiffrée** « X présents débités, N no-shows ») ; droits **`RAID_OFFICER` / `canManageRaid`** + `creatorId` / `raidCaptainId` ; colonne **registre** (staff seul) ; correction officier + `createAuditLog` **avant → après**.
+Preuve : `undo` ramène l'état **exactement** d'avant (présences, points, Kamas, no-show) ; l'audit contient clôture **et** correction ; un membre lambda est **refusé** ; aucune donnée de no-show lisible côté membre.
+⏸️ **Bloqué par D3 / D4** (facteur Kamas Violets · stockage de `raidPurpleKamasCost`) — et c'est le **3ᵉ** lot de l'ordre officiel.
 
-### L4 — Les rangs redeviennent 1-5 (R5) — petit, règle pure
-Livrer : `normalizeMonsterGrades` (1-5 via `scaleGradeRef`, dédup) appliquée aux **3** producteurs, `gradesCount`/`g5` recalculés, palier de butin **découplé** de `grades.length`.
-Preuve : Servitude (10 grades DofusDB) n'affiche **plus** `G6-G10` et son `g5` est juste ; non-régression : les monstres à **5** grades sont inchangés.
+### L3 — L'overlay Simulation cesse d'être un empilement (R3 · §6) — moyen
+Livrer : **1 toolbar unique** (Boss libre + sort PA·PO + map **visible** + zoom + Options + Légende), Options en **3 sections** (Board / Placement / Butin), prévisu en **rail latéral** (replié par défaut, jamais superposé en PiP), « Ordre d'apparition » **cliquable** (`handleCellClick`), zoom + `Fit` uniques, déslop (rayons 3/4/6, 0 blur/shadow/italic) ; anomalies : élargir le siphon (**Rushu** ou siphon par id) + lectures **local-only** avec `stale` **daté** + état vide explicite.
+Preuve : captures avant/après (PiP **et** plein écran) ; « Larve de Rushu » affiche des stats (ou un `stale` daté, **jamais** un vide muet) ; test de non-duplication des contrôles.
+⚠️ **Vigilance** : ne **pas** casser la donnée Qilby (§24 — `qilby-map.ts`, `effectDetails.damage`) ; les Lots 2/3/6 (TTL, local-only strict, fraîcheur) doivent passer **avant** de couper le live.
 
-### L5 — Une carte, tous les donjons (R6) — petit
-Livrer : résolution **union** de tous les donjons contenant le monstre (`isBoss` = union des `PreferredMaps`, cache `monstre+donjon`, `Map vide 17×17` conservée).
-Preuve : Servitude affiche **Fers ∪ Tempête** ; Armécréante ne retombe plus sur le mauvais donjon.
+### L4 — Les rangs redeviennent 1-5 (R4 · §7) — règle pure
+Livrer : `normalizeMonsterGrades` (garder 1-5 via `scaleGradeRef`, dédup) sur les **3** producteurs (`monster-stats-core:586`, `bounty-grades:62`, `dungeon-monsters-siphon:291`), `gradesCount` / `g5` recalculés, palier de butin (`B4+idx`) **dérivé** de `percentByGrade` / `lootCount` — jamais de `grades.length`.
+Preuve : Servitude (10 grades DofusDB) ⇒ **5** grades + taux 1-5 ; UI butin `B4..B8` ; non-régression : les monstres à **5** grades sont inchangés.
+⚠️ **Vigilance** : `SpellGrades` (niveau de sort par grade) n'a **pas** d'équivalent DofusDB — cas type **Ancrépulsion** à valider en jeu.
 
-### L6 — L'overlay Simulation cesse d'être un empilement (R4) — moyen
-Livrer : **1 toolbar unique** (Boss libre + sort PA·PO + map + zoom + Options + Légende), map visible sans menu, Options en 3 sections, prévisu en **rail latéral** (repliée par défaut en PiP), « Ordre d'apparition » **cliquable**, zoom non ronds + `Fit` unique, déslop mesuré ; anomalies : élargir le siphon (Rushu) + lectures local-only avec `stale` daté.
-Preuve : captures avant/après de l'overlay (PiP **et** plein écran) ; « Larve de Rushu » affiche des stats (ou un `stale` daté, jamais un vide muet).
+### L5 — Une carte, tous les donjons (R5 · §8) — petit
+Livrer : résolution **union** de **tous** les hits (`Monsters[]` + `monster.Dungeons[]`) dans `getDofensiveDungeonForBoss`, `resolveDofensiveDungeonDirect`, `getLocalDofensiveDungeonAny`, `getDungeonMonsters` ; `isBoss` = **union** des `PreferredMaps` ; cache `monstre+donjon` ; filtre de `SpellRangeGrid` **inchangé** sur l'union ; `Map vide 17×17` conservée.
+Preuve : Servitude ⇒ **Fers ∪ Tempête** ; Armécréante idem ; un monstre mono-donjon est **inchangé**.
+⚠️ **Vigilance** : `syncDofensiveMaps` doit renseigner `isBoss` au siphon (aujourd'hui faux implicite).
 
-### L7 — Ce qui reste du raid (R7 + R8 + R9 + R10) — petit, déslop ciblé
-Livrer : vignettes raid/event dans l'agenda du dashboard + `RaidHeroBanner` visuel ; activité guilde enrichie (DJ fermé, marché vendu, succès validé) ; filtre du calendrier (`OTHERS` + pastilles repliées) ; responsive **des rosters** ; modales du raid au registre.
-Preuve : capture agenda dashboard (vignettes) + capture mobile du roster (scroll propre, rien de coupé).
+### L6 — Ce qui reste du raid (R6 · §15 + R8/R9) — petit
+Livrer : vignettes raid/event dans l'agenda du dashboard (`resolveEventImagePath` + picto de type) + `RaidHeroBanner` visuel ; activité guilde enrichie (3 requêtes DJ `CLOSED`, marché `SOLD`, succès `VALIDATED` + mapping `UnifiedLog`) ; volet **calendrier** de §16 (`OTHERS` + replis dans le filtre) ; responsive **des rosters** et modales du raid au registre (§22/§23 — **lots partagés**, à traiter dans leurs lots).
+Preuve : capture de l'agenda (vignettes) + capture mobile du roster (scroll propre, rien de coupé).
+
+### L7 — La strat entre dans la modale raid (R7 · §20) — **dernier lot raid (20ᵉ)**
+Livrer : bloc « strat » **dans** la modale du raid (`DialogContent sm:max-w-3xl` + `ScrollArea` + `DocContent` + sommaire, **sans redirection**) ; cartes de **guides internes** avec image + filtre (registre `coverImage` / `readingTime` / `category`) ; bouton `use-raid-overlay` (PiP 420×720).
+Preuve : la modale raid ouvre la strat **sans changer de page** (capture) ; non-régression : `use-boss-overlay` et fiches boss **intactes**.
 
 ## 4. Les pièges mesurés à ne pas rejouer
 
 1. **`git add -A` interdit dans ce dépôt.** Le propriétaire y travaille **en parallèle** : le 01/10, sa refonte overlay/guide a été happée par un `git add -A`, il a dû la récupérer, et la PR #820 a fini **fermée en no-op**. ⇒ **stager fichier par fichier**, toujours.
 2. **Les numéros de ligne de la consigne sont périmés** (±10-15 après les merges d'overlay) ⇒ **re-mesurer avant de coder**. Les ancres de `PLAN-RAID.md` ont été revérifiées le 01/10/2026 : `calendar-actions.ts:1146/1182/1231/1265/1287`, `permissions.ts:35-36/198-203/258-259`.
-3. **Le fichier de consigne a des défauts** : `## 12. Services…` en double, **3** blocs « Ordre proposé » contradictoires, et les **2 bullets du §13** (gate salon valider-recrue) recopiées à la fin de **~8 sections** — dont §20. Ne pas en déduire qu'une section parle d'autre chose.
+3. **La consigne a été restructurée le 01/10/2026** (BESOIN → MESURÉ → CHANGEMENTS → TESTS → ACCEPTATION → VIGILANCE, tailles `[S]/[M]/[L]`) : ses défauts précédents sont **corrigés** (plus de `## 12` en double, plus de blocs « Ordre proposé » contradictoires, plus de bullets recopiées) et **son « Ordre de réalisation (reste) » fait foi** — il est repris au §0 et au §3 de cette amorce.
 4. **Deux overlays, ne pas les confondre** : `use-raid-overlay` (raid, **PiP 420×720**, store dédié) vs `use-boss-overlay` (boss, 380×680). Le raid utilise **le premier**.
 5. **La clôture est un acte, pas un effet de bord** : aucune conséquence automatique au départ d'un organisateur (c'est le **chantier F** du ROADMAP, **hors** de ce plan) ⇒ ne **pas** desserrer les verrous « capitaine seul » sans test de non-régression.
 6. **`src/temp/` est volatile et gitignoré** : la consigne ne sera **jamais** committée — le survivant, c'est `PLAN-RAID.md` + le `ROADMAP`.
-7. **D3/D4 non tranchés ⇒ on ne code pas L3** (facteur Kamas Violets + stockage du coût) : deviner ici fabriquerait une régression comptable silencieuse.
+7. **D3/D4 non tranchés ⇒ on ne code pas L2 (§14, no-show)** (facteur Kamas Violets + stockage du coût) : deviner fabriquerait une régression comptable silencieuse — et comme c'est le **3ᵉ** lot de l'ordre officiel, **les poser tôt débloque toute la file**.
 
 ## 5. Méthode, sécurité et vérifs (non négociable)
 
@@ -108,39 +120,42 @@ Preuve : capture agenda dashboard (vignettes) + capture mobile du roster (scroll
 
 **VÉRIFS par lot** — `npm run test:run` · `npx tsc --noEmit` · `npm run lint` · `git status --short` **propre** (aucun artefact : sonde, capture, dump) · `gh pr checks` jusqu'au **vert** · merge · branche supprimée (locale + distante) · `dev` repullé · `docs/ROADMAP.md` + `docs/agents/activeContext.md` mis à jour (**bloc en haut**, rotation). Si `next dev` tourne, le build est **délégué à la CI** : le dire (ne pas prétendre l'avoir joué).
 
-## 6. Bloc à coller — **reprise : lots L1 → L7** (prompt de session)
+## 6. Bloc à coller — **reprise : lots L0 → L7** (prompt de session)
 
 ```text
 CHANTIER RAID — lis d'abord docs/plans/PLAN-RAID.md (le dossier) et docs/plans/AMORCE-RAID.md §0 (l'état),
-puis exécute les lots L1 → L7 en ONE SHOT : 1 lot = 1 branche = 1 PR vers dev, branche créée depuis dev
-APRÈS le merge du lot précédent. Les §1 (classes du calendrier, PR #815) et §3 (rappel de clôture 24 h,
-PR #816) sont DÉJÀ LIVRÉS : ne pas les refaire.
+puis exécute les lots L0 → L7 dans **l'ORDRE DE LA CONSIGNE** (« Ordre de réalisation (reste) »), en ONE SHOT :
+1 lot = 1 branche = 1 PR vers dev, branche créée depuis dev APRÈS le merge du lot précédent. DÉJÀ LIVRÉS (ne pas
+refaire) : §1 classes (PR #815), §3 rappel de clôture 24 h (PR #816), §24 Qilby (PR #817), §25 overlay raid (#819).
 
-PÉRIMÈTRE
-- L1 : strat DANS la modale raid (patron du bloc Objectifs, DocContent + sommaire, sans redirection) +
-  slugs de guides raid existants + bouton overlay via use-raid-overlay (PiP) + cartes de guides internes
-  avec vignette et filtre.
-- L2 : agenda miroir LECTURE SEULE des posts DJ / runs Songes (GuildEvent + metadata.source, sync complète,
-  CANCELLED puis purge, modale sans aucune action pour personne, filtre d'agenda sans surcharge).
-- L3 (APRÈS mes réponses sur D3/D4) : clôture + no-show — table de présences PRESENT/PREVENU/EXCUSE/NO_SHOW,
-  motif obligatoire (défaut Prévenu), XP/Kamas présents seuls, garde capitaine/organisateur/canManageRaid
-  (RAID_OFFICER enfin utilisé), undo qui défait TOUT, compteur 90 j officier seul, audit clôture + correction,
-  modale sans tout-coché + attestation revérifiée côté serveur, tag staff privé dans le registre.
-- L4 : rangs de monstre 1-5 (règle pure normalizeMonsterGrades via scaleGradeRef, 3 producteurs,
-  gradesCount/g5 recalculés, palier de butin découplé de grades.length).
-- L5 : maps multi-donjons (union de TOUS les donjons du monstre, isBoss = union des PreferredMaps,
-  cache monstre+donjon, Map vide 17x17 conservée).
-- L6 : overlay Simulation (1 toolbar unique, map visible, Options en 3 sections, prévisu en rail latéral
-  replié par défaut en PiP, ordre d'apparition cliquable, zoom + Fit uniques, déslop) + anomalies sans stats
-  (élargir le siphon, lectures local-only, stale daté).
-- L7 : vignettes raid/event dans l'agenda dashboard + RaidHeroBanner visuel + activité guilde enrichie +
-  filtre du calendrier (OTHERS, pastilles repliées) + responsive des rosters + modales du raid au registre.
+PÉRIMÈTRE (dans cet ordre)
+- L0 (1er) : P0 sécu — garde fail-closed sur la page calendrier (getUserContext + canViewCalendar + module ON)
+  + re-garde de CHAQUE action serveur du calendrier ; même P0 pour bounties et relance. Aucune décision requise.
+- L1 (2e) : agenda miroir LECTURE SEULE des posts DJ / runs Songes — règle pure dans src/lib, appels explicites
+  après createDjPost / createDjPosts / updateDjPost / createDreamRun / updateDreamRun, garde WHERE + idempotence
+  metadata, guildId serveur, Zod borné, rate-limit Redis, fail-closed, JAMAIS de trigger Prisma ni de logique
+  client ; 1 Event chapeau pour le multi-dates ; EventDetailReadonly pour TOUS ; filtre d'agenda sans surcharge.
+- L2 (3e, APRÈS mes réponses sur D3/D4) : clôture + no-show — table RaidPresence (unique eventId+userId, index
+  90 j) écrite dans completeRaidEvent et supprimée dans undo ; modale (bloc Absents dès la décoche, select de
+  motif, validation bloquante, attestation chiffrée) ; droits RAID_OFFICER/canManageRaid + creatorId/raidCaptainId ;
+  compteur 90 j officier seul ; colonne registre (staff) ; correction officier + createAuditLog avant -> apres.
+- L3 (8e) : overlay Simulation (1 toolbar unique, Options en 3 sections Board/Placement/Butin, prévisu en rail
+  latéral, ordre d'apparition cliquable, zoom + Fit uniques, déslop) + anomalies sans stats (siphon élargi,
+  local-only, stale daté) — SANS casser la donnée Qilby.
+- L4 (9e) : rangs 1-5 — règle pure normalizeMonsterGrades (scaleGradeRef, dédup) sur les 3 producteurs,
+  gradesCount/g5 recalculés, palier de butin dérivé de percentByGrade/lootCount.
+- L5 (10e) : maps multi-donjons — union de TOUS les hits, isBoss = union des PreferredMaps, cache
+  monstre+donjon, Map vide 17x17 conservée.
+- L6 (14e) : vignettes raid/event dans l'agenda dashboard + RaidHeroBanner + activité guilde enrichie +
+  volet calendrier de §16 (OTHERS) + responsive des rosters / modales du raid (lots partagés §22/§23).
+- L7 (20e) : strat DANS la modale raid (DialogContent sm:max-w-3xl + ScrollArea + DocContent + sommaire)
+  + guides internes avec image et filtre + bouton use-raid-overlay (PiP 420x720).
 
 MÉTHODE — mesure la cause racine AVANT de corriger et écris la mesure ; corrige au bon étage (règle pure
 src/lib/** > src/server/** > composant, UNE source de vérité par règle) ; teste le comportement ET la
 non-régression (captaincy, RBAC, auto-clôture +48 h) ; prouve par capture avant/après ou mesure chiffrée ;
 1 lot = 1 branche = 1 PR vers dev (jamais de push sur main/dev) ; pas de scope creep ; STOP et demande-moi
-si une mesure contredit le plan, si une migration devient nécessaire (L3 en porte une : additive,
+si une mesure contredit le plan, si une migration devient nécessaire (L2 en porte une : additive,
 idempotente, accord AVANT), si une interface publique Discord change, ou si une suppression de données
 devient nécessaire.
 

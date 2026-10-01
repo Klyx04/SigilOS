@@ -14,6 +14,7 @@ import {
   MapPin,
   Flame,
   Swords,
+  Languages,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -222,11 +223,14 @@ export function RaidOverlayClient({
   const clearExecrabeShapes = useRaidOverlayStore((s) => s.clearExecrabeShapes);
 
   const currentRaidSlug = payload?.raidSlug ?? initialRaidSlug;
-  const { locale } = useI18n();
+  const { locale, setLocale } = useI18n();
   const isEn = locale === "en";
   const raid = getLocalizedRaidData(currentRaidSlug, locale);
   const currentStep: RaidStep | undefined = raid.steps[activeStepIdx] || raid.steps[0];
   const hasSalts = Boolean(raid.saltLocations && raid.saltLocations.length > 0);
+
+  const [isRaidMenuOpen, setIsRaidMenuOpen] = useState(false);
+  const raidDropdownRef = useRef<HTMLDivElement>(null);
 
   const execrabeForms = useMemo(() => getExecrabeForms(isEn), [isEn]);
   const lightScale = useMemo(() => getLightScale(isEn), [isEn]);
@@ -318,11 +322,25 @@ export function RaidOverlayClient({
     }
   };
 
-  // Raccourci clavier Escape pour fermer le zoom d'image ou l'overlay
+  // Fermeture du menu de sélection de raid en cliquant en dehors
+  useEffect(() => {
+    if (!isRaidMenuOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (raidDropdownRef.current && !raidDropdownRef.current.contains(e.target as Node)) {
+        setIsRaidMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [isRaidMenuOpen]);
+
+  // Raccourci clavier Escape pour fermer le menu de raid, le zoom d'image ou l'overlay
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        if (zoomedImage) {
+        if (isRaidMenuOpen) {
+          setIsRaidMenuOpen(false);
+        } else if (zoomedImage) {
           setZoomedImage(null);
         } else if (onClose) {
           onClose();
@@ -331,34 +349,104 @@ export function RaidOverlayClient({
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [zoomedImage, onClose]);
+  }, [isRaidMenuOpen, zoomedImage, onClose]);
 
   return (
     <div className="w-full h-full min-h-screen bg-[#0e1015] text-[#d6d8df] flex flex-col font-sans select-none overflow-hidden isolate text-[12px]">
       {/* ── 1. HEADER HUD DISCRET (Pas de double bouton fermer avec le PiP) ── */}
-      <header className="h-9 shrink-0 px-3 bg-[#0a0b0e] border-b border-white/[0.08] flex items-center justify-between z-30">
-        <div className="flex items-center gap-2 min-w-0">
-          <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 shrink-0" />
-          <select
-            value={currentRaidSlug}
-            onChange={(e) => {
-              setRaid(e.target.value as RaidSlug);
-              setActiveStep(0);
-              setMainView("step");
-            }}
+      <header className="h-9 shrink-0 px-3 bg-[#0a0b0e] border-b border-white/[0.08] flex items-center justify-between z-30 relative">
+        {/* Dropdown choix de raid stylisé */}
+        <div className="relative min-w-0" ref={raidDropdownRef}>
+          <button
+            type="button"
+            onClick={() => setIsRaidMenuOpen((prev) => !prev)}
+            className="flex items-center gap-1.5 px-2 py-1 -ml-1 rounded hover:bg-white/[0.06] text-white transition-colors cursor-pointer group"
+            aria-expanded={isRaidMenuOpen}
             aria-label={isEn ? "Select raid" : "Sélectionner le raid"}
-            className="bg-transparent text-[11px] font-medium text-white/90 hover:text-white focus:outline-none cursor-pointer border-none p-0"
           >
-            <option value="gigalodon" className="bg-[#0a0b0e] text-white">
-              {isEn ? "The Gigalodon Abyss" : "Gouffre Gigalodon"}
-            </option>
-            <option value="jardin-eternel" className="bg-[#0a0b0e] text-white">
-              {isEn ? "Eternal Gardens Sanctuary" : "Jardin Éternel"}
-            </option>
-          </select>
+            <span
+              className={cn(
+                "w-1.5 h-1.5 rounded-full shrink-0 transition-colors",
+                currentRaidSlug === "jardin-eternel" ? "bg-emerald-400" : "bg-cyan-400"
+              )}
+            />
+            <span className="text-[11.5px] font-semibold tracking-tight text-white group-hover:text-cyan-300 transition-colors truncate">
+              {currentRaidSlug === "gigalodon"
+                ? (isEn ? "The Gigalodon Abyss" : "Gouffre Gigalodon")
+                : (isEn ? "Eternal Gardens Sanctuary" : "Jardin Éternel")}
+            </span>
+            <ChevronDown
+              size={12}
+              className={cn(
+                "text-white/40 group-hover:text-white/70 transition-transform duration-150",
+                isRaidMenuOpen && "rotate-180 text-cyan-400"
+              )}
+            />
+          </button>
+
+          {isRaidMenuOpen && (
+            <div className="absolute top-full left-0 mt-1 w-56 rounded-md border border-white/10 bg-[#12141c] p-1 shadow-2xl z-50 animate-in fade-in zoom-in-95 duration-100">
+              <div className="px-2 py-1 text-[9px] uppercase tracking-wider text-white/40 font-semibold">
+                {isEn ? "Select Raid" : "Choisir un raid"}
+              </div>
+              {[
+                {
+                  id: "gigalodon" as RaidSlug,
+                  title: isEn ? "The Gigalodon Abyss" : "Gouffre Gigalodon",
+                  subtitle: isEn ? "12 Players · 6 Floors" : "12 Joueurs · 6 Étages",
+                  color: "bg-cyan-400",
+                },
+                {
+                  id: "jardin-eternel" as RaidSlug,
+                  title: isEn ? "Eternal Gardens Sanctuary" : "Jardin Éternel",
+                  subtitle: isEn ? "16 Players · 4 Wings" : "16 Joueurs · 4 Ailes",
+                  color: "bg-emerald-400",
+                },
+              ].map((r) => {
+                const isSelected = currentRaidSlug === r.id;
+                return (
+                  <button
+                    key={r.id}
+                    type="button"
+                    onClick={() => {
+                      setRaid(r.id);
+                      setActiveStep(0);
+                      setMainView("step");
+                      setIsRaidMenuOpen(false);
+                    }}
+                    className={cn(
+                      "w-full px-2 py-1.5 rounded text-left flex items-center justify-between transition-colors cursor-pointer",
+                      isSelected
+                        ? "bg-white/10 text-white font-medium"
+                        : "text-white/70 hover:text-white hover:bg-white/5"
+                    )}
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", r.color)} />
+                      <div className="min-w-0">
+                        <p className="text-[11px] font-medium truncate leading-tight">{r.title}</p>
+                        <p className="text-[9.5px] text-white/40 truncate leading-tight mt-0.5">{r.subtitle}</p>
+                      </div>
+                    </div>
+                    {isSelected && <Check size={12} className="text-cyan-400 shrink-0 ml-1" />}
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
 
+        {/* Boutons actions droite : Switch langue, Studio 3.6 & Guide */}
         <div className="flex items-center gap-1 shrink-0">
+          <button
+            type="button"
+            onClick={() => setLocale(isEn ? "fr" : "en")}
+            title={isEn ? "Passer en Français" : "Switch to English"}
+            className="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold text-white/70 hover:text-white hover:bg-white/5 border border-white/10 transition-colors flex items-center gap-1 cursor-pointer"
+          >
+            <Languages size={10} className="text-white/40" />
+            <span>{isEn ? "EN" : "FR"}</span>
+          </button>
           <a
             href={`/raids?raid=${currentRaidSlug === "jardin-eternel" ? "sanctuaire" : "gigalodon"}`}
             target="_blank"

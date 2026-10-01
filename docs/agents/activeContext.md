@@ -5,6 +5,14 @@
 > **supprimées le 20/09/2026** (`docs/arbo/ARCHIVES-TEMP-2026-09.md`) ; ils restent **intégralement**
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
+
+## 🔧 Session 01/10/2026 (RGPD : la politique de confidentialité déclare enfin ses cookies) — **§8 « Cookies et traceurs » (session Discord, CSRF, préférence de langue) · mentions enrichies · `X-Powered-By` retiré · chantier R « durcissement réseau » ajouté** · branche `docs/rgpd-cookies`
+> **Déclencheur** : « j'ai parlé avec un pote DPO […] j'avais des cookies de session discord ; on en parle pas dans les pages rgpd ? ».
+> **Mesuré** : cookies posés = `authjs.session-token` (24 h, `src/auth.config.ts:20`), `authjs.csrf-token` (Auth.js), `sigilos_locale` (1 an) ; **aucun analytics** ⇒ **pas de bandeau requis** ; la politique de **confidentialité ne parlait d'aucun cookie** ; `sigilos.fr` = `Server: Caddy` + DNS A `213.32.18.129` (OVH) ⇒ **pas de Cloudflare proxy**.
+> **Fait** : §8 Cookies (FR+EN) + mentions §5 enrichies + `poweredByHeader: false` ; **chantier R** (Cloudflare, décision **D8**) ajouté à `docs/plans/FILE-EXECUTION.md`.
+> **Preuves** : `tsc` **0** · `eslint` **0 erreur** · **272 fichiers / 3 037 tests ✓**.
+> **Ops user** : déployer (0 migration) ; trancher **D8** (Cloudflare ou non).
+
 ## 🎯 Session 01/10/2026 (Lot 1 de la consigne — **§1 + §3 livrés** : PR #815 mergée · PR #816 a absorbé ma branche 2 · **PR #820 fermée en no-op**) — **la classe des inscrits s'affiche enfin (repli profil + pictos, « Mes personnages » Discord ET site) · un raid non clôturé est relancé 24 h après sa fin (ping du seul capitaine, dans le cron existant) · nouveau chantier F « orphelins / reprise de relai »** · branches `fix/calendrier-classes` (supprimée) + `feat/rappel-cloture-raid` (supprimée)
 > **Demandes user (verbatim)** : « dis moi ce que tu as compris pour les 10 premiers changements et j'ajuste » · « allez go branche 1 et 2 » · « attends je bosse en même temps sur une refonte overlay raid et guide raid, bouge pas » · « j'ai taffé pas mal entre temps, reprenons sur ce que tu proposes pour ce 1er jet ».
 > **Mesures (01/10/2026 — ancres et détails dans `docs/ROADMAP.md`, bloc du 01/10, jamais recopiés ici)** : ① embed calendrier sans repli `UserProfile.classe` ni pictos (Songes/DJ les ont) et **4 requêtes** qui ne lisaient même pas `classe` ; ② **4** endroits (pas 2) basculaient un événement en `COMPLETED` dès `endDate < now`, **embed Discord supprimé au passage** ⇒ le rappel de clôture ne pouvait jamais partir ; ③ rien n'existait en post-raid ; ④ **trous de relai** mesurés (kick raid interdit à l'admin, clôture Songes réservée au leader, `transferRaidLead` sans appelant, `previousCreatorId` jamais relu, `GeoguesserSession.hostId` orphelin).

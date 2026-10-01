@@ -558,6 +558,14 @@ export const en: Translations = {
         s6Content: "No user data is ever sold, rented, or shared with advertising networks or third-party commercial entities.",
         s7Title: "7. Your Rights",
         s7Content: "In accordance with the General Data Protection Regulation (GDPR), every user has the right to access, rectify, and delete their data. These rights can be exercised directly from the dashboard profile interface or by contacting the administrator via Discord.",
+        s8Title: "8. Cookies and Trackers",
+        s8Intro: "SigilOS uses no advertising or third-party tracking cookies. Only cookies that are strictly necessary, or tied to an explicit preference, are set:",
+        s8Cookies: [
+            { name: "authjs.session-token", purpose: "keep your login session open (authentication via Discord)", type: "Strictly necessary", duration: "24 hours" },
+            { name: "authjs.csrf-token", purpose: "protect the login form against CSRF attacks", type: "Strictly necessary", duration: "session" },
+            { name: "sigilos_locale", purpose: "remember your language preference (French or English)", type: "Preference (convenience)", duration: "1 year" },
+        ],
+        s8Outro: "In production, technical login cookies carry a security prefix (__Secure-). No prior consent is required: these cookies are necessary for the service or relate to a preference you choose. You can delete them at any time from your browser settings; logging out removes the session.",
     },
 
     legalMentions: {
@@ -582,7 +590,7 @@ export const en: Translations = {
         s4Title: "4. Credits and Third-Party Data Sources",
         s4Intro: "SigilOS relies on open community databases and resources to provide an optimal player experience:",
         s5Title: "5. Cookies",
-        s5Content: "SigilOS exclusively uses essential technical cookies strictly necessary for platform operation (session authentication management). No advertising or third-party tracking cookies are used.",
+        s5Content: "SigilOS uses only technical session-authentication cookies (authjs.session-token, authjs.csrf-token) and a language preference (sigilos_locale). No advertising or third-party tracking cookies. Full details — purpose, duration, nature — are in the Privacy Policy (§8 Cookies and Trackers).",
         s6Title: "6. Applicable Law",
         s6Content: "This website and its legal notices are governed by French law.",
     },

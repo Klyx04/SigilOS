@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect, useMemo } from "react";
 import {
   X,
   Copy,
-  ExternalLink,
+  FileText,
   RotateCcw,
   Check,
   Maximize2,
@@ -15,6 +15,7 @@ import {
   Flame,
   Swords,
   Languages,
+  Compass,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -462,7 +463,7 @@ export function RaidOverlayClient({
             title={isEn ? "Open Raid Studio 3.6 (Planner & Tools)" : "Ouvrir Raid Studio 3.6 (Planificateur & Outils)"}
             className="px-1.5 py-0.5 rounded text-[10px] text-white/50 hover:text-cyan-300 hover:bg-white/5 transition-colors flex items-center gap-1"
           >
-            <Swords size={11} />
+            <Compass size={11} />
             <span>Studio 3.6</span>
           </a>
           <a
@@ -472,7 +473,7 @@ export function RaidOverlayClient({
             title={isEn ? "Open full guide" : "Ouvrir le guide complet"}
             className="p-1 rounded text-white/40 hover:text-white hover:bg-white/5 transition-colors"
           >
-            <ExternalLink size={12} />
+            <FileText size={12} />
           </a>
         </div>
       </header>

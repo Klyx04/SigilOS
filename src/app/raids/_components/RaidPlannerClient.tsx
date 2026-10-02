@@ -22,7 +22,7 @@ import {
     X,
     ChevronDown,
     ChevronUp,
-    BookOpen,
+    FileText,
     UserPlus,
     Tv2,
 } from "lucide-react";
@@ -917,7 +917,7 @@ export function RaidPlannerClient() {
                                 : "text-muted-foreground hover:text-foreground hover:bg-surface"
                         }`}
                     >
-                        <BookOpen className="w-4 h-4" />
+                        <FileText className="w-4 h-4" />
                         <span>{l10n.ui.strategyTab}</span>
                     </button>
                 </div>
@@ -1044,7 +1044,7 @@ export function RaidPlannerClient() {
                                 href={selectedRaid === "sanctuaire" ? "/guides/raid-sanctuaire-jardins-eternels-dofus-guide" : "/guides/raid-gigalodon-dofus-guide"}
                                 className="ml-auto inline-flex items-center gap-1 text-[11px] font-semibold text-info hover:text-foreground transition-colors"
                             >
-                                <BookOpen className="w-3.5 h-3.5" />
+                                <FileText className="w-3.5 h-3.5" />
                                 <span>{isEn ? "Full guide" : "Guide complet"}</span>
                             </a>
                         </div>

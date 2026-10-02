@@ -139,9 +139,10 @@ export function AccessDenied({
     };
 
     return (
-        <div className="relative flex min-h-screen flex-col items-center justify-center bg-background text-center">
+        <div className="relative flex min-h-screen flex-col bg-background">
             <PublicHeader user={session?.user} isMember={false} clientId={effectiveGuildId} />
 
+            <div className="flex flex-1 items-center justify-center text-center">
             <div className="w-full max-w-md space-y-8 px-6 py-10">
                 {/* Statut : l'icône dit l'état — pas de cadre, pas de halo, pas d'animation. */}
                 {variant === "lock" ? (
@@ -279,6 +280,7 @@ export function AccessDenied({
                         Secteur sécurisé
                     </p>
                 </div>
+            </div>
             </div>
         </div>
     );

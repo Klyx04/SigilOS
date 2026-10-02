@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -16,6 +16,7 @@ import {
     getGeneralLadder,
     getPresenceLadder,
     getRaidLadder,
+    getLadderSyncInfo,
     type LadderEntry,
     type ActivityView
 } from "@/server/actions/ladder-actions";
@@ -43,18 +44,28 @@ export function LadderClient({ guildId, canValidate, hasPseudoIssue, pseudoDofus
     const [pagination, setPagination] = useState<{ totalPages: number; totalCount: number } | null>(null);
     const [currentPage, setCurrentPage] = useState(1);
     const [loading, setLoading] = useState(true);
-    // #132 — recherche de pseudo dans le classement (filtre client-side sur la page courante).
+    // #132 — recherche de pseudo dans le classement (côté serveur : porte sur
+    // tous les membres, normalisée accents/casse/tirets — voir ladder-utils).
     const [search, setSearch] = useState("");
+    const [debouncedSearch, setDebouncedSearch] = useState("");
+    // Dernier sync ladder de la guilde (affiché pour que les membres sachent
+    // d'où datent les chiffres).
+    const [syncInfo, setSyncInfo] = useState<{ lastSyncAt: string | null; syncedCount: number; totalCount: number } | null>(null);
 
-    // Filtre client-side : pseudo Discord ou pseudo Dofus.
-    const filteredLadder = useMemo(() => {
-        const q = search.trim().toLowerCase();
-        if (!q) return ladder;
-        return ladder.filter((e) =>
-            e.discordNickname?.toLowerCase().includes(q) ||
-            e.pseudoDofus?.toLowerCase().includes(q)
-        );
-    }, [ladder, search]);
+    useEffect(() => {
+        getLadderSyncInfo(guildId).then((res) => {
+            if (res.success && res.data) setSyncInfo(res.data);
+        });
+    }, [guildId]);
+
+    // Debounce 300 ms : une requête serveur par frappe terminée, pas par touche.
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setDebouncedSearch(search);
+            setCurrentPage(1);
+        }, 300);
+        return () => clearTimeout(timer);
+    }, [search]);
 
     // Reset page when switching tabs or timeframes
     useEffect(() => {
@@ -68,28 +79,28 @@ export function LadderClient({ guildId, canValidate, hasPseudoIssue, pseudoDofus
 
             switch (activeTab) {
                 case "activity":
-                    result = await getActivityLadder(guildId, activityView, currentPage);
+                    result = await getActivityLadder(guildId, activityView, currentPage, 25, debouncedSearch);
                     break;
                 case "contribution":
-                    result = await getContributionLadder(guildId, currentPage);
+                    result = await getContributionLadder(guildId, currentPage, 25, debouncedSearch);
                     break;
                 case "seniority":
-                    result = await getSeniorityLadder(guildId, currentPage);
+                    result = await getSeniorityLadder(guildId, currentPage, 25, debouncedSearch);
                     break;
                 case "success":
-                    result = await getSuccessLadder(guildId, currentPage);
+                    result = await getSuccessLadder(guildId, currentPage, 25, debouncedSearch);
                     break;
                 case "general":
-                    result = await getGeneralLadder(guildId, currentPage);
+                    result = await getGeneralLadder(guildId, currentPage, 25, debouncedSearch);
                     break;
                 case "guildatons":
-                    result = await getGuildatonsLadder(guildId, activityView, currentPage);
+                    result = await getGuildatonsLadder(guildId, activityView, currentPage, 25, debouncedSearch);
                     break;
                 case "discord":
-                    result = await getPresenceLadder(guildId, discordMetric, activityView, currentPage);
+                    result = await getPresenceLadder(guildId, discordMetric, activityView, currentPage, 25, debouncedSearch);
                     break;
                 case "raids":
-                    result = await getRaidLadder(guildId, raidFilter, currentPage);
+                    result = await getRaidLadder(guildId, raidFilter, currentPage, 25, debouncedSearch);
                     break;
             }
 
@@ -107,7 +118,7 @@ export function LadderClient({ guildId, canValidate, hasPseudoIssue, pseudoDofus
         }
 
         loadLadder();
-    }, [guildId, activeTab, activityView, currentPage, discordMetric, raidFilter]);
+    }, [guildId, activeTab, activityView, currentPage, discordMetric, raidFilter, debouncedSearch]);
 
     const getValueLabel = (entry: LadderEntry): React.ReactNode => {
         switch (activeTab) {
@@ -297,7 +308,15 @@ export function LadderClient({ guildId, canValidate, hasPseudoIssue, pseudoDofus
                                 {activeTab === 'discord' && (
                                     discordMetric === "messages"
                                         ? "Volume de discussion sur Discord."
-                                        : "Temps passé en vocal."
+                                        : discordMetric === "voice"
+                                            ? "Temps passé en vocal."
+                                            : discordMetric === "characters"
+                                                ? "Volume de caractères écrits."
+                                                : discordMetric === "reactions"
+                                                    ? "Réactions reçues sur Discord."
+                                                    : discordMetric === "stream"
+                                                        ? "Temps passé en stream."
+                                                        : "Réponses apportées sur Discord."
                                 )}
                                 {activeTab === 'raids' && "Participations aux raids et sorties organisées."}
                             </p>
@@ -315,6 +334,9 @@ export function LadderClient({ guildId, canValidate, hasPseudoIssue, pseudoDofus
                                             <SelectItem value="voice">Vocal</SelectItem>
                                             <SelectItem value="messages">Messages</SelectItem>
                                             <SelectItem value="stream">Streams</SelectItem>
+                                            <SelectItem value="characters">Caractères</SelectItem>
+                                            <SelectItem value="reactions">Réactions</SelectItem>
+                                            <SelectItem value="replies">Réponses</SelectItem>
                                         </SelectContent>
                                     </Select>
                                 )}
@@ -326,6 +348,21 @@ export function LadderClient({ guildId, canValidate, hasPseudoIssue, pseudoDofus
                                         <SelectItem value="weekly">Cette semaine</SelectItem>
                                         <SelectItem value="monthly">Ce mois-ci</SelectItem>
                                         <SelectItem value="alltime">Global</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        )}
+                        {/* Filtre raid : l'état existait mais aucun contrôle ne le pilotait */}
+                        {activeTab === "raids" && (
+                            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
+                                <Select value={raidFilter} onValueChange={(v) => setRaidFilter(v as "all" | "jardin" | "gigalodon")}>
+                                    <SelectTrigger className="w-full sm:w-[180px] h-9 bg-surface border-border text-xs font-medium rounded-xl">
+                                        <SelectValue placeholder="Raid" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">Tous les raids</SelectItem>
+                                        <SelectItem value="jardin">Jardins Éternels</SelectItem>
+                                        <SelectItem value="gigalodon">Gigalodon</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>
@@ -345,14 +382,30 @@ export function LadderClient({ guildId, canValidate, hasPseudoIssue, pseudoDofus
                 </div>
 
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-3">
-                <h2 className="text-sm font-semibold text-foreground">
-                    Classement
-                    {pagination && pagination.totalCount > 0 && (
-                        <span className="ml-2 text-xs font-medium text-muted-foreground tabular-nums">
-                            {pagination.totalCount} membre{pagination.totalCount > 1 ? "s" : ""}
-                        </span>
+                <div className="min-w-0">
+                    <h2 className="text-sm font-semibold text-foreground">
+                        Classement
+                        {pagination && pagination.totalCount > 0 && (
+                            <span className="ml-2 text-xs font-medium text-muted-foreground tabular-nums">
+                                {pagination.totalCount} membre{pagination.totalCount > 1 ? "s" : ""}
+                            </span>
+                        )}
+                    </h2>
+                    {syncInfo && (
+                        <p className="mt-0.5 text-caption text-muted-foreground">
+                            Dernier sync ladder :{" "}
+                            {syncInfo.lastSyncAt
+                                ? new Date(syncInfo.lastSyncAt).toLocaleString("fr-FR", {
+                                    day: "2-digit",
+                                    month: "2-digit",
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                })
+                                : "jamais"}
+                            {" "}· {syncInfo.syncedCount}/{syncInfo.totalCount} pseudos synchronisés
+                        </p>
                     )}
-                </h2>
+                </div>
 
                 <div className="flex items-center gap-3">
                     {canValidate && (
@@ -398,7 +451,7 @@ export function LadderClient({ guildId, canValidate, hasPseudoIssue, pseudoDofus
                         <Loader2 className="h-8 w-8 animate-spin" />
                         <span className="text-caption font-black uppercase tracking-widest">Calcul du classement...</span>
                     </div>
-                ) : filteredLadder.length === 0 ? (
+                ) : ladder.length === 0 ? (
                     <div className="absolute inset-0 flex items-center justify-center text-muted-foreground">
                         <p className="text-xs font-medium italic">
                             {search.trim() ? "Aucun membre ne correspond à cette recherche." : "Aucune donnée disponible pour ce classement."}
@@ -407,7 +460,7 @@ export function LadderClient({ guildId, canValidate, hasPseudoIssue, pseudoDofus
                 ) : (
                     <div className="space-y-8">
                         <div className="max-w-4xl mx-auto grid grid-cols-1 gap-2 animate-in fade-in slide-in-from-bottom-2 duration-300" data-tour="ladder-list">
-                            {filteredLadder.map((entry) => (
+                            {ladder.map((entry) => (
                                 <LeaderboardCard
                                     key={entry.profileId}
                                     entry={entry}

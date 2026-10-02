@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Swords, Tv2, ChevronRight, Loader2, ExternalLink } from "lucide-react";
+import { Tv2, ChevronRight, Loader2, ExternalLink, FileText, Compass } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useRaidOverlay } from "@/hooks/use-raid-overlay";
 import { isDocumentPipSupported } from "@/hooks/use-guide-pip";
@@ -119,7 +119,7 @@ export function RaidOverlayLaunchBanner({
           ) : isOpen ? (
             <Tv2 size={13} />
           ) : (
-            <Swords size={13} />
+            <Tv2 size={13} />
           )}
           <span>{loading ? (isEn ? "Opening…" : "Ouverture…") : isOpen ? (isEn ? "Close Overlay" : "Fermer l'overlay") : (isEn ? "Launch Overlay" : "Lancer l'Overlay")}</span>
           {!loading && !isOpen && <ChevronRight size={13} />}
@@ -129,7 +129,7 @@ export function RaidOverlayLaunchBanner({
           href={`/raids?raid=${raidSlug === "jardin-eternel" ? "sanctuaire" : "gigalodon"}`}
           className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium text-muted-foreground hover:text-foreground bg-white/[0.03] hover:bg-white/[0.07] border border-white/10 transition-colors"
         >
-          <Swords size={12} style={{ color: themeColor }} />
+          <Compass size={12} style={{ color: themeColor }} />
           <span>{isEn ? "Raid Studio 3.6 (Tools & Roles)" : "Raid Studio 3.6 (Outils & Rôles)"}</span>
           <ExternalLink size={10} className="opacity-50" />
         </a>
@@ -212,7 +212,7 @@ export function RaidOverlayLaunchBanner({
             ) : isOpen ? (
               <Tv2 size={15} />
             ) : (
-              <Swords size={15} />
+              <Tv2 size={15} />
             )}
             <span>{loading ? (isEn ? "Opening…" : "Ouverture…") : isOpen ? (isEn ? "Close Overlay" : "Fermer l'overlay") : (isEn ? "Launch Overlay" : "Lancer l'Overlay")}</span>
             {!loading && !isOpen && <ChevronRight size={14} />}
@@ -224,17 +224,17 @@ export function RaidOverlayLaunchBanner({
             className="px-3 py-2.5 rounded-xl border border-white/10 bg-white/[0.03] hover:bg-white/5 text-white/70 hover:text-white transition-all shrink-0 flex items-center gap-1.5 text-xs font-semibold"
             title={isEn ? "Open Raid Studio 3.6 (Planner & Tools)" : "Ouvrir Raid Studio 3.6 (Planificateur & Outils)"}
           >
-            <Swords size={13} style={{ color: themeColor }} />
+            <Compass size={13} style={{ color: themeColor }} />
             <span className="hidden sm:inline">Raid Studio</span>
           </a>
 
           {/* Lien guide complet en icon */}
           <a
-            href={`/guides/${raidSlug === "gigalodon" ? "raid-gigalodon-dofus-guide" : "guide-sanctuaire-jardins-eternels"}`}
+            href={`/guides/${raidSlug === "gigalodon" ? "raid-gigalodon-dofus-guide" : "raid-sanctuaire-jardins-eternels-dofus-guide"}`}
             className="p-2.5 rounded-xl border border-white/10 bg-white/[0.03] hover:bg-white/5 text-white/50 hover:text-white transition-all shrink-0"
             title={isEn ? "View full guide" : "Voir le guide complet"}
           >
-            <ExternalLink size={15} />
+            <FileText size={15} />
           </a>
         </div>
       </div>

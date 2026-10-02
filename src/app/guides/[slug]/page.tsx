@@ -253,7 +253,7 @@ export default async function GuidePage({ params }: { params: Promise<{ slug: st
 
                             {/* Table des matières */}
                             <div className="reg-panel p-4 rounded-xl">
-                                <GuideTocSidebar contentId="guide-content" />
+                                <GuideTocSidebar contentId="guide-content" title={t.guidesPage.onThisPage} />
                             </div>
                         </aside>
                     </div>

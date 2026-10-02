@@ -7,7 +7,7 @@ import dynamic from 'next/dynamic';
 import {
     Search, Map as MapIcon, Loader2, Target, Eye, EyeOff, Trophy,
     Clock, ZoomIn, Compass, ChevronDown, ChevronLeft, ChevronRight, Plus, Minus, Users, Trash2, X, CheckCircle2, Copy,
-    Crown, Play, Palette, Smartphone, HelpCircle, LogOut, RotateCcw, Flag, Rocket, Bomb, Lock, Shield, Mic, Zap, MapPin, BookOpen
+    Crown, Play, Palette, Smartphone, HelpCircle, LogOut, RotateCcw, Flag, Rocket, Bomb, Lock, Shield, Mic, Zap, MapPin, FileText
 } from 'lucide-react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -1519,7 +1519,7 @@ export default function InteractiveMapV2({
                                             )}
                                             title="Afficher la stratégie du raid et lancer l'overlay in-game"
                                         >
-                                            <BookOpen size={13} className="shrink-0 text-cyan-400" />
+                                            <FileText size={13} className="shrink-0 text-cyan-400" />
                                             <span className="hidden sm:inline">Stratégie</span>
                                         </button>
                                     )}

@@ -8,6 +8,13 @@
 > externes ont été **supprimées le 20/09/2026** (`docs/arbo/ARCHIVES-TEMP-2026-09.md`) — plus rien à
 > ouvrir hors du dépôt.
 
+## 🎯 Session 02/10/2026 (Ladder + onboarding — **recherche serveur, sync qui fait l'XP, gate pseudo, worker résilient**)
+> **Demandes user (verbatim)** : bug filtres ladder · « vérifie que les synchro ladder xp/succès fonctionnent » · god work sync queue · recherche pseudo · sync lancé mais des gens à 0 · forcer le pseudo vérifié ladder à l'arrivée · « 0 429 full resilient + date dernier sync par guilde » · « pas normal de laisser errer un profil non configuré ».
+> **Mesures (code)** : recherche = filtre client page courante sans normalisation · `refreshUserSuccessPoints` sans l'XP (bloquait la bulk 22 h) · wizard sans import de points (0 PTS à l'arrivée) · toggle fallback inopérant serveur · `!res.ok`/timeout comptés « not found » + stampés · `raidFilter` sans UI, 3 métriques Discord inaccessibles · Volkorne gen 5/7 impossibles + Dragodindes en valeurs 300-vita (outil /elevage confronté au jeu).
+> **Fait** : recherche serveur normalisée (8 getters + debounce) · filtres raid/métriques branchés · snapshot succès/XP/niveau/classe à l'onboarding et au refresh manuel · gate layout (`hasPseudoIssue` → `/profile?edit=identity`) · fallback honoré · worker cooldown 5 min ×12, runs longs, résumé chiffré, erreurs tech sans stamp · `getLadderSyncInfo` + date/couverture dans le module · dead code supprimé · invalidation cache `ladder:*` · élevage recalé jeu (DD 400 vita, VK regénéré, 57 tags, accents).
+> **Preuves** : **277 fichiers / 3 074 tests ✓** · `tsc` **0** · `eslint` **0 erreur** · neufs : `ladder-search` (3), `ladder-sync-info` (6), `profile-pseudo-gate` (4).
+> **Reste / ops (humain)** : ① scheduler — reco BullMQ 03h00, **supprimer la ligne `ladder-sync` du crontab VPS** ; ② recherche limitée aux 2 pseudos (mules non indexées) ; ③ contrôler visuellement (guides, panneau raid, classe, date sync).
+
 ## 🔧 Session 01/10/2026 (Alerte « Ladder Sync » — **la couleur cesse de mentir**) — **mesure VPS : 17 alertes sur 34 étaient vertes AVEC des échecs · couleur honnête (vert ⇔ 0 échec) · échecs listés (qui + pourquoi) · champs d'embed en français** · branche `fix/ladder-sync-alerte`
 > **Déclencheur** : embed « Ladder General/Succès Sync » montré par le propriétaire (« ✅ Réussis : 4 / Échecs : 1 » affiché en VERT).
 > **Mesure VPS (bêta, table `GodNotification`, 90 j)** : volume **5 089** dont **4 582 = l'incident outbox** du 17→28/09 (déjà corrigé) ⇒ routine ≈ **244/30 j (~8/j)** = **pas** bruyant ; `Ladder General/Succès Sync` = **34** runs, **tous verts**, dont **17 verts ALORS QUE `fail_count > 0`** (50 %) → **la couleur mentait** (route : `success: results.some(...)`).

@@ -8,6 +8,13 @@
 > externes ont été **supprimées le 20/09/2026** (`docs/arbo/ARCHIVES-TEMP-2026-09.md`) — plus rien à
 > ouvrir hors du dépôt.
 
+## 🔧 Session 01/10/2026 (Alerte « Ladder Sync » — **la couleur cesse de mentir**) — **mesure VPS : 17 alertes sur 34 étaient vertes AVEC des échecs · couleur honnête (vert ⇔ 0 échec) · échecs listés (qui + pourquoi) · champs d'embed en français** · branche `fix/ladder-sync-alerte`
+> **Déclencheur** : embed « Ladder General/Succès Sync » montré par le propriétaire (« ✅ Réussis : 4 / Échecs : 1 » affiché en VERT).
+> **Mesure VPS (bêta, table `GodNotification`, 90 j)** : volume **5 089** dont **4 582 = l'incident outbox** du 17→28/09 (déjà corrigé) ⇒ routine ≈ **244/30 j (~8/j)** = **pas** bruyant ; `Ladder General/Succès Sync` = **34** runs, **tous verts**, dont **17 verts ALORS QUE `fail_count > 0`** (50 %) → **la couleur mentait** (route : `success: results.some(...)`).
+> **Fait** : règle **pure** `src/lib/ladder-sync-alert.ts` (`summarizeLadderSync` / `buildLadderSyncMessage` / `buildLadderSyncFields`) — `allSucceeded = failCount === 0`, message listant les échecs (pseudo + motif, borné à 5), champs FR ; la route `/api/cron/ladder-sync` l'utilise (`success: summary.allSucceeded`, `fields`, `metadata.failures`). **Pas de silence sur succès** (la mesure dit que ce n'est pas bruyant).
+> **Preuves** : **274 fichiers / 3 058 tests ✓** · `npx tsc --noEmit` **0** · `npm run lint` **0 erreur** · nouveau test : `ladder-sync-alert` (8).
+> **Ops user** : déployer (0 migration) ; au prochain run avec échecs, l'alerte doit être **non verte** et **nommer** les profils.
+
 ## 🔧 Session 01/10/2026 (RGPD — **la politique de confidentialité déclare enfin ses cookies**) — **section « 8. Cookies et traceurs » (session Discord `authjs.session-token`, CSRF, préférence de langue) · mentions légales enrichies · `X-Powered-By` retiré** · branche `docs/rgpd-cookies`
 > **Déclencheur** : retour d'un DPO ami du propriétaire — « tu as des cookies de session Discord, on en parle pas dans les pages RGPD ? ».
 > **Mesuré (01/10/2026)** : cookies réellement posés = `authjs.session-token` (24 h, httpOnly/Secure/SameSite=Lax — `src/auth.config.ts:20`), `authjs.csrf-token` (+ `callback-url`, Auth.js), `sigilos_locale` (1 an, préférence de langue) ; **aucun outil analytique** (télémétrie publique sans cookie) ⇒ **aucun bandeau de consentement requis** ; la **politique de confidentialité ne mentionnait AUCUN cookie** (seule une ligne dans les mentions §5). `sigilos.fr` / `beta.sigilos.fr` = `Server: Caddy`, DNS A `213.32.18.129` (OVH) ⇒ **pas de cookie tiers Cloudflare** aujourd'hui.

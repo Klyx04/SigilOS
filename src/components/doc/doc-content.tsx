@@ -12,6 +12,26 @@ interface DocContentProps {
 
 export function DocContent({ content, className }: DocContentProps) {
     const contentRef = React.useRef<HTMLDivElement>(null);
+    const [zoomedImage, setZoomedImage] = React.useState<{ src: string; alt?: string } | null>(null);
+
+    // Verrouillage du scroll et gestion touche Escape lors du zoom image
+    React.useEffect(() => {
+        if (!zoomedImage) return;
+        const origOverflow = document.body.style.overflow;
+        document.body.style.overflow = "hidden";
+
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === "Escape") {
+                setZoomedImage(null);
+            }
+        };
+
+        window.addEventListener("keydown", handleKeyDown);
+        return () => {
+            document.body.style.overflow = origOverflow;
+            window.removeEventListener("keydown", handleKeyDown);
+        };
+    }, [zoomedImage]);
 
     // Elite Post-Processing (Steps, Zoom, Copy, Callout Icons)
     React.useEffect(() => {
@@ -77,23 +97,32 @@ export function DocContent({ content, className }: DocContentProps) {
             });
         });
 
-        // D. Image Zoom
+        // D. Image Zoom (Propre & non-destructif : n'altère jamais le DOM de l'image source)
         const images = contentRef.current.querySelectorAll('img');
-        images.forEach((img: any) => {
+        images.forEach((img: HTMLImageElement) => {
+            // Ignorer les petites icônes (ressources, badges, carburants, etc.)
+            const isSmall =
+                img.classList.contains('no-zoom') ||
+                Boolean(img.closest('.no-zoom')) ||
+                img.classList.contains('w-12') ||
+                img.classList.contains('w-10') ||
+                img.classList.contains('w-8') ||
+                img.classList.contains('w-6') ||
+                img.classList.contains('w-4') ||
+                (img.naturalWidth > 0 && img.naturalWidth <= 120);
+
+            if (isSmall) {
+                img.classList.remove('cursor-zoom-in');
+                img.onclick = null;
+                return;
+            }
+
             img.classList.add('cursor-zoom-in');
             img.onclick = () => {
-                if (img.classList.contains('fixed')) {
-                    img.className = 'cursor-zoom-in max-w-full';
-                    img.style.position = '';
-                    img.style.top = '';
-                    img.style.left = '';
-                    img.style.width = '';
-                    img.style.zIndex = '';
-                    document.body.style.overflow = '';
-                } else {
-                    img.classList.add('fixed', 'inset-0', 'm-auto', 'z-[1000]', 'max-w-[90vw]', 'max-h-[90vh]', 'cursor-zoom-out', 'object-contain', 'p-4', 'bg-background/95');
-                    document.body.style.overflow = 'hidden';
-                }
+                setZoomedImage({
+                    src: img.currentSrc || img.src,
+                    alt: img.alt || undefined,
+                });
             };
         });
 
@@ -132,27 +161,57 @@ export function DocContent({ content, className }: DocContentProps) {
 
 
     return (
-        <div
-            className={cn(
-                // La typographie et le balisage sont désormais portés par
-                // `.reg-doc` + `.reg-content` (couche `components` de
-                // globals.css) : plus de `prose` / `prose-invert`, plus de
-                // soixantaine d'overrides qui imposaient teal + ambre, des
-                // callouts `backdrop-blur-xl shadow-2xl` et des tableaux
-                // `bg-zinc-800/80` — le tout cassait le thème clair.
-                "reg-doc reg-content break-words min-w-0",
+        <>
+            <div
+                className={cn(
+                    "reg-doc reg-content break-words min-w-0",
+                    className
+                )}
+                ref={contentRef}
+                // nosemgrep
+                dangerouslySetInnerHTML={{ __html: sanitizedContent }}
+            />
 
-                // Callouts / Alertes : `.reg-content .callout*` gère le cadre, la
-                // couleur de filet par type et le titre (voir globals.css).
-
-                // Accordéons, ancrages, tableaux, images : traités par
-                // `.reg-content` (globals.css).
-
-                className
+            {/* Lightbox non-destructive : affiche l'image en grand sans altérer le DOM original */}
+            {zoomedImage && (
+                <div
+                    role="dialog"
+                    aria-modal="true"
+                    aria-label="Aperçu d'image agrandie"
+                    className="fixed inset-0 z-[100] flex items-center justify-center bg-black/85 backdrop-blur-md p-4 sm:p-8 cursor-zoom-out animate-in fade-in duration-150"
+                    onClick={() => setZoomedImage(null)}
+                >
+                    <button
+                        type="button"
+                        aria-label="Fermer le zoom"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            setZoomedImage(null);
+                        }}
+                        className="absolute top-4 right-4 z-[101] p-2 rounded-full bg-surface/80 border border-border text-foreground hover:bg-surface-elevated transition-colors"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                        </svg>
+                    </button>
+                    <div
+                        className="max-w-[92vw] max-h-[90vh] flex flex-col items-center gap-3 cursor-default"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <img
+                            src={zoomedImage.src}
+                            alt={zoomedImage.alt || ""}
+                            className="max-w-full max-h-[82vh] object-contain rounded-xl shadow-2xl border border-white/10"
+                        />
+                        {zoomedImage.alt && (
+                            <p className="text-xs text-muted-foreground text-center max-w-lg select-none">
+                                {zoomedImage.alt}
+                            </p>
+                        )}
+                    </div>
+                </div>
             )}
-            ref={contentRef}
-            // nosemgrep
-            dangerouslySetInnerHTML={{ __html: sanitizedContent }}
-        />
+        </>
     );
 }

@@ -4,9 +4,7 @@ import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   X,
-  Swords,
   Tv2,
-  ExternalLink,
   ChevronRight,
   Compass,
   Flame,
@@ -17,7 +15,7 @@ import {
   Shield,
   Target,
   Loader2,
-  BookOpen,
+  FileText,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useRaidOverlay } from "@/hooks/use-raid-overlay";
@@ -288,7 +286,7 @@ export function RaidStratDrawer({
                   ) : overlayIsOpen ? (
                     <Tv2 size={13} />
                   ) : (
-                    <Swords size={13} />
+                    <Tv2 size={13} />
                   )}
                   <span>
                     {launchLoading
@@ -307,7 +305,7 @@ export function RaidStratDrawer({
                     className="p-2 rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 text-white/60 hover:text-white transition-colors shrink-0"
                     title="Ouvrir le guide complet sur le site"
                   >
-                    <BookOpen size={14} />
+                    <FileText size={14} />
                   </a>
                 )}
               </div>

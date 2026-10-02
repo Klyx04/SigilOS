@@ -213,6 +213,22 @@ export default async function DashboardLayout({
         );
     }
 
+    // ── PROFIL NON CONFIGURÉ : pas de balade sur le dashboard sans pseudo
+    // Dofus (fini les fiches « PROFIL NON CONFIGURÉ » qui errent partout). Le
+    // membre est renvoyé sur son profil, dont l'éditeur d'identité s'ouvre seul
+    // (`?edit=identity`). God exempté (inspection) ; page profil exclue
+    // (anti-boucle : `x-pathname` vide = pas de redirect, le wizard couvre) ;
+    // sans accès au module profil, rien à configurer ici.
+    if (
+        user.hasPseudoIssue &&
+        !user.isSuperAdmin &&
+        user.canViewProfile &&
+        pathname &&
+        !pathname.startsWith(`/dashboard/${guildId}/profile`)
+    ) {
+        redirect(`/dashboard/${guildId}/profile?edit=identity`);
+    }
+
     // 2e modale (optionnel) : onboarding complet mais modules non configurés.
     // Requête légère (1 ligne) uniquement pour les admins concernés.
     // 🔁 22/09/2026 — la règle vit désormais dans `onboarding-gating` (`shouldPromptOptionalNextSteps`,

@@ -213,7 +213,7 @@ export function LeaderboardCard({ entry, valueLabel, accentColor }: Props) {
                                     {entry.isInVacation ? "En Vacances" : "Mauvais Élève"}
                                 </span>
                             </div>
-                        ) : accentColor === "purple" && (
+                        ) : (accentColor === "blue" || accentColor === "amber") && (
                             <div className="text-caption text-muted-foreground font-black uppercase tracking-widest mt-1.5 opacity-40">Sync auto</div>
                         )}
                     </div>

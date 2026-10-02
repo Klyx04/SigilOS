@@ -13,6 +13,7 @@ const PUBLIC_PREFIXES = [
     "/boss",
     "/carte-du-monde",
     "/changelog",
+    "/demo",
     "/docs",
     "/guides",
     "/guilds",

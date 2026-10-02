@@ -348,6 +348,47 @@ export const en: Translations = {
         },
     },
 
+    // Public demo — fictional guild, read-only. Chantier S: `docs/plans/PLAN-DEMO-PUBLIQUE.md`.
+    demoPage: {
+        metaTitle: "Demo — a Dofus guild on SigilOS",
+        metaDesc: "Visit a SigilOS demo guild: member directory, classes, professions, alignment and mules — read-only, no account and nothing to install.",
+        bannerLabel: "Demo",
+        bannerDetail: "Fictional guild, invented nicknames, no real data. Everything is read-only.",
+        eyebrow: "Tour · read-only",
+        title: "A whole Dofus guild, visitable without an account.",
+        subtitle: "You are looking at a demo guild: the same screens and the same components as inside SigilOS, fed with fictional data. Nothing can be edited, nothing is sent.",
+        facts: [
+            "No account required",
+            "No writes: nothing is stored",
+            "Invented nicknames and data",
+            "The same components as the product",
+        ],
+        statsTitle: "What the demo contains",
+        statsMembers: "Members",
+        statsJobs: "Professions set",
+        statsMules: "Aligned mules",
+        statsMages: "Legendary crafters",
+        statsAllied: "Aligned members",
+        directoryEyebrow: "Directory",
+        directoryTitle: "Search a member exactly like in the product.",
+        directoryDesc: "Filters by class, profession, alignment, order and legendary loot: SigilOS's directory component, as is, in read-only mode.",
+        realTitle: "What is already real here",
+        realItems: [
+            "The product's directory component, not a single line copied",
+            "The game's class, profession and order icons",
+            "The guild's Discord colours and roles",
+            "Aligned mules, with their order and level",
+        ],
+        nextTitle: "What comes next",
+        nextItems: [
+            "Outings: Discord announcement, sign-up, roster filling up",
+            "Achievements and Dreams, read-only",
+            "Your own clicks, without writing anything to the database",
+        ],
+        guildLabel: "Guild on display",
+        signoff: "The demo is static: it stores nothing, contacts no Discord server and reads no database.",
+    },
+
     // Status & Maintenance
     status: {
         pageTitle: "System Status",

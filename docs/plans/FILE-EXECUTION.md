@@ -11,7 +11,7 @@ description: File d'exécution unique — tous les chantiers (A→Q), un seul or
 > suivant ; la branche suivante naît de `dev` **après** le merge (`git fetch origin dev && git merge origin/dev`).
 > **On ne supprime jamais un chantier** : livré, il passe en `✅` **ici** (son détail part dans un bloc de
 > session du `docs/ROADMAP.md`).
-> **Dernière mise à jour** : 01/10/2026 · `dev` = `c597959b`.
+> **Dernière mise à jour** : 02/10/2026 · `dev` = `b6b965c7`.
 
 ## 0. Comment s'en servir
 
@@ -48,6 +48,7 @@ description: File d'exécution unique — tous les chantiers (A→Q), un seul or
 | **P** | Ouverture prod & durcissement | ouvert (bloquant prod) | `docs/ops/GUIDE-DEPLOIEMENT-PROD-JOUR-J.md` + `docs/plans/DECISION-OUVERTURE-LANDING.md` | — |
 | **Q** | **Salons vocaux** (module, cahier V2.1 du 30/09) | **idée neuve, à cadrer** | `docs/plans/PLAN-SALONS-VOCAUX.md` (cahier rapatrié le 01/10) | — |
 | **R** | **Durcissement réseau** (Cloudflare devant le domaine ? WAF/DDoS + impact RGPD) | à décider | — (décision **D8**) | — |
+| **S** | **Démo publique** — une guilde de démonstration **en lecture seule**, essayable sans compte depuis la landing | **S-0 ✅ fait** (02/10, mesure, 0 PR) — S-1 → S-5 à faire | `docs/plans/PLAN-DEMO-PUBLIQUE.md` | S-1 → S-5 |
 
 > **Volets partagés — tranchés une fois pour toutes** (chaque étape n'appartient qu'à **un** chantier) :
 > **§16** = volet `calendrier` → **G·R8**, volet `membres/profil/stuff` → **M-1** ;
@@ -94,6 +95,12 @@ description: File d'exécution unique — tous les chantiers (A→Q), un seul or
 | **30** | **E** | Acquisition : E-1 monstres → E-2 objets → E-3 quêtes | L | ⏸ **D6** |
 | **31** | **P** | Ouverture prod : durcissement audit 20/09 + #57 | M (ops) | ⏸ **D7** |
 | **32** | **R** | Cloudflare devant `sigilos.fr` (WAF/DDoS) **ou** durcissement Caddy équivalent — décision + DPA + MAJ pages RGPD | M (ops) | ⏸ **D8** |
+| **33** | **S · S-1** | Démo publique : source de démo + route `/demo` + bandeau « Démonstration » + annuaire réel (mode lecture seule) | M | — |
+| **34** | **S · S-2a** | Songes réels en lecture seule (`canJoinSonges={false}`) | S | étape 33 |
+| **35** | **S · S-2b** | Sorties + succès en **vues de démo dédiées** | M | étape 33 |
+| **36** | **S · S-3** | Interactions **locales non persistées** (inscription, filtrage, scène Discord) | M | étapes 34 & 35 |
+| **37** | **S · S-4** | La landing autour : CTA « Essayer la démo », hero, fuites produit (FR en dur, état unique masqué) | S/M | étape 33 |
+| **38** | **S · S-5** | Perf des pages publiques (prérendu, une seule langue au client, `framer-motion` hors graphe public) | M | — |
 
 `S` < 1 jour · `M` quelques jours · `L` chantier.
 

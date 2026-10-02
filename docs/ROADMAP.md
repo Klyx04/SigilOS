@@ -8,6 +8,13 @@
 > externes ont été **supprimées le 20/09/2026** (`docs/arbo/ARCHIVES-TEMP-2026-09.md`) — plus rien à
 > ouvrir hors du dépôt.
 
+## 🔧 Session 01/10/2026 (RGPD — **la politique de confidentialité déclare enfin ses cookies**) — **section « 8. Cookies et traceurs » (session Discord `authjs.session-token`, CSRF, préférence de langue) · mentions légales enrichies · `X-Powered-By` retiré** · branche `docs/rgpd-cookies`
+> **Déclencheur** : retour d'un DPO ami du propriétaire — « tu as des cookies de session Discord, on en parle pas dans les pages RGPD ? ».
+> **Mesuré (01/10/2026)** : cookies réellement posés = `authjs.session-token` (24 h, httpOnly/Secure/SameSite=Lax — `src/auth.config.ts:20`), `authjs.csrf-token` (+ `callback-url`, Auth.js), `sigilos_locale` (1 an, préférence de langue) ; **aucun outil analytique** (télémétrie publique sans cookie) ⇒ **aucun bandeau de consentement requis** ; la **politique de confidentialité ne mentionnait AUCUN cookie** (seule une ligne dans les mentions §5). `sigilos.fr` / `beta.sigilos.fr` = `Server: Caddy`, DNS A `213.32.18.129` (OVH) ⇒ **pas de cookie tiers Cloudflare** aujourd'hui.
+> **Fait** : **§8 Cookies et traceurs** (FR+EN) — finalité/durée/nature des 3 cookies + absence de consentement requis ; mentions §5 enrichies (noms + renvoi) ; `poweredByHeader: false` (retrait de `X-Powered-By: Next.js`) ; **chantier R « durcissement réseau »** ajouté à `docs/plans/FILE-EXECUTION.md` (+ décision **D8**).
+> **Preuves** : `npx tsc --noEmit` **0** · `npm run lint` **0 erreur** · **272 fichiers / 3 037 tests ✓**.
+> **Ops user** : déployer (0 migration) ; trancher **D8** (Cloudflare devant le domaine ou non).
+
 ## 🔧 Session 01/10/2026 (Veille Discord — **ping fiabilisé + changelog lu en entier + sévérité**) — **plus de « @rôle inconnu » · ~95 % du changelog qui n'était jamais scanné est désormais lu · breaking changes détectées par tag · une info ne pinge plus · champs d'embed en français** · branche `fix/veille-discord`
 > **Demande user (verbatim)** : « On est toujours opti là dessus ? on peut faire mieux ? » → « consulte le changelog discord, l'api etc voir pour optimiser tout ça comme un pro, tout en une seule PR ».
 > **Mesures** : l'embed portait « @rôle inconnu » (`godNotifyRoleId` = valeur **plateforme** ; bêta ≠ prod) ; la page changelog pèse **~3 Mo** et le code n'en lisait que **150 000 caractères** ⇒ ~95 % non scannés ; champs en jargon (`gatewayOk`, `dayJStatus`) ; alerte **rouge + ping** à chaque changement de doc.

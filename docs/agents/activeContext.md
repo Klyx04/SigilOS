@@ -6,6 +6,13 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 🔧 Session 01/10/2026 (RGPD : la politique de confidentialité déclare enfin ses cookies) — **§8 « Cookies et traceurs » (session Discord, CSRF, préférence de langue) · mentions enrichies · `X-Powered-By` retiré · chantier R « durcissement réseau » ajouté** · branche `docs/rgpd-cookies`
+> **Déclencheur** : « j'ai parlé avec un pote DPO […] j'avais des cookies de session discord ; on en parle pas dans les pages rgpd ? ».
+> **Mesuré** : cookies posés = `authjs.session-token` (24 h, `src/auth.config.ts:20`), `authjs.csrf-token` (Auth.js), `sigilos_locale` (1 an) ; **aucun analytics** ⇒ **pas de bandeau requis** ; la politique de **confidentialité ne parlait d'aucun cookie** ; `sigilos.fr` = `Server: Caddy` + DNS A `213.32.18.129` (OVH) ⇒ **pas de Cloudflare proxy**.
+> **Fait** : §8 Cookies (FR+EN) + mentions §5 enrichies + `poweredByHeader: false` ; **chantier R** (Cloudflare, décision **D8**) ajouté à `docs/plans/FILE-EXECUTION.md`.
+> **Preuves** : `tsc` **0** · `eslint` **0 erreur** · **272 fichiers / 3 037 tests ✓**.
+> **Ops user** : déployer (0 migration) ; trancher **D8** (Cloudflare ou non).
+
 ## 🔧 Session 01/10/2026 (Veille Discord : ping fiabilisé, changelog lu en entier, sévérité info/critique) — **plus de « @rôle inconnu » · fin des ~95 % de changelog non scannés · breaking changes détectées par tag · une info ne pinge plus · champs d'embed en français** · branche `fix/veille-discord`
 > **Demande user (verbatim)** : « j'ai reçu cet embed aujourd'hui : […] On est toujours opti là dessus ? on peut faire mieux ? » → « consulte le changelog discord, l'api etc voir pour optimiser tout ça comme un pro, tout en une seule PR ».
 > **Mesures (01/10/2026)** : ① l'embed portait « **@rôle inconnu** » — `PlatformConfig.godNotifyRoleId` est une valeur **plateforme** alors que bêta et prod sont **deux serveurs Discord distincts** (le ping tombait dans le vide) ; ② la page changelog pèse **~3 Mo** et le code n'en lisait que **150 000 caractères** (`FETCH_MAX_CHARS`) ⇒ ~95 % jamais scannés ; ③ champs d'embed en jargon (`gatewayOk`, `docsChanged`, `dayJStatus`) ; ④ tout changement de doc ⇒ alerte **rouge + ping** chaque mois (bruit).

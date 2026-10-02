@@ -555,6 +555,14 @@ export const fr = {
         s6Content: "Aucune donnée n'est vendue, louée ou partagée avec des régies publicitaires ou des sociétés tierces.",
         s7Title: "7. Vos Droits",
         s7Content: "Conformément au Règlement Général sur la Protection des Données (RGPD), chaque utilisateur dispose d'un droit d'accès, de rectification et de suppression de ses données. Ces droits s'exercent depuis l'interface dashboard ou en contactant l'administrateur via Discord.",
+        s8Title: "8. Cookies et traceurs",
+        s8Intro: "SigilOS n'utilise aucun cookie publicitaire ni de traçage tiers. Seuls des cookies strictement nécessaires ou liés à une préférence explicite sont déposés :",
+        s8Cookies: [
+            { name: "authjs.session-token", purpose: "maintenir votre session de connexion ouverte (authentification via Discord)", type: "Strictement nécessaire", duration: "24 heures" },
+            { name: "authjs.csrf-token", purpose: "protéger le formulaire de connexion contre les attaques CSRF", type: "Strictement nécessaire", duration: "session" },
+            { name: "sigilos_locale", purpose: "mémoriser votre préférence de langue (français ou anglais)", type: "Préférence (confort)", duration: "1 an" },
+        ],
+        s8Outro: "En production, les cookies techniques de connexion portent un préfixe de sécurité (__Secure-). Aucun consentement préalable n'est requis : ces cookies sont nécessaires au service ou relèvent d'une préférence que vous choisissez. Vous pouvez les supprimer à tout moment depuis les réglages de votre navigateur ; la déconnexion retire la session.",
     },
 
     legalMentions: {
@@ -579,7 +587,7 @@ export const fr = {
         s4Title: "4. Crédits et Sources de Données Tiers",
         s4Intro: "SigilOS s'appuie sur des ressources et bases de données communautaires ouvertes pour offrir une expérience optimisée :",
         s5Title: "5. Cookies",
-        s5Content: "SigilOS utilise exclusivement des cookies techniques strictement nécessaires au fonctionnement de la plateforme (gestion de session d'authentification). Aucun cookie publicitaire ou de tracking tiers n'est utilisé.",
+        s5Content: "SigilOS n'utilise que des cookies techniques de session d'authentification (authjs.session-token, authjs.csrf-token) et une préférence de langue (sigilos_locale). Aucun cookie publicitaire ou de traçage tiers. Le détail — finalité, durée, nature — figure dans la Politique de confidentialité (§8 Cookies et traceurs).",
         s6Title: "6. Droit Applicable",
         s6Content: "Le présent site et ses mentions légales sont soumis au droit français.",
     },

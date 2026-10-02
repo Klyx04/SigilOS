@@ -69,6 +69,18 @@ export default async function PrivacyPage() {
 
                 <h2>{p.s7Title}</h2>
                 <p>{p.s7Content}</p>
+
+                <h2>{p.s8Title}</h2>
+                <p>{p.s8Intro}</p>
+                <ul>
+                    {p.s8Cookies.map((cookie, idx) => (
+                        <li key={idx}>
+                            <strong>{cookie.name}</strong> — {cookie.purpose}{" "}
+                            <em>({cookie.type}, {cookie.duration})</em>.
+                        </li>
+                    ))}
+                </ul>
+                <p>{p.s8Outro}</p>
             </div>
         </article>
     );

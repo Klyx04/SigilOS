@@ -345,6 +345,47 @@ export const fr = {
         },
     },
 
+    // Démo publique — guilde fictive, lecture seule. Chantier S : `docs/plans/PLAN-DEMO-PUBLIQUE.md`.
+    demoPage: {
+        metaTitle: "Démonstration — une guilde Dofus sur SigilOS",
+        metaDesc: "Visitez une guilde Dofus de démonstration : annuaire des membres, classes, métiers, alignements et mules — en lecture seule, sans compte et sans rien installer.",
+        bannerLabel: "Démonstration",
+        bannerDetail: "Guilde fictive, pseudos inventés, aucune donnée réelle. Tout est en lecture seule.",
+        eyebrow: "Visite · lecture seule",
+        title: "Une guilde Dofus entière, à visiter sans compte.",
+        subtitle: "Vous regardez une guilde de démonstration : mêmes écrans et mêmes composants que dans SigilOS, alimentés par des données fictives. Rien n'est modifiable, rien n'est envoyé.",
+        facts: [
+            "Aucun compte requis",
+            "Aucune écriture : rien n'est enregistré",
+            "Pseudos et données inventés",
+            "Mêmes composants que le produit",
+        ],
+        statsTitle: "Ce que la démo contient",
+        statsMembers: "Membres",
+        statsJobs: "Métiers renseignés",
+        statsMules: "Mules alignées",
+        statsMages: "Artisans légendaires",
+        statsAllied: "Membres alignés",
+        directoryEyebrow: "Annuaire",
+        directoryTitle: "Recherchez un membre comme dans le produit.",
+        directoryDesc: "Filtres par classe, métier, alignement, ordre et butin légendaire : le composant d'annuaire de SigilOS, tel quel, en lecture seule.",
+        realTitle: "Ce qui est déjà réel ici",
+        realItems: [
+            "Le composant d'annuaire du produit, sans une ligne de copie",
+            "Les pictos de classe, de métier et d'ordre du jeu",
+            "Les couleurs et rôles Discord de la guilde",
+            "Les mules alignées, avec leur ordre et leur niveau",
+        ],
+        nextTitle: "Ce qui arrive ensuite",
+        nextItems: [
+            "Les sorties : annonce Discord, inscription, composition qui se remplit",
+            "Les succès et les Songes, en lecture seule",
+            "Vos propres clics, sans rien écrire en base",
+        ],
+        guildLabel: "Guilde présentée",
+        signoff: "La démo est statique : elle n'enregistre rien, ne contacte aucun serveur Discord et ne lit aucune base de données.",
+    },
+
     // Statut & Maintenance
     status: {
         pageTitle: "État des services",

@@ -12,12 +12,18 @@ describe("public-routes — périmètre des pages publiques", () => {
         expect(isPublicRoute("/guides/rush-sylvestre")).toBe(true);
     });
 
+    it("reconnaît la démo publique (chantier S)", () => {
+        expect(isPublicRoute("/demo")).toBe(true);
+        expect(isPublicRoute("/demo/annuaire")).toBe(true);
+    });
+
     it("ne déborde pas sur les espaces connectés", () => {
         expect(isPublicRoute("/dashboard")).toBe(false);
         expect(isPublicRoute("/dashboard/123/calendar")).toBe(false);
         expect(isPublicRoute("/god")).toBe(false);
         expect(isPublicRoute("/overlay/worldmap")).toBe(false);
         expect(isPublicRoute("/guide")).toBe(false); // piège du préfixe « /guides »
+        expect(isPublicRoute("/demoniaque")).toBe(false); // piège du préfixe « /demo »
         expect(isPublicRoute(null)).toBe(false);
         expect(isPublicRoute(undefined)).toBe(false);
     });

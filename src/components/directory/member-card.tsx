@@ -39,9 +39,32 @@ interface ExtendedProfile extends UserProfile {
 interface MemberCardProps {
     profile: ExtendedProfile;
     guildId: string;
+    /**
+     * Mode **lecture seule** (page publique `/demo`) : la carte n'est plus un lien vers
+     * `/dashboard/<guildId>/members/<pseudo>`, qui mènerait un anonyme à un mur de connexion.
+     * Défaut `false` : les usages existants (dashboard, administration) sont inchangés.
+     */
+    readOnly?: boolean;
 }
 
-export function MemberCard({ profile, guildId }: MemberCardProps) {
+/**
+ * Enveloppe de la carte : lien vers la fiche du membre (usage normal) ou simple fragment
+ * (mode `readOnly`). Extraite pour ne pas déplacer les ~270 lignes de JSX de la carte.
+ */
+function MemberCardShell({
+    readOnly,
+    href,
+    children,
+}: {
+    readOnly: boolean;
+    href: string;
+    children: React.ReactNode;
+}) {
+    if (readOnly) return <>{children}</>;
+    return <Link href={href}>{children}</Link>;
+}
+
+export function MemberCard({ profile, guildId, readOnly = false }: MemberCardProps) {
     // Client-only hydration guard: vacation/online states depend on `new Date()`, which
     // differs between SSR and client hydration. Any member right at a vacation or 2-min
     // activity boundary would render mismatched text → React #418. Gating behind `mounted`
@@ -101,7 +124,10 @@ export function MemberCard({ profile, guildId }: MemberCardProps) {
     };
 
     return (
-        <Link href={`/dashboard/${guildId}/members/${encodeURIComponent(profile.pseudoDofus || profile.id)}`}>
+        <MemberCardShell
+            readOnly={readOnly}
+            href={`/dashboard/${guildId}/members/${encodeURIComponent(profile.pseudoDofus || profile.id)}`}
+        >
             <Card
                 className={cn(
                     "group relative overflow-hidden cursor-pointer border transition-colors duration-200 bg-surface",
@@ -373,6 +399,6 @@ export function MemberCard({ profile, guildId }: MemberCardProps) {
                     )}
                 </CardContent>
             </Card>
-        </Link>
+        </MemberCardShell>
     );
 }

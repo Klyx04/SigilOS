@@ -20,9 +20,15 @@ interface MemberDirectoryProps {
     initialMembers: any[];
     legendaryItems: any[];
     guildId: string;
+    /**
+     * Mode **lecture seule** (page publique `/demo`) : les cartes ne sont plus des liens vers
+     * `/dashboard/<guildId>/members/<pseudo>` — un anonyme tomberait sur un mur de connexion.
+     * Défaut `false` : les usages existants (dashboard, administration) sont inchangés.
+     */
+    readOnly?: boolean;
 }
 
-export function MemberDirectory({ initialMembers, legendaryItems, guildId }: MemberDirectoryProps) {
+export function MemberDirectory({ initialMembers, legendaryItems, guildId, readOnly = false }: MemberDirectoryProps) {
     const [members] = useState(initialMembers);
     const [isPending, startTransition] = useTransition();
 
@@ -651,7 +657,7 @@ export function MemberDirectory({ initialMembers, legendaryItems, guildId }: Mem
             {/* RESULTS GRID */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 animate-in fade-in duration-300">
                 {filteredMembers.map(member => (
-                    <MemberCard key={member.id} profile={member} guildId={guildId} />
+                    <MemberCard key={member.id} profile={member} guildId={guildId} readOnly={readOnly} />
                 ))}
             </div>
 

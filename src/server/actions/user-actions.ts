@@ -1525,10 +1525,11 @@ export async function getGuildsSeparated(): Promise<{
 
     const account = await db.account.findFirst({
         where: { userId, provider: "discord" },
-        select: { access_token: true }
+        select: { access_token: true, providerAccountId: true }
     });
 
     if (!account?.access_token) return { active: [], pending: [], awaiting: [], rateLimited: false, needsReconnect: false };
+    const discordUserIdForPortal = account.providerAccountId || null;
 
     const { error, status, data: userGuildsData } = await fetchDiscordUserGuilds(account.access_token);
 
@@ -1537,16 +1538,39 @@ export async function getGuildsSeparated(): Promise<{
             where: { userId, status: "ACTIVE" },
             include: { guild: true }
         });
-        const activeFromDb = dbProfiles
+        const baseFromDb = dbProfiles
             .filter(p => allowedIdsWhitelist.has(p.guild.discordGuildId))
             .map(p => ({
                 id: p.guild.discordGuildId,
                 name: p.guild.name,
                 icon: p.guild.iconUrl,
                 isAdmin: false,
-                hasAccess: true,
-                accessLabel: "Membre Actif",
+                dbActive: true,
             }));
+        // Repli Discord en panne : on tente quand même la vérif live (fail-safe
+        // affichage — le gate dashboard reste fail-closed). Sans discordId ou en
+        // cas d'erreur, on garde le statut base (repli historique).
+        const { resolvePortalAccess } = await import("@/lib/onboarding-gating");
+        const isGodFallback = await isSuperAdmin().catch(() => false);
+        const activeFromDb = await Promise.all(
+            baseFromDb.map(async (p) => {
+                let liveOk: boolean | null = null;
+                if (discordUserIdForPortal) {
+                    try {
+                        liveOk = await internalCheckPermission(p.id, discordUserIdForPortal, PERMISSIONS.DASHBOARD_LOGIN);
+                    } catch {
+                        liveOk = null;
+                    }
+                }
+                const { hasAccess, accessLabel } = resolvePortalAccess({
+                    isAdmin: false,
+                    isGod: !!isGodFallback,
+                    dbActive: p.dbActive,
+                    liveOk,
+                });
+                return { id: p.id, name: p.name, icon: p.icon, isAdmin: false, hasAccess, accessLabel };
+            })
+        );
         const { classifyGuildsFetchError } = await import("@/lib/onboarding-gating");
         const errorKind = classifyGuildsFetchError(status);
         return {
@@ -1606,7 +1630,7 @@ export async function getGuildsSeparated(): Promise<{
     });
     const statusMap = new Map(userProfiles.map(p => [p.guild.discordGuildId, p.status]));
 
-    const active = validatedActive
+    const baseActive = validatedActive
         .filter(g => {
             const inDiscord = userGuildIds.has(g.discordGuildId);
             const status = statusMap.get(g.discordGuildId);
@@ -1620,25 +1644,43 @@ export async function getGuildsSeparated(): Promise<{
             } catch {
                 perms = 0n;
             }
-            const isAdmin = userGuild?.owner || (perms & 0x8n) === 0x8n;
+            const isAdmin = !!(userGuild?.owner || (perms & 0x8n) === 0x8n);
             const status = statusMap.get(g.discordGuildId);
-            // Libellé HONNÊTE : un profil n'existe QUE si le membre a déjà franchi le
-            // gatekeeper RBAC (DASHBOARD_LOGIN / admin Discord / mapping). Un membre
-            // sans profil (ex. candidat) n'a donc PAS encore accès → on affiche
-            // "Rôle d'accès requis" au lieu de mentir avec "Accès Membre"/"Membre Actif".
-            const hasAccess = isAdmin || status === "ACTIVE";
-            const accessLabel = hasAccess
-                ? isAdmin ? "Administrateur" : "Membre Actif"
-                : "Rôle d'accès requis";
             return {
                 id: g.discordGuildId,
                 name: g.name,
                 icon: g.iconUrl,
                 isAdmin,
-                hasAccess,
-                accessLabel,
+                dbActive: status === "ACTIVE",
             };
         });
+
+    // Vérif live du rôle (même gatekeeper que le dashboard : `dashboard:login`
+    // via `internalCheckPermission`, rôles Discord frais, mapping frais). Sans
+    // ça, un profil `ACTIVE` périmé (rôle retiré) restait affiché « Membre Actif »
+    // alors que `/dashboard/[guildId]` refusait (03/10/2026, guilde SigilOS).
+    // Fail-safe affichage : Discord KO → repli base (le gate reste fail-closed).
+    const { resolvePortalAccess: resolvePortalAccessLive } = await import("@/lib/onboarding-gating");
+    const isGodPortal = await isSuperAdmin().catch(() => false);
+    const active = await Promise.all(
+        baseActive.map(async (g) => {
+            let liveOk: boolean | null = null;
+            if (!g.isAdmin && !isGodPortal && discordUserIdForPortal) {
+                try {
+                    liveOk = await internalCheckPermission(g.id, discordUserIdForPortal, PERMISSIONS.DASHBOARD_LOGIN);
+                } catch {
+                    liveOk = null;
+                }
+            }
+            const { hasAccess, accessLabel } = resolvePortalAccessLive({
+                isAdmin: g.isAdmin,
+                isGod: !!isGodPortal,
+                dbActive: g.dbActive,
+                liveOk,
+            });
+            return { id: g.id, name: g.name, icon: g.icon, isAdmin: g.isAdmin, hasAccess, accessLabel };
+        })
+    );
 
     return { active, pending, awaiting: awaitingCandidates, rateLimited: false, needsReconnect: false };
 }

@@ -1393,6 +1393,11 @@ export async function registerForEvent(
     const ctx = await getUserContext(guildId);
     if (!ctx.isAuthenticated) return { success: false, error: "Non authentifié" };
     if (!ctx.isMember) return { success: false, error: "Membre requis" };
+    // Fail-closed : même gate que la page calendrier (`canViewCalendar` =
+    // `community:access` + module actif) et que le bouton Discord. Sans ça, un
+    // membre sans rôle pouvait s'inscrire depuis le site alors que le dashboard
+    // lui refusait l'accès (03/10/2026).
+    if (!(ctx as any).canViewCalendar) return { success: false, error: "Accès calendrier requis" };
 
     try {
         const { processRegistration } = await import("@/server/calendar-service");
@@ -1415,6 +1420,7 @@ export async function updateMyRegistrationClass(guildId: string, eventId: string
     const ctx = await getUserContext(guildId);
     if (!ctx.isAuthenticated) return { success: false, error: "Non authentifié" };
     if (!ctx.isMember) return { success: false, error: "Membre requis" };
+    if (!(ctx as any).canViewCalendar) return { success: false, error: "Accès calendrier requis" };
 
     try {
         const raw = (classe ?? "").trim().slice(0, 30);
@@ -1440,6 +1446,7 @@ export async function unregisterFromEvent(guildId: string, eventId: string) {
     const ctx = await getUserContext(guildId);
     if (!ctx.isAuthenticated) return { success: false, error: "Non authentifié" };
     if (!ctx.isMember) return { success: false, error: "Membre requis" };
+    if (!(ctx as any).canViewCalendar) return { success: false, error: "Accès calendrier requis" };
 
     try {
         const { processUnregistration } = await import("@/server/calendar-service");

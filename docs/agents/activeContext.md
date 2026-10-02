@@ -6,6 +6,13 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 🔧 Session 01/10/2026 (Alerte « Ladder Sync » : la couleur cesse de mentir) — **mesure VPS : 17/34 alertes vertes AVEC échecs · couleur honnête · échecs listés · champs FR** · branche `fix/ladder-sync-alerte`
+> **Déclencheur** : embed « Ladder General/Succès Sync » (« ✅ Réussis : 4 / Échecs : 1 » en vert).
+> **Mesure VPS (bêta, `GodNotification`, 90 j)** : 5 089 notifs dont **4 582 = incident outbox** (corrigé) ⇒ routine ~8/j (pas bruyant) ; sur **34** runs Ladder, **17 verts avec `fail_count > 0`** (la couleur mentait).
+> **Fait** : règle pure `src/lib/ladder-sync-alert.ts` (vert ⇔ 0 échec, échecs listés, champs FR) branchée dans `/api/cron/ladder-sync`. Pas de silence (volume faible).
+> **Preuves** : `tsc` **0** · `eslint` **0 erreur** · **274 fichiers / 3 058 tests ✓**.
+> **Ops user** : déployer (0 migration).
+
 ## 🔧 Session 01/10/2026 (Veille Discord : ping fiabilisé, changelog lu en entier, sévérité info/critique) — **plus de « @rôle inconnu » · fin des ~95 % de changelog non scannés · breaking changes détectées par tag · une info ne pinge plus · champs d'embed en français** · branche `fix/veille-discord`
 > **Demande user (verbatim)** : « j'ai reçu cet embed aujourd'hui : […] On est toujours opti là dessus ? on peut faire mieux ? » → « consulte le changelog discord, l'api etc voir pour optimiser tout ça comme un pro, tout en une seule PR ».
 > **Mesures (01/10/2026)** : ① l'embed portait « **@rôle inconnu** » — `PlatformConfig.godNotifyRoleId` est une valeur **plateforme** alors que bêta et prod sont **deux serveurs Discord distincts** (le ping tombait dans le vide) ; ② la page changelog pèse **~3 Mo** et le code n'en lisait que **150 000 caractères** (`FETCH_MAX_CHARS`) ⇒ ~95 % jamais scannés ; ③ champs d'embed en jargon (`gatewayOk`, `docsChanged`, `dayJStatus`) ; ④ tout changement de doc ⇒ alerte **rouge + ping** chaque mois (bruit).

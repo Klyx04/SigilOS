@@ -16,6 +16,7 @@ import { auth } from "@/auth";
 import { rateLimit } from "@/lib/ratelimit";
 import { clearCachePattern } from "@/lib/cache";
 import { buildProfileSlug } from "@/lib/profile-slug";
+import { getDefaultDiscordAvatar } from "@/lib/discord-avatars";
 import { z } from "zod";
 import { formatDofusPseudo } from "@/lib/utils";
 // Règle de pseudo PARTAGÉE (profil interne ↔ guide public) : une seule définition.
@@ -1848,7 +1849,17 @@ export async function getGuildMembers(
                 // un membre avait une valeur non-null (JSON.stringify throw sur BigInt).
                 // Converti explicitement en string pour être sérialisable.
                 totalXp: p.totalXp != null ? p.totalXp.toString() : null,
-                user: { id: p.user.id, name: getDisplayName(p), image: p.user.image },
+                user: {
+                    id: p.user.id,
+                    name: getDisplayName(p),
+                    // Avatar — `user.image` est le hash Discord figé au login OAuth. S'il est
+                    // absent (membre jamais connecté, hash purgé, Discord injoignable), on sert
+                    // l'avatar **par défaut officiel** de Discord (`embed/avatars/{n}.png`, jamais
+                    // 404) plutôt que de ne rien afficher : même règle que `ui/avatar.tsx`, mais
+                    // appliquée **à la source** pour que l'annuaire et la démo publique rendent
+                    // exactement la même chose. `null` reste possible → repli initiales côté UI.
+                    image: p.user.image ?? getDefaultDiscordAvatar(discordId as string | undefined),
+                },
                 displayName: getDisplayName(p),
                 roleColor: p.discordRoleColor || 0,
                 roleName: p.discordRoleName || "Membre",

@@ -8,6 +8,7 @@ import {
     isDiscordAvatarHostname,
     extractUserIdFromAvatarUrl,
     getDefaultDiscordAvatar,
+    getDefaultDiscordAvatarByIndex,
 } from "@/lib/discord-avatars";
 
 describe("discord-avatars — URLs d'avatar (chantier #23, hardening F-29)", () => {
@@ -172,6 +173,26 @@ describe("discord-avatars — URLs d'avatar (chantier #23, hardening F-29)", () 
             expect(getDefaultDiscordAvatar(undefined)).toBeNull();
             expect(getDefaultDiscordAvatar("")).toBeNull();
             expect(getDefaultDiscordAvatar("not-a-number")).toBeNull();
+        });
+    });
+
+    describe("getDefaultDiscordAvatarByIndex — icône par défaut SANS identifiant", () => {
+        it("borne l'index sur 0..5 (aucune URL hors `embed/avatars`)", () => {
+            for (const index of [0, 1, 5, 6, 7, 12, -1, -7, 3.9]) {
+                expect(getDefaultDiscordAvatarByIndex(index)).toMatch(
+                    /^https:\/\/cdn\.discordapp\.com\/embed\/avatars\/[0-5]\.png$/,
+                );
+            }
+            expect(getDefaultDiscordAvatarByIndex(0)).toBe("https://cdn.discordapp.com/embed/avatars/0.png");
+            expect(getDefaultDiscordAvatarByIndex(6)).toBe("https://cdn.discordapp.com/embed/avatars/0.png");
+            expect(getDefaultDiscordAvatarByIndex(-1)).toBe("https://cdn.discordapp.com/embed/avatars/5.png");
+        });
+
+        it("donne exactement la même URL que getDefaultDiscordAvatar pour le même index", () => {
+            // Le calcul par snowflake doit passer par la même fabrique (une seule source d'URL).
+            const id = "123456789012345678";
+            const idx = Number((BigInt(id) >> 22n) % 6n);
+            expect(getDefaultDiscordAvatar(id)).toBe(getDefaultDiscordAvatarByIndex(idx));
         });
     });
 });

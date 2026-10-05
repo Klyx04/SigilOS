@@ -7,7 +7,7 @@ import {
     DEMO_MEMBERS,
     DEMO_STATS,
 } from "@/lib/demo/source";
-import { DOFUS_CLASSES, ALIGNMENTS } from "@/lib/dofus-assets";
+import { DOFUS_CLASSES, ALIGNMENTS, ORDERS } from "@/lib/dofus-assets";
 import { metierIds } from "@/lib/metiers";
 
 /**
@@ -99,6 +99,12 @@ describe("démo publique — la source ne contient aucune donnée réelle", () =
                 expect(member.alignmentOrder).toBeNull();
             } else {
                 expect(member.alignmentOrder).toBeTruthy();
+                // L'ordre doit exister **pour cette faction** : un joueur repère un ordre inventé.
+                const orders = (ORDERS as unknown as Record<string, { id: string }[]>)[member.alignment] ?? [];
+                expect(
+                    orders.some((o) => o.id === member.alignmentOrder),
+                    `ordre inconnu : ${member.alignment}/${member.alignmentOrder}`,
+                ).toBe(true);
             }
             // Les métiers doivent résoudre (sinon la carte affiche un slug brut).
             expect(metierIds(member.metiers).length).toBe(member.metiers.length);

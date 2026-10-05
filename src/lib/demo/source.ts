@@ -150,7 +150,7 @@ const INPUTS: DemoMemberInput[] = [
         classe: "iop",
         jobs: ["mineur", "bucheron"],
         align: "brakmarien",
-        order: "brutal",
+        order: "malsain",
         alignLevel: 40,
         role: "Membre",
         color: 0x9aa4b2,

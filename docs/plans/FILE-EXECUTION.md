@@ -42,7 +42,7 @@ description: File d'exécution unique — tous les chantiers (A→Q), un seul or
 | **J** | Services & recrue | ouvert (volatile §12/§13) | **à créer** | J-1, J-2 |
 | **K** | Succès & encyclopédie | ouvert (volatile §9/§11) | **à créer** | K-1, K-2 |
 | **L** | Déslop global (dashboard / admin / landing / modales / ressources / missions / ladder / worldmap) | ouvert (volatile §19/§21/§22/§23) | **à créer** | L-1 → L-4 |
-| **M** | Guildes & admin (calendrier/membres/profil/stuff, édition staff, logs) | ouvert (volatile §16/§17/§18) | **à créer** | M-1 → M-3 |
+| **M** | Guildes & admin (calendrier/membres/profil/stuff, édition staff, logs) | ouvert (volatile §16/§17/§18) — **M-1 `membres`** (deslop annuaire) **codé le 02/10** | `docs/plans/PLAN-DESLOP-ANNUAIRE.md` (volet `membres`) | M-1 → M-3 |
 | **N** | Onboarding & acquisition (prospect → guilde) | proposition (06/09) | `docs/plans/PLAN-REFONTE-ONBOARDING.md` | — |
 | **O** | Refonte God « Guildes & Users » | plan vivant (25/09) | `docs/plans/PLAN-REFONTE-GOD-GUILDES.md` (+ `AMORCE-REFONTE-GOD-GUILDES.md`) | G1 → G12 (7 lots) |
 | **P** | Ouverture prod & durcissement | ouvert (bloquant prod) | `docs/ops/GUIDE-DEPLOIEMENT-PROD-JOUR-J.md` + `docs/plans/DECISION-OUVERTURE-LANDING.md` | — |
@@ -77,7 +77,7 @@ description: File d'exécution unique — tous les chantiers (A→Q), un seul or
 | **12** | **K · K-1** | §9 onglet **Monstres** du dashboard `/succes` | S/M | — |
 | **13** | **K · K-2** | §11 succès imbriqués (générique tous Dofus) | M | — |
 | **14** | **G · R6** | §15 dashboard vie : vignettes raid / agenda + activité | S/M | — |
-| **15** | **M · M-1** | §16 calendrier/membres/profil/stuff (+ **G·R8** filtre `OTHERS`) | M | — |
+| **15** | **M · M-1** | §16 calendrier/membres/profil/stuff (+ **G·R8** filtre `OTHERS`) — **volet `membres` livré le 02/10** : deslop de l'annuaire + icônes en assets réels (`docs/plans/PLAN-DESLOP-ANNUAIRE.md`) ; restent `calendrier` / `profil` / `stuff` | M | — |
 | **16** | **M · M-2** | §17 édition **staff** pseudo + classe | S | — |
 | **17** | **M · M-3** | §18 logs guildes (avatar exécutant + anti-fantômes) | M | — |
 | **18** | **L · L-1** | §19 `/ressources` déslop (registre partout) | M | — |

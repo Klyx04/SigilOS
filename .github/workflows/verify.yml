@@ -165,17 +165,20 @@ jobs:
         env:
           DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/unused"
 
-      - name: 🛡️ Security Audit
-        run: |
-          # Endpoint bulk deprecated parfois en 503 transitoire → retry avec backoff.
-          # (Un vrai finding high/critical reste un échec, on n'ignore pas la sécurité.)
-          _attempt=0
-          until npm audit --audit-level=high; do
-            _attempt=$((_attempt+1))
-            echo "::warning::npm audit failed (attempt $_attempt/5) — retrying in 15s"
-            [ "$_attempt" -ge 5 ] && exit 1
-            sleep 15
-          done
+      - name: 🛡️ Security Audit (le livré)
+        # Porte unique, partagée avec le hook `pre-push` (`npm run security:audit`) :
+        # échoue sur `high`/`critical` dans ce qui est LIVRÉ (`--omit=dev`) et sur tout
+        # `critical` de l'arbre. Mesure du 05/10/2026 : la production était à **0** alors
+        # que 5 `high` **de développement** (`eslint-config-next` → `fast-glob` → `micromatch`
+        # → `braces`, ce dernier sans version corrigée publiée) bloquaient TOUTES les PR,
+        # dont celles de Dependabot. Le détail et les échappatoires : `scripts/security-gate.mjs`.
+        run: npm run security:audit
+
+      - name: 🔔 Security Audit (tout l'arbre, informatif)
+        # Rien n'est caché : les avis hors production restent visibles à chaque run,
+        # et le job hebdo « Full Security Audit » les rend bloquants.
+        continue-on-error: true
+        run: npm audit --audit-level=high
 
       - name: 🔬 SAST Scan (Semgrep)
         uses: semgrep/semgrep-action@713efdd345f3035192eaa63f56867b88e63e4e5d # v1
@@ -280,6 +283,9 @@ jobs:
 
       - name: 🛡️ Full Security Audit
         run: |
+          # Porte STRICTE : ce job tourne en hebdo (+ push sur main/dev), pas sur les PR.
+          # C'est ICI que les avis « high » hors production doivent finir par disparaître
+          # (un correctif `braces` publié, ou un retrait de la chaîne `eslint-config-next`).
           # Endpoint bulk deprecated parfois en 503 transitoire → retry avec backoff.
           _attempt=0
           until npm audit --audit-level=high; do

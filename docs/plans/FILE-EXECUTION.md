@@ -11,7 +11,7 @@ description: File d'exécution unique — tous les chantiers (A→Q), un seul or
 > suivant ; la branche suivante naît de `dev` **après** le merge (`git fetch origin dev && git merge origin/dev`).
 > **On ne supprime jamais un chantier** : livré, il passe en `✅` **ici** (son détail part dans un bloc de
 > session du `docs/ROADMAP.md`).
-> **Dernière mise à jour** : 02/10/2026 · `dev` = `b6b965c7`.
+> **Dernière mise à jour** : 05/10/2026 · `dev` = `042de5ee` · **volet `membres` de M-1 livré** (PR #834 — le détail est au bloc du 05/10 du `docs/ROADMAP.md`, la file ne le duplique pas).
 
 ## 0. Comment s'en servir
 
@@ -95,7 +95,7 @@ description: File d'exécution unique — tous les chantiers (A→Q), un seul or
 | **30** | **E** | Acquisition : E-1 monstres → E-2 objets → E-3 quêtes | L | ⏸ **D6** |
 | **31** | **P** | Ouverture prod : durcissement audit 20/09 + #57 | M (ops) | ⏸ **D7** |
 | **32** | **R** | Cloudflare devant `sigilos.fr` (WAF/DDoS) **ou** durcissement Caddy équivalent — décision + DPA + MAJ pages RGPD | M (ops) | ⏸ **D8** |
-| **33** | **S · S-1** | Démo publique : source de démo + route `/demo` + bandeau « Démonstration » + annuaire réel (mode lecture seule) | M | — |
+| **33** | **S · S-1** | ✅ **livré le 02/10/2026** (PR #830) — démo publique : source de démo + route `/demo` + bandeau « Démonstration » + annuaire réel en lecture seule | M | — |
 | **34** | **S · S-2a** | Songes réels en lecture seule (`canJoinSonges={false}`) | S | étape 33 |
 | **35** | **S · S-2b** | Sorties + succès en **vues de démo dédiées** | M | étape 33 |
 | **36** | **S · S-3** | Interactions **locales non persistées** (inscription, filtrage, scène Discord) | M | étapes 34 & 35 |

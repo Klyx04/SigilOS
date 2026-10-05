@@ -111,12 +111,14 @@ diffère ; le **rendu** reste celui du produit. C'est écrit ici pour ne pas le 
 | Lot | Contenu | Statut |
 |---|---|---|
 | **S-0** | Mesure du couplage des composants visés (§2.2) | ✅ **fait le 02/10/2026** (lecture seule, 0 PR) |
-| **S-1** | `src/lib/demo/**` (source typée) + route `/demo` + bandeau « Démonstration » + annuaire réel (`MemberDirectory`, mode `readOnly`) + `PUBLIC_PREFIXES` + `noindex` + gardes de test | à faire |
+| **S-1** | `src/lib/demo/**` (source typée) + route `/demo` + bandeau « Démonstration » + annuaire réel (`MemberDirectory`, mode `readOnly`) + `PUBLIC_PREFIXES` + `noindex` + gardes de test | ✅ **livré le 02/10/2026** (**PR #830**) |
 | **S-2a** | Songes réels (`RunCardGrid`) en `canJoinSonges={false}` — après vérification qu'aucun bouton d'action n'est atteignable | à faire |
 | **S-2b** | Sorties et succès en **vues de démo dédiées** (données de la source de démo, markup réel) | à faire |
 | **S-3** | Interactions locales non persistées (inscription à une sortie, filtrage, scène Discord) | à faire |
 | **S-4** | La landing autour : CTA « Essayer la démo » (FR+EN), hero sur l'écran réel, fuites produit (`tools.tsx:72` FR en dur ; `proof.tsx:76-88` état unique masqué) | à faire |
 | **S-5** | Perf mesurée, activée par l'audit : pages publiques prérendables, **une seule** langue au client, `framer-motion` hors du graphe public | à faire |
+
+> **Reprise de session** : `docs/plans/AMORCE-DEMO-PUBLIQUE.md` — état mesuré, ordre des lots, méthode et DoD, **bloc à coller** en tête de la nouvelle session.
 
 ---
 

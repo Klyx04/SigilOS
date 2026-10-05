@@ -96,6 +96,7 @@ npm run dev                        # http://localhost:3000
 npm run test:run                   # Vitest complet (~1 700 tests) — obligatoire avant PR
 npx tsc --noEmit                   # TypeScript (déjà joué par le hook pre-commit)
 npm run lint                       # ESLint
+npm run security:audit             # porte de sécurité (hook pre-push + CI) — voir docs/agents/git-push.md §0
 npm run build                      # build de prod (délégué à la CI si `next dev` tourne — dis-le)
 npm run seed:docs                  # si docs-catalog.ts a changé
 ```

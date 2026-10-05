@@ -64,13 +64,22 @@ describe("démo publique — la source ne contient aucune donnée réelle", () =
         expect(new Set(pseudos).size).toBe(pseudos.length);
     });
 
-    it("n'expose jamais un nom de compte : user.image nul et aucun user.name", () => {
+    it("n'expose jamais un nom de compte ni un vrai avatar Discord", () => {
         for (const member of DEMO_MEMBERS) {
-            expect(member.user.image).toBeNull();
             expect(Object.keys(member.user)).toEqual(["image"]);
             expect(member.discordNickname.length).toBeGreaterThan(0);
             expect(member.pseudoDofus.length).toBeGreaterThan(0);
+            // L'avatar autorisé est **l'icône Discord par défaut officielle** (index 0-5), jamais
+            // un avatar réel `avatars/{snowflake}/{hash}` — qui désignerait une personne.
+            expect(member.user.image).toMatch(
+                /^https:\/\/cdn\.discordapp\.com\/embed\/avatars\/[0-5]\.png$/,
+            );
         }
+    });
+
+    it("ne réutilise pas deux fois la même icône par défaut", () => {
+        const images = DEMO_MEMBERS.map((m) => m.user.image);
+        expect(new Set(images).size).toBeGreaterThanOrEqual(5);
     });
 
     it("ne contient ni e-mail, ni identifiant Discord, ni invitation", () => {

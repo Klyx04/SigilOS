@@ -11,12 +11,16 @@
  *
  * ⚠️ Règles non négociables (gardées par `tests/unit/demo-publique.test.ts`) :
  *  1. **aucun** identifiant Discord (snowflake), aucune invitation, aucun e-mail, aucun nom de compte
- *     (`user.image` nul, `user.name` absent — `getDisplayName` interdit le nom de compte d'autrui) ;
+ *     (`user.name` absent — `getDisplayName` interdit le nom de compte d'autrui). L'avatar est
+ *     l'**icône Discord par défaut officielle** (`embed/avatars/{n}.png`, choisie par index), jamais
+ *     un vrai avatar `avatars/{snowflake}/{hash}` ;
  *  2. **déterminisme** : aucune date calculée avec `Date.now()` (rendu serveur et client identiques) ;
  *  3. les champs sont ceux que `MemberCard` lit **réellement** (mesure §2.3 du plan) :
  *     `classe` = id de `DOFUS_CLASSES`, `metiers` = id de `DOFUS_JOBS`, `alignment` ∈ `ALIGNMENTS`,
  *     `alignmentOrder` = id d'`ORDERS`, `altPseudos` = mules `{ pseudo, classe, alignment, alignmentOrder, level }`.
  */
+
+import { getDefaultDiscordAvatarByIndex } from "@/lib/discord-avatars";
 
 /** Guilde de démonstration — fictive, jamais en base. `id` n'est **pas** un snowflake Discord. */
 export const DEMO_GUILD = {
@@ -47,8 +51,12 @@ export interface DemoMember {
     lastActivityAt: string | null;
     vacationStart: string | null;
     vacationEnd: string | null;
-    /** Jamais de nom de compte : le dépôt est public. */
-    user: { image: null };
+    /**
+     * Jamais de nom de compte : le dépôt est public. `image` est l'icône Discord **par défaut**
+     * officielle (`embed/avatars/{n}.png`, index 0-5) — jamais un avatar réel, qui désignerait
+     * une personne.
+     */
+    user: { image: string };
     guildId: string;
 }
 
@@ -79,7 +87,6 @@ interface DemoMemberInput {
 }
 
 const MAGE_CRAFT = { id: "demo-craft-legendarite", name: "Anneau légendaire" };
-const NO_USER = { image: null } as const;
 
 function buildMember(input: DemoMemberInput, index: number): DemoMember {
     const alignment = input.align ?? "neutre";
@@ -102,7 +109,9 @@ function buildMember(input: DemoMemberInput, index: number): DemoMember {
         lastActivityAt: input.seen ?? null,
         vacationStart: null,
         vacationEnd: null,
-        user: NO_USER,
+        // Icône Discord **par défaut** officielle, choisie par index : le rendu est celui du
+        // produit (même CDN, même composant), sans jamais transporter d'identifiant Discord.
+        user: { image: getDefaultDiscordAvatarByIndex(index) },
         guildId: DEMO_GUILD.id,
     };
 }

@@ -5,10 +5,12 @@ import {
     DEMO_GUILD,
     DEMO_LEGENDARY_ITEMS,
     DEMO_MEMBERS,
+    DEMO_RUNS,
     DEMO_STATS,
 } from "@/lib/demo/source";
 import { DOFUS_CLASSES, ALIGNMENTS, ORDERS } from "@/lib/dofus-assets";
 import { metierIds } from "@/lib/metiers";
+import { DIFFICULTIES, OBJECTIVES, EPREUVES_SONGE } from "@/lib/songes/types";
 
 /**
  * Gardes du chantier `S` — démo publique (`docs/plans/PLAN-DEMO-PUBLIQUE.md` §5).
@@ -28,7 +30,11 @@ const DEMO_DIRS = ["src/lib/demo"];
  * périmètre S-1) : elle lit Dofensive via une action serveur **de lecture**, ce que cette garde ne
  * prétend pas vérifier — on ne l'inclut donc pas pour ne pas publier une couverture illusoire.
  */
-const DEMO_FILES = ["src/app/demo/page.tsx", ...DEMO_DIRS.flatMap((dir) => filesUnder(dir))];
+const DEMO_FILES = [
+    ...filesUnder("src/app/demo/(vitrine)"),
+    ...filesUnder("src/app/demo/_components"),
+    ...DEMO_DIRS.flatMap((dir) => filesUnder(dir)),
+];
 
 function filesUnder(dir: string): string[] {
     const out: string[] = [];
@@ -153,7 +159,7 @@ describe("démo publique — aucune écriture n'est atteignable (décision D3)",
     });
 
     it("garde le mode lecture seule branché sur l'annuaire réel", () => {
-        const page = readFileSync("src/app/demo/page.tsx", "utf8");
+        const page = readFileSync("src/app/demo/(vitrine)/annuaire/page.tsx", "utf8");
         expect(page).toMatch(/<MemberDirectory/);
         expect(page).toMatch(/\breadOnly\b/);
     });
@@ -168,12 +174,12 @@ describe("démo publique — aucune écriture n'est atteignable (décision D3)",
 
 describe("démo publique — la page est honnête (décision D2)", () => {
     it("désindexe la route au rodage", () => {
-        const page = readFileSync("src/app/demo/page.tsx", "utf8");
+        const page = readFileSync("src/app/demo/(vitrine)/layout.tsx", "utf8");
         expect(page).toMatch(/robots:\s*\{\s*index:\s*false/);
     });
 
     it("affiche un libellé de démonstration et des textes bilingues", () => {
-        const page = readFileSync("src/app/demo/page.tsx", "utf8");
+        const page = readFileSync("src/app/demo/(vitrine)/layout.tsx", "utf8");
         expect(page).toMatch(/d\.bannerLabel/);
         const fr = readFileSync("src/lib/i18n/locales/fr.ts", "utf8");
         const en = readFileSync("src/lib/i18n/locales/en.ts", "utf8");
@@ -186,5 +192,58 @@ describe("démo publique — la page est honnête (décision D2)", () => {
         const block = fr.slice(fr.indexOf("demoPage: {"), fr.indexOf("// Statut & Maintenance"));
         expect(block).toMatch(/Guilde fictive/);
         expect(block).toMatch(/lecture seule/);
+    });
+});
+
+describe("démo publique — Songes (lot S-2a)", () => {
+    const difficultyKeys = Object.keys(DIFFICULTIES);
+    const objectiveKeys = Object.keys(OBJECTIVES);
+    const epreuveCodes = EPREUVES_SONGE.map((e) => e.code);
+    const memberIds = new Set(DEMO_MEMBERS.map((m) => m.id));
+
+    it("fournit 1 à 3 runs, identifiants uniques, conformes aux référentiels", () => {
+        expect(DEMO_RUNS.length).toBeGreaterThanOrEqual(1);
+        expect(DEMO_RUNS.length).toBeLessThanOrEqual(3);
+        const ids = DEMO_RUNS.map((r) => r.id);
+        expect(new Set(ids).size).toBe(ids.length);
+        for (const run of DEMO_RUNS) {
+            expect(difficultyKeys).toContain(run.difficulty);
+            expect(objectiveKeys).toContain(run.objective);
+            if (run.epreuveCode !== null) expect(epreuveCodes).toContain(run.epreuveCode);
+            expect(run.currentFloor).toBeGreaterThanOrEqual(0);
+            expect(run.currentFloor).toBeLessThanOrEqual(26);
+            expect(run._count.floors).toBeLessThanOrEqual(run.currentFloor);
+        }
+    });
+
+    it("référence uniquement des membres de la source et des slots uniques 1-4", () => {
+        for (const run of DEMO_RUNS) {
+            expect(memberIds.has(run.leaderMemberId)).toBe(true);
+            const slots = run.members.map((m) => m.slot);
+            expect(new Set(slots).size).toBe(slots.length);
+            for (const m of run.members) {
+                expect(m.slot).toBeGreaterThanOrEqual(1);
+                expect(m.slot).toBeLessThanOrEqual(4);
+                expect(memberIds.has(m.memberId)).toBe(true);
+            }
+            expect(run.members.some((m) => m.memberId === run.leaderMemberId)).toBe(true);
+        }
+    });
+
+    it("reste déterministe (dates ISO fixes, libellés écrits à la main)", () => {
+        const source = codeOnly(readFileSync("src/lib/demo/source.ts", "utf8"));
+        expect(source).not.toMatch(/Date\.now\(\)/);
+        for (const run of DEMO_RUNS) {
+            expect(run.createdAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+            if (run.scheduledAt !== null) expect(run.scheduledAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+            expect(run.createdLabel.length).toBeGreaterThan(0);
+        }
+    });
+
+    it("rend la section Songes via la vue de démo dédiée (aucune action serveur)", () => {
+        const page = readFileSync("src/app/demo/(vitrine)/songes/page.tsx", "utf8");
+        expect(page).toMatch(/DemoRuns/);
+        const view = codeOnly(readFileSync("src/app/demo/_components/demo-runs.tsx", "utf8"));
+        expect(view).not.toMatch(/@\/server\/actions/);
     });
 });

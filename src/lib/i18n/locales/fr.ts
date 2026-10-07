@@ -384,6 +384,29 @@ export const fr = {
         ],
         guildLabel: "Guilde présentée",
         signoff: "La démo est statique : elle n'enregistre rien, ne contacte aucun serveur Discord et ne lit aucune base de données.",
+
+        // Navigation de la coquille de démo (lot S-2a)
+        navOverview: "Vue d'ensemble",
+        navDirectory: "Annuaire",
+        navSonges: "Songes",
+        navOutings: "Sorties",
+        navAchievements: "Succès",
+        navSoon: "bientôt",
+
+        // Section Songes — vue de démo dédiée (le composant réel interroge la base au montage)
+        songesEyebrow: "Songes Infinis",
+        songesTitle: "Les runs de la guilde, en lecture seule.",
+        songesDesc: "Filtre par palier, équipe qui se remplit, étage courant : le parcours d'une run, sans aucune inscription possible.",
+        songesTierAll: "Tous",
+        songesTierReve: "Rêve",
+        songesTierParadoxe: "Paradoxe",
+        songesTierCauchemar: "Cauchemar",
+        songesLeader: "Chef",
+        songesRecruiting: "recrute",
+        songesFull: "Équipe complète",
+        songesFree: "Libre",
+        songesEmpty: "Aucune run dans ce palier.",
+        songesSignature: "Vue de démonstration : les runs réelles du produit interrogent la base — ici, rien n'est lu ni écrit.",
     },
 
     // Statut & Maintenance

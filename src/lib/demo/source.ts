@@ -211,3 +211,107 @@ export const DEMO_STATS = {
     jobCount: DEMO_MEMBERS.reduce((total, m) => total + m.metiers.length, 0),
     alliedCount: DEMO_MEMBERS.filter((m) => m.alignment !== "neutre").length,
 };
+
+/* ==========================================================================
+ * Songes (lot S-2a)
+ * ==========================================================================
+ *
+ * ⚠️ Le composant réel `RunCard` appelle une action serveur **au montage**
+ * (`getMemberProfiles`, `RunCard.tsx:136`, mesuré le 03/10/2026) : la page publique,
+ * qui n'a pas de base, ne peut **pas** le réutiliser tel quel. Ces runs alimentent donc
+ * une **vue de démo dédiée** (`src/app/demo/_components/demo-runs.tsx`) qui reprend le
+ * vocabulaire réel (pictos de palier, difficultés, objectifs, épreuves, avatars) sans
+ * jamais appeler d'action.
+ *
+ * Règles (gardées par `tests/unit/demo-publique.test.ts`) :
+ *  - `difficulty` ∈ `DIFFICULTIES`, `objective` ∈ `OBJECTIVES`, `epreuveCode` ∈ `EPREUVES_SONGE` ;
+ *  - `leaderMemberId` / `members[].memberId` référencent `DEMO_MEMBERS` (source unique
+ *    des pseudos et avatars) ;
+ *  - **déterminisme** : dates ISO fixes **et** libellés d'affichage écrits à la main
+ *    (jamais `toLocaleDateString`, qui divergerait entre serveur et client).
+ */
+export type DemoRunStatus = "RECRUITING" | "IN_PROGRESS";
+
+export interface DemoRunMember {
+    /** Emplacement dans l'équipe (1-4, comme en jeu). */
+    slot: number;
+    /** Référence à `DEMO_MEMBERS[].id` — jamais un pseudo en dur. */
+    memberId: string;
+}
+
+export interface DemoRun {
+    id: string;
+    /** Clé de `DIFFICULTIES` (ex. `CAUCHEMAR_I`). */
+    difficulty: string;
+    /** Clé de `OBJECTIVES` (ex. `MISSION_GUILDE`). */
+    objective: string;
+    status: DemoRunStatus;
+    currentFloor: number;
+    /** Code d'`EPREUVES_SONGE` ou `null`. */
+    epreuveCode: string | null;
+    /** Date ISO **fixe** (source de vérité). */
+    scheduledAt: string | null;
+    /** Libellé d'affichage déterministe (aucune API de date côté rendu). */
+    scheduledLabel: string | null;
+    createdAt: string;
+    createdLabel: string;
+    leaderMemberId: string;
+    members: DemoRunMember[];
+    _count: { floors: number; bonuses: number };
+}
+
+export const DEMO_RUNS: DemoRun[] = [
+    {
+        id: "demo-run-01",
+        difficulty: "CAUCHEMAR_I",
+        objective: "MISSION_GUILDE",
+        status: "IN_PROGRESS",
+        currentFloor: 18,
+        epreuveCode: "FONSOCAC",
+        scheduledAt: "2026-09-30T19:00:00.000Z",
+        scheduledLabel: "30/09 · 21:00",
+        createdAt: "2026-09-28T18:12:00.000Z",
+        createdLabel: "créée le 28/09",
+        leaderMemberId: "demo-membre-01",
+        members: [
+            { slot: 1, memberId: "demo-membre-01" },
+            { slot: 2, memberId: "demo-membre-02" },
+            { slot: 3, memberId: "demo-membre-03" },
+            { slot: 4, memberId: "demo-membre-05" },
+        ],
+        _count: { floors: 18, bonuses: 4 },
+    },
+    {
+        id: "demo-run-02",
+        difficulty: "PARADOXE_II",
+        objective: "DROP_LEGENDE",
+        status: "RECRUITING",
+        currentFloor: 7,
+        epreuveCode: "NILEZAFF",
+        scheduledAt: "2026-10-02T18:30:00.000Z",
+        scheduledLabel: "02/10 · 20:30",
+        createdAt: "2026-10-01T17:40:00.000Z",
+        createdLabel: "créée le 01/10",
+        leaderMemberId: "demo-membre-02",
+        members: [
+            { slot: 1, memberId: "demo-membre-02" },
+            { slot: 2, memberId: "demo-membre-06" },
+        ],
+        _count: { floors: 7, bonuses: 2 },
+    },
+    {
+        id: "demo-run-03",
+        difficulty: "REVE_I",
+        objective: "FUN",
+        status: "RECRUITING",
+        currentFloor: 2,
+        epreuveCode: null,
+        scheduledAt: null,
+        scheduledLabel: null,
+        createdAt: "2026-09-29T20:05:00.000Z",
+        createdLabel: "créée le 29/09",
+        leaderMemberId: "demo-membre-08",
+        members: [{ slot: 1, memberId: "demo-membre-08" }],
+        _count: { floors: 2, bonuses: 0 },
+    },
+];

@@ -17,7 +17,8 @@
  * jamais journaliser de chemin.
  */
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
+import path from "node:path";
 
 import { GET as dofusbookImage } from "@/app/api/dofusbook/proxy/[id]/image/route";
 
@@ -25,6 +26,19 @@ const ROUTES = [
     "src/app/api/dofusbook/proxy/[id]/image/route.ts",
     "src/app/api/storage/[...path]/route.ts",
 ];
+
+const ROOT = process.cwd();
+
+/** Toutes les sources TypeScript du dossier `src/`. */
+function fichiersSource(dir: string): string[] {
+    const out: string[] = [];
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+        const full = path.join(dir, entry.name);
+        if (entry.isDirectory()) out.push(...fichiersSource(full));
+        else if (/\.(ts|tsx)$/.test(entry.name)) out.push(full);
+    }
+    return out;
+}
 
 /** Retire les commentaires : les explications citent `console.error` à dessein. */
 function codeSeul(source: string): string {
@@ -72,5 +86,34 @@ describe("faux positifs Sentry — un cas normal n'est jamais loggé en error", 
         expect(source).toMatch(/logger\.error\("\[Storage API\]/);
         // Aucun chemin (donc aucun snowflake de guilde) ne part dans un log.
         expect(source).not.toMatch(/logger\.[a-z]+\([^)]*safePath/);
+    });
+});
+
+/**
+ * 2ᵉ famille (mesurée le 07/10/2026 sur la bêta après deploy) : un échec **non fatal** loggé
+ * en `logger.error` (⇒ Issue Sentry) et un avertissement de **process Node** émis par le
+ * runtime de Next sur une URL qui n'existe pas.
+ */
+describe("faux positifs Sentry — cas non fatal & bruit de process", () => {
+    it("④ aucune source ne logge un échec « non-fatal » en `logger.error`", () => {
+        const fautifs: string[] = [];
+        for (const file of fichiersSource(path.join(ROOT, "src"))) {
+            readFileSync(file, "utf8")
+                .split("\n")
+                .forEach((line, index) => {
+                    if (/non-fatal/i.test(line) && /logger\.error\(/.test(line)) {
+                        fautifs.push(`${path.relative(ROOT, file)}:${index + 1}`);
+                    }
+                });
+        }
+        expect(fautifs).toEqual([]);
+    });
+
+    it("⑤ le bruit de process du runtime Next est filtré, explicitement et avec sa mesure", () => {
+        const config = readFileSync("sentry.server.config.ts", "utf8");
+        expect(config).toMatch(/ignoreErrors:\s*\[/);
+        expect(config).toMatch(/\/MaxListenersExceededWarning\//);
+        // La décision doit rester motivée par la mesure : volume + URL fantôme.
+        expect(config).toMatch(/113 événements en/);
     });
 });

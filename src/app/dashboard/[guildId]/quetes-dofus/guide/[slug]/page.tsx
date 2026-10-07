@@ -70,7 +70,9 @@ export default async function OptimizedGuideUserPage({ params, searchParams }: P
             });
         }
     } catch (e) {
-        logger.error("[Guide Page] Guild progress fetch failed (non-fatal)", { error: e });
+        // Non fatal : la page s'affiche sans ces données ⇒ `warn`, jamais `error`
+        // (un `logger.error` devient une **Issue Sentry**, cf. `sentry.server.config.ts`).
+        logger.warn("[Guide Page] Guild progress fetch failed (non-fatal)", { error: e });
     }
 
     // Coches MANUELLES de ressources du membre (par personnage : principale ou mule) —
@@ -80,7 +82,8 @@ export default async function OptimizedGuideUserPage({ params, searchParams }: P
         const checks = await getRushResourceChecks(slug, guildId, altPseudo);
         resourceChecks = checks.keys || [];
     } catch (e) {
-        logger.error("[Guide Page] Resource checks fetch failed (non-fatal)", { error: e });
+        // Non fatal (voir ci-dessus) ⇒ `warn`.
+        logger.warn("[Guide Page] Resource checks fetch failed (non-fatal)", { error: e });
     }
 
     // Fetch full profile to get alignment, alignmentOrder, alignmentLevel, altPseudos, class & metamob
@@ -112,7 +115,8 @@ export default async function OptimizedGuideUserPage({ params, searchParams }: P
             };
         }
     } catch (e) {
-        logger.error("[Guide Page] Profile fetch failed (non-fatal)", { error: e });
+        // Non fatal (voir ci-dessus) ⇒ `warn`.
+        logger.warn("[Guide Page] Profile fetch failed (non-fatal)", { error: e });
     }
 
     // Fetch Ocre progress stats if metamob is linked
@@ -146,7 +150,8 @@ export default async function OptimizedGuideUserPage({ params, searchParams }: P
                 }
             }
         } catch (e) {
-            logger.error("[Guide Page] Metamob stats fetch error (non-fatal)", { error: e });
+            // Non fatal (voir ci-dessus) ⇒ `warn`.
+            logger.warn("[Guide Page] Metamob stats fetch error (non-fatal)", { error: e });
         }
     }
 

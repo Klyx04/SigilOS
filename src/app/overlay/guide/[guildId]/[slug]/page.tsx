@@ -79,7 +79,9 @@ export default async function GuideOverlayPage({ params, searchParams }: Props) 
         : { monsters: [], currentStep: 0, totalSteps: 0, unavailable: true };
     }
   } catch (e) {
-    logger.error("[Overlay Guide] Metamob Ocre fetch failed (non-fatal)", { error: e });
+    // Non fatal : l'overlay s'affiche avec le panneau Ocre « indisponible » ⇒ `warn`
+    // (jamais `error` : ce serait une Issue Sentry pour un cas prévu).
+    logger.warn("[Overlay Guide] Metamob Ocre fetch failed (non-fatal)", { error: e });
   }
 
   return (

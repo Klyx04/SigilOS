@@ -865,7 +865,7 @@ function EntryEditDialog({ open, onOpenChange, entry, onSuccess, chainEntries = 
                                     <div className="w-10 h-10 rounded-full bg-black/40 border border-border overflow-hidden flex items-center justify-center shrink-0">
                                         {formData.npcImageUrl && isSafeImageUrl(formData.npcImageUrl) ? (
                                             /* eslint-disable-next-line @next/next/no-img-element */
-                                            <img src={formData.npcImageUrl} alt="Portrait PNJ" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                                            <img src={safeImageUrl(formData.npcImageUrl)} alt="Portrait PNJ" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
                                         ) : (
                                             <span className="text-caption font-black text-muted-foreground">?</span>
                                         )}

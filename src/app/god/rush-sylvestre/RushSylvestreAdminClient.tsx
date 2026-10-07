@@ -2544,7 +2544,7 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
                     <div className="flex items-center gap-1.5">
                       {npcImageUrl && isSafeImageUrl(npcImageUrl) ? (
                         /* eslint-disable-next-line @next/next/no-img-element */
-                        <img src={npcImageUrl} alt="" className="w-6 h-6 rounded-full object-cover shrink-0" />
+                        <img src={safeImageUrl(npcImageUrl)} alt="" className="w-6 h-6 rounded-full object-cover shrink-0" />
                       ) : null}
                       <input
                         value={npcImageUrl}

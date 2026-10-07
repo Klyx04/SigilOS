@@ -13,9 +13,34 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         Discord({
             clientId: process.env.AUTH_DISCORD_ID || process.env.DISCORD_CLIENT_ID,
             clientSecret: process.env.AUTH_DISCORD_SECRET || process.env.DISCORD_CLIENT_SECRET,
+            // RFC 9207 : Discord renvoie un paramètre `iss` dans la réponse OAuth. Auth.js
+            // le compare à `provider.issuer`, dont la valeur de repli est le placeholder
+            // « https://authjs.dev » (cf. @auth/core lib/actions/callback/oauth/callback.ts).
+            // Sans cet issuer explicite, TOUTE connexion échoue en `error=Configuration`
+            // (incident prod + bêta du 06/10/2026). Valeur = issuer de
+            // https://discord.com/.well-known/openid-configuration
+            issuer: "https://discord.com",
             authorization: { params: { scope: "identify guilds" } }
         })
     ],
+    // Logs Auth.js → logger applicatif. Sans ce branchement, les erreurs d'auth
+    // sortent en console brute et la page publique les **masque** en
+    // `error=Configuration` (cf. docs/MAINTENANCE.md § incident 06/10/2026) : on ne
+    // voit alors jamais la vraie erreur. En passant par `logger`, elles sont
+    // structurées, redactées, et remontent à Sentry (sentry.server.config →
+    // `captureConsoleIntegration` sur `error`, actif depuis l'ajout de
+    // `src/instrumentation.ts`).
+    logger: {
+        error(error: Error) {
+            logger.error(`[auth] ${error.name}: ${error.message}`, { authError: error.name });
+        },
+        warn(code: string) {
+            logger.warn(`[auth] ${code}`);
+        },
+        debug(message: string, metadata?: unknown) {
+            logger.debug(`[auth] ${message}`, metadata);
+        },
+    },
     adapter: PrismaAdapter(prisma),
     // SECURITY (F-07 / audit 2026): the base authConfig defines maxAge 24h, but
     // this override previously raised it to 7 days (most permissive wins).

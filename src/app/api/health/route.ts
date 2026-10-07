@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/prisma";
 import { redis } from "@/lib/redis";
+import { logger } from "@/lib/logger";
 
 interface HealthStatus {
     status: "healthy" | "degraded" | "unhealthy";
@@ -22,6 +23,12 @@ interface HealthStatus {
         dofusdb: ExternalCheck;
         dofensive: ExternalCheck;
     };
+    /**
+     * Configuration d'authentification **présente** (fail-closed) : une app dont
+     * l'auth est mal configurée est inutilisable pour les membres, même si DB/Redis
+     * répondent. Aucun secret n'est exposé — seul l'état l'est.
+     */
+    auth?: { status: "up" | "down" };
 }
 
 interface ExternalCheck {
@@ -131,6 +138,24 @@ export async function GET() {
         health.services.redis = { status: "down" };
         // Redis down = degraded, not unhealthy (fail-open design)
         health.status = health.status === "healthy" ? "degraded" : health.status;
+    }
+
+    // Configuration d'authentification (fail-closed) : sans ces variables, AUCUNE
+    // connexion n'est possible (cas le plus fréquent de panne d'auth). Ce contrôle
+    // n'exerce pas le callback OAuth (impossible sans compte) — il détecte l'absence
+    // de configuration, pas une rupture côté fournisseur (ex. incident `iss` du
+    // 06/10/2026) : pour ce dernier, seule l'alerte applicative (Sentry) fonctionne.
+    const missingAuth = [
+        !process.env.AUTH_SECRET && "AUTH_SECRET",
+        !(process.env.AUTH_DISCORD_ID || process.env.DISCORD_CLIENT_ID) && "AUTH_DISCORD_ID",
+        !(process.env.AUTH_DISCORD_SECRET || process.env.DISCORD_CLIENT_SECRET) && "AUTH_DISCORD_SECRET",
+    ].filter((v): v is string => Boolean(v));
+    health.auth = { status: missingAuth.length === 0 ? "up" : "down" };
+    if (missingAuth.length > 0) {
+        // Liste des variables manquantes **au log seulement** (jamais dans la réponse
+        // publique) ; `logger.error` → console.error → Sentry.
+        logger.error("[HealthCheck] Configuration d'authentification incomplète", { missing: missingAuth });
+        health.status = "unhealthy";
     }
 
     // Contrôles externes (parallèle, best-effort, jamais bloquant).

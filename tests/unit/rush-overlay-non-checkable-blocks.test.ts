@@ -93,7 +93,6 @@ const codeOf = (p: string) =>
     .replace(/(^|[^:])\/\/[^\n]*/g, "$1");
 
 const OVERLAY = "src/app/overlay/guide/[guildId]/[slug]/GuideOverlayClient.tsx";
-const COMPACT = "src/app/overlay/guide/[guildId]/[slug]/components/RushOverlayCompact.tsx";
 const DASHBOARD = "src/app/dashboard/[guildId]/quetes-dofus/guide/[slug]/RushTimelineClient.tsx";
 const PUBLIC = "src/app/guides/rush-sylvestre/_components/PublicRushGuideClient.tsx";
 const RICH = "src/components/dofus-quests/rush/RushRichText.tsx";
@@ -128,13 +127,6 @@ describe("Overlay — les bannières sont dans le flux, pas dans la navigation",
   it("plus aucune case à cocher désactivée ni « bloc informatif »", () => {
     const code = codeOf(OVERLAY);
     expect(code).not.toMatch(/msIsInfoBlock/);
-  });
-
-  it("le mode compact ne cache plus l'objectif derrière un bandeau", () => {
-    expect(codeOf(OVERLAY)).toMatch(/body=\{!compactObjective && banners\.before\.length > 0/);
-    // La prop `checkable` n'existe plus : le bloc courant est toujours un chapitre.
-    expect(codeOf(COMPACT)).not.toMatch(/checkable\?: boolean/);
-    expect(codeOf(COMPACT)).not.toMatch(/\{checkable &&/);
   });
 });
 

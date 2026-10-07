@@ -14,14 +14,14 @@ interface RushOverlayMemberBubblesProps {
   onOpen: () => void;
   /** Nombre de bulles empilées avant le compteur. */
   max?: number;
-  /** `sm` = ligne de quête · `md` = vue de jeu (l'overlay compact se lit de loin). */
+  /** `sm` = ligne de quête · `md` = grand (lisible de loin en fenêtre de jeu). */
   size?: "sm" | "md";
   className?: string;
 }
 
 /**
- * Rangée de bulles « qui est ici » — **source unique** des deux surfaces de l'overlay
- * (liste des quêtes **et** mode compact/vue de jeu).
+ * Rangée de bulles « qui est ici » — **source unique** des surfaces de l'overlay
+ * (liste des quêtes et modales membres).
  *
  * Le pseudo n'est jamais écrit dans la bulle : 4 caractères dans 5 cm de fenêtre ne se
  * lisent pas. Il part dans le `title` (survol) et dans la mini-modale (clic), qui est la

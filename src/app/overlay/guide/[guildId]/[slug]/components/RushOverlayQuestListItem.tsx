@@ -150,6 +150,9 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
             /* eslint-disable-next-line @next/next/no-img-element */
             <img src={seqIcon} alt="" className="h-4 w-4 shrink-0 object-contain" loading="lazy" />
           )}
+          {seqNpc && (seqNpc.imageUrl || seqNpc.id !== null) && (
+            <NpcBadge npcId={seqNpc.id} name={seqNpc.name} imageUrl={seqNpc.imageUrl} bare />
+          )}
           <div className="min-w-0 flex-1">
           {externalUrl ? (
             <a
@@ -203,9 +206,6 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
                   className="text-[11px]"
                   showZaap={isZaapCopyEnabled(seq)}
                 />
-              )}
-              {seqNpc && (seqNpc.name || seqNpc.id !== null) && (
-                <NpcBadge npcId={seqNpc.id} name={seqNpc.name} imageUrl={seqNpc.imageUrl} />
               )}
               {hasDungeon && (
                 // Le badge n'était qu'un `title` natif : au survol (ou au clic), on montre les

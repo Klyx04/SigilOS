@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { readFileSync } from "node:fs";
+import { readFileSync, existsSync } from "node:fs";
 
 /**
  * Guide Rush — retours user du 21/09/2026 (3 correctifs d'interface) :
@@ -43,13 +43,20 @@ describe("guide public — la flèche de repli fonctionne", () => {
     });
 });
 
-describe("overlay — le mode compact est un réglage d'affichage (en-tête, pas pied de page)", () => {
-    it("l'en-tête porte le bouton, branché sur l'entrée en mode compact", () => {
+describe("overlay — le mode compact est supprimé (retour user 07/10/2026)", () => {
+    it("l'en-tête n'a plus de bouton compact et l'overlay ne connaît plus la vue de jeu", () => {
         const header = codeOf(HEADER);
-        expect(header).toMatch(/onEnterCompact\?: \(\) => void;/);
-        expect(header).toMatch(/onClick=\{onEnterCompact\}/);
-        expect(header).toMatch(/title="Mode compact"/);
-        expect(codeOf(OVERLAY)).toMatch(/onEnterCompact=\{enterGameMode\}/);
+        expect(header).not.toMatch(/onEnterCompact/);
+        expect(header).not.toMatch(/Minimize2/);
+        expect(header).not.toMatch(/title="Mode compact"/);
+        const overlay = codeOf(OVERLAY);
+        expect(overlay).not.toMatch(/isCompactMode/);
+        expect(overlay).not.toMatch(/enterGameMode/);
+        expect(overlay).not.toMatch(/RushOverlayCompact/);
+    });
+
+    it("le composant de vue jeu n'existe plus (aucun code mort)", () => {
+        expect(existsSync("src/app/overlay/guide/[guildId]/[slug]/components/RushOverlayCompact.tsx")).toBe(false);
     });
 
     it("le pied de page n'a plus AUCUN bouton de compactage", () => {

@@ -130,6 +130,9 @@ export function RushOverlayQuestDetailModal({
                 /* eslint-disable-next-line @next/next/no-img-element */
                 <img src={seqIcon} alt="" className="h-4 w-4 shrink-0 object-contain" loading="lazy" />
               )}
+              {seqNpc && (seqNpc.imageUrl || seqNpc.id !== null) && (
+                <NpcBadge npcId={seqNpc.id} name={seqNpc.name} imageUrl={seqNpc.imageUrl} bare />
+              )}
               <span className="min-w-0 flex-1 truncate">{name}</span>
             </h2>
             <p className="mt-0.5 truncate text-[11px] text-muted-foreground">{milestone.title}</p>
@@ -158,7 +161,7 @@ export function RushOverlayQuestDetailModal({
                     showZaap={isZaapCopyEnabled(seq)}
                   />
                 </div>
-                {seqNpc && (seqNpc.name || seqNpc.id !== null) && (
+                {seqNpc && seqNpc.name && !seqNpc.imageUrl && seqNpc.id === null && (
                   <div className="mt-1.5 flex items-center gap-2">
                     <NpcBadge npcId={seqNpc.id} name={seqNpc.name} imageUrl={seqNpc.imageUrl} />
                   </div>

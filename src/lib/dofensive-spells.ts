@@ -95,6 +95,10 @@ export interface DofensiveMergedSpell extends Omit<DofensiveSpellCombat, "zone">
      * (voir `docs/reference/I18N_GUIDE.md`). Aligné sur `SpellData` (grilles de sorts).
      */
     nameEn?: string;
+    unityIconId?: number;
+    unityDescription?: string;
+    unityEffects?: string[];
+    unityCriticalEffects?: string[];
 }
 
 /**
@@ -175,10 +179,10 @@ export function isCombatSpellsPayloadOutdated(payloadVersion: unknown): boolean 
  * l'une des deux sources sont conservés. Jamais d'écrasement destructif.
  */
 export function mergeDofensiveSpells(
-    dbSpells: Array<{ id: number; name?: string; nameEn?: string; imageUrl?: string; description?: string }> = [],
+    dbSpells: Array<{ id: number; name?: string; nameEn?: string; imageUrl?: string; description?: string; unityIconId?: number; unityDescription?: string; unityEffects?: string[]; unityCriticalEffects?: string[] }> = [],
     dofensiveSpells: DofensiveSpellCombat[] = []
 ): DofensiveMergedSpell[] {
-    const dbMap = new Map<number, { name?: string; nameEn?: string; imageUrl?: string; description?: string }>();
+    const dbMap = new Map<number, { name?: string; nameEn?: string; imageUrl?: string; description?: string; unityIconId?: number; unityDescription?: string; unityEffects?: string[]; unityCriticalEffects?: string[] }>();
     for (const s of dbSpells) {
         const sid = Number(s?.id);
         if (Number.isFinite(sid) && sid > 0) dbMap.set(sid, s);
@@ -188,14 +192,25 @@ export function mergeDofensiveSpells(
     const seen = new Set<number>();
     for (const ds of dofensiveSpells) {
         const db = dbMap.get(ds.id);
+        const uIconId = db?.unityIconId;
+        const uDesc = db?.unityDescription;
+        const uEff = db?.unityEffects;
+        const uCrit = db?.unityCriticalEffects;
         merged.push({
             ...ds,
             name: db?.name || ds.name,
             nameEn: db?.nameEn || ds.nameEn,
             imageUrl: ds.imageUrl || db?.imageUrl, // icône Dofensive préférée (distincte par sort)
-            // Description Dofensive prioritaire (contexte de combat du sort), DofusDB en fallback.
-            description: ds.description || db?.description,
+            // Description Unity prioritaire si présente, sinon Dofensive
+            description: uDesc || ds.description || db?.description,
             zone: ds.zone ?? undefined,
+            unityIconId: uIconId,
+            unityDescription: uDesc,
+            unityEffects: uEff,
+            unityCriticalEffects: uCrit,
+            // Si les effets officiels Unity existent, ils priment
+            ...(Array.isArray(uEff) && uEff.length > 0 ? { effects: uEff } : {}),
+            ...(Array.isArray(uCrit) && uCrit.length > 0 ? { criticalEffects: uCrit } : {}),
         });
         seen.add(ds.id);
     }

@@ -874,6 +874,7 @@ export const en: Translations = {
         noLos: "No Line of Sight",
         zoneShape: "{shape} AoE",
         emptyMapGrid: "Empty Map (17×17 Grid)",
+        mapSourceClient: "Game client",
         options: "Options",
         optionsTitle: "Board settings",
         optionsClose: "Close",

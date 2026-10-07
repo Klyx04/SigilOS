@@ -871,6 +871,7 @@ export const fr = {
         noLos: "Sans Ligne de Vue",
         zoneShape: "Zone {shape}",
         emptyMapGrid: "Map vide (Grille 17×17)",
+        mapSourceClient: "Client jeu",
         options: "Options",
         optionsTitle: "Réglages du plateau",
         optionsClose: "Fermer",

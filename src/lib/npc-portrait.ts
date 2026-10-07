@@ -11,6 +11,8 @@
 export interface NpcRef {
     id: number | null;
     name: string | null;
+    /** Image importée en God (prioritaire sur la convention dans `NpcBadge`). */
+    imageUrl: string | null;
 }
 
 /** Chemin du portrait siphonné — `null` si l'id n'est pas exploitable. */
@@ -21,8 +23,9 @@ export function npcPortraitUrl(npcId: unknown): string | null {
 }
 
 /**
- * Référence PNJ d'une entrée de quête (champs God : `npcName` + `npcId`
- * glissé dans `requirements`, sans migration — `requirements: z.any()`).
+ * Référence PNJ d'une entrée de quête (champs God : `npcName` + `npcId` et
+ * `npcImageUrl` glissés dans `requirements`, sans migration —
+ * `requirements: z.any()`).
  */
 export function extractNpcRef(
     entry: { npcName?: unknown; requirements?: unknown } | null | undefined,
@@ -30,8 +33,11 @@ export function extractNpcRef(
     const name = typeof entry?.npcName === "string" && entry.npcName.trim() !== ""
         ? entry.npcName.trim()
         : null;
-    const req = entry?.requirements as { npcId?: unknown; npc?: unknown } | null | undefined;
+    const req = entry?.requirements as { npcId?: unknown; npcImageUrl?: unknown } | null | undefined;
     const fromId = Math.floor(Number(req?.npcId));
     const id = Number.isSafeInteger(fromId) && fromId > 0 ? fromId : null;
-    return { id, name };
+    const imageUrl = typeof req?.npcImageUrl === "string" && req.npcImageUrl.trim() !== ""
+        ? req.npcImageUrl.trim()
+        : null;
+    return { id, name, imageUrl };
 }

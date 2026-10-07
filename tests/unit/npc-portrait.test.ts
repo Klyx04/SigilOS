@@ -17,16 +17,21 @@ describe("npc-portrait — portraits PNJ par convention", () => {
         expect(npcPortraitUrl("Mériana")).toBeNull();
     });
 
-    it("extrait la référence PNJ d'une entrée (nom + npcId de requirements)", () => {
+    it("extrait la référence PNJ d'une entrée (nom + npcId + image de requirements)", () => {
         expect(extractNpcRef({ npcName: "Mériana", requirements: { npcId: 2205 } })).toEqual({
             id: 2205,
             name: "Mériana",
+            imageUrl: null,
         });
         expect(extractNpcRef({ npcName: "  Mama Ayuto  ", requirements: {} })).toEqual({
             id: null,
             name: "Mama Ayuto",
+            imageUrl: null,
         });
-        expect(extractNpcRef(null)).toEqual({ id: null, name: null });
-        expect(extractNpcRef({})).toEqual({ id: null, name: null });
+        expect(
+            extractNpcRef({ npcName: "Otomaï", requirements: { npcId: 914, npcImageUrl: "/uploads/guides/a.webp" } }),
+        ).toEqual({ id: 914, name: "Otomaï", imageUrl: "/uploads/guides/a.webp" });
+        expect(extractNpcRef(null)).toEqual({ id: null, name: null, imageUrl: null });
+        expect(extractNpcRef({})).toEqual({ id: null, name: null, imageUrl: null });
     });
 });

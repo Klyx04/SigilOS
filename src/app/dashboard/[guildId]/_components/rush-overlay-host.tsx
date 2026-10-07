@@ -15,7 +15,6 @@ import GuideOverlayClient from "@/app/overlay/guide/[guildId]/[slug]/GuideOverla
 export function RushOverlayHost() {
   const win = useRushOverlayStore((s) => s.win);
   const payload = useRushOverlayStore((s) => s.payload);
-  const close = useRushOverlayStore((s) => s.close);
 
   if (!win || !payload) return null;
 
@@ -29,7 +28,6 @@ export function RushOverlayHost() {
       character={payload.character}
       pinned={payload.pinned}
       ocre={payload.ocre ?? null}
-      onClose={close}
     />,
     win.document.body
   );

@@ -87,7 +87,6 @@ const codeOf = (p: string) =>
 const ITEM = "src/app/overlay/guide/[guildId]/[slug]/components/RushOverlayQuestListItem.tsx";
 const POPOVER = "src/app/overlay/guide/[guildId]/[slug]/components/RushOverlayDungeonPopover.tsx";
 const OVERLAY = "src/app/overlay/guide/[guildId]/[slug]/GuideOverlayClient.tsx";
-const COMPACT = "src/app/overlay/guide/[guildId]/[slug]/components/RushOverlayCompact.tsx";
 
 describe("Badge donjon — compteur, picto du jeu, popover branchée", () => {
   const code = codeOf(ITEM);
@@ -138,12 +137,6 @@ describe("Encart « À FAIRE MAINTENANT » — retiré de l'overlay", () => {
   it("le composant n'existe plus (aucun code mort)", () => {
     expect(existsSync("src/components/dofus-quests/rush/RushCurrentObjective.tsx")).toBe(false);
     expect(codeOf(OVERLAY)).not.toMatch(/RushCurrentObjective/);
-    expect(codeOf(COMPACT)).not.toMatch(/RushCurrentObjective/);
     expect(codeOf(OVERLAY)).not.toContain("À FAIRE MAINTENANT");
-  });
-
-  it("le mode compact garde son titre de quête courante", () => {
-    // `objective` reste la source du titre et de l'étape n/m du mode jeu.
-    expect(codeOf(COMPACT)).toMatch(/const name = objective\?\.subGuideName/);
   });
 });

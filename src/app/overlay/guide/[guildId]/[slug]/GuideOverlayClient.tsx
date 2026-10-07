@@ -2,7 +2,6 @@
 
 import React, { useState, useCallback, useMemo, useRef, useEffect } from "react";
 import { CheckCircle2, Check, Users } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import {
   toggleMilestoneProgress,
@@ -22,7 +21,6 @@ import { RushOverlayChapterTree } from "./components/RushOverlayChapterTree";
 import { RushOverlayQuestListItem } from "./components/RushOverlayQuestListItem";
 import { RushOverlayQuestDetailModal } from "./components/RushOverlayQuestDetailModal";
 import { RushOverlayFooter } from "./components/RushOverlayFooter";
-import { RushOverlayCompact } from "./components/RushOverlayCompact";
 import { RushSeparatorBanner } from "@/components/dofus-quests/rush/RushSeparatorBanner";
 import { RushInfoBanner } from "@/components/dofus-quests/rush/RushInfoBanner";
 import { RushRichText } from "@/components/dofus-quests/rush/RushRichText";
@@ -70,7 +68,6 @@ type Props = {
   altPseudo?: string | null;
   /** Personnage courant (principal ou mule) pour l'affichage. */
   character?: { pseudo: string; classe: string | null; isMain: boolean };
-  onClose?: () => void;
   /** Mode invité / démo sans compte ni guilde */
   isGuest?: boolean;
   /**
@@ -100,7 +97,6 @@ export default function GuideOverlayClient({
   allProgress = [],
   altPseudo = null,
   character,
-  onClose,
   isGuest = false,
   guestStoragePrefix,
   pinned = true,
@@ -165,8 +161,6 @@ export default function GuideOverlayClient({
     });
   }, []);
 
-  // ─── Mode compact (jeu) ───────────────────────────────────────────────────
-  const [isCompactMode, setIsCompactMode] = useState<boolean>(false);
   const [showResources, setShowResources] = useState<boolean>(false);
   const [showOcre, setShowOcre] = useState<boolean>(false);
   const [membersModal, setMembersModal] = useState<{ title: string; members: OverlayMember[] } | null>(null);
@@ -192,24 +186,6 @@ export default function GuideOverlayClient({
   const openChapterMembers = useCallback((members: OverlayMember[]) => {
     setMembersModal({ title: "Sur ce chapitre", members });
   }, []);
-
-  // Mode jeu: replie l'overlay en mode compact.
-  const enterGameMode = useCallback(() => {
-    setIsCompactMode(true);
-  }, []);
-
-  const handleClose = useCallback(() => {
-    if (onClose) {
-      onClose();
-      return;
-    }
-    try {
-      window.close();
-    } catch {
-      // window.close() refuse: on reduit l'overlay en mode compact plutot que de rien faire
-      setIsCompactMode(true);
-    }
-  }, [onClose]);
 
   // ─── Progression Locale Optimiste / Guest LocalStorage ───────────────────────
   // Le préfixe vient de l'appelant quand il est fourni (page publique : progression
@@ -337,22 +313,20 @@ export default function GuideOverlayClient({
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key === "/" && document.activeElement?.tagName !== "INPUT" && !isCompactMode) {
+      if (e.key === "/" && document.activeElement?.tagName !== "INPUT") {
         e.preventDefault();
         setTimeout(() => searchRef.current?.focus(), 50);
       }
-      if (e.key === "Escape") {
-        if (search) {
-          setSearch("");
-          searchRef.current?.blur();
-        } else if (!isCompactMode) {
-          setIsCompactMode(true);
-        }
+      // Échap ne fait que vider la recherche (jamais de fermeture surprise :
+      // le bouton ✕ de l'en-tête ferme).
+      if (e.key === "Escape" && search) {
+        setSearch("");
+        searchRef.current?.blur();
       }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [search, isCompactMode]);
+  }, [search]);
 
   // ─── Stats Globales ───────────────────────────────────────────────────────
   // Les séquences info (bandeaux/conseils) ne comptent pas dans la progression.
@@ -879,7 +853,8 @@ export default function GuideOverlayClient({
   }, [milestones, search]);
 
   const bookmarkSeqId = currentMs ? bookmarksByMs.get(currentMs.id) || null : null;
-  const compactObjective = currentMs
+  // Étape courante : contexte exact pré-rempli dans le retour bug.
+  const currentObjective = currentMs
     ? getNextObjective(currentMs.sequences, currentMsDoneSeqs, bookmarkSeqId, milestones, gateAllCompleted)
     : null;
 
@@ -895,10 +870,10 @@ export default function GuideOverlayClient({
       chapterPos.index > 0 ? `Chapitre ${chapterPos.index}/${chapterPos.total}` : "Bloc informatif",
       currentMs.title || "Jalon",
     ];
-    const objective = compactObjective;
+    const objective = currentObjective;
     if (objective) parts.push(`Étape : ${objective.subGuideName || objective.subGuideRef || "?"}`);
     return parts.join(" · ");
-  }, [currentMs, chapterPos, compactObjective]);
+  }, [currentMs, chapterPos, currentObjective]);
 
   // ─── Rendu d'une BANNIÈRE (bloc non cochable) ──────────────────────────────
   // Le MÊME composant partagé que le dashboard et le guide public : un séparateur, un
@@ -981,8 +956,6 @@ export default function GuideOverlayClient({
       {/* Navigateur sans Document PiP (ex. Opera GX) : la fenêtre n'est pas épinglée */}
       {!pinned && <OverlayPinNotice />}
 
-      {!isCompactMode ? (
-        <>
           {/* ══ HEADER FIXE ══ */}
           <RushOverlayHeader
             guideName={guide.name}
@@ -995,7 +968,6 @@ export default function GuideOverlayClient({
             isLightMode={isLightMode}
             isNarrow={overlaySmall}
             onToggleTheme={toggleTheme}
-            onEnterCompact={enterGameMode}
             onOpenResources={() => setShowResources(true)}
             hideCompleted={hideCompleted}
             onToggleHideCompleted={toggleHideCompleted}
@@ -1257,36 +1229,6 @@ export default function GuideOverlayClient({
             isLightMode={isLightMode}
             label={chapterPos.index > 0 ? `${chapterPos.index} / ${chapterPos.total}` : ""}
           />
-        </>
-      ) : currentMs ? (
-        /* ══ MODE COMPACT (JEU) ══ */
-        <RushOverlayCompact
-          milestone={currentMs}
-          objective={compactObjective}
-          isDone={!!compactObjective && currentMsDoneSeqs.has(compactObjective.id)}
-          isLightMode={isLightMode}
-          // Mode jeu : l'objectif courant reste la priorité. Les bannières ne remplacent
-          // l'objectif que s'il n'y a RIEN à faire ici (chapitre sans quête restante) —
-          // sinon elles restent lisibles en mode normal, à leur place dans le flux.
-          body={!compactObjective && banners.before.length > 0 ? banners.before.map(renderBanner) : undefined}
-          /* Sélecteur de chapitre PARTAGÉ, en ligne : on change de chapitre quand on veut,
-             y compris en combat (retour user 21/09/2026). */
-          chapters={milestones}
-          activeMsId={currentMs.id}
-          onSelectChapter={selectChapter}
-          completedMsIds={completedIds}
-          doneByMs={completedStepsByMs}
-          bookmarkers={compactObjective ? bookmarkersBySeq.get(compactObjective.id) || [] : []}
-          onOpenBookmarkers={() => compactObjective && openSeqMembers(compactObjective)}
-          onToggle={() => currentMs && compactObjective && handleToggleSeq(currentMs, compactObjective.id)}
-          onPrev={goToPrevMs}
-          onNext={goToNextMs}
-          canPrev={currentMsIndex > 0}
-          canNext={currentMsIndex < milestones.length - 1}
-          onExpand={() => setIsCompactMode(false)}
-          onClose={handleClose}
-        />
-      ) : null}
 
       {/* ══ MODALE RESSOURCES GLOBALES (toutes étapes) ══ */}
       {showResources && (

@@ -374,7 +374,7 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
             {(() => {
               const npc = getSequenceNpc(seq);
               if (!npc || (!npc.name && npc.id === null)) return null;
-              return <NpcBadge npcId={npc.id} name={npc.name} imageUrl={npc.imageUrl} className="shrink-0" />;
+              return <NpcBadge npcId={npc.id} name={npc.name} imageUrl={npc.imageUrl} size="md" className="shrink-0" />;
             })()}
             {isNext && !isSeqCompleted && (
               <span className="font-mono shrink-0 text-[11px] text-muted-foreground">à faire</span>

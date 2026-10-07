@@ -1,11 +1,12 @@
 /**
- * Gardes — retours user du 21/09/2026 sur l'overlay du guide Rush :
+ * Gardes — retours user sur l'overlay du guide Rush :
  *
- *  1. « ok mais pour le chapitre faut pouvoir changer quand on veut quand même » : la vue
- *     de jeu compacte ne proposait que « Précédent / Suivant », et `goToNextMs` **saute**
- *     les chapitres déjà validés (`nextBlockIndex`) ⇒ aucun moyen de rejoindre un chapitre
- *     d'où on vient. Le sélecteur **partagé** est désormais monté **en ligne** dans la vue
- *     compacte, même quand un bandeau remplace l'objectif.
+ *  1. « ok mais pour le chapitre faut pouvoir changer quand on veut quand même » :
+ *     `goToNextMs` **saute** les chapitres déjà validés (`nextBlockIndex`) ⇒ aucun
+ *     moyen de rejoindre un chapitre d'où on vient. Le sélecteur **partagé**
+ *     (`RushOverlayChapterTree`) est monté dans l'overlay.
+ *     (Le 07/10/2026, la vue de jeu compacte qui le doublait en version « inline »
+ *     a été supprimée avec tout le mode compact : un seul sélecteur.)
  *  2. « ca serait bien d'avoir les bulles profil avec mini modale scrollable aussi sur
  *     l'overlay dans chaque quête » : les bulles ne se calculaient que pour le chapitre
  *     COURANT (`row.milestoneId !== currentMs.id` filtré) et les résultats de recherche
@@ -18,7 +19,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { readFileSync } from "node:fs";
+import { readFileSync, existsSync } from "node:fs";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { RushOverlayMemberBubbles } from "@/app/overlay/guide/[guildId]/[slug]/components/RushOverlayMemberBubbles";
@@ -32,42 +33,29 @@ const codeOf = (p: string) =>
 const BASE = "src/app/overlay/guide/[guildId]/[slug]";
 const OVERLAY = `${BASE}/GuideOverlayClient.tsx`;
 const TREE = `${BASE}/components/RushOverlayChapterTree.tsx`;
-const COMPACT = `${BASE}/components/RushOverlayCompact.tsx`;
 const LIST_ITEM = `${BASE}/components/RushOverlayQuestListItem.tsx`;
 const BUBBLES = `${BASE}/components/RushOverlayMemberBubbles.tsx`;
 const MEMBERS_MODAL = `${BASE}/components/RushOverlayMembersModal.tsx`;
 
-describe("overlay — changer de chapitre à tout moment (vue de jeu comprise)", () => {
-  it("le sélecteur partagé sait se monter sans le chrome de barre (variant inline)", () => {
+describe("overlay — changer de chapitre à tout moment (sélecteur partagé unique)", () => {
+  it("le sélecteur partagé est la barre de navigation (aucune variante dupliquée)", () => {
     const tree = codeOf(TREE);
-    expect(tree).toMatch(/variant\?: "panel" \| "inline";/);
-    expect(tree).toMatch(/if \(isInline\) \{/);
-    // La barre complète (chrome + barre de progression) reste le rendu par DÉFAUT.
+    expect(tree).not.toMatch(/variant/);
+    expect(tree).not.toMatch(/isInline/);
+    // La barre complète (chrome + barre de progression) est le seul rendu.
     expect(tree).toMatch(/"relative shrink-0 px-3 py-2.5 border-b z-30"/);
     expect(tree).toMatch(/\{activeMs && total > 0 && chapterPos >= 0 && \(/);
   });
 
-  it("la vue compacte monte CE sélecteur, pas une liste maison", () => {
-    const compact = codeOf(COMPACT);
-    expect(compact).toMatch(/import \{ RushOverlayChapterTree \} from "\.\/RushOverlayChapterTree";/);
-    expect(compact).toMatch(/<RushOverlayChapterTree[\s\S]{0,200}variant="inline"/);
-    // Aucun `<select>` de chapitre local, aucun composant de navigation dupliqué.
-    expect(compact).not.toMatch(/<select/);
-  });
-
-  it("le sélecteur reste accessible même quand un bandeau remplace l'objectif", () => {
-    const compact = codeOf(COMPACT);
-    // Le titre du bloc n'est plus conditionné à `!body` : seul le compteur « Étape n/m » l'est.
-    expect(compact).not.toMatch(/\{!body && \([\s\S]{0,120}\{milestone\.title\}/);
-    expect(compact).not.toMatch(/\{!body && \([\s\S]{0,120}<RushOverlayChapterTree/);
-    expect(compact).toMatch(/\{!body && stepLabel && \(/);
-  });
-
-  it("l'overlay câble la navigation chapitres sur la vue compacte", () => {
+  it("l'overlay câble la navigation chapitres sur ce sélecteur", () => {
     const overlay = codeOf(OVERLAY);
     expect(overlay).toMatch(/chapters=\{milestones\}/);
     expect(overlay).toMatch(/onSelectChapter=\{selectChapter\}/);
     expect(overlay).toMatch(/doneByMs=\{completedStepsByMs\}/);
+  });
+
+  it("le mode compact n'existe plus (aucun code mort)", () => {
+    expect(existsSync("src/app/overlay/guide/[guildId]/[slug]/components/RushOverlayCompact.tsx")).toBe(false);
   });
 });
 
@@ -100,11 +88,8 @@ describe("overlay — bulles profil sur CHAQUE quête (pas seulement le chapitre
     expect(overlay).toMatch(/if \(seenForSeq\.has\(memberKey\)\) continue;/);
   });
 
-  it("les bulles viennent d'une brique unique, partagée par la liste et la vue de jeu", () => {
+  it("les bulles viennent d'une brique unique, partagée par la ligne de quête", () => {
     expect(codeOf(LIST_ITEM)).toMatch(
-      /import \{ RushOverlayMemberBubbles, type OverlayBubbleMember \} from "\.\/RushOverlayMemberBubbles";/
-    );
-    expect(codeOf(COMPACT)).toMatch(
       /import \{ RushOverlayMemberBubbles, type OverlayBubbleMember \} from "\.\/RushOverlayMemberBubbles";/
     );
     // Plus aucune pile d'avatars recopiée dans la ligne de quête.

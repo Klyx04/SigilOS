@@ -1669,7 +1669,7 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
                                         {(() => {
                                           const npc = getSequenceNpc(seq as any);
                                           if (!npc || (!npc.name && npc.id === null)) return null;
-                                          return <NpcBadge npcId={npc.id} name={npc.name} imageUrl={npc.imageUrl} />;
+                                          return <NpcBadge npcId={npc.id} name={npc.name} imageUrl={npc.imageUrl} size="md" />;
                                         })()}
                                         {/* Quête d'alignement (détail complet en modale) */}
                                         {(() => {
@@ -2105,7 +2105,6 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
               classe: character?.classId ?? null,
               isMain: true,
             }}
-            onClose={() => pipWin?.close?.()}
           />,
           pipWin.document.body
         )}

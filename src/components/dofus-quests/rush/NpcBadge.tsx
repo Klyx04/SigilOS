@@ -16,6 +16,14 @@ interface NpcBadgeProps {
    * reste en hover), pour des lignes compactes façon overlay.
    */
   imageUrl?: string | null;
+  /** `sm` = 16 px (lignes denses) · `md` = 24 px (guides). */
+  size?: "sm" | "md";
+  /**
+   * Rendu nu (overlay) : l'image importée seule, **sans cadre ni fond** —
+   * rien autour du portrait. Sans image : rien (le nom reste en hover
+   * impossible, donc on ne peint pas de badge vide).
+   */
+  bare?: boolean;
   className?: string;
 }
 
@@ -25,14 +33,29 @@ interface NpcBadgeProps {
  * Partagé par les guides Sylvestre (interne, public, overlays) et les quêtes
  * par Dofus.
  */
-export function NpcBadge({ npcId, name, imageUrl, className }: NpcBadgeProps) {
+export function NpcBadge({ npcId, name, imageUrl, size = "sm", bare = false, className }: NpcBadgeProps) {
   const [imgOk, setImgOk] = useState(true);
   const custom = typeof imageUrl === "string" && imageUrl.trim() !== "" && isSafeImageUrl(imageUrl)
     ? imageUrl.trim()
     : null;
   const portrait = custom ?? (npcId ? npcPortraitUrl(npcId) : null);
   const showImage = !!portrait && imgOk;
-  if (!name && !portrait) return null;
+  const imgSize = size === "md" ? "h-6 w-6" : "h-4 w-4";
+  if (!showImage && (bare || !name)) return null;
+
+  if (bare) {
+    return (
+      /* eslint-disable-next-line @next/next/no-img-element */
+      <img
+        src={portrait as string}
+        alt={name ?? ""}
+        title={name ? `PNJ : ${name}` : "PNJ donneur"}
+        className={cn("shrink-0 rounded-full object-cover", imgSize, className)}
+        loading="lazy"
+        onError={() => setImgOk(false)}
+      />
+    );
+  }
 
   return (
     <span
@@ -48,7 +71,7 @@ export function NpcBadge({ npcId, name, imageUrl, className }: NpcBadgeProps) {
         <img
           src={portrait}
           alt={name ?? ""}
-          className="h-4 w-4 shrink-0 rounded-full object-cover"
+          className={cn("shrink-0 rounded-full object-cover", imgSize)}
           loading="lazy"
           onError={() => setImgOk(false)}
         />

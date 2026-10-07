@@ -47,6 +47,7 @@ import {
   guestProgressPrefix,
 } from "@/lib/guest-progress";
 import { RushCoordinateChip } from "@/components/dofus-quests/rush/RushCoordinateChip";
+import { NpcBadge } from "@/components/dofus-quests/rush/NpcBadge";
 import { brandIconForUrl } from "@/lib/source-icons";
 import { QuestItemResourceGrid } from "@/components/dofus-quests/rush/QuestItemResourceGrid";
 import { RushSeparatorBanner } from "@/components/dofus-quests/rush/RushSeparatorBanner";
@@ -69,7 +70,7 @@ import {
   aggregateRushResources,
   getSequenceCoord,
 } from "@/app/overlay/guide/[guildId]/[slug]/components/overlay-utils";
-import { isInfoSequence, isSequenceBlockedByPrereqs, getPrereqRefs } from "@/lib/rush-guide-utils";
+import { isInfoSequence, isSequenceBlockedByPrereqs, getPrereqRefs, resolveRushSeqIcon, getSequenceNpc } from "@/lib/rush-guide-utils";
 // Panneau de droite — le MÊME composant que le guide interne (chapitres, progression,
 // donjons & métiers à prévoir, objets requis + bascule Restantes/Toutes).
 import { RushChapterSidebar } from "@/components/dofus-quests/rush/RushChapterSidebar";
@@ -1630,10 +1631,10 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
                                         {activeObjective?.id === seq.id && activeObjective?.blockId === ms.id && !stepDone && (
                                           <span className="reg-mono shrink-0 text-[11px] text-muted-foreground">à faire</span>
                                         )}
-                                        {/* Glyphe de quête du jeu : la ligne dit d'abord « c'est une quête », ensuite laquelle */}
+                                        {/* Icône de la quête : type choisi en God, repli glyphe générique */}
                                         {/* eslint-disable-next-line @next/next/no-img-element */}
                                         <img
-                                          src="/assets/icons/icone-quete.png"
+                                          src={resolveRushSeqIcon((seq as any).icon) ?? "/assets/icons/icone-quete.png"}
                                           alt=""
                                           className="h-4 w-4 shrink-0 self-center object-contain opacity-90"
                                           loading="lazy"
@@ -1663,8 +1664,13 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
                                           </>
                                         )}
                                         {parsedCoord && (
-                                          <RushCoordinateChip coordText={parsedCoord.raw} />
+                                          <RushCoordinateChip coordText={parsedCoord.raw} showZaap />
                                         )}
+                                        {(() => {
+                                          const npc = getSequenceNpc(seq as any);
+                                          if (!npc || (!npc.name && npc.id === null)) return null;
+                                          return <NpcBadge npcId={npc.id} name={npc.name} />;
+                                        })()}
                                         {/* Quête d'alignement (détail complet en modale) */}
                                         {(() => {
                                           const align = getAlignmentSet(seq as any);

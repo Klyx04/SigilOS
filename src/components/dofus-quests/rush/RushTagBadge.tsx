@@ -36,8 +36,9 @@ export function RushTagBadge({ tag, size = "sm", className }: RushTagBadgeProps)
     return () => window.removeEventListener("keydown", onKey);
   }, [modalOpen]);
 
-  // Tags techniques non affichés comme badges interactifs
-  if (["pos_tags", "prereq_text", "tougli_box", "info_sequence", "dofus_link"].includes(tag.type)) {
+  // Tags techniques non affichés comme badges interactifs (`npc` a son
+  // affichage dédié `NpcBadge` : nom + portrait par convention).
+  if (["pos_tags", "prereq_text", "tougli_box", "info_sequence", "dofus_link", "npc"].includes(tag.type)) {
     return null;
   }
 

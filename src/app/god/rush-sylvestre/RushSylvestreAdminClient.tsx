@@ -33,7 +33,8 @@ import {
   reorderRushSequences,
   seedRushSylvestreFromGuide,
 } from "@/server/actions/optimized-guide-actions";
-import { searchDungeonsLocal, searchGuideQuests, searchItemsLocalThenDofusDB } from "@/server/actions/dofus-search-actions";
+import { searchDungeonsLocal, searchGuideQuests, searchItemsLocalThenDofusDB, searchNpcsLocal } from "@/server/actions/dofus-search-actions";
+import { QUEST_TYPE_KEYS, QUEST_TYPE_LABELS, questTypeIconPath } from "@/lib/quest-type-icon";
 import { DOFUS_WORLDS, DOFUS_JOBS } from "@/lib/dofus-assets";
 import { resolveRushSeqIcon, getGuideMetiersRequires, RUSH_ACTIVITY_TAG_CONFIG, findMilestoneInsertIndex } from "@/lib/rush-guide-utils";
 import { resolveRushUIConfig, type RushUIConfig } from "@/lib/rush-ui-config";
@@ -2044,6 +2045,36 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
     const existing = (seq.activityTags as any[])?.find(t => t.type === "pos_tags");
     return existing?.name || "";
   });
+
+  // PNJ donneur (référentiel client 100 % local) : tag `npc` {name, npcId}
+  // affiché côté membres (nom + portrait par convention).
+  const [npcQuery, setNpcQuery] = useState("");
+  const [npcResults, setNpcResults] = useState<{ npcId: number; name: string }[]>([]);
+  const npcSearchRef = useRef<any>(null);
+
+  const currentNpcTag = (activityTags as any[]).find((t: any) => t.type === "npc") || null;
+
+  const handleNpcSearch = (q: string) => {
+    setNpcQuery(q);
+    if (q.length < 2) { setNpcResults([]); return; }
+    clearTimeout(npcSearchRef.current);
+    npcSearchRef.current = setTimeout(async () => {
+      const res = await searchNpcsLocal(q);
+      if (res.success && (res as any).data) setNpcResults((res as any).data);
+    }, 250);
+  };
+
+  const selectNpcTag = (npc: { npcId: number; name: string }) => {
+    setActivityTags(prev => [
+      ...prev.filter((t: any) => t.type !== "npc"),
+      { type: "npc" as any, name: npc.name, npcId: npc.npcId },
+    ]);
+    setNpcQuery(""); setNpcResults([]);
+  };
+
+  const clearNpcTag = () => {
+    setActivityTags(prev => prev.filter((t: any) => t.type !== "npc"));
+  };
   const [positionsWorldId, setPositionsWorldId] = useState<number>(() => {
     const existing = (seq.activityTags as any[])?.find(t => t.type === "pos_tags");
     return existing?.worldId ?? 1;
@@ -2454,6 +2485,42 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
                   </button>
                 ) : null}
               </div>
+
+              {/* PNJ donneur (recherche locale, 6 494 PNJ du client) */}
+              <div className="pt-1">
+                <label className="text-caption font-black text-emerald-400/80 uppercase tracking-widest block mb-1">
+                  PNJ donneur
+                </label>
+                {currentNpcTag ? (
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-caption font-bold">
+                      {currentNpcTag.name}
+                      {currentNpcTag.npcId ? <span className="font-mono opacity-70">#{currentNpcTag.npcId}</span> : null}
+                    </span>
+                    <button type="button" onClick={clearNpcTag} className="text-caption font-black uppercase tracking-wider text-zinc-500 hover:text-red-400">Retirer</button>
+                  </div>
+                ) : (
+                  <>
+                    <input
+                      value={npcQuery}
+                      onChange={e => handleNpcSearch(e.target.value)}
+                      className="w-full bg-black/60 border border-emerald-500/20 focus:border-emerald-500/50 rounded-lg px-2.5 py-1.5 text-xs text-emerald-200 focus:outline-none transition-colors placeholder:text-zinc-600"
+                      placeholder="Rechercher un PNJ… (ex : Mériana)"
+                    />
+                    {npcResults.length > 0 && (
+                      <div className="mt-1 space-y-0.5 max-h-40 overflow-y-auto">
+                        {npcResults.map((n) => (
+                          <button key={n.npcId} type="button" onClick={() => selectNpcTag(n)}
+                            className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-emerald-500/10 text-left transition-all text-caption text-zinc-400 hover:text-emerald-300 font-medium">
+                            <span className="truncate">{n.name}</span>
+                            <span className="text-zinc-600 shrink-0 ml-auto font-mono">#{n.npcId}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
             </div>
           );
         })()}
@@ -2721,22 +2788,28 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
             <div>
               <label className="text-caption font-black text-zinc-500 uppercase tracking-widest block mb-1">Icône du bloc (optionnel)</label>
               <div className="grid grid-cols-3 gap-1.5">
-                {[["", "Défaut"], ["serie-de-quete", "Série de quêtes"], ["icone-succes", "Succès"]].map(([val, label]) => (
+                {[
+                  { val: "", label: "Défaut", src: null as string | null },
+                  ...QUEST_TYPE_KEYS.map((key) => ({ val: key, label: QUEST_TYPE_LABELS[key].replace("Quête ", ""), src: questTypeIconPath(key) })),
+                  { val: "serie-de-quete", label: "Série de quêtes", src: "/assets/icons/serie-de-quete.png" },
+                  { val: "icone-succes", label: "Succès", src: "/assets/icons/icone-succes.png" },
+                ].map((opt) => (
                   <button
-                    key={val || "none"}
+                    key={opt.val || "none"}
                     type="button"
-                    onClick={() => { setIcon(val); if (!val) setCustomIconUrl(""); }}
+                    onClick={() => { setIcon(opt.val); if (!opt.val) setCustomIconUrl(""); }}
+                    title={opt.label}
                     className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg border text-caption font-black uppercase tracking-widest transition-all ${
-                      icon === val ? "bg-indigo-500/20 border-indigo-500/40 text-indigo-300" : "bg-zinc-800/60 border-white/10 text-zinc-600 hover:text-zinc-400"
+                      icon === opt.val ? "bg-indigo-500/20 border-indigo-500/40 text-indigo-300" : "bg-zinc-800/60 border-white/10 text-zinc-600 hover:text-zinc-400"
                     }`}
                   >
-                    {val ? (
+                    {opt.src ? (
                       /* eslint-disable-next-line @next/next/no-img-element */
-                      <img src={`/assets/icons/${val}.png`} alt={label} className="w-4 h-4 object-contain" />
+                      <img src={opt.src} alt={opt.label} className="w-4 h-4 object-contain" />
                     ) : (
                       <span className="w-4 h-4 flex items-center justify-center text-caption">✕</span>
                     )}
-                    <span>{label}</span>
+                    <span className="truncate">{opt.label}</span>
                   </button>
                 ))}
               </div>

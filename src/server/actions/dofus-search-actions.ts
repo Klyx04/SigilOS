@@ -1,4 +1,7 @@
 "use server";
+import fs from "node:fs";
+import path from "node:path";
+
 import { logger } from "@/lib/logger";
 
 import { db } from "@/lib/prisma";
@@ -308,6 +311,81 @@ export async function searchGuideQuests(query: string) {
     } catch (error) {
         logger.error("[searchGuideQuests] Error:", error);
         return { success: false, error: "Erreur recherche quêtes" };
+    }
+}
+
+interface ClientNpcEntry {
+    id: number;
+    name: string;
+    look: string;
+    gender: number;
+}
+
+/**
+ * Référentiel PNJ siphonné du client (`prisma/seed-data/npcs/npcs-client.json`,
+ * `scripts/siphon-npcs-client.py`) — chargé une fois par process, jamais
+ * depuis le réseau : la recherche God fonctionne même si DofusDB est down.
+ */
+let cachedClientNpcs: ClientNpcEntry[] | null = null;
+
+function loadClientNpcs(): ClientNpcEntry[] {
+    if (cachedClientNpcs) return cachedClientNpcs;
+    try {
+        const npcsPath = path.join(process.cwd(), "prisma", "seed-data", "npcs", "npcs-client.json");
+        if (fs.existsSync(npcsPath)) {
+            const parsed: unknown = JSON.parse(fs.readFileSync(npcsPath, "utf8"));
+            if (Array.isArray(parsed)) {
+                cachedClientNpcs = (parsed as ClientNpcEntry[]).filter(
+                    (npc) =>
+                        Number.isInteger(npc?.id) &&
+                        typeof npc?.name === "string" &&
+                        npc.name.length > 0 &&
+                        !npc.name.includes("�"),
+                );
+            }
+        }
+    } catch (e) {
+        logger.error("[searchNpcsLocal] Référentiel PNJ illisible:", e);
+    }
+    return cachedClientNpcs ?? [];
+}
+
+/** Normalisation insensible accents/casse pour la recherche (« meriana » → Mériana). */
+function normalizeNpcName(value: string): string {
+    return value
+        .normalize("NFD")
+        .replace(/[̀-ͯ]/g, "")
+        .toLowerCase();
+}
+
+/**
+ * Recherche de PNJ **100 % locale** (nom exact du client, `look`, genre) pour
+ * les éditeurs God (quêtes par Dofus, rush Sylvestre). DofusDB `/npcs` ne sert
+ * ni image ni position : le référentiel client est la seule source complète.
+ */
+export async function searchNpcsLocal(query: string) {
+    if (!query || query.length < 2) return { success: true, data: [] };
+
+    const session = await auth();
+    if (!session?.user?.id) return { success: false, error: "Non autorisé" };
+
+    try {
+        const needle = normalizeNpcName(query.trim());
+        const matches = loadClientNpcs()
+            .filter((npc) => normalizeNpcName(npc.name).includes(needle))
+            .slice(0, 15)
+            .map((npc) => ({
+                id: npc.id.toString(),
+                npcId: npc.id,
+                name: npc.name,
+                look: npc.look,
+                gender: npc.gender,
+                source: "client",
+            }));
+        return { success: true, source: "client", data: matches };
+    } catch (error) {
+        logger.error("[searchNpcsLocal] Error:", error);
+        return { success: false, error: "Erreur recherche PNJ" };
     }
 }
 

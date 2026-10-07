@@ -3,6 +3,7 @@ import React, { useState, useRef, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { MapPin, ExternalLink, Copy, Move } from "lucide-react";
+import { buildZaapTravelCommand } from "@/lib/travel-command";
 import { MapViewer } from "@/components/worldmap/map-viewer";
 import { DOFUS_WORLDS } from "@/lib/dofus-assets";
 import { copyToClipboard } from "@/lib/clipboard";
@@ -106,13 +107,18 @@ export default function MapPositionPopover({
     window.open(`/dashboard/${guildId}/worldmap?x=${posX}&y=${posY}&world=${worldId}`, "_blank");
   }, [guildId, posX, posY, worldId]);
 
-  /** Trajet vers le zaap le plus proche (le geste réel avant un /travel de position). */
+  /**
+   * Trajet vers le zaap le plus proche (client 3.7) : copie combinée
+   * `/zaap x,y ; /travel x,y` façon dofuspourlesnoobs — le bouton n'est
+   * affiché que si `sameWorld` (garde + `buildZaapTravelCommand` fail-closed).
+   */
   const handleCopyZaap = useCallback(async (zaap: NearestZaapInfo) => {
-    const cmd = `/travel ${zaap.x} ${zaap.y}`;
+    const cmd = buildZaapTravelCommand(zaap, { x: posX, y: posY });
+    if (!cmd) return;
     const ok = await copyToClipboard(cmd);
     if (!ok) return;
-    toast.success(`Zaap ${zaap.name} — ${cmd}`, { duration: 2500 });
-  }, []);
+    toast.success(`Zaap ${zaap.name} — ${cmd}`, { duration: 3000 });
+  }, [posX, posY]);
 
   // Drag handling
   const handleDragStart = useCallback((e: React.MouseEvent) => {
@@ -215,7 +221,7 @@ export default function MapPositionPopover({
                       <button
                         type="button"
                         onClick={(e) => { e.stopPropagation(); void handleCopyZaap(nearestZaap); }}
-                        title={`Copier /travel ${nearestZaap.x} ${nearestZaap.y} — zaap ${nearestZaap.name}`}
+                        title={`Copier /zaap ${nearestZaap.x},${nearestZaap.y} puis /travel ${posX},${posY} — zaap ${nearestZaap.name}`}
                         className="text-caption text-foreground font-medium truncate hover:text-info transition-colors"
                       >
                         {nearestZaap.name} <span className="font-mono">[{nearestZaap.x}, {nearestZaap.y}]</span>

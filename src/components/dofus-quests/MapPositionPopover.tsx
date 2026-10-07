@@ -15,6 +15,11 @@ interface MapPositionPopoverProps {
   worldId?: number;
   guildId: string;
   contextLabel?: string;
+  /**
+   * Détour zaap proposé (choix God explicite, `pos_tags.allowZaap`) — `false`
+   * par défaut : la ligne zaap ne s'affiche que pour les positions cochées.
+   */
+  zaapEnabled?: boolean;
   children: React.ReactNode;
 }
 
@@ -35,6 +40,7 @@ export default function MapPositionPopover({
   worldId: initialWorldId,
   guildId,
   contextLabel,
+  zaapEnabled = false,
   children,
 }: MapPositionPopoverProps) {
   const [isOpen, setIsOpen] = useState(false);
@@ -210,10 +216,11 @@ export default function MapPositionPopover({
                 <span className="text-caption text-foreground font-medium truncate">{worldId} — {worldName}</span>
               </div>
 
-              {/* GPS : zaap le plus proche — clic = copie du /travel vers ce zaap.
+              {/* GPS : zaap le plus proche — clic = copie `/zaap ; /travel`.
+                  Affiché seulement si le God l'a coché (`zaapEnabled`).
                   Dans un monde sans zaap on le DIT (jamais un faux « plus proche »
                   pris dans un autre monde, l'ancien comportement du worldmap). */}
-              {nearestZaap && (
+              {zaapEnabled && nearestZaap && (
                 <div className="px-3 py-1 bg-surface/40 border-b border-border/30 flex items-center gap-1.5">
                   <span className="text-caption text-muted-foreground font-black uppercase tracking-widest shrink-0">Zaap</span>
                   {nearestZaap.sameWorld ? (

@@ -156,19 +156,16 @@ function QuestDetailInline({ quest, color, isCompleted, onToggle, synergyForQues
                   <MapPin className="w-3 h-3 shrink-0" />{p.x},{p.y}
                   <Copy className="w-3 h-3 opacity-60" />
                 </button>
-                {Number.isSafeInteger(p?.x) && Number.isSafeInteger(p?.y) && (
+                {Number.isSafeInteger(p?.x) && Number.isSafeInteger(p?.y) && p?.zaap === true && (
                   <ZaapCopyButton x={p.x} y={p.y} />
                 )}
               </span>
             ))
           ) : coords ? (
-            <span className="inline-flex items-center gap-1">
-              <button onClick={() => { navigator.clipboard.writeText(`/travel ${coords.x},${coords.y}`); toast.success(`Copié : /travel ${coords.x},${coords.y}`); }} aria-label={`Copier /travel ${coords.x},${coords.y}`} className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-success/25 bg-success/10 hover:bg-success/20 font-mono text-success font-bold transition-colors">
-                <MapPin className="w-3 h-3" />{coords.x},{coords.y}
-                <Copy className="w-3 h-3 opacity-60" />
-              </button>
-              <ZaapCopyButton x={coords.x} y={coords.y} />
-            </span>
+            <button onClick={() => { navigator.clipboard.writeText(`/travel ${coords.x},${coords.y}`); toast.success(`Copié : /travel ${coords.x},${coords.y}`); }} aria-label={`Copier /travel ${coords.x},${coords.y}`} className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-success/25 bg-success/10 hover:bg-success/20 font-mono text-success font-bold transition-colors">
+              <MapPin className="w-3 h-3" />{coords.x},{coords.y}
+              <Copy className="w-3 h-3 opacity-60" />
+            </button>
           ) : null}
           {quest.level ? <span className="text-muted-foreground font-semibold">Niveau recommandé : {quest.level}</span> : null}
         </div>
@@ -329,7 +326,7 @@ function QuestRow({ quest, color, isCompleted, isLast, isNext, isBlocked, isSele
                     <MapPin className="w-2.5 h-2.5" />{quest.positions[0].x},{quest.positions[0].y}
                     <Copy className="w-2.5 h-2.5 opacity-60" />
                   </button>
-                  {Number.isSafeInteger(quest.positions[0]?.x) && Number.isSafeInteger(quest.positions[0]?.y) && (
+                  {Number.isSafeInteger(quest.positions[0]?.x) && Number.isSafeInteger(quest.positions[0]?.y) && quest.positions[0]?.zaap === true && (
                     <ZaapCopyButton x={quest.positions[0].x} y={quest.positions[0].y} />
                   )}
                 </span>
@@ -338,7 +335,7 @@ function QuestRow({ quest, color, isCompleted, isLast, isNext, isBlocked, isSele
               {(() => {
                 const npc = extractNpcRef(quest);
                 if (!npc.name && npc.id === null) return null;
-                return <NpcBadge npcId={npc.id} name={npc.name} />;
+                return <NpcBadge npcId={npc.id} name={npc.name} imageUrl={npc.imageUrl} />;
               })()}
             </div>
             {renduMembers.length > 0 && (

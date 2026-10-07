@@ -285,21 +285,35 @@ export function parseCoordinates(
 export type RushPrereqRef = { seqId: string; milestoneId: string; name: string };
 
 /**
- * PNJ donneur d'une séquence Rush (tag `npc` {name, npcId} posé en God) —
- * `null` si aucun (jamais d'invention). Source unique des 4 rendus.
+ * PNJ donneur d'une séquence Rush (tag `npc` {name, npcId, imageUrl} posé en
+ * God) — `null` si aucun (jamais d'invention). Source unique des 4 rendus.
  */
 export function getSequenceNpc(
   seq: RushSequence | null | undefined,
-): { id: number | null; name: string | null } | null {
+): { id: number | null; name: string | null; imageUrl: string | null } | null {
   const tag = (seq?.activityTags || []).find((t) => t?.type === "npc") as
-    | { name?: unknown; npcId?: unknown }
+    | { name?: unknown; npcId?: unknown; imageUrl?: unknown }
     | undefined;
   if (!tag) return null;
   const name = typeof tag.name === "string" && tag.name.trim() !== "" ? tag.name.trim() : null;
   const rawId = Math.floor(Number(tag.npcId));
   const id = Number.isSafeInteger(rawId) && rawId > 0 ? rawId : null;
-  if (!name && id === null) return null;
-  return { id, name };
+  const imageUrl = typeof tag.imageUrl === "string" && tag.imageUrl.trim() !== "" ? tag.imageUrl.trim() : null;
+  if (!name && id === null && !imageUrl) return null;
+  return { id, name, imageUrl };
+}
+
+/**
+ * Détour zaap proposé pour une séquence Rush — **choix God explicite**
+ * (`pos_tags.allowZaap`, coché dans la section Destination) — jamais deviné :
+ * le bouton `/zaap x,y ; /travel x,y` façon DPLN ne s'affiche que pour les
+ * positions où le détour vaut le coup (décision éditoriale, pas calculée).
+ */
+export function isZaapCopyEnabled(seq: RushSequence | null | undefined): boolean {
+  const tag = (seq?.activityTags || []).find((t) => t?.type === "pos_tags") as
+    | { allowZaap?: unknown }
+    | undefined;
+  return tag?.allowZaap === true;
 }
 
 /** Normalise un nom de ressource (casse, espaces) — base de la clé stable. */

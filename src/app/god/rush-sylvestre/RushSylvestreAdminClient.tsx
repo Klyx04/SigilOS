@@ -2054,6 +2054,21 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
 
   const currentNpcTag = (activityTags as any[]).find((t: any) => t.type === "npc") || null;
 
+  const [npcImageUrl, setNpcImageUrl] = useState<string>(() => {
+    const existing = (seq.activityTags as any[])?.find((t: any) => t.type === "npc");
+    return typeof existing?.imageUrl === "string" ? existing.imageUrl : "";
+  });
+  const [uploadingNpcImage, setUploadingNpcImage] = useState(false);
+
+  const syncNpcTag = (name: string, npcId: number | null, imageUrl: string) => {
+    const cleanImage = isSafeImageUrl(imageUrl) ? imageUrl.trim() : "";
+    setActivityTags(prev => {
+      const filtered = prev.filter((t: any) => t.type !== "npc");
+      if (!name.trim() && npcId === null && !cleanImage) return filtered;
+      return [...filtered, { type: "npc" as any, name: name.trim(), npcId, imageUrl: cleanImage || undefined }];
+    });
+  };
+
   const handleNpcSearch = (q: string) => {
     setNpcQuery(q);
     if (q.length < 2) { setNpcResults([]); return; }
@@ -2065,6 +2080,7 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
   };
 
   const selectNpcTag = (npc: { npcId: number; name: string }) => {
+    setNpcImageUrl("");
     setActivityTags(prev => [
       ...prev.filter((t: any) => t.type !== "npc"),
       { type: "npc" as any, name: npc.name, npcId: npc.npcId },
@@ -2073,6 +2089,7 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
   };
 
   const clearNpcTag = () => {
+    setNpcImageUrl("");
     setActivityTags(prev => prev.filter((t: any) => t.type !== "npc"));
   };
   const [positionsWorldId, setPositionsWorldId] = useState<number>(() => {
@@ -2191,15 +2208,31 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
     });
   };
 
+  // Détour zaap (choix God explicite) : le bouton `/zaap ; /travel` façon DPLN
+  // ne s'affiche côté membres que pour les positions cochées ici.
+  const [allowZaap, setAllowZaap] = useState<boolean>(() => {
+    const existing = (seq.activityTags as any[])?.find((t: any) => t.type === "pos_tags");
+    return existing?.allowZaap === true;
+  });
+
   const handlePositionsChange = (text: string) => {
     setPositionsInput(text);
+    syncPosTag(text, positionsWorldId, allowZaap);
+  };
+
+  const syncPosTag = (text: string, worldId: number, zaap: boolean) => {
     setActivityTags(prev => {
       const filtered = prev.filter((t: any) => t.type !== "pos_tags");
       if (text.trim()) {
-        return [...filtered, { type: "pos_tags" as any, name: text.trim(), worldId: positionsWorldId }];
+        return [...filtered, { type: "pos_tags" as any, name: text.trim(), worldId, ...(zaap ? { allowZaap: true } : {}) }];
       }
       return filtered;
     });
+  };
+
+  const handleAllowZaapChange = (enabled: boolean) => {
+    setAllowZaap(enabled);
+    syncPosTag(positionsInput, positionsWorldId, enabled);
   };
 
   const handleTougliTextChange = (text: string) => {
@@ -2463,13 +2496,7 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
                     value={positionsWorldId}
                     onChange={w => {
                       setPositionsWorldId(w);
-                      setActivityTags(prev => {
-                        const filtered = prev.filter((t: any) => t.type !== "pos_tags");
-                        if (positionsInput.trim()) {
-                          return [...filtered, { type: "pos_tags" as any, name: positionsInput.trim(), worldId: w }];
-                        }
-                        return filtered;
-                      });
+                      syncPosTag(positionsInput, w, allowZaap);
                     }}
                   />
                 </div>
@@ -2486,18 +2513,84 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
                 ) : null}
               </div>
 
+              {/* Détour zaap (choix éditorial façon DPLN) : coché ⇒ les membres
+                  voient le bouton qui copie `/zaap x,y ; /travel x,y`. */}
+              <label className="flex items-center gap-2 cursor-pointer select-none pt-1">
+                <input
+                  type="checkbox"
+                  checked={allowZaap}
+                  onChange={e => handleAllowZaapChange(e.target.checked)}
+                  className="w-3.5 h-3.5 accent-cyan-500"
+                />
+                <span className="text-caption text-zinc-400 font-medium">
+                  Proposer le détour zaap <span className="font-mono text-cyan-400/80">/zaap + /travel</span>
+                </span>
+              </label>
+
               {/* PNJ donneur (recherche locale, 6 494 PNJ du client) */}
               <div className="pt-1">
                 <label className="text-caption font-black text-emerald-400/80 uppercase tracking-widest block mb-1">
                   PNJ donneur
                 </label>
                 {currentNpcTag ? (
-                  <div className="flex items-center gap-2">
-                    <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-caption font-bold">
-                      {currentNpcTag.name}
-                      {currentNpcTag.npcId ? <span className="font-mono opacity-70">#{currentNpcTag.npcId}</span> : null}
-                    </span>
-                    <button type="button" onClick={clearNpcTag} className="text-caption font-black uppercase tracking-wider text-zinc-500 hover:text-red-400">Retirer</button>
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-2">
+                      <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-caption font-bold">
+                        {currentNpcTag.name}
+                        {currentNpcTag.npcId ? <span className="font-mono opacity-70">#{currentNpcTag.npcId}</span> : null}
+                      </span>
+                      <button type="button" onClick={clearNpcTag} className="text-caption font-black uppercase tracking-wider text-zinc-500 hover:text-red-400">Retirer</button>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      {npcImageUrl && isSafeImageUrl(npcImageUrl) ? (
+                        /* eslint-disable-next-line @next/next/no-img-element */
+                        <img src={npcImageUrl} alt="" className="w-6 h-6 rounded-full object-cover shrink-0" />
+                      ) : null}
+                      <input
+                        value={npcImageUrl}
+                        onChange={e => {
+                          const v = e.target.value;
+                          setNpcImageUrl(v);
+                          syncNpcTag(
+                            typeof currentNpcTag?.name === "string" ? currentNpcTag.name : "",
+                            typeof currentNpcTag?.npcId === "number" ? currentNpcTag.npcId : null,
+                            v,
+                          );
+                        }}
+                        placeholder="Image du PNJ (https://… ou /uploads/… — affichée à la place du nom)"
+                        className="flex-1 bg-black/60 border border-white/10 rounded-lg px-2 py-1.5 text-caption text-emerald-200/90 focus:outline-none focus:border-emerald-500/40 placeholder:text-zinc-600"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => document.getElementById("rush-npc-upload")?.click()}
+                        disabled={uploadingNpcImage}
+                        className="shrink-0 inline-flex items-center gap-1 px-2 py-1.5 rounded-lg border border-white/10 bg-zinc-800/60 text-caption font-black text-zinc-300 hover:text-white transition-colors disabled:opacity-50"
+                      >
+                        {uploadingNpcImage ? "…" : "⬆ Importer"}
+                      </button>
+                      <input
+                        id="rush-npc-upload"
+                        type="file"
+                        accept="image/png,image/jpeg,image/webp"
+                        className="hidden"
+                        onChange={async (e) => {
+                          const f = e.target.files?.[0];
+                          if (!f) return;
+                          setUploadingNpcImage(true);
+                          const url = await uploadImageFile(f, "guides");
+                          if (url) {
+                            setNpcImageUrl(url);
+                            syncNpcTag(
+                              typeof currentNpcTag?.name === "string" ? currentNpcTag.name : "",
+                              typeof currentNpcTag?.npcId === "number" ? currentNpcTag.npcId : null,
+                              url,
+                            );
+                          }
+                          setUploadingNpcImage(false);
+                          e.target.value = "";
+                        }}
+                      />
+                    </div>
                   </div>
                 ) : (
                   <>

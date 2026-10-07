@@ -15,6 +15,7 @@ import {
   getItemImageFallback,
   resolveRushSeqIcon,
   getSequenceNpc,
+  isZaapCopyEnabled,
   RUSH_ACTIVITY_TAG_CONFIG,
   findMilestoneInsertIndex,
 } from "@/lib/rush-guide-utils";
@@ -346,23 +347,42 @@ describe("rush-guide-utils", () => {
   });
 
   describe("getSequenceNpc — PNJ donneur (tag npc)", () => {
-    const seqWithNpc = (tags: any) => ({ activityTags: tags }) as any;
+    const seqWithNpc = (tags: { type: string; name?: string; npcId?: number; imageUrl?: string }[]) =>
+      ({ activityTags: tags }) as unknown as Parameters<typeof getSequenceNpc>[0];
 
-    it("lit le nom et l'id du tag npc", () => {
+    it("lit le nom, l'id et l'image du tag npc", () => {
       expect(getSequenceNpc(seqWithNpc([{ type: "npc", name: "Mériana", npcId: 2205 }]))).toEqual({
         id: 2205,
         name: "Mériana",
+        imageUrl: null,
       });
+      expect(
+        getSequenceNpc(seqWithNpc([{ type: "npc", name: "Otomaï", npcId: 914, imageUrl: "/uploads/guides/o.webp" }])),
+      ).toEqual({ id: 914, name: "Otomaï", imageUrl: "/uploads/guides/o.webp" });
     });
 
     it("tolère le nom seul ou l'id seul, jamais d'invention", () => {
       expect(getSequenceNpc(seqWithNpc([{ type: "npc", name: "Mama Ayuto" }]))).toEqual({
         id: null,
         name: "Mama Ayuto",
+        imageUrl: null,
       });
       expect(getSequenceNpc(null)).toBeNull();
       expect(getSequenceNpc(seqWithNpc([]))).toBeNull();
       expect(getSequenceNpc(seqWithNpc([{ type: "npc", name: "  ", npcId: 0 }]))).toBeNull();
+    });
+  });
+
+  describe("isZaapCopyEnabled — détour zaap opt-in God", () => {
+    const seqWithPos = (tag: { type: string; name?: string; allowZaap?: boolean }) =>
+      ({ activityTags: [tag] }) as unknown as Parameters<typeof isZaapCopyEnabled>[0];
+
+    it("vrai seulement quand pos_tags.allowZaap est coché", () => {
+      expect(isZaapCopyEnabled(seqWithPos({ type: "pos_tags", name: "1, 1", allowZaap: true }))).toBe(true);
+      expect(isZaapCopyEnabled(seqWithPos({ type: "pos_tags", name: "1, 1" }))).toBe(false);
+      expect(isZaapCopyEnabled(seqWithPos({ type: "pos_tags", name: "1, 1", allowZaap: false }))).toBe(false);
+      expect(isZaapCopyEnabled(null)).toBe(false);
+      expect(isZaapCopyEnabled(seqWithPos({ type: "npc", name: "X" }))).toBe(false);
     });
   });
 

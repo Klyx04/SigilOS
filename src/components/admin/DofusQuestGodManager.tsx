@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { AsyncCombobox } from "@/components/ui/async-combobox";
 import { searchZonesDetected } from "@/server/actions/game-data-actions";
 import { searchDungeonsLocal, searchNpcsLocal } from "@/server/actions/dofus-search-actions";
+import { uploadImageFile } from "@/components/editor/utils/image-upload";
 import { QUEST_TYPE_KEYS, QUEST_TYPE_LABELS, questTypeIconPath } from "@/lib/quest-type-icon";
 import { toast } from "sonner";
 import { safeImageUrl, isSafeImageUrl } from "@/lib/security";
@@ -451,7 +452,7 @@ function EntryEditDialog({ open, onOpenChange, entry, onSuccess, chainEntries = 
         chainId: "", name: "", zone: "", questType: "QUEST", stepOrder: 0,
         isOptional: false, isLast: false, isDungeon: false,
         entryKind: QUEST_KIND, parentEntryId: "",
-        level: "", npcName: "", npcSubArea: "", npcId: null,
+        level: "", npcName: "", npcSubArea: "", npcId: null, npcImageUrl: "",
         notes: "", externalRef: "",
         positions: [] as { x: number; y: number; label?: string }[],
         dofusdbUrl: "", dofuspourlesnoobsUrl: "",
@@ -481,6 +482,7 @@ function EntryEditDialog({ open, onOpenChange, entry, onSuccess, chainEntries = 
     // sélectionne le donneur avec son npcId (portrait par convention).
     const [npcQuery, setNpcQuery] = useState("");
     const [npcResults, setNpcResults] = useState<any[]>([]);
+    const [uploadingNpcImage, setUploadingNpcImage] = useState(false);
 
     const handleNpcSearch = async (q: string) => {
         setNpcQuery(q);
@@ -543,12 +545,14 @@ function EntryEditDialog({ open, onOpenChange, entry, onSuccess, chainEntries = 
                 npcName: entry.npcName || "",
                 npcSubArea: entry.npcSubArea || "",
                 npcId: (entry.requirements as any)?.npcId ?? null,
+                npcImageUrl: (entry.requirements as any)?.npcImageUrl || "",
                 notes: entry.notes || "",
                 externalRef: entry.externalRef || "",
                 positions: Array.isArray(positions) ? positions.map((p: any) => ({
                     x: typeof p?.x === "number" ? p.x : parseInt(p?.x, 10) || 0,
                     y: typeof p?.y === "number" ? p.y : parseInt(p?.y, 10) || 0,
                     label: p?.label || "",
+                    ...(p?.zaap === true ? { zaap: true as const } : {}),
                 })) : [],
                 dofusdbUrl: entry.dofusdbUrl || "",
                 dofuspourlesnoobsUrl: entry.dofuspourlesnoobsUrl || "",
@@ -562,7 +566,7 @@ function EntryEditDialog({ open, onOpenChange, entry, onSuccess, chainEntries = 
                 chainId: "", name: "", zone: "", questType: "QUEST", stepOrder: 0,
                 isOptional: false, isLast: false, isDungeon: false,
                 entryKind: QUEST_KIND, parentEntryId: "",
-                level: "", npcName: "", npcSubArea: "", npcId: null,
+                level: "", npcName: "", npcSubArea: "", npcId: null, npcImageUrl: "",
                 notes: "", externalRef: "",
                 positions: [], dofusdbUrl: "", dofuspourlesnoobsUrl: "",
                 localImageUrl: "", dungeons: [],
@@ -586,7 +590,7 @@ function EntryEditDialog({ open, onOpenChange, entry, onSuccess, chainEntries = 
             // Succès imbriqués : nature de l'étape + rattachement à un succès parent.
             entryKind: formData.entryKind,
             parentEntryId: formData.parentEntryId || null,
-            requirements: { level: formData.level ? parseInt(formData.level) : null, npc: formData.npcName, subarea: formData.npcSubArea, npcId: formData.npcId ?? null },
+            requirements: { level: formData.level ? parseInt(formData.level) : null, npc: formData.npcName, subarea: formData.npcSubArea, npcId: formData.npcId ?? null, npcImageUrl: isSafeImageUrl(formData.npcImageUrl) ? String(formData.npcImageUrl).trim() : null },
             notes: formData.notes,
             externalRef: formData.externalRef,
             positions: formData.positions,
@@ -643,6 +647,16 @@ function EntryEditDialog({ open, onOpenChange, entry, onSuccess, chainEntries = 
 
     const removePosition = (idx: number) => {
         setFormData((prev: any) => ({ ...prev, positions: (prev.positions || []).filter((_: any, i: number) => i !== idx) }));
+    };
+
+    // Détour zaap par position (choix God explicite façon DPLN) : coché ⇒ les
+    // membres voient le bouton qui copie `/zaap x,y ; /travel x,y`.
+    const togglePositionZaap = (idx: number) => {
+        setFormData((prev: any) => ({
+            ...prev,
+            positions: (prev.positions || []).map((p: any, i: number) =>
+                i === idx ? { ...p, zaap: !(p as any)?.zaap } : p),
+        }));
     };
 
     // #148 — Sélecteur multi-donjons (pattern Rush Sylvestre admin)
@@ -845,6 +859,34 @@ function EntryEditDialog({ open, onOpenChange, entry, onSuccess, chainEntries = 
                                     <Input value={formData.npcSubArea} onChange={e => setFormData({...formData, npcSubArea: e.target.value})} className="bg-black/40 border-border h-9 rounded-xl text-xs" placeholder="Sous-zone…" />
                                 </div>
                             </div>
+                            <div className="space-y-1">
+                                <label className="text-caption font-black uppercase tracking-widest text-muted-foreground">Image du PNJ <span className="font-normal normal-case tracking-normal">(affichée à la place du nom côté membres, nom en hover)</span></label>
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-full bg-black/40 border border-border overflow-hidden flex items-center justify-center shrink-0">
+                                        {formData.npcImageUrl && isSafeImageUrl(formData.npcImageUrl) ? (
+                                            /* eslint-disable-next-line @next/next/no-img-element */
+                                            <img src={formData.npcImageUrl} alt="Portrait PNJ" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                                        ) : (
+                                            <span className="text-caption font-black text-muted-foreground">?</span>
+                                        )}
+                                    </div>
+                                    <Input value={formData.npcImageUrl || ""} onChange={e => setFormData({...formData, npcImageUrl: e.target.value})} className="bg-black/40 border-border h-9 rounded-xl text-xs font-mono flex-1" placeholder="https://… ou /uploads/… (portrait rond)" />
+                                    <button type="button" onClick={() => document.getElementById("npc-image-upload")?.click()} disabled={uploadingNpcImage}
+                                        className="h-9 px-3 rounded-xl bg-surface border border-border text-muted-foreground hover:text-foreground text-caption font-black uppercase tracking-wider shrink-0 disabled:opacity-50">
+                                        {uploadingNpcImage ? "…" : "⬆ Importer"}
+                                    </button>
+                                    <input id="npc-image-upload" type="file" accept="image/png,image/jpeg,image/webp" className="hidden"
+                                        onChange={async (e) => {
+                                            const f = e.target.files?.[0];
+                                            if (!f) return;
+                                            setUploadingNpcImage(true);
+                                            const url = await uploadImageFile(f, "guides");
+                                            if (url) setFormData((prev: any) => ({ ...prev, npcImageUrl: url }));
+                                            setUploadingNpcImage(false);
+                                            e.target.value = "";
+                                        }} />
+                                </div>
+                            </div>
                         </div>
                         {/* #148 — Donjons liés (sélecteur multi-donjons, pattern Rush Sylvestre) */}
                         <div className="space-y-2">
@@ -892,6 +934,12 @@ function EntryEditDialog({ open, onOpenChange, entry, onSuccess, chainEntries = 
                                         <span key={idx} className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-success/10 border border-success/20 text-success text-caption font-bold font-mono">
                                             {p.x}, {p.y}
                                             <button type="button" onClick={() => copyPosition(p.x, p.y)} className="text-success/50 hover:text-success" title="Copier /travel X,Y"><Copy className="w-2.5 h-2.5" /></button>
+                                            <button type="button" onClick={() => togglePositionZaap(idx)}
+                                                title={p.zaap ? "Détour zaap proposé (cliquer pour retirer)" : "Proposer le détour zaap /zaap + /travel"}
+                                                aria-pressed={!!p.zaap}
+                                                className={`font-mono text-[10px] font-black px-1 rounded transition-colors ${p.zaap ? "bg-info/20 text-info" : "text-muted-foreground/50 hover:text-info"}`}>
+                                                Z
+                                            </button>
                                             <button type="button" onClick={() => removePosition(idx)} className="text-success/50 hover:text-danger"><Trash2 className="w-2.5 h-2.5" /></button>
                                         </span>
                                     ))}

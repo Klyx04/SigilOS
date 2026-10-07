@@ -65,21 +65,23 @@ export function buildQilbyArena(): QilbyArenaData {
         return cellIds.sort((a, b) => a - b);
     };
 
-    // Plateforme centrale : Qilby et ses accompagnateurs y sont confinés
-    const enemyCells = paintSquareIsland(islandCenters.center.u, islandCenters.center.v);
+    // Plateforme centrale : Qilby et ses accompagnateurs y sont confinés (défenseurs = BLEU = allyCells)
+    const centralCells = paintSquareIsland(islandCenters.center.u, islandCenters.center.v);
 
-    // 4 plateformes périphériques : zones de départ pour les alliés / joueurs
+    // 4 plateformes périphériques : zones de départ pour les joueurs / attaquants (ROUGE = enemyCells)
     const northWestCells = paintSquareIsland(islandCenters.northWest.u, islandCenters.northWest.v);
     const northEastCells = paintSquareIsland(islandCenters.northEast.u, islandCenters.northEast.v);
     const southWestCells = paintSquareIsland(islandCenters.southWest.u, islandCenters.southWest.v);
     const southEastCells = paintSquareIsland(islandCenters.southEast.u, islandCenters.southEast.v);
 
-    const allyCells = [...northWestCells, ...northEastCells, ...southWestCells, ...southEastCells].sort((a, b) => a - b);
+    // Convention Dofus prouvée (Ankama_Fight.d2ui) : défenseurs = BLEU = allyCells, attaquants = ROUGE = enemyCells.
+    const allyCells = centralCells; // Qilby (défenseur du donjon)
+    const enemyCells = [...northWestCells, ...northEastCells, ...southWestCells, ...southEastCells].sort((a, b) => a - b); // Joueurs (attaquants)
 
     return {
         cells,
-        enemyCells,
         allyCells,
+        enemyCells,
     };
 }
 

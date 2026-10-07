@@ -266,6 +266,19 @@ Chaque tâche CRON enregistre automatiquement son état, sa durée et son résum
 > ⚠️ **INCIDENT beta 09/09 — P3018 sur `20261103000000_add_service_request_reminder_fields` (`lastReminderAt` already exists)** : colonne créée hors migrations sur beta (db push/ALTER manuel). Vérifié que les 2 colonnes existent (`information_schema`), puis `migrate resolve --applied` (avec `prisma@7.9.1` épinglé — SANS version, npx propose la v8 RC !) et re-deploy vert. **Règle** : nouvelles migrations `ADD COLUMN IF NOT EXISTS` (PR #614) pour blinder le futur deploy prod.
 > ⚠️ **Prod 09/09 — bot crash-loop 141k restarts `TokenInvalid`** : token partagé beta+prod (bagarre de sessions gateway) + `DATABASE_URL` au vieux mdp (spéciaux non encodés). Fix = **1 appli Discord par env** (`SigilOS Prod` : token+AppID+secret+clé Ed25519 dédiés, intents Members+MessageContent, invite bitmask `6356836904068`) + **`POSTGRES_PASSWORD` alphanumérique** (généré, `ALTER USER`, `.env.prod`, recreate). Diag type : `docker inspect` (restarts/OOM/exit) + `docker logs` + comparaison md5 URL vs `POSTGRES_PASSWORD` + test login `psql`.
 
+> ⚠️ **INCIDENT prod + beta 06/10 — plus personne ne peut se connecter (`error=Configuration`)** :
+> **Symptôme** : toute connexion Discord redirige vers `/auth/error?error=Configuration`, **sur prod ET beta en même temps, sans aucun déploiement** (les conteneurs restaient *healthy*, `GET /api/auth/csrf` = **200**, `/api/auth/providers` = **200**, et **toutes** les variables d'env présentes — `AUTH_SECRET`, `AUTH_DISCORD_ID`, `AUTH_DISCORD_SECRET`).
+> **Cause racine mesurée** (logs) : `[auth][error] CallbackRouteError` → `unexpected "iss" (issuer) response parameter value`, `expected: "https://authjs.dev"`. **Discord renvoie désormais le paramètre `iss` (RFC 9207)** dans sa réponse OAuth ; Auth.js v5 le compare à `provider.issuer`, dont la **valeur de repli est le placeholder `https://authjs.dev`** (`@auth/core/lib/actions/callback/oauth/callback.ts:82`, commentaire amont `// TODO: review fallback issuer`) — le provider Discord **installé** ne déclare aucun `issuer` (les versions récentes l'ajoutent).
+> **Piège de diagnostic** : `error=Configuration` n'est **pas** l'erreur réelle — c'est le **masque** affiché pour toute erreur serveur non « client-safe » (`@auth/core/index.js` : `const type = isClientSafeErrorType ? error.type : "Configuration"`) ⇒ **toujours lire `docker logs <app> | grep '\[auth\]'`**, jamais se fier au libellé de la page d'erreur.
+> **Correctif immédiat (sans rebuild — Auth.js lit `AUTH_DISCORD_ISSUER`, cf. `@auth/core/lib/utils/env.ts:65`)** :
+> ```
+> # à ajouter dans .env.beta ET .env.prod
+> AUTH_DISCORD_ISSUER=https://discord.com
+> sudo docker compose -f docker-compose.prod.yml --env-file .env.beta up -d --force-recreate --no-deps app-beta
+> ```
+> **Correctif pérenne** : `issuer: "https://discord.com"` déclaré **en dur** dans `src/auth.ts` (+ documenté dans `.env.example`) et **gardé par `tests/unit/auth-discord-issuer.test.ts`** ⇒ la variable d'env ne peut plus disparaître sans casser la connexion (valeur = issuer officiel de `https://discord.com/.well-known/openid-configuration`).
+> **Vigilance** : ce type de panne **échappe à la CI** (le code compile, les tests passent, les conteneurs sont `healthy`) — elle ne se voit qu'en **exerçant réellement la connexion**. Le `/api/health` actuel ne teste **pas** le login : c'est l'angle mort de la supervision (piste : smoke test de connexion ou alerte Sentry branchée sur le logger d'Auth.js).
+
 ---
 
 

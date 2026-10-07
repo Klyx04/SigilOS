@@ -28,12 +28,216 @@ import { dofusDbFetch } from "@/lib/dofusdb-limiter";
 import { getLocalMonsterStatAny, persistMonsterStat } from "@/lib/dofensive-sync";
 import { encycloGrade, encycloIdentity, resolveEncycloNames } from "@/lib/dofus-encyclo";
 import { getDofensiveDungeonForBoss } from "@/lib/dofensive-api";
+import { getUnityMonster, type UnityMonsterData } from "@/lib/unity-bestiary";
 
 type ActionResponse<T = void> = {
     success: boolean;
     error?: string;
     data?: T;
 };
+
+function normSpellName(s: string): string {
+    return (s || "")
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-z0-9]/g, "")
+        .trim();
+}
+
+function enrichWithUnityData(data: any, monsterName: string, monsterId?: number): any {
+    if (!data) return data;
+    try {
+        const unity = getUnityMonster(monsterId || data.id || monsterName);
+        if (unity) {
+            data.unity = unity;
+
+            // ── Passif de début de combat ─────────────────────────────────────
+            if (unity.passive && unity.passive.description) {
+                data.passive = unity.passive;
+            }
+
+            // ── Stats par grade (tacle, fuite, esquive…) ─────────────────────
+            if (Array.isArray(data.grades) && Array.isArray(unity.grades)) {
+                data.grades = data.grades.map((g: any, i: number) => {
+                    const ug = unity.grades[i] || unity.grades[0];
+                    if (!ug) return g;
+                    return {
+                        ...g,
+                        tackle: ug.tackle,
+                        evade: ug.evade,
+                        apRemoval: ug.apRemoval,
+                        mpRemoval: ug.mpRemoval,
+                        apDodge: ug.apDodge,
+                        mpDodge: ug.mpDodge,
+                        initiative: ug.initiative,
+                    };
+                });
+            }
+
+            // ── Sorts Unity : injecter iconId réel + description ─────────────
+            if (Array.isArray(unity.spells) && unity.spells.length > 0) {
+                // Construire un index Unity par nom normalisé
+                const unitySpellByName = new Map<string, typeof unity.spells[0]>();
+                const unitySpellById = new Map<number, typeof unity.spells[0]>();
+                for (const us of unity.spells) {
+                    unitySpellByName.set(normSpellName(us.name), us);
+                    unitySpellById.set(us.id, us);
+                }
+
+                const matchedSpellIds = new Set<number>();
+
+                // Enrichir les sorts DofusDB existants
+                if (Array.isArray(data.spells) && data.spells.length > 0) {
+                    data.spells = data.spells.map((s: any) => {
+                        // Skip le passif de début de combat (déjà géré dans data.passive)
+                        if (unity.passive && s.id === unity.passive.spellId) {
+                            matchedSpellIds.add(s.id);
+                            return {
+                                ...s,
+                                unityIconId: unity.passive.iconId,
+                                unityDescription: unity.passive.description,
+                                isPassive: true,
+                            };
+                        }
+                        const us =
+                            unitySpellById.get(s.id) ||
+                            unitySpellByName.get(normSpellName(s.name));
+                        if (!us) return s;
+                        matchedSpellIds.add(us.id);
+                        return {
+                            ...s,
+                            unityIconId: us.iconId,
+                            unityDescription: us.description || s.description,
+                            unityEffects: us.effects,
+                            unityCriticalEffects: us.criticalEffects,
+                            // Prioriser les effets officiels Unity si présents
+                            ...(Array.isArray(us.effects) && us.effects.length > 0 ? { effects: us.effects } : {}),
+                            ...(Array.isArray(us.criticalEffects) && us.criticalEffects.length > 0 ? { criticalEffects: us.criticalEffects } : {}),
+                            // Priorité Unity pour les stats de sort
+                            apCost: s.apCost ?? us.apCost,
+                            minRange: s.minRange ?? us.minRange,
+                            range: s.range ?? us.range,
+                        };
+                    });
+                } else {
+                    data.spells = [];
+                }
+
+                // Ajouter les sorts Unity manquants qui ne sont pas le passif de début de combat
+                for (const us of unity.spells) {
+                    if (unity.passive && us.id === unity.passive.spellId) continue;
+                    if (matchedSpellIds.has(us.id) || unitySpellByName.get(normSpellName(us.name)) && matchedSpellIds.has(unitySpellByName.get(normSpellName(us.name))!.id)) {
+                        continue;
+                    }
+                    data.spells.push({
+                        id: us.id,
+                        name: us.name,
+                        unityIconId: us.iconId,
+                        imageUrl: `/uploads/assets-dofus/spells/sort_${us.iconId}.webp`,
+                        description: us.description || "",
+                        unityDescription: us.description,
+                        effects: us.effects || [],
+                        criticalEffects: us.criticalEffects || [],
+                        unityEffects: us.effects,
+                        unityCriticalEffects: us.criticalEffects,
+                        apCost: us.apCost ?? 0,
+                        minRange: us.minRange ?? 0,
+                        range: us.range ?? 0,
+                        castTestLos: us.castTestLos ?? true,
+                        castInLine: us.castInLine ?? false,
+                        castInDiagonal: us.castInDiagonal ?? false,
+                        maxCastPerTurn: us.maxCastPerTurn,
+                        minCastInterval: us.minCastInterval,
+                    });
+                }
+            }
+        }
+    } catch (err) {
+        // Non bloquant
+    }
+    return data;
+}
+
+/**
+ * Construit une fiche complète à partir du bestiaire local Unity quand DofusDB
+ * ne connaît pas le monstre (ex: raids Gigalodon, Jardins Éternels, nouveaux titans/anomalies)
+ * ou en cas de coupure/quota réseau.
+ */
+function buildMonsterDataFromUnity(unity: UnityMonsterData): any {
+    return {
+        id: unity.id,
+        name: unity.name,
+        nameEn: null,
+        imageUrl: `/assets/dofus/monsters/${unity.id}.png`,
+        familyId: unity.raceId,
+        coordinates: null,
+        encyclo: {
+            raceId: unity.raceId,
+            names: {
+                raceName: null,
+                superRaceName: null,
+                zoneName: null,
+            },
+        },
+        grades: (unity.grades || []).map((g) => ({
+            level: g.level,
+            lifePoints: g.lifePoints,
+            actionPoints: g.actionPoints,
+            movementPoints: g.movementPoints,
+            resists: {
+                neutral: g.neutralResistance,
+                earth: g.earthResistance,
+                fire: g.fireResistance,
+                water: g.waterResistance,
+                air: g.airResistance,
+            },
+            carac: {
+                wisdom: g.wisdom,
+                strength: g.strength,
+                intelligence: g.intelligence,
+                chance: g.chance,
+                agility: g.agility,
+                paDodge: g.apDodge,
+                pmDodge: g.mpDodge,
+                gradeXp: g.xp,
+            },
+            tackle: g.tackle,
+            evade: g.evade,
+            apRemoval: g.apRemoval,
+            mpRemoval: g.mpRemoval,
+            apDodge: g.apDodge,
+            mpDodge: g.mpDodge,
+            initiative: g.initiative,
+        })),
+        drops: [],
+        spells: (unity.spells || [])
+            .filter((us) => !unity.passive || us.id !== unity.passive.spellId)
+            .map((us) => ({
+                id: us.id,
+                name: us.name,
+                unityIconId: us.iconId,
+                imageUrl: `/uploads/assets-dofus/spells/sort_${us.iconId}.webp`,
+                description: us.description || "",
+                unityDescription: us.description,
+                effects: us.effects || [],
+                criticalEffects: us.criticalEffects || [],
+                unityEffects: us.effects,
+                unityCriticalEffects: us.criticalEffects,
+                apCost: us.apCost ?? 0,
+                minRange: us.minRange ?? 0,
+                range: us.range ?? 0,
+                castTestLos: us.castTestLos ?? true,
+                castInLine: us.castInLine ?? false,
+                castInDiagonal: us.castInDiagonal ?? false,
+                maxCastPerTurn: us.maxCastPerTurn,
+                minCastInterval: us.minCastInterval,
+            })),
+        passive: unity.passive || undefined,
+        unity,
+    };
+}
+
 
 // #138 — cache mémoire 1h pour les fiches monstres (dofusdb externe, jusqu'à 5 requêtes/boss).
 const monsterStatsCache = new Map<string, { data: any; expiresAt: number }>();
@@ -163,9 +367,10 @@ export async function getMonsterStats(
                     }
                 }
 
+                const enrichedLocal = enrichWithUnityData(local, monsterName, safeId);
                 const ttl = hit.stale ? STALE_STATS_TTL : MONSTER_STATS_TTL;
-                monsterStatsCache.set(cacheKey, { data: local, expiresAt: Date.now() + ttl });
-                return { success: true, data: local };
+                monsterStatsCache.set(cacheKey, { data: enrichedLocal, expiresAt: Date.now() + ttl });
+                return { success: true, data: enrichedLocal };
             }
         } catch (err) {
             logger.warn("[getMonsterStats] Local-first échec:", { error: String(err) });
@@ -186,6 +391,12 @@ export async function getMonsterStats(
                 // ⚠️ 23/09/2026 — un `throw` ici faisait cascader le siphon d'avis (concurrency 4)
                 // sur la grille vide ET un log opaque : on rend la cause EXPLICITE et on laisse
                 // l'appelant décider (il gère déjà `!res.ok`).
+                const unityFallback = getUnityMonster(safeId > 0 ? safeId : monsterName);
+                if (unityFallback) {
+                    const synthesized = buildMonsterDataFromUnity(unityFallback);
+                    monsterStatsCache.set(cacheKey, { data: synthesized, expiresAt: Date.now() + MONSTER_STATS_TTL });
+                    return { success: true, data: synthesized };
+                }
                 const reason = searchRes.status === 429
                     ? "Quota DofusDB atteint (429) — relancer plus tard"
                     : `DofusDB HTTP ${searchRes.status}`;
@@ -237,7 +448,15 @@ export async function getMonsterStats(
             } catch {}
         }
 
-        if (!monsterHeader) return { success: false, error: 'Monstre non trouvé' };
+        if (!monsterHeader) {
+            const unityFallback = getUnityMonster(safeId > 0 ? safeId : monsterName);
+            if (unityFallback) {
+                const synthesized = buildMonsterDataFromUnity(unityFallback);
+                monsterStatsCache.set(cacheKey, { data: synthesized, expiresAt: Date.now() + MONSTER_STATS_TTL });
+                return { success: true, data: synthesized };
+            }
+            return { success: false, error: 'Monstre non trouvé' };
+        }
 
         // Fetch FULL details
         const fullRes = await dofusDbFetch(
@@ -245,6 +464,12 @@ export async function getMonsterStats(
             dofusdbFicheInit()
         );
         if (!fullRes.ok) {
+            const unityFallback = getUnityMonster(safeId > 0 ? safeId : monsterName);
+            if (unityFallback) {
+                const synthesized = buildMonsterDataFromUnity(unityFallback);
+                monsterStatsCache.set(cacheKey, { data: synthesized, expiresAt: Date.now() + MONSTER_STATS_TTL });
+                return { success: true, data: synthesized };
+            }
             const reason = fullRes.status === 429
                 ? "Quota DofusDB atteint (429) — relancer plus tard"
                 : `DofusDB HTTP ${fullRes.status}`;
@@ -687,15 +912,16 @@ export async function getMonsterStats(
                 };
             })
         };
-        monsterStatsCache.set(cacheKey, { data: resultData, expiresAt: Date.now() + MONSTER_STATS_TTL });
+        const enrichedData = enrichWithUnityData(resultData, monsterName, safeId);
+        monsterStatsCache.set(cacheKey, { data: enrichedData, expiresAt: Date.now() + MONSTER_STATS_TTL });
         // Self-healing (sync intelligente) : copie locale de la fiche pour le
         // mode local-first (prochaines lectures sans DofusDB). Jamais bloquant.
         try {
-            if (process.env.VITEST !== "true") await persistMonsterStat({ ...resultData, dungeonName });
+            if (process.env.VITEST !== "true") await persistMonsterStat({ ...enrichedData, dungeonName });
         } catch (err) {
             logger.warn("[getMonsterStats] Persist local échec:", { error: String(err) });
         }
-        return { success: true, data: resultData };
+        return { success: true, data: enrichedData };
     } catch (error) {
         logger.error('[getMonsterStats] Error:', { error });
         return { success: false, error: 'Erreur DofusDB' };

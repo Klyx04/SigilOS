@@ -12,34 +12,50 @@ export interface DofusClass {
     name: string;
     icon: string;
     color: string;
+    /** breedId client (Dofus Unity) — l'icône `/assets/dofus/classes/<breed>.png` le porte déjà. */
+    breed: number;
 }
 
 export const DOFUS_CLASSES = [
-    { id: "cra", name: "Cra", icon: "/assets/dofus/classes/9.png", color: "#4ade80" },
-    { id: "ecaflip", name: "Ecaflip", icon: "/assets/dofus/classes/6.png", color: "#ec4899" },
-    { id: "eliotrope", name: "Eliotrope", icon: "/assets/dofus/classes/16.png", color: "#3b82f6" },
-    { id: "eniripsa", name: "Eniripsa", icon: "/assets/dofus/classes/7.png", color: "#f472b6" },
-    { id: "enutrof", name: "Enutrof", icon: "/assets/dofus/classes/3.png", color: "#f59e0b" },
-    { id: "feca", name: "Féca", icon: "/assets/dofus/classes/1.png", color: "#60a5fa" },
-    { id: "forgelance", name: "Forgelance", icon: "/assets/dofus/classes/20.png", color: "#fcd34d" },
-    { id: "huppermage", name: "Huppermage", icon: "/assets/dofus/classes/17.png", color: "#8b5cf6" },
-    { id: "iop", name: "Iop", icon: "/assets/dofus/classes/8.png", color: "#ef4444" },
-    { id: "osamodas", name: "Osamodas", icon: "/assets/dofus/classes/2.png", color: "#ef4444" },
-    { id: "ouginak", name: "Ouginak", icon: "/assets/dofus/classes/18.png", color: "#f59e0b" },
-    { id: "pandawa", name: "Pandawa", icon: "/assets/dofus/classes/12.png", color: "#16a34a" },
-    { id: "roublard", name: "Roublard", icon: "/assets/dofus/classes/13.png", color: "#f97316" },
-    { id: "sacrieur", name: "Sacrieur", icon: "/assets/dofus/classes/11.png", color: "#dc2626" },
-    { id: "sadida", name: "Sadida", icon: "/assets/dofus/classes/10.png", color: "#22c55e" },
-    { id: "sram", name: "Sram", icon: "/assets/dofus/classes/4.png", color: "#a855f7" },
-    { id: "steamer", name: "Steamer", icon: "/assets/dofus/classes/15.png", color: "#06b6d4" },
-    { id: "xelor", name: "Xélor", icon: "/assets/dofus/classes/5.png", color: "#6366f1" },
-    { id: "zobal", name: "Zobal", icon: "/assets/dofus/classes/14.png", color: "#ef4444" },
+    { id: "cra", name: "Cra", icon: "/assets/dofus/classes/9.png", color: "#4ade80", breed: 9 },
+    { id: "ecaflip", name: "Ecaflip", icon: "/assets/dofus/classes/6.png", color: "#ec4899", breed: 6 },
+    { id: "eliotrope", name: "Eliotrope", icon: "/assets/dofus/classes/16.png", color: "#3b82f6", breed: 16 },
+    { id: "eniripsa", name: "Eniripsa", icon: "/assets/dofus/classes/7.png", color: "#f472b6", breed: 7 },
+    { id: "enutrof", name: "Enutrof", icon: "/assets/dofus/classes/3.png", color: "#f59e0b", breed: 3 },
+    { id: "feca", name: "Féca", icon: "/assets/dofus/classes/1.png", color: "#60a5fa", breed: 1 },
+    { id: "forgelance", name: "Forgelance", icon: "/assets/dofus/classes/20.png", color: "#fcd34d", breed: 20 },
+    { id: "huppermage", name: "Huppermage", icon: "/assets/dofus/classes/17.png", color: "#8b5cf6", breed: 17 },
+    { id: "iop", name: "Iop", icon: "/assets/dofus/classes/8.png", color: "#ef4444", breed: 8 },
+    { id: "osamodas", name: "Osamodas", icon: "/assets/dofus/classes/2.png", color: "#ef4444", breed: 2 },
+    { id: "ouginak", name: "Ouginak", icon: "/assets/dofus/classes/18.png", color: "#f59e0b", breed: 18 },
+    { id: "pandawa", name: "Pandawa", icon: "/assets/dofus/classes/12.png", color: "#16a34a", breed: 12 },
+    { id: "roublard", name: "Roublard", icon: "/assets/dofus/classes/13.png", color: "#f97316", breed: 13 },
+    { id: "sacrieur", name: "Sacrieur", icon: "/assets/dofus/classes/11.png", color: "#dc2626", breed: 11 },
+    { id: "sadida", name: "Sadida", icon: "/assets/dofus/classes/10.png", color: "#22c55e", breed: 10 },
+    { id: "sram", name: "Sram", icon: "/assets/dofus/classes/4.png", color: "#a855f7", breed: 4 },
+    { id: "steamer", name: "Steamer", icon: "/assets/dofus/classes/15.png", color: "#06b6d4", breed: 15 },
+    { id: "xelor", name: "Xélor", icon: "/assets/dofus/classes/5.png", color: "#6366f1", breed: 5 },
+    { id: "zobal", name: "Zobal", icon: "/assets/dofus/classes/14.png", color: "#ef4444", breed: 14 },
 ] as const;
 
 export type DofusClassId = typeof DOFUS_CLASSES[number]["id"];
 
 export function getClass(id: string) {
     return DOFUS_CLASSES.find(c => c.id === id || c.name.toLowerCase() === id.toLowerCase());
+}
+
+/** Genre d'un visuel de classe du jeu : 0 = masculin, 1 = féminin. */
+export type DofusClassGender = 0 | 1;
+
+/**
+ * Portrait HD réel d'une classe, siphonné du client
+ * (`Picto/UI/class_assets_*.bundle` : `Head_<breedId * 10 + gender>.png`).
+ * Source unique pour les pions tactiques — jamais d'URL écrite à la main.
+ */
+export function dofusClassHead(breedId: number, gender: DofusClassGender = 0): string {
+    const breed = Number.isFinite(breedId) ? Math.floor(Math.abs(breedId)) : 0;
+    const headId = breed * 10 + (gender === 1 ? 1 : 0);
+    return `/assets/dofus/classes/heads/Head_${headId}.png`;
 }
 
 // -----------------------------------------------------------------------------

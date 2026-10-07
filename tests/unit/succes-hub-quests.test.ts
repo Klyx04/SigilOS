@@ -142,18 +142,22 @@ describe("déslop mes succès + succès commun — couleur en micro-indicateurs,
 
     it("fiches boss : un seul onglet Sorts (mécaniques clés + détail fusionnés)", () => {
         const src = readSource("src/components/succes/SuccesBossGuide.tsx");
+        // Un seul onglet de sorts, il porte le compte de sorts.
         expect(src).toContain("Sorts (");
-        expect(src).toContain("Mécaniques clés");
-        expect(src).toContain("Sorts détaillés (");
-        expect(src).not.toContain("Tous les sorts (");
+        // Les « mécaniques clés » = le passif officiel Unity, rendu dans ce même onglet.
+        expect(src).toContain("BossMechanicsView");
+        // Le détail complet vit dans le même onglet (pas d'onglet séparé ni de doublon).
+        expect(src).toContain("Tous les sorts (");
         expect(src).not.toContain('"overview"');
+        expect(src).not.toContain("Sorts détaillés (");
     });
 
-    it("sorts détaillés : repliés par défaut (accordéon, reset à chaque fiche)", () => {
+    it("sorts détaillés : chaque sort est replié par défaut (accordéon, reset à chaque fiche)", () => {
         const src = readSource("src/components/succes/SuccesBossGuide.tsx");
-        expect(src).toContain("const [showAllSpells, setShowAllSpells] = useState(false)");
-        expect(src).toContain("{showAllSpells && (");
-        expect(src).toContain("aria-expanded={showAllSpells}");
+        expect(src).toContain("const [expandedSpells, setExpandedSpells] = useState<Record<number, boolean>>({})");
+        expect(src).toContain("toggleSpellExpanded");
+        // Reset à chaque changement de fiche : aucun dépliage ne survit à la navigation.
+        expect(src).toContain("setExpandedSpells({})");
     });
 });
 

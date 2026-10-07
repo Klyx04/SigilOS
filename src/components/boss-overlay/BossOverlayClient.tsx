@@ -37,6 +37,8 @@ import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n/client";
 import { SpellData, SpellRangeGrid } from "@/components/succes/SpellRangeGrid";
 import { OverlayPinNotice } from "@/components/overlay-pin-notice";
+import { BossMechanicsView, type BossPassiveData } from "@/components/boss/BossMechanicsView";
+import { formatDofusEffectLine } from "@/lib/dofus-effects-formatter";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -44,6 +46,8 @@ interface MonsterStats {
   id?: number;
   name?: string;
   imageUrl?: string;
+  passive?: BossPassiveData;
+  unity?: any;
   grades?: {
     level: number;
     lifePoints: number;
@@ -53,6 +57,12 @@ interface MonsterStats {
     tackleEvade?: number;
     tackleBlock?: number;
     initiative?: number;
+    tackle?: number;
+    evade?: number;
+    apRemoval?: number;
+    mpRemoval?: number;
+    apDodge?: number;
+    mpDodge?: number;
     resists?: {
       neutral?: number;
       earth?: number;
@@ -213,7 +223,21 @@ function SpellCard({
         className="w-full p-2.5 flex items-center gap-2.5 text-left transition-colors"
       >
         <div className="w-8 h-8 rounded-lg bg-black/50 border border-white/10 flex items-center justify-center overflow-hidden shrink-0">
-          {spell.imageUrl ? (
+          {spell.unityIconId && spell.unityIconId > 0 ? (
+            <img
+              src={`/uploads/assets-dofus/spells/sort_${spell.unityIconId}.webp`}
+              alt={spell.name}
+              className="w-full h-full object-contain"
+              loading="lazy"
+              onError={(e) => {
+                if (spell.imageUrl) {
+                  (e.target as HTMLImageElement).src = `/api/assets-dofus/spells/${spell.id}?url=${encodeURIComponent(spell.imageUrl)}`;
+                } else {
+                  (e.target as HTMLImageElement).style.display = "none";
+                }
+              }}
+            />
+          ) : spell.imageUrl ? (
             <img
               src={`/api/assets-dofus/spells/${spell.id}?url=${encodeURIComponent(spell.imageUrl)}`}
               alt={spell.name}
@@ -317,9 +341,9 @@ function SpellCard({
               </span>
               <div className="max-h-48 overflow-y-auto space-y-1.5 p-2.5 rounded-lg bg-black/40 border border-white/[0.07] overlay-scroll">
                 {spell.effects.map((eff, i) => (
-                  <div key={i} className="flex items-start gap-1.5 text-[11px] leading-relaxed text-zinc-200">
-                    <span className="w-1 h-1 rounded-full bg-white/25 mt-1.5 shrink-0" />
-                    <span className="flex-1">{eff}</span>
+                  <div key={i} className="flex items-center gap-1.5 text-[11px] leading-relaxed text-zinc-200">
+                    <span className="w-1 h-1 rounded-full bg-white/25 shrink-0" />
+                    <span className="flex-1">{formatDofusEffectLine(eff)}</span>
                   </div>
                 ))}
               </div>
@@ -332,14 +356,14 @@ function SpellCard({
 
           {spell.criticalEffects && spell.criticalEffects.length > 0 && (
             <div className="space-y-1">
-              <span className="text-[10px] font-semibold text-white/40 uppercase tracking-wide block">
+              <span className="text-[10px] font-semibold text-amber-500/90 uppercase tracking-wide block">
                 {isEn ? "Critical effects" : "Effets critiques"}
               </span>
               <div className="max-h-36 overflow-y-auto space-y-1.5 p-2 rounded-lg bg-black/40 border border-white/[0.07] overlay-scroll">
                 {spell.criticalEffects.map((eff, i) => (
-                  <div key={i} className="flex items-start gap-1.5 text-[11px] leading-relaxed text-zinc-200">
-                    <span className="w-1 h-1 rounded-full bg-white/25 mt-1.5 shrink-0" />
-                    <span className="flex-1">{eff}</span>
+                  <div key={i} className="flex items-center gap-1.5 text-[11px] leading-relaxed text-zinc-200">
+                    <span className="w-1 h-1 rounded-full bg-amber-500/50 shrink-0" />
+                    <span className="flex-1">{formatDofusEffectLine(eff)}</span>
                   </div>
                 ))}
               </div>
@@ -391,11 +415,11 @@ export function BossOverlayClient({
   const [isHeroCollapsed, setIsHeroCollapsed] = useState<boolean>(false);
   /**
    * 🕹️ Bascule « Boss libre » de l'overlay (sections §C) : état LOCAL à la fenêtre,
-   * purement de prévisualisation. ON ⇒ un clic sur une case marchable déplace le boss
-   * pour tester les portées ; OFF (défaut) ⇒ boss épinglé sur son placement réel.
-   * Aucune donnée n'est écrite, l'état retombe à OFF à la fermeture de la fenêtre.
+   * purement de prévisualisation. ON (**défaut**) ⇒ un clic sur une case marchable déplace
+   * le boss pour tester les portées ; OFF ⇒ boss épinglé sur son placement réel.
+   * Aucune donnée n'est écrite, l'état retombe à ON à la fermeture de la fenêtre.
    */
-  const [freeBossMove, setFreeBossMove] = useState<boolean>(false);
+  const [freeBossMove, setFreeBossMove] = useState<boolean>(true);
   const searchInputRef = useRef<HTMLInputElement>(null);
   // Empêche le deep-link initial de re-sélectionner le boss après un retour manuel.
   const deepLinkedRef = useRef(false);
@@ -540,10 +564,10 @@ export function BossOverlayClient({
   }, []);
 
   const tabs = [
-    { id: "info" as OverlayTab, label: isEn ? "Stats" : "Stats", Icon: Shield },
-    { id: "sorts" as OverlayTab, label: isEn ? "Spells" : "Sorts", Icon: Zap },
-    { id: "sim" as OverlayTab, label: isEn ? "Simulation" : "Simulation", Icon: Brain },
-    { id: "loot" as OverlayTab, label: isEn ? "Loot" : "Butin", Icon: Gem },
+    { id: "info" as OverlayTab, label: isEn ? "Stats" : "Stats", asset: "/assets/dofus/modules/character.png" },
+    { id: "sorts" as OverlayTab, label: isEn ? "Spells" : "Sorts", asset: "/assets/dofus/modules/spells.png" },
+    { id: "sim" as OverlayTab, label: isEn ? "Simulation" : "Simulation", asset: "/assets/dofus/modules/map.png" },
+    { id: "loot" as OverlayTab, label: isEn ? "Loot" : "Butin", asset: "/assets/dofus/modules/chest.png" },
   ];
 
   return (
@@ -559,14 +583,19 @@ export function BossOverlayClient({
         {selected && (
           <button
             onClick={handleBack}
-            className="w-7 h-7 rounded-lg flex items-center justify-center text-white/50 hover:text-white hover:bg-white/[0.08] transition-colors shrink-0"
+            className="w-7 h-7 rounded-lg flex items-center justify-center text-white/50 hover:text-white hover:bg-white/[0.08] transition-colors shrink-0 cursor-pointer"
             aria-label={isEn ? "Back" : "Retour"}
           >
             <ChevronLeft className="w-4 h-4" />
           </button>
         )}
-        <div className="flex items-center gap-1.5 flex-1 min-w-0">
-          <Swords className="w-4 h-4 text-white/35 shrink-0" />
+        <div className="flex items-center gap-2 flex-1 min-w-0">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/assets/dofus/icons/crossedSwords.png"
+            alt=""
+            className="w-4 h-4 object-contain opacity-75 shrink-0"
+          />
           <span className="text-[13px] font-semibold text-white/90 truncate">
             {selected ? (activeMonsterName ?? selected.bossName) : (isEn ? "Bestiary" : "Bestiaire")}
           </span>
@@ -664,29 +693,45 @@ export function BossOverlayClient({
                   <span className="truncate">{selected.name}</span>
                 </p>
 
-                {/* Sélecteur de « butin » (5 grades) : **un seul contrôle segmenté**
-                    plutôt que 5 pastilles bordées — moins de bruit, même clic. */}
+                {/* Sélecteur de « Rang » façon client Dofus Unity (RANG : 1 2 3 4 5) */}
                 {stats?.grades && stats.grades.length > 1 && (
-                  <div className="inline-flex rounded-md bg-white/[0.05] p-0.5 mt-1.5">
-                    {stats.grades.map((g, idx) => {
-                      const label = stats.grades!.length === 5 ? (isEn ? `L${4 + idx}` : `B${4 + idx}`) : `G${1 + idx}`;
-                      return (
+                  stats.grades.length > 5 ? (
+                    <div className="inline-flex items-center gap-1.5 rounded-md bg-white/[0.05] border border-white/[0.08] px-2 py-0.5 mt-1.5 text-[10px]">
+                      <span className="text-white/45">{isEn ? "Rank:" : "Rang :"}</span>
+                      <select
+                        value={activeGradeIndex}
+                        onChange={(e) => setActiveGradeIndex(Number(e.target.value))}
+                        className="bg-transparent text-white font-mono text-[10px] focus:outline-none cursor-pointer"
+                      >
+                        {stats.grades.map((g, idx) => (
+                          <option key={idx} value={idx} className="bg-[#121218] text-white">
+                            {isEn ? "Rank" : "Rang"} {idx + 1} · {t.bossPage.levelShort} {g.level}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  ) : (
+                    <div className="inline-flex items-center gap-1 rounded-md bg-white/[0.05] p-0.5 mt-1.5">
+                      <span className="text-[10px] font-bold text-white/40 uppercase tracking-wider px-1">
+                        {isEn ? "Rank:" : "Rang :"}
+                      </span>
+                      {stats.grades.map((g, idx) => (
                         <button
                           key={idx}
                           onClick={() => setActiveGradeIndex(idx)}
                           className={cn(
-                            "min-w-[32px] text-[10px] px-1.5 py-0.5 rounded-[5px] transition-colors",
+                            "min-w-[22px] h-5 text-[10px] px-1.5 rounded-[4px] font-mono transition-colors cursor-pointer",
                             idx === activeGradeIndex
-                              ? "bg-white/[0.12] text-white"
+                              ? "bg-white/[0.16] text-white font-bold"
                               : "text-white/45 hover:text-white/75"
                           )}
-                          title={`${isEn ? "Loot" : "Butin"} ${idx + 4} · ${t.bossPage.levelShort} ${g.level}`}
+                          title={`${isEn ? "Rank" : "Rang"} ${idx + 1} · ${t.bossPage.levelShort} ${g.level}`}
                         >
-                          {label}
+                          {idx + 1}
                         </button>
-                      );
-                    })}
-                  </div>
+                      ))}
+                    </div>
+                  )
                 )}
 
                 {/* Liens externes : liens texte discrets (plus de boutons bordés). */}
@@ -711,7 +756,7 @@ export function BossOverlayClient({
               <button
                 type="button"
                 onClick={() => setIsHeroCollapsed(true)}
-                className="absolute top-2 right-2 p-1 text-white/30 hover:text-white/80 hover:bg-white/[0.06] rounded-md transition-colors"
+                className="absolute top-2 right-2 p-1 text-white/30 hover:text-white/80 hover:bg-white/[0.06] rounded-md transition-colors cursor-pointer"
                 title={isEn ? "Collapse header to expand space" : "Réduire l'en-tête pour agrandir l'espace"}
               >
                 <ChevronUp className="w-3.5 h-3.5" />
@@ -733,14 +778,14 @@ export function BossOverlayClient({
                 <span className="text-[10px] text-white/40 truncate">· {selected.name}</span>
                 {stats?.grades && stats.grades.length > 1 && (
                   <span className="font-mono text-[10px] text-white/40 shrink-0">
-                    {stats.grades.length === 5 ? `${isEn ? "loot" : "butin"} ${4 + activeGradeIndex}` : `grade ${1 + activeGradeIndex}`}
+                    {isEn ? "rank" : "rang"} {1 + activeGradeIndex}
                   </span>
                 )}
               </div>
               <button
                 type="button"
                 onClick={() => setIsHeroCollapsed(false)}
-                className="inline-flex items-center gap-1 text-[10px] text-white/45 hover:text-white/85 transition-colors shrink-0"
+                className="inline-flex items-center gap-1 text-[10px] text-white/45 hover:text-white/85 transition-colors shrink-0 cursor-pointer"
                 title={isEn ? "Expand full header" : "Déplier l'en-tête complet"}
               >
                 <span>{isEn ? "Expand" : "Déplier"}</span>
@@ -749,20 +794,25 @@ export function BossOverlayClient({
             </div>
           )}
 
-          {/* Onglets — état actif neutre (clair), plus d'or sous la sélection */}
+          {/* Onglets — avec assets officiels du jeu */}
           <div className="flex border-b border-white/[0.06]">
-            {tabs.map(({ id, label, Icon }) => (
+            {tabs.map(({ id, label, asset }) => (
               <button
                 key={id}
                 onClick={() => setTab(id)}
                 className={cn(
-                  "flex-1 flex items-center justify-center gap-1.5 py-2 text-[11px] transition-colors border-b-2 -mb-px",
+                  "flex-1 flex items-center justify-center gap-1.5 py-2 text-[11px] transition-colors border-b-2 -mb-px cursor-pointer",
                   tab === id
-                    ? "border-white/60 text-white"
+                    ? "border-white/70 text-white font-semibold"
                     : "border-transparent text-white/40 hover:text-white/70"
                 )}
               >
-                <Icon className="w-3.5 h-3.5" />
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={asset}
+                  alt=""
+                  className={cn("w-3.5 h-3.5 object-contain", tab !== id && "opacity-45")}
+                />
                 {label}
               </button>
             ))}
@@ -863,6 +913,11 @@ export function BossOverlayClient({
                   </button>
                 )}
 
+                {/* Mécanique de combat officielle / Passif */}
+                {stats?.passive?.description && (
+                  <BossMechanicsView passive={stats.passive} isCompact />
+                )}
+
                 {/* Caractéristiques : une ligne de lecture (icône + valeur + libellé),
                     séparée par des filets — remplace les 3 cartes à gros nombres colorés. */}
                 <div className="grid grid-cols-3 divide-x divide-white/[0.06] rounded-lg bg-white/[0.03]">
@@ -880,6 +935,44 @@ export function BossOverlayClient({
                     </div>
                   ))}
                 </div>
+
+                {/* Caractéristiques avancées (Tacle, Fuite, Esquives, Retraits, Initiative) */}
+                {(currentGrade.tackle !== undefined || currentGrade.tackleBlock !== undefined) && (
+                  <div className="grid grid-cols-4 gap-1.5 p-2 rounded-lg bg-black/40 border border-white/[0.06] text-[10px] font-mono">
+                    <div className="flex flex-col items-center">
+                      <span className="text-white/40 text-[9px] uppercase">{isEn ? "Lock" : "Tacle"}</span>
+                      <span className="text-white font-semibold tabular-nums mt-0.5">
+                        {currentGrade.tackle ?? currentGrade.tackleBlock ?? "—"}
+                      </span>
+                    </div>
+                    <div className="flex flex-col items-center">
+                      <span className="text-white/40 text-[9px] uppercase">{isEn ? "Dodge" : "Fuite"}</span>
+                      <span className="text-white font-semibold tabular-nums mt-0.5">
+                        {currentGrade.evade ?? currentGrade.tackleEvade ?? "—"}
+                      </span>
+                    </div>
+                    <div className="flex flex-col items-center">
+                      <span className="text-white/40 text-[9px] uppercase">{isEn ? "AP Dodge" : "Esq PA"}</span>
+                      <span className="text-white font-semibold tabular-nums mt-0.5">
+                        {currentGrade.apDodge ?? "—"}
+                      </span>
+                    </div>
+                    <div className="flex flex-col items-center">
+                      <span className="text-white/40 text-[9px] uppercase">{isEn ? "MP Dodge" : "Esq PM"}</span>
+                      <span className="text-white font-semibold tabular-nums mt-0.5">
+                        {currentGrade.mpDodge ?? "—"}
+                      </span>
+                    </div>
+                    {currentGrade.initiative !== undefined && currentGrade.initiative > 0 && (
+                      <div className="col-span-4 flex items-center justify-between pt-1 border-t border-white/[0.05] px-1 text-[10px]">
+                        <span className="text-white/40">{isEn ? "Initiative" : "Initiative"}</span>
+                        <span className="text-amber-300/90 font-semibold tabular-nums">
+                          {currentGrade.initiative.toLocaleString(locale === "en" ? "en-US" : "fr-FR")}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {/* Résistances — 5 lignes, une couleur par élément (donnée de jeu) */}
                 {resists && (
@@ -932,32 +1025,46 @@ export function BossOverlayClient({
 
         {/* Onglet Sorts */}
         {selected && tab === "sorts" && (
-          <div className="p-3">
+          <div className="p-3 space-y-3">
             {loadingStats ? (
               <div className="flex items-center justify-center py-10 text-white/25 gap-2">
                 <Loader2 className="w-4 h-4 animate-spin" />
                 <span className="text-[11px]">{isEn ? "Loading…" : "Chargement…"}</span>
               </div>
-            ) : stats?.spells && stats.spells.length > 0 ? (
-              <div className="space-y-2">
-                <p className="text-[10px] font-bold text-white/40 uppercase tracking-wider mb-1">
-                  {isEn ? "Spells" : "Sorts"} ({stats.spells.length})
-                </p>
-                {stats.spells.map((spell) => (
-                  <SpellCard
-                    key={spell.id}
-                    spell={spell}
-                    locale={locale}
-                    isOpen={activeSpellId === spell.id}
-                    onToggle={() => setActiveSpellId(spell.id === activeSpellId ? undefined : spell.id)}
-                  />
-                ))}
-              </div>
             ) : (
-              <div className="flex flex-col items-center justify-center py-10 gap-2 text-white/25">
-                <Zap className="w-6 h-6" />
-                <span className="text-[11px]">{isEn ? "No spells available" : "Aucun sort disponible"}</span>
-              </div>
+              <>
+                {/* Mécanique de combat officielle / Passif de début de combat (repliable) */}
+                {stats?.passive?.description && (
+                  <BossMechanicsView
+                    passive={stats.passive}
+                    isCompact
+                    collapsible
+                    defaultCollapsed={false}
+                  />
+                )}
+
+                {stats?.spells && stats.spells.length > 0 ? (
+                  <div className="space-y-2">
+                    <p className="text-[10px] font-bold text-white/40 uppercase tracking-wider mb-1">
+                      {isEn ? "Action Spells" : "Sorts d'action"} ({stats.spells.length})
+                    </p>
+                    {stats.spells.map((spell) => (
+                      <SpellCard
+                        key={spell.id}
+                        spell={spell}
+                        locale={locale}
+                        isOpen={activeSpellId === spell.id}
+                        onToggle={() => setActiveSpellId(spell.id === activeSpellId ? undefined : spell.id)}
+                      />
+                    ))}
+                  </div>
+                ) : !stats?.passive?.description ? (
+                  <div className="flex flex-col items-center justify-center py-10 gap-2 text-white/25">
+                    <Zap className="w-6 h-6" />
+                    <span className="text-[11px]">{isEn ? "No spells available" : "Aucun sort disponible"}</span>
+                  </div>
+                ) : null}
+              </>
             )}
           </div>
         )}
@@ -971,40 +1078,8 @@ export function BossOverlayClient({
                 <span className="text-[11px]">{isEn ? "Loading…" : "Chargement…"}</span>
               </div>
             ) : stats?.spells && stats.spells.length > 0 ? (
-              <>
-                {/* Bascule « Boss libre » — présentée comme un **interrupteur** discret
-                    dans la barre d'outils (plus de gros bouton doré) : état ON = bleu
-                    d'information, jamais d'or (l'or reste réservé au contenu Dofus). */}
-                <button
-                  type="button"
-                  onClick={() => setFreeBossMove((v) => !v)}
-                  role="switch"
-                  aria-checked={freeBossMove}
-                  title={
-                    freeBossMove
-                      ? (isEn ? "Free Boss active: click a walkable grid tile to move the boss (preview only)" : "Boss libre actif : cliquez une case marchable de la grille pour déplacer le boss (prévisualisation seule)")
-                      : (isEn ? "Free Boss: click a walkable tile to move boss and test ranges" : "Boss libre : cliquez une case marchable de la grille pour déplacer le boss et tester les portées")
-                  }
-                  className="self-start shrink-0 inline-flex items-center gap-2 text-[11px] text-white/55 hover:text-white/80 transition-colors"
-                >
-                  <span
-                    className={cn(
-                      "relative h-[14px] w-[26px] rounded-full transition-colors",
-                      freeBossMove ? "bg-sky-500/70" : "bg-white/[0.12]"
-                    )}
-                  >
-                    <span
-                      className={cn(
-                        "absolute top-[2px] h-[10px] w-[10px] rounded-full bg-white transition-all",
-                        freeBossMove ? "left-[14px]" : "left-[2px]"
-                      )}
-                    />
-                  </span>
-                  <span>{isEn ? "Free Boss" : "Boss libre"}{freeBossMove ? (isEn ? " · active" : " · activé") : ""}</span>
-                  <Move className="w-3 h-3 opacity-60" />
-                </button>
-                <div className="flex-1 min-h-0 flex flex-col">
-                  <SpellRangeGrid
+              <div className="flex-1 min-h-0 flex flex-col">
+                <SpellRangeGrid
                     spells={stats.spells}
                     activeSpellId={activeSpellId}
                     onSelectSpell={(s) => setActiveSpellId(s.id)}
@@ -1028,7 +1103,6 @@ export function BossOverlayClient({
                     onFreeCasterMoveChange={setFreeBossMove}
                   />
                 </div>
-              </>
             ) : (
               <div className="flex flex-col items-center justify-center py-10 gap-2 text-white/25">
                 <Brain className="w-6 h-6" />
@@ -1053,9 +1127,7 @@ export function BossOverlayClient({
                     {isEn ? "Drops & Loot" : "Butins"}
                   </p>
                   <span className="font-mono text-[10px] text-white/40">
-                    {stats.grades && stats.grades.length === 5
-                      ? `${isEn ? "loot" : "butin"} ${4 + activeGradeIndex}`
-                      : `grade ${1 + activeGradeIndex}`}
+                    {isEn ? "Rank" : "Rang"} {1 + activeGradeIndex}
                     {currentGrade ? ` · ${t.bossPage.levelShort} ${currentGrade.level}` : ""}
                   </span>
                 </div>

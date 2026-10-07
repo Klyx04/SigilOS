@@ -387,6 +387,29 @@ export const en: Translations = {
         ],
         guildLabel: "Guild on display",
         signoff: "The demo is static: it stores nothing, contacts no Discord server and reads no database.",
+
+        // Demo shell navigation (lot S-2a)
+        navOverview: "Overview",
+        navDirectory: "Directory",
+        navSonges: "Dreams",
+        navOutings: "Outings",
+        navAchievements: "Achievements",
+        navSoon: "soon",
+
+        // Dreams section — dedicated demo view (the real component queries the DB on mount)
+        songesEyebrow: "Infinite Dreams",
+        songesTitle: "The guild's runs, read-only.",
+        songesDesc: "Filter by tier, a team filling up, the current floor: a run's journey, with no sign-up possible.",
+        songesTierAll: "All",
+        songesTierReve: "Dream",
+        songesTierParadoxe: "Paradox",
+        songesTierCauchemar: "Nightmare",
+        songesLeader: "Leader",
+        songesRecruiting: "recruiting",
+        songesFull: "Team full",
+        songesFree: "Open",
+        songesEmpty: "No run in this tier.",
+        songesSignature: "Demo view: real runs in the product query the database — nothing is read or written here.",
     },
 
     // Status & Maintenance
@@ -874,6 +897,7 @@ export const en: Translations = {
         noLos: "No Line of Sight",
         zoneShape: "{shape} AoE",
         emptyMapGrid: "Empty Map (17×17 Grid)",
+        mapSourceClient: "Game client",
         options: "Options",
         optionsTitle: "Board settings",
         optionsClose: "Close",

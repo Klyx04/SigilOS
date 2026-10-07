@@ -81,7 +81,9 @@ describe("rangement — un panneau « Options », une seule source pour les deux
 describe("sort actif — identifiable d'un coup d'œil", () => {
   /** Bloc du sort actif (markup seul : les commentaires sont retirés en amont). */
   const spellBlock = () => {
-    const start = GRID.indexOf("flex min-w-0 shrink items-center gap-2.5 rounded-xl border border-warning/25");
+    const start = GRID.indexOf(
+      "flex flex-wrap items-center justify-between gap-3 p-2.5 bg-background border border-border/80 rounded-xl"
+    );
     // Fin du bloc : la barre d'outils se referme AVANT le plateau. La légende n'est plus un frère
     // du bandeau (elle vit dans `legendPanel`, source unique partagée avec le rail de la modale
     // plein écran) ⇒ c'est le plateau qui borne désormais la fin du bloc.
@@ -96,10 +98,11 @@ describe("sort actif — identifiable d'un coup d'œil", () => {
 
   it("le bandeau porte l'icône du sort, son nom et ses propriétés", () => {
     const block = spellBlock();
+    // Icône réelle du jeu (siphon Unity, repli image distante) puis nom et propriétés.
+    expect(block).toMatch(/currentSpell\?\.unityIconId/);
     expect(block).toMatch(/currentSpell\?\.imageUrl \?/);
     expect(block).toMatch(/\{simT\.simulatedSpell\}/);
     expect(block).toMatch(/aria-label=\{simT\.selectSpell\}/);
-    expect(block).toMatch(/border-warning\/25/);
   });
 
   it("la ligne de vue n'est affichée QUE par exception (le défaut ne fait pas de bruit)", () => {

@@ -20,18 +20,18 @@ describe("Qilby Custom Arena Map", () => {
         expect(walkableCount).toBe(125);
         expect(holeCount).toBe(40 * 14 - 125);
 
-        // Qilby est au centre : 25 cases enemyCells
-        expect(arena.enemyCells).toHaveLength(25);
-        // Les 4 plateformes périphériques pour les alliés : 4 * 25 = 100 cases
-        expect(arena.allyCells).toHaveLength(100);
+        // Qilby est au centre : 25 cases allyCells (défenseur = BLEU, convention Dofus prouvée)
+        expect(arena.allyCells).toHaveLength(25);
+        // Les 4 plateformes périphériques pour les joueurs/attaquants : 4 * 25 = 100 cases enemyCells (ROUGE)
+        expect(arena.enemyCells).toHaveLength(100);
 
-        // Vérifie qu'aucun overlap n'existe entre enemyCells et allyCells
-        const intersection = arena.enemyCells.filter((id) => arena.allyCells.includes(id));
+        // Vérifie qu'aucun overlap n'existe entre allyCells et enemyCells
+        const intersection = arena.allyCells.filter((id) => arena.enemyCells.includes(id));
         expect(intersection).toHaveLength(0);
 
-        // Vérifie que toutes les cellules ennemies sont bien à distance losange <= 2 du centre (16, 4)
+        // Vérifie que toutes les cellules de Qilby (allyCells) sont bien à distance losange <= 2 du centre (16, 4)
         // (îlot central à l'écran x=6, y=20 : u = (y + 2x) / 2, v = (y - 2x) / 2)
-        for (const cellId of arena.enemyCells) {
+        for (const cellId of arena.allyCells) {
             const pos = cellIdToXY(cellId);
             const los = toLos(pos.x, pos.y);
             expect(Math.abs(los.x - 16)).toBeLessThanOrEqual(2);
@@ -59,8 +59,8 @@ describe("Qilby Custom Arena Map", () => {
         expect(mapData.name).toBe("Hauteurs de l'Inglorium");
         expect(mapData.isBossMap).toBe(true);
         expect(mapData.cells).toBeDefined();
-        expect(mapData.allyCells.length).toBe(100);
-        expect(mapData.enemyCells.length).toBe(25);
+        expect(mapData.allyCells.length).toBe(25);  // Qilby (défenseur = cases bleues)
+        expect(mapData.enemyCells.length).toBe(100); // Joueurs (attaquants = cases rouges)
 
         const dungInfo = getQilbyDungeonInfo();
         expect(dungInfo.dungeonName).toBe("Hauteurs de l'Inglorium");

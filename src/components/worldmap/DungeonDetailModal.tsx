@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import {
     X, Sword, Users, Trophy, ChevronDown, CheckCircle2, Circle, Info, Loader2,
-    MapPin, Crown, ChevronRight, AlertTriangle, BookOpen, Sparkles, ShieldAlert,
+    MapPin, Crown, ChevronRight, AlertTriangle, FileText, Sparkles, ShieldAlert,
     ArrowUpRight
 } from "lucide-react";
 import { getDungeonDirectory } from "@/server/actions/dungeon-finder-actions";
@@ -437,7 +437,7 @@ export function DungeonDetailModal({ isOpen, onClose, dungeons, guildId, isPubli
                             >
                                 <div className="flex items-center gap-3">
                                     <div className="w-10 h-10 rounded-xl bg-[#7c3aed]/30 flex items-center justify-center text-[#a78bfa] group-hover:scale-110 transition-transform">
-                                        <BookOpen size={20} />
+                                        <FileText size={20} />
                                     </div>
                                     <div>
                                         <p className="text-xs font-black uppercase tracking-wider text-white">Consulter le Guide Complet du Raid</p>

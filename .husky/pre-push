@@ -1,0 +1,17 @@
+#!/bin/sh
+# ═══════════════════════════════════════════════════════════════════════════
+# PRE-PUSH HOOK — SigilOS
+# La porte de sécurité tourne AVANT le push : on n'ouvre plus une PR dont on
+# sait qu'elle sera rouge (constat du 05/10/2026 : 2 PR Dependabot rouges à
+# cause d'un audit non exécuté localement).
+# Même commande que la CI (`npm run security:audit`) — une seule source.
+# Échappatoire assumée et documentée : SKIP_AUDIT=1 (jamais en CI).
+# ═══════════════════════════════════════════════════════════════════════════
+
+echo ""
+echo "🛡️  Contrôle des dépendances avant push (même porte que la CI)..."
+echo ""
+
+npm run security:audit || exit 1
+
+echo ""

@@ -50,14 +50,21 @@ step() {
 # Barre de progression cosmétique (style 2026).
 #   bar <libellé> <fait> <total> <largeur=30>
 bar() {
+    # Une seule ligne, réécrite en place : inutile (et illisible) hors terminal.
+    [[ -t 1 ]] || return 0
+
     local label="$1" done="$2" total="$3" width="${4:-30}"
     local pct=0 filled=0
     if (( total > 0 )); then pct=$(( done * 100 / total )); fi
+    (( pct > 100 )) && pct=100
     filled=$(( pct * width / 100 ))
     local left right
     left="$(printf '█%.0s' $(seq 1 "$filled") 2>/dev/null)"
     right="$(printf '░%.0s' $(seq 1 "$(( width - filled ))") 2>/dev/null)"
-    printf "\r  ${C_DIM}%-20s${C_RESET} [${C_GREEN}%s${C_DIM}%s${C_RESET}] ${C_BOLD}%3d%%${C_RESET}" "$label" "$left" "$right" "$pct"
+    # `\033[K` efface la fin de la ligne : sans lui, le message suivant (plus court
+    # que la barre, ex. « ✓ téléchargée ») laissait un morceau de barre affiché
+    # derrière lui — défaut visuel relevé le 30/09/2026 (« …téléchargée███░] 91%% »).
+    printf "\r\033[K  ${C_DIM}%-20s${C_RESET} [${C_GREEN}%s${C_DIM}%s${C_RESET}] ${C_BOLD}%3d%%${C_RESET}" "$label" "$left" "$right" "$pct"
 }
 
 # -----------------------------------------------------------------------------
@@ -88,6 +95,9 @@ compose_exec_streamed() {
     ) &
     local PID=$! SHOWN=0 LINES=0
     while kill -0 "$PID" 2>/dev/null; do
+        # `wc -l` ICI (lignes TERMINÉES par un `\n`) : une ligne encore en cours
+        # d'écriture ne doit pas être réaffichée à chaque tour de sondage. Le
+        # reliquat non terminé est repris au flush, ci-dessous.
         LINES="$(wc -l <"$LOG" 2>/dev/null || printf '0')"
         if (( LINES > SHOWN )); then
             sed -n "$(( SHOWN + 1 )),${LINES}p" "$LOG" | sed '/^[[:space:]]*$/d; s/^/     /'
@@ -96,9 +106,17 @@ compose_exec_streamed() {
         sleep 1
     done
     # Dernières lignes écrites juste avant la fin du process (flush).
-    LINES="$(wc -l <"$LOG" 2>/dev/null || printf '0')"
+    # ⚠️ `awk 'END{print NR}'` et NON `wc -l` : `wc -l` compte les `\n`, donc la
+    # DERNIÈRE ligne d'un flux qui ne finit pas par un saut de ligne n'est jamais
+    # affichée. Mesuré le 30/09/2026 sur DEUX déploiements d'affilée : Prisma
+    # terminait par un bloc séparé par des `\r` (réécriture en place, aucun `\n`)
+    # ⇒ `wc -l` ne voyait qu'UNE ligne (« Loaded Prisma config »), et tout le reste
+    # (« 262 migrations found… », « No pending migrations… ») restait INVISIBLE,
+    # alors que le verdict de la migration se lisait dedans. `tr '\r' '\n'` remet
+    # un message par ligne (Prisma réécrit la même ligne au lieu d'en ajouter une).
+    LINES="$(awk 'END{print NR}' "$LOG" 2>/dev/null || printf '0')"
     if (( LINES > SHOWN )); then
-        sed -n "$(( SHOWN + 1 )),${LINES}p" "$LOG" | sed '/^[[:space:]]*$/d; s/^/     /'
+        sed -n "$(( SHOWN + 1 )),${LINES}p" "$LOG" | tr '\r' '\n' | sed '/^[[:space:]]*$/d; s/^/     /'
     fi
     wait "$PID" 2>/dev/null
     local RC; RC="$(cat "$RC_FILE" 2>/dev/null || printf '1')"
@@ -254,6 +272,47 @@ git_fetch() {
     local GENERATED=(
         "public/game-data/dungeon-monsters.json"
     )
+
+    # ─── Médias SUIVIS dont le DÉPÔT est la référence (aucun écrivain au runtime) ───
+    # Mesure du 30/09/2026 (cause du « X fichiers modifiés » affiché à CHAQUE déploiement) :
+    # la purge d'empreintes du 20/09/2026 (`7c69d579`) a réécrit 25 des 28 icônes de succès,
+    # mais le serveur garde les octets d'AVANT. Un fichier BINAIRE modifié localement ne
+    # converge JAMAIS avec `git pull --autostash` : soit le pop du stash binaire retombe sur
+    # l'ancien contenu (conflit binaire → stash conservé), soit il s'applique proprement quand
+    # le blob ne bouge pas dans le merge — dans les deux cas, les MÊMES fichiers reviennent
+    # indéfiniment. Or aucun écrivain runtime ne touche ces dossiers (mesuré : `git grep` de
+    # TOUS les `writeFile*` de `src/` ⇒ les écritures vont dans `public/uploads/**` — non
+    # suivi —, `public/game-data/{monsters,dungeons,legendary}/*.webp` — galerie God — et
+    # `prisma/seed-data/**` — exports God) ⇒ la version du dépôt fait foi, on la RESTAURE
+    # avant le pull : l'arbre redevient propre, plus rien à ré-appliquer, le tour est cassé.
+    #
+    # 2e mesure du 30/09/2026 (retour terrain : `git diff --numstat` sur le VPS) — les 448 `M`
+    # de `public/game-data/**` se répartissent en **11 divergences de MODE SEUL** (les JSON :
+    # `old mode 100644` → `new mode 100755`, **zéro** ligne de contenu — le `+x` vient de la
+    # synchro d'assets : `sync-assets.ps1` n'impose pas le `--chmod` que porte déjà
+    # `sync-assets.sh`) et **436 binaires au contenu différent** (génération du dépôt jamais
+    # appliquée : le pop de l'autostash ré-applique les octets du serveur à chaque
+    # déploiement — d'où un mtime IDENTIQUE sur les 448 fichiers).
+    # ⇒ La restauration DOIT couvrir le mode : `git show HEAD:$f > $f` écrit le contenu mais
+    # **préserve** le mode local (`775`) — c'est exactement pourquoi `dungeon-monsters.json`,
+    # pourtant dans la classe ci-dessus, restait listé « modifié » au rapport. `git checkout --`
+    # remet contenu **et** mode de l'index, et la garde `git diff --quiet` (contrairement à
+    # `cmp -s`) voit les deux.
+    # ⚠️ Ne JAMAIS y mettre `public/game-data/{monsters,dungeons,legendary}` : leurs `.webp`
+    #    SONT suivis ET réécrits par la galerie God (écriture volontaire côté serveur).
+    # ➕ Un nouveau dossier de médias suivis sans écrivain runtime s'ajoute ICI — le test
+    #    `tests/unit/deploy-source-sync.test.ts` verrouille cette liste et sa parité avec
+    #    `deploy.sh` (les deux scripts appliquent la même règle).
+    local REPO_OWNED=(
+        "public/game-data/achievements"
+        "public/images"
+        "public/assets"
+        "public/ordres"
+        "public/bonus_guilde"
+        "public/songes"
+        "public/module-dofus"
+        "public/banners"
+    )
     # À l'inverse `ignored-monsters.json` et `ignored-bounties.json` sont CURÉS à la main (God) :
     # l'écraser ferait perdre les exclusions configurées sur CE serveur — un monstre retiré
     # réapparaîtrait au siphon suivant, un avis supprimé serait recréé. Ils sont donc sauvegardés
@@ -262,6 +321,52 @@ git_fetch() {
         "public/game-data/ignored-monsters.json"
         "public/game-data/ignored-bounties.json"
     )
+
+    # ─── Fichiers SUIVIS que CE SERVEUR porte légitimement : jamais toucher, jamais alerter ───
+    # Mesure du 30/09/2026 sur le VPS (448 `M`) : les 436 binaires de ces 5 dossiers et ces 7
+    # JSON sont réécrits CÔTÉ SERVEUR (galerie d'images God, panneau God, scripts de siphon :
+    # `sync-worldmap*.ts`, `compile-harvest-and-zaaps.ts`, `generate-bomb-dictionary.ts`,
+    # `download-invader-assets.ts`) et git ne les rattrape JAMAIS : le `stash pop` de
+    # `--autostash` les ré-applique à chaque déploiement. Mesure : 100 % des fichiers SUIVIS de
+    # ces dossiers sont concernés (189/189 invader, 84/84 harvest-icons, 84/84 dungeons,
+    # 63/63 monsters, 17/17 legendary).
+    # ⇒ On n'y touche PAS (aucune perte possible) et on cesse de les présenter comme une alerte :
+    #    ils sont comptés à part, à titre d'information, dans le rapport de fin. Un cache
+    #    d'images se régénère (`docs/MAINTENANCE.md` § purge du cache monstres) ; une donnée du
+    #    panneau God, elle, n'existe QUE sur ce serveur.
+    # ⚠️ Conséquence assumée (arbitrage du 30/09/2026, réversible) : une modification du dépôt
+    #    sur ces chemins ne s'applique pas toute seule ici — la donnée du serveur est
+    #    prioritaire. À rouvrir si la propagation devient nécessaire (voir `docs/ROADMAP.md`).
+    local SERVER_OWNED=(
+        "public/game-data/monsters"
+        "public/game-data/dungeons"
+        "public/game-data/legendary"
+        "public/game-data/invader"
+        "public/game-data/harvest-icons"
+        "public/game-data/worldmap.json"
+        "public/game-data/worlds.json"
+        "public/game-data/zaaps.json"
+        "public/game-data/harvest-resources.json"
+        "public/game-data/bomb-dictionary.json"
+        "public/game-data/bomb-dictionary-mixed.json"
+        "public/game-data/secret-passages.json"
+    )
+
+    # ─── Trois listes, une seule décision par fichier ────────────────────────────
+    # RESTORE      : la version du DÉPÔT fait foi (artefact éphémère + médias ci-dessus).
+    # KEEP         : la CURATION DU SERVEUR fait foi (listes God), mise de côté puis restaurée.
+    # SERVER_OWNED : le SERVEUR fait foi et on n'y TOUCHE PAS — ces fichiers ne sont ni
+    #                restaurés ni signalés, seulement comptés à part dans le rapport.
+    # Un chemin peut être un FICHIER ou un DOSSIER : `git ls-files` dit ce qui est SUIVI,
+    # donc les caches runtime NON suivis (`.webp` de la galerie God, proxy-cache, preuves)
+    # ne sont jamais ni restaurés ni rapportés ici.
+    local RESTORE=() KEEP=() p f
+    for p in "${GENERATED[@]}" "${REPO_OWNED[@]}"; do
+        while IFS= read -r f; do [[ -n "$f" ]] && RESTORE+=("$f"); done < <(git ls-files -- "$p" 2>/dev/null)
+    done
+    for p in "${PRESERVED[@]}"; do
+        while IFS= read -r f; do [[ -n "$f" ]] && KEEP+=("$f"); done < <(git ls-files -- "$p" 2>/dev/null)
+    done
 
     # ── Git peut être AVEUGLE sur ces fichiers : ne jamais croire l'index ───────
     # Les bits `assume-unchanged` / `skip-worktree` (posés à la main pour ne plus voir
@@ -274,8 +379,9 @@ git_fetch() {
     #      reste `S`) → il faut deux appels SÉPARÉS ;
     #   2. l'état des fichiers se compare au CONTENU (`git show HEAD:<f> | cmp -s`),
     #      jamais via l'index qui ment.
-    local f
-    for f in "${GENERATED[@]}" "${PRESERVED[@]}"; do
+    # Les trois classes ci-dessus sont concernées : un bit `skip-worktree` résiduel ferait
+    # échouer (ou ignorer) la restauration comme le pull.
+    for f in "${RESTORE[@]}" "${KEEP[@]}"; do
         [[ -f "$f" ]] || continue
         git cat-file -e "HEAD:$f" 2>/dev/null || continue
         if git ls-files -v -- "$f" 2>/dev/null | grep -qE '^[a-z]|^S'; then
@@ -285,35 +391,85 @@ git_fetch() {
         fi
     done
 
-    # Artefacts régénérés au runtime : la version du dépôt suffit (rien à conserver).
-    for f in "${GENERATED[@]}"; do
+    # ── Sauvegarde RÉVERSIBLE, puis restauration de la version du dépôt ──────────
+    # Un patch binaire (`git apply <patch>` pour revenir en arrière) : si l'un de ces
+    # fichiers avait été modifié EXPRÈS sur le serveur, rien ne disparaît en silence.
+    local RESTORE_PATCH=""
+    if ! git diff --quiet HEAD -- "${RESTORE[@]}" 2>/dev/null; then
+        RESTORE_PATCH="/tmp/sigilos-ecrase-$(date +%Y%m%d-%H%M%S).patch"
+        git diff --binary HEAD -- "${RESTORE[@]}" > "$RESTORE_PATCH" 2>/dev/null || RESTORE_PATCH=""
+        [[ -n "$RESTORE_PATCH" ]] && dim "  → état local sauvegardé avant restauration : $RESTORE_PATCH (git apply pour revenir)"
+    fi
+
+    # Version du dépôt restaurée (artefact éphémère + médias suivis) : nommée, jamais muette.
+    local RESTORED=0
+    for f in "${RESTORE[@]}"; do
         [[ -f "$f" ]] || continue
         git cat-file -e "HEAD:$f" 2>/dev/null || continue
-        if ! git show "HEAD:$f" 2>/dev/null | cmp -s - "$f"; then
-            dim "  → artefact régénéré : $f (restauration de la version du dépôt)"
-            git show "HEAD:$f" > "$f"
-        fi
+        # `git diff` et pas `cmp` : la divergence peut être une divergence de MODE seul.
+        git diff --quiet HEAD -- "$f" 2>/dev/null && continue
+        RESTORED=$((RESTORED + 1))
+        dim "  → fichier suivi : $f (contenu + mode du dépôt)"
+        # `git checkout` remet contenu ET mode de l'index ; un `>` sur le fichier existant
+        # aurait laissé le `+x` du serveur ⇒ le `M` serait revenu au déploiement suivant.
+        git checkout -- "$f" 2>/dev/null || warn "  → $f : restauration impossible (git checkout en échec)"
     done
+
+    if (( RESTORED > 0 )); then
+        dim "  → $RESTORED fichier(s) suivi(s) alignés sur le dépôt (artefact éphémère · média sans écrivain runtime)."
+    fi
 
     # Données curées : copie hors de l'arbre, version du dépôt remise pour que le pull
     # soit propre, puis restauration — c'est la curation du serveur qui fait foi.
+
     local PRESERVE_DIR=""
     for f in "${PRESERVED[@]}"; do
         [[ -f "$f" ]] || continue
         git cat-file -e "HEAD:$f" 2>/dev/null || continue
-        if ! git show "HEAD:$f" 2>/dev/null | cmp -s - "$f"; then
-            [[ -n "$PRESERVE_DIR" ]] || PRESERVE_DIR="$(mktemp -d)"
-            cp "$f" "$PRESERVE_DIR/$(basename "$f")"
-            dim "  → donnée locale conservée : $f (mise de côté hors de l'arbre)"
-            git show "HEAD:$f" > "$f"
-        fi
+        # Même garde que ci-dessus : `cmp` serait aveugle au mode, `git diff` non.
+        git diff --quiet HEAD -- "$f" 2>/dev/null && continue
+        [[ -n "$PRESERVE_DIR" ]] || PRESERVE_DIR="$(mktemp -d)"
+        cp "$f" "$PRESERVE_DIR/$(basename "$f")"
+        dim "  → donnée locale conservée : $f (mise de côté hors de l'arbre)"
+        # Version du dépôt remise (contenu + mode) : sans le mode, le rapport ci-dessous la
+        # compterait comme « modifiée » et le pull la stasherait pour rien.
+        git checkout -- "$f" 2>/dev/null || warn "  → $f : mise en conformité impossible (git checkout en échec)"
     done
 
-    DIRTY="$(git status --porcelain 2>/dev/null)"
-    if [[ -n "$DIRTY" ]]; then
-        warn "Des fichiers locaux sont modifiés — ils seront stashed puis réappliqués (--autostash)."
-        printf '%s\n' "$DIRTY" | sed 's/^/     /' | head -10
+    # ── Rapport : ce qui reste VRAIMENT modifié à la main sur le serveur ─────────
+    # `--untracked-files=no` : les caches runtime NON suivis (`.webp` de la galerie God,
+    # proxy-cache, preuves téléversées) ne bloquent pas le pull et noyaient le message
+    # (30/09/2026). Les fichiers SUIVIS sont séparés en deux :
+    #   · portés par CE serveur (classe `SERVER_OWNED`) → simple information, aucune action ;
+    #   · hors des classes connues → là seulement une alerte (édition locale inattendue).
+    local DIRTY SERVER_DIRTY="" OTHER_DIRTY="" line is_server
+    DIRTY="$(git status --porcelain --untracked-files=no 2>/dev/null)"
+    while IFS= read -r line; do
+        [[ -n "$line" ]] || continue
+        f="${line:3}"
+        is_server=0
+        for p in "${SERVER_OWNED[@]}"; do
+            [[ "$f" == "$p" || "$f" == "$p"/* ]] && { is_server=1; break; }
+        done
+        if (( is_server )); then
+            SERVER_DIRTY="${SERVER_DIRTY}${line}"$'\n'
+        else
+            OTHER_DIRTY="${OTHER_DIRTY}${line}"$'\n'
+        fi
+    done <<< "$DIRTY"
+
+    if [[ -n "$SERVER_DIRTY" ]]; then
+        dim "  ℹ️  $(printf '%s\n' "$SERVER_DIRTY" | grep -c . || true) fichier(s) suivi(s) portés par CE serveur — laissés tels quels, rien à faire :"
+        dim "     $(printf '%s\n' "$SERVER_DIRTY" | awk 'length($0)>0 { p=substr($0,4); n=split(p,a,"/"); print (n>3 ? a[3] : "JSON") }' | sort | uniq -c | sort -rn | awk '{printf "%s=%s ", $2, $1}')"
+        dim "     → images de jeu (caches de la galerie God) et données générées par le panneau God."
+    fi
+    if [[ -n "$OTHER_DIRTY" ]]; then
+        warn "Des fichiers suivis modifiés hors des classes connues — ils seront stashed puis réappliqués (--autostash)."
+        printf '%s' "$OTHER_DIRTY" | sed 's/^/     /'
+        dim "  → $(printf '%s\n' "$OTHER_DIRTY" | grep -c . || true) fichier(s) : édition locale assumée sur le serveur."
         dim "  → Pour rétablir à la main : git checkout -- <fichier>   (ou   git stash)"
+    else
+        ok "Aucun fichier suivi modifié hors des classes connues — arbre aligné sur le dépôt."
     fi
     # `--autostash` reste la ceinture de sécurité pour tout autre fichier modifié à la
     # main sur le serveur : mise de côté, pull, ré-application. Un conflit de
@@ -361,7 +517,7 @@ run_conditional_seed() {
         # Borne de sécurité 15 min (le seed peut être long, mais jamais muet :
         # la sortie est désormais affichée en direct).
         compose_exec_streamed "$ENV_FILE" "$APP_SERVICE" 900 "$SEED_LOG" \
-            "npm run seed:game-data:prod" || SEED_RC=$?
+            "NO_UPDATE_NOTIFIER=1 npm_config_update_notifier=false npm run --silent seed:game-data:prod" || SEED_RC=$?
         if (( SEED_RC == 0 )); then
             ok "Données de jeu synchronisées."
         else
@@ -376,10 +532,17 @@ run_conditional_seed() {
         dim "   Données de jeu inchangées — seed ignoré (gain de temps)."
     fi
 
-    # Synchronisation de la documentation officielle
+    # Synchronisation de la documentation officielle.
+    # `--silent` + `NO_UPDATE_NOTIFIER` (comme l'étape 4) : sans eux, npm déversait
+    # son bandeau de script et sa pub de mise à jour (« npm notice New major
+    # version… ») au milieu de la sortie — bruit sans rapport avec le déploiement.
     info "   Synchronisation de la documentation ${TARGET^^}..."
-    sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" exec "$APP_SERVICE" npm run seed:docs:prod || warn "Seed docs ignoré ou non-critique"
-    ok "Documentation à jour."
+    if sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" exec "$APP_SERVICE" \
+        sh -c 'NO_UPDATE_NOTIFIER=1 npm_config_update_notifier=false npm run --silent seed:docs:prod'; then
+        ok "Documentation à jour."
+    else
+        warn "Seed docs ignoré ou non-critique."
+    fi
 }
 
 # -----------------------------------------------------------------------------
@@ -398,8 +561,11 @@ pull_image() {
     fi
     # Docker écrit sa progression avec des \r → on les transforme en \n pour
     # compter les couches téléchargées et afficher un % lisible.
-    # On garde aussi la sortie BRUTE : en cas d'échec on affiche la cause réelle
-    # (disque plein, tag introuvable, 403 GHCR…) au lieu d'un « ✗ ÉCHEC » muet.
+    # La sortie BRUTE est consommée par la boucle ci-dessous et conservée dans
+    # $PULL_LOG : elle ne s'affiche donc PAS à l'écran (mélangée à la barre, elle
+    # laissait des morceaux de texte), mais elle reste disponible pour donner la
+    # cause réelle d'un échec (disque plein, tag introuvable, 403 GHCR…) au lieu
+    # d'un « ✗ ÉCHEC » muet.
     local PULL_LOG
     PULL_LOG="$(mktemp)"
     sudo docker pull "${IMG}:${SHA}" 2>&1 | tr '\r' '\n' | tee "$PULL_LOG" | while IFS= read -r line; do
@@ -413,9 +579,18 @@ pull_image() {
     if sudo docker image inspect "${IMG}:${SHA}" >/dev/null 2>&1; then
         # Retag :latest local (le compose utilise :latest avec --no-build)
         sudo docker tag "${IMG}:${SHA}" "sigilos-${NAME}-${TARGET}:latest" 2>/dev/null
-        printf "\r  ${C_DIM}%-20s${C_RESET} ${C_GREEN}✓ téléchargée${C_RESET}\n" "$NAME"
+        # Dernière trame forcée à 100 % : le % compte les COUCHES (docker peut en
+        # annoncer une de moins que comptées), donc il pouvait s'arrêter à 91 %
+        # alors que l'image est complète — `inspect` vient justement de le prouver.
+        bar "$NAME" 1 1
+        # Puis cette ligne ÉCRASE la barre (`\r\033[K`) et donne la TAILLE réelle :
+        # sans l'effacement, le reste de la barre dépassait après le « ✓ ».
+        local SIZE_BYTES
+        SIZE_BYTES="$(sudo docker image inspect "${IMG}:${SHA}" --format '{{.Size}}' 2>/dev/null || echo 0)"
+        [[ "$SIZE_BYTES" =~ ^[0-9]+$ ]] || SIZE_BYTES=0
+        printf "\r\033[K  ${C_DIM}%-20s${C_RESET} ${C_GREEN}✓ téléchargée${C_RESET} ${C_DIM}(%s Mo)${C_RESET}\n" "$NAME" "$(( SIZE_BYTES / 1048576 ))"
     else
-        printf "\r  ${C_DIM}%-20s${C_RESET} ${C_RED}✗ ÉCHEC${C_RESET}\n" "$NAME"
+        printf "\r\033[K  ${C_DIM}%-20s${C_RESET} ${C_RED}✗ ÉCHEC${C_RESET}\n" "$NAME"
         dim "     cause : docker pull ${IMG}:${SHA}"
         grep -viE 'Pulling fs layer|Waiting|Downloading|Extracting|Pull complete|Already exists|Verifying Checksum|Download complete|^$' "$PULL_LOG" | tail -3 | sed 's/^/     /'
         dim "     repères : espace disque (df -h) · tags publiés (./scripts/deploy-cd.sh list beta) · expiration GHCR_TOKEN"
@@ -650,10 +825,10 @@ deploy() {
         fail "Échec au démarrage des conteneurs."
     fi
 
-    step "4" "Base de données" "Met à jour la structure de la BDD (tables/colonnes), migre les fichiers uploads vers le stockage privé. Les messages npm inutiles sont masqués."
+    step "4" "Base de données" "Met à jour la structure de la base (tables/colonnes) et range les fichiers « uploads » dans le stockage privé. Seules les migrations absentes de la base sont appliquées — aucune ne rejoue, aucune donnée n'est effacée."
     info "   Migration des fichiers uploads..."
     if sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" exec app-${TARGET} sh -c 'NO_UPDATE_NOTIFIER=1 npm_config_update_notifier=false npm run --silent migrate:uploads'; then
-        ok "Uploads migrés."
+        ok "Uploads rangés dans le stockage privé."
     else
         err "Échec migration uploads."
         exit 1
@@ -682,7 +857,27 @@ deploy() {
         "NO_UPDATE_NOTIFIER=1 npm_config_update_notifier=false ${PRISMA_CMD} migrate deploy" || MIGRATE_RC=$?
     if (( MIGRATE_RC == 0 )); then
         if grep -qi "no pending migrations" "$MIGRATE_LOG"; then
-            ok "Base à jour — aucune migration en attente ($(( SECONDS - MIGRATE_T0 ))s)."
+            # « N migrations found in prisma/migrations » : N = les migrations du
+            # DÉPÔT (une par changement de schéma déjà validé). Prisma compare cette
+            # liste à la table `_prisma_migrations` de la base et n'applique QUE la
+            # différence. On redonne le compte : c'est la question n° 1 du lecteur.
+            # ⚠️ Le compte est compté DANS LE DÉPÔT (on est à sa racine — `cd` en tête de
+            # script), pas relu du log : mesuré le 30/09/2026, deux déploiements d'affilée
+            # au code IDENTIQUE ont affiché 5 lignes de Prisma puis 1 seule (la ligne
+            # « N migrations found » n'était plus écrite) ⇒ s'y fier faisait retomber sur
+            # le message muet, précisément sur le nombre que le lecteur cherche.
+            # Un dossier `prisma/migrations/<horodatage>_<nom>/` = une migration.
+            local KNOWN_MIGRATIONS
+            KNOWN_MIGRATIONS="$(find prisma/migrations -mindepth 1 -maxdepth 1 -type d 2>/dev/null | wc -l | tr -d '[:space:]')"
+            if [[ -z "$KNOWN_MIGRATIONS" || "$KNOWN_MIGRATIONS" == "0" ]]; then
+                # Repli (dépôt incomplet) : la ligne du log, quand Prisma l'écrit.
+                KNOWN_MIGRATIONS="$(grep -oE '[0-9]+ migrations? found' "$MIGRATE_LOG" | head -1 | cut -d' ' -f1)"
+            fi
+            if [[ -n "$KNOWN_MIGRATIONS" ]]; then
+                ok "Base à jour — ${KNOWN_MIGRATIONS} migrations connues, aucune à appliquer ($(( SECONDS - MIGRATE_T0 ))s)."
+            else
+                ok "Base à jour — aucune migration en attente ($(( SECONDS - MIGRATE_T0 ))s)."
+            fi
         else
             ok "Migrations appliquées ($(( SECONDS - MIGRATE_T0 ))s)."
         fi

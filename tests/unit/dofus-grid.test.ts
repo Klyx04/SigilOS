@@ -235,7 +235,7 @@ describe("dofus-grid — repère losange inverse + zones d'effet (AoE)", () => {
 
 describe("dofus-grid — allyStartPositions (toggle « Placements de départ »)", () => {
     it("pose les alliés sur les cases joueurs triées par ID croissant, bornées au max", () => {
-        // Dofensive expose les cases joueurs dans `enemyCells` (les monstres sont dans `allyCells`).
+        // `allyCells` Dofensive = monstres/défenseurs (cases bleues), `enemyCells` = joueurs/attaquants (cases rouges).
         const playerCells = [207, 13, 195, 14, 196];
         const positions = allyStartPositions(playerCells, 4);
         expect(positions).toHaveLength(4);

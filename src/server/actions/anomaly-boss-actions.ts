@@ -13,6 +13,7 @@ import { db } from "@/lib/prisma";
 import { DB_READABLE, getLocalDofensiveMap } from "@/lib/dofensive-sync";
 import type { DofensiveDungeonInfo } from "@/server/actions/dofensive-actions";
 import { ANOMALY_MAP_FALLBACK_LABEL, ANOMALY_RACE_ID, DEFAULT_ANOMALY_MAP, anomalyCompanionHint, buildAnomalyMonsterPool, type AnomalyMonsterRef } from "@/lib/anomaly-boss";
+import { getQilbyDungeonInfo } from "@/lib/qilby-map";
 
 type ActionResponse<T = void> = {
     success: boolean;
@@ -65,6 +66,12 @@ export async function getAnomalyBossBattleMap(
 ): Promise<ActionResponse<DofensiveDungeonInfo>> {
     const name = String(monsterName ?? "").trim();
     if (!name) return { success: false, error: "Nom de gardien manquant" };
+
+    // Qilby : arène sur-mesure (absente de Dofensive) — même source que l'overlay,
+    // sinon la fiche dashboard/publique retombe sur la map par défaut.
+    if (name.toLowerCase() === "qilby") {
+        return { success: true, data: getQilbyDungeonInfo() };
+    }
 
     try {
         const stats = await loadAnomalyStat(name);

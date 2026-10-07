@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { Brain, ChevronDown, Compass, Crown, ExternalLink, Loader2, MapPin, PictureInPicture2, ScrollText, Search, Shield, Swords, Target, Users, X, Zap, Gem } from "lucide-react";
+import { Brain, ChevronDown, ChevronUp, Compass, Crown, ExternalLink, Flame, Loader2, MapPin, PictureInPicture2, ScrollText, Search, Shield, Swords, Target, Users, X, Zap, Gem, Check, ArrowRight } from "lucide-react";
 import { useBossOverlay } from "@/hooks/use-boss-overlay";
 import { getDungeonsWithAchievements, getDungeonMonsters, getMonsterStats } from "@/server/actions/game-data-actions";
 import { getLinkedQuests } from "@/server/actions/dofus-quest-actions";
@@ -20,6 +20,10 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { getWorldName } from "@/lib/dofus-assets";
 import { SpellData, SpellRangeGrid } from "./SpellRangeGrid";
+import { BossMechanicsView, type BossPassiveData } from "@/components/boss/BossMechanicsView";
+import { formatDofusEffectLine } from "@/lib/dofus-effects-formatter";
+import { ZoneLocationCard } from "@/components/worldmap/ZoneLocationCard";
+import { DungeonMinimapCard } from "@/app/boss/[dungeonId]/_components/DungeonMinimapCard";
 
 /**
  * Image de monstre avec fallback stylisé (icône Swords) si l'illustration DofusDB
@@ -69,7 +73,8 @@ function MonsterImage({
     if (!currentSrc || failed) {
         return (
             <span className={cn("inline-flex items-center justify-center text-muted-foreground/40 bg-background", className)}>
-                <Swords className="w-1/2 h-1/2 max-w-6 max-h-6" />
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/assets/dofus/icons/crossedSwords.png" alt="" className="w-1/2 h-1/2 max-w-6 max-h-6 object-contain opacity-50" />
             </span>
         );
     }
@@ -103,6 +108,7 @@ interface BossDungeon {
     isAnomalyBoss?: boolean | null;
     anomalyMapId?: number | null;
     anomalyFamily?: string | null;
+    mapId?: number | null;
     achievements?: { id: string; points: number; challenge?: { name: string } }[];
 }
 
@@ -126,6 +132,48 @@ interface MonsterStats {
     }[];
     drops?: { objectId: number; name: string; imageUrl: string; percent: number; percentByGrade?: number[] }[];
     spells?: SpellData[];
+    passive?: BossPassiveData;
+}
+
+function SpellIcon({ spell, size = 8 }: { spell: SpellData; size?: number }) {
+    const [useFallback, setUseFallback] = useState(false);
+    const sizeClass = size === 8 ? "w-8 h-8" : size === 9 ? "w-9 h-9" : "w-10 h-10";
+
+    if (spell.unityIconId && spell.unityIconId > 0 && !useFallback) {
+        return (
+            <div className={cn(sizeClass, "rounded-xl bg-background border border-border flex items-center justify-center p-0.5 shrink-0 overflow-hidden")}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                    src={`/uploads/assets-dofus/spells/sort_${spell.unityIconId}.webp`}
+                    alt={spell.name}
+                    className="w-full h-full object-contain"
+                    loading="lazy"
+                    onError={() => setUseFallback(true)}
+                />
+            </div>
+        );
+    }
+
+    if (spell.imageUrl) {
+        return (
+            <div className={cn(sizeClass, "rounded-xl bg-background border border-border flex items-center justify-center p-0.5 shrink-0 overflow-hidden")}>
+                <MonsterImage
+                    src={spell.imageUrl}
+                    alt={spell.name}
+                    assetType="spells"
+                    assetId={spell.id}
+                    className="w-full h-full object-contain"
+                />
+            </div>
+        );
+    }
+
+    return (
+        <div className={cn(sizeClass, "rounded-xl bg-background border border-border flex items-center justify-center p-1 shrink-0")}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/assets/dofus/modules/spells.png" alt="" className="w-full h-full object-contain opacity-60" />
+        </div>
+    );
 }
 
 interface FamilyMember {
@@ -171,13 +219,18 @@ export function SuccesBossGuide({ guildId, anomalyOnly = false }: { guildId: str
     const [activeMonsterName, setActiveMonsterName] = useState<string | null>(null);
     const [activeGradeIndex, setActiveGradeIndex] = useState<number | null>(null);
     const [detailTab, setDetailTab] = useState<"sorts" | "sim" | "loot" | "family" | "quetes">("sorts");
-    // Détail complet des sorts : replié par défaut (les mécaniques clés suffisent d'un coup d'œil).
-    const [showAllSpells, setShowAllSpells] = useState(false);
+    // Détail des sorts : chaque sort est replié par défaut (les mécaniques clés — le passif —
+    // suffisent d'un coup d'œil). L'état est remis à zéro à chaque changement de fiche.
     // Deep-link `?onglet=quetes` (redirect de l'ancienne vue globale `?view=quetes`).
     const questTabRequested = searchParams.get("onglet") === "quetes";
     const [linkedQuestsByDungeon, setLinkedQuestsByDungeon] = useState<Record<string, LinkedQuestsData>>({});
     // Maps du donjon (salles réelles) récupérées chez Dofensive pour le boss courant.
     const [dungeonMapsByBoss, setDungeonMapsByBoss] = useState<Record<string, DofensiveDungeonInfo | null>>({});
+    const [copiedTravel, setCopiedTravel] = useState(false);
+    const [expandedSpells, setExpandedSpells] = useState<Record<number, boolean>>({});
+    const toggleSpellExpanded = (id: number) => {
+        setExpandedSpells((prev) => ({ ...prev, [id]: !prev[id] }));
+    };
 
     // 1. Charger la liste des donjons (instantané ~50ms, sans spammer 89 requêtes réseau)
     useEffect(() => {
@@ -207,6 +260,7 @@ export function SuccesBossGuide({ guildId, anomalyOnly = false }: { guildId: str
                             isAnomalyBoss: !!d.isAnomalyBoss,
                             anomalyMapId: d.anomalyMapId ?? null,
                             anomalyFamily: d.anomalyFamily ?? null,
+                            mapId: d.mapId ?? null,
                             achievements: Array.isArray(d.achievements) ? d.achievements : [],
                         }));
                     setDungeons(withBoss);
@@ -271,7 +325,8 @@ export function SuccesBossGuide({ guildId, anomalyOnly = false }: { guildId: str
         setActiveGradeIndex(null);
         // `?onglet=quetes` (redirect `?view=quetes`) ouvre directement les quêtes — boss classiques uniquement.
         setDetailTab(!d.isAnomalyBoss && questTabRequested ? "quetes" : "sorts");
-        setShowAllSpells(false);
+        // Reset de l'accordéon des sorts : aucun dépliage ne survit au changement de fiche.
+        setExpandedSpells({});
         setSelectedSpellId(undefined);
         if (!familyByDungeon[d.id]) {
             // 🌀 Boss d'anomalie : la « famille » = les autres gardiens de la MÊME carte
@@ -486,41 +541,24 @@ export function SuccesBossGuide({ guildId, anomalyOnly = false }: { guildId: str
 
             {selected && (
                 <div className="bg-surface/90 border border-border rounded-2xl p-5 sm:p-6 space-y-6" data-tour="succes-tracker-detail">
-                    {/* Header Boss */}
-                    <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border/60 pb-5">
-                        <div className="flex items-center gap-4">
-                            <div className="w-16 h-16 rounded-2xl bg-background border border-border flex items-center justify-center p-1.5 shrink-0 overflow-hidden">
-                                <MonsterImage
-                                    src={statsOf(selected)?.imageUrl ?? selected.imageUrl}
-                                    alt={selected.bossName}
-                                    monsterId={statsOf(selected)?.id ?? selected.dofusdbId ?? undefined}
-                                    className="max-h-full max-w-full object-contain"
-                                />
-                            </div>
-                            <div>
-                                <div className="flex items-center gap-2">
-                                    <h3 className="text-xl font-bold text-foreground">{activeMonsterName ?? selected.bossName}</h3>
-                                    <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full border border-border text-muted-foreground">
-                                        Niveau {selected.level}
-                                    </span>
-                                </div>
-                                <p className="text-sm text-muted-foreground mt-1 flex items-center gap-1.5">
-                                    <Compass className="w-3.5 h-3.5 opacity-70" />
-                                    {selected.isAnomalyBoss ? "Carte :" : "Donjon :"}{" "}
-                                    <strong className="text-foreground">{selected.name}</strong>
-                                    {selected.isAnomalyBoss && selected.anomalyFamily ? (
-                                        <span className="ml-1 text-[11px] font-semibold text-info/90">· {selected.anomalyFamily}</span>
-                                    ) : null}
-                                </p>
-                            </div>
-                        </div>
+                    {/* Header Boss + Stats + Minimap (Iso Fiche Publique) */}
+                    {(() => {
+                        const targetKey = activeMonsterName && selected ? `${selected.id}::${activeMonsterName}` : selected?.id;
+                        const isLoadingCurrent = targetKey ? loadingStatsByBoss[targetKey] : false;
+                        const currentStats = statsOf(selected);
+                        const grades: any[] = currentStats?.grades ?? [];
+                        const gradeIdx = activeGradeIndex ?? (grades.length > 0 ? grades.length - 1 : 0);
+                        const activeGrade = grades.length > 0 ? grades[Math.min(gradeIdx, grades.length - 1)] : null;
+                        const resists = activeGrade?.resists || {};
+                        const coords = currentStats?.coordinates as { x: number; y: number; worldMapId?: number } | null | undefined;
+                        const travelCmd = coords ? `/travel ${coords.x} ${coords.y}` : null;
+                        const hasZoneLocation = !!(coords || selected.mapId);
+                        const zoneWorldId = Number(coords?.worldMapId ?? 0) > 0 ? (coords!.worldMapId as number) : 1;
+                        const dpnlUrl = selected.dpnlUrl ?? selected.dofuspourlesnoobsUrl ?? null;
 
-                        {/* Liens Guides — DPLN si lié dans game-data (les sources externes du module
-                            ne sont plus exposées en bouton : une seule référence utile par fiche). */}
-                        {(() => {
-                            const dpnlUrl = selected.dpnlUrl ?? selected.dofuspourlesnoobsUrl ?? null;
-                            return (
-                                <div className="flex flex-wrap items-center gap-2">
+                        return (
+                            <div className="space-y-4">
+                                <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-2">
                                     {dpnlUrl && (
                                         <a href={dpnlUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border bg-surface text-foreground text-xs font-bold hover:bg-elevated hover:border-border-strong transition-colors">
                                             <img src="https://www.google.com/s2/favicons?domain=dofuspourlesnoobs.com&sz=32" alt="" className="w-3.5 h-3.5 rounded-sm" loading="lazy" />
@@ -557,35 +595,228 @@ export function SuccesBossGuide({ guildId, anomalyOnly = false }: { guildId: str
                                         <X className="w-3.5 h-3.5" /> Fermer
                                     </button>
                                 </div>
-                            );
-                        })()}
-                    </div>
 
-                    {/* 1. Encyclopédie (façon encyclopédie Dofus) : identité, rangs,
-                        caractéristiques du grade actif, résistances, propriétés. */}
-                    {(() => {
-                        const targetKey = activeMonsterName && selected ? `${selected.id}::${activeMonsterName}` : selected?.id;
-                        const isLoadingCurrent = targetKey ? loadingStatsByBoss[targetKey] : false;
-                        const currentStats = statsOf(selected);
+                                <div className={cn("grid gap-4", hasZoneLocation && "lg:grid-cols-[minmax(0,1fr)_minmax(0,0.85fr)] lg:items-start")}>
+                                    {/* ── Colonne gauche : identité, entrée du donjon, caractéristiques ── */}
+                                    <div className="min-w-0 space-y-3.5">
+                                        <div className="flex items-center gap-4 min-w-0">
+                                            <div className="w-16 h-16 rounded-xl border border-border bg-background/60 flex items-center justify-center p-1.5 shrink-0 overflow-hidden shadow-xs">
+                                                <MonsterImage
+                                                    src={currentStats?.imageUrl ?? selected.imageUrl}
+                                                    alt={activeMonsterName ?? selected.bossName}
+                                                    monsterId={currentStats?.id ?? selected.dofusdbId ?? undefined}
+                                                    className="max-w-full max-h-full object-contain"
+                                                />
+                                            </div>
+                                            <div className="min-w-0">
+                                                <p className="flex items-center gap-2 text-[11px] uppercase tracking-wide text-muted-foreground">
+                                                    {selected.isAnomalyBoss ? "Gardien d'anomalie" : "Boss de donjon"}
+                                                    <span className="font-mono normal-case">Niv. {selected.level ?? 200}</span>
+                                                </p>
+                                                <h3 className="mt-0.5 truncate text-2xl font-bold text-foreground">
+                                                    {activeMonsterName ?? selected.bossName}
+                                                </h3>
+                                                <p className="mt-0.5 flex items-center gap-1.5 text-sm text-muted-foreground">
+                                                    <Compass className="w-3.5 h-3.5 opacity-70" />
+                                                    {selected.isAnomalyBoss ? "Carte :" : "Donjon :"}{" "}
+                                                    <span className="text-foreground/90 font-medium">{selected.name}</span>
+                                                    {selected.isAnomalyBoss && selected.anomalyFamily ? (
+                                                        <span className="ml-1 text-[11px] font-semibold text-info/90">· {selected.anomalyFamily}</span>
+                                                    ) : null}
+                                                </p>
+                                            </div>
+                                        </div>
 
-                        if (isLoadingCurrent && !currentStats) {
-                            return (
-                                <div className="flex items-center justify-center p-6 rounded-2xl bg-surface border border-border gap-3 text-muted-foreground">
-                                    <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
-                                    <span className="text-xs font-bold">Chargement des caractéristiques de {activeMonsterName ?? selected.bossName}…</span>
+                                        {/* Entrée du donjon : coordonnées copiables (clic) + zone. */}
+                                        {coords && (
+                                            <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-muted-foreground">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        if (!travelCmd) return;
+                                                        navigator.clipboard.writeText(travelCmd).then(() => {
+                                                            setCopiedTravel(true);
+                                                            toast.success(`Commande ${travelCmd} copiée !`);
+                                                            window.setTimeout(() => setCopiedTravel(false), 2000);
+                                                        }).catch(() => {});
+                                                    }}
+                                                    className="inline-flex items-center gap-2 px-2.5 py-1 rounded-lg bg-surface border border-border hover:border-border-strong text-foreground transition-colors cursor-pointer"
+                                                    title="Cliquer pour copier la commande /travel"
+                                                >
+                                                    <MapPin className="w-3.5 h-3.5 shrink-0 opacity-70" />
+                                                    <span>
+                                                        Entrée du donjon :{" "}
+                                                        <strong className="font-mono text-foreground/90">
+                                                            [{coords.x}, {coords.y}]
+                                                        </strong>
+                                                    </span>
+                                                    {copiedTravel ? (
+                                                        <Check className="w-3.5 h-3.5 text-emerald-400" />
+                                                    ) : (
+                                                        <span className="text-[11px] px-1.5 py-0.5 rounded-md bg-background border border-border text-muted-foreground font-mono">
+                                                            {travelCmd}
+                                                        </span>
+                                                    )}
+                                                </button>
+                                                <span className="text-xs font-semibold text-muted-foreground">
+                                                    Zone : <strong className="text-foreground">{getWorldName(coords.worldMapId)}</strong>
+                                                </span>
+                                            </div>
+                                        )}
+
+                                        {/* Caractéristiques : PV / PA / PM en cartes, résistances dans un encadré. */}
+                                        {isLoadingCurrent ? (
+                                            <div className="flex items-center gap-3 rounded-xl border border-border bg-surface/60 px-3.5 py-3 text-muted-foreground">
+                                                <Loader2 className="w-4 h-4 animate-spin" />
+                                                <span className="text-xs">Chargement des caractéristiques de {activeMonsterName ?? selected.bossName}…</span>
+                                            </div>
+                                        ) : (
+                                            <>
+                                                <div className="grid grid-cols-3 gap-2.5">
+                                                    <div className="rounded-xl border border-border bg-surface/60 px-3.5 py-2" title="Points de Vie">
+                                                        <span className="flex items-baseline gap-1.5">
+                                                            <img src="/assets/dofus/stats/pv.png" alt="" className="w-4 h-4 shrink-0 self-center object-contain" />
+                                                            <span className="font-mono text-xl font-bold tabular-nums text-foreground sm:text-2xl">
+                                                                {activeGrade ? (typeof activeGrade.lifePoints === "number" ? activeGrade.lifePoints.toLocaleString("fr-FR") : "—") : "—"}
+                                                            </span>
+                                                            <span className="font-mono text-[11px] text-muted-foreground">PV</span>
+                                                        </span>
+                                                    </div>
+                                                    <div className="rounded-xl border border-border bg-surface/60 px-3.5 py-2" title="Points d'Action">
+                                                        <span className="flex items-baseline gap-1.5">
+                                                            <img src="/assets/dofus/stats/pa.png" alt="" className="w-4 h-4 shrink-0 self-center object-contain" />
+                                                            <span className="font-mono text-xl font-bold tabular-nums text-foreground sm:text-2xl">{activeGrade?.actionPoints ?? "—"}</span>
+                                                            <span className="font-mono text-[11px] text-muted-foreground">PA</span>
+                                                        </span>
+                                                    </div>
+                                                    <div className="rounded-xl border border-border bg-surface/60 px-3.5 py-2" title="Points de Mouvement">
+                                                        <span className="flex items-baseline gap-1.5">
+                                                            <img src="/assets/dofus/stats/pm.png" alt="" className="w-4 h-4 shrink-0 self-center object-contain" />
+                                                            <span className="font-mono text-xl font-bold tabular-nums text-foreground sm:text-2xl">{activeGrade?.movementPoints ?? "—"}</span>
+                                                            <span className="font-mono text-[11px] text-muted-foreground">PM</span>
+                                                        </span>
+                                                    </div>
+                                                </div>
+
+                                                <div className="rounded-xl border border-border bg-surface/60 px-3.5 py-2.5">
+                                                    <span className="block text-[11px] uppercase tracking-wide text-muted-foreground font-semibold">Résistances</span>
+                                                    <div className="mt-1.5 flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5">
+                                                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                                                            {(
+                                                                [
+                                                                    { key: "neutral", label: "Neutre", icon: "/assets/dofus/stats/resNeutre.png", value: resists.neutral ?? null },
+                                                                    { key: "earth", label: "Terre", icon: "/assets/dofus/stats/resTerre.png", value: resists.earth ?? null },
+                                                                    { key: "fire", label: "Feu", icon: "/assets/dofus/stats/resFeu.png", value: resists.fire ?? null },
+                                                                    { key: "water", label: "Eau", icon: "/assets/dofus/stats/resEau.png", value: resists.water ?? null },
+                                                                    { key: "air", label: "Air", icon: "/assets/dofus/stats/resAir.png", value: resists.air ?? null },
+                                                                ] as const
+                                                            ).map(({ key, label, icon, value }) => (
+                                                                <span key={key} className="inline-flex items-center gap-1.5" title={`${label} %`}>
+                                                                    <img src={icon} alt="" className="w-4 h-4 object-contain" />
+                                                                    <span
+                                                                        className={cn(
+                                                                            "font-mono text-[13px] font-bold tabular-nums",
+                                                                            typeof value === "number" && value < 0 ? "text-rose-400" : "text-foreground/90"
+                                                                        )}
+                                                                    >
+                                                                        {typeof value === "number" ? `${value}%` : "—"}
+                                                                    </span>
+                                                                    <span className="hidden text-[11px] text-muted-foreground sm:inline">{label}</span>
+                                                                </span>
+                                                            ))}
+                                                        </div>
+                                                        {grades.length > 1 && (
+                                                            <div className="flex items-center gap-1">
+                                                                <span className="text-[11px] font-bold text-muted-foreground mr-1">Rang :</span>
+                                                                {grades.map((gr: any, i: number) => (
+                                                                    <button
+                                                                        key={i}
+                                                                        type="button"
+                                                                        onClick={() => setActiveGradeIndex(i)}
+                                                                        className={cn(
+                                                                            "min-w-6 h-6 px-1.5 rounded-md border text-[11px] font-bold tabular-nums transition-colors cursor-pointer",
+                                                                            gradeIdx === i
+                                                                                ? "bg-foreground text-background border-foreground font-black"
+                                                                                : "bg-background border-border text-muted-foreground hover:text-foreground"
+                                                                        )}
+                                                                        title={`Rang ${i + 1} — Niv. ${gr.level ?? "—"}`}
+                                                                    >
+                                                                        {i + 1}
+                                                                    </button>
+                                                                ))}
+                                                                {activeGrade?.level != null && (
+                                                                    <span className="text-[11px] font-mono text-muted-foreground ml-1">
+                                                                        · Niv. {activeGrade.level}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+
+                                                {/* Caractéristiques avancées officielles (Tacle, Fuite, Esquives, Initiative) */}
+                                                {(activeGrade?.tackle !== undefined || activeGrade?.apDodge !== undefined) && (
+                                                    <div className="grid grid-cols-4 gap-2 rounded-xl border border-border bg-surface/40 p-2.5 text-[11px] font-mono">
+                                                        <div className="flex flex-col items-center">
+                                                            <span className="text-muted-foreground text-[10px] uppercase font-sans">Tacle</span>
+                                                            <span className="text-foreground font-bold tabular-nums mt-0.5">{activeGrade.tackle ?? "—"}</span>
+                                                        </div>
+                                                        <div className="flex flex-col items-center">
+                                                            <span className="text-muted-foreground text-[10px] uppercase font-sans">Fuite</span>
+                                                            <span className="text-foreground font-bold tabular-nums mt-0.5">{activeGrade.evade ?? "—"}</span>
+                                                        </div>
+                                                        <div className="flex flex-col items-center">
+                                                            <span className="text-muted-foreground text-[10px] uppercase font-sans">Esq PA</span>
+                                                            <span className="text-foreground font-bold tabular-nums mt-0.5">{activeGrade.apDodge ?? "—"}</span>
+                                                        </div>
+                                                        <div className="flex flex-col items-center">
+                                                            <span className="text-muted-foreground text-[10px] uppercase font-sans">Esq PM</span>
+                                                            <span className="text-foreground font-bold tabular-nums mt-0.5">{activeGrade.mpDodge ?? "—"}</span>
+                                                        </div>
+                                                        {activeGrade.initiative !== undefined && activeGrade.initiative > 0 && (
+                                                            <div className="col-span-4 flex items-center justify-between pt-1.5 border-t border-border px-1 text-[11px]">
+                                                                <span className="text-muted-foreground font-sans">Initiative</span>
+                                                                <span className="text-foreground font-bold tabular-nums">
+                                                                    {activeGrade.initiative.toLocaleString("fr-FR")}
+                                                                </span>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </>
+                                        )}
+                                    </div>
+
+                                    {/* ── Colonne droite : minimap / aperçu de la zone ── */}
+                                    {hasZoneLocation && (
+                                        <ZoneLocationCard
+                                            mapId={selected.mapId ?? null}
+                                            worldId={zoneWorldId}
+                                            mapHref={
+                                                coords
+                                                    ? `/carte-du-monde?play=1&x=${coords.x}&y=${coords.y}&zoom=-2&world=${zoneWorldId}`
+                                                    : null
+                                            }
+                                            title="Localisation du donjon"
+                                            placeName={selected.name}
+                                            openLabel="Explorer sur la carte"
+                                            markerIcon="/assets/worldmap/dungeon-boss.png"
+                                            fallback={
+                                                coords ? (
+                                                    <DungeonMinimapCard
+                                                        x={coords.x}
+                                                        y={coords.y}
+                                                        worldMapId={coords.worldMapId}
+                                                        title="Localisation du donjon"
+                                                        placeName={selected.name}
+                                                        openLabel="Explorer sur la carte"
+                                                    />
+                                                ) : null
+                                            }
+                                        />
+                                    )}
                                 </div>
-                            );
-                        }
-
-                        return (
-                            <SuccesBossEncyclo
-                                level={selected.level}
-                                grades={currentStats?.grades ?? []}
-                                encyclo={(currentStats as any)?.encyclo ?? null}
-                                activeGradeIndex={activeGradeIndex}
-                                onGradeChange={(idx) => setActiveGradeIndex(idx)}
-                                dungeonName={selected.isAnomalyBoss ? null : selected.name}
-                            />
+                            </div>
                         );
                     })()}
 
@@ -601,17 +832,16 @@ export function SuccesBossGuide({ guildId, anomalyOnly = false }: { guildId: str
                         // Un seul onglet Sorts : mécaniques clés + détail complet.
                         const spellCount = currentStats?.spells?.length ?? 0;
                         const tabs = [
-                            { id: "sorts", label: `Sorts (${spellCount})`, icon: Zap },
-                            { id: "sim", label: "Simulation Tactique", icon: Target },
-                            { id: "loot", label: "Butin & Drops", icon: Gem },
-                            ...(hasRoomMonsters ? [{ id: "family", label: `Monstres de la salle (${roomMonsters.length})`, icon: Users }] : []),
-                            ...(!selected?.isAnomalyBoss ? [{ id: "quetes", label: `Quêtes (${questCount})`, icon: ScrollText }] : []),
+                            { id: "sorts", label: `Sorts (${spellCount})`, asset: "/assets/dofus/modules/spells.png" },
+                            { id: "sim", label: "Simulation Tactique", asset: "/assets/dofus/modules/map.png" },
+                            { id: "loot", label: "Butin & Drops", asset: "/assets/dofus/modules/chest.png" },
+                            ...(hasRoomMonsters ? [{ id: "family", label: `Monstres de la salle (${roomMonsters.length})`, asset: "/assets/dofus/modules/party.png" }] : []),
+                            ...(!selected?.isAnomalyBoss ? [{ id: "quetes", label: `Quêtes (${questCount})`, asset: "/assets/dofus/icons/quests.png" }] : []),
                         ];
 
                         return (
                             <div className="flex items-center gap-1 overflow-x-auto border-b border-border no-scrollbar">
                                 {tabs.map((tab) => {
-                                    const Icon = tab.icon;
                                     const isActive = detailTab === tab.id;
                                     return (
                                         <button
@@ -619,13 +849,14 @@ export function SuccesBossGuide({ guildId, anomalyOnly = false }: { guildId: str
                                             type="button"
                                             onClick={() => setDetailTab(tab.id as any)}
                                             className={cn(
-                                                "flex items-center gap-2 border-b-2 -mb-px px-3 py-2 text-xs transition-colors whitespace-nowrap",
+                                                "flex items-center gap-2 border-b-2 -mb-px px-3 py-2 text-xs transition-colors whitespace-nowrap cursor-pointer",
                                                 isActive
                                                     ? "border-foreground/60 text-foreground"
                                                     : "border-transparent text-muted-foreground hover:text-foreground"
                                             )}
                                         >
-                                            <Icon className="w-3.5 h-3.5" />
+                                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                                            <img src={tab.asset} alt="" className={cn("w-4 h-4 object-contain", !isActive && "opacity-60")} />
                                             <span>{tab.label}</span>
                                         </button>
                                     );
@@ -719,189 +950,133 @@ export function SuccesBossGuide({ guildId, anomalyOnly = false }: { guildId: str
                         );
                     })()}
 
-                    {/* Onglet : Sorts — mécaniques clés PUIS détail complet (un seul onglet). */}
+                    {/* Onglet : Sorts (fusionné, iso fiche publique) */}
                     {detailTab === "sorts" && (
-                        <div className="space-y-6">
+                        <div className="space-y-4">
+                            {/* Passif officiel Unity — mécanique de début de combat (repliable) */}
+                            {statsOf(selected)?.passive && (
+                                <BossMechanicsView passive={statsOf(selected)!.passive!} collapsible defaultCollapsed={false} />
+                            )}
+
                             {(() => {
                                 const spells = statsOf(selected)?.spells ?? [];
                                 if (spells.length === 0) {
                                     return (
-                                        <p className="text-xs text-muted-foreground py-4 text-center">
+                                        <p className="text-xs text-muted-foreground py-8 text-center">
                                             Aucun sort répertorié pour cette entité.
                                         </p>
                                     );
                                 }
                                 return (
                                     <div>
-                                        <div className="flex flex-wrap items-center gap-2 mb-4">
-                                            <h4 className="text-sm font-bold text-foreground flex items-center gap-1.5">
-                                                <Zap className="w-4 h-4 opacity-70" /> Mécaniques clés
-                                            </h4>
-                                            <span className="text-[11px] font-bold px-2 py-0.5 rounded-full border border-border text-muted-foreground">
-                                                {spells.length} sorts à anticiper
-                                            </span>
-                                        </div>
-                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                                            {spells.slice(0, 6).map((spell) => (
-                                                <div
-                                                    key={spell.id}
-                                                    className="rounded-2xl bg-surface border border-border p-3.5 flex flex-col justify-between"
-                                                >
-                                                    <div>
-                                                        <div className="flex items-center gap-2.5 mb-2">
-                                                            <div className="w-8 h-8 rounded-xl bg-background border border-border flex items-center justify-center p-0.5 shrink-0 overflow-hidden">
-                                                                {spell.imageUrl ? (
-                                                                    <MonsterImage src={spell.imageUrl} alt={spell.name} assetType="spells" assetId={spell.id} className="w-full h-full object-contain" />
-                                                                ) : (
-                                                                    <Zap className="w-3.5 h-3.5 opacity-70" />
-                                                                )}
-                                                            </div>
-                                                            <div className="min-w-0">
-                                                                <h5 className="text-sm font-bold text-foreground truncate">{spell.name}</h5>
-                                                                <span className="text-[11px] font-bold text-muted-foreground block">
-                                                                    {spell.apCost || 0} PA · {spell.minRange === spell.range ? `${spell.range} PO` : `${spell.minRange ?? 0}-${spell.range ?? 0} PO`}
-                                                                </span>
-                                                            </div>
-                                                        </div>
-                                                        <p className="text-sm text-muted-foreground line-clamp-2 leading-relaxed">
-                                                            {(() => {
-                                                                const primaryEffect = spell.effectDetails && spell.effectDetails.length > 0
-                                                                    ? spell.effectDetails[0].label
-                                                                    : Array.isArray(spell.effects) && spell.effects.length > 0
-                                                                        ? spell.effects[0]
-                                                                        : spell.description || "Effet de combat.";
-                                                                return primaryEffect;
-                                                            })()}
-                                                        </p>
-                                                    </div>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => {
-                                                            setSelectedSpellId(spell.id);
-                                                            setDetailTab("sim");
-                                                        }}
-                                                        className="mt-3 text-xs font-semibold text-muted-foreground hover:text-foreground self-start transition-colors flex items-center gap-1"
-                                                    >
-                                                        <Target className="w-3.5 h-3.5" /> Voir la portée
-                                                    </button>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                );
-                            })()}
-                            {(() => {
-                                const spells = statsOf(selected)?.spells ?? [];
-                                if (spells.length === 0) return null;
-                                return (
-                                    <div>
-                                        <button
-                                            type="button"
-                                            onClick={() => setShowAllSpells((v) => !v)}
-                                            aria-expanded={showAllSpells}
-                                            className="w-full flex items-center gap-2 py-1 mb-1 text-left"
-                                        >
+                                        <div className="flex items-center gap-2 mb-3">
                                             <Zap className="w-4 h-4 opacity-70" />
-                                            <span className="text-sm font-bold text-foreground">
-                                                Sorts détaillés ({spells.length})
-                                            </span>
-                                            <ChevronDown className={cn("w-4 h-4 text-muted-foreground transition-transform", showAllSpells && "rotate-180")} />
-                                        </button>
-                            {showAllSpells && (
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-start">
-                                {(statsOf(selected)?.spells ?? []).map((spell) => (
-                                    <div
-                                        key={spell.id}
-                                        className="p-3.5 rounded-xl bg-surface border border-border flex flex-col justify-start text-left space-y-2.5 transition-colors"
-                                    >
-                                        <div className="flex items-start justify-between gap-2">
-                                            <div className="flex items-center gap-2.5">
-                                                {spell.imageUrl ? (
-                                                    <MonsterImage src={spell.imageUrl} alt={spell.name} assetType="spells" assetId={spell.id} className="w-8 h-8 object-contain rounded-lg bg-background border border-border p-0.5" />
-                                                ) : (
-                                                    <Zap className="w-4 h-4 opacity-70" />
-                                                )}
-                                                <div>
-                                                    <span className="flex items-center gap-1.5">
-                                                        <span className="block text-sm font-bold text-foreground">{spell.name}</span>
-                                                        {spell.grade !== undefined && (
-                                                            <span className="text-[11px] font-bold text-muted-foreground bg-background border border-border px-1 py-px rounded">
-                                                                Niv. {spell.grade}
-                                                            </span>
-                                                        )}
-                                                    </span>
-                                                    <span className="text-[11px] font-bold text-muted-foreground">
-                                                        {spell.apCost || 0} PA · {spell.minRange === spell.range ? `${spell.range} PO` : `${spell.minRange ?? 0}-${spell.range ?? 0} PO`}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                            <button
-                                                type="button"
-                                                onClick={() => {
-                                                    setSelectedSpellId(spell.id);
-                                                    setDetailTab("sim");
-                                                }}
-                                                className="text-[11px] font-bold px-2 py-1 rounded-md border border-border text-muted-foreground hover:text-foreground transition-colors shrink-0"
-                                            >
-                                                Simuler
-                                            </button>
+                                            <h4 className="text-sm font-bold text-foreground">
+                                                Tous les sorts ({spells.length})
+                                            </h4>
                                         </div>
-                                        {(() => {
-                                            const details =
-                                                spell.effectDetails && spell.effectDetails.length > 0
-                                                    ? spell.effectDetails
-                                                    : (Array.isArray(spell.effects) ? spell.effects.slice(0, 20).map((e) => ({ label: e, duration: null, triggers: [] as string[], masks: [] as string[] })) : []);
-                                            const hasDetails = details.length > 0;
-                                            const criticals = Array.isArray(spell.criticalEffects) ? spell.criticalEffects : [];
-                                            const hasCritical = criticals.length > 0;
-                                            const hasAny = hasDetails || !!spell.description || hasCritical;
-                                            if (!hasAny) return null;
-                                            return (
-                                                <div className="space-y-2 text-[11px] leading-relaxed">
-                                                    {spell.description && (
-                                                        <p className="text-muted-foreground">{spell.description}</p>
-                                                    )}
-                                                    {hasDetails && (
-                                                        <div className="space-y-1">
-                                                            <span className="block text-[11px] font-bold uppercase tracking-wide text-muted-foreground">Effet principal</span>
-                                                            <ul className="space-y-1">
-                                                                {details.map((det, i) => (
-                                                                    <li key={i} className="text-muted-foreground">
-                                                                        <span className="text-foreground font-semibold">
-                                                                            {det.label}
-                                                                            {det.duration ? ` (${det.duration})` : ""}
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-start">
+                                            {spells.map((spell: any) => {
+                                                const isExpanded = !!expandedSpells[spell.id];
+                                                const rawEffects: string[] = spell.unityEffects?.length > 0
+                                                    ? spell.unityEffects
+                                                    : (Array.isArray(spell.effects) ? spell.effects : []);
+                                                const details = rawEffects.length > 0
+                                                    ? rawEffects.map((e: string) => ({ label: e, duration: null, triggers: [] as string[], masks: [] as string[] }))
+                                                    : (spell.effectDetails?.length > 0 ? spell.effectDetails : []);
+                                                const criticals = spell.unityCriticalEffects?.length > 0
+                                                    ? spell.unityCriticalEffects
+                                                    : (Array.isArray(spell.criticalEffects) ? spell.criticalEffects : []);
+                                                const hasBody = details.length > 0 || spell.description || spell.unityDescription || criticals.length > 0 || spell.hasCriticalEffects === false;
+
+                                                return (
+                                                    <div key={spell.id} className="p-3.5 rounded-xl bg-surface/50 border border-border/70 flex flex-col space-y-2 hover:border-border transition-colors">
+                                                        <div className="flex items-start justify-between gap-2">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => hasBody && toggleSpellExpanded(spell.id)}
+                                                                className={cn("flex items-center gap-2.5 text-left flex-1 min-w-0", hasBody && "cursor-pointer group")}
+                                                                title={hasBody ? (isExpanded ? "Replier les détails" : "Déplier les détails") : undefined}
+                                                            >
+                                                                <SpellIcon spell={spell} size={8} />
+                                                                <div className="min-w-0">
+                                                                    <span className="flex items-center gap-1.5">
+                                                                        <span className="block text-sm font-bold text-foreground truncate group-hover:text-warning transition-colors">
+                                                                            {spell.name}
                                                                         </span>
-                                                                        {det.masks.length > 0 && <span className="block text-muted-foreground/80">{det.masks.join(" · ")}</span>}
-                                                                        {det.triggers.length > 0 && (
-                                                                            <span className="block text-muted-foreground/80 flex items-center gap-1">
-                                                                                <Zap className="w-3 h-3 shrink-0 opacity-70" />
-                                                                                {det.triggers.join(" · ")}
+                                                                        {spell.grade !== undefined && (
+                                                                            <span className="text-[11px] font-mono text-muted-foreground bg-background border border-border px-1 py-px rounded shrink-0">
+                                                                                Niv. {spell.grade}
                                                                             </span>
                                                                         )}
-                                                                    </li>
-                                                                ))}
-                                                            </ul>
+                                                                        {hasBody && (
+                                                                            <span className="text-muted-foreground group-hover:text-foreground transition-colors ml-0.5">
+                                                                                {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                                                                            </span>
+                                                                        )}
+                                                                    </span>
+                                                                    <span className="text-[11px] font-mono text-muted-foreground flex items-center gap-1 mt-0.5">
+                                                                        <img src="/assets/dofus/stats/pa.png" alt="PA" className="w-3 h-3 object-contain inline" />
+                                                                        <span>{spell.apCost || 0}</span>
+                                                                        <span>·</span>
+                                                                        <img src="/assets/dofus/stats/po.png" alt="PO" className="w-3 h-3 object-contain inline" />
+                                                                        <span>{spell.minRange === spell.range ? `${spell.range}` : `${spell.minRange ?? 0}-${spell.range ?? 0}`}</span>
+                                                                    </span>
+                                                                </div>
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => { setSelectedSpellId(spell.id); setDetailTab("sim"); }}
+                                                                className="text-[11px] font-semibold px-2.5 py-1 rounded-md border border-border text-muted-foreground hover:text-foreground transition-colors shrink-0 cursor-pointer"
+                                                            >
+                                                                Simuler
+                                                            </button>
                                                         </div>
-                                                    )}
-                                                    {spell.hasCriticalEffects === false ? (
-                                                        <p className="text-muted-foreground/80">Effets critiques : aucun.</p>
-                                                    ) : hasCritical ? (
-                                                        <div className="space-y-0.5 pt-1 border-t border-border/60">
-                                                            <span className="block text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Effets critiques</span>
-                                                            <ul className="space-y-0.5">
-                                                                {criticals.map((ce, k) => (
-                                                                    <li key={k} className="text-muted-foreground">• {ce}</li>
-                                                                ))}
-                                                            </ul>
-                                                        </div>
-                                                    ) : null}
-                                                </div>
-                                            );
-                                        })()}
+
+                                                        {isExpanded && hasBody && (
+                                                            <div className="pt-2 border-t border-border/60 space-y-2 text-[11px] leading-relaxed">
+                                                                {(spell.unityDescription || spell.description) && (
+                                                                    <p className="text-muted-foreground">{spell.unityDescription || spell.description}</p>
+                                                                )}
+                                                                {details.length > 0 && (
+                                                                    <div className="space-y-1">
+                                                                        <span className="block text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                                                            Effets
+                                                                        </span>
+                                                                        <ul className="space-y-1">
+                                                                            {details.map((det: any, i: number) => (
+                                                                                <li key={i} className="text-muted-foreground flex items-center gap-1.5 flex-wrap">
+                                                                                    <span className="w-1 h-1 rounded-full bg-border shrink-0" />
+                                                                                    <span>{formatDofusEffectLine(det.label)}</span>
+                                                                                    {det.duration && <span className="font-mono text-[10px] text-muted-foreground/70">({det.duration})</span>}
+                                                                                </li>
+                                                                            ))}
+                                                                        </ul>
+                                                                    </div>
+                                                                )}
+                                                                {spell.hasCriticalEffects === false ? (
+                                                                    <p className="text-muted-foreground/80">Aucun coup critique</p>
+                                                                ) : criticals.length > 0 ? (
+                                                                    <div className="space-y-1 pt-1 border-t border-border">
+                                                                        <span className="block text-[11px] font-semibold uppercase tracking-wide text-amber-500/90">
+                                                                            Effets critiques
+                                                                        </span>
+                                                                        <ul className="space-y-1">
+                                                                            {criticals.map((ce: string, k: number) => (
+                                                                                <li key={k} className="text-muted-foreground flex items-center gap-1.5">
+                                                                                    <span className="w-1 h-1 rounded-full bg-amber-500/40 shrink-0" />
+                                                                                    <span>{formatDofusEffectLine(ce)}</span>
+                                                                                </li>
+                                                                            ))}
+                                                                        </ul>
+                                                                    </div>
+                                                                ) : null}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                );
+                                            })}
                                         </div>
-                                    ))}
-                                    </div>
-                                    )}
                                     </div>
                                 );
                             })()}

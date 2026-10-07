@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/prisma";
 import { verifyCronSecret } from "@/lib/cron-auth";
 import { recordCronExecution } from "@/lib/cron-telemetry";
+import { summarizeLadderSync, buildLadderSyncMessage, buildLadderSyncFields } from "@/lib/ladder-sync-alert";
 
 // Wait function to avoid spamming the worker / Ankama
 const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
@@ -118,27 +119,32 @@ export async function GET(req: Request) {
             }
         }
 
-        const summary = `Synchronisation effectuée sur ${profiles.length} profils.\n- Réussis : ${results.filter(r => r.success).length}\n- Échecs : ${results.filter(r => !r.success).length}`;
+        // Alerte God — règle pure : la couleur dit la vérité (vert ⇔ aucun échec), le message
+        // liste les échecs (qui + pourquoi), les champs d'embed sont en français.
+        const summary = summarizeLadderSync(results);
 
-        // SEND NOTIFICATION TO GOD DASHBOARD & DISCORD
         const { notifyGod } = await import("@/server/actions/god-notif-actions");
         await notifyGod({
             title: "Ladder General/Succès Sync",
-            message: summary,
+            message: buildLadderSyncMessage(summary),
             type: "WORKER_SYNC",
-            success: results.some(r => r.success) || profiles.length === 0, // Success if at least one worked or nothing to do
-            metadata: { 
-                batch_size: profiles.length,
-                success_count: results.filter(r => r.success).length,
-                fail_count: results.filter(r => !r.success).length
-            }
+            // ✅ Vert UNIQUEMENT si aucun échec — mesure du 02/10/2026 : 17 alertes sur 34
+            // étaient vertes alors que des profils avaient échoué (la couleur mentait).
+            success: summary.allSucceeded,
+            metadata: {
+                batch_size: summary.batchSize,
+                success_count: summary.successCount,
+                fail_count: summary.failCount,
+                failures: summary.failures.map((f) => `${f.pseudo}: ${f.reason}`),
+            },
+            fields: buildLadderSyncFields(summary),
         });
 
         await recordCronExecution("ladder_sync", {
             success: true,
             durationMs: Date.now() - startedAt,
-            summary: `${profiles.length} profils traités (${results.filter(r => r.success).length} réussis, ${results.filter(r => !r.success).length} échecs)`,
-            details: { batch: profiles.length, success_count: results.filter(r => r.success).length, fail_count: results.filter(r => !r.success).length },
+            summary: `${summary.batchSize} profils traités (${summary.successCount} réussis, ${summary.failCount} échecs)`,
+            details: { batch: summary.batchSize, success_count: summary.successCount, fail_count: summary.failCount },
         });
 
         return NextResponse.json({

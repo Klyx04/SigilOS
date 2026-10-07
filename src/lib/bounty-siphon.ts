@@ -46,7 +46,7 @@ import { diffFields, recordGameDataChanges } from "@/lib/game-data-changelog";
 import { DB_READABLE, mapWithConcurrency, persistMonsterStat } from "@/lib/dofensive-sync";
 import { mergeDofensiveSpells, type DofensiveSpellCombat } from "@/lib/dofensive-spells";
 import { siphonAndCompressImage } from "@/lib/dofus-asset-siphon";
-import { buildCombatSpellsFromDofusDb, fetchSpellLevels } from "@/lib/anomaly-boss-siphon";
+import { buildCombatSpellsFromDofusDb, dofusDbStatBonusFromGrades, fetchSpellLevels } from "@/lib/anomaly-boss-siphon";
 // 🔴 A1 (28/09/2026) — CŒURS descendus en `src/lib` (worker BullMQ sans session Next, sans jsdom).
 import { getDofensiveSpells } from "@/lib/dofensive-api";
 import { getMonsterStats } from "@/lib/monster-stats-core";
@@ -359,7 +359,7 @@ async function siphonOneBounty(target: BountyTarget, result: BountySyncResult): 
     if (combat.length === 0) {
         const dbSpells: any[] = Array.isArray(stats.spells) ? stats.spells : [];
         const levels = await fetchSpellLevels(dbSpells.map((s) => Math.floor(Number(s?.id))));
-        combat = buildCombatSpellsFromDofusDb(dbSpells, levels);
+        combat = buildCombatSpellsFromDofusDb(dbSpells, levels, dofusDbStatBonusFromGrades(stats?.grades));
     }
 
     const payload = {

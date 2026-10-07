@@ -33,6 +33,8 @@ describe("sitemap — généré au runtime (jamais dans un build sans base)", ()
         expect(src).toMatch(/getUpcomingAlmanax/);
         expect(src).toMatch(/db\.dungeon\.findMany/);
         // 3 `catch` tracés : un échec (API, base) ne doit jamais priver le sitemap du reste.
-        expect((src.match(/logger\.error\("\[Sitemap\]/g) ?? []).length).toBe(3);
+        // +1 le 29/09/2026 : l'état du guide Sylvestre (`OptimizedGuide.isUnderConstruction`)
+        // conditionne sa publication — même contrat « un échec n'ampute pas le reste ».
+        expect((src.match(/logger\.error\("\[Sitemap\]/g) ?? []).length).toBe(4);
     });
 });

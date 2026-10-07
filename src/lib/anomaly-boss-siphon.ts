@@ -120,8 +120,70 @@ export function pickAnomalySpellIds(monster: any): number[] {
  * simulation isométrique (`SpellRangeGrid`) n'aurait ni AP, ni portée, ni zone.
  * Les libellés d'effets viennent de la description DofusDB déjà formatée en FR par
  * `getMonsterStats` (`parseEffects`) — on n'invente aucun texte.
+ *
+ * Les jets numériques (`effectDetails[].damage`) sont extraits des effets bruts du
+ * niveau (`diceNum`/`diceSide`, `effectId`, `effectElement`) avec le MÊME mapping
+ * élémentaire que `parseEffects` — sans eux la simulation liste les sorts mais
+ * n'affiche aucune prévisu de dégâts (constat Qilby 8131).
  */
-export function buildCombatSpellsFromDofusDb(dbSpells: any[], levels: any[]): DofensiveSpellCombat[] {
+
+type DofusDbStatBonus = { earth?: number; water?: number; fire?: number; air?: number };
+
+/** Extrait les bonus élémentaires du dernier grade (même convention que `parseEffects`). */
+export function dofusDbStatBonusFromGrades(grades: any[]): DofusDbStatBonus {
+    const g5 = Array.isArray(grades) && grades.length > 0 ? grades[grades.length - 1] : {};
+    const num = (v: unknown) => (Number.isFinite(Number(v)) && Number(v) > 0 ? Math.floor(Number(v)) : 0);
+    return { earth: num(g5?.strength), water: num(g5?.chance), fire: num(g5?.intelligence), air: num(g5?.agility) };
+}
+
+/**
+ * Construit les effets structurés d'un niveau de sort DofusDB.
+ * Seuls les dégâts élémentaires directs et les poussées/attirances sont retenus —
+ * tout le reste (soins, états, % PV…) reste texte seul, jamais de chiffre inventé.
+ */
+export function dofusDbEffectDetails(
+    effects: any[],
+    bonus: DofusDbStatBonus = {}
+): { label: string; duration: null; triggers: string[]; masks: string[]; damage: { element: string; min: number; max: number } | null; pushDistance: number | null }[] {
+    const out: { label: string; duration: null; triggers: string[]; masks: string[]; damage: { element: string; min: number; max: number } | null; pushDistance: number | null }[] = [];
+    const scaled = (val: number, stat: number) => Math.floor((Number(val) || 0) * (1 + (Number(stat) || 0) / 100));
+    const elementDamageIds = [91, 92, 93, 94, 95, 112, 113, 117];
+    for (const eff of Array.isArray(effects) ? effects : []) {
+        const id = Math.floor(Number(eff?.effectId));
+        if (!Number.isFinite(id)) continue;
+        const min = Math.floor(Number(eff?.diceNum ?? eff?.value) || 0);
+        const max = Math.floor(Number(eff?.diceSide) || 0);
+        const zoneParam = Math.floor(Number(eff?.zoneDescr?.param1) || 0);
+        if (elementDamageIds.includes(id) && min > 0) {
+            const elem = eff?.effectElement;
+            const key = elem === 1 ? "terre" : elem === 2 ? "feu" : elem === 3 ? "eau" : elem === 4 ? "air" : "neutre";
+            const stat = key === "terre" ? bonus.earth ?? 0 : key === "feu" ? bonus.fire ?? 0 : key === "eau" ? bonus.water ?? 0 : key === "air" ? bonus.air ?? 0 : 0;
+            const lo = scaled(min, stat);
+            const hi = Math.max(lo, scaled(max, stat));
+            if (hi <= 0) continue;
+            const name = key === "neutre" ? "Neutre" : key === "terre" ? "Terre" : key === "feu" ? "Feu" : key === "eau" ? "Eau" : "Air";
+            out.push({ label: `Dommages ${name}`, duration: null, triggers: [], masks: [], damage: { element: key, min: lo, max: hi }, pushDistance: null });
+        } else if ((id === 100 || id === 108) && min > 0) {
+            const lo = scaled(min, 0);
+            const hi = Math.max(lo, scaled(max, 0));
+            if (hi <= 0) continue;
+            out.push({ label: "Vol de vie", duration: null, triggers: [], masks: [], damage: { element: "neutre", min: lo, max: hi }, pushDistance: null });
+        } else if ((id === 97 || id === 96 || id === 99 || id === 98) && min > 0) {
+            const key = id === 97 ? "terre" : id === 96 ? "eau" : id === 99 ? "feu" : "air";
+            const stat = key === "terre" ? bonus.earth ?? 0 : key === "feu" ? bonus.fire ?? 0 : key === "eau" ? bonus.water ?? 0 : bonus.air ?? 0;
+            const lo = scaled(min, stat);
+            const hi = Math.max(lo, scaled(max, stat));
+            if (hi <= 0) continue;
+            const name = key === "terre" ? "Terre" : key === "feu" ? "Feu" : key === "eau" ? "Eau" : "Air";
+            out.push({ label: `Dommages ${name}`, duration: null, triggers: [], masks: [], damage: { element: key, min: lo, max: hi }, pushDistance: null });
+        } else if ((id === 6 || id === 8 || id === 5 || id === 4) && (min > 0 || zoneParam > 0)) {
+            const dist = min > 0 ? min : zoneParam;
+            out.push({ label: id === 6 || id === 8 ? `Attire de ${dist}` : `Repousse de ${dist}`, duration: null, triggers: [], masks: [], damage: null, pushDistance: dist });
+        }
+    }
+    return out;
+}
+export function buildCombatSpellsFromDofusDb(dbSpells: any[], levels: any[], statBonus: DofusDbStatBonus = {}): DofensiveSpellCombat[] {
     // Un seul niveau par sort : le plus haut grade (= comportement des fiches boss).
     const bestBySpell = new Map<number, any>();
     for (const lvl of Array.isArray(levels) ? levels : []) {
@@ -155,6 +217,7 @@ export function buildCombatSpellsFromDofusDb(dbSpells: any[], levels: any[]): Do
             description: description || undefined,
             grade: Number(lvl?.grade) || undefined,
             effects: description ? [description] : [],
+            effectDetails: dofusDbEffectDetails(Array.isArray(lvl?.effects) ? lvl.effects : [], statBonus),
             hasCriticalEffects: false,
             zone: toAnomalyZone(zoneEffect?.zoneDescr),
         });
@@ -358,7 +421,7 @@ export async function syncAnomalyBosses(): Promise<AnomalyBossSyncResult> {
     // 3. RÉSOLUTION carte/famille + co-gardiens de la même carte.
     const resolved = base.map((guardian) => {
         const meta = metaById.get(guardian.id) ?? null;
-        const map = resolveAnomalyMap(meta?.preferredMaps);
+        const map = resolveAnomalyMap(meta?.preferredMaps, guardian.id);
         return {
             ...guardian,
             meta,
@@ -485,7 +548,7 @@ export async function syncAnomalyBosses(): Promise<AnomalyBossSyncResult> {
             if (combat.length === 0) {
                 const dbSpells: any[] = Array.isArray(stats.spells) ? stats.spells : [];
                 const levels = await fetchSpellLevels(dbSpells.map((s) => Math.floor(Number(s?.id))));
-                combat = buildCombatSpellsFromDofusDb(dbSpells, levels);
+                combat = buildCombatSpellsFromDofusDb(dbSpells, levels, dofusDbStatBonusFromGrades(stats?.grades));
             }
 
             // 4.2 Fiche locale (`MonsterStat`) : stats DofusDB enrichies + sorts de combat + métadonnées.

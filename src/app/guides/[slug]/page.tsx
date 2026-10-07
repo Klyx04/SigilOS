@@ -20,9 +20,14 @@ const RAID_OVERLAY_CONFIG: Record<string, { raidSlug: "gigalodon" | "jardin-eter
     raidName: "Gouffre du Gigalodon",
     themeColor: "#06b6d4",
   },
+  "raid-sanctuaire-jardins-eternels-dofus-guide": {
+    raidSlug: "jardin-eternel",
+    raidName: "Sanctuaire des Jardins Éternels",
+    themeColor: "#10b981",
+  },
   "guide-sanctuaire-jardins-eternels": {
     raidSlug: "jardin-eternel",
-    raidName: "Jardin Éternel",
+    raidName: "Sanctuaire des Jardins Éternels",
     themeColor: "#10b981",
   },
 };
@@ -233,23 +238,22 @@ export default async function GuidePage({ params }: { params: Promise<{ slug: st
                         </div>
 
                         {/* ── SIDEBAR STICKY ────────────────────────────────── */}
-                        <aside className="hidden lg:block w-64 xl:w-72 shrink-0">
-                            <div className="sticky top-24 space-y-6">
+                        <aside className="hidden lg:block w-64 xl:w-72 shrink-0 self-start sticky top-20 max-h-[calc(100vh-6rem)] overflow-y-auto custom-scrollbar space-y-6 pr-1">
+                            {/* CTA Overlay Raid — visible uniquement pour les guides raid */}
+                            {raidConfig && (
+                                <RaidOverlayLaunchBanner
+                                    raidSlug={raidConfig.raidSlug}
+                                    raidName={locale === "en"
+                                        ? (raidConfig.raidSlug === "jardin-eternel" ? "Eternal Gardens Sanctuary" : "The Gigalodon Abyss")
+                                        : raidConfig.raidName}
+                                    themeColor={raidConfig.themeColor}
+                                    compact
+                                />
+                            )}
 
-                                {/* CTA Overlay Raid — visible uniquement pour les guides raid */}
-                                {raidConfig && (
-                                    <RaidOverlayLaunchBanner
-                                        raidSlug={raidConfig.raidSlug}
-                                        raidName={raidConfig.raidName}
-                                        themeColor={raidConfig.themeColor}
-                                        compact
-                                    />
-                                )}
-
-                                {/* Table des matières */}
-                                <div className="reg-panel p-4 rounded-xl">
-                                    <GuideTocSidebar contentId="guide-content" />
-                                </div>
+                            {/* Table des matières */}
+                            <div className="reg-panel p-4 rounded-xl">
+                                <GuideTocSidebar contentId="guide-content" title={t.guidesPage.onThisPage} />
                             </div>
                         </aside>
                     </div>
@@ -259,7 +263,9 @@ export default async function GuidePage({ params }: { params: Promise<{ slug: st
                         <div className="lg:hidden mt-10">
                             <RaidOverlayLaunchBanner
                                 raidSlug={raidConfig.raidSlug}
-                                raidName={raidConfig.raidName}
+                                raidName={locale === "en"
+                                    ? (raidConfig.raidSlug === "jardin-eternel" ? "Eternal Gardens Sanctuary" : "The Gigalodon Abyss")
+                                    : raidConfig.raidName}
                                 themeColor={raidConfig.themeColor}
                             />
                         </div>

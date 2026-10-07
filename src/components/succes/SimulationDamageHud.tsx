@@ -315,22 +315,17 @@ export function SimulationDamageHud({
                 // rogner dans la fenêtre de jeu, dont le plateau est en `overflow-hidden`).
                 // `max-h-full` le garde DANS le plateau, `w-60 max-w-full min-w-0` l'empêche de
                 // sortir par la droite, `ml-auto` le recolle à droite même quand la rangée se replie.
-                "pointer-events-auto ml-auto w-60 min-w-0 max-w-full space-y-1.5 overflow-y-auto rounded-xl border p-2 shadow-xl",
+                "pointer-events-auto ml-auto w-60 min-w-0 max-w-full space-y-2 overflow-y-auto rounded-xl border p-2.5 shadow-lg",
                 "max-h-full",
-                isBoard ? "border-white/15 bg-[#121218]/95 backdrop-blur-md" : "border-border bg-popover",
+                isBoard ? "border-border/70 bg-surface/85 backdrop-blur-md" : "border-border bg-popover",
                 scroll,
                 className
             )}
         >
-            {/* En-tête : identité du panneau + fermeture (l'option « Dégâts estimés » repasse à faux). */}
+            {/* En-tête : identité du panneau + fermeture */}
             <div className="flex min-w-0 items-center justify-between gap-2">
-                <p
-                    className={cn(
-                        "flex min-w-0 items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.14em]",
-                        isBoard ? "text-zinc-400" : "text-muted-foreground"
-                    )}
-                >
-                    <Swords className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                <p className="flex min-w-0 items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                    <Swords className="h-3.5 w-3.5 shrink-0 opacity-70" aria-hidden="true" />
                     <span className="truncate">{simT.damageHudTitle}</span>
                 </p>
                 {onClose && (
@@ -339,24 +334,16 @@ export function SimulationDamageHud({
                         onClick={onClose}
                         title={simT.damageHudClose}
                         aria-label={simT.damageHudClose}
-                        className={cn(
-                            "shrink-0 cursor-pointer rounded-md p-0.5 transition-colors",
-                            isBoard ? "text-zinc-400 hover:text-white" : "text-muted-foreground hover:text-foreground"
-                        )}
+                        className="shrink-0 cursor-pointer rounded-md p-0.5 text-muted-foreground transition-colors hover:text-foreground"
                     >
                         <EyeOff className="h-3.5 w-3.5" aria-hidden="true" />
                     </button>
                 )}
             </div>
 
-            {/* Le sort simulé en tête : on sait TOUJOURS de quels jets on parle. */}
+            {/* Le sort simulé en tête */}
             {spell && (
-                <div
-                    className={cn(
-                        "flex min-w-0 items-center gap-1.5 rounded-lg border px-1.5 py-1",
-                        isBoard ? "border-white/10 bg-white/[0.04]" : "border-border bg-surface"
-                    )}
-                >
+                <div className="flex min-w-0 items-center gap-2 rounded-lg border border-border/60 bg-surface/50 px-2 py-1.5">
                     {spell.imageUrl ? (
                         /* eslint-disable-next-line @next/next/no-img-element */
                         <img src={spell.imageUrl} alt="" className="h-4 w-4 shrink-0 rounded-[3px] object-contain" />
@@ -364,7 +351,7 @@ export function SimulationDamageHud({
                         <Swords className="h-4 w-4 shrink-0 opacity-60" aria-hidden="true" />
                     )}
                     <span
-                        className={cn("min-w-0 flex-1 truncate text-[11px] font-bold", isBoard ? "text-zinc-100" : "text-foreground")}
+                        className="min-w-0 flex-1 truncate text-[11px] font-semibold text-foreground"
                         title={spell.name}
                     >
                         {spell.name}
@@ -472,12 +459,10 @@ export function SimulationDamageHud({
                 )}
             </div>
 
-            <p className={cn("text-[9px] leading-tight", isBoard ? "text-zinc-500" : "text-muted-foreground")}>
-                {simT.damageHudCritNote}
-            </p>
-            <p className={cn("text-[9px] leading-tight", isBoard ? "text-zinc-500" : "text-muted-foreground")}>
-                {simT.damageHudRule}
-            </p>
+            <div className="pt-1 border-t border-border/40 space-y-0.5 text-[10px] text-muted-foreground/60">
+                <p>{simT.damageHudRule}</p>
+                <p className="text-[9px] text-muted-foreground/45">{simT.damageHudCritNote}</p>
+            </div>
         </div>
     );
 }

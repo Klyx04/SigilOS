@@ -13,13 +13,14 @@ interface GuideTocSidebarProps {
   /** ID du conteneur contenant le .reg-doc à parser */
   contentId?: string;
   className?: string;
+  title?: string;
 }
 
 /**
  * Sidebar Table of Contents sticky.
  * Parse les h2/h3 du contenu rendu côté client et propose un scrollspy.
  */
-export function GuideTocSidebar({ contentId = "guide-content", className }: GuideTocSidebarProps) {
+export function GuideTocSidebar({ contentId = "guide-content", className, title = "Sur cette page" }: GuideTocSidebarProps) {
   const [entries, setEntries] = useState<TocEntry[]>([]);
   const [activeId, setActiveId] = useState<string>("");
 
@@ -70,18 +71,25 @@ export function GuideTocSidebar({ contentId = "guide-content", className }: Guid
 
   return (
     <nav
-      aria-label="Table des matières"
+      aria-label={title}
       className={cn("space-y-1", className)}
     >
-      <p className="reg-eyebrow mb-3 text-[11px]">Sur cette page</p>
+      <p className="reg-eyebrow mb-3 text-[11px]">{title}</p>
       {entries.map((entry) => (
         <a
           key={entry.id}
           href={`#${entry.id}`}
           onClick={(e) => {
             e.preventDefault();
-            document.getElementById(entry.id)?.scrollIntoView({ behavior: "smooth", block: "start" });
-            setActiveId(entry.id);
+            const el = document.getElementById(entry.id);
+            if (el) {
+              const y = el.getBoundingClientRect().top + window.scrollY - 85;
+              window.scrollTo({ top: Math.max(0, y), behavior: "smooth" });
+              setActiveId(entry.id);
+              if (window.history?.pushState) {
+                window.history.pushState(null, "", `#${entry.id}`);
+              }
+            }
           }}
           className={cn(
             "block py-0.5 text-[13px] leading-snug transition-colors duration-150",

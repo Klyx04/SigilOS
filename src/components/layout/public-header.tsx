@@ -85,6 +85,13 @@ const TOOLS = [
         href: "/raids",
         icon: "/assets/raids/sanctuaire.webp",
     },
+    {
+        id: "elevage",
+        label: "Élevage Studio 3.7",
+        hint: "Calculateur, Croisements & Sérénité",
+        href: "/elevage",
+        icon: "/images/guides/elevage/dragodindes.png",
+    },
 ] as const;
 
 const NAV_ITEMS = [
@@ -169,6 +176,13 @@ export function PublicHeader({
             hint: t.tools.raidHint,
             href: "/raids",
             icon: "/assets/raids/sanctuaire.webp",
+        },
+        {
+            id: "elevage",
+            label: t.tools.elevageTitle,
+            hint: t.tools.elevageHint,
+            href: "/elevage",
+            icon: "/images/guides/elevage/dragodindes.png",
         },
     ];
 

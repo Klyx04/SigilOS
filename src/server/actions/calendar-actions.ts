@@ -14,6 +14,7 @@ import { getUserContext } from "@/server/actions/user-actions";
 import { deleteChannelMessage } from "@/server/discord";
 import { buildClassSelectRow } from "@/server/discord-class-dispatch";
 import { rateLimit } from "@/lib/ratelimit";
+import { blindAutoCloseWhere, shouldBlindAutoClose } from "@/lib/calendar-auto-close";
 import { startOfWeek, addDays } from "date-fns";
 
 // ============================================
@@ -128,13 +129,11 @@ export async function getCalendarEvents(guildId: string, start: Date, end: Date)
 
         const now = new Date();
 
-        // Auto-complete past events that are still PUBLISHED
+        // Clôture d'office des événements terminés — règle partagée (`blindAutoCloseWhere`) :
+        // un RAID_OFFICIAL n'est clôturé qu'à +48 h, sinon le rappel de clôture (24 h après
+        // la fin) ne pourrait jamais partir (raid déjà COMPLETED, embed supprimé).
         await db.guildEvent.updateMany({
-            where: {
-                guildId: guildConfig.id,
-                endDate: { lt: now },
-                status: "PUBLISHED"
-            },
+            where: blindAutoCloseWhere(guildConfig.id, now),
             data: { status: "COMPLETED" }
         }).catch(() => {});
 
@@ -159,7 +158,7 @@ export async function getCalendarEvents(guildId: string, start: Date, end: Date)
                                 image: true,
                                 profiles: {
                                     where: { guildId: guildConfig.id },
-                                    select: { discordNickname: true }
+                                    select: { discordNickname: true, classe: true }
                                 }
                             }
                         }
@@ -204,7 +203,10 @@ export async function getCalendarEvents(guildId: string, start: Date, end: Date)
         }
 
         const patchedEvents = events.map(event => {
-            const isPast = event.endDate && new Date(event.endDate) < now;
+            // Même règle que la passe de fond : un raid qui attend sa clôture reste affiché
+            // « Publié » (le rappel de clôture part à +24 h, la clôture d'office n'a lieu
+            // qu'à +48 h) — sinon l'agenda annoncerait « terminé » un raid non clôturé.
+            const isPast = shouldBlindAutoClose(event.type, event.endDate, now);
             const effectiveStatus = (isPast && event.status === "PUBLISHED") ? "COMPLETED" : event.status;
             const meta = event.metadata as any;
             if (meta?.isKralamoure) {
@@ -314,7 +316,7 @@ export async function getCalendarEventDetails(guildId: string, eventId: string) 
                                 image: true,
                                 profiles: {
                                     where: { guildId: guildConfig.id },
-                                    select: { discordNickname: true }
+                                    select: { discordNickname: true, classe: true }
                                 }
                             }
                         }
@@ -328,7 +330,9 @@ export async function getCalendarEventDetails(guildId: string, eventId: string) 
 
         // Auto-complete past event if still PUBLISHED
         const now = new Date();
-        const isPast = event.endDate && new Date(event.endDate) < now;
+        // Même règle que la passe de fond : un raid n'est « terminé » qu'à +48 h, pour que
+        // le rappel de clôture (24 h après la fin) ait le temps de partir.
+        const isPast = shouldBlindAutoClose(event.type, event.endDate, now);
         const effectiveStatus = (isPast && event.status === "PUBLISHED") ? "COMPLETED" : event.status;
 
         if (isPast && event.status === "PUBLISHED") {
@@ -1389,6 +1393,11 @@ export async function registerForEvent(
     const ctx = await getUserContext(guildId);
     if (!ctx.isAuthenticated) return { success: false, error: "Non authentifié" };
     if (!ctx.isMember) return { success: false, error: "Membre requis" };
+    // Fail-closed : même gate que la page calendrier (`canViewCalendar` =
+    // `community:access` + module actif) et que le bouton Discord. Sans ça, un
+    // membre sans rôle pouvait s'inscrire depuis le site alors que le dashboard
+    // lui refusait l'accès (03/10/2026).
+    if (!(ctx as any).canViewCalendar) return { success: false, error: "Accès calendrier requis" };
 
     try {
         const { processRegistration } = await import("@/server/calendar-service");
@@ -1400,12 +1409,44 @@ export async function registerForEvent(
 }
 
 /**
+ * Change **ma** classe d'inscription depuis le site (dashboard).
+ *
+ * Même règle serveur que le menu classe Discord (`updateRegistrationClass`) :
+ * mise à jour si je suis inscrit, sinon inscription avec cette classe. Aucune garde
+ * « créateur » : l'organisateur change SA classe comme n'importe quel inscrit.
+ * Une valeur vide efface la classe choisie (le profil reprend la main à l'affichage).
+ */
+export async function updateMyRegistrationClass(guildId: string, eventId: string, classe: string) {
+    const ctx = await getUserContext(guildId);
+    if (!ctx.isAuthenticated) return { success: false, error: "Non authentifié" };
+    if (!ctx.isMember) return { success: false, error: "Membre requis" };
+    if (!(ctx as any).canViewCalendar) return { success: false, error: "Accès calendrier requis" };
+
+    try {
+        const raw = (classe ?? "").trim().slice(0, 30);
+        // Classe FACULTATIVE : une valeur inconnue reste un refus explicite (jamais écrit).
+        const { matchDispatchClass } = await import("@/server/discord-class-dispatch");
+        const matched = raw ? matchDispatchClass(raw) : "";
+        if (matched === null) return { success: false, error: "Classe inconnue" };
+
+        const { updateRegistrationClass } = await import("@/server/calendar-service");
+        const outcome = await updateRegistrationClass(guildId, eventId, ctx.id!, matched);
+        if (outcome.success) revalidatePath(`/dashboard/${guildId}/calendar`);
+        return outcome;
+    } catch (error) {
+        logger.error("[Calendar] updateMyRegistrationClass Error:", error);
+        return { success: false, error: "Erreur lors du changement de classe" };
+    }
+}
+
+/**
  * Unregister from an event
  */
 export async function unregisterFromEvent(guildId: string, eventId: string) {
     const ctx = await getUserContext(guildId);
     if (!ctx.isAuthenticated) return { success: false, error: "Non authentifié" };
     if (!ctx.isMember) return { success: false, error: "Membre requis" };
+    if (!(ctx as any).canViewCalendar) return { success: false, error: "Accès calendrier requis" };
 
     try {
         const { processUnregistration } = await import("@/server/calendar-service");
@@ -1987,13 +2028,10 @@ export async function autoCloseExpiredEvents(guildId: string) {
 
         const now = new Date();
 
-        // Find published events that have ended
+        // Événements terminés à clôturer d'office — règle partagée (`blindAutoCloseWhere`) :
+        // à +48 h seulement pour les raids, dès la fin pour tous les autres types.
         const expiredEvents = await db.guildEvent.findMany({
-            where: {
-                guildId: guildConfig.id,
-                status: "PUBLISHED",
-                endDate: { lt: now }
-            },
+            where: blindAutoCloseWhere(guildConfig.id, now),
             select: { id: true, title: true, metadata: true, discordChannelId: true, discordMessageId: true }
         });
 

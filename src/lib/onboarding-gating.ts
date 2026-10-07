@@ -181,6 +181,48 @@ export function buildPendingGuildIconUrl(guildId: string, iconHash: string | nul
 }
 
 /**
+ * Accès affiché sur le portail (`getGuildsSeparated`) — SOURCE UNIQUE du libellé.
+ *
+ * Le portail ne doit JAMAIS faire confiance au seul `status === "ACTIVE"` en base :
+ * un profil reste `ACTIVE` après un retrait de rôle (aucun cleanup à la révocation),
+ * alors que le gatekeeper du dashboard (`getUserContext`) relit les rôles live.
+ * D'où le mensonge mesuré le 03/10/2026 : portail « Membre Actif » + dashboard
+ * « Accès Non Autorisé » après retrait du rôle.
+ *
+ * - `isAdmin` = admin Discord natif (bypass, comme le gate).
+ * - `isGod` = staff plateforme (bypass, comme le gate).
+ * - `liveOk` = `internalCheckPermission(guildId, discordId, dashboard:login)` :
+ *   `true` = rôle live OK (même sans profil encore créé → accessible dès l'octroi),
+ *   `false` = rôle live KO (même avec profil `ACTIVE` périmé → « Rôle requis »),
+ *   `null` = Discord injoignable → repli sur la base (affichage seul, le gate
+ *   dashboard reste fail-closed).
+ */
+export type PortalAccessInput = {
+    isAdmin: boolean;
+    isGod: boolean;
+    dbActive: boolean;
+    liveOk: boolean | null;
+};
+
+export function resolvePortalAccess(input: PortalAccessInput): {
+    hasAccess: boolean;
+    accessLabel: string;
+} {
+    if (input.isGod || input.isAdmin) {
+        return { hasAccess: true, accessLabel: "Administrateur" };
+    }
+    if (input.liveOk === true) {
+        return { hasAccess: true, accessLabel: "Membre Actif" };
+    }
+    if (input.liveOk === false) {
+        return { hasAccess: false, accessLabel: "Rôle d'accès requis" };
+    }
+    return input.dbActive
+        ? { hasAccess: true, accessLabel: "Membre Actif" }
+        : { hasAccess: false, accessLabel: "Rôle d'accès requis" };
+}
+
+/**
  * Clés qui comptent comme « un module a été configuré ».
  *
  * Dérivées du **registre** (`DEFAULT_MODULES`) — jamais recopiées : la liste codée en dur qui vivait

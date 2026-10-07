@@ -57,6 +57,10 @@ export interface SpellData {
     nameEn?: string;
     imageUrl?: string;
     description?: string;
+    unityIconId?: number;
+    unityDescription?: string;
+    unityEffects?: string[];
+    unityCriticalEffects?: string[];
     apCost?: number;
     minRange?: number;
     range?: number;
@@ -439,7 +443,9 @@ export function SpellRangeGrid({
         return nonBoss;
     }, [monsters, bossName]);
 
-    // Calcul complet des positions de monstres pour le Butin et Placement sélectionnés
+    // Calcul complet des positions de monstres pour le Butin et Placement sélectionnés.
+    // Convention Dofus prouvée (Ankama_Fight.d2ui) : défenseurs = BLEU = `allyCells` dans Dofensive.
+    // Les joueurs (attaquants = ROUGE) arrivent par `enemyCells`.
     const monsterPlacements = useMemo(() => {
         if (!mapData || !mapData.allyCells || mapData.allyCells.length === 0) return [];
         const computed = computeMonsterPlacements(mapData.allyCells, placementIndex);
@@ -486,14 +492,15 @@ export function SpellRangeGrid({
     }, [mapData, placementIndex, lootCount, bossName, bossImageUrl, roomMonsters]);
 
     // Cases de départ (alliés/ennemis) rendues quand le toggle est actif.
-    // Inversion conforme Dofus : Dofensive expose les monstres dans allyCells et les joueurs dans enemyCells.
+    // Convention Dofus (Ankama_Fight.d2ui, prouvée) : joueurs/attaquants = ROUGE = `enemyCells`,
+    // monstres/défenseurs = BLEU = `allyCells`.
     // Filtrage strict : seules les cases monstres OCCUPÉES par le butin actuel (4..8) sont allumées.
     const startCells = useMemo(() => {
         if (!mapData || !showStartCells) return null;
         const ally = new Set<string>();
         const enemy = new Map<string, number>(); // key -> order (1..lootCount)
 
-        // Joueurs (Alliés) : cases de départ joueurs
+        // Joueurs (Attaquants) : cases de départ joueurs = enemyCells (rouges)
         for (const id of mapData.enemyCells) {
             const p = cellIdToXY(id);
             ally.add(`${p.x},${p.y}`);
@@ -514,7 +521,7 @@ export function SpellRangeGrid({
 
     // Placements de départ calculés selon l'algorithme Dofus :
     // - Le boss et les monstres sont positionnés selon le placement et butin choisis
-    // - Les Fécas (alliés) ne sont pas posés par défaut (les cases joueurs restent libres et disponibles).
+    // - Les joueurs (alliés) ne sont pas posés par défaut (les cases rouges restent libres et disponibles).
     const applyStartCells = (data: DofensiveMapData, enabled: boolean, pIdx: number = placementIndex) => {
         if (data.allyCells.length > 0) {
             const { bossCell } = computeMonsterPlacements(data.allyCells, pIdx);
@@ -624,11 +631,10 @@ export function SpellRangeGrid({
 
     /**
      * Alliés (Fécas) posés sur les cases de départ **joueurs** de la carte réelle.
-     * `enemyCells` = cases joueurs Dofensive (inversion conforme Dofus : les monstres sont
-     * exposés dans `allyCells`). Aucune case joueur ⇒ aucun allié posé.
+     * `allyCells` = cases joueurs (bleues côté jeu). Aucune case joueur ⇒ aucun allié posé.
      */
     const allyStartTokens = (data: DofensiveMapData): AllyToken[] =>
-        allyStartPositions(data.enemyCells, MAX_ALLIES).map((p) => ({ x: p.x, y: p.y, facing: 0 }));
+        allyStartPositions(data.allyCells, MAX_ALLIES).map((p) => ({ x: p.x, y: p.y, facing: 0 }));
 
     // Toggle « placements de départ » : pose/retire boss + alliés sur les cases réelles.
     const toggleStartCells = () => {
@@ -993,6 +999,7 @@ export function SpellRangeGrid({
     const recenter = () => {
         setPan({ x: 0, y: 0 });
         if (mapData && mapData.enemyCells.length) {
+            // Monstres sur les ROUGES (`enemyCells`).
             const p = cellIdToXY(mapData.enemyCells[0]);
             setCasterPos({ x: p.x, y: p.y });
             return;
@@ -1021,6 +1028,34 @@ export function SpellRangeGrid({
         wasZoomed.current = isZoomed;
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [zoom]);
+
+    // Fit auto à l'ouverture du plein écran (et au changement de carte) : le zoom
+    // persisté (`sigilos_sim_*`) ou le 100 % par défaut débordent du conteneur
+    // (`overflow-hidden` en plein écran) et forcent un dézoom du navigateur
+    // (constat Qilby). On réduit au ratio mesuré, jamais d'upscale, pan réinitialisé.
+    useEffect(() => {
+        if (!fullscreen || typeof window === "undefined") return;
+        const frame = window.requestAnimationFrame(() => {
+            try {
+                const inner = zoomRef.current;
+                const box = inner?.parentElement;
+                const svg = inner?.querySelector("svg");
+                if (!inner || !box || !svg) return;
+                const r = svg.getBoundingClientRect();
+                const pr = box.getBoundingClientRect();
+                if (r.width <= 0 || r.height <= 0 || pr.width <= 0 || pr.height <= 0) return;
+                const overflow = Math.max(r.width / pr.width, r.height / pr.height);
+                if (overflow > 1) {
+                    setZoom((z) => Math.max(ZOOM_MIN, Number((z / overflow).toFixed(2))));
+                    setPan({ x: 0, y: 0 });
+                }
+            } catch {
+                // Mesure impossible → on garde le zoom courant
+            }
+        });
+        return () => window.cancelAnimationFrame(frame);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [fullscreen, selectedMapId, mapData]);
 
     // Mini-carte : pixels 1 case → 1 px pour l'aperçu global (cliquable → déplacer le lanceur).
     const miniMap = useMemo(() => {
@@ -1258,16 +1293,17 @@ export function SpellRangeGrid({
                     aria-label={simT.damageToggle}
                     title={title}
                     className={cn(
-                        "inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[10px] font-semibold tabular-nums transition-colors",
+                        "inline-flex items-center gap-1.5 rounded-lg border px-2 py-1 text-[11px] font-medium tabular-nums transition-colors",
                         unavailable
-                            ? "cursor-not-allowed border-white/10 bg-white/[0.03] text-zinc-500"
+                            ? "cursor-not-allowed border-border/40 bg-surface/30 text-muted-foreground/40"
                             : active
-                                ? "cursor-pointer border-warning/40 bg-warning/15 text-white"
-                                : "cursor-pointer border-white/10 bg-zinc-900 text-zinc-400 hover:text-white"
+                                ? "cursor-pointer border-foreground/30 bg-foreground/10 text-foreground font-semibold"
+                                : "cursor-pointer border-border bg-surface text-muted-foreground hover:text-foreground hover:bg-elevated"
                     )}
                 >
-                    <Swords className="h-3 w-3 shrink-0" aria-hidden="true" />
-                    {totalLabel}
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src="/assets/dofus/stats/dommages.png" alt="" className="h-3 w-3 object-contain shrink-0 opacity-70" />
+                    <span>{unavailable ? "Dégâts : —" : totalLabel}</span>
                 </button>
             );
         }
@@ -1336,8 +1372,8 @@ export function SpellRangeGrid({
             isRealMap={!!mapData}
             showAllies={!hideAllies}
             showEnemies={enemiesEnabled}
+            showStarts={showStartCells}
             enemyIconUrl={enemyIconUrl ?? ""}
-            freeBossHint={allowFreeCasterMove ? (freeCasterMove ? simT.helpers.freeBossTip : simT.helpers.pinnedBossTip) : simT.helpers.pinnedBossTip}
             className={rail ? "w-full" : undefined}
         />
     );
@@ -1424,12 +1460,24 @@ export function SpellRangeGrid({
         <div className={cn(compact ? "flex flex-col h-full space-y-1.5 p-0 bg-transparent border-0 shadow-none min-h-0" : "space-y-3 rounded-2xl bg-surface border border-border p-4 sm:p-5 shadow-xs", fullscreen && "h-full min-h-0 flex flex-col space-y-0 rounded-none border-0 bg-transparent p-0 sm:p-0 shadow-none")}>
             {/* Toolbar Simulation Compacte : Choix du sort & Paramètres de portée */}
             {!compact && (
-                <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-background border border-border rounded-xl">
-                    {/* Identité du SORT ACTIF : icône + nom + ses propriétés. Avant, c'était un
-                        `<select>` nu collé à un libellé « Sort simulé : » — ni l'icône du sort, ni
-                        une hiérarchie : on « perdait » le bandeau (retour user 21/09/2026). */}
-                    <div className="flex min-w-0 shrink items-center gap-2.5 rounded-xl border border-warning/25 bg-warning/[0.06] px-2.5 py-1.5">
-                        {currentSpell?.imageUrl ? (
+                <div className="flex flex-wrap items-center justify-between gap-3 p-2.5 bg-background border border-border/80 rounded-xl">
+                    {/* Identité du sort simulé */}
+                    <div className="flex min-w-0 shrink items-center gap-2.5 rounded-lg border border-border/70 bg-surface/50 px-3 py-1.5">
+                        {currentSpell?.unityIconId && currentSpell.unityIconId > 0 ? (
+                            /* eslint-disable-next-line @next/next/no-img-element */
+                            <img
+                                src={`/uploads/assets-dofus/spells/sort_${currentSpell.unityIconId}.webp`}
+                                alt=""
+                                className="h-7 w-7 shrink-0 rounded-[4px] object-contain"
+                                onError={(e) => {
+                                    if (currentSpell.imageUrl) {
+                                        (e.target as HTMLImageElement).src = `/api/assets-dofus/spells/${currentSpell.id}?url=${encodeURIComponent(currentSpell.imageUrl)}`;
+                                    } else {
+                                        (e.target as HTMLImageElement).style.display = "none";
+                                    }
+                                }}
+                            />
+                        ) : currentSpell?.imageUrl ? (
                             /* eslint-disable-next-line @next/next/no-img-element */
                             <img
                                 src={currentSpell.imageUrl}
@@ -1446,16 +1494,13 @@ export function SpellRangeGrid({
                                 }}
                             />
                         ) : (
-                            <Zap className="h-6 w-6 shrink-0 text-warning" />
+                            <Zap className="h-5 w-5 shrink-0 opacity-70" />
                         )}
 
                         <div className="flex min-w-0 flex-col">
-                            <span className="text-[9px] font-black uppercase tracking-[0.14em] text-muted-foreground">
+                            <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground/80">
                                 {simT.simulatedSpell}
                             </span>
-                            {/* Sélecteur de sort partagé (`SimulationSpellPicker`) : le `<select>`
-                                natif ne pouvait ni porter l'icône du sort, ni les jets par élément,
-                                ni s'accorder au thème (retour user 21/09/2026). */}
                             <SimulationSpellPicker
                                 variant="page"
                                 showTriggerIcon={false}
@@ -1471,52 +1516,26 @@ export function SpellRangeGrid({
                         </div>
 
                         {currentSpell && (
-                            <div className="flex shrink-0 flex-wrap items-center gap-1.5">
-                                <span className="rounded-md border border-info/20 bg-info/10 px-1.5 py-0.5 text-[10px] font-bold text-info">
-                                    {currentSpell.apCost || 0} PA
+                            <div className="flex shrink-0 items-center gap-2 pl-2 border-l border-border/50">
+                                <span className="inline-flex items-center gap-1 font-mono text-xs font-semibold text-foreground/90">
+                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                    <img src="/assets/dofus/stats/pa.png" alt="PA" className="h-3.5 w-3.5 object-contain" />
+                                    {currentSpell.apCost || 0}
                                 </span>
-                                <span className="rounded-md border border-border bg-muted/15 px-1.5 py-0.5 text-[10px] font-bold text-muted-foreground">
-                                    {minRange === maxRange ? `${maxRange} PO` : `${minRange} à ${maxRange} PO`}
+                                <span className="text-muted-foreground/30">·</span>
+                                <span className="inline-flex items-center gap-1 font-mono text-xs font-semibold text-foreground/90">
+                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                    <img src="/assets/dofus/stats/po.png" alt="PO" className="h-3.5 w-3.5 object-contain" />
+                                    {minRange === maxRange ? `${maxRange}` : `${minRange}-${maxRange}`}
                                 </span>
-                                {/* La ligne de vue est la NORME : on n'affiche que l'exception
-                                    (« Sans Ligne de Vue »), pour que l'information rare se voie. */}
                                 {!castTestLos && (
-                                    <span className="rounded-md border border-success/30 bg-success/15 px-1.5 py-0.5 text-[10px] font-black text-success">
+                                    <span className="rounded-md border border-border bg-background px-1.5 py-0.5 text-[10px] font-medium text-foreground">
                                         {simT.noLos}
                                     </span>
                                 )}
                                 {currentSpell.zone && currentSpell.zone.shape !== "Inconnue" && (
-                                    <span className="rounded-md border border-accent/20 bg-accent/10 px-1.5 py-0.5 text-[10px] font-bold text-accent">
+                                    <span className="rounded-md border border-border bg-background px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
                                         {simT.zoneShape.replace("{shape}", currentSpell.zone.shape)}
-                                    </span>
-                                )}
-                                {/* Dégâts estimés (option) : jets RÉELS par élément, avec les icônes et
-                                    les couleurs d'éléments du jeu (thème de stats partagé). */}
-                                {showDamage &&
-                                    ELEMENT_ORDER.filter((el) => damageInfo.lines.some((l) => l.element === el)).map((el) => {
-                                        const line = damageInfo.lines.find((l) => l.element === el) as SpellDamageLine;
-                                        return (
-                                            <span
-                                                key={el}
-                                                title={STAT_THEMES[ELEMENT_STAT_KEY[el]].label}
-                                                className={cn(
-                                                    "inline-flex items-center gap-1 rounded-md border border-border bg-surface px-1.5 py-0.5 text-[10px] font-bold tabular-nums",
-                                                    elementColor(el)
-                                                )}
-                                            >
-                                                {/* eslint-disable-next-line @next/next/no-img-element */}
-                                                <img src={elementIcon(el)} alt="" className="h-3.5 w-3.5 shrink-0 object-contain" />
-                                                {formatDamageRange(line.min, line.max)}
-                                            </span>
-                                        );
-                                    })}
-                                {showDamage && damageInfo.push !== null && (
-                                    <span
-                                        title={simT.damageToggleTitle}
-                                        className="inline-flex items-center gap-1 rounded-md border border-border bg-surface px-1.5 py-0.5 text-[10px] font-bold text-muted-foreground"
-                                    >
-                                        <Move className="h-3 w-3 shrink-0" aria-hidden="true" />
-                                        {simT.damagePush.replace("{count}", String(damageInfo.push))}
                                     </span>
                                 )}
                             </div>
@@ -1663,6 +1682,15 @@ export function SpellRangeGrid({
                                                                 Boss
                                                             </span>
                                                         )}
+                                                        {m.fromClient && (
+                                                            <span
+                                                                // eslint-disable-next-line sigil/no-hardcoded-colors -- badge « Client jeu » : même palette imposée que le plateau (cf. fond #050505)
+                                                                className="text-[8px] px-1.5 py-0.2 rounded-full border border-white/20 text-white/85 shrink-0"
+                                                                title={m.name}
+                                                            >
+                                                                {simT.mapSourceClient}
+                                                            </span>
+                                                        )}
                                                         {isSelected && <Check className="w-3 h-3 text-zinc-400 shrink-0" />}
                                                     </button>
                                                 );
@@ -1780,6 +1808,10 @@ export function SpellRangeGrid({
                                         </label>
                                     )}
 
+                                    <p className="pt-0.5 text-[9px] font-black uppercase tracking-[0.14em] text-white/35">
+                                        {simT.optionsSectionLoot}
+                                    </p>
+
                                     <label className="flex items-center justify-between gap-2 text-[10px] font-bold text-zinc-400">
                                         {simT.loot}
                                         <select
@@ -1859,7 +1891,7 @@ export function SpellRangeGrid({
                                         onClick={() => setFreeCasterMove((v) => !v)}
                                         className={cn(
                                             "px-1.5 py-0.5 rounded-md border text-[10px] font-semibold transition-colors",
-                                            freeCasterMove ? "bg-white/[0.12] border-white/25 text-white" : "bg-zinc-900 border-white/10 text-zinc-400 hover:text-white"
+                                            freeCasterMove ? "bg-warning/30 border-warning/60 text-warning" : "bg-zinc-900 border-white/10 text-zinc-400 hover:text-white"
                                         )}
                                         title={freeCasterMove ? "Boss libre : cliquez une case pour le déplacer (actif)" : "Boss libre : cliquez une case pour le déplacer"}
                                     >
@@ -1958,6 +1990,15 @@ export function SpellRangeGrid({
                                                             <span className="truncate" title={m.name}>{m.name}</span>
                                                         </div>
                                                         {m.isBoss && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-white/[0.10] text-white/85">Boss</span>}
+                                                        {m.fromClient && (
+                                                            <span
+                                                                // eslint-disable-next-line sigil/no-hardcoded-colors -- badge « Client jeu » : même palette imposée que le plateau (cf. fond #050505)
+                                                                className="text-[9px] font-bold px-1.5 py-0.5 rounded-full border border-white/20 text-white/85 shrink-0"
+                                                                title={m.name}
+                                                            >
+                                                                {simT.mapSourceClient}
+                                                            </span>
+                                                        )}
                                                         {isSelected && <Check className="w-3.5 h-3.5 text-zinc-300 shrink-0" />}
                                                     </button>
                                                 );
@@ -2015,23 +2056,15 @@ export function SpellRangeGrid({
                                 <div
                                     data-no-drag
                                     className={cn(
-                                        // 🔁 22/09/2026 (retour user « on voit rien au degat sur les
-                                        // autres ») : il n'est plus posé EN SURIMPRESSION du plateau
-                                        // (il masquait les badges de dégâts des entités) — il
-                                        // s'insère dans le FLUX, sous la rangée d'outils, et la carte
-                                        // descend d'autant.
                                         "mt-1 w-full space-y-2 overflow-y-auto rounded-xl border p-2.5 [scrollbar-width:thin]",
-                                        // Mode complet : panneau clair/sombre selon le THÈME (il est
-                                        // posé sur `bg-surface`) — un panneau sombre sous une page
-                                        // claire serait un corps étranger.
                                         compact
-                                            ? "border-white/15 bg-[#121218]/97 backdrop-blur-md"
-                                            : "border-border bg-elevated"
+                                            ? "border-border/70 bg-surface/90 backdrop-blur-md"
+                                            : "border-border bg-surface/95 backdrop-blur-md"
                                     )}
-                                    style={{ maxHeight: "min(65vh, 24rem)" }}
+                                    style={{ maxHeight: "min(40vh, 16rem)" }}
                                 >
-                                    <div className="flex items-center justify-between gap-2">
-                                        <p className="text-[9px] font-black uppercase tracking-[0.14em] text-muted-foreground">
+                                    <div className="flex items-center justify-between gap-2 border-b border-border/50 pb-2">
+                                        <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
                                             {simT.optionsTitle}
                                         </p>
                                         <button
@@ -2043,145 +2076,139 @@ export function SpellRangeGrid({
                                             <X className="h-3.5 w-3.5" aria-hidden="true" />
                                         </button>
                                     </div>
-                            {/* Sections NOMMÉES (retour user « composant ultra optimisé ui ux ») :
-                                personnages & plateau, puis placement, puis butin, puis actions. */}
-                            <p className="pt-0.5 text-[10px] font-black uppercase tracking-[0.14em] text-muted-foreground">
-                                {simT.optionsSectionBoard}
-                            </p>
-                            {!hideAllies && (
-                                <button
-                                    type="button"
-                                    onClick={() => { setPlacingAlly((v) => !v); setSelectedAlly(null); }}
-                                    className={cn(
-                                        "inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1.5 rounded-lg border transition-all cursor-pointer",
-                                        placingAlly
-                                            ? "bg-sky-500/20 border-sky-400 text-sky-500 dark:text-sky-300"
-                                            : "bg-surface border-border text-muted-foreground hover:text-foreground hover:bg-elevated"
+
+                                    {/* Rangée 1 : Actions & Modes de plateau */}
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        {!hideAllies && (
+                                            <button
+                                                type="button"
+                                                onClick={() => { setPlacingAlly((v) => !v); setSelectedAlly(null); }}
+                                                className={cn(
+                                                    "inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1.5 rounded-lg border transition-all cursor-pointer",
+                                                    placingAlly
+                                                        ? "bg-foreground/10 border-foreground/30 text-foreground"
+                                                        : "bg-surface border-border text-muted-foreground hover:text-foreground hover:bg-elevated"
+                                                )}
+                                            >
+                                                <Users className="w-3.5 h-3.5" />
+                                                {placingAlly ? simT.alliesPlacementHint : `${simT.allies} ${allies.length}/${MAX_ALLIES}`}
+                                            </button>
+                                        )}
+                                        {enemiesEnabled && (
+                                            <button
+                                                type="button"
+                                                onClick={() => { setPlacingEnemy((v) => !v); setSelectedEnemy(null); }}
+                                                className={cn(
+                                                    "inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1.5 rounded-lg border transition-all cursor-pointer",
+                                                    placingEnemy
+                                                        ? "bg-foreground/10 border-foreground/30 text-foreground"
+                                                        : "bg-surface border-border text-muted-foreground hover:text-foreground hover:bg-elevated"
+                                                )}
+                                            >
+                                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                <img src={enemyIconUrl} alt="" className="w-3.5 h-3.5 object-contain" loading="lazy" />
+                                                {placingEnemy ? simT.enemiesPlacementHint : `${simT.enemies} ${enemies.length}/${MAX_ENEMIES}`}
+                                            </button>
+                                        )}
+                                        {mapData && (
+                                            <button
+                                                type="button"
+                                                onClick={toggleStartCells}
+                                                className={cn(
+                                                    "inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1.5 rounded-lg border transition-all cursor-pointer",
+                                                    showStartCells
+                                                        ? "bg-foreground/10 border-foreground/30 text-foreground"
+                                                        : "bg-surface border-border text-muted-foreground hover:text-foreground hover:bg-elevated"
+                                                )}
+                                                title={simT.startCellsTitle}
+                                            >
+                                                <MapIcon className="w-3.5 h-3.5" /> {simT.startCells}
+                                            </button>
+                                        )}
+                                        {allowFreeCasterMove && (
+                                            <button
+                                                type="button"
+                                                onClick={() => setFreeCasterMove((v) => !v)}
+                                                className={cn(
+                                                    "inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1.5 rounded-lg border transition-all cursor-pointer",
+                                                    freeCasterMove
+                                                        ? "bg-warning/20 border-warning/60 text-warning font-bold shadow-sm"
+                                                        : "bg-surface border-border text-muted-foreground hover:text-foreground hover:bg-elevated"
+                                                )}
+                                                title={simT.freeBossTitle}
+                                            >
+                                                <Move className="w-3.5 h-3.5" /> {freeCasterMove ? simT.freeBossOn : simT.freeBoss}
+                                            </button>
+                                        )}
+                                        {(allies.length > 0 || enemies.length > 0) && (
+                                            <button
+                                                type="button"
+                                                onClick={() => { setAllies([]); setEnemies([]); setSelectedAlly(null); setSelectedEnemy(null); }}
+                                                className="inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground bg-surface border border-border px-2.5 py-1.5 rounded-lg transition-all cursor-pointer ml-auto"
+                                            >
+                                                <RotateCcw className="w-3 h-3" /> {simT.clear}
+                                            </button>
+                                        )}
+                                    </div>
+
+                                    {/* Rangée 2 : Sélecteurs de configuration de salle */}
+                                    {mapData && (
+                                        <div className="flex flex-wrap items-center gap-3 pt-1 border-t border-border/40 text-xs">
+                                            {totalPlacements > 1 && (
+                                                <div className="inline-flex items-center gap-1.5 bg-surface/50 border border-border rounded-lg px-2 py-1">
+                                                    <span className="text-[11px] font-medium text-muted-foreground">{simT.placement}</span>
+                                                    <select
+                                                        value={placementIndex}
+                                                        onChange={(e) => {
+                                                            const nextIdx = Number(e.target.value);
+                                                            setPlacementIndex(nextIdx);
+                                                            if (mapData) {
+                                                                setShowStartCells(true);
+                                                                applyStartCells(mapData, true, nextIdx);
+                                                            }
+                                                        }}
+                                                        className="bg-transparent text-foreground text-xs font-bold focus:outline-none cursor-pointer"
+                                                    >
+                                                        {Array.from({ length: totalPlacements }).map((_, i) => (
+                                                            <option key={i + 1} value={i + 1} className="bg-popover text-foreground">
+                                                                {i + 1} / {totalPlacements}
+                                                            </option>
+                                                        ))}
+                                                    </select>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setShowRulesModal(true)}
+                                                        className="text-muted-foreground hover:text-foreground transition-colors p-0.5 cursor-pointer"
+                                                        title={simT.rulesModalTooltip}
+                                                    >
+                                                        <HelpCircle className="w-3.5 h-3.5" />
+                                                    </button>
+                                                </div>
+                                            )}
+
+                                            <div className="inline-flex items-center gap-1.5 bg-surface/50 border border-border rounded-lg px-2 py-1">
+                                                <span className="text-[11px] font-medium text-muted-foreground">{simT.loot}</span>
+                                                <select
+                                                    value={lootCount}
+                                                    onChange={(e) => {
+                                                        const nextLoot = Number(e.target.value);
+                                                        setLootCount(nextLoot);
+                                                        if (mapData) {
+                                                            setShowStartCells(true);
+                                                            applyStartCells(mapData, true, placementIndex);
+                                                        }
+                                                    }}
+                                                    className="bg-transparent text-foreground text-xs font-bold focus:outline-none cursor-pointer"
+                                                >
+                                                    {[4, 5, 6, 7, 8].map((b) => (
+                                                        <option key={b} value={b} className="bg-popover text-foreground">
+                                                            {simT.lootOption.replace(/\{count\}/g, String(b))}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                        </div>
                                     )}
-                                >
-                                    <Users className="w-3.5 h-3.5" />
-                                    {placingAlly ? simT.alliesPlacementHint : `${simT.allies} ${allies.length}/${MAX_ALLIES}`}
-                                </button>
-                            )}
-                            {enemiesEnabled && (
-                                <button
-                                    type="button"
-                                    onClick={() => { setPlacingEnemy((v) => !v); setSelectedEnemy(null); }}
-                                    className={cn(
-                                        "inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1.5 rounded-lg border transition-all cursor-pointer",
-                                        placingEnemy
-                                            ? "bg-red-500/20 border-red-400 text-red-500 dark:text-red-300"
-                                            : "bg-surface border-border text-muted-foreground hover:text-foreground hover:bg-elevated"
-                                    )}
-                                >
-                                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                                    <img src={enemyIconUrl} alt="" className="w-3.5 h-3.5 object-contain" loading="lazy" />
-                                    {placingEnemy ? simT.enemiesPlacementHint : `${simT.enemies} ${enemies.length}/${MAX_ENEMIES}`}
-                                </button>
-                            )}
-                            {mapData && (
-                                <button
-                                    type="button"
-                                    onClick={toggleStartCells}
-                                    className={cn(
-                                        "inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1.5 rounded-lg border transition-all cursor-pointer",
-                                        showStartCells
-                                            ? "bg-white/[0.12] border-white/25 text-white"
-                                            : "bg-surface border-border text-muted-foreground hover:text-foreground hover:bg-elevated"
-                                    )}
-                                    title={simT.startCellsTitle}
-                                >
-                                    <MapIcon className="w-3.5 h-3.5" /> {simT.startCells}
-                                </button>
-                            )}
-                            {allowFreeCasterMove && (
-                                <button
-                                    type="button"
-                                    onClick={() => setFreeCasterMove((v) => !v)}
-                                    className={cn(
-                                        "inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1.5 rounded-lg border transition-all cursor-pointer",
-                                        freeCasterMove
-                                            ? "bg-white/[0.12] border-white/25 text-white"
-                                            : "bg-surface border-border text-muted-foreground hover:text-foreground hover:bg-elevated"
-                                    )}
-                                    title={simT.freeBossTitle}
-                                >
-                                    <Move className="w-3.5 h-3.5" /> {freeCasterMove ? simT.freeBossOn : simT.freeBoss}
-                                </button>
-                            )}
-                            {mapData && totalPlacements > 1 && (
-                                <div className="space-y-1">
-                                    <p className="text-[10px] font-black uppercase tracking-[0.14em] text-muted-foreground">
-                                        {simT.optionsSectionPlacement}
-                                    </p>
-                                <div className="inline-flex items-center gap-1 bg-surface border border-border rounded-lg p-0.5">
-                                    <span className="text-[11px] font-bold text-muted-foreground pl-2">{simT.placement}</span>
-                                    <select
-                                        value={placementIndex}
-                                        onChange={(e) => {
-                                            const nextIdx = Number(e.target.value);
-                                            setPlacementIndex(nextIdx);
-                                            if (mapData) {
-                                                setShowStartCells(true);
-                                                applyStartCells(mapData, true, nextIdx);
-                                            }
-                                        }}
-                                        className="bg-surface border border-border text-foreground text-xs font-black rounded-md px-2 py-1 focus:outline-none cursor-pointer"
-                                    >
-                                        {Array.from({ length: totalPlacements }).map((_, i) => (
-                                            <option key={i + 1} value={i + 1}>
-                                                {i + 1} / {totalPlacements}
-                                            </option>
-                                        ))}
-                                    </select>
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowRulesModal(true)}
-                                        className="p-1 text-muted-foreground hover:text-foreground transition-colors pr-1.5 cursor-pointer"
-                                        title={simT.rulesModalTooltip}
-                                    >
-                                        <HelpCircle className="w-3.5 h-3.5" />
-                                    </button>
-                                </div>
-                                </div>
-                            )}
-                            {mapData && (
-                                <div className="space-y-1">
-                                    <p className="text-[10px] font-black uppercase tracking-[0.14em] text-muted-foreground">
-                                        {simT.optionsSectionLoot}
-                                    </p>
-                                <div className="inline-flex items-center gap-1 bg-surface border border-border rounded-lg p-0.5">
-                                    <span className="text-[11px] font-bold text-muted-foreground pl-2">{simT.loot}</span>
-                                    <select
-                                        value={lootCount}
-                                        onChange={(e) => {
-                                            const nextLoot = Number(e.target.value);
-                                            setLootCount(nextLoot);
-                                            if (mapData) {
-                                                setShowStartCells(true);
-                                                applyStartCells(mapData, true, placementIndex);
-                                            }
-                                        }}
-                                        className="bg-surface border border-border text-info text-xs font-black rounded-md px-2 py-1 focus:outline-none cursor-pointer"
-                                    >
-                                        {[4, 5, 6, 7, 8].map((b) => (
-                                            <option key={b} value={b}>
-                                                {simT.lootOption.replace(/\{count\}/g, String(b))}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-                                </div>
-                            )}
-                            {(allies.length > 0 || enemies.length > 0) && (
-                                <button
-                                    type="button"
-                                    onClick={() => { setAllies([]); setEnemies([]); setSelectedAlly(null); setSelectedEnemy(null); }}
-                                    className="inline-flex items-center gap-1 text-xs font-bold text-zinc-400 hover:text-white bg-zinc-800 border border-white/10 px-2.5 py-1.5 rounded-lg transition-all cursor-pointer"
-                                >
-                                    <RotateCcw className="w-3 h-3" /> {simT.clear}
-                                </button>
-                            )}
                                 </div>
                             )}
                         </div>
@@ -2309,12 +2336,12 @@ export function SpellRangeGrid({
                                     strokeColor = C.obsStroke;
                                     strokeWidth = 0.5;
                                 } else if (isStartAlly) {
-                                    // Cases de départ Alliés / Joueurs (Rouge dans Dofus)
+                                    // Cases de départ Joueurs / Attaquants (Rouge dans Dofus — prouvé Ankama_Fight.d2ui)
                                     fillColor = "#8a3a30";
                                     strokeColor = "#c65a4a";
                                     strokeWidth = 1.1;
                                 } else if (isStartEnemy) {
-                                    // Cases de départ Monstres / Boss (Bleu dans Dofus) — filtrées sur ce butin
+                                    // Cases de départ Monstres / Boss (Bleu dans Dofus — défenseurs) — filtrées sur ce butin
                                     fillColor = "#2e5a8a";
                                     strokeColor = "#4a86c4";
                                     strokeWidth = 1.1;

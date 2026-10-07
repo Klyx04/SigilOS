@@ -696,6 +696,37 @@ export async function validateChannelBelongsToGuild(channelId: string, guildId: 
     }
 }
 
+/**
+ * Mention de rôle **fail-safe** : renvoie `<@&id>` **uniquement** si le rôle existe
+ * réellement dans le serveur du salon cible — sinon `""`.
+ *
+ * Cause racine du « **@rôle inconnu** » observé dans les alertes God (01/10/2026) :
+ * `PlatformConfig.godNotifyRoleId` est une **valeur unique de plateforme**, alors que
+ * les bêta et prod sont **deux serveurs Discord distincts** — un ID de rôle valide côté
+ * prod est inconnu côté bêta, et Discord affiche « @rôle inconnu » **sans notifier
+ * personne** (l'alerte tombe dans le vide). Ici, on vérifie l'appartenance du rôle au
+ * serveur du salon : s'il est absent (ou si l'API échoue), on **omet la mention** au
+ * lieu d'écrire un ping cassé. Ne jette **jamais**.
+ */
+export async function buildSafeRoleMention(channelId: string | null | undefined, roleId: string | null | undefined): Promise<string> {
+    if (!channelId || !roleId || !/^\d{17,20}$/.test(roleId)) return "";
+    try {
+        const channel = await fetchChannel(channelId);
+        const guildId = channel?.guild_id;
+        if (!guildId) return "";
+        const roles = await fetchGuildRoles(guildId);
+        if (Array.isArray(roles) && roles.some((r) => r.id === roleId)) {
+            return `<@&${roleId}>`;
+        }
+        logger.warn("[Discord] Rôle à pinger absent du serveur du salon — mention omise", { channelId, roleId });
+        return "";
+    } catch (error) {
+        logger.warn("[Discord] Vérification du rôle impossible — mention omise (fail-safe)", { channelId, error: String(error) });
+        return "";
+    }
+}
+
+
 // =============================================================================
 // #223 — ÉCRITURES GÉNÉRIQUES CENTRALISÉES (toutes via discordFetch)
 // =============================================================================

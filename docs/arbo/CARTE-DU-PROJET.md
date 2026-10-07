@@ -147,7 +147,7 @@ docs/
 |---|---|---|
 | `assets-dofus/` | **32 691 fichiers / 135 Mo** : cache WebP siphonné de DofusDB | **Donnée d'exécution** — ignorée par git, montée en **volume Docker persistant** (`assets-prod-data`) et **référencée 21 857× en base** (`/uploads/assets-dofus/…`) → **NE JAMAIS SUPPRIMER**. Se régénère via `siphon-*` / `sync-assets` |
 | `proofs/` (3) | Uploads locaux, non suivis | ✅ ignoré (données d'exécution) |
-| ~~`guides/` (610), `docs/` (10), `guilds/` (16)~~ | **Ancien système d'upload** (636 fichiers suivis, ~20 Mo) | ✅ **sortis le 20/09/2026** (archivés hors dépôt) **après vérification en base** : aucune ligne ne les référence. Les URL `/uploads/…` écrites en base désignent des fichiers présents dans `private_uploads/`, servis par le rewrite Caddy → `docs/arbo/AUDIT-ARBO-2026-09.md` §0.1 |
+| ~~`guides/` (610), `docs/` (10), `guilds/` (16)~~ | **Ancien système d'upload** (636 fichiers suivis, ~20 Mo) | ✅ **sortis le 20/09/2026** (archivés hors dépôt) **après vérification en base** : aucune ligne ne les référence. Les URL `/uploads/…` écrites en base désignent des fichiers présents dans `private_uploads/`, servis par le rewrite Caddy → `docs/arbo/AUDIT-ARBO-2026-09.md` §0.1. ⚠️ **Retrait d'arbre, pas d'historique** (mesure du 30/09/2026) : les objets restent téléchargeables en anonyme via l'ancien commit → §0 de l'audit |
 
 ## 5. `prisma/` — base de données (304 fichiers suivis)
 

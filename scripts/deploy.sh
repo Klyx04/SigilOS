@@ -83,15 +83,45 @@ CURATED=(
     "public/game-data/ignored-monsters.json"
     "public/game-data/ignored-bounties.json"
 )
+# 🔁 Médias SUIVIS dont le DÉPÔT est la référence (aucun écrivain au runtime) — même règle
+# que `deploy-cd.sh` (classe `REPO_OWNED`, qui porte la mesure complète) : un fichier
+# BINAIRE suivi modifié une fois sur le serveur ne converge jamais (le `git pull` refuse de
+# l'écraser, et `--autostash` le ré-applique) ⇒ les 25 icônes de succès réécrites par la
+# purge du 20/09/2026 restaient « modifiées » à CHAQUE déploiement. On remet la version du
+# dépôt avant le pull : l'arbre redevient propre et le pull peut passer.
+# ⚠️ Ne pas y mettre `public/game-data/{monsters,dungeons,legendary}` : leurs `.webp` SONT
+#    suivis ET réécrits par la galerie God (écriture volontaire côté serveur).
+# Parité des deux listes verrouillée par `tests/unit/deploy-source-sync.test.ts`.
+REPO_OWNED=(
+    "public/game-data/achievements"
+    "public/images"
+    "public/assets"
+    "public/ordres"
+    "public/bonus_guilde"
+    "public/songes"
+    "public/module-dofus"
+    "public/banners"
+)
+for _dir in "${REPO_OWNED[@]}"; do
+    while IFS= read -r _tracked; do
+        [[ -n "$_tracked" ]] || continue
+        git cat-file -e "HEAD:$_tracked" 2>/dev/null || continue
+        # `git diff` et pas `cmp` : la divergence peut être une divergence de MODE seul
+        # (`100644` → `100755`, mesurée le 30/09/2026 sur 11 JSON de `public/game-data`).
+        git diff --quiet HEAD -- "$_tracked" 2>/dev/null && continue
+        # `git checkout` remet contenu ET mode ; un `>` aurait laissé le `+x` du serveur.
+        git checkout -- "$_tracked" 2>/dev/null || warn "🧹 Restauration impossible : $_tracked"
+        dim "🧹 Média suivi restauré (contenu + mode du dépôt) : $_tracked"
+    done < <(git ls-files -- "$_dir" 2>/dev/null)
+done
 CURATED_DIR="$(mktemp -d)"
 for f in "${CURATED[@]}"; do
     [[ -f "$f" ]] || continue
     git cat-file -e "HEAD:$f" 2>/dev/null || continue
-    if ! git show "HEAD:$f" 2>/dev/null | cmp -s - "$f"; then
-        cp "$f" "$CURATED_DIR/$(basename "$f")"
-        git show "HEAD:$f" > "$f"
-        dim "🔒 Donnée curée mise de côté : $f"
-    fi
+    git diff --quiet HEAD -- "$f" 2>/dev/null && continue
+    cp "$f" "$CURATED_DIR/$(basename "$f")"
+    git checkout -- "$f" 2>/dev/null || warn "🔒 Mise en conformité impossible : $f"
+    dim "🔒 Donnée curée mise de côté : $f"
 done
 git pull origin "$(git rev-parse --abbrev-ref HEAD)"
 for f in "${CURATED[@]}"; do
@@ -128,7 +158,10 @@ run_conditional_seed() {
 
     if [ "$SEED_ALWAYS" == "1" ] || [ "$CURRENT_HASH" != "$PREV_HASH" ]; then
         info "🌱 Seeding des données de jeu ${TARGET^^} (données modifiées)..."
-        sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" exec "$APP_SERVICE" npm run seed:game-data:prod
+        # `--silent` + notifier coupé : sans eux, npm déverse son bandeau de script
+        # et sa pub de mise à jour (« npm notice New major version… ») dans la sortie.
+        sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" exec "$APP_SERVICE" \
+            sh -c 'NO_UPDATE_NOTIFIER=1 npm_config_update_notifier=false npm run --silent seed:game-data:prod'
         echo "$CURRENT_HASH" > "$HASH_FILE"
         ok "Seed terminé."
     else
@@ -137,8 +170,12 @@ run_conditional_seed() {
 
     # Documentation synchronization
     info "📚 Synchronisation de la documentation ${TARGET^^}..."
-    sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" exec "$APP_SERVICE" npm run seed:docs:prod || warn "Seed docs ignoré ou non-critique"
-    ok "Documentation à jour."
+    if sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" exec "$APP_SERVICE" \
+        sh -c 'NO_UPDATE_NOTIFIER=1 npm_config_update_notifier=false npm run --silent seed:docs:prod'; then
+        ok "Documentation à jour."
+    else
+        warn "Seed docs ignoré ou non-critique"
+    fi
 }
 
 # -----------------------------------------------------------------------------
@@ -207,7 +244,8 @@ if [ "$TARGET" == "beta" ]; then
     sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" up -d --no-build --wait app-beta worker-beta ws-beta discord-bot-beta
 
     info "📂 Migration des fichiers vers Private Storage BÊTA..."
-    sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" exec app-beta npm run migrate:uploads
+    sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" exec app-beta \
+        sh -c 'NO_UPDATE_NOTIFIER=1 npm_config_update_notifier=false npm run --silent migrate:uploads'
 
     info "🧹 Synchronisation des migrations BÊTA..."
     sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" exec app-beta npx --yes prisma@7.9.1 migrate deploy
@@ -247,7 +285,8 @@ else
     sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" up -d --no-build --wait app-prod worker-prod ws-prod discord-bot-prod
 
     info "📂 Migration des fichiers vers Private Storage PROD..."
-    sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" exec app-prod npm run migrate:uploads
+    sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" exec app-prod \
+        sh -c 'NO_UPDATE_NOTIFIER=1 npm_config_update_notifier=false npm run --silent migrate:uploads'
 
     info "🧹 Synchronisation des migrations PRODUCTION..."
     sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" exec app-prod npx --yes prisma@7.9.1 migrate deploy

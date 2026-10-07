@@ -67,6 +67,7 @@ import { togglePinnedNavItem, toggleHiddenNavItem } from "@/server/actions/profi
 import { toast } from "sonner";
 import { getUnreadNotifications } from "@/server/actions/notification-actions";
 import { isNavLockedDuringOnboarding } from "@/lib/onboarding-gating";
+import { navTelemetryId } from "@/lib/telemetry/normalize";
 
 interface AppSidebarProps {
     guildId: string;
@@ -996,6 +997,7 @@ function NavItem({
         <Link
             href={item.href}
             prefetch={item.prefetch ?? true}
+            data-telemetry-id={navTelemetryId(item.href)}
             data-tour={
                 tourKey
                     ? `sidebar-${tourKey}`
@@ -1131,6 +1133,7 @@ function AdminSubItem({ item, isActive }: { item: any; isActive: boolean }) {
         <Link
             href={item.href}
             prefetch={false}
+            data-telemetry-id={navTelemetryId(item.href)}
             className={cn(
                 "group flex items-center gap-3 px-3 py-1.5 rounded-xl transition-all relative overflow-hidden",
                 isActive ? "text-success text-success bg-success/5" : "text-muted-foreground hover:text-success hover:bg-foreground/[0.02]"

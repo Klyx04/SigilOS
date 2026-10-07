@@ -26,6 +26,9 @@ import {
     Trophy,
     Coins,
     Undo2,
+    FileText,
+    Tv2,
+    ChevronDown,
 } from "lucide-react";
 import {
     Dialog,
@@ -50,10 +53,13 @@ import { DofusUiIcon, type DofusUiIconName } from "@/components/shared/dofus-ui-
 import { resolveEventImagePath } from "@/lib/calendar-event-images";
 import { calendarEventTheme } from "@/lib/calendar-event-theme";
 import { PseudoChip } from "@/components/shared/pseudo-chip";
+import { DOFUS_CLASSES, getClass, resolveEffectiveClass } from "@/lib/dofus-assets";
+import { ClassIcon } from "@/components/shared/class-icon";
 import { RegistrationModal } from "./registration-modal";
 import { CalendarDiscordDialog } from "./calendar-discord-dialog";
 import { getMissionsByIds } from "@/server/actions/mission-actions";
 import { kickParticipant, transferRaidCaptaincy } from "@/server/actions/calendar-actions";
+import { useRaidOverlay } from "@/hooks/use-raid-overlay";
 
 
 // ============================================
@@ -70,6 +76,24 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }
     PUBLISHED: { label: "Ouvert", color: "text-success", bg: "bg-success" },
     COMPLETED: { label: "Terminé", color: "text-info", bg: "bg-info" },
     CANCELLED: { label: "Annulé", color: "text-danger", bg: "bg-danger" }
+};
+
+/**
+ * Raid (`metadata.raidType`) → guide + overlay + Raid Studio.
+ * Source unique côté calendrier : le guide se retrouve depuis l'event,
+ * sans deviner depuis le titre.
+ */
+const RAID_GUIDE_LINKS: Record<string, { guideHref: string; overlaySlug: "gigalodon" | "jardin-eternel"; guideLabel: string }> = {
+    gigalodon: {
+        guideHref: "/guides/raid-gigalodon-dofus-guide",
+        overlaySlug: "gigalodon",
+        guideLabel: "Guide du Raid : Gouffre du Gigalodon",
+    },
+    jardin: {
+        guideHref: "/guides/raid-sanctuaire-jardins-eternels-dofus-guide",
+        overlaySlug: "jardin-eternel",
+        guideLabel: "Guide du Raid : Sanctuaire des Jardins Éternels",
+    },
 };
 
 const MISSION_CATEGORY_CONFIG: Record<string, { picto: DofusUiIconName; color: string; fallbackImage: string; label: string }> = {
@@ -127,7 +151,7 @@ interface Participant {
         id: string;
         name: string | null;
         image: string | null;
-        profiles?: { discordNickname: string | null }[];
+        profiles?: { discordNickname: string | null; classe?: string | null }[];
     };
 }
 
@@ -188,6 +212,10 @@ interface EventDetailModalProps {
     donationsEnabled?: boolean;
     /** Kamas eligibility for RAID_OFFICIAL events. Null = loading or not a raid. */
     raidEligibility?: { isEligible: boolean; totalDonated: number } | null;
+    /** Personnages Dofus du membre (« Mes personnages » des modales d'inscription). */
+    myCharacters?: { main: string | null; secondaries: string[] };
+    /** Change MA classe sur cet événement (même règle serveur que le menu classe Discord). */
+    onMyClassChange?: (classe: string) => Promise<void>;
 }
 
 // ============================================
@@ -218,6 +246,8 @@ export function EventDetailModal({
     discordChannels,
     donationsEnabled = true,
     raidEligibility = null,
+    myCharacters,
+    onMyClassChange,
 }: EventDetailModalProps) {
     const [isLoading, setIsLoading] = useState(false);
     const [showRegistration, setShowRegistration] = useState(false);
@@ -235,6 +265,7 @@ export function EventDetailModal({
     const [presentParticipants, setPresentParticipants] = useState<Set<string>>(new Set());
     const [isCompletingRaid, setIsCompletingRaid] = useState(false);
     const [confirmRaidComplete, setConfirmRaidComplete] = useState(false);
+    const { openRaidOverlay } = useRaidOverlay();
 
     const eventMetadata = (event as any)?.metadata as any;
     const missionIds = eventMetadata?.missionIds as string[] | undefined;
@@ -636,16 +667,16 @@ export function EventDetailModal({
 
                             {/* ========== RAID INFO PANEL ========== */}
                             {isRaid && raidMeta && (
-                                <div className="space-y-3 rounded-lg border border-danger/25 bg-danger/[0.05] p-4">
+                                <div className="space-y-3 rounded-lg border border-border bg-elevated/30 p-4">
                                     <div className="flex items-center gap-2 mb-2">
                                         <DofusUiIcon name="dungeon" size={16} />
-                                        <span className="text-xs font-black text-danger uppercase tracking-wider">Détails du Raid</span>
+                                        <span className="text-xs font-black text-muted-foreground uppercase tracking-wider">Détails du Raid</span>
                                     </div>
 
                                     {/* Raid type + badges */}
                                     <div className="flex flex-wrap items-center gap-2">
                                         {raidMeta.raidLabel && (
-                                            <span className="px-2.5 py-1 rounded-lg bg-danger/10 border border-danger/20 text-danger text-xs font-black uppercase tracking-wider">
+                                            <span className="px-2.5 py-1 rounded-lg bg-elevated border border-border text-foreground text-xs font-black uppercase tracking-wider">
                                                 {raidMeta.raidLabel}
                                             </span>
                                         )}
@@ -666,6 +697,28 @@ export function EventDetailModal({
                                             <DofusUiIcon name="leader" size={16} />
                                             <span className="text-muted-foreground text-xs uppercase tracking-wider">Capitaine :</span>
                                             <span className="font-black text-warning tracking-tight">{raidMeta.raidCaptain}</span>
+                                        </div>
+                                    )}
+
+                                    {/* Guide du raid + overlay : on retrouve la strat depuis l'event */}
+                                    {raidMeta?.raidType && RAID_GUIDE_LINKS[raidMeta.raidType] && (
+                                        <div className="flex flex-wrap items-center gap-2 border-t border-border pt-3">
+                                            <Link
+                                                href={RAID_GUIDE_LINKS[raidMeta.raidType].guideHref}
+                                                title={RAID_GUIDE_LINKS[raidMeta.raidType].guideLabel}
+                                                className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-2.5 py-1.5 text-xs font-bold text-muted-foreground transition-colors hover:text-foreground"
+                                            >
+                                                <FileText className="h-3.5 w-3.5" aria-hidden="true" />
+                                                Voir le guide du raid
+                                            </Link>
+                                            <button
+                                                type="button"
+                                                onClick={() => openRaidOverlay({ raidSlug: RAID_GUIDE_LINKS[raidMeta.raidType].overlaySlug })}
+                                                className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-2.5 py-1.5 text-xs font-bold text-muted-foreground transition-colors hover:text-foreground"
+                                            >
+                                                <Tv2 className="h-3.5 w-3.5" aria-hidden="true" />
+                                                Overlay
+                                            </button>
                                         </div>
                                     )}
 
@@ -821,6 +874,9 @@ export function EventDetailModal({
                                                         isCreator={participant.user.id === event.creator.id}
                                                         isCurrentUser={participant.user.id === currentUserId}
                                                         isRaid={isRaid}
+                                                        canEditClass={isOpen && !isExternal && participant.user.id === currentUserId}
+                                                        onClassChange={onMyClassChange}
+                                                        myCharacters={myCharacters}
                                                         onUnregister={!isExternal && onUnregister ? () => handleAction(onUnregister) : undefined}
                                                         onKick={!isKrala && (isRaid ? event.creator.id === currentUserId : (canManage || event.creator.id === currentUserId)) && participant.user.id !== event.creator.id
                                                              ? () => handleAction(async () => {
@@ -1238,6 +1294,7 @@ export function EventDetailModal({
                 onOpenChange={setShowRegistration}
                 eventTitle={event.title}
                 isFull={isFull}
+                myCharacters={myCharacters}
                 onSubmit={handleRegistration}
             />
 
@@ -1286,25 +1343,63 @@ function ParticipantRow({
     isReserve = false,
     isCurrentUser = false,
     isRaid = false,
+    canEditClass = false,
     onUnregister,
     onKick,
-    onTransferCaptaincy
+    onTransferCaptaincy,
+    onClassChange,
+    myCharacters
 }: {
     participant: Participant;
     isCreator?: boolean;
     isReserve?: boolean;
     isCurrentUser?: boolean;
     isRaid?: boolean;
+    /** Ma ligne sur un événement ouvert : sélecteur de MA classe (même règle que Discord). */
+    canEditClass?: boolean;
     onUnregister?: () => void;
     onKick?: () => void;
     onTransferCaptaincy?: () => Promise<void>;
+    onClassChange?: (classe: string) => Promise<void>;
+    /** Personnages déclarés dans mon profil (principal + mules) : choix proposés en premier. */
+    myCharacters?: { main: string | null; secondaries: string[] };
 }) {
     const [isConfirming, setIsConfirming] = useState(false);
     const [isKickConfirming, setIsKickConfirming] = useState(false);
     const [isTransferPending, setIsTransferPending] = useState(false);
     const [isTransferConfirming, setIsTransferConfirming] = useState(false);
+    const [isClassPending, setIsClassPending] = useState(false);
+    const [isClassPickerOpen, setIsClassPickerOpen] = useState(false);
+
+    // Classe affichée : celle de l'inscription, sinon celle du profil Dofus — la MÊME
+    // règle que les embeds Discord (`resolveEffectiveClass`). « Sans classe » seulement
+    // si les deux sont vides : plus de pseudo nu alors que le profil connaît la classe.
+    const effectiveClass = resolveEffectiveClass(participant.classe, participant.user.profiles?.[0]?.classe);
+    const effectiveClassId = getClass(effectiveClass ?? "")?.id ?? null;
+
+    // Mes personnages déclarés (principal + mules), en référentiel unique : proposés
+    // en premier dans le sélecteur, au lieu du dropdown générique des 19 classes.
+    const myRoster = (() => {
+        const values = [myCharacters?.main, ...(myCharacters?.secondaries ?? [])];
+        const found = values
+            .map((c) => getClass((c ?? "").trim()))
+            .filter((c): c is NonNullable<ReturnType<typeof getClass>> => Boolean(c));
+        return Array.from(new Map(found.map((c) => [c.id, c])).values());
+    })();
+
+    const pickClass = async (classeName: string) => {
+        if (!onClassChange || isClassPending) return;
+        setIsClassPending(true);
+        try {
+            await onClassChange(classeName);
+            setIsClassPickerOpen(false);
+        } finally {
+            setIsClassPending(false);
+        }
+    };
 
     return (
+        <>
         <div className={cn(
             "flex items-center justify-between p-2.5 rounded-lg transition-colors group",
             isReserve ? "bg-warning/5 border border-warning/10" : "bg-elevated/30 hover:bg-elevated/50"
@@ -1326,7 +1421,7 @@ function ParticipantRow({
                     <div className="flex items-center gap-2">
                         <PseudoChip
                             pseudo={(participant.user.profiles?.[0]?.discordNickname || participant.user.name || "Anonyme").replace(/\s\(\d+\)$/, "")}
-                            classe={participant.classe}
+                            classe={effectiveClass}
                             className="text-sm font-medium text-foreground"
                         />
                         {isCurrentUser && <span className="text-caption font-bold text-muted-foreground shrink-0">(Moi)</span>}
@@ -1351,6 +1446,23 @@ function ParticipantRow({
                             <span className="text-caption text-muted-foreground truncate max-w-[100px]">
                                 "{participant.comment}"
                             </span>
+                        )}
+                        {canEditClass && onClassChange && (
+                            <button
+                                type="button"
+                                onClick={() => setIsClassPickerOpen((v) => !v)}
+                                aria-expanded={isClassPickerOpen}
+                                aria-label="Changer ma classe pour cet événement"
+                                title="Changer ma classe"
+                                disabled={isClassPending}
+                                className="inline-flex h-5 items-center gap-1 rounded border border-border bg-surface/60 px-1 text-caption font-bold text-foreground transition-colors hover:text-foreground disabled:opacity-50"
+                            >
+                                {effectiveClassId && (
+                                    <ClassIcon classId={effectiveClassId} size={12} />
+                                )}
+                                {effectiveClass ?? "Sans classe"}
+                                <ChevronDown className="h-3 w-3 text-muted-foreground" aria-hidden="true" />
+                            </button>
                         )}
                     </div>
                 </div>
@@ -1477,5 +1589,81 @@ function ParticipantRow({
                 )}
             </div>
         </div>
+        {/* Sélecteur de classe : mes personnages déclarés d'abord, puis toutes
+            les classes en grille — panneau inline (pas de `<select>` natif). */}
+        {canEditClass && onClassChange && isClassPickerOpen && (
+            <div className="rounded-lg border border-border bg-background p-3">
+                {myRoster.length > 0 && (
+                    <div className="mb-3">
+                        <p className="mb-1.5 text-caption font-bold uppercase tracking-wider text-muted-foreground">
+                            Mes personnages
+                        </p>
+                        <div className="flex flex-wrap gap-1.5">
+                            {myRoster.map((classe) => {
+                                const isPicked = effectiveClassId === classe.id;
+                                return (
+                                    <button
+                                        key={classe.id}
+                                        type="button"
+                                        disabled={isClassPending}
+                                        onClick={() => pickClass(classe.name)}
+                                        className={cn(
+                                            "flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-caption font-bold transition-colors disabled:opacity-50",
+                                            isPicked
+                                                ? "border-foreground/40 bg-foreground/10 text-foreground"
+                                                : "border-border bg-surface/50 text-muted-foreground hover:text-foreground",
+                                        )}
+                                    >
+                                        <ClassIcon classId={classe.id} size={14} />
+                                        {classe.name}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
+                )}
+                <p className="mb-1.5 text-caption font-bold uppercase tracking-wider text-muted-foreground">
+                    {myRoster.length > 0 ? "Toutes les classes" : "Choisir ma classe"}
+                </p>
+                <div className="grid grid-cols-4 gap-1.5 sm:grid-cols-6">
+                    <button
+                        type="button"
+                        disabled={isClassPending}
+                        onClick={() => pickClass("")}
+                        className={cn(
+                            "flex flex-col items-center gap-1 rounded-lg border p-2 transition-colors disabled:opacity-50",
+                            !effectiveClassId
+                                ? "border-foreground/40 bg-foreground/10 text-foreground"
+                                : "border-border bg-surface/50 text-muted-foreground hover:text-foreground",
+                        )}
+                    >
+                        <X className="h-6 w-6" aria-hidden="true" />
+                        <span className="text-caption font-medium leading-tight">Sans classe</span>
+                    </button>
+                    {DOFUS_CLASSES.map((classe) => {
+                        const isPicked = effectiveClassId === classe.id;
+                        return (
+                            <button
+                                key={classe.id}
+                                type="button"
+                                disabled={isClassPending}
+                                onClick={() => pickClass(classe.name)}
+                                title={classe.name}
+                                className={cn(
+                                    "flex flex-col items-center gap-1 rounded-lg border p-2 transition-colors disabled:opacity-50",
+                                    isPicked
+                                        ? "border-foreground/40 bg-foreground/10 text-foreground"
+                                        : "border-border bg-surface/50 text-muted-foreground hover:text-foreground",
+                                )}
+                            >
+                                <ClassIcon classId={classe.id} size={24} />
+                                <span className="text-caption font-medium leading-tight">{classe.name}</span>
+                            </button>
+                        );
+                    })}
+                </div>
+            </div>
+        )}
+        </>
     );
 }

@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist_Mono, Space_Grotesk, Inter, Cinzel, Source_Sans_3, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
+import { PublicViewBeacon } from "@/components/telemetry/public-view-beacon";
 import { AuthProvider } from "@/components/providers/auth-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AppToaster } from "@/components/shared/AppToaster";
@@ -152,6 +153,8 @@ export default async function RootLayout({
             <AuthProvider session={session}>
               <TooltipProvider>
                 <PwaRegistration />
+                {/* Compteur anonyme des écrans publics (allowlist) — inerte partout ailleurs. */}
+                <PublicViewBeacon />
                 {children}
                 {donationsEnabled && <SupportOrb />}
                 <PwaInstallBanner />

@@ -125,7 +125,7 @@ export function SuccesBossEncyclo({
                 </div>
             )}
 
-            {/* Rangs — sélecteur de grade global (simulation + sorts suivent) */}
+            {/* Rangs — sélecteur de rang global (façon client Dofus Unity RANG : 1 2 3 4 5) */}
             {grades.length > 1 && (
                 <div className="flex flex-wrap items-center gap-1.5">
                     <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
@@ -137,20 +137,20 @@ export function SuccesBossEncyclo({
                             type="button"
                             onClick={() => onGradeChange(i)}
                             aria-pressed={idx === i}
-                            title={is5Grades ? `Rang ${i + 1} — Butin ${4 + i}` : `Rang ${i + 1} — Niv. ${gr.level ?? "—"}`}
+                            title={`Rang ${i + 1} — Niv. ${gr.level ?? "—"}`}
                             className={cn(
-                                "min-w-7 h-7 px-2 rounded-lg border text-xs font-bold tabular-nums transition-colors",
+                                "min-w-7 h-7 px-2 rounded-lg border text-xs font-bold tabular-nums transition-colors cursor-pointer",
                                 idx === i
-                                    ? "bg-foreground text-background border-foreground"
+                                    ? "bg-foreground text-background border-foreground font-black"
                                     : "bg-background border-border text-muted-foreground hover:text-foreground hover:border-border-strong"
                             )}
                         >
                             {i + 1}
                         </button>
                     ))}
-                    {is5Grades && (
-                        <span className="text-[11px] text-muted-foreground ml-1">
-                            Butin {4 + idx}
+                    {g?.level != null && (
+                        <span className="text-[11px] font-mono text-muted-foreground ml-1">
+                            · Niv. {g.level}
                         </span>
                     )}
                 </div>

@@ -34,10 +34,153 @@ Le script fait, dans l'ordre : `git fetch` → `git pull --autostash` → `prism
 deploy` → `docker login` GHCR → `docker pull` des 4 images (`app`, `worker`, `ws`,
 `discord-bot`) → `docker compose up -d` → healthchecks.
 
+## Lire la sortie du déploiement, de haut en bas
+
+Le script s'explique lui-même : chaque étape annonce **ce qu'elle fait** et **pourquoi**.
+Tableau de lecture — tout ce qui suit est **normal** ; seules les lignes `⚠` demandent une
+décision. Verrouillé par `tests/unit/deploy-sortie-visible.test.ts` :
+
+| Ce qui s'affiche | Ce que ça veut dire |
+|---|---|
+| `→ donnée locale conservée puis restaurée : <fichier>` | fichier **suivi** mis de côté hors de l'arbre, puis remis en place (classe `PRESERVED`) — voir § L'arbre de travail |
+| `✓ Code source à jour (branche dev, <sha>)` | l'arbre du serveur est au commit de `origin/dev` (le déploiement n'en dépend pas : les images viennent de la CI) |
+| **ÉTAPE 1/5** `✓ Connecté au registre ghcr.io/…` | lecture des images privées avec `GHCR_TOKEN` (droit de **lecture** uniquement) |
+| **ÉTAPE 2/5** `app ✓ téléchargée (312 Mo)` | les **4 images** construites par la CI sont téléchargées — **aucun build** sur le serveur |
+| **ÉTAPE 3/5** `Container … Healthy` | les 6 conteneurs (db, redis, app, worker, ws, bot) redémarrent sur les nouvelles images et passent leur sonde de santé |
+| **ÉTAPE 4/5** `N fichier(s) déplacé(s) de public/uploads vers private_uploads (dossier: N)` | rangement des « uploads » : `public/uploads` est servi **en direct**, `private_uploads` seulement par les routes gardées (`/api/storage/…`, `/api/upload`). Rejoué à **chaque** déploiement |
+| **ÉTAPE 4/5** `Base à jour — 262 migrations connues, aucune à appliquer` (la ligne `262 migrations found…` de Prisma, elle, n'est pas toujours écrite) | `262` = les migrations **du dépôt** (une par changement de schéma déjà validé), **comptées dans le dépôt** (`find prisma/migrations -mindepth 1 -maxdepth 1 -type d \| wc -l`) et non relues du log — mesuré le 30/09/2026 : deux déploiements d'affilée au code identique, la ligne présente au premier, absente au second. Prisma compare cette liste à la table `_prisma_migrations` de la base et n'applique **que la différence** ⇒ ici rien à faire, **aucune donnée touchée** |
+| **ÉTAPE 4/5** `✓ Schéma déjà à jour` (beta seulement) | `db push` : la base **beta** reçoit les écarts de schéma sans fichier de migration (itération rapide). Volontairement **absent en prod** |
+| **ÉTAPE 5/5** `Données de jeu inchangées — seed ignoré` | le seed de `game-data.json` ne tourne que si son **hash** a changé depuis le dernier déploiement |
+| **ÉTAPE 5/5** `✅ Synchronisation terminée : 0 créées, 30 mises à jour` | les fiches de `src/lib/docs-catalog.ts` sont réécrites en base (idempotent : `0 créées` est normal) |
+| `⚠  Des fichiers locaux sont modifiés` | fichiers **suivis** modifiés sur le serveur **hors** des classes connues : à comprendre, pas à ignorer (§ L'arbre de travail) |
+| `ℹ️  N fichier(s) suivi(s) portés par CE serveur — laissés tels quels` | médias/JSON que le serveur écrit lui-même (`SERVER_OWNED`) : comptés **à part**, jamais touchés, **rien à faire** |
+| **Un passage qui affiche l'ancienne sortie** (barre douteuse, `npm notice`, ancien libellé) | `bash` lit le script **au fil de l'exécution**, et le `git pull` le réécrit **pendant** : un passage peut montrer un **mélange** des deux versions (mesuré le 30/09/2026 — inode remplacé ⇒ l'ancienne version continue · réécriture en place ⇒ la nouvelle est exécutée). Ce n'est **pas** une régression : les **images** déployées sont toujours les nouvelles, et le passage **suivant** est intégralement à jour |
+| **Une ligne de Prisma qui n'apparaît jamais** (`262 migrations found…`, `No pending migrations…`) | Prisma réécrit la **même** ligne (`\r`) et ne finit pas son flux par un `\n` : `wc -l` ne comptait que la 1ʳᵉ ligne ⇒ le verdict de la migration était **dans le log, invisible à l'écran** (mesuré sur deux passages). Corrigé : la dernière ligne s'affiche quand même (`awk 'END{print NR}'`) et les `\r` sont remis en sauts de ligne. Le **compte** des migrations, lui, est compté **dans le dépôt** — il ne dépend plus du log |
+| `✓ Proxy Caddy à jour` · `✓ / → HTTP 200` · `✓ …/api/health → HTTP 200` | contrôles post-déploiement : config du proxy, robots/sitemap, pages clés, santé |
+
+### Bruit supprimé et questions déjà posées (mesures du 30/09/2026)
+
+- **`npm notice New major version of npm available!`** : c'était npm publiant sa propre mise à
+  jour au milieu de l'étape 5. Tous les appels passent maintenant par `npm run --silent` +
+  `NO_UPDATE_NOTIFIER=1` (dans **les deux** scripts) ⇒ plus de bandeau
+  `> temp-sigil@0.1.0 seed:docs:prod` non plus.
+- **Barre qui semble bloquée à 91 %** (`app ✓ téléchargée█████░░]  91%%`) : deux défauts
+  d'**affichage**, jamais un téléchargement incomplet. (a) le `✓` était écrit avec `\r` **sans
+  effacer la fin de la ligne** ⇒ le reste de la barre (plus longue) restait visible à droite ;
+  (b) le `%` compte les **couches** Docker, pas les octets, et pouvait s'arrêter avant la fin.
+  Désormais : dernière trame forcée à **100 %**, ligne finale effacée puis réécrite avec la
+  **taille** de l'image, et la barre ne s'affiche **que sur un terminal** (dans un log redirigé
+  elle écrirait du bruit — mesuré : **0 octet**).
+- **`310 fichier(s) migré(s) (autres: 310)`** : le libellé venait d'une liste blanche de
+  4 dossiers dans `scripts/migrate-uploads.mjs` ; tout le reste tombait dans « autres ». Le
+  résumé nomme maintenant le **premier dossier réel** (`assets-dofus: 310`, `proofs: 12`…) et
+  dit **d'où viennent** et **où vont** les fichiers. Le nombre compte les fichiers déplacés
+  **lors de ce déploiement** — ce n'est pas un stock qui grossit.
+- **`262 migrations found in prisma/migrations`** : ce nombre est le **contenu du dépôt**
+  (une migration par changement de schéma déjà validé), **pas** une file d'attente — la
+  seule chose que Prisma applique est ce qui manque à la base, ici rien. Le compte est
+  désormais **compté dans le dépôt** (`prisma/migrations/*/`) : il ne dépend plus du log de
+  Prisma, qui n'écrit pas toujours sa ligne (mesuré le 30/09/2026 : présente au 1ᵉʳ
+  déploiement, absente au 2ᵉ, **code identique**).
+- **`assets-dofus: 139`** (mesuré au 2ᵉ déploiement du 30/09/2026 ; 310 au 1ᵉʳ) : ce que
+  l'étape 4 range est le **cache de WebP siphonnés**. `src/lib/dofus-asset-siphon.ts` écrit
+  dans `public/uploads/assets-dofus/{monsters,items,spells}`, monté en **volume dédié**
+  (`assets-prod-data` / `assets-beta-data`, précisément pour survivre aux déploiements) et
+  rempli **à la demande** par le proxy d'images. Comme l'étape 4 range **tout** ce qui reste
+  dans `public/uploads`, elle **vide ce cache** à chaque déploiement : l'app le reconstruit
+  ensuite (téléchargements upstream) et une copie dort dans `private_uploads/assets-dofus/`
+  que personne ne lit. **Aucune perte de données**, mais un aller-retour inutile — décision à
+  trancher à froid (`docs/ROADMAP.md`, session du 30/09/2026).
+
+Pour savoir ce que contient `public/uploads` **sans déployer** (et donc ce que la prochaine
+étape 4 va ranger) :
+
+```bash
+sudo docker compose -f docker-compose.prod.yml --env-file .env.beta exec app-beta \
+  sh -c 'find public/uploads -type f | sed "s|^public/uploads/||; s|/[^/]*$||" | sort | uniq -c | sort -rn'
+```
+
+## L'arbre de travail du serveur : quatre classes, une décision par fichier
+
+Le serveur n'est **pas** un poste de travail : tout fichier **suivi** y est classé, et les
+**deux** scripts (`deploy-cd.sh` **et** `deploy.sh`) appliquent la même règle **avant** leur
+`git pull`. Parité et interdictions verrouillées par `tests/unit/deploy-source-sync.test.ts` :
+
+| Classe | Contenu (suivi) | Décision |
+|---|---|---|
+| `GENERATED` | `public/game-data/dungeon-monsters.json` (réécrit par le siphon via le bind mount) | **version du dépôt restaurée** (fichier éphémère) |
+| `REPO_OWNED` | médias **sans écrivain au runtime** : `game-data/achievements`, `images`, `assets`, `ordres`, `bonus_guilde`, `songes`, `module-dofus`, `banners` | **version du dépôt restaurée** (contenu **et** mode) |
+| `PRESERVED` | curation God : `ignored-monsters.json`, `ignored-bounties.json` | **version du serveur conservée** (mise de côté → pull → restaurée) |
+| `SERVER_OWNED` | écrits **par le serveur** : `game-data/{monsters,dungeons,legendary,invader,harvest-icons}` + les 7 JSON générés (`worldmap`, `worlds`, `zaaps`, `harvest-resources`, `bomb-dictionary{,-mixed}`, `secret-passages`) | **aucune écriture** : ni restaurés, ni signalés — **comptés à part** (information) |
+
+🚫 **Ne jamais mettre dans `REPO_OWNED`** : `public/game-data/{monsters,dungeons,legendary}`,
+`invader`, `harvest-icons` ni les 7 JSON générés (classe `SERVER_OWNED` : le serveur y écrit —
+galerie God, panneau God, siphons), `public/uploads/**` (contenu utilisateur, **non suivi**),
+`ignored-*.json` (curation, classe `PRESERVED`). Seules les entrées de `git ls-files` sont
+examinées : un fichier **non suivi** n'est ni restauré ni rapporté, donc une **nouvelle** image
+déposée par la galerie God n'est jamais touchée.
+
+### 🔁 Pourquoi `REPO_OWNED` existe (cause racine mesurée le 30/09/2026)
+
+Un fichier **binaire** suivi, modifié une fois sur le serveur, **ne converge jamais** avec
+`git pull --autostash` : le pop du stash binaire retombe sur l'ancien contenu (conflit →
+stash conservé) ou s'applique proprement quand le blob ne bouge pas dans le merge ⇒ **les
+mêmes fichiers reviennent à chaque déploiement**, indéfiniment. Cas mesuré : les **25**
+icônes de succès réécrites par la purge d'empreintes du 20/09/2026 (`7c69d579`) restaient
+« modifiées » côté serveur, plus `conquerant.png` (dernier changement : `b211517a`) — et
+**aucun** écrivain runtime ne touche ces dossiers (vérifié : tous les `writeFile*` de `src/`
+visent `public/uploads/**`, la galerie God `.webp` ou `prisma/seed-data/**`).
+
+### 🔬 2ᵉ mesure (30/09/2026, VPS) : la divergence n'est pas toujours de contenu
+
+448 `M` mesurés sur le serveur (`git diff --numstat` + `stat -c %a`) :
+
+| Constat | Valeur | Conséquence |
+|---|---|---|
+| Divergence de **mode seul** (contenu identique) | **11** fichiers (les JSON) | `100644` → `100755` : git les voit « modifiés » à vie ⇒ la restauration doit remettre **le mode** |
+| Divergence de **contenu** | **436** binaires (+1 JSON curé) | ré-appliqués par le `stash pop` à chaque déploiement (mtime **identique** sur les 448) |
+| Mode des fichiers du serveur | **775** | vient de la synchro d'assets : `sync-assets.ps1` rsync `-a` **sans** `--chmod` (le `.sh` l'impose) |
+
+⚠️ **Défaut corrigé (prouvé, pas déduit)** : `dungeon-monsters.json`, de la classe `GENERATED`,
+figurait quand même dans le rapport — `cmp -s` est **aveugle au mode** et `git show HEAD:$f > $f`
+**préserve** le `775` du fichier local. Les boucles utilisent désormais
+`git diff --quiet HEAD -- "$f"` (garde) et `git checkout -- "$f"` (contenu **et** mode).
+
+**Diagnostic (10 s)** si un fichier **suivi** revient dans le message :
+
+```bash
+cd ~/SigilOS
+git status --porcelain --untracked-files=no | wc -l   # combien, et rien que du suivi
+git stash list                                        # un stash résiduel ? (git stash clear)
+git log -1 --oneline -- <fichier>                     # dernier changement côté dépôt
+git show HEAD:<fichier> | md5sum ; md5sum <fichier>   # l'écart est-il réel (contenu) ?
+git diff --numstat -- public/game-data                # `0 0` = MODE SEUL · `- -` = binaire
+git diff --summary -- public/game-data | head -3      # `mode change 100644 => 100755 <f>`
+```
+
+Le script écrit, **avant toute restauration**, un patch réversible dans
+`/tmp/sigilos-ecrase-*.patch` (`git apply <patch>` pour revenir) : rien ne disparaît en
+silence. Un média **volontairement** modifié côté serveur se **committe** — pour ces
+dossiers, c'est le dépôt qui fait foi. Pour les chemins `SERVER_OWNED`, c'est l'**inverse** : le
+serveur fait foi, aucune écriture n'a lieu, et une modification du dépôt sur ces chemins ne
+s'applique **pas** toute seule (arbitrage du 30/09/2026 — à rouvrir si la propagation devient
+nécessaire).
+
+Le **rapport de fin** ne nomme que les vraies surprises. Les caches runtime **non suivis**
+(`.webp` de la galerie God, proxy-cache, preuves téléversées) ne sont pas comptés — ils ne
+bloquent pas le pull. Les listes curées non plus : elles sont remises à la version du dépôt
+**avant** le rapport (mise de côté → pull → restaurée juste après), donc elles n'apparaissent
+jamais en avertissement. Les fichiers `SERVER_OWNED` sont affichés en **information**, avec leur
+détail par dossier (`monsters=63 harvest-icons=84 …`), jamais en avertissement. Ce qui reste = un
+fichier **hors** des quatre classes, c'est-à-dire une édition locale assumée : le committer, ou
+`git checkout -- <fichier>` / `git stash`.
+
 ## Déployer quand le VPS a des fichiers curés en local
 
 Les listes God (`public/game-data/ignored-monsters.json`, etc.) sont **modifiées sur
-le serveur** : elles sont donc toujours « sales » pour git.
+le serveur** : elles sont donc toujours « sales » pour git — et c'est **voulu** : elles
+appartiennent à la classe `PRESERVED` (tableau ci-dessus), la curation du serveur fait foi,
+le script les met de côté le temps du pull puis les restaure.
 
 ```bash
 # Le script le fait tout seul (sauvegarde hors de l'arbre → pull → restauration) :
@@ -107,6 +250,8 @@ imprime la cause probable. Il ne modifie rien.
 | Symptôme | Cause réelle | Correctif |
 |---|---|---|
 | `git pull` refuse / « local changes would be overwritten » | fichier curé modifié sur le serveur | géré par `git_fetch` (sauvegarde hors arbre → pull → restauration) |
+| ℹ️ « N fichier(s) suivi(s) portés par CE serveur » | écritures **légitimes** du serveur (galerie God, panneau God, siphons) | **rien à faire** : classe `SERVER_OWNED`, ni restaurée ni signalée ; le détail par dossier est affiché |
+| ⚠️ « Des fichiers suivis modifiés hors des classes connues » à **chaque** déploiement, **toujours les mêmes** | fichier **binaire** suivi modifié côté serveur : `--autostash` ne peut **pas** le résorber | géré par `git_fetch` (classes `GENERATED`/`REPO_OWNED` restaurées **avant** le pull) — voir § L'arbre de travail du serveur |
 | `git stash push` répond « No local changes to save » **puis** le merge refuse | bits `assume-unchanged` / `skip-worktree` → git aveugle | `git update-index --no-assume-unchanged --no-skip-worktree -- <fichier>` (voir juste au-dessus) |
 | Le deploy s'arrête à l'étape **1.5 « Vérification du tag »** | le tag n'a jamais été publié par la CI | regarder **Build & Push** dans Actions, relancer après le vert |
 | `no space left on device` pendant le pull | disque plein | `sudo docker system prune -af --volumes` |

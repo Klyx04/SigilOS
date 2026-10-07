@@ -46,6 +46,12 @@ import {
     persistDofensiveMap,
     persistStoredCombatSpells,
 } from "@/lib/dofensive-sync";
+import { getQilbyCustomMapData, getQilbyDungeonInfo, QILBY_MAP_ID } from "@/lib/qilby-map";
+import {
+    applyClientMapFreshness,
+    getClientMapFull,
+    withClientExtraMaps,
+} from "@/lib/dungeons/client-maps-registry";
 
 type ActionResponse<T = void> = {
     success: boolean;
@@ -92,6 +98,8 @@ export interface DofensiveMapLite {
     name: string;
     /** true si c'est une map de combat du boss (PreferredMaps du monstre). */
     isBoss?: boolean;
+    /** true si le layout vient du siphon client (`client-maps-registry`) plutôt que de Dofensive. */
+    fromClient?: boolean;
 }
 
 export interface DofensiveDungeonInfo {
@@ -111,9 +119,9 @@ export interface DofensiveMapData {
     coordinates: { x: number; y: number } | null;
     /** Grille 2D : cells[row][col] — 0 = sol (marchable), 1 = case impossible/trou, 2 = case obstacle (3D). */
     cells: number[][];
-    /** cellIds Dofus des cases de départ alliés (convention : col = id / rows, row = id % rows). */
+    /** cellIds Dofus des cases de départ défenseurs/monstres — glyphes BLEUS en jeu (convention Dofus : défenseurs = bleu). */
     allyCells: number[];
-    /** cellIds Dofus des cases de départ ennemis / boss. */
+    /** cellIds Dofus des cases de départ attaquants/joueurs — glyphes ROUGES en jeu (convention Dofus : attaquants = rouge). */
     enemyCells: number[];
 }
 
@@ -142,6 +150,18 @@ export async function getDofensiveDungeonForBoss(
     opts?: { dofensiveMonsterName?: string | null; dofensiveDungeonName?: string | null }
 ): Promise<ActionResponse<DofensiveDungeonInfo>> {
     if (!bossName || !bossName.trim()) return { success: false, error: "Nom de boss manquant" };
+
+    // Cas particulier : Qilby (Gardien d'anomalie, arène sur-mesure Hauteurs de l'Inglorium)
+    const normalizedBoss = norm(bossName);
+    const normalizedDungeon = dungeonName ? norm(dungeonName) : "";
+    if (
+        normalizedBoss === "qilby" ||
+        opts?.dofensiveMonsterName?.toLowerCase().includes("qilby") ||
+        normalizedDungeon.includes("hauteurs de l'inglorium") ||
+        normalizedDungeon.includes("inglorium")
+    ) {
+        return { success: true, data: getQilbyDungeonInfo() };
+    }
 
     // 🛰️ Lot 1 « stale-while-offline » : la LECTURE LOCALE passe AVANT tout appel réseau.
     // Une ligne **périmée** est servie (datée) — seul « aucune ligne » autorise le live.
@@ -259,7 +279,10 @@ export async function getDofensiveDungeonForBoss(
         data: {
             dungeonId: hit.Id as number,
             dungeonName: String(hit.Name ?? bossName),
-            maps: dungeonMaps.map((m) => ({ ...m, isBoss: bossMapIds.includes(m.id) })),
+            maps: withClientExtraMaps(
+                hit.Id as number,
+                dungeonMaps.map((m) => ({ ...m, isBoss: bossMapIds.includes(m.id) }))
+            ),
             monsters: Array.isArray(hit.Monsters)
                 ? hit.Monsters.map((m: any) => ({ id: m.Id as number, name: String(m.Name ?? "") }))
                 : [],
@@ -323,7 +346,10 @@ async function resolveDofensiveDungeonDirect(
     return {
         dungeonId: hit.Id as number,
         dungeonName: String(hit.Name ?? monsterName),
-        maps: dungeonMaps.map((m) => ({ ...m, isBoss: bossMapIds.includes(m.id) })),
+        maps: withClientExtraMaps(
+            hit.Id as number,
+            dungeonMaps.map((m) => ({ ...m, isBoss: bossMapIds.includes(m.id) }))
+        ),
         monsters: Array.isArray(hit.Monsters)
             ? hit.Monsters.map((m: any) => ({ id: m.Id as number, name: String(m.Name ?? "") }))
             : [],
@@ -336,13 +362,27 @@ export async function getDofensiveMap(mapId: number | string): Promise<ActionRes
     const id = toSafeId(mapId);
     if (!id) return { success: false, error: "ID de map invalide" };
 
+    // 0. Registre client (siphon 3.6.11.15) : les layouts « Normal » inconnus de
+    //    Dofensive sont servis directement — c'est la donnée la plus fraîche.
+    const clientFull = getClientMapFull(id);
+    if (clientFull) return { success: true, data: clientFull };
+
     // 1. Essai local-first 🛰️ Lot 1 : une ligne **périmée** est servie (datée) — seul
     //    « aucune ligne » bascule sur le réseau.
     try {
         const local = await getLocalDofensiveMapAny(id);
-        if (local) return localStaleResponse(local);
+        if (local) {
+            return localStaleResponse({ ...local, data: applyClientMapFreshness(local.data) });
+        }
     } catch {
         // Fallback live ci-dessous
+    }
+
+    // Cas particulier : map sur-mesure de Qilby (5 îlots carrés 5x5)
+    if (id === QILBY_MAP_ID) {
+        const qilbyData = getQilbyCustomMapData();
+        persistDofensiveMap(qilbyData).catch(() => {});
+        return { success: true, data: qilbyData };
     }
 
     // 2. Fetch live Dofensive
@@ -354,7 +394,7 @@ export async function getDofensiveMap(mapId: number | string): Promise<ActionRes
         ? item.Cells.map((row: any) => (Array.isArray(row) ? row.map((v: any) => Number(v) || 0) : []))
         : [];
 
-    const data: DofensiveMapData = {
+    const data: DofensiveMapData = applyClientMapFreshness({
         id: item.Id as number,
         name: String(item.Name ?? ""),
         subarea: item.Subarea ? { id: item.Subarea.Id as number, name: String(item.Subarea.Name ?? "") } : null,
@@ -364,7 +404,7 @@ export async function getDofensiveMap(mapId: number | string): Promise<ActionRes
         cells,
         allyCells: Array.isArray(item.AllyCells) ? item.AllyCells.map((v: any) => Number(v)) : [],
         enemyCells: Array.isArray(item.EnemyCells) ? item.EnemyCells.map((v: any) => Number(v)) : [],
-    };
+    });
 
     // Auto-persistance locale en arrière-plan (self-healing)
     persistDofensiveMap(data).catch(() => {});

@@ -466,8 +466,8 @@ export function computeMonsterPlacements(
  * Cases de départ des **ALLIÉS** (Fécas) : cases joueurs triées par ID croissant (même règle de
  * départage que les monstres) puis bornées au nombre d'alliés demandé.
  *
- * Sert au toggle « Placements de départ » de la simulation : la carte Dofensive expose les
- * joueurs dans `enemyCells` (inversion conforme Dofus) et les monstres dans `allyCells`.
+ * Sert au toggle « Placements de départ » de la simulation : les joueurs vont
+ * dans `allyCells` (bleues), les monstres dans `enemyCells` (rouges).
  * Déterministe et pur ⇒ testable, aucune dépendance UI.
  */
 export function allyStartPositions(
@@ -481,6 +481,80 @@ export function allyStartPositions(
         .sort((a, b) => a - b)
         .slice(0, Math.floor(maxAllies))
         .map((id) => cellIdToXY(id));
+}
+
+/**
+ * Sépare le « vide » hors-carte des vrais trous (puisards).
+ *
+ * Dans `cellsData` (`mov == 0 && los == 1`), la quasi-totalité des cases sont
+ * du vide connecté au bord de la grille 14×40 (135/136 en salle 1 Servitude) —
+ * le jeu ne les dessine pas en preview `L` (transparent, pas noir). Seules les
+ * cases enclavées (1/136 en salle 1 : la case 358) sont des trous noirs.
+ *
+ * Flood-fill 4-connexe depuis les trous de bordure, à travers les trous :
+ * `voidCells` = atteignables (à ne pas dessiner), `pits` = enclavés (noir).
+ * Pur et déterministe ⇒ testable. Mesuré sur client 3.6.11.15 (salle 1 :
+ * 135 vides + [358]).
+ */
+export function splitHoles(
+    holes: number[],
+    cols: number = DOFUS_MAP_WIDTH,
+    rows: number = DOFUS_MAP_ROWS
+): { voidCells: number[]; pits: number[] } {
+    const holeSet = new Set(
+        (Array.isArray(holes) ? holes : [])
+            .map((id) => Number(id))
+            .filter((id) => Number.isFinite(id) && id >= 0 && id < cols * rows)
+    );
+    if (holeSet.size === 0) return { voidCells: [], pits: [] };
+    const key = (col: number, row: number) => row * cols + col;
+    const visited = new Set<number>();
+    const queue: number[] = [];
+    for (let row = 0; row < rows; row++) {
+        for (let col = 0; col < cols; col++) {
+            if (row !== 0 && row !== rows - 1 && col !== 0 && col !== cols - 1) continue;
+            const id = key(col, row);
+            if (holeSet.has(id) && !visited.has(id)) {
+                visited.add(id);
+                queue.push(id);
+            }
+        }
+    }
+    while (queue.length > 0) {
+        const id = queue.pop() as number;
+        const col = id % cols;
+        const row = Math.floor(id / cols);
+        const neighbours =
+            col === 0
+                ? [
+                      [col + 1, row],
+                      [col, row - 1],
+                      [col, row + 1],
+                  ]
+                : col === cols - 1
+                  ? [
+                        [col - 1, row],
+                        [col, row - 1],
+                        [col, row + 1],
+                    ]
+                  : [
+                        [col + 1, row],
+                        [col - 1, row],
+                        [col, row - 1],
+                        [col, row + 1],
+                    ];
+        for (const [nc, nr] of neighbours) {
+            if (nc < 0 || nc >= cols || nr < 0 || nr >= rows) continue;
+            const nid = key(nc, nr);
+            if (holeSet.has(nid) && !visited.has(nid)) {
+                visited.add(nid);
+                queue.push(nid);
+            }
+        }
+    }
+    const voidCells = [...visited].sort((a, b) => a - b);
+    const pits = [...holeSet].filter((id) => !visited.has(id)).sort((a, b) => a - b);
+    return { voidCells, pits };
 }
 
 

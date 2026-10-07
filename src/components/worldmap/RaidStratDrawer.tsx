@@ -4,9 +4,7 @@ import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   X,
-  Swords,
   Tv2,
-  ExternalLink,
   ChevronRight,
   Compass,
   Flame,
@@ -17,7 +15,7 @@ import {
   Shield,
   Target,
   Loader2,
-  BookOpen,
+  FileText,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useRaidOverlay } from "@/hooks/use-raid-overlay";
@@ -38,64 +36,64 @@ const GIGALODON_STEPS = [
     name: "Avant-poste des Explorateurs",
     coords: { x: 3, y: 2 },
     role: "Logistique & Nettoyage",
-    tip: "Scinder en 3 escouades de 4. Vider les 18 groupes et miner les filons de sel.",
-    warning: "Déposer au coffre pour passer le drop de fragments de 5% à 20% (10 000 pts).",
+    tip: "Scinder en 3 escouades de 4. Vider les 18 groupes et miner les 4 filons de sel marin.",
+    warning: "Sécurisez les 10 000 pts au coffre après les 2 premiers boss pour faire bondir le drop à 20%.",
   },
   {
     floor: "Étage -2",
-    name: "Boss : Mureine la Vorace",
+    name: "Boss : Mureine des Abysses",
     coords: { x: 4, y: 7 },
     role: "Combat Boss 1",
-    tip: "Pleine lumière (Niv. 4) obligatoire. Pandawa cale la Mureine dans un coin ou combat à > 10 PO.",
-    warning: "Au contact, elle dévore et élimine instantanément.",
+    tip: "Pleine lumière (Niv. 4) obligatoire. Tuez les 3 monstres normaux (Madrépire, Kokayou, Léviatank) en priorité.",
+    warning: "Pandawa cale la Mureine en coin ou combat à >10 PO pour bloquer Disperssssion.",
   },
   {
     floor: "Étage -3",
     name: "Falaise & Luminarium",
     coords: { x: 4, y: 12 },
-    role: "Énigme du Pont",
-    tip: "1 seul joueur sur la grille 4×4 pour marcher sur les dalles et allumer le chemin.",
-    warning: "Si un 2e joueur pose le pied sur la grille, le pont se reset immédiatement.",
+    role: "Énigme du Mur",
+    tip: "1 seul joueur clique sur la grille murale 4×4 des poissons-lanternes. ZÉRO sel à dépenser.",
+    warning: "Si plusieurs joueurs cliquent en même temps, les états s'annulent et vous perdez du temps.",
   },
   {
     floor: "Étage -4",
     name: "Boss : Exécrabe le Géant",
     coords: { x: 9, y: 11 },
     role: "Combat Boss 2",
-    tip: "Affrontez le crabe en Niv. 4. Retenez l'ordre d'apparition des 4 formes géométriques !",
-    warning: "L'ordre (Triangle, Rond, Carré, Étoile) servira sous le lac aux statues.",
+    tip: "Affrontez le crabe en Niv. 4. Notez l'ordre des 4 formes : Coquillage, Oursin, Perle, Poulpe !",
+    warning: "Chaque erreur aux statues sous le lac inflige un malus direct de -1 000 points au raid.",
   },
   {
     floor: "Retour -1",
-    name: "Dépôt des Récoltes",
+    name: "Dépôt des Récoltes (10 000 pts)",
     coords: { x: 3, y: 2 },
-    role: "Validation Palier",
-    tip: "Déposez tout le sel restant. Assurez-vous d'avoir atteint les 10 000 points.",
-    warning: "Le palier 10 000 pts est requis pour faire tomber le Fragment 4 à 20%.",
+    role: "Validation Palier 20%",
+    tip: "AUCUN échange en raid : TOUS les 12 joueurs doivent remonter au coffre déposer leurs ressources.",
+    warning: "Dépasser 10 000 points fait bondir le drop du 4e fragment de 1% à 20% sur les Krak'Haine !",
   },
   {
     floor: "Étage -5",
     name: "Ossuaire & Krak'Haine",
     coords: { x: 10, y: 14 },
     role: "Drop Fragment 4",
-    tip: "Avec le bonus 20% activé, le fragment tombe en 1 à 2 combats seulement.",
-    warning: "Évitez le succès Sel qui plonge toute l'instance dans le noir.",
+    tip: "Avec le bonus 20% activé, le fragment tombe en 1 à 3 combats. Attention à l'os marin en [12,13] qui coupe l'autopilote !",
+    warning: "Une fois les 4 fragments validés, tout le raid prend la cage de plongée en [10,14].",
   },
   {
     floor: "Étage -6",
-    name: "Boss : Willorque le Belliqueux",
+    name: "Boss : Willorque des Profondeurs",
     coords: { x: 11, y: 16 },
     role: "Combat Boss 3",
-    tip: "Combat dans le noir complet. Pandawa tank le boss à l'opposé, la team tue les adds.",
-    warning: "Rapporte +10 000 points direct pour le score final.",
+    tip: "Willorque est SEUL. Pandawa le porte T1 et l'isole dans un coin à plus de 3 PO de toute lanterne/statue.",
+    warning: "Zéro monstre, zéro orque spectre. Focus 100% DPS sur le boss (+10 000 pts au coffre).",
   },
   {
     floor: "Final ★",
     name: "Gigalodon le Souverain",
     coords: { x: 3, y: 2 },
     role: "Burst 3 Tours",
-    tip: "3 tours pour envoyer un maximum de dégâts. Jamais devant la gueule !",
-    warning: "Restez en diagonale et gardez 3 cases d'écart entre chaque allié.",
+    tip: "3 tours pour envoyer un maximum de dégâts monocible. Jamais sur les 3 cases mêlée devant la gueule !",
+    warning: "Restez en diagonale (évite Ultrasplash/Tournageoire) et gardez 3 cases d'écart (évite Gigarâle).",
   },
 ];
 
@@ -138,10 +136,10 @@ const LIGHT_LEVELS = [
 ];
 
 const SHAPES = [
-  { id: "triangle", label: "Triangle", symbol: "▲" },
-  { id: "circle", label: "Cercle", symbol: "●" },
-  { id: "square", label: "Carré", symbol: "■" },
-  { id: "star", label: "Étoile", symbol: "★" },
+  { id: "coquillage", label: "Coquillage", symbol: "🐚", element: "Terre", color: "#f59e0b" },
+  { id: "oursin", label: "Oursin", symbol: "🦔", element: "Air", color: "#10b981" },
+  { id: "perle", label: "Perle", symbol: "⚪", element: "Feu", color: "#f43f5e" },
+  { id: "poulpe", label: "Poulpe", symbol: "🐙", element: "Eau", color: "#06b6d4" },
 ];
 
 export function RaidStratDrawer({
@@ -288,7 +286,7 @@ export function RaidStratDrawer({
                   ) : overlayIsOpen ? (
                     <Tv2 size={13} />
                   ) : (
-                    <Swords size={13} />
+                    <Tv2 size={13} />
                   )}
                   <span>
                     {launchLoading
@@ -307,7 +305,7 @@ export function RaidStratDrawer({
                     className="p-2 rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 text-white/60 hover:text-white transition-colors shrink-0"
                     title="Ouvrir le guide complet sur le site"
                   >
-                    <BookOpen size={14} />
+                    <FileText size={14} />
                   </a>
                 )}
               </div>

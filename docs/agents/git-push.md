@@ -6,6 +6,25 @@ description: How to safely push a feature branch to GitHub (avoid CI lockfile cr
 
 ## Avant chaque push — Checklist anti-crash CI
 
+### 0. La porte de sécurité (hook `pre-push`, même commande que la CI)
+
+```bash
+npm run security:audit          # exécuté automatiquement par le hook `pre-push`
+SKIP_AUDIT=1 git push           # échappatoire assumée (jamais en CI)
+```
+
+> **Pourquoi elle existe** (mesure du 05/10/2026) : deux PR Dependabot sont parties rouges parce
+> que `npm audit` n'était vérifié **qu'en CI**. `dev` était lui-même rouge — 7 avis, dont 5 `high`
+> venant d'**une seule chaîne de développement** (`eslint-config-next` → `fast-glob` → `micromatch`
+> → `braces`, ce dernier sans version corrigée publiée). Toute PR naissait donc rouge.
+>
+> La porte est volontairement **asymétrique** (`scripts/security-gate.mjs`) :
+> 1. **le livré** (`--omit=dev`) — échec sur `high` ou `critical` ;
+> 2. **tout l'arbre** — échec sur `critical` seulement (un `high` de dev, non livré, n'empêche plus
+>    une PR ; il reste **visible** à chaque run et **bloquant** dans le job hebdo).
+>
+> Ce qui est ignoré est toujours **écrit** dans la sortie : aucune exception silencieuse.
+
 ### 1. Toujours sync avec `dev` avant de push
 ```bash
 git fetch origin dev

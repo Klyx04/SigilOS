@@ -21,8 +21,13 @@
  *   4. Shuffle profiles order each run (no predictable timing signature)
  *   5. `ladderLastSyncAt` timestamp check — skip profiles synced < 22h ago
  *      (safe guard if cron fires twice / multiple guilds share same player)
- *   6. Graceful abort: if 5 consecutive 429s received, stop the whole job
- *      to avoid getting the CF Worker's egress IP range flagged
+ *   6. Zéro 429 mortel : après 5 rate-limits consécutifs, PAUSE LONGUE
+ *      (cooldown 5 min) puis reprise — jamais d'abandon sur un simple orage
+ *      429. Passé 12 cooldowns d'affilée (ladder vraiment KO), on s'arrête et
+ *      la reprise se fait au run suivant (cutoff 22 h — rien n'est perdu).
+ *   7. Pas de cap de durée : un run (forcé ou cron) va AU BOUT, même pour
+ *      5000 profils (~7-8 h). Concurrence à 1, cutoff 22 h : les relances
+ *      ne retraitent que le reste.
  *
  * Schedule: Every day at 03:00 (cron via BullMQ repeat)
  *
@@ -50,13 +55,16 @@ const BASE_DELAY_MS = 2000;
 const JITTER_MAX_MS = 1000;
 // Min hours between two syncs for the same profile (prevents double-sync)
 const MIN_HOURS_BETWEEN_SYNC = 22;
-// If this many consecutive 429/503 errors occur, abort the whole job
+// If this many consecutive 429/503 errors occur, take a long cooldown
+// instead of aborting (see strategy §6 above)
 const MAX_CONSECUTIVE_ERRORS = 5;
+// Long pause after a rate-limit storm (ms) — then resume where we stopped
+const COOLDOWN_MS = 5 * 60 * 1000;
+// Past this many cooldowns in a single run, the ladder is really down — stop,
+// the next run resumes (22 h cutoff — nothing is lost)
+const MAX_COOLDOWNS = 12;
 // Max retries per individual request
 const MAX_RETRIES = 3;
-// Max total duration for one sync run (prevents a job running for hours
-// and colliding with the next day's cron). 50 min hard cap.
-const MAX_RUN_DURATION_MS = 50 * 60 * 1000;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -100,9 +108,11 @@ async function politeDelay(): Promise<void> {
 /**
  * Fetch one ladder type for one character from the Cloudflare Worker.
  * Implements retry with exponential backoff on 429/503.
- * Returns null if the character isn't found or after exhausting retries.
+ * Returns the payload (check `.found`) — null only if WORKER_URL is missing.
  *
- * @throws {Error} if the server returns an unexpected error (not 429/503)
+ * @throws {Error} on technical failure (timeout/429-503 exhausted/HTTP error :
+ * `CF_TIMEOUT:` / `RATE_LIMIT:` / `CF_HTTP:`) so the caller counts it as
+ * errored WITHOUT stamping lastLadderUpdate (retry next run).
  */
 async function fetchFromCloudflare(
     pseudo: string,
@@ -123,15 +133,15 @@ async function fetchFromCloudflare(
             signal: AbortSignal.timeout(20_000),
         });
     } catch (err: any) {
-        // Network timeout or connection error
+        // Network timeout or connection error → technical failure, NOT "not found".
+        // Throw so the caller counts it as errored (no lastLadderUpdate stamp).
         if (attempt < MAX_RETRIES) {
             const backoff = (attempt + 1) * 3000 + randomBetween(0, 2000);
             logger.warn(`[LadderSync] Timeout ${pseudo} (${type}), retry ${attempt + 1}/${MAX_RETRIES} dans ${backoff}ms`);
             await new Promise(r => setTimeout(r, backoff));
             return fetchFromCloudflare(pseudo, serverId, type, attempt + 1);
         }
-        logger.warn(`[LadderSync] Abandon après ${MAX_RETRIES} tentatives pour ${pseudo} (${type}): ${err.message}`);
-        return null;
+        throw new Error(`CF_TIMEOUT:${err.message}`);
     }
 
     // Rate limited → exponential backoff + retry
@@ -149,8 +159,9 @@ async function fetchFromCloudflare(
     }
 
     if (!res.ok) {
-        logger.warn(`[LadderSync] CF Worker → ${res.status} pour ${pseudo} (${type})`);
-        return null;
+        // 401/500/... — panne technique, PAS un pseudo introuvable. Throw pour
+        // compter en erreur (sans stamper lastLadderUpdate : on réessaiera).
+        throw new Error(`CF_HTTP:${res.status}`);
     }
 
     return await res.json() as CFResponse;
@@ -179,7 +190,7 @@ logger.info(`[LadderSync] Queue "${LADDER_QUEUE_NAME}" initialisée — cron 03:
 async function processLadderSync(job: Job) {
     if (!WORKER_URL) {
         logger.error("[LadderSync] DOFUS_LADDER_WORKER_URL manquante — sync abandonnée.");
-        return;
+        return { synced: 0, notFound: 0, errored: 0, total: 0, cooldowns: 0, aborted: true };
     }
 
     logger.info(`[LadderSync] ⚔️ Démarrage (Job ${job.id})...`);
@@ -222,7 +233,7 @@ async function processLadderSync(job: Job) {
 
     if (profiles.length === 0) {
         logger.info("[LadderSync] Tous les profils sont à jour (< 22h). Rien à sync.");
-        return;
+        return { synced: 0, notFound: 0, errored: 0, total: 0, cooldowns: 0, aborted: false };
     }
 
     // ── 2. Shuffle to avoid predictable timing ────────────────────────────────
@@ -233,21 +244,23 @@ async function processLadderSync(job: Job) {
     let notFound = 0;
     let errored = 0;
     let consecutiveRateLimits = 0;
+    let cooldowns = 0;
+    let aborted = false;
 
     // ── 3. STRICTLY SEQUENTIAL — one profile at a time ───────────────────────
-    const runStart = Date.now();
     for (let i = 0; i < shuffled.length; i++) {
-        // Abort if we've hit too many consecutive rate limits
+        // Rate-limit storm → long cooldown then RESUME (never abort on 429s).
+        // Only a truly dead ladder (MAX_COOLDOWNS) stops the run — resume next time.
         if (consecutiveRateLimits >= MAX_CONSECUTIVE_ERRORS) {
-            logger.error(`[LadderSync] ⛔ ${MAX_CONSECUTIVE_ERRORS} rate-limits consécutifs — sync interrompue pour éviter un ban.`);
-            break;
-        }
-
-        // Abort if the run has exceeded the max duration (avoid hours-long runs)
-        const elapsedMs = Date.now() - runStart;
-        if (elapsedMs > MAX_RUN_DURATION_MS) {
-            logger.warn(`[LadderSync] ⏱️ Durée max atteinte (${Math.round(elapsedMs / 60000)} min) — interruption (${i}/${shuffled.length} profils traités).`);
-            break;
+            cooldowns++;
+            if (cooldowns > MAX_COOLDOWNS) {
+                logger.error(`[LadderSync] ⛔ ${MAX_COOLDOWNS} cooldowns épuisés — sync interrompue (${i}/${shuffled.length} profils traités). Reprise au prochain run.`);
+                aborted = true;
+                break;
+            }
+            logger.warn(`[LadderSync] ⏸️ ${MAX_CONSECUTIVE_ERRORS} rate-limits consécutifs — pause ${COOLDOWN_MS / 60000} min (cooldown ${cooldowns}/${MAX_COOLDOWNS}), reprise ensuite.`);
+            await new Promise(r => setTimeout(r, COOLDOWN_MS));
+            consecutiveRateLimits = 0;
         }
 
         const profile = shuffled[i];
@@ -334,8 +347,9 @@ async function processLadderSync(job: Job) {
 
     await job.updateProgress(100);
     logger.info(
-        `[LadderSync] ✅ Terminé. Synced: ${synced} | NotFound: ${notFound} | Errors: ${errored} | Total: ${shuffled.length}`
+        `[LadderSync] ✅ Terminé. Synced: ${synced} | NotFound: ${notFound} | Errors: ${errored} | Cooldowns: ${cooldowns} | Total: ${shuffled.length}`
     );
+    return { synced, notFound, errored, total: shuffled.length, cooldowns, aborted };
 }
 
 // ─── Worker Instance ──────────────────────────────────────────────────────────
@@ -351,15 +365,29 @@ const ladderSyncWorker = new Worker(
 
 ladderSyncWorker.on("completed", async (job) => {
     logger.info(`[LadderSync] ✅ Job ${job.id} terminé.`);
+    const summary = (job.returnvalue ?? {}) as {
+        synced?: number; notFound?: number; errored?: number;
+        total?: number; cooldowns?: number; aborted?: boolean;
+    };
+    const message = `Sync ladder terminée (worker) : ${summary.synced ?? "?"} OK, ${summary.notFound ?? "?"} introuvables, ${summary.errored ?? "?"} erreurs${summary.cooldowns ? `, ${summary.cooldowns} cooldown(s)` : ""}${summary.aborted ? " — INTERROMPUE (reprise au prochain run)" : ""}.`;
+
+    // Cache ladder périmé par le run : sans ça, le module affiche encore les
+    // 0 pendant 5-10 min après un force (faux « ça n'a rien fait »).
+    try {
+        const { clearCachePattern } = await import("../lib/cache");
+        await clearCachePattern("ladder:*");
+    } catch (e) {
+        logger.warn("[LadderSync] Invalidation cache impossible:", e);
+    }
 
     // Télémétrie God (onglet cron-status) : sans ça, la sync tourne (toutes les
     // 12h) mais le panneau affiche "Jamais" en permanence.
     try {
         const { recordCronExecution } = await import("../lib/cron-telemetry");
         await recordCronExecution("ladder_sync", {
-            success: true,
-            summary: "Sync ladder terminée (worker)",
-            details: { jobId: job.id },
+            success: !summary.aborted,
+            summary: message,
+            details: { jobId: job.id, ...summary },
         });
     } catch (e) {
         logger.warn("[LadderSync] Télémétrie impossible:", e);
@@ -367,11 +395,11 @@ ladderSyncWorker.on("completed", async (job) => {
 
     const { notifyGod } = await import("../server/actions/god-notif-actions");
     await notifyGod({
-        title: "Ladder Background Sync Réussie",
-        message: `La synchronisation périodique du ladder s'est terminée avec succès.`,
+        title: summary.aborted ? "Ladder Background Sync Interrompue" : "Ladder Background Sync Réussie",
+        message,
         type: "WORKER_SYNC",
-        success: true,
-        metadata: { jobId: job.id, timestamp: new Date().toISOString() }
+        success: !summary.aborted,
+        metadata: { jobId: job.id, timestamp: new Date().toISOString(), ...summary }
     });
 });
 

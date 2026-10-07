@@ -13,12 +13,17 @@ interface SimulationTacticalLegendProps {
   isRealMap: boolean;
   showAllies: boolean;
   showEnemies: boolean;
+  /**
+   * Cases de départ affichées sur le plateau (toggle « Placements ») : à `false`
+   * les entrées « Départ Joueurs/Monstres » disparaissent (retour user 06/10/2026 :
+   * légende trop compliquée — elle annonçait des cases masquées par défaut).
+   * `true` par défaut (aucun changement pour les appelants existants).
+   */
+  showStarts?: boolean;
   enemyIconUrl: string;
   /** `compact` = fenêtre de jeu (lignes serrées) · `full` = fiche / landing · `board` = panneau
    *  flottant posé **dans** le plateau (palette de jeu, toujours atteignable sans défiler). */
   variant?: "compact" | "full" | "board";
-  /** Rappel du mode « Boss libre » (une ligne) — affiché DANS le corps déplié. */
-  freeBossHint: string;
   className?: string;
 }
 
@@ -62,9 +67,9 @@ export function SimulationTacticalLegend({
   isRealMap,
   showAllies,
   showEnemies,
+  showStarts = true,
   enemyIconUrl,
   variant = "full",
-  freeBossHint,
   className,
 }: SimulationTacticalLegendProps) {
   const { t } = useI18n();
@@ -130,8 +135,12 @@ export function SimulationTacticalLegend({
               { label: simT.legend.enemyHitByZone, swatch: <Swatch background="#a11c1c" border="#ef4444" /> },
             ]
           : []),
-        { label: simT.legend.startPlayers, swatch: <Swatch background="#8a3a30" border="#c65a4a" /> },
-        { label: simT.legend.startMonsters, swatch: <Swatch background="#2e5a8a" border="#4a86c4" /> },
+        ...(showStarts
+          ? [
+              { label: simT.legend.startPlayers, swatch: <Swatch background="#8a3a30" border="#c65a4a" /> },
+              { label: simT.legend.startMonsters, swatch: <Swatch background="#2e5a8a" border="#4a86c4" /> },
+            ]
+          : []),
       ],
     },
   ];
@@ -144,10 +153,10 @@ export function SimulationTacticalLegend({
         // pour aller chercher la légende », retour user 21/09/2026) : panneau flottant borné, donc
         // toujours atteignable, qui ne pousse plus la carte.
         isBoard
-          ? "w-[min(90vw,21rem)] overflow-hidden rounded-xl border border-white/15 bg-[#121218]/95 shadow-xl backdrop-blur-md pointer-events-auto"
+          ? "w-[min(90vw,21rem)] overflow-hidden rounded-xl border border-border/70 bg-surface/80 p-2 shadow-lg backdrop-blur-md pointer-events-auto"
           : cn(
               "w-full border-t",
-              compactish ? "mt-1.5 border-white/5 bg-[#161614] pt-1" : "mt-2 border-border pt-1.5"
+              compactish ? "mt-1.5 border-border/40 bg-surface/30 pt-1" : "mt-2 border-border pt-1.5"
             ),
         className
       )}
@@ -158,44 +167,34 @@ export function SimulationTacticalLegend({
         onClick={onToggle}
         aria-expanded={open}
         className={cn(
-          "flex w-full cursor-pointer items-center justify-between rounded-md px-2 py-1 transition-colors",
+          "flex w-full cursor-pointer items-center justify-between rounded-lg px-2 py-1 transition-colors",
           compactish
-            ? "text-[10px] text-zinc-400 hover:bg-white/[0.04] hover:text-white"
+            ? "text-[10px] text-muted-foreground hover:bg-surface/50 hover:text-foreground"
             : "text-[11px] text-muted-foreground hover:bg-surface hover:text-foreground"
         )}
       >
-        <span className="flex items-center gap-1.5">
-          <HelpCircle className="h-3.5 w-3.5" />
+        <span className="flex items-center gap-1.5 font-medium">
+          <HelpCircle className="h-3.5 w-3.5 opacity-70" />
           {simT.legendTitle}
         </span>
-        <ChevronDown className={cn("h-3.5 w-3.5 transition-transform duration-200", open && "rotate-180")} />
+        <ChevronDown className={cn("h-3.5 w-3.5 transition-transform duration-200 opacity-60", open && "rotate-180")} />
       </button>
 
       {open && (
         <div
           className={cn(
-            "mt-2 space-y-2 px-1",
-            isBoard && "max-h-[min(50vh,15rem)] overflow-y-auto pb-2 [scrollbar-width:thin]"
+            "mt-2 space-y-2.5 px-1",
+            isBoard && "max-h-[min(50vh,15rem)] overflow-y-auto pb-1 [scrollbar-width:thin]"
           )}
         >
           {groups
             .filter((group) => group.entries.length > 0)
             .map((group) => (
               <div key={group.title} className="space-y-1">
-                <p
-                  className={cn(
-                    "text-[9px] font-black uppercase tracking-[0.14em]",
-                    compactish ? "text-zinc-500" : "text-muted-foreground"
-                  )}
-                >
+                <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground/80">
                   {group.title}
                 </p>
-                <div
-                  className={cn(
-                    "flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[10px]",
-                    compactish ? "text-zinc-400" : "text-muted-foreground"
-                  )}
-                >
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[11px] text-muted-foreground">
                   {group.entries.map((entry) => (
                     <span key={entry.label} className="inline-flex items-center gap-1.5">
                       {entry.swatch}
@@ -206,13 +205,7 @@ export function SimulationTacticalLegend({
               </div>
             ))}
 
-          <p
-            className={cn(
-              "text-[10px] leading-tight",
-              compactish ? "text-zinc-500" : "text-muted-foreground"
-            )}
-          >
-            💡 {freeBossHint}
+          <p className="text-[10px] text-muted-foreground/60 pt-1.5 border-t border-border/40">
             {simT.helpers.mouseControls}
           </p>
         </div>

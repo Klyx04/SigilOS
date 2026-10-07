@@ -2,7 +2,7 @@
 
 > **À lire à chaque session, en entier.** Ce fichier est le **point d'entrée unique** des assistants
 > (Cline, Cursor, Copilot, Codex, Gemini CLI…) : il dit **quoi lire, quand, et ce qui n'est jamais
-> négociable** : 145 lignes, ~2 500 tokens — le minimum vital, tout le reste se lit à la demande.
+> négociable** : 146 lignes, ~2 500 tokens — le minimum vital, tout le reste se lit à la demande.
 > Format ouvert [AGENTS.md](https://agents.md), lu automatiquement : **il n'y a plus de « bloc à coller »**.
 >
 > **Il ne duplique aucune documentation.** Une information qui vit dans `docs/` est **pointée**, jamais
@@ -25,6 +25,7 @@ poste de travail, ni empreinte machine (chemin local, ID Discord, métadonnée d
 | Besoin | Source de vérité |
 |---|---|
 | **Quoi faire / statut des chantiers** | `docs/ROADMAP.md` (backlog canonique — **à lire en premier en mode plan**) |
+| **Dans quel ordre avancer** (la file d'exécution) | `docs/plans/FILE-EXECUTION.md` — **l'ordre unique**, chantiers A→Q étape par étape (pointe vers les plans, ne duplique rien) |
 | État réel entre 2 sessions | `docs/agents/activeContext.md` — **en-tête + bloc du sujet uniquement** (jamais en entier) |
 | Coder aux conventions + sécurité | `docs/RULES.md` (§ Security · § fail-closed · § Code Organization · § Git Workflow) |
 | Politique de sécurité publique | `docs/SECURITY.md` |
@@ -95,6 +96,7 @@ npm run dev                        # http://localhost:3000
 npm run test:run                   # Vitest complet (~1 700 tests) — obligatoire avant PR
 npx tsc --noEmit                   # TypeScript (déjà joué par le hook pre-commit)
 npm run lint                       # ESLint
+npm run security:audit             # porte de sécurité (hook pre-push + CI) — voir docs/agents/git-push.md §0
 npm run build                      # build de prod (délégué à la CI si `next dev` tourne — dis-le)
 npm run seed:docs                  # si docs-catalog.ts a changé
 ```

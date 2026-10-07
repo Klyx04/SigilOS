@@ -84,6 +84,15 @@ export type ModuleGroup = {
     modules: ModuleDef[];
 };
 
+/** Libellé officiel d'une clé de module (ou la clé si elle est inconnue : jamais un libellé inventé). */
+export function moduleLabel(key: string): string {
+    for (const group of MODULE_GROUPS) {
+        const found = group.modules.find((module) => module.key === key);
+        if (found) return found.label;
+    }
+    return key;
+}
+
 export const MODULE_GROUPS: ModuleGroup[] = [
     {
         label: "Général",

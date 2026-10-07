@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { readFile, stat } from "fs/promises";
 import { join, normalize, extname } from "path";
+import { logger } from "@/lib/logger";
 
 // =============================================================================
 // 📂 STATIC UPLOADS SERVING ROUTE
@@ -8,6 +9,17 @@ import { join, normalize, extname } from "path";
 // Next.js standalone mode does NOT serve files from `public/` at runtime.
 // This API route serves uploaded files (proofs, guild images, docs) from disk.
 // Caddy may serve them first via file_server, but this route acts as fallback.
+//
+// 🚨 ICI, `console.error` EST UNE ALERTE (mesuré le 07/10/2026) :
+// `sentry.server.config.ts` active `captureConsoleIntegration({ levels: ["error"] })`,
+// donc chaque `console.error` serveur devient une **Issue Sentry** (+ alerte Discord).
+// Or un asset absent est le cas **NORMAL** : l'icône d'un sort pas encore siphonnée
+// (ex. `/uploads/assets-dofus/spells/sort_15534.webp`) fait basculer le navigateur sur le
+// proxy `/api/assets-dofus/*`. Trois `console.error` par appel — dont un **à chaque
+// requête réussie** — produisaient des alertes `[uploads] Request…`,
+// `[uploads] Resolved path…` et `Error: ENOENT…` pour de simples 404.
+// D'où : `logger` (jamais `console`), et **jamais** le chemin absolu (`/app/public/…`)
+// dans un log — c'est une fuite d'infrastructure (constat d'audit du 20/09/2026).
 // =============================================================================
 
 const UPLOAD_ROOT = join(process.cwd(), "public", "uploads");
@@ -31,7 +43,6 @@ export async function GET(
 
     // Reconstruct the relative path from URL segments
     const relativePath = segments.join("/");
-    console.error(`[uploads] Request: /api/uploads/${relativePath}`);
 
     // 🛡️ Security: Prevent directory traversal attacks
     const resolvedPath = normalize(join(UPLOAD_ROOT, relativePath));
@@ -48,10 +59,8 @@ export async function GET(
 
     try {
         // Verify file exists and is a regular file
-        console.error(`[uploads] Resolved path: ${resolvedPath}`);
         const fileStat = await stat(resolvedPath);
         if (!fileStat.isFile()) {
-            console.error(`[uploads] Not a file: ${resolvedPath}`);
             return NextResponse.json({ error: "Not found" }, { status: 404 });
         }
 
@@ -69,7 +78,16 @@ export async function GET(
             },
         });
     } catch (err) {
-        console.error(`[uploads] File not found: ${resolvedPath}`, err);
+        const code = (err as NodeJS.ErrnoException | undefined)?.code;
+        if (code === "ENOENT" || code === "ENOTDIR" || code === "EISDIR") {
+            // Cas NORMAL : l'asset n'est pas encore siphonné. `debug` = dev seulement —
+            // journaliser chaque miss inonderait les logs de prod sans rien apporter.
+            logger.debug(`[uploads] asset absent (non siphonné): ${relativePath}`);
+        } else {
+            // Anomalie réelle (EACCES, EIO…) : `warn`, jamais `error` — un simple fichier
+            // manquant ne doit pas devenir une Issue Sentry.
+            logger.warn(`[uploads] lecture impossible: ${relativePath}`, { code });
+        }
         return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 }

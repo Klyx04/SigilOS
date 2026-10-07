@@ -21,7 +21,6 @@ import { ValidatorInbox } from "./_components/validator-inbox";
 import { PseudoWarningBanner } from "@/components/layout/pseudo-warning-banner";
 import { AnnouncementBanner } from "@/components/announcement-banner";
 import { GuildActivityStream } from "@/components/layout/guild-activity-stream";
-import { PresenceProvider } from "@/components/providers/PresenceProvider";
 import { GamesLiveWidget } from "@/components/shared/GamesLiveWidget";
 import { ChangelogModal } from "@/components/changelog/changelog-modal";
 import { ServiceReplyModal } from "@/components/services/service-reply-modal";

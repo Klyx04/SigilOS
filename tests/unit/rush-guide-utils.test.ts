@@ -13,6 +13,8 @@ import {
   getMetierIconPath,
   resolveItemImage,
   getItemImageFallback,
+  resolveRushSeqIcon,
+  getSequenceNpc,
   RUSH_ACTIVITY_TAG_CONFIG,
   findMilestoneInsertIndex,
 } from "@/lib/rush-guide-utils";
@@ -321,6 +323,46 @@ describe("rush-guide-utils", () => {
       expect(getMetierIconPath("Bûcheron")).toBe("/assets/rush-sylvestre/bucheron.png");
       // Sans nom : picto générique « professions » du référentiel partagé.
       expect(getMetierIconPath()).toBe("/assets/dofus-ui/pictos/metier.png");
+    });
+  });
+
+  describe("resolveRushSeqIcon — presets, clés de type de quête, custom", () => {
+    it("route les clés de type vers les sprites siphonnés du client", () => {
+      expect(resolveRushSeqIcon("principale")).toBe("/assets/dofus/quests/type-principale.webp");
+      expect(resolveRushSeqIcon("repetable-event")).toBe("/assets/dofus/quests/type-repetable.webp");
+    });
+
+    it("garde les presets historiques et les URL custom", () => {
+      expect(resolveRushSeqIcon("serie-de-quete")).toBe("/assets/icons/serie-de-quete.png");
+      expect(resolveRushSeqIcon("https://exemple.fr/x.png")).toBe("https://exemple.fr/x.png");
+      expect(resolveRushSeqIcon("/uploads/guides/a.webp")).toBe("/uploads/guides/a.webp");
+    });
+
+    it("ne résout jamais le vide", () => {
+      expect(resolveRushSeqIcon(null)).toBeNull();
+      expect(resolveRushSeqIcon("")).toBeNull();
+      expect(resolveRushSeqIcon("   ")).toBeNull();
+    });
+  });
+
+  describe("getSequenceNpc — PNJ donneur (tag npc)", () => {
+    const seqWithNpc = (tags: any) => ({ activityTags: tags }) as any;
+
+    it("lit le nom et l'id du tag npc", () => {
+      expect(getSequenceNpc(seqWithNpc([{ type: "npc", name: "Mériana", npcId: 2205 }]))).toEqual({
+        id: 2205,
+        name: "Mériana",
+      });
+    });
+
+    it("tolère le nom seul ou l'id seul, jamais d'invention", () => {
+      expect(getSequenceNpc(seqWithNpc([{ type: "npc", name: "Mama Ayuto" }]))).toEqual({
+        id: null,
+        name: "Mama Ayuto",
+      });
+      expect(getSequenceNpc(null)).toBeNull();
+      expect(getSequenceNpc(seqWithNpc([]))).toBeNull();
+      expect(getSequenceNpc(seqWithNpc([{ type: "npc", name: "  ", npcId: 0 }]))).toBeNull();
     });
   });
 

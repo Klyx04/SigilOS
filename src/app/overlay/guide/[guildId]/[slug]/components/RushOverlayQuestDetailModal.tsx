@@ -10,6 +10,8 @@ import { RushOverlayTagSection } from "./RushOverlayTagSection";
 import { RushCoordinateChip } from "@/components/dofus-quests/rush/RushCoordinateChip";
 import { QuestHelpersSection } from "@/components/dofus-quests/rush/QuestHelpersSection";
 import { classifyTags, getDungeons, getItemTags, getSequenceCoord, type TagClassification } from "./overlay-utils";
+import { resolveRushSeqIcon, getSequenceNpc } from "@/lib/rush-guide-utils";
+import { NpcBadge } from "@/components/dofus-quests/rush/NpcBadge";
 import { resolveDofusLocalImage } from "@/lib/dofus-image-url";
 import { brandIconForUrl } from "@/lib/source-icons";
 
@@ -70,6 +72,10 @@ export function RushOverlayQuestDetailModal({
   const dofusImg = resolveDofusLocalImage(milestone.title) || resolveDofusLocalImage(name);
   const noobsIcon = brandIconForUrl(noobsUrl);
   const dbIcon = brandIconForUrl(dbUrl);
+  // Icône de type choisie en God (repli : rien, le titre suffit).
+  const seqIcon = resolveRushSeqIcon(seq.icon);
+  // PNJ donneur (tag God) : nom + portrait par convention.
+  const seqNpc = getSequenceNpc(seq);
 
   // Échap ferme le panneau : cette modale remplace un `Dialog` Radix, qui gérait
   // la touche pour nous.
@@ -118,9 +124,13 @@ export function RushOverlayQuestDetailModal({
             </p>
             <h2
               id="rush-quest-detail-title"
-              className="mt-0.5 text-[15px] font-semibold leading-snug text-foreground"
+              className="mt-0.5 flex items-center gap-1.5 text-[15px] font-semibold leading-snug text-foreground"
             >
-              {name}
+              {seqIcon && (
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img src={seqIcon} alt="" className="h-4 w-4 shrink-0 object-contain" loading="lazy" />
+              )}
+              <span className="min-w-0 flex-1 truncate">{name}</span>
             </h2>
             <p className="mt-0.5 truncate text-[11px] text-muted-foreground">{milestone.title}</p>
           </div>
@@ -145,8 +155,14 @@ export function RushOverlayQuestDetailModal({
                   <RushCoordinateChip
                     coordText={`[${coord.x},${coord.y}]`}
                     className="h-5 border-0 bg-transparent px-0 font-semibold text-foreground"
+                    showZaap
                   />
                 </div>
+                {seqNpc && (seqNpc.name || seqNpc.id !== null) && (
+                  <div className="mt-1.5 flex items-center gap-2">
+                    <NpcBadge npcId={seqNpc.id} name={seqNpc.name} />
+                  </div>
+                )}
               </section>
             )}
 

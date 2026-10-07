@@ -40,7 +40,7 @@ export function RushRichText({
           )}
           <div className="flex flex-wrap items-center gap-2">
             {meta.coord && (
-              <RushCoordinateChip coordText={meta.coord} showIcon />
+              <RushCoordinateChip coordText={meta.coord} showIcon showZaap />
             )}
             {meta.linkUrl && (
               <RushTextLink
@@ -61,7 +61,7 @@ export function RushRichText({
       {parts.map((part, i) => {
         if (part.kind === "text") return <React.Fragment key={i}>{part.value}</React.Fragment>;
         if (part.kind === "link") return <RushTextLink key={i} label={part.label} href={part.href} />;
-        return <RushCoordinateChip key={i} coordText={`${part.x}, ${part.y}`} showIcon />;
+        return <RushCoordinateChip key={i} coordText={`${part.x}, ${part.y}`} showIcon showZaap />;
       })}
     </span>
   );

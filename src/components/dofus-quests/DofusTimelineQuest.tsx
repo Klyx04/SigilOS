@@ -13,6 +13,10 @@ import { DofusQuestStatus } from "@prisma/client";
 import { toast } from "sonner";
 import type { DofusPresenceMember } from "@/hooks/use-dofus-presence";
 import { isSafeImageUrl } from "@/lib/security";
+import { QUEST_TYPE_KEYS, questTypeIconPath } from "@/lib/quest-type-icon";
+import { extractNpcRef } from "@/lib/npc-portrait";
+import { NpcBadge } from "@/components/dofus-quests/rush/NpcBadge";
+import { ZaapCopyButton } from "@/components/dofus-quests/ZaapCopyButton";
 import {
   buildQuestTree,
   collectSubtreeQuestIds,
@@ -147,16 +151,24 @@ function QuestDetailInline({ quest, color, isCompleted, onToggle, synergyForQues
           {quest.zone && <span className="text-muted-foreground font-medium">{quest.zone}</span>}
           {Array.isArray(quest.positions) && quest.positions.length > 0 ? (
             quest.positions.map((p: any, i: number) => (
-              <button key={i} onClick={() => { navigator.clipboard.writeText(`/travel ${p.x},${p.y}`); toast.success(`Copié : /travel ${p.x},${p.y}`); }} aria-label={`Copier /travel ${p.x},${p.y}`} className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-success/25 bg-success/10 hover:bg-success/20 font-mono text-success font-bold transition-colors">
-                <MapPin className="w-3 h-3 shrink-0" />{p.x},{p.y}
-                <Copy className="w-3 h-3 opacity-60" />
-              </button>
+              <span key={i} className="inline-flex items-center gap-1">
+                <button onClick={() => { navigator.clipboard.writeText(`/travel ${p.x},${p.y}`); toast.success(`Copié : /travel ${p.x},${p.y}`); }} aria-label={`Copier /travel ${p.x},${p.y}`} className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-success/25 bg-success/10 hover:bg-success/20 font-mono text-success font-bold transition-colors">
+                  <MapPin className="w-3 h-3 shrink-0" />{p.x},{p.y}
+                  <Copy className="w-3 h-3 opacity-60" />
+                </button>
+                {Number.isSafeInteger(p?.x) && Number.isSafeInteger(p?.y) && (
+                  <ZaapCopyButton x={p.x} y={p.y} />
+                )}
+              </span>
             ))
           ) : coords ? (
-            <button onClick={() => { navigator.clipboard.writeText(`/travel ${coords.x},${coords.y}`); toast.success(`Copié : /travel ${coords.x},${coords.y}`); }} aria-label={`Copier /travel ${coords.x},${coords.y}`} className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-success/25 bg-success/10 hover:bg-success/20 font-mono text-success font-bold transition-colors">
-              <MapPin className="w-3 h-3" />{coords.x},{coords.y}
-              <Copy className="w-3 h-3 opacity-60" />
-            </button>
+            <span className="inline-flex items-center gap-1">
+              <button onClick={() => { navigator.clipboard.writeText(`/travel ${coords.x},${coords.y}`); toast.success(`Copié : /travel ${coords.x},${coords.y}`); }} aria-label={`Copier /travel ${coords.x},${coords.y}`} className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-success/25 bg-success/10 hover:bg-success/20 font-mono text-success font-bold transition-colors">
+                <MapPin className="w-3 h-3" />{coords.x},{coords.y}
+                <Copy className="w-3 h-3 opacity-60" />
+              </button>
+              <ZaapCopyButton x={coords.x} y={coords.y} />
+            </span>
           ) : null}
           {quest.level ? <span className="text-muted-foreground font-semibold">Niveau recommandé : {quest.level}</span> : null}
         </div>
@@ -251,10 +263,14 @@ function QuestRow({ quest, color, isCompleted, isLast, isNext, isBlocked, isSele
             <div className="flex items-center gap-2 mb-1 flex-wrap">
               {isNext && !isCompleted && <span className="text-caption font-black text-info bg-info/10 px-1.5 py-0.5 rounded-full uppercase tracking-wider">À FAIRE</span>}
               {isBlocked && <Lock className="w-2.5 h-2.5 text-muted-foreground" />}
-              {/* #148 — icône de quête : image réelle si dispo (URL allowlistée), sinon livre générique (grossi) */}
+              {/* #148 — icône de quête : image réelle si dispo, sinon sprite du
+                  type choisi en God, sinon livre générique */}
               {quest.localImageUrl && isSafeImageUrl(quest.localImageUrl) ? (
                 /* eslint-disable-next-line @next/next/no-img-element */
                 <img src={quest.localImageUrl} alt="" className="w-6 h-6 shrink-0 object-contain rounded" loading="lazy" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+              ) : (QUEST_TYPE_KEYS as readonly string[]).includes(quest.questType) ? (
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img src={questTypeIconPath(quest.questType)} alt="" className="w-6 h-6 shrink-0 object-contain" loading="lazy" />
               ) : (
                 /* eslint-disable-next-line @next/next/no-img-element */
                 <img src="/assets/icons/icone-quete.png" alt="" className="w-5 h-5 shrink-0 object-contain opacity-80" loading="lazy" />
@@ -308,13 +324,22 @@ function QuestRow({ quest, color, isCompleted, isLast, isNext, isBlocked, isSele
             <div className="flex items-center gap-3 text-caption text-muted-foreground font-medium mt-1">
               {quest.zone && <span><MapPin className="w-2.5 h-2.5 inline mr-0.5" />{quest.zone}</span>}
               {Array.isArray(quest.positions) && quest.positions.length > 0 && (
-                <button onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(`/travel ${quest.positions[0].x},${quest.positions[0].y}`); toast.success(`Copié : /travel ${quest.positions[0].x},${quest.positions[0].y}`); }} aria-label={`Copier /travel ${quest.positions[0].x},${quest.positions[0].y}`} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-lg border border-success/25 bg-success/10 hover:bg-success/20 font-mono text-success font-bold transition-colors">
-                  <MapPin className="w-2.5 h-2.5" />{quest.positions[0].x},{quest.positions[0].y}
-                  <Copy className="w-2.5 h-2.5 opacity-60" />
-                </button>
+                <span className="inline-flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                  <button onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(`/travel ${quest.positions[0].x},${quest.positions[0].y}`); toast.success(`Copié : /travel ${quest.positions[0].x},${quest.positions[0].y}`); }} aria-label={`Copier /travel ${quest.positions[0].x},${quest.positions[0].y}`} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-lg border border-success/25 bg-success/10 hover:bg-success/20 font-mono text-success font-bold transition-colors">
+                    <MapPin className="w-2.5 h-2.5" />{quest.positions[0].x},{quest.positions[0].y}
+                    <Copy className="w-2.5 h-2.5 opacity-60" />
+                  </button>
+                  {Number.isSafeInteger(quest.positions[0]?.x) && Number.isSafeInteger(quest.positions[0]?.y) && (
+                    <ZaapCopyButton x={quest.positions[0].x} y={quest.positions[0].y} />
+                  )}
+                </span>
               )}
               {quest.level ? <span className="font-semibold">Niveau reco. {quest.level}</span> : null}
-              {quest.npcName && <span>{quest.npcName}</span>}
+              {(() => {
+                const npc = extractNpcRef(quest);
+                if (!npc.name && npc.id === null) return null;
+                return <NpcBadge npcId={npc.id} name={npc.name} />;
+              })()}
             </div>
             {renduMembers.length > 0 && (
               <button

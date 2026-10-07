@@ -8,6 +8,8 @@ import { RushCoordinateChip } from "@/components/dofus-quests/rush/RushCoordinat
 import { RushOverlayMemberBubbles, type OverlayBubbleMember } from "./RushOverlayMemberBubbles";
 import { RushOverlayDungeonPopover } from "./RushOverlayDungeonPopover";
 import { getAlignmentSet } from "@/lib/rush-helpers";
+import { resolveRushSeqIcon, getSequenceNpc } from "@/lib/rush-guide-utils";
+import { NpcBadge } from "@/components/dofus-quests/rush/NpcBadge";
 import type { RushSequence } from "@/types/rush-guide-types";
 
 interface RushOverlayQuestListItemProps {
@@ -76,11 +78,15 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
   // Lien externe prioritaire : DofusPourLesNoobs, sinon DofusDB.
   const externalUrl = seq.dofuspourlesnoobsUrl || seq.dofusdbUrl || null;
   const externalLabel = seq.dofuspourlesnoobsUrl ? "DofusPourLesNoobs" : "DofusDB";
+  // Icône de type choisie en God (repli : rien, le titre suffit).
+  const seqIcon = resolveRushSeqIcon(seq.icon);
   /**
    * Étiquette d'information : filet 1 px, rayon 3 px, texte atténué. La couleur
    * ne sert qu'à qualifier (ocre = donnée de jeu, rouge = verrou), jamais à
    * décorer : « Alignement », « Donjon », « ressources » se lisent en neutre.
    */
+  // PNJ donneur (tag God) : nom + portrait par convention.
+  const seqNpc = getSequenceNpc(seq);
   const chip = "inline-flex items-center gap-1 rounded-[3px] border border-border bg-surface px-1.5 py-0.5 text-[11px] text-muted-foreground";
 
   return (
@@ -139,7 +145,12 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
         </button>
 
         {/* Titre + 2e ligne — clic sur le titre = ouvrir la fiche externe (DPLN/DofusDB) */}
-        <div className="flex-1 min-w-0">
+        <div className="flex min-w-0 flex-1 items-center gap-1.5">
+          {seqIcon && (
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img src={seqIcon} alt="" className="h-4 w-4 shrink-0 object-contain" loading="lazy" />
+          )}
+          <div className="min-w-0 flex-1">
           {externalUrl ? (
             <a
               href={externalUrl}
@@ -170,6 +181,7 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
               {name}
             </button>
           )}
+          </div>
 
           {/* 2e ligne : indicateurs (chips harmonisés) */}
           {(parsedCoord || hasDungeon || itemTags.length > 0 || bookmarkers.length > 0 || alignmentSet) && (
@@ -189,7 +201,11 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
                 <RushCoordinateChip
                   coordText={`[${parsedCoord.x},${parsedCoord.y}]`}
                   className="text-[11px]"
+                  showZaap
                 />
+              )}
+              {seqNpc && (seqNpc.name || seqNpc.id !== null) && (
+                <NpcBadge npcId={seqNpc.id} name={seqNpc.name} />
               )}
               {hasDungeon && (
                 // Le badge n'était qu'un `title` natif : au survol (ou au clic), on montre les

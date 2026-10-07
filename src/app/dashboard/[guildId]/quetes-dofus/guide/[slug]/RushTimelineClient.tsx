@@ -61,7 +61,7 @@ import { RushOverlayQuestDetailModal } from "@/app/overlay/guide/[guildId]/[slug
 // l'overlay et la page publique (mêmes clés de coche des deux côtés).
 import { RushOverlayResourcesModal } from "@/app/overlay/guide/[guildId]/[slug]/components/RushOverlayResourcesModal";
 import { aggregateRushResources } from "@/app/overlay/guide/[guildId]/[slug]/components/overlay-utils";
-import { isSequenceBlockedByPrereqs, resolveRushSeqIcon, getGuideMetiersRequires } from "@/lib/rush-guide-utils";
+import { isSequenceBlockedByPrereqs, resolveRushSeqIcon, getGuideMetiersRequires, getSequenceNpc } from "@/lib/rush-guide-utils";
 import { toOcrePanelData } from "@/lib/ocre-soul-stones";
 import { metierIds } from "@/lib/metiers";
 import type { RushUIConfig } from "@/lib/rush-ui-config";
@@ -74,6 +74,7 @@ import { RushRichText } from "@/components/dofus-quests/rush/RushRichText";
 import { RushInfoSequenceBanner } from "@/components/dofus-quests/rush/RushInfoSequenceBanner";
 import { MilestoneCelebrationBurst } from "@/components/dofus-quests/rush/MilestoneCelebration";
 import { RushCoordinateChip } from "@/components/dofus-quests/rush/RushCoordinateChip";
+import { NpcBadge } from "@/components/dofus-quests/rush/NpcBadge";
 import { brandIconForUrl } from "@/lib/source-icons";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -347,12 +348,13 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
           )}
           {/* Nom + position + tags */}
           <div className="flex-1 min-w-0 flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
-            {resolveRushSeqIcon(seq.icon) && (
+            {resolveRushSeqIcon(seq.icon) ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={safeImageUrl(resolveRushSeqIcon(seq.icon) as string)} alt="" className="w-4 h-4 object-contain shrink-0" loading="lazy" />
+            ) : (
+              /* eslint-disable-next-line @next/next/no-img-element */
+              <img src="/assets/icons/icone-quete.png" alt="" className="w-4 h-4 object-contain opacity-90 shrink-0 self-center" loading="lazy" />
             )}
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/assets/icons/icone-quete.png" alt="" className="w-4 h-4 object-contain opacity-90 shrink-0 self-center" loading="lazy" />
             {hasAlignment && seq.alignReq && seq.alignReq !== "neutre" && (
               <span
                 className="font-[family-name:var(--font-cinzel)]  text-[10px] font-bold shrink-0"
@@ -368,6 +370,11 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
                 <a href={primaryUrl} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} className={`${cls} hover:text-warning transition-colors`} title={`Ouvrir sur ${noobsUrl ? "DofusPourLesNoobs" : "DofusDB"}`}>{questName}</a>
               );
               return <span className={cls}>{questName}</span>;
+            })()}
+            {(() => {
+              const npc = getSequenceNpc(seq);
+              if (!npc || (!npc.name && npc.id === null)) return null;
+              return <NpcBadge npcId={npc.id} name={npc.name} className="shrink-0" />;
             })()}
             {isNext && !isSeqCompleted && (
               <span className="font-mono shrink-0 text-[11px] text-muted-foreground">à faire</span>
@@ -388,7 +395,7 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
               // clic = copie /travel, survol = carte (MapPositionPopover). Le bleu
               // « info » d'avant faisait couleur-décoration : les coordonnées sont
               // une donnée, pas un état.
-              const chip = <RushCoordinateChip coordText={`${x}, ${y}`} showIcon className="shrink-0" />;
+              const chip = <RushCoordinateChip coordText={`${x}, ${y}`} showIcon showZaap className="shrink-0" />;
               return (
                 <MapPositionPopover posX={x} posY={y} worldId={worldId} guildId={guildId} contextLabel={`${questName} ${ms.title}`}>
                   {chip}

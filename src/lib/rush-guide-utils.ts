@@ -1,5 +1,6 @@
 import type { RushMilestone, RushSequence, RushActivityTag } from "@/types/rush-guide-types";
 import { getJob } from "@/lib/dofus-assets";
+import { QUEST_TYPE_KEYS, questTypeIconPath, type QuestTypeKey } from "@/lib/quest-type-icon";
 const LOCAL_ASSET_PREFIXES = ["/uploads/assets-dofus/", "/assets-dofus/"];
 
 /**
@@ -283,6 +284,24 @@ export function parseCoordinates(
 /** Référence vers une quête prérequis d'une autre quête. */
 export type RushPrereqRef = { seqId: string; milestoneId: string; name: string };
 
+/**
+ * PNJ donneur d'une séquence Rush (tag `npc` {name, npcId} posé en God) —
+ * `null` si aucun (jamais d'invention). Source unique des 4 rendus.
+ */
+export function getSequenceNpc(
+  seq: RushSequence | null | undefined,
+): { id: number | null; name: string | null } | null {
+  const tag = (seq?.activityTags || []).find((t) => t?.type === "npc") as
+    | { name?: unknown; npcId?: unknown }
+    | undefined;
+  if (!tag) return null;
+  const name = typeof tag.name === "string" && tag.name.trim() !== "" ? tag.name.trim() : null;
+  const rawId = Math.floor(Number(tag.npcId));
+  const id = Number.isSafeInteger(rawId) && rawId > 0 ? rawId : null;
+  if (!name && id === null) return null;
+  return { id, name };
+}
+
 /** Normalise un nom de ressource (casse, espaces) — base de la clé stable. */
 const normResourceName = (name = "") => name.trim().toLowerCase().replace(/\s+/g, " ");
 
@@ -419,6 +438,8 @@ export function formatProgressLabel(
 
 /**
  * Résout l'icône d'une séquence Rush.
+ * - Clé de type de quête (`principale`, `repetable-event`, … — `QUEST_TYPE_KEYS`)
+ *   → sprite siphonné du client (`questTypeIconPath`, `src/lib/quest-type-icon.ts`).
  * - Clé preset (ex. "serie-de-quete", "icone-succes", "ocre") → `/assets/icons/<clé>.png`
  * - URL absolue ou chemin relatif (import d'image via upload) → renvoyée telle quelle
  * - Vide/null → null
@@ -428,6 +449,9 @@ export function resolveRushSeqIcon(icon?: string | null | undefined): string | n
   const trimmed = icon.trim();
   if (!trimmed) return null;
   if (/^https?:\/\//i.test(trimmed) || trimmed.startsWith("/")) return trimmed;
+  if ((QUEST_TYPE_KEYS as readonly string[]).includes(trimmed)) {
+    return questTypeIconPath(trimmed as QuestTypeKey);
+  }
   return `/assets/icons/${trimmed}.png`;
 }
 

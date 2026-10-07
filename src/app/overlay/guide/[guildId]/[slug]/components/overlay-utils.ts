@@ -112,7 +112,7 @@ export const TAG_CONDITION_TYPES = [
   "prereq_text",
 ] as const;
 
-/** Tags cachés / techniques — jamais affichés */
+/** Tags cachés / techniques — jamais affichés (`npc` a son affichage dédié `NpcBadge`). */
 export const TAG_HIDDEN_TYPES = [
   "pos_tags",
   "tougli_box",
@@ -121,6 +121,7 @@ export const TAG_HIDDEN_TYPES = [
   "ocre_dungeon",
   "quest_group",
   "item",
+  "npc",
 ] as const;
 
 export type TagClassification = {

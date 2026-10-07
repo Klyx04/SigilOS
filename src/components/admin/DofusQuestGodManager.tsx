@@ -15,7 +15,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { AsyncCombobox } from "@/components/ui/async-combobox";
 import { searchZonesDetected } from "@/server/actions/game-data-actions";
-import { searchDungeonsLocal } from "@/server/actions/dofus-search-actions";
+import { searchDungeonsLocal, searchNpcsLocal } from "@/server/actions/dofus-search-actions";
+import { QUEST_TYPE_KEYS, QUEST_TYPE_LABELS, questTypeIconPath } from "@/lib/quest-type-icon";
 import { toast } from "sonner";
 import { safeImageUrl, isSafeImageUrl } from "@/lib/security";
 import { ACHIEVEMENT_KIND, QUEST_KIND, buildQuestTree, isAchievement, wouldCreateCycle } from "@/lib/dofus-quest-tree";
@@ -450,7 +451,7 @@ function EntryEditDialog({ open, onOpenChange, entry, onSuccess, chainEntries = 
         chainId: "", name: "", zone: "", questType: "QUEST", stepOrder: 0,
         isOptional: false, isLast: false, isDungeon: false,
         entryKind: QUEST_KIND, parentEntryId: "",
-        level: "", npcName: "", npcSubArea: "",
+        level: "", npcName: "", npcSubArea: "", npcId: null,
         notes: "", externalRef: "",
         positions: [] as { x: number; y: number; label?: string }[],
         dofusdbUrl: "", dofuspourlesnoobsUrl: "",
@@ -475,6 +476,32 @@ function EntryEditDialog({ open, onOpenChange, entry, onSuccess, chainEntries = 
     // #148 — Sélecteur multi-donjons (même pattern que Rush Sylvestre admin)
     const [dungeonQuery, setDungeonQuery] = useState("");
     const [dungeonResults, setDungeonResults] = useState<any[]>([]);
+
+    // Recherche PNJ (référentiel client 100 % local, `searchNpcsLocal`) :
+    // sélectionne le donneur avec son npcId (portrait par convention).
+    const [npcQuery, setNpcQuery] = useState("");
+    const [npcResults, setNpcResults] = useState<any[]>([]);
+
+    const handleNpcSearch = async (q: string) => {
+        setNpcQuery(q);
+        if (q.length < 2) { setNpcResults([]); return; }
+        const res = await searchNpcsLocal(q);
+        if (res.success) setNpcResults((res.data as any[]) || []);
+    };
+
+    const selectNpc = (npc: any) => {
+        setFormData((prev: any) => ({
+            ...prev,
+            npcName: npc.name,
+            npcId: npc.npcId ?? null,
+            npcSubArea: prev.npcSubArea || "",
+        }));
+        setNpcQuery(""); setNpcResults([]);
+    };
+
+    const clearNpc = () => {
+        setFormData((prev: any) => ({ ...prev, npcName: "", npcId: null, npcSubArea: "" }));
+    };
 
     // #146 : prérequis dispo aussi en CRÉATION (une entrée avec chainId suffit).
     // En édition, on charge les liens existants ; en création, on charge les candidats du même Dofus.
@@ -515,6 +542,7 @@ function EntryEditDialog({ open, onOpenChange, entry, onSuccess, chainEntries = 
                 level: entry.level || "",
                 npcName: entry.npcName || "",
                 npcSubArea: entry.npcSubArea || "",
+                npcId: (entry.requirements as any)?.npcId ?? null,
                 notes: entry.notes || "",
                 externalRef: entry.externalRef || "",
                 positions: Array.isArray(positions) ? positions.map((p: any) => ({
@@ -534,7 +562,7 @@ function EntryEditDialog({ open, onOpenChange, entry, onSuccess, chainEntries = 
                 chainId: "", name: "", zone: "", questType: "QUEST", stepOrder: 0,
                 isOptional: false, isLast: false, isDungeon: false,
                 entryKind: QUEST_KIND, parentEntryId: "",
-                level: "", npcName: "", npcSubArea: "",
+                level: "", npcName: "", npcSubArea: "", npcId: null,
                 notes: "", externalRef: "",
                 positions: [], dofusdbUrl: "", dofuspourlesnoobsUrl: "",
                 localImageUrl: "", dungeons: [],
@@ -558,7 +586,7 @@ function EntryEditDialog({ open, onOpenChange, entry, onSuccess, chainEntries = 
             // Succès imbriqués : nature de l'étape + rattachement à un succès parent.
             entryKind: formData.entryKind,
             parentEntryId: formData.parentEntryId || null,
-            requirements: { level: formData.level ? parseInt(formData.level) : null, npc: formData.npcName, subarea: formData.npcSubArea },
+            requirements: { level: formData.level ? parseInt(formData.level) : null, npc: formData.npcName, subarea: formData.npcSubArea, npcId: formData.npcId ?? null },
             notes: formData.notes,
             externalRef: formData.externalRef,
             positions: formData.positions,
@@ -713,6 +741,29 @@ function EntryEditDialog({ open, onOpenChange, entry, onSuccess, chainEntries = 
                             </div>
                         </div>
 
+                        {/* Type de quête (sprites siphonnés du client) : pilote l'icône
+                            affichée côté membres. « Défaut » = comportement historique. */}
+                        <div className="space-y-2 p-4 rounded-2xl border border-border bg-black/20">
+                            <label className="text-caption font-black uppercase tracking-widest text-muted-foreground">Type de quête</label>
+                            <div className="grid grid-cols-3 gap-2">
+                                <button key="__default" type="button" onClick={() => setFormData({ ...formData, questType: "QUEST" })}
+                                    className={`flex items-center justify-center gap-2 p-2 rounded-xl border transition-all ${!((QUEST_TYPE_KEYS as readonly string[]).includes(formData.questType)) ? "border-info/60 bg-info/15" : "border-border bg-black/40 hover:border-border-strong"}`}>
+                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                    <img src="/assets/icons/icone-quete.png" alt="Défaut" className="w-6 h-6 object-contain" />
+                                    <span className="text-caption font-black uppercase tracking-wider text-muted-foreground">Défaut</span>
+                                </button>
+                                {QUEST_TYPE_KEYS.map((key) => (
+                                    <button key={key} type="button" onClick={() => setFormData({ ...formData, questType: key })}
+                                        title={QUEST_TYPE_LABELS[key]}
+                                        className={`flex items-center justify-center gap-2 p-2 rounded-xl border transition-all ${formData.questType === key ? "border-info/60 bg-info/15" : "border-border bg-black/40 hover:border-border-strong"}`}>
+                                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                                        <img src={questTypeIconPath(key)} alt={QUEST_TYPE_LABELS[key]} className="w-6 h-6 object-contain" />
+                                        <span className={`text-caption font-black uppercase tracking-wider ${formData.questType === key ? "text-foreground" : "text-muted-foreground"}`}>{QUEST_TYPE_LABELS[key].replace("Quête ", "")}</span>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
                         {/* Core info row */}
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div className="space-y-1 md:col-span-2">
@@ -754,6 +805,44 @@ function EntryEditDialog({ open, onOpenChange, entry, onSuccess, chainEntries = 
                                         )}
                                     </div>
                                     <Input value={formData.localImageUrl || ""} onChange={e => setFormData({...formData, localImageUrl: e.target.value})} className="bg-black/40 border-border h-11 rounded-xl text-xs font-mono flex-1" placeholder="https://… (image du livre de la quête)" />
+                                </div>
+                            </div>
+                        </div>
+                        {/* PNJ donneur (référentiel client 100 % local) : la sélection écrit
+                            npcName + npcId (portrait par convention côté membres). */}
+                        <div className="space-y-2">
+                            <label className="text-caption font-black uppercase tracking-widest text-muted-foreground">PNJ donneur <span className="text-muted-foreground font-normal normal-case tracking-normal">(recherche locale, 6 494 PNJ du client)</span></label>
+                            {formData.npcName ? (
+                                <div className="flex items-center gap-2">
+                                    <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-success/10 border border-success/20 text-success text-caption font-bold">
+                                        {formData.npcName}
+                                        {formData.npcId ? <span className="font-mono opacity-70">#{formData.npcId}</span> : null}
+                                    </span>
+                                    <button type="button" onClick={clearNpc} className="text-caption font-black uppercase tracking-wider text-muted-foreground hover:text-danger">Retirer</button>
+                                </div>
+                            ) : null}
+                            <div className="flex gap-2 flex-wrap">
+                                <Input value={npcQuery} onChange={e => handleNpcSearch(e.target.value)} placeholder="Rechercher un PNJ… (ex : Mériana)" className="bg-black/40 border-border h-9 rounded-xl text-xs flex-1 min-w-[180px]" />
+                                {npcResults.length > 0 && (
+                                    <div className="w-full space-y-0.5 max-h-48 overflow-y-auto custom-scrollbar">
+                                        {npcResults.map((n: any) => (
+                                            <button key={n.npcId} type="button" onClick={() => selectNpc(n)}
+                                                className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-success/10 text-left transition-all text-caption text-muted-foreground hover:text-success font-medium">
+                                                <span className="truncate">{n.name}</span>
+                                                <span className="text-muted-foreground shrink-0 ml-auto font-mono">#{n.npcId}</span>
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="space-y-1">
+                                    <label className="text-caption font-black uppercase tracking-widest text-muted-foreground">Nom affiché</label>
+                                    <Input value={formData.npcName} onChange={e => setFormData({...formData, npcName: e.target.value, npcId: null})} className="bg-black/40 border-border h-9 rounded-xl text-xs" placeholder="Nom du PNJ…" />
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-caption font-black uppercase tracking-widest text-muted-foreground">Sous-zone du PNJ</label>
+                                    <Input value={formData.npcSubArea} onChange={e => setFormData({...formData, npcSubArea: e.target.value})} className="bg-black/40 border-border h-9 rounded-xl text-xs" placeholder="Sous-zone…" />
                                 </div>
                             </div>
                         </div>

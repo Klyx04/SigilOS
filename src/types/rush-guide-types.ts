@@ -24,7 +24,8 @@ export type RushActivityTagType =
   | "info_sequence"
   | "dofus_link"
   | "ocre_dungeon"
-  | "alignment_set";
+  | "alignment_set"
+  | "npc";
 
 export type RushActivityTag = {
   type: RushActivityTagType | string;
@@ -36,6 +37,8 @@ export type RushActivityTag = {
   id?: string;
   imageUrl?: string;
   quantity?: number;
+  /** Tag `npc` : identifiant client du PNJ (portrait par convention). */
+  npcId?: number;
 };
 
 export type RushDungeonRef = {

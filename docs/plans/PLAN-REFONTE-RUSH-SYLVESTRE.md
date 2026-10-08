@@ -21,6 +21,23 @@
 > `docs/ROADMAP.md`.
 
 
+> ## État des lots — 08/10/2026 (vivant)
+>
+> | Lot | État | Livré | Reste |
+> |---|---|---|---|
+> | **1 — correctifs ergonomiques** | ✅ **PR #851** | O1, O2, O4, O8, G1, T4 · **partiels** : O5 (masquage « Chapitre 1/1 »), O6 (Échap PiP), G2 (puces seulement) | O3 **écarté par la mesure** : `scroll-padding-top`/`scroll-mt` étaient des no-ops (le seul défilement ciblé utilise `block: "center"` et aucun élément de l'overlay n'est `sticky`) |
+> | **2 — temps réel** | 🟡 **PR #853** (partiel) | fil d'activité à avatar Discord, `RushOverlayLiveToast`, **présence honnête** (§3.5/§3.6), O12 partiel, O6 (Échap PiP de la modale membres) | **G3/G4** (prérequis par **id**) et **G10** (parallélisation serveur) → lot **`T-2b`** |
+> | **3 — robustesse éditeur GOD** | ⬜ à faire | *rien* — le rappel de syntaxe (`RichTextSyntaxHint`) **existe déjà** (§5.1 du plan initial) | **E1** champ « une ligne = une puce » + exactitude de l'aide, **E3** `order` dans `upsertRushMilestone`, **E4** `confirm()` → `Dialog` (`RushSylvestreAdminClient.tsx:519`), **E5** aperçu live, **E6** ref de scroll (`closest('.flex-1…')` toujours en place, ligne 243) |
+> | **4 — habillage Dofus** | ⬜ à faire | *rien* (le lot 1 a **retiré** du slop, il n'a rien ajouté) | **O14** accents par Dofus, **O15** motion sobre, **G7** hero, **G8** dépli `grid-template-rows`, **G9** célébration (arbitrer — `MilestoneCelebration` existe), **T2** accessibilité |
+> | **5 — overlay avancé** | ⬜ à faire | O12 partiel (toast de validation) | **O9** carte « Maintenant », **O10** 3 densités (container queries), **O11** jauges/anneaux, **O13** mini-carte, O12 (coéquipier sur la même quête, prérequis débloqué) |
+> | **6 — perf & architecture** | ⬜ à faire | *rien* | **G6** contextes `SequenceRow` → Zustand (profiler avant/après), `useOptimistic` handler par handler |
+>
+> **Transverses restants** : **O5** (bouton « Aller à la suite » + défilement auto vers la 1ʳᵉ quête non cochée), **O6** (`autoFocus` sur Fermer + verrou de scroll), **O7** (callout `touglibox` dans la modale de l'overlay), **G2** (succès en badges), **G5** (`ContextualHelp` au clic/clavier), **T1** (parsing des succès, résolution des prérequis par id), **T5** (`useQuestGroups` : collisions d'id de groupe).
+>
+> ⚠️ **E2** (`achievements?: string[]`) **n'est pas un « lot 3 » ordinaire** : il demande une **migration Prisma** ⇒ arrêt et accord explicite avant de coder.
+> 🧭 **Hors de ce plan** : le **chantier « données »** (branches Tougli Bonta/Brâkmar, prérequis structurés, registre auditable) vit dans la note de recherche `temp/…Dofusdb…` et doit être cadré comme un chantier séparé.
+
+## Sommaire
 
 1. [Périmètre & Invariants d'Architecture](#1-périmètre--invariants-darchitecture)
 2. [Résolution des 6 Questions Ouvertes du Plan Initial](#2-résolution-des-6-questions-ouvertes-du-plan-initial)

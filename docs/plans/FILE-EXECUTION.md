@@ -11,7 +11,7 @@ description: File d'exécution unique — tous les chantiers (A→Q), un seul or
 > suivant ; la branche suivante naît de `dev` **après** le merge (`git fetch origin dev && git merge origin/dev`).
 > **On ne supprime jamais un chantier** : livré, il passe en `✅` **ici** (son détail part dans un bloc de
 > session du `docs/ROADMAP.md`).
-> **Dernière mise à jour** : 05/10/2026 · `dev` = `042de5ee` · **volet `membres` de M-1 livré** (PR #834 — le détail est au bloc du 05/10 du `docs/ROADMAP.md`, la file ne le duplique pas).
+> **Dernière mise à jour** : 08/10/2026 · `dev` = `5f17b0e2` · **T-1 du chantier T (rush Sylvestre) livré** (lot « affichage » : une seule barre de chapitre, enchaînement auto, pictos Dofus, conseils en puces — le détail est au bloc du 08/10 du `docs/ROADMAP.md`, la file ne le duplique pas).
 
 ## 0. Comment s'en servir
 
@@ -49,6 +49,7 @@ description: File d'exécution unique — tous les chantiers (A→Q), un seul or
 | **Q** | **Salons vocaux** (module, cahier V2.1 du 30/09) | **idée neuve, à cadrer** | `docs/plans/PLAN-SALONS-VOCAUX.md` (cahier rapatrié le 01/10) | — |
 | **R** | **Durcissement réseau** (Cloudflare devant le domaine ? WAF/DDoS + impact RGPD) | à décider | — (décision **D8**) | — |
 | **S** | **Démo publique** — une guilde de démonstration **en lecture seule**, essayable sans compte depuis la landing | **S-0 ✅ fait** (02/10, mesure, 0 PR) — S-1 → S-5 à faire | `docs/plans/PLAN-DEMO-PUBLIQUE.md` | S-1 → S-5 |
+| **T** | **Rush Sylvestre — refonte** (overlay & guide : ergonomie, temps réel, éditeur God, habillage Dofus, perf) | en cours — **T-1 ✅ livré le 08/10** (PR à ouvrir) | `docs/plans/PLAN-REFONTE-RUSH-SYLVESTRE.md` | T-1 → T-6 |
 
 > **Volets partagés — tranchés une fois pour toutes** (chaque étape n'appartient qu'à **un** chantier) :
 > **§16** = volet `calendrier` → **G·R8**, volet `membres/profil/stuff` → **M-1** ;
@@ -101,6 +102,9 @@ description: File d'exécution unique — tous les chantiers (A→Q), un seul or
 | **36** | **S · S-3** | Interactions **locales non persistées** (inscription, filtrage, scène Discord) | M | étapes 34 & 35 |
 | **37** | **S · S-4** | La landing autour : CTA « Essayer la démo », hero, fuites produit (FR en dur, état unique masqué) | S/M | étape 33 |
 | **38** | **S · S-5** | Perf des pages publiques (prérendu, une seule langue au client, `framer-motion` hors graphe public) | M | — |
+| **39** | **T · T-1** | ✅ **livré le 08/10/2026** — rush Sylvestre : **une seule barre de chapitre**, enchaînement auto, vrais pictos Dofus, conseils en puces (Lot 1 du plan) | M | — |
+| **40** | **T · T-2** | Temps réel dé-slopé : ticker à avatar Discord, toasts overlay, modale « Rush Live » honnête (Lot 2) | M | — |
+| **41** | **T · T-3 → T-6** | Éditeur God (dialogues, rappel de syntaxe) · identité Dofus · overlay avancé · perf Zustand (Lots 3 → 6) | L | — |
 
 `S` < 1 jour · `M` quelques jours · `L` chantier.
 

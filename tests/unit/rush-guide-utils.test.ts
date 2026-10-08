@@ -16,6 +16,7 @@ import {
   resolveRushSeqIcon,
   getSequenceNpc,
   isZaapCopyEnabled,
+  getSequenceManualZaap,
   RUSH_ACTIVITY_TAG_CONFIG,
   findMilestoneInsertIndex,
 } from "@/lib/rush-guide-utils";
@@ -374,7 +375,7 @@ describe("rush-guide-utils", () => {
   });
 
   describe("isZaapCopyEnabled — détour zaap opt-in God", () => {
-    const seqWithPos = (tag: { type: string; name?: string; allowZaap?: boolean }) =>
+    const seqWithPos = (tag: { type: string; name?: string; allowZaap?: boolean; zaapX?: number; zaapY?: number }) =>
       ({ activityTags: [tag] }) as unknown as Parameters<typeof isZaapCopyEnabled>[0];
 
     it("vrai seulement quand pos_tags.allowZaap est coché", () => {
@@ -383,6 +384,26 @@ describe("rush-guide-utils", () => {
       expect(isZaapCopyEnabled(seqWithPos({ type: "pos_tags", name: "1, 1", allowZaap: false }))).toBe(false);
       expect(isZaapCopyEnabled(null)).toBe(false);
       expect(isZaapCopyEnabled(seqWithPos({ type: "npc", name: "X" }))).toBe(false);
+    });
+
+    it("vrai quand le zaap manuel est saisi (2e option God, sans checkbox)", () => {
+      expect(isZaapCopyEnabled(seqWithPos({ type: "pos_tags", name: "-22, -24", zaapX: -20, zaapY: -20 }))).toBe(true);
+    });
+  });
+
+  describe("getSequenceManualZaap — zaap manuel God prioritaire", () => {
+    const seqWithPos = (tag: { type: string; name?: string; zaapX?: unknown; zaapY?: unknown }) =>
+      ({ activityTags: [tag] }) as unknown as Parameters<typeof getSequenceManualZaap>[0];
+
+    it("retourne les coords manuelles quand les deux sont entières", () => {
+      expect(getSequenceManualZaap(seqWithPos({ type: "pos_tags", name: "-22, -24", zaapX: -20, zaapY: -20 }))).toEqual({ x: -20, y: -20 });
+    });
+
+    it("null si incomplet ou absent (repli auto inchangé)", () => {
+      expect(getSequenceManualZaap(seqWithPos({ type: "pos_tags", name: "-22, -24" }))).toBeNull();
+      expect(getSequenceManualZaap(seqWithPos({ type: "pos_tags", name: "-22, -24", zaapX: -20 }))).toBeNull();
+      expect(getSequenceManualZaap(seqWithPos({ type: "pos_tags", name: "-22, -24", zaapX: 1.5, zaapY: -20 }))).toBeNull();
+      expect(getSequenceManualZaap(null)).toBeNull();
     });
   });
 

@@ -26,14 +26,23 @@ export function npcPortraitUrl(npcId: unknown): string | null {
  * Référence PNJ d'une entrée de quête (champs God : `npcName` + `npcId` et
  * `npcImageUrl` glissés dans `requirements`, sans migration —
  * `requirements: z.any()`).
+ *
+ * Lecture résiliente : le nom est lu depuis la colonne `npcName`, avec repli
+ * sur `requirements.npc` (les saisies historiques n'écrivaient que
+ * `requirements`, la colonne restait vide — sans ce repli le donneur
+ * disparaîtrait après la suppression du faux badge « Prérequis: … »).
  */
 export function extractNpcRef(
     entry: { npcName?: unknown; requirements?: unknown } | null | undefined,
 ): NpcRef {
-    const name = typeof entry?.npcName === "string" && entry.npcName.trim() !== ""
+    const rawName = typeof entry?.npcName === "string" && entry.npcName.trim() !== ""
         ? entry.npcName.trim()
         : null;
-    const req = entry?.requirements as { npcId?: unknown; npcImageUrl?: unknown } | null | undefined;
+    const req = entry?.requirements as { npcId?: unknown; npcImageUrl?: unknown; npc?: unknown } | null | undefined;
+    const legacyName = typeof req?.npc === "string" && req.npc.trim() !== ""
+        ? req.npc.trim()
+        : null;
+    const name = rawName ?? legacyName;
     const fromId = Math.floor(Number(req?.npcId));
     const id = Number.isSafeInteger(fromId) && fromId > 0 ? fromId : null;
     const imageUrl = typeof req?.npcImageUrl === "string" && req.npcImageUrl.trim() !== ""

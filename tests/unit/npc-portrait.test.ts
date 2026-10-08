@@ -34,4 +34,17 @@ describe("npc-portrait — portraits PNJ par convention", () => {
         expect(extractNpcRef(null)).toEqual({ id: null, name: null, imageUrl: null });
         expect(extractNpcRef({})).toEqual({ id: null, name: null, imageUrl: null });
     });
+
+    it("replie sur requirements.npc (saisies historiques sans colonne npcName)", () => {
+        expect(extractNpcRef({ requirements: { npc: "Mérina", npcId: 2205 } })).toEqual({
+            id: 2205,
+            name: "Mérina",
+            imageUrl: null,
+        });
+        expect(extractNpcRef({ npcName: "", requirements: { npc: "  Mériana  " } })).toEqual({
+            id: null,
+            name: "Mériana",
+            imageUrl: null,
+        });
+    });
 });

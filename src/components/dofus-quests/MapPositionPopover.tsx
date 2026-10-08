@@ -3,7 +3,7 @@ import React, { useState, useRef, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { MapPin, ExternalLink, Copy, Move } from "lucide-react";
-import { buildZaapTravelCommand } from "@/lib/travel-command";
+import { buildManualZaapTravelCommand, buildZaapTravelCommand } from "@/lib/travel-command";
 import { MapViewer } from "@/components/worldmap/map-viewer";
 import { DOFUS_WORLDS } from "@/lib/dofus-assets";
 import { copyToClipboard } from "@/lib/clipboard";
@@ -20,6 +20,11 @@ interface MapPositionPopoverProps {
    * par défaut : la ligne zaap ne s'affiche que pour les positions cochées.
    */
   zaapEnabled?: boolean;
+  /**
+   * Zaap **manuel** saisi en God (`pos_tags.zaapX/zaapY`) : prioritaire sur
+   * le zaap auto le plus proche dans la ligne zaap.
+   */
+  manualZaap?: { x: number; y: number } | null;
   children: React.ReactNode;
 }
 
@@ -41,6 +46,7 @@ export default function MapPositionPopover({
   guildId,
   contextLabel,
   zaapEnabled = false,
+  manualZaap = null,
   children,
 }: MapPositionPopoverProps) {
   const [isOpen, setIsOpen] = useState(false);
@@ -124,6 +130,18 @@ export default function MapPositionPopover({
     const ok = await copyToClipboard(cmd);
     if (!ok) return;
     toast.success(`Zaap ${zaap.name} — ${cmd}`, { duration: 3000 });
+  }, [posX, posY]);
+
+  /**
+   * Zaap **manuel** God : copie `/zaap zx,zy ; /travel x,y` tel quel
+   * (décision éditoriale, façon DPLN).
+   */
+  const handleCopyManualZaap = useCallback(async (zx: number, zy: number) => {
+    const cmd = buildManualZaapTravelCommand(zx, zy, posX, posY);
+    if (!cmd) return;
+    const ok = await copyToClipboard(cmd);
+    if (!ok) return;
+    toast.success(`Zaap manuel — ${cmd}`, { duration: 3000 });
   }, [posX, posY]);
 
   // Drag handling
@@ -216,11 +234,22 @@ export default function MapPositionPopover({
                 <span className="text-caption text-foreground font-medium truncate">{worldId} — {worldName}</span>
               </div>
 
-              {/* GPS : zaap le plus proche — clic = copie `/zaap ; /travel`.
-                  Affiché seulement si le God l'a coché (`zaapEnabled`).
-                  Dans un monde sans zaap on le DIT (jamais un faux « plus proche »
-                  pris dans un autre monde, l'ancien comportement du worldmap). */}
-              {zaapEnabled && nearestZaap && (
+              {/* GPS : zaap — manuel God prioritaire, sinon le plus proche auto.
+                  Clic = copie `/zaap ; /travel`. Affiché seulement si le God
+                  l'a proposé (`zaapEnabled`). */}
+              {zaapEnabled && (manualZaap && Number.isSafeInteger(manualZaap.x) && Number.isSafeInteger(manualZaap.y) ? (
+                <div className="px-3 py-1 bg-surface/40 border-b border-border/30 flex items-center gap-1.5">
+                  <span className="text-caption text-muted-foreground font-black uppercase tracking-widest shrink-0">Zaap</span>
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); void handleCopyManualZaap(manualZaap.x, manualZaap.y); }}
+                    title={`Copier /zaap ${manualZaap.x},${manualZaap.y} puis /travel ${posX},${posY} — zaap saisi en God`}
+                    className="text-caption text-foreground font-medium truncate hover:text-info transition-colors"
+                  >
+                    Saisi en God <span className="font-mono">[{manualZaap.x}, {manualZaap.y}]</span>
+                  </button>
+                </div>
+              ) : nearestZaap && (
                 <div className="px-3 py-1 bg-surface/40 border-b border-border/30 flex items-center gap-1.5">
                   <span className="text-caption text-muted-foreground font-black uppercase tracking-widest shrink-0">Zaap</span>
                   {nearestZaap.sameWorld ? (
@@ -246,7 +275,7 @@ export default function MapPositionPopover({
                     </span>
                   )}
                 </div>
-              )}
+              ))}
 
               <div className="relative w-full h-44 bg-black/60">
                 <MapViewer

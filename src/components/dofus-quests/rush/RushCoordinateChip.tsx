@@ -3,7 +3,7 @@
 import React, { useRef, useState } from "react";
 import { Copy, Check, MapPin } from "lucide-react";
 import { parseCoordinates } from "@/lib/rush-guide-utils";
-import { buildZaapTravelCommand } from "@/lib/travel-command";
+import { buildManualZaapTravelCommand, buildZaapTravelCommand } from "@/lib/travel-command";
 import { copyToClipboard } from "@/lib/clipboard";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -20,6 +20,12 @@ interface RushCoordinateChipProps {
    * si le détour zaap est possible (`sameWorld`, commande 3.7 oblige).
    */
   showZaap?: boolean;
+  /**
+   * Zaap **manuel** saisi en God (`pos_tags.zaapX/zaapY`) : prioritaire sur
+   * le zaap auto le plus proche — le bouton s'affiche aussitôt, sans
+   * résolution au survol.
+   */
+  manualZaap?: { x: number; y: number } | null;
   onOpenMap?: (x: number, y: number, worldId?: number) => void;
 }
 
@@ -36,6 +42,7 @@ export function RushCoordinateChip({
   className,
   showIcon = false,
   showZaap = false,
+  manualZaap = null,
   onOpenMap,
 }: RushCoordinateChipProps) {
   const [copied, setCopied] = useState(false);
@@ -49,8 +56,13 @@ export function RushCoordinateChip({
     return <span className={className}>{coordText}</span>;
   }
 
+  const hasManualZaap =
+    !!manualZaap &&
+    Number.isSafeInteger(manualZaap.x) &&
+    Number.isSafeInteger(manualZaap.y);
+
   const scheduleZaapResolve = () => {
-    if (!showZaap || zaapState !== "idle") return;
+    if (!showZaap || hasManualZaap || zaapState !== "idle") return;
     hoverTimerRef.current = setTimeout(() => {
       setZaapState("loading");
       import("@/server/actions/optimized-guide-actions").then((mod) => {
@@ -99,6 +111,30 @@ export function RushCoordinateChip({
 
   const handleCopyZaap = async (e: React.MouseEvent) => {
     e.stopPropagation();
+    // Zaap manuel God : copié tel quel (décision éditoriale).
+    if (
+      manualZaap &&
+      Number.isSafeInteger(manualZaap.x) &&
+      Number.isSafeInteger(manualZaap.y)
+    ) {
+      const cmd = buildManualZaapTravelCommand(manualZaap.x, manualZaap.y, parsed.x, parsed.y);
+      if (!cmd) return;
+      const ok = await copyToClipboard(cmd);
+      if (!ok) {
+        toast.error("Copie impossible", {
+          description: `Sélectionne et copie manuellement : ${cmd}`,
+          duration: 3000,
+        });
+        return;
+      }
+      setCopiedZaap(true);
+      toast.success(`Copié : ${cmd}`, {
+        description: "Téléportation au zaap saisi en God, puis trajet jusqu'à la position.",
+        duration: 3000,
+      });
+      setTimeout(() => setCopiedZaap(false), 2000);
+      return;
+    }
     if (!zaap) return;
     const cmd = buildZaapTravelCommand(zaap, { x: parsed.x, y: parsed.y });
     if (!cmd) return;
@@ -145,12 +181,20 @@ export function RushCoordinateChip({
           <Copy className="h-3 w-3 shrink-0 text-subtle-foreground" aria-hidden="true" />
         )}
       </button>
-      {showZaap && zaapState === "ready" && zaap && (
+      {showZaap && (hasManualZaap || (zaapState === "ready" && zaap)) && (
         <button
           type="button"
           onClick={handleCopyZaap}
-          title={`Copier la téléportation au zaap ${zaap.name} + le trajet (${`/zaap ${zaap.x},${zaap.y} ; /travel ${parsed.x},${parsed.y}`})`}
-          aria-label={`Copier zaap ${zaap.name} puis trajet jusqu'à ${parsed.raw}`}
+          title={
+            hasManualZaap && manualZaap
+              ? `Copier la téléportation au zaap saisi en God + le trajet (${`/zaap ${manualZaap.x},${manualZaap.y} ; /travel ${parsed.x},${parsed.y}`})`
+              : `Copier la téléportation au zaap ${zaap!.name} + le trajet (${`/zaap ${zaap!.x},${zaap!.y} ; /travel ${parsed.x},${parsed.y}`})`
+          }
+          aria-label={
+            hasManualZaap
+              ? `Copier zaap manuel puis trajet jusqu'à ${parsed.raw}`
+              : `Copier zaap ${zaap!.name} puis trajet jusqu'à ${parsed.raw}`
+          }
           className={cn(
             "inline-flex cursor-pointer select-none items-center gap-1 rounded-[3px] border border-info/30 bg-info/10 px-1.5 py-0.5",
             "transition-colors hover:bg-info/20",

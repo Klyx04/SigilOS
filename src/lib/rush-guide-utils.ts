@@ -305,15 +305,34 @@ export function getSequenceNpc(
 
 /**
  * Détour zaap proposé pour une séquence Rush — **choix God explicite**
- * (`pos_tags.allowZaap`, coché dans la section Destination) — jamais deviné :
+ * (`pos_tags.allowZaap`, coché dans la section Destination, ou zaap **manuel**
+ * `pos_tags.zaapX/zaapY` saisi en God) — jamais deviné :
  * le bouton `/zaap x,y ; /travel x,y` façon DPLN ne s'affiche que pour les
  * positions où le détour vaut le coup (décision éditoriale, pas calculée).
  */
 export function isZaapCopyEnabled(seq: RushSequence | null | undefined): boolean {
   const tag = (seq?.activityTags || []).find((t) => t?.type === "pos_tags") as
-    | { allowZaap?: unknown }
+    | { allowZaap?: unknown; zaapX?: unknown; zaapY?: unknown }
     | undefined;
-  return tag?.allowZaap === true;
+  if (tag?.allowZaap === true) return true;
+  return getSequenceManualZaap(seq) !== null;
+}
+
+/**
+ * Zaap **manuel** d'une séquence Rush (`pos_tags.zaapX/zaapY` saisis en God) :
+ * prioritaire sur le zaap auto le plus proche côté rendus. `null` si non
+ * saisi (les rendus retombent alors sur l'auto quand `allowZaap` est coché).
+ */
+export function getSequenceManualZaap(
+  seq: RushSequence | null | undefined,
+): { x: number; y: number } | null {
+  const tag = (seq?.activityTags || []).find((t) => t?.type === "pos_tags") as
+    | { zaapX?: unknown; zaapY?: unknown }
+    | undefined;
+  const zx = typeof tag?.zaapX === "number" && Number.isSafeInteger(tag.zaapX) ? tag.zaapX : null;
+  const zy = typeof tag?.zaapY === "number" && Number.isSafeInteger(tag.zaapY) ? tag.zaapY : null;
+  if (zx === null || zy === null) return null;
+  return { x: zx, y: zy };
 }
 
 /** Normalise un nom de ressource (casse, espaces) — base de la clé stable. */

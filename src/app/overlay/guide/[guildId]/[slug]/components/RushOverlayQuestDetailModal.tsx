@@ -10,7 +10,7 @@ import { RushOverlayTagSection } from "./RushOverlayTagSection";
 import { RushCoordinateChip } from "@/components/dofus-quests/rush/RushCoordinateChip";
 import { QuestHelpersSection } from "@/components/dofus-quests/rush/QuestHelpersSection";
 import { classifyTags, getDungeons, getItemTags, getSequenceCoord, type TagClassification } from "./overlay-utils";
-import { resolveRushSeqIcon, getSequenceNpc, isZaapCopyEnabled } from "@/lib/rush-guide-utils";
+import { resolveRushSeqIcon, getSequenceNpc, isZaapCopyEnabled, getSequenceManualZaap } from "@/lib/rush-guide-utils";
 import { NpcBadge } from "@/components/dofus-quests/rush/NpcBadge";
 import { resolveDofusLocalImage } from "@/lib/dofus-image-url";
 import { brandIconForUrl } from "@/lib/source-icons";
@@ -159,6 +159,7 @@ export function RushOverlayQuestDetailModal({
                     coordText={`[${coord.x},${coord.y}]`}
                     className="h-5 border-0 bg-transparent px-0 font-semibold text-foreground"
                     showZaap={isZaapCopyEnabled(seq)}
+                    manualZaap={getSequenceManualZaap(seq)}
                   />
                 </div>
                 {seqNpc && seqNpc.name && !seqNpc.imageUrl && seqNpc.id === null && (

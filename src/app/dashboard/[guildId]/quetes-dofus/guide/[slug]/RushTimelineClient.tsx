@@ -7,8 +7,8 @@ import {
   BookOpen, Flag, Users, RotateCcw, EyeOff, Eye, ExternalLink,
   BookmarkCheck, Loader2, CheckCheck,
   Sparkles, Construction, AlertTriangle, Sword, Lock, MapPin, Plus,
-  Pencil, Crown, ChevronRight, ListCollapse, Info, Check, Shield, Search, X, CircleHelp, ClipboardList,
-  Settings2, Ghost, Maximize2, Lightbulb, Package
+  Pencil, Crown, ChevronRight, ListCollapse, Info, Check, Search, X, CircleHelp, ClipboardList,
+  Settings2, Ghost, Maximize2, Lightbulb
 } from "lucide-react";
 
 import Link from "next/link";
@@ -39,8 +39,8 @@ import "./guide-styles.css";
 import { linkOcreAccount } from "@/server/actions/ocre-actions";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { getClass, getAlignment, getAlignmentLevelSteps, ORDERS, ALIGNMENTS } from "@/lib/dofus-assets";
-import { updateUserProfile, updateMuleAlignment } from "@/server/actions/profile-actions";
+import { getClass, getAlignment, ORDERS } from "@/lib/dofus-assets";
+import { updateUserProfile } from "@/server/actions/profile-actions";
 import {
   toggleMilestoneProgress,
   resetMilestoneProgress,
@@ -61,7 +61,7 @@ import { RushOverlayQuestDetailModal } from "@/app/overlay/guide/[guildId]/[slug
 // l'overlay et la page publique (mêmes clés de coche des deux côtés).
 import { RushOverlayResourcesModal } from "@/app/overlay/guide/[guildId]/[slug]/components/RushOverlayResourcesModal";
 import { aggregateRushResources } from "@/app/overlay/guide/[guildId]/[slug]/components/overlay-utils";
-import { isSequenceBlockedByPrereqs, resolveRushSeqIcon, getGuideMetiersRequires, getSequenceNpc, isZaapCopyEnabled, getSequenceManualZaap, resolvePrereqTarget } from "@/lib/rush-guide-utils";
+import { isSequenceBlockedByPrereqs, resolveRushSeqIcon, getGuideMetiersRequires, getSequenceNpc, isZaapCopyEnabled, getSequenceManualZaap, resolvePrereqTarget, RUSH_RESOURCES_PICTO } from "@/lib/rush-guide-utils";
 import { toOcrePanelData } from "@/lib/ocre-soul-stones";
 import { metierIds } from "@/lib/metiers";
 import type { RushUIConfig } from "@/lib/rush-ui-config";
@@ -1243,16 +1243,13 @@ const capturedMonsterSet=useMemo(()=>new Set(capturedOcreMonsterIds||[]),[captur
   // Le popup « Reprendre ? » ne s'affiche qu'au retour sur la page (repère
   // pré-existant) — jamais juste après avoir posé le repère soi-même.
   const bookmarkTouchedThisSession=useRef(false);
-  const [alignEditOpen,setAlignEditOpen]=useState(false);
-  const [alignEditSaving,setAlignEditSaving]=useState(false);
-  const [alignEditStep,setAlignEditStep]=useState<"alignment"|"order"|"tranche">("alignment");
-  const [alignEditAlignment,setAlignEditAlignment]=useState<string|null>(null);
-  const [alignEditOrder,setAlignEditOrder]=useState<string|null>(null);
-  const [alignEditLevel,setAlignEditLevel]=useState<number>(0);
+  // Alignement & Ordre : LECTURE SEULE dans le rush (demande user du 08/10/2026 —
+  // « on ne doit plus pouvoir éditer son ordre dans le rush sylvestre »). La source
+  // unique est le profil du personnage (`currentUserProfile` / `localProfile`), édité
+  // sur la page Profil ; une quête d'alignement cochée met le profil à jour via
+  // `applyRushAlignmentFromSequence` (jamais un écran d'édition ici).
   const effectiveAltPseudo=useMemo(()=>{if(!altPseudo)return undefined;const mp=localProfile?.pseudoDofus;if(mp&&altPseudo===mp)return undefined;return altPseudo;},[altPseudo,localProfile?.pseudoDofus]);
   const resolvedCharacterInfo=useMemo(()=>{if(!effectiveAltPseudo)return{alignment:localProfile?.alignment,alignmentOrder:localProfile?.alignmentOrder,alignmentLevel:localProfile?.alignmentLevel??0};const m=localProfile?.altPseudos?.find((m:any)=>m.pseudo===effectiveAltPseudo);return{alignment:m?.alignment,alignmentOrder:m?.alignmentOrder,alignmentLevel:m?.alignmentLevel??0};},[effectiveAltPseudo,localProfile]);
-  const openAlignEdit=useCallback(()=>{const{alignment,alignmentOrder,alignmentLevel}=resolvedCharacterInfo;setAlignEditAlignment(alignment||"neutre");setAlignEditOrder(alignmentOrder||null);setAlignEditLevel(alignmentLevel||0);setAlignEditStep("alignment");setAlignEditOpen(true);},[resolvedCharacterInfo]);
-  const handleAlignEditSave=useCallback(async()=>{setAlignEditSaving(true);try{/* #1 : une mule s'édite dans altPseudos (même tableau que le profil) — pas le perso principal */const res=effectiveAltPseudo?await updateMuleAlignment({guildId,pseudo:effectiveAltPseudo,alignment:alignEditAlignment,alignmentOrder:alignEditOrder,alignmentLevel:alignEditLevel}):await updateUserProfile({guildId,alignment:alignEditAlignment,alignmentOrder:alignEditOrder,alignmentLevel:alignEditLevel});if((res as any).success){toast.success("Alignement mis à jour !");setAlignEditOpen(false);/* Optimistic update — sync local state instantly */if(!effectiveAltPseudo){setLocalProfile(prev=>({...prev,alignment:alignEditAlignment,alignmentOrder:alignEditOrder,alignmentLevel:alignEditLevel}));}else{setLocalProfile(prev=>{const updatedAlts=(prev.altPseudos||[]).map((m:any)=>m.pseudo===effectiveAltPseudo?{...m,alignment:alignEditAlignment,alignmentOrder:alignEditOrder,alignmentLevel:alignEditLevel}:m);return{...prev,altPseudos:updatedAlts};});}router.refresh();}else{toast.error((res as any).error||"Erreur lors de la sauvegarde");}}catch{toast.error("Erreur réseau");}finally{setAlignEditSaving(false);}},[guildId,alignEditAlignment,alignEditOrder,alignEditLevel,effectiveAltPseudo,router]);
   const handleFocusSequence=useCallback((seqId:string)=>setFocusedSeqId(seqId),[]);
   const handleDungeonClick=useCallback((dungeonId:string,questName:string)=>setDjModal({open:true,dungeonId,questName}),[]);
   useEffect(()=>{const k=`rush-onboarding-${guide.id}`;if(!localStorage.getItem(k)){const t=setTimeout(()=>setWizardOpen(true),800);return()=>clearTimeout(t);}},[guide.id]);
@@ -1895,7 +1892,11 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
               title="Ressources à prévoir — le calcul suit les quêtes validées et vos coches manuelles"
               aria-label="Ouvrir les ressources à prévoir"
             >
-              <Package className="w-3.5 h-3.5 text-muted-foreground" />
+              {/* Picto RÉEL du jeu, source unique partagée avec l'overlay et le guide
+                  public (`RUSH_RESOURCES_PICTO`) — le carré Lucide `Package` était un
+                  placeholder qui faisait diverger les trois surfaces. */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={RUSH_RESOURCES_PICTO} alt="" loading="lazy" className="w-3.5 h-3.5 object-contain" />
               Ressources à prévoir
               <span className="font-mono tabular-nums text-[11px] text-muted-foreground">
                 {rushResourcesRemaining.filter((r) => !resourceChecks.has(r.key)).length}
@@ -1978,7 +1979,7 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
             </div>
           </div>
           <span aria-hidden="true" className="hidden md:block w-px self-stretch bg-border" />
-          <button type="button" onClick={openAlignEdit} title="Modifier l'alignement à la volée" className="flex items-center gap-2.5 min-w-0 text-left cursor-pointer group">{(()=>{const{alignment,alignmentOrder,alignmentLevel}=resolvedCharacterInfo;if(!alignment||alignment==="neutre")return<><img src="/ordres/neutre.png" alt="" className="w-7 h-7 object-contain shrink-0 opacity-50"/><div className="text-left min-w-0 flex-1"><p className="text-[11px] text-muted-foreground">Alignement</p><p className="text-xs font-bold text-muted-foreground mt-0.5">{!alignment?"Non défini":"Neutre"}</p></div><Pencil className="w-3.5 h-3.5 text-muted-foreground shrink-0"/></>;const ad=getAlignment(alignment);const ords=(ORDERS as unknown as Record<string,any[]>)[alignment.toLowerCase()]||[];const od=alignmentOrder?ords.find((o:any)=>o.id===alignmentOrder):null;if(od){const ib=alignment==="bontarien";const trancheTitle=alignmentLevel>0?((od as any).levels?.[alignmentLevel]||""):"";return<><img src={od.icon} alt="" className="w-7 h-7 object-contain shrink-0"/><div className="text-left min-w-0 flex-1"><p className="text-[11px] text-muted-foreground">Ordre</p><p className={`text-xs font-semibold mt-0.5 ${ib?"text-info":"text-danger"}`}>{od.name}</p><div className="flex flex-wrap items-center gap-1 mt-0.5">{alignmentLevel>0&&<span className="text-caption font-mono text-warning">Tranche {alignmentLevel}</span>}{trancheTitle&&<span className="text-caption text-muted-foreground">{trancheTitle}</span>}</div></div><Pencil className="w-3.5 h-3.5 text-muted-foreground shrink-0"/></>;}return<>{ad&&<img src={ad.icon} alt="" className="w-7 h-7 object-contain shrink-0"/>}<div className="text-left min-w-0 flex-1"><p className="text-[11px] text-muted-foreground">Alignement</p><div className="flex items-center gap-1.5 mt-0.5"><span className="text-xs font-bold text-foreground">{ad?.name||alignment}</span>{alignmentLevel>0&&<span className="text-caption font-bold text-warning">lv.{alignmentLevel}</span>}</div></div><Pencil className="w-3.5 h-3.5 text-muted-foreground shrink-0"/></>;})()}</button>
+          <button type="button" onClick={()=>router.push(`/dashboard/${guildId}/profile`)} title="Alignement en lecture seule — modifiable depuis ton profil" className="flex items-center gap-2.5 min-w-0 text-left cursor-pointer">{(()=>{const{alignment,alignmentOrder,alignmentLevel}=resolvedCharacterInfo;if(!alignment||alignment==="neutre")return<><img src="/ordres/neutre.png" alt="" className="w-7 h-7 object-contain shrink-0 opacity-50"/><div className="text-left min-w-0 flex-1"><p className="text-[11px] text-muted-foreground">Alignement</p><p className="text-xs font-bold text-muted-foreground mt-0.5">{!alignment?"Non défini":"Neutre"}</p></div><Pencil className="w-3.5 h-3.5 text-muted-foreground shrink-0"/></>;const ad=getAlignment(alignment);const ords=(ORDERS as unknown as Record<string,any[]>)[alignment.toLowerCase()]||[];const od=alignmentOrder?ords.find((o:any)=>o.id===alignmentOrder):null;if(od){const ib=alignment==="bontarien";const trancheTitle=alignmentLevel>0?((od as any).levels?.[alignmentLevel]||""):"";return<><img src={od.icon} alt="" className="w-7 h-7 object-contain shrink-0"/><div className="text-left min-w-0 flex-1"><p className="text-[11px] text-muted-foreground">Ordre</p><p className={`text-xs font-semibold mt-0.5 ${ib?"text-info":"text-danger"}`}>{od.name}</p><div className="flex flex-wrap items-center gap-1 mt-0.5">{alignmentLevel>0&&<span className="text-caption font-mono text-warning">Tranche {alignmentLevel}</span>}{trancheTitle&&<span className="text-caption text-muted-foreground">{trancheTitle}</span>}</div></div><Pencil className="w-3.5 h-3.5 text-muted-foreground shrink-0"/></>;}return<>{ad&&<img src={ad.icon} alt="" className="w-7 h-7 object-contain shrink-0"/>}<div className="text-left min-w-0 flex-1"><p className="text-[11px] text-muted-foreground">Alignement</p><div className="flex items-center gap-1.5 mt-0.5"><span className="text-xs font-bold text-foreground">{ad?.name||alignment}</span>{alignmentLevel>0&&<span className="text-caption font-bold text-warning">lv.{alignmentLevel}</span>}</div></div><Pencil className="w-3.5 h-3.5 text-muted-foreground shrink-0"/></>;})()}</button>
           <span aria-hidden="true" className="hidden md:block w-px self-stretch bg-border" />
           <div className="flex items-center gap-2.5 min-w-0">
             {/* Asset Ocre posé NU (plus de tuile teintée sous le picto). */}
@@ -2311,7 +2312,11 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
           </div>
         )}
       </div>
-      <div className="rush-sidebar sticky top-20">
+      {/* Rail de droite : MÊME recette que le guide public (mesure du 22/09/2026 :
+          barre collante + rail plus haut que le viewport ⇒ sa fin, « Objets requis »,
+          restait hors écran et le rail ne défilait pas → il est borné au viewport et
+          défile en interne). Corrigé le 08/10 sur le dashboard, qui ne l'avait pas eu. */}
+      <div className="rush-sidebar sticky top-20 max-h-[calc(100vh-6rem)] overflow-y-auto custom-scrollbar pr-1">
         <RushChapterSidebar
           milestones={contentMilestones as any}
           completedSeqIds={allCompletedSeqIds}
@@ -2451,81 +2456,5 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
     />
    </div></ScrollToPrereqCtx.Provider></AllCompletedSeqIdsCtx.Provider></AllMilestonesCtx.Provider></CapturedMonsterCtx.Provider></CapturedMonsterNamesCtx.Provider></GuildProgressBySeqCtx.Provider></OnBookmarkSeqCtx.Provider></BookmarkedSeqCtx.Provider></NextSeqIdCtx.Provider></ActiveSeqIdCtx.Provider></ContextualHelpCtx.Provider></GuildIdCtx.Provider>
 
-  <Dialog open={alignEditOpen} onOpenChange={setAlignEditOpen}>
-    <DialogContent className="max-w-lg w-[95vw] bg-background border-border rounded-[6px] p-0 overflow-hidden ">
-      <DialogHeader className="p-6 pb-4 border-b border-border">
-        <DialogTitle className="text-lg font-medium text-foreground flex items-center gap-2">
-          <Shield className="w-5 h-5 text-success"/>Alignement & Ordre
-        </DialogTitle>
-        <div className="flex items-center gap-2 mt-3">
-          {(["alignment","order","tranche"] as const).map((s,i)=>(
-            <button key={s} type="button" onClick={()=>{if(s==="order"&&(!alignEditAlignment||alignEditAlignment==="neutre"))return;if(s==="tranche"&&!alignEditOrder)return;setAlignEditStep(s);}} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-caption font-medium border transition-all ${alignEditStep===s?"bg-success/20 border-success/40 text-success":"border-border text-muted-foreground hover:border-border hover:text-muted-foreground"}`}>
-              <span className={`w-4 h-4 rounded-full flex items-center justify-center text-caption font-semibold ${alignEditStep===s?"bg-success text-foreground":"bg-elevated text-muted-foreground"}`}>{i+1}</span>
-              {s==="alignment"?"Alignement":s==="order"?"Ordre":"Tranche"}
-            </button>
-          ))}
-        </div>
-      </DialogHeader>
-      <div className="p-6 space-y-4 max-h-[60vh] overflow-y-auto">
-        {alignEditStep==="alignment"&&(
-          <div className="grid grid-cols-3 gap-3">
-            {ALIGNMENTS.map(align=>(
-              <button key={align.id} type="button" onClick={()=>{setAlignEditAlignment(align.id);if(align.id==="neutre"){setAlignEditOrder(null);setAlignEditLevel(0);}else setAlignEditStep("order");}} className={`relative flex flex-col items-center gap-3 p-4 rounded-[6px] border transition-all ${alignEditAlignment===align.id?"border-success/60 bg-success/10":"border-border bg-surface/40 hover:border-border hover:bg-surface/70"}`}>
-                <div className={`w-12 h-12 rounded-full flex items-center justify-center border overflow-hidden ${align.id==="bontarien"?"bg-info/20 border-info/30":align.id==="brakmarien"?"bg-danger/20 border-danger/30":"bg-elevated border-border"}`}>
-                  <img src={align.icon} alt={align.name} className="w-8 h-8 object-contain"/>
-                </div>
-                <span className={`text-caption font-medium ${alignEditAlignment===align.id?"text-foreground":"text-muted-foreground"}`}>{align.name}</span>
-                {alignEditAlignment===align.id&&<div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-success flex items-center justify-center"><Check className="w-3 h-3 text-foreground"/></div>}
-              </button>
-            ))}
-          </div>
-        )}
-        {alignEditStep==="order"&&alignEditAlignment&&alignEditAlignment!=="neutre"&&(
-          <div className="grid grid-cols-1 gap-3">
-            {((ORDERS as any)[alignEditAlignment]||[]).map((order:any)=>{
-              const isSel=alignEditOrder===order.id;
-              const ib=alignEditAlignment==="bontarien";
-              return(
-                <button key={order.id} type="button" onClick={()=>{setAlignEditOrder(order.id);setAlignEditStep("tranche");}} className={`relative flex items-center gap-4 p-4 rounded-[6px] border transition-all ${isSel?(ib?"border-info/60 bg-info/10":"border-danger/60 bg-danger/10"):"border-border bg-surface/40 hover:border-border hover:bg-surface/70"}`}>
-                  <div className="w-12 h-12 rounded-[4px] bg-surface border border-border flex items-center justify-center shrink-0 overflow-hidden">
-                    <img src={order.icon} alt={order.name} className="w-9 h-9 object-contain p-1"/>
-                  </div>
-                  <span className={`text-sm font-semibold ${isSel?"text-foreground":"text-muted-foreground"}`}>{order.name}</span>
-                  {isSel&&<div className={`absolute top-2 right-2 w-5 h-5 rounded-full flex items-center justify-center ${ib?"bg-info":"bg-danger"}`}><Check className="w-3 h-3 text-foreground"/></div>}
-                </button>
-              );
-            })}
-          </div>
-        )}
-        {alignEditStep==="tranche"&&(
-          <div className="space-y-4">
-            <p className="text-caption font-semibold text-muted-foreground ">Niveau d'alignement (Tranche)</p>
-            <div className="grid grid-cols-1 gap-2">
-              {(()=>{const orderData=alignEditAlignment&&alignEditOrder?(ORDERS as any)[alignEditAlignment]?.find((o:any)=>o.id===alignEditOrder):null;return getAlignmentLevelSteps(orderData).map(({level:lvl,title})=>{
-                const isSel=alignEditLevel===lvl;
-                return(
-                  <button key={lvl} type="button" onClick={()=>setAlignEditLevel(lvl)} className={`flex items-center gap-4 px-4 py-3 rounded-[4px] border transition-all text-left ${isSel?"border-warning bg-warning/15":"border-border bg-surface/50 hover:border-border hover:bg-surface"}`}>
-                    <span className={`text-sm font-semibold w-8 shrink-0 ${isSel?"text-warning":"text-muted-foreground"}`}>{">"}{lvl}</span>
-                    <span className={`text-xs font-bold flex-1 ${isSel?"text-foreground":"text-muted-foreground"}`}>{title||`Niveau ${lvl}`}</span>
-                    {isSel&&<Check className="w-4 h-4 text-warning shrink-0"/>}
-                  </button>
-                );
-              });})()}
-            </div>
-          </div>
-        )}
-      </div>
-      <DialogFooter className="p-5 border-t border-border flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          {alignEditStep!=="alignment"&&<Button variant="ghost" size="sm" onClick={()=>setAlignEditStep(alignEditStep==="tranche"?"order":"alignment")} className="text-muted-foreground hover:text-foreground text-xs">← Retour</Button>}
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="ghost" size="sm" onClick={()=>setAlignEditOpen(false)} className="text-muted-foreground hover:text-foreground text-xs">Annuler</Button>
-          <Button onClick={handleAlignEditSave} disabled={alignEditSaving||(!alignEditAlignment)} size="sm" className="bg-success hover:bg-success text-foreground font-semibold text-xs px-5">
-            {alignEditSaving?<Loader2 className="w-3.5 h-3.5 animate-spin"/>:"Enregistrer"}
-          </Button>
-        </div>
-      </DialogFooter>
-    </DialogContent>
-  </Dialog>
+
 </>);}

@@ -3253,28 +3253,8 @@ body.guide-fullscreen .guide-shell.toc-pinned .toc-rail { height: 100dvh; }
   pointer-events: none;
 }
 
-.guide-live-line {
-  background: var(--guide-surface);
-  border: 1px solid rgba(16, 185, 129, 0.2);
-  border-radius: 0.6rem;
-  padding: 0.55rem 0.8rem;
-  font-size: 0.72rem;
-  font-weight: 700;
-  color: #d1d5db;
-  box-shadow: none;
-  opacity: 0.95;
-}
-
-.guide-live-line.milestone {
-  border-color: rgba(212, 168, 83, 0.35);
-  color: #f5d78e;
-}
-.guide-live-line.step {
-  border-color: rgba(16, 185, 129, 0.3);
-  color: #6ee7b7;
-}
-.guide-live-line.presence {
-  border-color: rgba(59, 130, 246, 0.35);
-  color: #93c5fd;
-}
+/* Les CARTES de ligne vivent désormais dans le composant, sur les JETONS de thème
+   (`bg-elevated` / `border-border` / `text-success|warning|info`) et avec l'avatar Discord :
+   plus aucun aplat emerald/or codé ici (retour user 08/10/2026 : « encart doré sans photo de
+   profil »). Cette feuille ne porte plus que le POSITIONNEMENT du fil. */
 

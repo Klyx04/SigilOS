@@ -578,6 +578,63 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
   );
 });
 
+// ─── RushLiveMemberRow — une ligne de la modale Rush Live ─────────────────────
+/**
+ * Ligne de la modale « Rush Live » : présence RÉELLE (point vert) ou dernière position
+ * connue d'un membre hors ligne. Les deux cas ne disent pas la même chose, donc ils ne se
+ * peignent pas pareil — c'est tout l'objet du correctif du 08/10/2026.
+ */
+function RushLiveMemberRow({
+  member,
+  online,
+}: {
+  member: {
+    userName?: string | null;
+    userAvatar?: string | null;
+    alignment?: string | null;
+    alignmentLevel?: number | null;
+    whereLabel?: string | null;
+  };
+  online: boolean;
+}) {
+  const level = Number(member.alignmentLevel ?? 0);
+  const alignLabel =
+    member.alignment === "brakmarien"
+      ? "Brakmarien"
+      : member.alignment === "bontarien"
+        ? "Bontarien"
+        : member.alignment;
+  const showAlign = !!member.alignment && member.alignment !== "neutre" && level > 0;
+
+  return (
+    <div className="flex items-center gap-2.5 p-2 rounded-lg hover:bg-elevated transition-colors">
+      <span className="relative flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-full bg-success/20">
+        {member.userAvatar ? (
+          <img src={member.userAvatar} alt="" className="w-full h-full object-cover" />
+        ) : (
+          <span className="text-caption font-semibold text-success">{String(member.userName || "?")[0]?.toUpperCase()}</span>
+        )}
+        {online && (
+          <span aria-hidden="true" className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-background bg-success" />
+        )}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-xs font-bold text-foreground">{member.userName}</span>
+        {!online && member.whereLabel && (
+          <span className="block truncate text-[10px] text-muted-foreground">Vu sur « {member.whereLabel} »</span>
+        )}
+      </span>
+      {showAlign && (
+        <span className="ml-auto inline-flex shrink-0 items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-info/10 border border-info/40 text-info" title={`Alignement : ${alignLabel} ${level}`}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={member.alignment === "brakmarien" ? "/ordres/brakmar.png" : "/ordres/bonta.png"} alt="" className="w-3 h-3 object-contain" />
+          {alignLabel} {level}
+        </span>
+      )}
+    </div>
+  );
+}
+
 // ─── CollapsibleHints — Tips & Notes dépliables ────────────────────────────────
 function CollapsibleHints({ tipsText, note }: { tipsText: string; note: string | null }) {
   const [open, setOpen] = useState(false);
@@ -1623,35 +1680,74 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
     enabled: !incognito,
   });
 
-  // Membres présents : WS si connecté, sinon fallback sur les props serveur.
-  const livePresenceMembers = useMemo(() => {
-    const alignByProfile = new Map<string, { alignment: string | null; alignmentLevel: number | null; alignmentOrder: string | null; _score: number }>();
-    (guildProgress || []).forEach((p: any) => {
+  // ─── Présence HONNÊTE ────────────────────────────────────────────────────────
+  // « En ligne » = connecté au WebSocket à l'instant T. Un membre de la base qui a touché
+  // le guide hier n'est PAS en ligne : il est « hors ligne », avec sa dernière position
+  // connue. Avant, dès que le WS était inactif, le repli affichait ces membres comme
+  // « N en ligne » — l'écran mentait (retour user 08/10/2026).
+  // `guildProgress` est typé `GuildMemberProgress[]`, qui ne porte NI l'alignement NI la
+  // progression lue (le serveur les ajoute) : ces deux mémoïsations lisent donc leurs lignes
+  // en `any`, comme le bloc d'origine — deux cast locaux au lieu de cinq annotations.
+  const alignmentByProfile = useMemo(() => {
+    const rows: any[] = guildProgress || [];
+    const map = new Map<string, { alignment: string | null; alignmentLevel: number | null; alignmentOrder: string | null }>();
+    const best = new Map<string, number>();
+    rows.forEach((p) => {
       const score = (p.currentStep ? 2 : 0) + Math.min((p.completedSteps || []).length, 5);
-      const cur = alignByProfile.get(p.profileId);
-      if (!cur || score > cur._score) {
-        alignByProfile.set(p.profileId, {
-          alignment: p.alignment ?? null,
-          alignmentLevel: p.alignmentLevel ?? null,
-          alignmentOrder: p.alignmentOrder ?? null,
-          _score: score,
-        });
-      }
+      if ((best.get(p.profileId) ?? -1) >= score) return;
+      best.set(p.profileId, score);
+      map.set(p.profileId, {
+        alignment: p.alignment ?? null,
+        alignmentLevel: p.alignmentLevel ?? null,
+        alignmentOrder: p.alignmentOrder ?? null,
+      });
     });
-    if (guideLive.connectionStatus === "connected" && guideLive.presence.length > 0) {
-      return guideLive.presence.map((m: any) => {
-        const a = alignByProfile.get(m.profileId);
-        return { ...m, alignment: a?.alignment ?? null, alignmentLevel: a?.alignmentLevel ?? null, alignmentOrder: a?.alignmentOrder ?? null };
-      });
-    }
+    return map;
+  }, [guildProgress]);
+
+  /** Connectés À L'INSTANT (WebSocket) — vide tant que la connexion n'est pas établie. */
+  const liveMembers = useMemo(() => {
+    if (guideLive.connectionStatus !== "connected") return [];
+    return guideLive.presence.map((m) => {
+      const a = alignmentByProfile.get(m.profileId);
+      return {
+        profileId: m.profileId,
+        userName: m.userName,
+        userAvatar: m.userAvatar,
+        milestoneId: m.milestoneId,
+        alignment: a?.alignment ?? null,
+        alignmentLevel: a?.alignmentLevel ?? null,
+        alignmentOrder: a?.alignmentOrder ?? null,
+      };
+    });
+  }, [guideLive.connectionStatus, guideLive.presence, alignmentByProfile]);
+
+  /** Dernière position CONNUE (progression en base) — des membres hors ligne, dits comme tels. */
+  const offlineMembers = useMemo(() => {
+    const rows: any[] = guildProgress || [];
+    const liveIds = new Set(liveMembers.map((m) => m.profileId));
     const seen = new Set<string>();
-    return (guildProgress || [])
-      .filter((p: any) => { if (seen.has(p.profileId)) return false; seen.add(p.profileId); return true; })
-      .map((p: any) => {
-        const a = alignByProfile.get(p.profileId);
-        return { profileId: p.profileId, userName: p.userName, userAvatar: p.userAvatar, milestoneId: p.milestoneId, alignment: a?.alignment ?? null, alignmentLevel: a?.alignmentLevel ?? null, alignmentOrder: a?.alignmentOrder ?? null };
+    return rows
+      .filter((p) => {
+        if (seen.has(p.profileId) || liveIds.has(p.profileId)) return false;
+        seen.add(p.profileId);
+        return true;
+      })
+      .map((p) => {
+        const a = alignmentByProfile.get(p.profileId);
+        const where = milestones.find((x) => x.id === p.milestoneId);
+        return {
+          profileId: p.profileId,
+          userName: p.userName,
+          userAvatar: p.userAvatar,
+          milestoneId: p.milestoneId,
+          whereLabel: where?.title ?? null,
+          alignment: a?.alignment ?? null,
+          alignmentLevel: a?.alignmentLevel ?? null,
+          alignmentOrder: a?.alignmentOrder ?? null,
+        };
       });
-  }, [guideLive.connectionStatus, guideLive.presence, guildProgress]);
+  }, [guildProgress, liveMembers, alignmentByProfile, milestones]);
 
   // « Reprendre ? » : 1 popup par session et par jalon repéré — uniquement si le
   // repère existait déjà à l'arrivée sur la page (retour), jamais après l'avoir posé.
@@ -1926,10 +2022,16 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
                 className="flex items-center gap-1.5 mt-0.5 min-w-0 cursor-pointer"
                 title="Voir les membres connectés sur le guide"
               >
-                <span className="text-xs font-semibold text-success">{livePresenceMembers.length} en ligne</span>
-                {livePresenceMembers.length > 0 && (
+                {/* Le compte ne s'affiche QUE quand la présence est réellement connue :
+                    un « N en ligne » calculé sur la base serait un mensonge. */}
+                <span className={`text-xs font-semibold ${guideLive.connectionStatus === "connected" ? "text-success" : "text-muted-foreground"}`}>
+                  {guideLive.connectionStatus === "connected"
+                    ? `${liveMembers.length} en ligne`
+                    : "présence indisponible"}
+                </span>
+                {liveMembers.length > 0 && (
                   <span className="flex -space-x-1.5 ml-1">
-                    {livePresenceMembers.slice(0, 4).map((m: any) => (
+                    {liveMembers.slice(0, 4).map((m) => (
                       <span key={m.profileId || m.userName} className="w-5 h-5 rounded-full overflow-hidden bg-success/20 flex items-center justify-center border border-background flex-shrink-0" title={m.userName}>
                         {m.userAvatar ? (
                           <img src={m.userAvatar} alt="" className="w-full h-full object-cover" />
@@ -1976,37 +2078,38 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
         <DialogHeader className="p-4 border-b border-border">
           <DialogTitle className="text-sm font-semibold text-foreground flex items-center gap-2">
             <Users className="w-4 h-4 text-success" />
-            Membres sur le guide ({livePresenceMembers.length})
+            Rush Live
+            <span className="ml-auto text-[11px] font-semibold tabular-nums text-muted-foreground">
+              {liveMembers.length} en ligne
+            </span>
           </DialogTitle>
         </DialogHeader>
         <div className="p-4 max-h-[300px] overflow-y-auto space-y-1">
-          {livePresenceMembers.length === 0 ? (
-            <p className="text-xs text-muted-foreground italic px-1">Aucun membre pour l'instant</p>
+          {liveMembers.length === 0 && offlineMembers.length === 0 ? (
+            <p className="text-xs text-muted-foreground italic px-1">Aucun membre sur le guide pour l'instant</p>
           ) : (
-            livePresenceMembers.map((m: any) => (
-              <div key={m.profileId || m.userName} className="flex items-center gap-2.5 p-2 rounded-lg hover:bg-elevated transition-colors">
-                <div className="w-7 h-7 rounded-full overflow-hidden bg-success/20 flex items-center justify-center flex-shrink-0">
-                  {m.userAvatar ? (
-                    <img src={m.userAvatar} alt="" className="w-full h-full object-cover" />
-                  ) : (
-                    <span className="text-caption font-semibold text-success">{String(m.userName || "?")[0]?.toUpperCase()}</span>
-                  )}
-                </div>
-                <span className="text-xs font-bold text-foreground">{m.userName}</span>
-                {(() => {
-                  const lvl = Number(m.alignmentLevel ?? 0);
-                  if (!m.alignment || m.alignment === "neutre" || lvl <= 0) return null;
-                  const label = m.alignment === "brakmarien" ? "Brakmarien" : m.alignment === "bontarien" ? "Bontarien" : m.alignment;
-                  return (
-                    <span className="ml-auto inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-info/10 border border-info/40 text-info" title={`Alignement : ${label} ${lvl}`}>
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={m.alignment === "brakmarien" ? "/ordres/brakmar.png" : "/ordres/bonta.png"} alt="" className="w-3 h-3 object-contain" />
-                      {label} {lvl}
-                    </span>
-                  );
-                })()}
-              </div>
-            ))
+            <>
+              {/* Groupe 1 : connectés à cette seconde (WebSocket). */}
+              <p className="px-1 pb-0.5 pt-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                En ligne maintenant ({liveMembers.length})
+              </p>
+              {liveMembers.length === 0 ? (
+                <p className="px-1 text-[11px] italic text-muted-foreground">Personne n'est connecté à cette seconde.</p>
+              ) : (
+                liveMembers.map((m) => (
+                  <RushLiveMemberRow key={m.profileId || m.userName} member={m} online />
+                ))
+              )}
+              {/* Groupe 2 : dernière position connue en base — hors ligne, dit comme tel. */}
+              {offlineMembers.length > 0 && (
+                <p className="px-1 pb-0.5 pt-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  Hors ligne — dernière position connue ({offlineMembers.length})
+                </p>
+              )}
+              {offlineMembers.map((m) => (
+                <RushLiveMemberRow key={m.profileId || m.userName} member={m} online={false} />
+              ))}
+            </>
           )}
         </div>
         <DialogFooter className="p-3 border-t border-border">

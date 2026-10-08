@@ -28,6 +28,8 @@ import { RushInfoSequenceBanner } from "@/components/dofus-quests/rush/RushInfoS
 import { getNextObjective, aggregateRushResources, nextBlockIndex, bannersForChapter } from "./components/overlay-utils";
 import { RushOverlayResourcesModal } from "./components/RushOverlayResourcesModal";
 import { RushOverlayMembersModal, type OverlayMember } from "./components/RushOverlayMembersModal";
+import { RushOverlayLiveToast } from "@/components/dofus-quests/rush/RushOverlayLiveToast";
+import { useGuidePresence } from "@/hooks/use-guide-presence";
 import { type OverlayBubbleMember } from "./components/RushOverlayMemberBubbles";
 import { RushOverlayOcreModal } from "./components/RushOverlayOcreModal";
 import { buildOcrePlan, type OcrePanelData } from "@/lib/ocre-soul-stones";
@@ -186,6 +188,33 @@ export default function GuideOverlayClient({
   const openChapterMembers = useCallback((members: OverlayMember[]) => {
     setMembersModal({ title: "Sur ce chapitre", members });
   }, []);
+
+  // ─── Présence temps réel : l'overlay CONSOMME, il n'émet pas ───────────────────
+  // L'onglet du dashboard émet déjà le heartbeat du profil courant ; un second émetteur
+  // depuis la fenêtre PiP créerait une présence en double, et l'overlay public n'a de toute
+  // façon aucune identité à annoncer. `enabled: false` ⇒ aucun heartbeat. Le serveur ferme
+  // la room aux non-membres (fail-closed) : un visiteur non authentifié reçoit une liste
+  // vide — jamais une présence inventée.
+  const guideLive = useGuidePresence({
+    guildId,
+    guideSlug: guide.slug,
+    milestoneId: null,
+    enabled: false,
+  });
+
+  /** Membres RÉELLEMENT connectés (WebSocket), prêts pour la modale des membres. */
+  const liveMembers = useMemo<OverlayMember[]>(
+    () =>
+      guideLive.presence.map((m) => {
+        const where = milestones.find((x) => x.id === m.milestoneId);
+        return {
+          name: m.userName,
+          avatar: m.userAvatar,
+          subtitle: where?.title ? `sur « ${where.title} »` : undefined,
+        };
+      }),
+    [guideLive.presence, milestones]
+  );
 
   // ─── Progression Locale Optimiste / Guest LocalStorage ───────────────────────
   // Le préfixe vient de l'appelant quand il est fourni (page publique : progression
@@ -1179,11 +1208,17 @@ export default function GuideOverlayClient({
         />
       )}
 
+      {/* ══ TOAST « un coéquipier a validé » (3 s) ══
+          Rendu DANS l'overlay, pas par `toast()` de Sonner : Sonner monte ses toasts sur le
+          document PRINCIPAL, donc derrière le jeu quand l'overlay vit dans une fenêtre PiP. */}
+      <RushOverlayLiveToast events={guideLive.events} />
+
       {/* ══ MODALE MEMBRES (sur ce chapitre / je suis ici) ══ */}
       {membersModal && (
         <RushOverlayMembersModal
           title={membersModal.title}
           members={membersModal.members}
+          liveMembers={liveMembers}
           isLightMode={isLightMode}
           onClose={() => setMembersModal(null)}
         />

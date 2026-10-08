@@ -70,7 +70,7 @@ import { getAlignmentSet, collectCascadeUncheck } from "@/lib/rush-helpers";
 import { RushHelperBadge } from "@/components/rush/RushHelperBadge";
 import { RushSeparatorBanner } from "@/components/dofus-quests/rush/RushSeparatorBanner";
 import { RushInfoBanner } from "@/components/dofus-quests/rush/RushInfoBanner";
-import { RushRichText } from "@/components/dofus-quests/rush/RushRichText";
+import { RushRichText, RushTipLines } from "@/components/dofus-quests/rush/RushRichText";
 import { RushInfoSequenceBanner } from "@/components/dofus-quests/rush/RushInfoSequenceBanner";
 import { MilestoneCelebrationBurst } from "@/components/dofus-quests/rush/MilestoneCelebration";
 import { RushCoordinateChip } from "@/components/dofus-quests/rush/RushCoordinateChip";
@@ -363,14 +363,12 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
                 {alignInfo?.label} lv.{seq.alignOrderReq}:
               </span>
             )}
-            {(() => {
-              const primaryUrl = noobsUrl || dbUrl || null;
-              const cls = `text-[13px] font-semibold leading-snug break-words min-w-0 text-foreground`;
-              if (primaryUrl) return (
-                <a href={primaryUrl} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} className={`${cls} hover:text-warning transition-colors`} title={`Ouvrir sur ${noobsUrl ? "DofusPourLesNoobs" : "DofusDB"}`}>{questName}</a>
-              );
-              return <span className={cls}>{questName}</span>;
-            })()}
+            {/* Nom de quête en TEXTE SIMPLE : les deux pastilles de marque juste à droite
+                (DofusPourLesNoobs / DofusDB) portent déjà les liens vers ces fiches — un
+                titre cliquable vers la même URL faisait doublon (retour user 08/10/2026). */}
+            <span className="text-[13px] font-semibold leading-snug break-words min-w-0 text-foreground">
+              {questName}
+            </span>
             {(() => {
               const npc = getSequenceNpc(seq);
               if (!npc || (!npc.name && npc.id === null)) return null;
@@ -598,7 +596,7 @@ function CollapsibleHints({ tipsText, note }: { tipsText: string; note: string |
       {open && (
         <div className="space-y-1.5 pt-2">
           {tipsText && (
-            <div className="flex flex-wrap items-center gap-1 text-xs leading-relaxed text-muted-foreground"><RushRichText text={tipsText} /></div>
+            <RushTipLines text={tipsText} className="text-xs leading-relaxed text-muted-foreground" />
           )}
           {note && (
             <p className="text-[11px] italic leading-relaxed text-muted-foreground">Note : {note}</p>

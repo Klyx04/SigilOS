@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Sun, Moon, ExternalLink, Package, Eye, EyeOff, HelpCircle, RotateCcw, Crown, Users, Check, X, MoreVertical, Bug } from "lucide-react";
+import { Sun, Moon, ExternalLink, Eye, EyeOff, HelpCircle, RotateCcw, Crown, Users, Check, X, MoreVertical, Bug } from "lucide-react";
 import { RushOverlayFeedbackPanel } from "./RushOverlayFeedbackPanel";
 import { getClass } from "@/lib/dofus-assets";
 import { cn } from "@/lib/utils";
@@ -218,7 +218,18 @@ export function RushOverlayHeader({
                 : "bg-[#181d23] border-[#2a3646] text-[#d5a94e] hover:bg-[#1f2733]"
             )}
           >
-            <Package className="w-3.5 h-3.5" />
+            {/* Picto du jeu pour « Ressources à prévoir » : l'asset Dofus de l'icône du
+                module Ressources (`/assets/dofus/modules/resources.png`, celui que
+                `module-catalog` associe à `resources`) — mesuré coloré (RGB 47,50,21,
+                alpha 94), donc lisible en thème clair ET sombre, contrairement au picto
+                blanc de la barre de navigation (`nav/resources.png`, RGB 255). */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/assets/dofus/modules/resources.png"
+              alt=""
+              className="h-3.5 w-3.5 object-contain"
+              loading="lazy"
+            />
           </button>
 
           {/* Quête Ocre (Metamob) — overlay interne uniquement : pastille du reste à capturer */}

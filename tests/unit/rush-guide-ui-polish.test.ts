@@ -18,7 +18,7 @@ const OVERLAY = "src/app/overlay/guide/[guildId]/[slug]/GuideOverlayClient.tsx";
 const HEADER = "src/app/overlay/guide/[guildId]/[slug]/components/RushOverlayHeader.tsx";
 const FOOTER = "src/app/overlay/guide/[guildId]/[slug]/components/RushOverlayFooter.tsx";
 const SEARCH = "src/app/overlay/guide/[guildId]/[slug]/components/RushOverlaySearch.tsx";
-const TREE = "src/app/overlay/guide/[guildId]/[slug]/components/RushOverlayChapterTree.tsx";
+const TREE = "src/app/overlay/guide/[guildId]/[slug]/components/RushOverlayChapterBar.tsx";
 
 const codeOf = (p: string) => readFileSync(p, "utf8");
 
@@ -69,11 +69,15 @@ describe("overlay — le mode compact est supprimé (retour user 07/10/2026)", (
         expect(footer).toContain("Suivant");
     });
 
-    it("la pile d'en-tête respire (recherche, sélecteur, barre de chapitre)", () => {
+    it("la pile d'en-tête respire (recherche, UNE barre de chapitre)", () => {
         // Renfort visuel verrouillé pour éviter un retour en arrière silencieux.
         expect(codeOf(SEARCH)).toContain("mx-3 mt-3 mb-2.5");
         expect(codeOf(TREE)).toContain("px-3 py-2.5 border-b");
-        expect(codeOf(OVERLAY)).toContain("px-4 py-2.5 border-y");
+        // Depuis le 08/10/2026, l'overlay n'a PLUS de 2ᵉ barre « chapitre courant » empilée
+        // (les trois blocs qui coûtaient ~120 px sont fusionnés dans `RushOverlayChapterBar`) :
+        // cette classe-là ne doit pas revenir dans le client.
+        expect(codeOf(OVERLAY)).not.toContain("px-4 py-2.5 border-y");
+        expect(codeOf(OVERLAY)).toContain("<RushOverlayChapterBar");
     });
 });
 

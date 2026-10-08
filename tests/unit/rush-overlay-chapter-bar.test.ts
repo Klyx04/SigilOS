@@ -15,7 +15,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { selectableChapters } from "@/app/overlay/guide/[guildId]/[slug]/components/RushOverlayChapterTree";
+import { selectableChapters } from "@/app/overlay/guide/[guildId]/[slug]/components/RushOverlayChapterBar";
 import type { RushMilestone } from "@/types/rush-guide-types";
 
 const ms = (id: string, type: string): RushMilestone => ({

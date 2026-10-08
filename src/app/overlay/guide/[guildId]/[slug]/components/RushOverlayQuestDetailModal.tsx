@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo } from "react";
+import React, { useEffect, useMemo, useRef } from "react";
 import { X, MapPin, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { RushMilestone, RushSequence } from "@/types/rush-guide-types";
@@ -9,6 +9,7 @@ import { QuestItemResourceGrid } from "@/components/dofus-quests/rush/QuestItemR
 import { RushOverlayTagSection } from "./RushOverlayTagSection";
 import { RushCoordinateChip } from "@/components/dofus-quests/rush/RushCoordinateChip";
 import { QuestHelpersSection } from "@/components/dofus-quests/rush/QuestHelpersSection";
+import { RushTipLines } from "@/components/dofus-quests/rush/RushRichText";
 import { classifyTags, getDungeons, getItemTags, getSequenceCoord, type TagClassification } from "./overlay-utils";
 import { resolveRushSeqIcon, getSequenceNpc, isZaapCopyEnabled, getSequenceManualZaap } from "@/lib/rush-guide-utils";
 import { NpcBadge } from "@/components/dofus-quests/rush/NpcBadge";
@@ -79,12 +80,22 @@ export function RushOverlayQuestDetailModal({
 
   // Échap ferme le panneau : cette modale remplace un `Dialog` Radix, qui gérait
   // la touche pour nous.
+  //
+  // ⚠️ On écoute la fenêtre du document qui PORTE réellement la modale
+  // (`ownerDocument.defaultView` du dialogue), pas le `window` global du module : dans une
+  // fenêtre Document Picture-in-Picture, le `window` de l'onglet ne reçoit aucun événement —
+  // Échap ne fermait donc rien dans la PiP (retour user du 08/10/2026).
+  const dialogRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
+    const win =
+      dialogRef.current?.ownerDocument.defaultView ??
+      (typeof window === "undefined" ? null : window);
+    if (!win) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
     };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    win.addEventListener("keydown", onKey);
+    return () => win.removeEventListener("keydown", onKey);
   }, [onClose]);
 
   /** Libellé de section : même famille que le texte, simplement atténué. */
@@ -105,6 +116,7 @@ export function RushOverlayQuestDetailModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby="rush-quest-detail-title"
+        ref={dialogRef}
         className={cn(
           "relative z-10 flex max-h-[85vh] w-full max-w-[26rem] flex-col overflow-hidden",
           "rounded-[6px] border border-border-strong bg-elevated"
@@ -152,7 +164,8 @@ export function RushOverlayQuestDetailModal({
           <div className="divide-y divide-border">
             {coord && (
               <section className="py-3">
-                <p className={sectionLabel}>Position de lancement</p>
+                {/* Aucun intitulé « Position de lancement » : la puce de coordonnée dit déjà
+                    ce qu'elle est, le libellé ne faisait que répéter (retour user 08/10). */}
                 <div className="flex items-center gap-2 rounded-[4px] border border-border bg-surface px-2.5 py-1.5">
                   <MapPin className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
                   <RushCoordinateChip
@@ -176,6 +189,26 @@ export function RushOverlayQuestDetailModal({
               </section>
             )}
 
+            {/* Conseils AVANT les listes (succès, ressources, badges) : c'est ce qu'on lit
+                pour agir, le reste est de la donnée de référence. */}
+            {(seq.tips || seq.note) && (
+              <section className="py-3">
+                <p className={sectionLabel}>Conseils</p>
+                <div className="space-y-2">
+                  {seq.tips && (
+                    <div className="rounded-[4px] border border-warning/30 bg-warning/[0.07] px-2.5 py-2 text-[12px] leading-relaxed text-foreground">
+                      <RushTipLines text={seq.tips} />
+                    </div>
+                  )}
+                  {seq.note && (
+                    <div className="rounded-[4px] border border-border bg-surface px-2.5 py-2 text-[12px] leading-relaxed text-muted-foreground">
+                      <RushTipLines text={seq.note} />
+                    </div>
+                  )}
+                </div>
+              </section>
+            )}
+
             {resources.length > 0 && (
               <section className="py-3">
                 <QuestItemResourceGrid items={resources} showHeaderMeta={false} />
@@ -195,53 +228,39 @@ export function RushOverlayQuestDetailModal({
               </section>
             )}
 
-            {(seq.tips || seq.note || noobsUrl || dbUrl) && (
+            {(noobsUrl || dbUrl) && (
               <section className="py-3">
-                <p className={sectionLabel}>Conseils & liens</p>
-                <div className="space-y-2">
-                  {seq.tips && (
-                    <p className="rounded-[4px] border border-warning/30 bg-warning/[0.07] px-2.5 py-2 text-[12px] leading-relaxed text-foreground">
-                      {seq.tips}
-                    </p>
-                  )}
-                  {seq.note && (
-                    <p className="rounded-[4px] border border-border bg-surface px-2.5 py-2 text-[12px] leading-relaxed text-muted-foreground">
-                      {seq.note}
-                    </p>
-                  )}
-                  {(noobsUrl || dbUrl) && (
-                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 pt-0.5">
-                      {noobsUrl && (
-                        <a href={noobsUrl} target="_blank" rel="noopener noreferrer" className={sourceLink}>
-                          {noobsIcon && (
-                            /* eslint-disable-next-line @next/next/no-img-element */
-                            <img
-                              src={noobsIcon.src}
-                              alt=""
-                              className="h-3.5 w-3.5 shrink-0 rounded-[3px]"
-                              loading="lazy"
-                            />
-                          )}
-                          {noobsIcon?.label ?? "DofusPourLesNoobs"}
-                          <ExternalLink className="h-3 w-3 shrink-0" aria-hidden="true" />
-                        </a>
+                <p className={sectionLabel}>Liens</p>
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
+                  {noobsUrl && (
+                    <a href={noobsUrl} target="_blank" rel="noopener noreferrer" className={sourceLink}>
+                      {noobsIcon && (
+                        /* eslint-disable-next-line @next/next/no-img-element */
+                        <img
+                          src={noobsIcon.src}
+                          alt=""
+                          className="h-3.5 w-3.5 shrink-0 rounded-[3px]"
+                          loading="lazy"
+                        />
                       )}
-                      {dbUrl && (
-                        <a href={dbUrl} target="_blank" rel="noopener noreferrer" className={sourceLink}>
-                          {dbIcon && (
-                            /* eslint-disable-next-line @next/next/no-img-element */
-                            <img
-                              src={dbIcon.src}
-                              alt=""
-                              className="h-3.5 w-3.5 shrink-0 rounded-[3px]"
-                              loading="lazy"
-                            />
-                          )}
-                          {dbIcon?.label ?? "DofusDB"}
-                          <ExternalLink className="h-3 w-3 shrink-0" aria-hidden="true" />
-                        </a>
+                      {noobsIcon?.label ?? "DofusPourLesNoobs"}
+                      <ExternalLink className="h-3 w-3 shrink-0" aria-hidden="true" />
+                    </a>
+                  )}
+                  {dbUrl && (
+                    <a href={dbUrl} target="_blank" rel="noopener noreferrer" className={sourceLink}>
+                      {dbIcon && (
+                        /* eslint-disable-next-line @next/next/no-img-element */
+                        <img
+                          src={dbIcon.src}
+                          alt=""
+                          className="h-3.5 w-3.5 shrink-0 rounded-[3px]"
+                          loading="lazy"
+                        />
                       )}
-                    </div>
+                      {dbIcon?.label ?? "DofusDB"}
+                      <ExternalLink className="h-3 w-3 shrink-0" aria-hidden="true" />
+                    </a>
                   )}
                 </div>
               </section>

@@ -144,8 +144,13 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
           </span>
         </button>
 
-        {/* Titre + 2e ligne — clic sur le titre = ouvrir la fiche externe (DPLN/DofusDB) */}
-        <div className="flex min-w-0 flex-1 items-center gap-1.5">
+        {/* Titre + 2e ligne — clic sur le titre = ouvrir la fiche externe (DPLN/DofusDB).
+            Le bloc est une COLONNE : le nom prend toute la largeur (2 lignes max) et les
+            étiquettes passent en dessous, en `flex-wrap` — la rangée unique d'avant écrasait
+            le nom de la quête dès que la fenêtre PiP était étroite (retour user 08/10/2026). */}
+        <div className="flex min-w-0 flex-1 flex-col gap-1">
+          {/* 1ʳᵉ rangée : icône de type · portrait PNJ · nom de la quête */}
+          <div className="flex min-w-0 items-start gap-1.5">
           {seqIcon && (
             /* eslint-disable-next-line @next/next/no-img-element */
             <img src={seqIcon} alt="" className="h-4 w-4 shrink-0 object-contain" loading="lazy" />
@@ -162,7 +167,7 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
               onClick={(e) => e.stopPropagation()}
               title={`Ouvrir la fiche sur ${externalLabel}`}
               className={cn(
-                "block w-full truncate text-left text-[13px] font-semibold leading-tight text-foreground transition-colors hover:text-accent hover:underline",
+                "block w-full text-left text-[13px] font-semibold leading-snug text-foreground transition-colors hover:text-accent hover:underline line-clamp-2",
                 isDone && "line-through opacity-50"
               )}
             >
@@ -177,7 +182,7 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
               }}
               title="Voir les détails"
               className={cn(
-                "block w-full cursor-pointer truncate text-left text-[13px] font-semibold leading-tight text-foreground transition-colors hover:text-accent hover:underline",
+                "block w-full cursor-pointer text-left text-[13px] font-semibold leading-snug text-foreground transition-colors hover:text-accent hover:underline line-clamp-2",
                 isDone && "line-through opacity-50"
               )}
             >
@@ -185,10 +190,11 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
             </button>
           )}
           </div>
+          </div>
 
-          {/* 2e ligne : indicateurs (chips harmonisés) */}
+          {/* 2e ligne : indicateurs (chips harmonisés) — toute la largeur de la ligne */}
           {(parsedCoord || hasDungeon || itemTags.length > 0 || bookmarkers.length > 0 || alignmentSet) && (
-            <div className="flex flex-wrap items-center gap-1 mt-1">
+            <div className="flex flex-wrap items-center gap-1">
               {alignmentSet && alignLabel && (
                 <span className={chip} title={`Quête d'alignement → ${alignLabel} ${alignmentSet.level}`}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -242,7 +248,7 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
             </div>
           )}
           {isLocked && prereqs.length > 0 && (
-            <div className="mt-1 flex flex-wrap items-center gap-1">
+            <div className="flex flex-wrap items-center gap-1">
               <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-danger">
                 <Lock className="h-3 w-3" aria-hidden="true" /> À terminer avant :
               </span>

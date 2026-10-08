@@ -24,6 +24,7 @@ export async function searchDungeonsLocal(query: string) {
             success: true, 
             data: dungeons.map(d => ({
                 id: d.id.toString(),
+                slug: d.slug ?? null,
                 name: d.name,
                 bossName: d.bossName,
                 // #148 — icône RÉELLE du donjon game-data (webp local siphonné) si dispo

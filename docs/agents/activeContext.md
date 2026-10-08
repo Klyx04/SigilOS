@@ -6,7 +6,7 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
-## 🎯 Session 08/10/2026 (Quêtes par Dofus lot 1 — **data-loss PNJ/zaap réparé, GPS manuel, faux prérequis supprimé** · branche `fix/quetes-dofus-lot1-data-loss`, non PR)
+## 🎯 Session 08/10/2026 (Quêtes par Dofus lot 1 — **data-loss PNJ/zaap réparé, GPS manuel, faux prérequis supprimé** · **PR #849 mergée** → lot 2a rendu Sylvestre ouvert)
 > **Demandes user (verbatim)** : image quête inutile (sprite du type suffit) · nom PNJ donneur jamais sauvegardé/affiché · double champ zone/sous-zone · GPS à 2 options (travel seul vs `/zaap x,y ; /travel x,y` manuel, X/Y dissociés, même chose rush) · « Prérequis: Mérina » faux (c'est le donneur) · favicons DofusDB/Noobs absents malgré les liens.
 > **Mesures** : `handleSubmit` → seul `requirements.{npc,subarea}` (colonnes `npcName/level` jamais écrites, lues vides) · `EntrySchema.positions` strippait `zaap` · badge prérequis = `requirements.npc` (donneur) · liens inline ignoraient `dofusdbUrl/dofuspourlesnoobsUrl`.
 > **Fait** : socle pur (`parseGameCoord`, `buildManualZaapTravelCommand`, `questPositionSchema`, repli `requirements.npc`) · God : image + sous-zone supprimées, `npcName/level` top-level, GPS X/Y + zaap manuel · rendu : faux badge supprimé, liens God + brands, zaap manuel prioritaire · **parité rush** (`pos_tags.zaapX/zaapY`, chip + popover, 4 rendus) · 13 cas de garde neufs.

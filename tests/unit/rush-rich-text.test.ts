@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { RushRichText, splitRichText, bareLinkLabel } from "@/components/dofus-quests/rush/RushRichText";
+import { RushRichText, RushTipLines, splitRichText, bareLinkLabel, splitTipLines } from "@/components/dofus-quests/rush/RushRichText";
 
 /**
  * RushRichText — le texte des encarts CONSEIL / TIPS, rendu UNE fois pour le dashboard,
@@ -110,6 +110,46 @@ describe("RushRichText — rendu réel", () => {
     expect(linkIdx).toBeGreaterThan(-1);
     // La position doit impérativement apparaître AVANT le lien !
     expect(posIdx).toBeLessThan(linkIdx);
+  });
+});
+
+describe("splitTipLines — les conseils se lisent en puces", () => {
+  it("coupe sur le saut de ligne, puis sur les séparateurs « + » et « · »", () => {
+    expect(splitTipLines("Prendre la quête\nParler au PNJ")).toEqual([
+      "Prendre la quête",
+      "Parler au PNJ",
+    ]);
+    expect(splitTipLines("Prendre la quête + Parler au PNJ · Vaincre le boss")).toEqual([
+      "Prendre la quête",
+      "Parler au PNJ",
+      "Vaincre le boss",
+    ]);
+  });
+
+  it("préserve les liens nommés et les commandes de déplacement", () => {
+    expect(
+      splitTipLines("[Eternelle Moisson](https://www.dofuspourlesnoobs.com/x.html) puis /travel -55 15")
+    ).toEqual(["[Eternelle Moisson](https://www.dofuspourlesnoobs.com/x.html) puis /travel -55 15"]);
+  });
+
+  it("ignore les lignes vides (un texte vide ne produit aucune puce)", () => {
+    expect(splitTipLines("\n\n  \nPrendre la quête\n\n")).toEqual(["Prendre la quête"]);
+    expect(splitTipLines(null)).toEqual([]);
+    expect(splitTipLines("")).toEqual([]);
+  });
+
+  it("rendu réel : une puce par ligne, avec le texte enrichi et sa position copiable", () => {
+    const out = renderToStaticMarkup(
+      React.createElement(RushTipLines, { text: "Prendre la quête\nAller en [-55,15]" })
+    );
+    expect(out.match(/<li[\s>]/g)?.length).toBe(2);
+    expect(out).toContain("Prendre la quête");
+    // La position reste copiable à l'intérieur d'une puce (même rendu que hors puce).
+    expect(out).toContain("Copier la commande /travel -55,15");
+  });
+
+  it("ne rend rien du tout quand il n'y a aucun conseil", () => {
+    expect(renderToStaticMarkup(React.createElement(RushTipLines, { text: "  \n " }))).toBe("");
   });
 });
 

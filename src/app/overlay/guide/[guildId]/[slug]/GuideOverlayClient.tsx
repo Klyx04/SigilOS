@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useCallback, useMemo, useRef, useEffect } from "react";
-import { CheckCircle2, Check, Users } from "lucide-react";
+import { CheckCircle2, Users } from "lucide-react";
 import { toast } from "sonner";
 import {
   toggleMilestoneProgress,
@@ -17,7 +17,7 @@ import { collectCascadeUncheck } from "@/lib/rush-helpers";
 import { useGuideProgressSync } from "@/hooks/use-guide-sync";
 import { RushOverlayHeader } from "./components/RushOverlayHeader";
 import { RushOverlaySearch } from "./components/RushOverlaySearch";
-import { RushOverlayChapterTree } from "./components/RushOverlayChapterTree";
+import { RushOverlayChapterBar } from "./components/RushOverlayChapterBar";
 import { RushOverlayQuestListItem } from "./components/RushOverlayQuestListItem";
 import { RushOverlayQuestDetailModal } from "./components/RushOverlayQuestDetailModal";
 import { RushOverlayFooter } from "./components/RushOverlayFooter";
@@ -371,12 +371,6 @@ export default function GuideOverlayClient({
   const currentMsSeqs = contentSeqs(currentMs?.sequences || []);
   const currentMsDoneSeqs = currentMs ? completedStepsByMs.get(currentMs.id) || new Set<string>() : new Set<string>();
   const currentMsDoneCount = currentMsSeqs.filter((s) => currentMsDoneSeqs.has(s.id)).length;
-  const currentMsPct =
-    currentMsSeqs.length > 0
-      ? Math.round((currentMsDoneCount / currentMsSeqs.length) * 100)
-      : completedIds.has(currentMs?.id || "")
-        ? 100
-        : 0;
 
   // Image de Dofus associée au guide ou au milestone
   const dofusImage = useMemo(() => {
@@ -680,6 +674,8 @@ export default function GuideOverlayClient({
             }
           } catch {}
         }
+        // Dernière quête du chapitre cochée à la main → on enchaîne sur le chapitre suivant.
+        if (!was && allChecked) goToNextMs();
         return;
       }
       try {
@@ -718,6 +714,10 @@ export default function GuideOverlayClient({
             );
           }
         }
+        // Dernière quête du chapitre cochée à la main → on enchaîne sur le chapitre
+        // suivant, exactement comme la case « tout le chapitre » : avant, l'utilisateur
+        // restait bloqué sur un chapitre vide à 100 %.
+        if (!was && allChecked) goToNextMs();
       } catch {
         setCompletedStepsByMs(prevMap);
         setCompletedIds((prev) => {
@@ -728,7 +728,7 @@ export default function GuideOverlayClient({
         toast.error("Erreur de synchronisation");
       }
     },
-    [completedStepsByMs, completedIds, bookmarksByMs, guildId, effectiveAltPseudo, getSeqGate]
+    [completedStepsByMs, completedIds, bookmarksByMs, guildId, effectiveAltPseudo, getSeqGate, goToNextMs]
   );
 
   // Réinitialise TOUTE la progression du guide (synchro serveur + dashboard),
@@ -858,7 +858,7 @@ export default function GuideOverlayClient({
     ? getNextObjective(currentMs.sequences, currentMsDoneSeqs, bookmarkSeqId, milestones, gateAllCompleted)
     : null;
 
-  const msDone = currentMs ? completedIds.has(currentMs.id) : false;
+  // Le chapitre courant est-il validé ? (lu par la barre de chapitre via `completedIds`)
   const currentMsDofus = currentMs ? getMsDofus(currentMs) : null;
   const currentMsTotal = currentMsSeqs.length;
   const dofusDone = !!currentMsDofus && currentMsTotal > 0 && currentMsDoneCount >= currentMsTotal;
@@ -989,89 +989,27 @@ export default function GuideOverlayClient({
             ref={searchRef}
           />
 
-          {/* ══ NAVIGATION CHAPITRES ══ */}
-          <RushOverlayChapterTree
+          {/* ══ BARRE DE CHAPITRE (UNE seule) ══
+              Le sélecteur déroulant, la barre « Chapitre n / N » et la barre du bloc courant
+              empilaient trois blocs (~120 px) pour dire la même chose : une seule barre porte
+              la case « tout le chapitre », le titre déroulant et l'avancement chiffré. */}
+          <RushOverlayChapterBar
             chapters={milestones}
             activeMsId={currentMs?.id}
             onSelectChapter={selectChapter}
             completedMsIds={completedIds}
             doneByMs={completedStepsByMs}
             isLightMode={isLightMode}
+            onToggleChapter={handleToggleMs}
+            loading={!!currentMs && loadingIds.has(currentMs.id)}
+            dofus={
+              currentMsDofus
+                ? { imageUrl: currentMsDofus.imageUrl, label: currentMsDofus.label, done: dofusDone }
+                : null
+            }
           />
 
 
-          {/* ══ BARRE CHAPITRE COURANT ══ */}
-          {currentMs && (
-            <div
-              className={`flex items-center justify-between gap-2 px-4 py-2.5 border-y shrink-0 ${
-                isLightMode ? "border-slate-200 bg-white" : "border-[#28303a]/60 bg-[#12161b]"
-              }`}
-            >
-              <div className="flex items-center gap-2 min-w-0 flex-1">
-                <button
-                  type="button"
-                  onClick={() => handleToggleMs(currentMs)}
-                  aria-label={msDone ? "Marquer le chapitre comme non terminé" : "Marquer le chapitre comme terminé"}
-                  className="shrink-0 rounded focus-visible:outline-2 focus-visible:outline-[#39bc95] focus-visible:outline-offset-1"
-                >
-                  <span
-                    className={`flex h-4 w-4 items-center justify-center rounded-md border transition-all ${
-                      msDone
-                        ? "bg-[#39bc95] border-[#39bc95] text-black"
-                        : isLightMode
-                          ? "border-slate-300 bg-white"
-                          : "border-[#3a4d60] bg-[#0f1419]"
-                    }`}
-                  >
-                    {msDone && <Check className="h-2.5 w-2.5 stroke-[3]" />}
-                  </span>
-                </button>
-
-                {/* Numéro et pourcentage ne valent que pour une ÉTAPE : un séparateur ou un
-                    encart n'a aucune progression (« 0% » n'est pas une information). */}
-                <span className="font-serif font-bold text-xs text-[#39bc95] shrink-0">{currentMsIndex + 1}.</span>
-
-                {/* Icône Dofus à côté du bloc courant + animation à la complétion */}
-                {currentMsDofus && (
-                  <span className="relative shrink-0 flex items-center">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={currentMsDofus.imageUrl}
-                      alt={currentMsDofus.label}
-                      title={currentMsDofus.label}
-                      className={`h-5 w-5 object-contain drop-shadow ${dofusDone ? "animate-pulse" : ""}`}
-                    />
-                    {dofusDone && (
-                      <span
-                        className="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-[#39bc95]"
-                        style={{ boxShadow: "0 0 6px 2px rgba(57,188,149,0.7)" }}
-                      />
-                    )}
-                  </span>
-                )}
-
-                <span
-                  className={`font-serif font-bold text-xs truncate flex-1 leading-tight ${
-                    isLightMode ? "text-slate-900" : "text-[#f2f0e9]"
-                  }`}
-                  title={currentMs.title}
-                >
-                  {currentMs.title || "Jalon"}
-                </span>
-                {dofusDone && (
-                  <span className="shrink-0 rounded-full border border-[#39bc95]/50 bg-[#39bc95]/15 px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-[#39bc95]">
-                    Dofus obtenu
-                  </span>
-                )}
-              </div>
-
-              <div className="flex items-center gap-1.5 shrink-0 pl-1">
-                <span className={`text-[11px] font-mono font-bold mr-1 ${isLightMode ? "text-slate-500" : "text-[#929aa5]"}`}>
-                  {currentMsPct}%
-                </span>
-              </div>
-            </div>
-          )}
 
           {/* L'objectif courant (« À FAIRE MAINTENANT ») a été retiré : la liste des quêtes
               juste en dessous dit déjà quoi faire, avec sa coordonnée et ses donjons —

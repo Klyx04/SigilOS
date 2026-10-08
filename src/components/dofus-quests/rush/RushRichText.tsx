@@ -67,6 +67,56 @@ export function RushRichText({
   );
 }
 
+/**
+ * Découpe un texte de conseil en lignes de puces.
+ *
+ * Les conseils curés en God mélangent deux écritures : un saut de ligne, ou un texte
+ * continu où « + » et « · » servent de séparateurs. Une seule règle les lit pareil — dans
+ * l'overlay, le guide public et le dashboard (retour user du 08/10/2026 : « les conseils
+ * doivent se lire en puces, pas en pavé »).
+ *
+ * Fonction PURE (exportée pour être verrouillée par les tests, sans DOM) : elle ne touche
+ * ni aux liens `[Nom](url)` ni aux commandes `/travel x,y` — c'est le rendu des puces qui
+ * les confie à `RushRichText`.
+ */
+export function splitTipLines(rawText: string | null | undefined): string[] {
+  return (rawText ?? "")
+    .split("\n")
+    .flatMap((line) => line.split(/\s+[+·]\s+/))
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
+}
+
+/**
+ * Conseils en puces — SOURCE UNIQUE des conseils & notes pour l'overlay (modale de détail,
+ * vue de jeu) et le dashboard (blocs repliables). Chaque puce rend son texte par
+ * `RushRichText` (liens nommés + positions copiables).
+ */
+export function RushTipLines({
+  text,
+  className,
+}: {
+  text: string | null | undefined;
+  className?: string;
+}) {
+  const lines = splitTipLines(text);
+  if (lines.length === 0) return null;
+  return (
+    <ul className={cn("space-y-1.5", className)}>
+      {lines.map((line, i) => (
+        <li key={i} className="flex items-start gap-1.5">
+          <span aria-hidden="true" className="mt-[0.4rem] h-1 w-1 shrink-0 rounded-full bg-warning" />
+          {/* `min-w-0` obligatoire : `RushRichText` rend un `span.contents`, qui ne peut pas
+              rétrécir seul dans une puce en flex. */}
+          <span className="min-w-0">
+            <RushRichText text={line} />
+          </span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 /** Lien externe du texte enrichi : le libellé est cliquable, l'URL reste invisible. */
 function RushTextLink({ label, href }: { label: string; href: string }) {
   return (

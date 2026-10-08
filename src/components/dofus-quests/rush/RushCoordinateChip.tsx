@@ -1,12 +1,33 @@
 "use client";
 
 import React, { useRef, useState } from "react";
-import { Copy, Check, MapPin } from "lucide-react";
+import { Check } from "lucide-react";
 import { parseCoordinates } from "@/lib/rush-guide-utils";
 import { buildManualZaapTravelCommand, buildZaapTravelCommand } from "@/lib/travel-command";
 import { copyToClipboard } from "@/lib/clipboard";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+
+/**
+ * Picto de POSITION du jeu : l'icône du module « Carte du monde » de Dofus
+ * (`/assets/dofus/modules/map.png`, la même image que `nav/map.png`).
+ *
+ * Mesuré coloré (62×62, RGB moyen 130/118/88, alpha 106) ⇒ lisible en thème sombre ET clair,
+ * contrairement au picto `copy.png` de l'interface du jeu (44×44, RGB 225, alpha 83) qui
+ * disparaîtrait sur une surface claire. Il remplace le carré `Copy` de Lucide (retour user
+ * du 08/10/2026 : « fin des carrés de copie génériques »).
+ */
+function PositionPicto({ className }: { className?: string }) {
+  return (
+    /* eslint-disable-next-line @next/next/no-img-element */
+    <img
+      src="/assets/dofus/modules/map.png"
+      alt=""
+      aria-hidden="true"
+      className={cn("h-3 w-3 shrink-0 object-contain", className)}
+    />
+  );
+}
 
 interface RushCoordinateChipProps {
   coordText: string;
@@ -173,13 +194,15 @@ export function RushCoordinateChip({
           className
         )}
       >
-        {showIcon && <MapPin className="h-3 w-3 shrink-0 text-muted-foreground" aria-hidden="true" />}
+        {showIcon && <PositionPicto />}
         <span>{parsed.raw}</span>
+        {/* Le picto est posé UNE seule fois : à gauche quand l'appelant demande l'icône
+            (`showIcon`), sinon dans la fente de copie — jamais deux fois. */}
         {copied ? (
           <Check className="h-3 w-3 shrink-0 text-success" aria-hidden="true" />
-        ) : (
-          <Copy className="h-3 w-3 shrink-0 text-subtle-foreground" aria-hidden="true" />
-        )}
+        ) : !showIcon ? (
+          <PositionPicto className="opacity-70" />
+        ) : null}
       </button>
       {showZaap && (hasManualZaap || (zaapState === "ready" && zaap)) && (
         <button
@@ -203,11 +226,7 @@ export function RushCoordinateChip({
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/assets/dofus/icons/zaap.png" alt="" className="h-3.5 w-3.5 shrink-0 object-contain" loading="lazy" />
-          {copiedZaap ? (
-            <Check className="h-3 w-3 shrink-0 text-success" aria-hidden="true" />
-          ) : (
-            <Copy className="h-3 w-3 shrink-0 text-info" aria-hidden="true" />
-          )}
+          {copiedZaap && <Check className="h-3 w-3 shrink-0 text-success" aria-hidden="true" />}
         </button>
       )}
     </span>

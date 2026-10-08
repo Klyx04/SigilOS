@@ -142,8 +142,10 @@ describe("Texte enrichi — les 3 surfaces importent le MÊME composant", () => 
       ["overlay", OVERLAY],
     ] as const) {
       const code = codeOf(path);
+      // L'import peut porter d'autres briques du même module (`RushTipLines` pour les
+      // conseils en puces) : c'est le MÊME fichier source qui compte, pas la liste exacte.
       expect(code, `${name} : RushRichText non importé`).toMatch(
-        /import \{ RushRichText \} from "@\/components\/dofus-quests\/rush\/RushRichText"/
+        /import \{ [^}]*RushRichText[^}]* \} from "@\/components\/dofus-quests\/rush\/RushRichText"/
       );
       expect(code, `${name} : le texte enrichi n'est pas rendu`).toMatch(/<RushRichText text=/);
     }

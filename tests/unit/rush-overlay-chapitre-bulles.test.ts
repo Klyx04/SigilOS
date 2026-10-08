@@ -3,8 +3,8 @@
  *
  *  1. « ok mais pour le chapitre faut pouvoir changer quand on veut quand même » :
  *     `goToNextMs` **saute** les chapitres déjà validés (`nextBlockIndex`) ⇒ aucun
- *     moyen de rejoindre un chapitre d'où on vient. Le sélecteur **partagé**
- *     (`RushOverlayChapterTree`) est monté dans l'overlay.
+ *     moyen de rejoindre un chapitre d'où on vient. La barre **partagée**
+ *     (`RushOverlayChapterBar`) est montée dans l'overlay.
  *     (Le 07/10/2026, la vue de jeu compacte qui le doublait en version « inline »
  *     a été supprimée avec tout le mode compact : un seul sélecteur.)
  *  2. « ca serait bien d'avoir les bulles profil avec mini modale scrollable aussi sur
@@ -32,7 +32,7 @@ const codeOf = (p: string) =>
 
 const BASE = "src/app/overlay/guide/[guildId]/[slug]";
 const OVERLAY = `${BASE}/GuideOverlayClient.tsx`;
-const TREE = `${BASE}/components/RushOverlayChapterTree.tsx`;
+const TREE = `${BASE}/components/RushOverlayChapterBar.tsx`;
 const LIST_ITEM = `${BASE}/components/RushOverlayQuestListItem.tsx`;
 const BUBBLES = `${BASE}/components/RushOverlayMemberBubbles.tsx`;
 const MEMBERS_MODAL = `${BASE}/components/RushOverlayMembersModal.tsx`;
@@ -42,9 +42,9 @@ describe("overlay — changer de chapitre à tout moment (sélecteur partagé un
     const tree = codeOf(TREE);
     expect(tree).not.toMatch(/variant/);
     expect(tree).not.toMatch(/isInline/);
-    // La barre complète (chrome + barre de progression) est le seul rendu.
+    // Une seule barre : c'est le seul rendu (chrome + liste déroulante + jauge fusionnés).
     expect(tree).toMatch(/"relative shrink-0 px-3 py-2.5 border-b z-30"/);
-    expect(tree).toMatch(/\{activeMs && total > 0 && chapterPos >= 0 && \(/);
+    expect(tree).toMatch(/const showProgress = !!activeMs && total > 0;/);
   });
 
   it("l'overlay câble la navigation chapitres sur ce sélecteur", () => {
@@ -110,6 +110,28 @@ describe("overlay — la mini-modale des membres défile vraiment", () => {
     expect(modal).toMatch(/if \(e\.key === "Escape"\) onClose\(\);/);
     expect(modal).toMatch(/aria-label="Fermer"/);
     expect(modal).toMatch(/\{members\.length\}/);
+  });
+});
+
+describe("overlay — enchaîner un chapitre et fermer la modale depuis la PiP", () => {
+  const MODAL = `${BASE}/components/RushOverlayQuestDetailModal.tsx`;
+
+  it("cocher la DERNIÈRE quête d'un chapitre ouvre le chapitre suivant", () => {
+    const overlay = codeOf(OVERLAY);
+    // La bascule existait pour la case « tout le chapitre » (chemin invité + chemin
+    // connecté) : elle doit désormais exister aussi pour la dernière quête cochée à la main,
+    // sans quoi l'utilisateur restait sur un chapitre vide à 100 % (retour user 08/10/2026).
+    expect(overlay.match(/if \(!was\) goToNextMs\(\);/g)?.length).toBe(2);
+    expect(overlay.match(/if \(!was && allChecked\) goToNextMs\(\);/g)?.length).toBe(2);
+  });
+
+  it("Échap écoute la fenêtre du document qui PORTE la modale (PiP)", () => {
+    const modal = codeOf(MODAL);
+    // Dans une fenêtre Document Picture-in-Picture, le `window` global du module ne reçoit
+    // aucun événement : c'est la fenêtre du document propriétaire du dialogue qu'il faut écouter.
+    expect(modal).toMatch(/ownerDocument\.defaultView/);
+    expect(modal).toMatch(/ref=\{dialogRef\}/);
+    expect(modal).not.toMatch(/window\.addEventListener\("keydown", onKey\)/);
   });
 });
 

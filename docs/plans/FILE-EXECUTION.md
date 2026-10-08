@@ -11,7 +11,7 @@ description: File d'exécution unique — tous les chantiers (A→Q), un seul or
 > suivant ; la branche suivante naît de `dev` **après** le merge (`git fetch origin dev && git merge origin/dev`).
 > **On ne supprime jamais un chantier** : livré, il passe en `✅` **ici** (son détail part dans un bloc de
 > session du `docs/ROADMAP.md`).
-> **Dernière mise à jour** : 08/10/2026 · `dev` = `a462a100` · **T-1 et T-2 du chantier T (rush Sylvestre) livrés** (lot 1 « affichage » : barre de chapitre unique, enchaînement auto, pictos Dofus, conseils en puces — **PR #851 mergée** ; lot 2 « temps réel » : avatar Discord, toast de validation `RushOverlayLiveToast`, **présence honnête** — **PR #853 mergée**). Le détail est aux blocs du 08/10 du `docs/ROADMAP.md`, la file ne le duplique pas.
+> **Dernière mise à jour** : 08/10/2026 · `dev` = `968fbe56` · **T-1 et T-2 du chantier T (rush Sylvestre) livrés** (lot 1 « affichage » : barre de chapitre unique, enchaînement auto, pictos Dofus, conseils en puces — **PR #851 mergée** ; lot 2 « temps réel » : avatar Discord, toast de validation `RushOverlayLiveToast`, **présence honnête** — **PR #853 mergée**). Le détail est aux blocs du 08/10 du `docs/ROADMAP.md`, la file ne le duplique pas. **T-2b en PR #856** · **chantier U « zéro dépendance DofusDB » cadré** (5 points de contact mesurés, lots U-1 → U-5, §1).
 
 ## 0. Comment s'en servir
 
@@ -50,6 +50,21 @@ description: File d'exécution unique — tous les chantiers (A→Q), un seul or
 | **R** | **Durcissement réseau** (Cloudflare devant le domaine ? WAF/DDoS + impact RGPD) | à décider | — (décision **D8**) | — |
 | **S** | **Démo publique** — une guilde de démonstration **en lecture seule**, essayable sans compte depuis la landing | **S-0 ✅ fait** (02/10, mesure, 0 PR) — S-1 → S-5 à faire | `docs/plans/PLAN-DEMO-PUBLIQUE.md` | S-1 → S-5 |
 | **T** | **Rush Sylvestre — refonte** (overlay & guide : ergonomie, temps réel, éditeur God, habillage Dofus, perf) | en cours — **T-1 + T-2 ✅ livrés le 08/10** | `docs/plans/PLAN-REFONTE-RUSH-SYLVESTRE.md` | T-1 → T-6 |
+| **U** | **Zéro dépendance DofusDB** — règle du propriétaire : **plus aucun appel à DofusDB à l'exécution** (le produit doit vivre sans lui) | **cadré le 08/10/2026** (mesures ci-dessous) — **aucun lot commencé** | **à créer** (tant qu'il n'existe pas, le cadrage vit ici) | U-1 → U-5 |
+
+> ### 🚫 Chantier U — cadrage mesuré le 08/10/2026 (règle : « aucune dépendance à DofusDB »)
+> **Déjà autonome** : **27 003** images d'objets, **2 701** monstres, **5 300** sorts **sur disque** ; guide, overlay, progression, donjons, cartes, quêtes = **100 % local**. Si DofusDB ferme demain, tout cela continue de fonctionner.
+> **Les 5 points de contact restants (mesurés, jamais supposés)** :
+> 1. **Repli image** — `/api/assets-dofus/{type}/{id}` : quand un WebP local manque, la route **va le chercher chez DofusDB** (et y lit `monsters|items|spells` en JSON pour retrouver les ids d'icônes). Déclenché par `resolveItemImage` / `getItemImageFallback`, les fiches de sorts et les chasses. *Symptôme si DofusDB tombe : un placeholder au lieu de l'icône.*
+> 2. **Recherches** — `/api/dofusdb/{search,items,recipes,quests}` : Ressources, recettes de craft et quêtes liées partent chez DofusDB **et Dofusdude**. *Symptôme : la recherche ne renvoie rien.*
+> 3. **Proxy image** — `/api/proxy-image?url=…` : allowlist contenant `dofusdb.fr`, `api.dofusdb.fr`, `static.dofusdb.fr` (annuaire, crafts légendaires, `ganymede-parser`).
+> 4. **Health check** — `/api/health` **ping `api.dofusdb.fr`** ⇒ une panne DofusDB déclare **notre** site « unhealthy » (fausse alerte).
+> 5. **Crons** — `data-watch` (`DOFUSDB_API`) et `sync-monster-stats` (repli d'URL d'image) : échec + alerte Discord.
+> **Racine du point 1** : **~1 626 URL `api.dofusdb.fr`** dans les 28 `prisma/seed-data/dofus-quests/*-compiled.json` (208 pour `sylvestre-compiled.json` seul) — stockées en base, elles **arment** le repli réseau.
+> **Mesure PNJ (08/10/2026)** : `api.dofusdb.fr/npcs/196` n'expose **aucune image** (seulement `look`) ; `/img/npcs/*`, `/img/npc/*`, `/img/quests/*`, `/img/looks/*` ⇒ **404** ; seuls `/img/items/{id}.png` et `/img/monsters/{id}.png` répondent **200** ⇒ **rien à siphonner côté PNJ** : l'import God manuel reste la voie (déjà livré).
+> **Hors périmètre** : les **liens sortants** (ouvrir une fiche DofusDB dans un onglet) et l'**attribution de licence** (déjà en place : « Données issues de DofusDB. Utilisation soumise à la licence LPNC-IA 1.0. ») — un lien n'est pas une dépendance technique.
+> **Definition of Done** : plus aucun appel réseau à DofusDB déclenché par un usage ; `/api/health` ne le consulte plus ; une **garde** échoue s'il réapparaît dans un code servi au client.
+
 
 > **Volets partagés — tranchés une fois pour toutes** (chaque étape n'appartient qu'à **un** chantier) :
 > **§16** = volet `calendrier` → **G·R8**, volet `membres/profil/stuff` → **M-1** ;
@@ -104,8 +119,14 @@ description: File d'exécution unique — tous les chantiers (A→Q), un seul or
 | **38** | **S · S-5** | Perf des pages publiques (prérendu, une seule langue au client, `framer-motion` hors graphe public) | M | — |
 | **39** | **T · T-1** | ✅ **livré le 08/10/2026** (**PR #851 mergée**) — rush Sylvestre : **une seule barre de chapitre**, enchaînement auto, vrais pictos Dofus, conseils en puces (Lot 1 du plan) | M | — |
 | **40** | **T · T-2** | ✅ **livré le 08/10/2026** (**PR #853**) — temps réel dé-slopé : fil d'activité à avatar Discord, toast de validation dans l'overlay, **présence honnête** (en ligne = WebSocket, hors ligne = dernière position) | M | — |
-| **41** | **T · T-2b** | **Reste du lot 2 du plan** : prérequis par **id** (G3/G4 — `handleScrollToPrereq` par id + repli sur le nom + surbrillance 1,2 s) et parallélisation serveur (G10 — `getRushResourceChecks` et le profil en `Promise.all`) | S/M | — |
-| **42** | **T · T-3 → T-6** | Éditeur God (E4 `confirm()` → Dialog, E6 ref de scroll, E1 champ « une ligne = une puce ») · habillage Dofus (O14/O15, G7/G8, T2) · overlay avancé (O9/O10/O11/O13) · perf (G6 + `useOptimistic`) | L | — |
+| **41** | **T · T-2b** | ✅ **livré le 08/10/2026** (**PR #856**) — prérequis résolus au **nom exact** (règle pure `resolvePrereqTarget`, plus d'`includes` aveugle), surbrillance de la cible **1,2 s** (constante unique), page serveur à **deux lectures parallèles** | S/M | — |
+| **42** | **T · T-2c** | Stocker l'**id** de la quête dans le tag `prereq_text` (God + backfill — `activityTags` est du JSON, donc **pas de migration**) pour supprimer la résolution par nom | S/M | — |
+| **43** | **T · T-3 → T-6** | Éditeur God (E4 `confirm()` → Dialog, E6 ref de scroll, E1 champ « une ligne = une puce ») · habillage Dofus (O14/O15, G7/G8, T2) · overlay avancé (O9/O10/O11/O13) · perf (G6 + `useOptimistic`) | L | — |
+| **44** | **U · U-1** | Inventaire **verrouillé** : garde qui **compte** les occurrences DofusDB (`src/**` + payloads servis au client) et échoue si le nombre **augmente** (ratchet — la garde ne peut pas être verte avant U-2 → U-4) | S | — |
+| **45** | **U · U-2** | Données : réécrire ou vider les `img` des 28 `*-compiled.json` (l'`id` suffit, `resolveItemImage` reconstruit le chemin local) + re-seed | M | — |
+| **46** | **U · U-3** | Images : **plus de repli réseau** (`resolveItemImage`/`getItemImageFallback` → placeholder local), et `/api/assets-dofus` cesse de `fetch` DofusDB (ou disparaît s'il n'a plus d'appelant) | M | étape 45 |
+| **47** | **U · U-4** | Recherches : basculer `/api/dofusdb/*` sur le **catalogue local** (`GameItem`, cf. « chantier #38 Siphon & Autonomie Local-First ») ; trancher le sort des routes devenues sans appelant | M/L | — |
+| **48** | **U · U-5** | Ops : retirer DofusDB du `/api/health`, des crons (`data-watch`, `sync-monster-stats`) et de l'allowlist `proxy-image` | S | — |
 
 `S` < 1 jour · `M` quelques jours · `L` chantier.
 

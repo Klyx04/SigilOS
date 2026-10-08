@@ -106,8 +106,12 @@ export default async function GodLayout({ children }: { children: React.ReactNod
                     </div>
                 </div>
 
-                {/* Scrollable content view */}
-                <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-muted-foreground/10 scrollbar-track-transparent">
+                {/* Scrollable content view — le conteneur de défilement est **déclaré** ici
+                    (`data-god-scroll-container`). Le studio Rush Sylvestre s'y accroche par ce
+                    contrat, au lieu de deviner une classe Tailwind : `.flex-1.overflow-y-auto`
+                    habille aussi la barre latérale, donc la première correspondance du document
+                    pouvait être la mauvaise (mesuré le 08/10/2026). */}
+                <div data-god-scroll-container className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-muted-foreground/10 scrollbar-track-transparent">
                     <GodAccessBanner activeScopes={activeScopes} isFullAdmin={isFullAdmin} myGrants={myGrants} />
                     {children}
                 </div>

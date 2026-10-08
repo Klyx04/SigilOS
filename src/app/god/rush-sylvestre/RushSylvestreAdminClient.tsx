@@ -1,7 +1,7 @@
 "use client";
 
 import {
-  useState, useTransition, useCallback, useEffect, useRef, useMemo
+  useState, useTransition, useCallback, useEffect, useRef, useMemo, type ReactNode
 } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
@@ -44,6 +44,20 @@ import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { RushBlockMetaEditor, type RushBlockMetaValues } from "@/components/dofus-quests/rush/RushBlockMetaEditor";
 import { parseBlockMeta, formatBlockMeta, validateCoordinate } from "@/lib/rush-rich-meta";
+import {
+  RushTipLines,
+  splitTipLines,
+  RUSH_RICH_TEXT_SYNTAX,
+  RUSH_RICH_TEXT_NOT_ACCEPTED,
+} from "@/components/dofus-quests/rush/RushRichText";
+import type { RushActivityTag, RushMilestone, RushSequence } from "@/types/rush-guide-types";
+// La ligne de quête et la fiche « Détails » de l'aperçu sont **celles du membre** : les mêmes
+// composants servent l'overlay, le dashboard et le guide public (aucun second rendu à maintenir).
+import { RushOverlayQuestListItem } from "@/app/overlay/guide/[guildId]/[slug]/components/RushOverlayQuestListItem";
+import { RushOverlayQuestDetailModal } from "@/app/overlay/guide/[guildId]/[slug]/components/RushOverlayQuestDetailModal";
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+} from "@/components/ui/dialog";
 
 type DungeonResult = { id: string; name: string; imageUrl?: string | null; level: number; bossName?: string };
 
@@ -220,6 +234,20 @@ function countContentChapters(milestones: Milestone[]) {
   ).size;
 }
 
+/**
+ * Conteneur de défilement du panneau God.
+ *
+ * 🎯 Il est **déclaré** par le layout (`src/app/god/layout.tsx` : `data-god-scroll-container`).
+ * Avant, le studio le devinait par une classe Tailwind (`closest('.flex-1.overflow-y-auto')`) —
+ * or `.flex-1.overflow-y-auto` habille aussi la **barre latérale** : selon l'élément trouvé,
+ * le suivi de défilement et les boutons « Haut / Bas » pouvaient viser le mauvais conteneur
+ * (mesuré le 08/10/2026 : deux sites concernés, ici et sur les deux boutons flottants).
+ */
+function godScrollContainer(): HTMLElement | null {
+  if (typeof document === "undefined") return null;
+  return document.querySelector<HTMLElement>("[data-god-scroll-container]");
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide }) {
   const router = useRouter();
@@ -231,30 +259,25 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [showScrollBottom, setShowScrollBottom] = useState(false);
 
-  // Use a ref to self-reference for scroll detection
-  const scrollRef = useRef<HTMLElement | Window>(null);
-
   useEffect(() => {
-    // Find the scroll container: it's the parent of our component's root element
-    // that has overflow-y-auto. The GOD layout wraps children in:
-    // .flex-1.overflow-y-auto.scrollbar-thin
-    // We need to skip the sidebar which has the same classes.
-    const ourRoot = document.querySelector('[data-rush-admin-root]');
-    const container = ourRoot?.closest('.flex-1.overflow-y-auto') as HTMLElement | null;
+    // Le conteneur vient du layout (contrat `data-god-scroll-container`), jamais d'une classe.
+    const container = godScrollContainer();
     if (!container) return;
-    scrollRef.current = container;
 
     const handleScroll = () => {
       const maxScroll = container.scrollHeight - container.clientHeight;
       setShowScrollTop(container.scrollTop > 100);
       setShowScrollBottom(container.scrollTop < maxScroll - 100);
     };
+    // La fenêtre qui PORTE réellement le conteneur (`ownerDocument.defaultView`) : dans une
+    // fenêtre Document Picture-in-Picture, le `window` du module ne reçoit aucun événement.
+    const win = container.ownerDocument.defaultView ?? window;
     container.addEventListener("scroll", handleScroll, { passive: true });
-    window.addEventListener("resize", handleScroll);
+    win.addEventListener("resize", handleScroll);
     handleScroll();
     return () => {
       container.removeEventListener("scroll", handleScroll);
-      window.removeEventListener("resize", handleScroll);
+      win.removeEventListener("resize", handleScroll);
     };
   }, []);
 
@@ -285,6 +308,10 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
   }, [uiConfig, router]);
   const [importPreview, setImportPreview] = useState<null | { plan: { milestones: number; sequences: number; items: number; metiers: number; dungeons: number }; totalToCreate: number }>(null);
   const [importing, startImport] = useTransition();
+  // Bloc en attente de confirmation de suppression. Le `confirm()` natif ne pouvait ni se
+  // styler, ni lister ce qui part avec le bloc (ses quêtes), et certains navigateurs le
+  // bloquent : on garde la cible en état et la modale Radix se charge du reste (`E4`).
+  const [pendingDelete, setPendingDelete] = useState<Milestone | null>(null);
 
   const runSeed = useCallback(async (apply: boolean) => {
     startImport(async () => {
@@ -449,6 +476,16 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
     const isDofusBanner = newStepType === "DOFUS_OBTAINED";
     const isInfoBlock = newStepType === "INFO";
     const isOutsideChapter = isSeparator || isDofusBanner || isInfoBlock;
+    // Placement à la CRÉATION : le bloc partait toujours en fin de guide (« order » = nombre de
+    // blocs) — donc hors de son chapitre et à l'autre bout du scroll, à remonter à la main. On
+    // calcule donc sa place **avant** l'écriture (`findMilestoneInsertIndex`, la règle du
+    // glisser-déposer) et on la donne à l'action serveur, qui **ouvre le créneau** dans la même
+    // transaction (`E3`) : un seul aller-retour, aucun doublon d'`order`, et le bloc est à sa
+    // place dès le premier rendu.
+    const insertAt = findMilestoneInsertIndex(sortedMilestones, {
+      type: newStepType,
+      chapter: isOutsideChapter ? 0 : newChapterNum,
+    });
     startTransition(async () => {
       try {
         const res = await upsertRushMilestone({
@@ -456,7 +493,7 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
           chapterLabel: isOutsideChapter ? "" : (newChapterLabel.trim() || `Chapitre ${newChapterNum}`),
           label: newStepTitle.trim(),
           accentColor: isOutsideChapter ? (newStepColor || "#d4a853") : newStepColor,
-          order: localMilestones.length,
+          order: insertAt,
           type: newStepType,
           dofusId: isSeparator ? null : newDofusId,
           description: isSeparator
@@ -469,20 +506,11 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
           // son bandeau, les autres types dans leur en-tête) — même champ qu'à l'édition.
           imageUrl: newStepImage.trim() || null,
         });
-        // Placement à la CRÉATION : le bloc partait toujours en fin de guide (« order » =
-        // nombre de blocs) — donc hors de son chapitre et à l'autre bout du scroll, à
-        // remonter à la main. On le glisse à sa place (après le dernier bloc de son
-        // chapitre) et on persiste l'ordre, exactement comme le ferait le glisser-déposer.
+        // Le bloc est **déjà à sa place** : l'action serveur a ouvert le créneau `order` dans sa
+        // transaction (`E3`). Il ne reste qu'à le déplier pour qu'on le voie tout de suite, même
+        // hors écran.
         const created = res?.milestone;
         if (created?.id) {
-          const orderedIds = sortedMilestones.map(m => m.id);
-          const insertAt = findMilestoneInsertIndex(sortedMilestones, {
-            type: newStepType,
-            chapter: isOutsideChapter ? 0 : newChapterNum,
-          });
-          orderedIds.splice(insertAt, 0, created.id);
-          await reorderRushMilestones(orderedIds);
-          // Et il est déplié : le nouveau bloc se voit tout de suite, même hors écran.
           setExpandedMilestones(prev => new Set(prev).add(created.id));
         }
         toast.success(isSeparator ? "Séparateur ajouté ✓" : isDofusBanner ? "Bannière Dofus ajoutée ✓" : "Étape ajoutée ✓");
@@ -516,8 +544,11 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
     });
   }, [router]);
 
+  /**
+   * Suppression d'un bloc **déjà confirmée** (la modale Radix a recueilli l'accord : plus de
+   * `confirm()` natif, `E4`).
+   */
   const handleDeleteMilestone = useCallback((id: string) => {
-    if (!confirm("Supprimer cette étape et toutes ses quêtes ?")) return;
     // Optimiste : la ligne quitte la liste AVANT l'aller-retour serveur. Sans ça, la
     // liste gardait la ligne tant que le refresh n'était pas arrivé → un second clic (ou
     // un clic sur une ligne déjà supprimée ailleurs) visait une ligne absente en base,
@@ -898,7 +929,7 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
                               onEditChange={(patch) => setEditingMilestone((prev) => prev ? { ...prev, ...patch } : prev)}
                               onSave={() => editingMilestone && handleSaveMilestone(editingMilestone)}
                               onCancelEdit={() => setEditingMilestone(null)}
-                              onDelete={() => handleDeleteMilestone(m.id)}
+                              onDelete={() => setPendingDelete(m)}
                             />
                           ) : (
                             <div className="border border-white/5 rounded-2xl overflow-hidden bg-zinc-900/10">
@@ -913,7 +944,7 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
                                 onEditChange={patch => setEditingMilestone(prev => prev ? { ...prev, ...patch } : prev)}
                                 onSave={() => editingMilestone && handleSaveMilestone(editingMilestone)}
                                 onCancelEdit={() => setEditingMilestone(null)}
-                                onDelete={() => handleDeleteMilestone(m.id)}
+                                onDelete={() => setPendingDelete(m)}
                                 onSaveSequence={handleSaveSequence}
                                 onDeleteSequence={handleDeleteSequence}
                                 onReorderSequences={(ids) => handleReorderSequences(m.id, ids)}
@@ -1105,6 +1136,43 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
         )}
 
       </div>
+      {/* Confirmation de suppression — `Dialog` Radix (Échap, focus piégé, `aria-*`) au lieu
+          du `confirm()` natif : on peut enfin dire ce qui part avec le bloc (`E4`). */}
+      <Dialog open={!!pendingDelete} onOpenChange={(open) => { if (!open) setPendingDelete(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Supprimer « {pendingDelete?.title} » ?</DialogTitle>
+            <DialogDescription>
+              {pendingDelete && pendingDelete.sequences.length > 0
+                ? `${pendingDelete.sequences.length} quête${pendingDelete.sequences.length > 1 ? "s" : ""} de ce bloc ${pendingDelete.sequences.length > 1 ? "partiront" : "partira"} avec lui. `
+                : "Ce bloc ne contient aucune quête. "}
+              Suppression immédiate, sans retour en arrière possible.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <button
+              type="button"
+              onClick={() => setPendingDelete(null)}
+              className="px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest text-zinc-300 bg-zinc-800 hover:bg-zinc-700 border border-white/10 transition-all"
+            >
+              Annuler
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                const target = pendingDelete;
+                setPendingDelete(null);
+                if (target) handleDeleteMilestone(target.id);
+              }}
+              disabled={isPending}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest bg-red-500/20 hover:bg-red-500/30 text-red-300 border border-red-500/30 transition-all disabled:opacity-50"
+            >
+              <Trash2 className="w-3 h-3" /> Supprimer
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Navigation flottante — pilule verticale */}
       {typeof document !== 'undefined' && createPortal(
         <div
@@ -1113,7 +1181,7 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
         >
           <button
             onClick={() => {
-              const container = document.querySelector<HTMLElement>('.flex-1.overflow-y-auto');
+              const container = godScrollContainer();
               if (container) container.scrollTo({ top: 0, behavior: 'smooth' });
               else window.scrollTo({ top: 0, behavior: 'smooth' });
             }}
@@ -1126,7 +1194,7 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
           </button>
           <button
             onClick={() => {
-              const container = document.querySelector<HTMLElement>('.flex-1.overflow-y-auto');
+              const container = godScrollContainer();
               if (container) container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
               else window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'smooth' });
             }}
@@ -1245,15 +1313,88 @@ function BlockImageField({ value, onChange }: { value: string; onChange: (url: s
 // ─── RichTextSyntaxHint ──────────────────────────────────────────────────────
 /**
  * Rappel de syntaxe du texte enrichi, affiché sous CHAQUE champ de conseil (bloc Tips,
- * tips d'un bloc, tips d'une quête) : sans ça, la syntaxe `[Nom](url)` et la position
- * copiable resteraient un secret d'initié. Source unique de l'aide.
+ * tips d'un bloc, tips d'une quête) : sans ça, la syntaxe du lien nommé et la position
+ * copiable resteraient un secret d'initié. **Source unique** de l'aide.
+ *
+ * ⚠️ Les exemples viennent de `RUSH_RICH_TEXT_SYNTAX` (le module du rendu lui-même) et
+ * `tests/unit/rush-rich-text.test.ts` vérifie qu'ils sont TOUS reconnus par `splitRichText` :
+ * l'aide ne peut donc ni promettre une forme que le rendu ignore, ni passer sous silence une
+ * forme reconnue — `/w` manquait jusqu'au 08/10/2026, alors que le parseur l'accepte depuis
+ * toujours, et une position nue laissait croire qu'elle suffisait.
  */
 function RichTextSyntaxHint() {
   return (
     <p className="mt-1 text-[11px] leading-relaxed text-zinc-500">
-      Lien nommé : <code className="text-purple-300/80">[Nom de la quête](https://…)</code> — l&apos;URL ne s&apos;affiche pas, le nom pointe vers elle.
-      Position copiable : <code className="text-purple-300/80">[-55,15]</code> ou <code className="text-purple-300/80">/travel -55,15</code> · un clic copie <code className="text-purple-300/80">/travel -55,15</code>.
+      Lien nommé : <code className="text-purple-300/80">{RUSH_RICH_TEXT_SYNTAX.link}</code> — seul le nom
+      s&apos;affiche, jamais l&apos;URL. Position copiable :{" "}
+      <code className="text-purple-300/80">{RUSH_RICH_TEXT_SYNTAX.bracket}</code>,{" "}
+      <code className="text-purple-300/80">{RUSH_RICH_TEXT_SYNTAX.w}</code> ou{" "}
+      <code className="text-purple-300/80">{RUSH_RICH_TEXT_SYNTAX.travel}</code> · un clic copie{" "}
+      <code className="text-purple-300/80">/travel x,y</code>. Sans crochets ni commande, une position
+      reste du texte (<code className="text-purple-300/80">{RUSH_RICH_TEXT_NOT_ACCEPTED}</code>).
     </p>
+  );
+}
+
+// ─── MemberPreviewFrame ──────────────────────────────────────────────────────
+/**
+ * Cadre d'aperçu « côté membre ».
+ *
+ * 🎯 Les composants du membre (ligne de quête, puces de conseils, fiche « Détails ») ne se
+ * peignent qu'avec les **jetons de thème**, alors que le studio God pose ses couleurs en dur
+ * (`bg-zinc-950`) : sans ce cadre, l'aperçu montrerait autre chose que ce que le joueur voit
+ * (thème clair de la personne connectée appliqué à un écran sombre). On repose donc le thème du
+ * membre (`.dark`, celui par défaut de l'overlay) sur ce seul sous-arbre — mesuré le 08/10/2026.
+ */
+function MemberPreviewFrame({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="dark rounded-xl border border-border bg-surface p-3 text-foreground">
+      <p className="mb-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground">{label}</p>
+      {children}
+    </div>
+  );
+}
+
+// ─── TipsLinesEditor ─────────────────────────────────────────────────────────
+/**
+ * Champ « conseils » d'une quête — **une ligne = une puce**.
+ *
+ * 🎯 Mesure (08/10/2026) : côté membre, les conseils se lisent en puces (`splitTipLines` →
+ * `RushTipLines`, la brique partagée de l'overlay et du dashboard), mais le studio n'offrait
+ * qu'un `textarea` muet : rien n'annonçait qu'une **ligne** devient une puce, et l'auteur
+ * pouvait tout écrire d'un trait sans comprendre pourquoi le rendu était un pavé. L'aperçu
+ * ci-dessous est celui du **membre** : ce que l'auteur voit est ce que le joueur lira.
+ */
+function TipsLinesEditor({
+  value, onChange, rows = 3, placeholder,
+}: {
+  value: string;
+  onChange: (next: string) => void;
+  rows?: number;
+  placeholder?: string;
+}) {
+  const bullets = splitTipLines(value);
+  return (
+    <div className="space-y-1.5">
+      <textarea
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        rows={rows}
+        placeholder={placeholder}
+        className="w-full bg-black/60 border border-white/10 rounded-lg px-2 py-1.5 text-xs text-amber-300/80 focus:outline-none focus:border-amber-500/30 resize-none"
+      />
+      <RichTextSyntaxHint />
+      <p className="text-[11px] leading-relaxed text-zinc-500">
+        Une ligne = une puce ({bullets.length > 0 ? `${bullets.length} puce${bullets.length > 1 ? "s" : ""}` : "aucune pour l'instant"}) ·
+        un <code className="text-purple-300/80">+</code> ou un{" "}
+        <code className="text-purple-300/80">·</code> sépare aussi deux puces.
+      </p>
+      {bullets.length > 0 && (
+        <MemberPreviewFrame label="Aperçu membre — conseils">
+          <RushTipLines text={value} />
+        </MemberPreviewFrame>
+      )}
+    </div>
   );
 }
 
@@ -1969,6 +2110,8 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
 
   const toggleSection = (s: string) => setOpenSections(prev => ({ ...prev, [s]: !prev[s] }));
   const [showPreview, setShowPreview] = useState(false);
+  // Fiche « Détails » du membre, ouverte depuis l'aperçu (elle gère son propre Échap).
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
 
   const handleRequiredItemsChange = (items: Array<{ id?: string; name: string; quantity: number; imageUrl?: string; level?: number }>) => {
     setRequiredItems(items);
@@ -2352,6 +2495,55 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
     );
   }, [name, dofusdbUrl, noobsUrl, tips, alignReq, alignOrderReq, note, isSuccess, icon, metamobMonsterId, seq]);
 
+  // ── Aperçu « côté membre » (`E5`) ──────────────────────────────────────────
+  // ⚠️ On ne réinvente PAS une vignette : la ligne de quête et la fiche « Détails » rendues plus
+  // bas sont celles du MEMBRE (mêmes composants que l'overlay, le dashboard et le guide public),
+  // nourries par l'état vivant du formulaire — on relit donc ici ce que le joueur verra après
+  // « Enregistrer », position, donjons, ressources et conseils compris.
+  const previewSeq: RushSequence = useMemo(() => ({
+    id: seq.id,
+    subGuideRef: name.trim() || seq.subGuideRef,
+    subGuideName: name,
+    note: note || null,
+    isOptional: false,
+    order: seq.order,
+    dungeonId: selectedDungeons[0]?.id ?? null,
+    dungeonIds: selectedDungeons.map(d => d.id),
+    dungeons: selectedDungeons.map(d => ({ id: d.id, name: d.name, bossName: d.bossName, imageUrl: d.imageUrl ?? null })),
+    dofusdbUrl: dofusdbUrl.trim() || null,
+    dofuspourlesnoobsUrl: noobsUrl.trim() || null,
+    tips: tips.trim() || null,
+    alignReq: alignReq.trim() || null,
+    alignOrderReq: alignOrderReq ? parseInt(alignOrderReq, 10) : null,
+    isSuccess,
+    icon: icon.trim() || null,
+    metamobMonsterId: metamobMonsterId ? parseInt(metamobMonsterId, 10) : null,
+    activityTags: activityTags as RushActivityTag[],
+  }), [seq.id, seq.subGuideRef, seq.order, name, note, selectedDungeons, dofusdbUrl, noobsUrl, tips, alignReq, alignOrderReq, isSuccess, icon, metamobMonsterId, activityTags]);
+
+  /** Bloc qui porte la quête éditée : la fiche « Détails » y lit son titre et son illustration. */
+  const previewMilestone: RushMilestone = useMemo(() => {
+    const found = milestones?.find(m => m.id === milestoneId);
+    return {
+      id: milestoneId,
+      chapter: found?.chapter ?? 0,
+      chapterLabel: found?.chapterLabel ?? "",
+      title: found?.title ?? (name || "Quête"),
+      description: found?.description ?? null,
+      accentColor: found?.accentColor ?? null,
+      imageUrl: found?.imageUrl ?? null,
+      isOptional: found?.isOptional ?? false,
+      order: found?.order ?? 0,
+      tips: found?.tips ?? null,
+      dofusId: found?.dofusId ?? null,
+      type: found?.type,
+      sequences: [],
+    };
+  }, [milestones, milestoneId, name]);
+
+  /** La ligne d'aperçu est inerte : rien ne s'écrit dans l'overlay depuis le studio. */
+  const previewNoop = useCallback(() => { /* aperçu : aucune écriture */ }, []);
+
   const handleSubmit = () => {
     if (!name.trim()) return;
     onSave({
@@ -2398,22 +2590,42 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
         </button>
       </div>
 
-      {/* Aperçu Live (Simulateur Dashboard / Overlay) */}
+      {/* Aperçu live — la ligne de quête et la fiche du MEMBRE, jamais une vignette maison (`E5`) */}
       {showPreview && (
-        <div className="p-3 rounded-xl bg-zinc-900/90 border border-[#d5a94e]/30 space-y-2">
-          <p className="text-[10px] font-black uppercase tracking-widest text-[#d5a94e]">Aperçu Joueur (Temps Réel)</p>
-          <div className="p-2.5 rounded-lg bg-zinc-950 border border-white/10 flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2 min-w-0">
-              <div className="w-3.5 h-3.5 rounded border border-zinc-600 shrink-0" />
-              <span className="font-bold text-xs text-zinc-100 truncate font-serif">{name || "Nom de quête"}</span>
+        <MemberPreviewFrame label="Aperçu joueur — temps réel">
+          <RushOverlayQuestListItem
+            seq={previewSeq}
+            isDone={false}
+            isBookmarked={false}
+            isLightMode={false}
+            onToggle={previewNoop}
+            onBookmark={previewNoop}
+            onOpenDetail={() => setShowPreviewModal(true)}
+          />
+          {tips.trim() && (
+            <div className="mt-3">
+              <p className="mb-1.5 text-[11px] font-semibold text-muted-foreground">Conseils (puces)</p>
+              <RushTipLines text={tips} />
             </div>
-            {positionsInput && (
-              <span className="font-mono text-[10px] font-bold text-blue-300 bg-blue-950/60 border border-blue-500/30 px-1.5 py-0.5 rounded">
-                {positionsInput}
-              </span>
-            )}
-          </div>
-        </div>
+          )}
+          <button
+            type="button"
+            onClick={() => setShowPreviewModal(true)}
+            className="mt-3 w-full rounded-lg border border-border bg-elevated px-3 py-1.5 text-[11px] font-bold text-foreground transition-colors hover:bg-surface"
+          >
+            Ouvrir la fiche « Détails » du membre
+          </button>
+        </MemberPreviewFrame>
+      )}
+
+      {/* La fiche « Détails » est celle du membre : fond cliquable et Échap compris. */}
+      {showPreviewModal && (
+        <RushOverlayQuestDetailModal
+          milestone={previewMilestone}
+          seq={previewSeq}
+          isDone={false}
+          onClose={() => setShowPreviewModal(false)}
+        />
       )}
 
       {/* ── Section 1 : Identité & Nom (Ouvert par défaut) ── */}
@@ -3045,7 +3257,9 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
                     const y = prompt("Position Y :");
                     if (!y) return;
                     const pos = `/travel ${x},${y}`;
-                    setTips(prev => prev ? `${prev} ${pos}` : pos);
+                    // ⚠️ Une **ligne** = une puce (`splitTipLines`) : la position part donc sur sa
+                    // propre ligne — collée par un espace, elle restait dans la puce en cours.
+                    setTips(prev => (prev.trim() ? `${prev.replace(/\s+$/, "")}\n${pos}` : pos));
                     toast.success(`📍 ${pos} ajouté !`, { duration: 1500 });
                   }}
                   className="flex items-center gap-1 text-caption font-bold text-indigo-300 hover:text-indigo-100 bg-indigo-500/20 border border-indigo-500/30 px-2 py-0.5 rounded-lg transition-all"
@@ -3053,14 +3267,11 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
                   <MapPin className="w-3 h-3" /> Ajouter position (/travel)
                 </button>
               </div>
-              <textarea
+              <TipsLinesEditor
                 value={tips}
-                onChange={e => setTips(e.target.value)}
-                className="w-full bg-black/60 border border-white/10 rounded-lg px-2 py-1.5 text-xs text-amber-300/80 focus:outline-none focus:border-amber-500/30 resize-none"
-                placeholder="Conseil affiché côté membre..."
-                rows={2}
+                onChange={setTips}
+                placeholder="Conseil affiché côté membre…"
               />
-              <RichTextSyntaxHint />
             </div>
 
             <div>
@@ -3547,11 +3758,12 @@ function AddSequenceForm({ milestoneId, onAdd, isPending }: {
               </div>
               <div>
                 <label className="text-caption text-zinc-600 mb-1 block">💡 Tips</label>
-                <textarea value={tips} onChange={e => setTips(e.target.value)}
-                  className="w-full bg-black/60 border border-white/5 rounded-lg px-2 py-1 text-xs text-amber-300/70 focus:outline-none resize-none"
-                  placeholder="Conseil pour le membre…" rows={2}
+                <TipsLinesEditor
+                  value={tips}
+                  onChange={setTips}
+                  rows={2}
+                  placeholder="Conseil pour le membre…"
                 />
-                <RichTextSyntaxHint />
               </div>
               <div className="flex flex-col gap-1 p-2 rounded-xl bg-purple-500/10 border border-purple-500/20">
                 <div className="flex items-center gap-2">

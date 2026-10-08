@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { RushRichText, RushTipLines, splitRichText, bareLinkLabel, splitTipLines } from "@/components/dofus-quests/rush/RushRichText";
+import { RushRichText, RushTipLines, splitRichText, bareLinkLabel, splitTipLines, RUSH_RICH_TEXT_SYNTAX, RUSH_RICH_TEXT_NOT_ACCEPTED } from "@/components/dofus-quests/rush/RushRichText";
 
 /**
  * RushRichText — le texte des encarts CONSEIL / TIPS, rendu UNE fois pour le dashboard,
@@ -150,6 +150,37 @@ describe("splitTipLines — les conseils se lisent en puces", () => {
 
   it("ne rend rien du tout quand il n'y a aucun conseil", () => {
     expect(renderToStaticMarkup(React.createElement(RushTipLines, { text: "  \n " }))).toBe("");
+  });
+});
+
+/**
+ * Aide de syntaxe affichée sous chaque champ de conseil du studio God (`RichTextSyntaxHint`).
+ *
+ * 🎯 Défaut mesuré (08/10/2026) : l'aide citait `[-55,15]` et `/travel -55,15`, **jamais `/w`**
+ * — que le parseur reconnaît pourtant depuis toujours — et ne disait rien de la position nue
+ * (`-55,15`), que le rendu laisse en texte. Les exemples sont désormais **exportés par ce même
+ * module** : l'aide ne peut plus promettre une forme que `splitRichText` ignore, ni en oublier
+ * une qu'il accepte.
+ */
+describe("RUSH_RICH_TEXT_SYNTAX — l'aide ne promet que des formes reconnues", () => {
+  it("le lien nommé annoncé est bien décomposé en lien (le nom porte, l'URL se cache)", () => {
+    const link = splitRichText(RUSH_RICH_TEXT_SYNTAX.link).find((p) => p.kind === "link");
+    expect(link).toBeDefined();
+    expect(link && link.kind === "link" ? link.label : "").toBe("Nom de la quête");
+    expect(link && link.kind === "link" ? link.href : "").toContain("https://dofusdb.fr/");
+  });
+
+  it("les trois écritures de position annoncées sont toutes reconnues (et copiables)", () => {
+    for (const example of [RUSH_RICH_TEXT_SYNTAX.bracket, RUSH_RICH_TEXT_SYNTAX.w, RUSH_RICH_TEXT_SYNTAX.travel]) {
+      expect(splitRichText(example).some((p) => p.kind === "coord"), `${example} non reconnu`).toBe(true);
+      expect(html(example), `${example} sans chip copiable`).toContain("Copier la commande /travel -55,15");
+    }
+  });
+
+  it("la forme explicitement refusée par l'aide reste du texte (aucune coordonnée)", () => {
+    expect(splitRichText(RUSH_RICH_TEXT_NOT_ACCEPTED)).toEqual([
+      { kind: "text", value: RUSH_RICH_TEXT_NOT_ACCEPTED },
+    ]);
   });
 });
 

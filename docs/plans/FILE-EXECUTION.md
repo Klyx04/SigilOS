@@ -11,7 +11,7 @@ description: File d'exécution unique — tous les chantiers (A→Q), un seul or
 > suivant ; la branche suivante naît de `dev` **après** le merge (`git fetch origin dev && git merge origin/dev`).
 > **On ne supprime jamais un chantier** : livré, il passe en `✅` **ici** (son détail part dans un bloc de
 > session du `docs/ROADMAP.md`).
-> **Dernière mise à jour** : 08/10/2026 · `dev` = `ab948c70` · **T-1 et T-2 du chantier T (rush Sylvestre) livrés** (lot 1 « affichage » : barre de chapitre unique, enchaînement auto, pictos Dofus, conseils en puces — **PR #851 mergée** ; lot 2 « temps réel » : avatar Discord, toast de validation `RushOverlayLiveToast`, **présence honnête**). Le détail est aux blocs du 08/10 du `docs/ROADMAP.md`, la file ne le duplique pas.
+> **Dernière mise à jour** : 08/10/2026 · `dev` = `a462a100` · **T-1 et T-2 du chantier T (rush Sylvestre) livrés** (lot 1 « affichage » : barre de chapitre unique, enchaînement auto, pictos Dofus, conseils en puces — **PR #851 mergée** ; lot 2 « temps réel » : avatar Discord, toast de validation `RushOverlayLiveToast`, **présence honnête** — **PR #853 mergée**). Le détail est aux blocs du 08/10 du `docs/ROADMAP.md`, la file ne le duplique pas.
 
 ## 0. Comment s'en servir
 

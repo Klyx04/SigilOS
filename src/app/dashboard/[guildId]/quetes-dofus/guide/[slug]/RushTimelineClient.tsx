@@ -61,7 +61,7 @@ import { RushOverlayQuestDetailModal } from "@/app/overlay/guide/[guildId]/[slug
 // l'overlay et la page publique (mêmes clés de coche des deux côtés).
 import { RushOverlayResourcesModal } from "@/app/overlay/guide/[guildId]/[slug]/components/RushOverlayResourcesModal";
 import { aggregateRushResources } from "@/app/overlay/guide/[guildId]/[slug]/components/overlay-utils";
-import { isSequenceBlockedByPrereqs, resolveRushSeqIcon, getGuideMetiersRequires, getSequenceNpc, isZaapCopyEnabled, getSequenceManualZaap } from "@/lib/rush-guide-utils";
+import { isSequenceBlockedByPrereqs, resolveRushSeqIcon, getGuideMetiersRequires, getSequenceNpc, isZaapCopyEnabled, getSequenceManualZaap, resolvePrereqTarget } from "@/lib/rush-guide-utils";
 import { toOcrePanelData } from "@/lib/ocre-soul-stones";
 import { metierIds } from "@/lib/metiers";
 import type { RushUIConfig } from "@/lib/rush-ui-config";
@@ -80,6 +80,13 @@ import { brandIconForUrl } from "@/lib/source-icons";
 // ─── Types ────────────────────────────────────────────────────────────────────
 type DungeonRef = { id: string; name: string; bossName: string; imageUrl?: string|null };
 type ActivityTag = { type: string; name?: string; level?: number; count?: number; color?: string; url?: string };
+/**
+ * Durée de la surbrillance de la quête CIBLÉE (clic sur un prérequis, « Reprendre »,
+ * reprise live) — 1,2 s : assez pour que l'œil accroche la ligne, assez court pour ne pas
+ * rester allumé quand la quête suivante est déjà cochée (G4 du plan).
+ */
+const TARGET_HIGHLIGHT_MS = 1200;
+
 type Sequence = { id: string; subGuideRef: string; subGuideName: string; stepFrom?: number|null; stepTo?: number|null; note?: string|null; isOptional: boolean; order: number; dungeon?: DungeonRef|null; dungeons?: DungeonRef[]; dofusdbUrl?: string|null; dofuspourlesnoobsUrl?: string|null; tips?: string|null; alignReq?: string|null; alignOrderReq?: number|null; isSuccess?: boolean; icon?: string | null; metamobMonsterId?: number|null; activityTags?: ActivityTag[]; };
 type Milestone = { id:string; title:string; subtitle?:string|null; description?:string|null; type:string; accentColor?:string|null; imageUrl?:string|null; chapter:number; chapterLabel:string; order:number; isOptional:boolean; tips?:string|null; dofusId?:string|null; sequences:Sequence[]; playerProgress?:{isCompleted:boolean;completedSteps?:any;currentStep?:string|null}[]; };
 type GuildMemberProgress = { profileId:string; milestoneId:string; isCompleted:boolean; userName:string; userAvatar?:string; currentStep?:string|null };
@@ -1540,18 +1547,11 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
   }, [bookmarksByMs, guildId, blockedSeqIds, completedStepsByMs, effectiveAltPseudo]);
   if(guide.isUnderConstruction)return<div className="flex flex-col items-center justify-center min-h-[400px] gap-6 p-8"><motion.div animate={{rotate:[0,-5,5,-5,0]}} transition={{repeat:Infinity,duration:3}} className="p-5 rounded-[6px] bg-warning/10 border border-warning/20"><Construction className="w-12 h-12 text-warning"/></motion.div><div><h2 className="text-2xl font-semibold text-foreground mb-2">En construction 🚧</h2><p className="text-muted-foreground text-sm">Le staff prépare ce guide. Reviens bientôt !</p></div></div>;
   const handleScrollToPrereq = useCallback((seqName: string) => {
-    let foundId: string | null = null;
-    for (const ms of milestones) {
-      if (ms.type === "SEPARATEUR" || ms.type === "INFO") continue;
-      for (const seq of ms.sequences) {
-        const matchName = seq.subGuideName || seq.subGuideRef || "";
-        if (matchName.toLowerCase() === seqName.toLowerCase() || matchName.toLowerCase().includes(seqName.toLowerCase())) {
-          foundId = seq.id;
-          break;
-        }
-      }
-      if (foundId) break;
-    }
+    // Résolution par la SOURCE UNIQUE (`resolvePrereqTarget`) : nom EXACT d'abord, nom partiel
+    // en dernier recours. Le tag ne porte qu'un nom, et l'ancien `includes` partait au premier
+    // libellé qui *contenait* la recherche — donc une quête pouvait en pointer une autre
+    // (retour user 08/10/2026).
+    const foundId = resolvePrereqTarget(seqName, milestones as any)?.seqId ?? null;
     if (foundId) {
       setFocusedSeqId(foundId);
       // Le prérequis peut vivre dans un AUTRE chapitre : on ouvre sa page d'abord,
@@ -1566,7 +1566,7 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
           el.classList.add("ring-2", "ring-success", "ring-offset-2", "ring-offset-background");
           setTimeout(() => {
             el.classList.remove("ring-2", "ring-success", "ring-offset-2", "ring-offset-background");
-          }, 3500);
+          }, TARGET_HIGHLIGHT_MS);
         } else if (attempts < maxAttempts) {
           attempts++;
           setTimeout(tryScroll, 200 + attempts * 100);
@@ -1769,7 +1769,7 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
         el.classList.add("ring-2", "ring-success", "ring-offset-2", "ring-offset-background");
         setTimeout(() => {
           el.classList.remove("ring-2", "ring-success", "ring-offset-2", "ring-offset-background");
-        }, 3500);
+        }, TARGET_HIGHLIGHT_MS);
       } else if (attempts < maxAttempts) {
         attempts++;
         setTimeout(tryScroll, 200 + attempts * 100);

@@ -103,8 +103,9 @@ description: File d'exécution unique — tous les chantiers (A→Q), un seul or
 | **37** | **S · S-4** | La landing autour : CTA « Essayer la démo », hero, fuites produit (FR en dur, état unique masqué) | S/M | étape 33 |
 | **38** | **S · S-5** | Perf des pages publiques (prérendu, une seule langue au client, `framer-motion` hors graphe public) | M | — |
 | **39** | **T · T-1** | ✅ **livré le 08/10/2026** (**PR #851 mergée**) — rush Sylvestre : **une seule barre de chapitre**, enchaînement auto, vrais pictos Dofus, conseils en puces (Lot 1 du plan) | M | — |
-| **40** | **T · T-2** | ✅ **livré le 08/10/2026** — temps réel dé-slopé : fil d'activité à avatar Discord, toast de validation dans l'overlay, **présence honnête** (en ligne = WebSocket, hors ligne = dernière position) | M | — |
-| **41** | **T · T-3 → T-6** | Éditeur God (dialogues, rappel de syntaxe) · identité Dofus · overlay avancé · perf Zustand (Lots 3 → 6) | L | — |
+| **40** | **T · T-2** | ✅ **livré le 08/10/2026** (**PR #853**) — temps réel dé-slopé : fil d'activité à avatar Discord, toast de validation dans l'overlay, **présence honnête** (en ligne = WebSocket, hors ligne = dernière position) | M | — |
+| **41** | **T · T-2b** | **Reste du lot 2 du plan** : prérequis par **id** (G3/G4 — `handleScrollToPrereq` par id + repli sur le nom + surbrillance 1,2 s) et parallélisation serveur (G10 — `getRushResourceChecks` et le profil en `Promise.all`) | S/M | — |
+| **42** | **T · T-3 → T-6** | Éditeur God (E4 `confirm()` → Dialog, E6 ref de scroll, E1 champ « une ligne = une puce ») · habillage Dofus (O14/O15, G7/G8, T2) · overlay avancé (O9/O10/O11/O13) · perf (G6 + `useOptimistic`) | L | — |
 
 `S` < 1 jour · `M` quelques jours · `L` chantier.
 

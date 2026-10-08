@@ -33,6 +33,15 @@ Sentry.init({
         // ⚠️ On ne le **perd** pas : Node l'écrit sur `stderr` (visible dans `docker logs`) —
         // si notre propre code se mettait à fuir, le volume dans les logs exploserait.
         /MaxListenersExceededWarning/,
+
+        // ⚠️ Mesure du 08/10/2026 : `PassThrough` du runtime Next
+        // (`next/dist/compiled/next-server/app-page-turbo.runtime.prod`), **2 événements
+        // en 24 h pour 4 utilisateurs**, en régression. C'est Next qui se plaint quand le
+        // **client coupe le flux HTML** qu'il reçoit : fermeture d'onglet, fermeture de la
+        // fenêtre PiP, navigation pendant un rendu en flux. Aucune de nos routes ne ferme
+        // ce flux nous-mêmes (aucun `PassThrough` dans `src/`) ⇒ ce n'est pas un défaut du
+        // produit. Filtré ici, conservé sur `stderr` dans `docker logs`.
+        /The destination stream closed early/,
     ],
 
     // Before sending, add extra context

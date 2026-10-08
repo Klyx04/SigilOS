@@ -82,6 +82,13 @@ export async function GET(
             controller.enqueue(encode(": ping\n\n"));
 
             let isPolling = false;
+            // ⚠️ Sentry signale une « N+1 Query » sur cette route (08/10/2026) : c'est un
+            // **faux positif** de sa détection — la même requête (GuildActivity de la
+            // guilde) est rejouée par le **sondage volontaire de 8 s** ci-dessous, une
+            // fois par battement, pas dans une boucle imbriquée. Mesure : la requête est
+            // bornée (`take: 20`, `createdAt > since`, indexée par guilde) et il n'y a
+            // **aucune** requête par événement. Ne pas la « corriger » en boucle plus
+            // large : ça ne réduirait pas le nombre d'appels, ça augmenterait la latence.
             const poll = setInterval(async () => {
                 if (closed || isPolling) return;
                 isPolling = true;

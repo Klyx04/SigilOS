@@ -3129,28 +3129,49 @@ export async function upsertRushMilestone(data: {
       },
     });
   } else {
-    const maxOrder = await db.guideMilestone.count({ where: { guideId: guide.id } });
-    milestone = await db.guideMilestone.create({
-      data: {
-        guideId: guide.id,
-        type: data.type ?? "QUETE_SERIE",
-        chapter: parsedChapter,
-        chapterLabel,
-        title: data.label,
-        description: data.description,
-        imageUrl: data.imageUrl ?? null,
-        accentColor,
-        isOptional: data.isOptional ?? false,
-        order: data.order ?? maxOrder,
-        tips: data.tips,
-        dofusId,
-      },
-      include: {
-        sequences: {
-          orderBy: { order: "asc" },
-          include: { dungeon: true }
-        }
-      },
+    // Créneau d'insertion (`E3`) : quand le studio connaît la place du nouveau bloc — l'`order`
+    // calculé par `findMilestoneInsertIndex` —, on **ouvre un créneau** au lieu d'empiler en fin
+    // de guide puis de renuméroter tout le guide par un second appel (`reorderRushMilestones`).
+    //
+    // ⚠️ `order` est un `Int` (aucune position fractionnaire possible) : écrire `insertAt` sans
+    // décaler les suivants créerait des **doublons d'`order`** (deux blocs à la même place, tri
+    // instable). Le décalage et la création sont donc dans la **même transaction** : un seul
+    // aller-retour, un état cohérent à tout instant (mesuré le 08/10/2026).
+    const insertAt =
+      typeof data.order === "number" && Number.isInteger(data.order) && data.order >= 0
+        ? data.order
+        : null;
+    const targetOrder = insertAt ?? (await db.guideMilestone.count({ where: { guideId: guide.id } }));
+
+    milestone = await db.$transaction(async (tx) => {
+      if (insertAt !== null) {
+        await tx.guideMilestone.updateMany({
+          where: { guideId: guide.id, order: { gte: insertAt } },
+          data: { order: { increment: 1 } },
+        });
+      }
+      return tx.guideMilestone.create({
+        data: {
+          guideId: guide.id,
+          type: data.type ?? "QUETE_SERIE",
+          chapter: parsedChapter,
+          chapterLabel,
+          title: data.label,
+          description: data.description,
+          imageUrl: data.imageUrl ?? null,
+          accentColor,
+          isOptional: data.isOptional ?? false,
+          order: targetOrder,
+          tips: data.tips,
+          dofusId,
+        },
+        include: {
+          sequences: {
+            orderBy: { order: "asc" },
+            include: { dungeon: true }
+          }
+        },
+      });
     });
   }
 

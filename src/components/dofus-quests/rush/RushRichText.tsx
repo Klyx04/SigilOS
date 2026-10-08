@@ -139,6 +139,32 @@ type RushRichTextPart =
   | { kind: "coord"; x: number; y: number };
 
 /**
+ * Exemples de syntaxe du texte enrichi — **SOURCE UNIQUE** de l'aide affichée en God
+ * (`RichTextSyntaxHint` du studio Rush).
+ *
+ * `tests/unit/rush-rich-text.test.ts` fait passer CHAQUE exemple dans `splitRichText` : l'aide
+ * ne peut donc pas promettre une forme que le rendu ignore (défaut mesuré le 08/10/2026 : le
+ * rappel citait `[-55,15]` et `/travel -55,15` sans jamais mentionner `/w`, alors que le
+ * parseur le reconnaît depuis toujours).
+ */
+export const RUSH_RICH_TEXT_SYNTAX = {
+  /** Lien nommé : le libellé s'affiche, l'URL ne s'affiche JAMAIS. */
+  link: "[Nom de la quête](https://dofusdb.fr/fr/database/quest/123)",
+  /** Position « canonique » : un clic copie `/travel x,y`. */
+  bracket: "[-55,15]",
+  /** Position en commande de chat (groupe / guilde). */
+  w: "/w -55,15",
+  /** Position en commande de déplacement. */
+  travel: "/travel -55,15",
+} as const;
+
+/**
+ * Forme **non reconnue** par le rendu : une position nue (sans crochets ni commande) reste du
+ * texte. Citée par l'aide du studio pour couper court à l'erreur la plus fréquente.
+ */
+export const RUSH_RICH_TEXT_NOT_ACCEPTED = "-55,15";
+
+/**
  * Découpe un texte en morceaux rendus. Fonction PURE (exportée pour être verrouillée par
  * les tests sans DOM) : `[libellé](url)` · URL brute · position (canonique, `/w`, `/travel`).
  */

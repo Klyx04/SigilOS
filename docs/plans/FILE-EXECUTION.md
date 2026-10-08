@@ -11,7 +11,7 @@ description: File d'exécution unique — tous les chantiers (A→Q), un seul or
 > suivant ; la branche suivante naît de `dev` **après** le merge (`git fetch origin dev && git merge origin/dev`).
 > **On ne supprime jamais un chantier** : livré, il passe en `✅` **ici** (son détail part dans un bloc de
 > session du `docs/ROADMAP.md`).
-> **Dernière mise à jour** : 08/10/2026 · `dev` = `968fbe56` · **T-1 et T-2 du chantier T (rush Sylvestre) livrés** (lot 1 « affichage » : barre de chapitre unique, enchaînement auto, pictos Dofus, conseils en puces — **PR #851 mergée** ; lot 2 « temps réel » : avatar Discord, toast de validation `RushOverlayLiveToast`, **présence honnête** — **PR #853 mergée**). Le détail est aux blocs du 08/10 du `docs/ROADMAP.md`, la file ne le duplique pas. **T-2b en PR #856** · **chantier U « zéro dépendance DofusDB » cadré** (5 points de contact mesurés, lots U-1 → U-5, §1).
+> **Dernière mise à jour** : 08/10/2026 · `dev` = `c878c2d5` · **T-1, T-2, T-2b et T-3 du chantier T (rush Sylvestre) livrés** (lot 1 « affichage » — **PR #851** ; lot 2 « temps réel » — **PR #853** ; **T-2b** prérequis résolus au **nom exact** — **PR #856** ; **T-3** studio God robuste : E1/E3/E4/E5/E6 — **PR #857**). Le détail est aux blocs du 08/10 du `docs/ROADMAP.md`, la file ne le duplique pas. Restent **T-2c** (id de quête dans le tag `prereq_text`) puis les lots 4 à 6 · **chantier U « zéro dépendance DofusDB » cadré** (5 points de contact mesurés, lots U-1 → U-5, §1).
 
 ## 0. Comment s'en servir
 
@@ -49,7 +49,7 @@ description: File d'exécution unique — tous les chantiers (A→Q), un seul or
 | **Q** | **Salons vocaux** (module, cahier V2.1 du 30/09) | **idée neuve, à cadrer** | `docs/plans/PLAN-SALONS-VOCAUX.md` (cahier rapatrié le 01/10) | — |
 | **R** | **Durcissement réseau** (Cloudflare devant le domaine ? WAF/DDoS + impact RGPD) | à décider | — (décision **D8**) | — |
 | **S** | **Démo publique** — une guilde de démonstration **en lecture seule**, essayable sans compte depuis la landing | **S-0 ✅ fait** (02/10, mesure, 0 PR) — S-1 → S-5 à faire | `docs/plans/PLAN-DEMO-PUBLIQUE.md` | S-1 → S-5 |
-| **T** | **Rush Sylvestre — refonte** (overlay & guide : ergonomie, temps réel, éditeur God, habillage Dofus, perf) | en cours — **T-1 + T-2 ✅ livrés le 08/10** | `docs/plans/PLAN-REFONTE-RUSH-SYLVESTRE.md` | T-1 → T-6 |
+| **T** | **Rush Sylvestre — refonte** (overlay & guide : ergonomie, temps réel, éditeur God, habillage Dofus, perf) | en cours — **T-1, T-2, T-2b + T-3 ✅ livrés le 08/10** | `docs/plans/PLAN-REFONTE-RUSH-SYLVESTRE.md` | T-1 → T-6 |
 | **U** | **Zéro dépendance DofusDB** — règle du propriétaire : **plus aucun appel à DofusDB à l'exécution** (le produit doit vivre sans lui) | **cadré le 08/10/2026** (mesures ci-dessous) — **aucun lot commencé** | **à créer** (tant qu'il n'existe pas, le cadrage vit ici) | U-1 → U-5 |
 
 > ### 🚫 Chantier U — cadrage mesuré le 08/10/2026 (règle : « aucune dépendance à DofusDB »)
@@ -121,7 +121,7 @@ description: File d'exécution unique — tous les chantiers (A→Q), un seul or
 | **40** | **T · T-2** | ✅ **livré le 08/10/2026** (**PR #853**) — temps réel dé-slopé : fil d'activité à avatar Discord, toast de validation dans l'overlay, **présence honnête** (en ligne = WebSocket, hors ligne = dernière position) | M | — |
 | **41** | **T · T-2b** | ✅ **livré le 08/10/2026** (**PR #856**) — prérequis résolus au **nom exact** (règle pure `resolvePrereqTarget`, plus d'`includes` aveugle), surbrillance de la cible **1,2 s** (constante unique), page serveur à **deux lectures parallèles** | S/M | — |
 | **42** | **T · T-2c** | Stocker l'**id** de la quête dans le tag `prereq_text` (God + backfill — `activityTags` est du JSON, donc **pas de migration**) pour supprimer la résolution par nom | S/M | — |
-| **43** | **T · T-3 → T-6** | Éditeur God (E4 `confirm()` → Dialog, E6 ref de scroll, E1 champ « une ligne = une puce ») · habillage Dofus (O14/O15, G7/G8, T2) · overlay avancé (O9/O10/O11/O13) · perf (G6 + `useOptimistic`) | L | — |
+| **43** | **T · T-3 → T-6** | **T-3 ✅ livré le 08/10/2026** (**PR #857**) — studio God robuste : suppression d'un bloc par `Dialog` (plus de `confirm()`), conteneur de défilement **déclaré** par le layout (**2 sites**), `order` du nouveau bloc **ouvert dans la transaction** (plus de renumérotation du guide), conseils « une ligne = une puce » + **aide de syntaxe exacte**, aperçu live des composants du **membre**. **Reste** : habillage Dofus (O14/O15, G7/G8, T2) · overlay avancé (O9/O10/O11/O13) · perf (G6 + `useOptimistic`) | L | — |
 | **44** | **U · U-1** | Inventaire **verrouillé** : garde qui **compte** les occurrences DofusDB (`src/**` + payloads servis au client) et échoue si le nombre **augmente** (ratchet — la garde ne peut pas être verte avant U-2 → U-4) | S | — |
 | **45** | **U · U-2** | Données : réécrire ou vider les `img` des 28 `*-compiled.json` (l'`id` suffit, `resolveItemImage` reconstruit le chemin local) + re-seed | M | — |
 | **46** | **U · U-3** | Images : **plus de repli réseau** (`resolveItemImage`/`getItemImageFallback` → placeholder local), et `/api/assets-dofus` cesse de `fetch` DofusDB (ou disparaît s'il n'a plus d'appelant) | M | étape 45 |

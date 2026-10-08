@@ -2210,21 +2210,34 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
 
   // Détour zaap (choix God explicite) : le bouton `/zaap ; /travel` façon DPLN
   // ne s'affiche côté membres que pour les positions cochées ici.
+  // 2e option (manuelle) : `zaapX/zaapY` saisis en God → les membres copient
+  // `/zaap zx,zy ; /travel x,y` tel quel (prioritaire sur l'auto).
   const [allowZaap, setAllowZaap] = useState<boolean>(() => {
     const existing = (seq.activityTags as any[])?.find((t: any) => t.type === "pos_tags");
     return existing?.allowZaap === true;
   });
+  const [manualZaapX, setManualZaapX] = useState<string>(() => {
+    const existing = (seq.activityTags as any[])?.find((t: any) => t.type === "pos_tags");
+    return Number.isSafeInteger(existing?.zaapX) ? String(existing.zaapX) : "";
+  });
+  const [manualZaapY, setManualZaapY] = useState<string>(() => {
+    const existing = (seq.activityTags as any[])?.find((t: any) => t.type === "pos_tags");
+    return Number.isSafeInteger(existing?.zaapY) ? String(existing.zaapY) : "";
+  });
 
   const handlePositionsChange = (text: string) => {
     setPositionsInput(text);
-    syncPosTag(text, positionsWorldId, allowZaap);
+    syncPosTag(text, positionsWorldId, allowZaap, manualZaapX, manualZaapY);
   };
 
-  const syncPosTag = (text: string, worldId: number, zaap: boolean) => {
+  const syncPosTag = (text: string, worldId: number, zaap: boolean, mZx?: string, mZy?: string) => {
     setActivityTags(prev => {
       const filtered = prev.filter((t: any) => t.type !== "pos_tags");
       if (text.trim()) {
-        return [...filtered, { type: "pos_tags" as any, name: text.trim(), worldId, ...(zaap ? { allowZaap: true } : {}) }];
+        const zx = parseInt(String(mZx ?? manualZaapX).trim(), 10);
+        const zy = parseInt(String(mZy ?? manualZaapY).trim(), 10);
+        const hasManual = Number.isSafeInteger(zx) && Number.isSafeInteger(zy) && String(mZx ?? manualZaapX).trim() !== "" && String(mZy ?? manualZaapY).trim() !== "";
+        return [...filtered, { type: "pos_tags" as any, name: text.trim(), worldId, ...(zaap || hasManual ? { allowZaap: true } : {}), ...(hasManual ? { zaapX: zx, zaapY: zy } : {}) }];
       }
       return filtered;
     });
@@ -2232,7 +2245,18 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
 
   const handleAllowZaapChange = (enabled: boolean) => {
     setAllowZaap(enabled);
-    syncPosTag(positionsInput, positionsWorldId, enabled);
+    syncPosTag(positionsInput, positionsWorldId, enabled, manualZaapX, manualZaapY);
+  };
+
+  const handleManualZaapChange = (zx: string, zy: string) => {
+    setManualZaapX(zx);
+    setManualZaapY(zy);
+    const nx = parseInt(zx.trim(), 10);
+    const ny = parseInt(zy.trim(), 10);
+    const hasManual = zx.trim() !== "" && zy.trim() !== "" && Number.isSafeInteger(nx) && Number.isSafeInteger(ny);
+    const nextAllow = allowZaap || hasManual;
+    if (nextAllow !== allowZaap) setAllowZaap(nextAllow);
+    syncPosTag(positionsInput, positionsWorldId, nextAllow, zx, zy);
   };
 
   const handleTougliTextChange = (text: string) => {
@@ -2526,6 +2550,41 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
                   Proposer le détour zaap <span className="font-mono text-cyan-400/80">/zaap + /travel</span>
                 </span>
               </label>
+
+              {/* Zaap manuel (2e option) : X / Y dissociés du zaap — les membres
+                  copient `/zaap zx,zy ; /travel x,y` tel quel (prioritaire). */}
+              <div className="flex items-center gap-2 pt-1">
+                <div className="flex items-center gap-1 flex-1">
+                  <span className="text-xs text-zinc-500 font-mono font-bold">Zaap X:</span>
+                  <input
+                    type="text"
+                    value={manualZaapX}
+                    onChange={e => handleManualZaapChange(e.target.value, manualZaapY)}
+                    className="w-full bg-black/60 border border-cyan-500/20 focus:border-cyan-500/50 rounded-lg px-2.5 py-1.5 text-xs text-cyan-300 font-mono focus:outline-none transition-colors"
+                    placeholder="ex: -20"
+                  />
+                </div>
+                <div className="flex items-center gap-1 flex-1">
+                  <span className="text-xs text-zinc-500 font-mono font-bold">Zaap Y:</span>
+                  <input
+                    type="text"
+                    value={manualZaapY}
+                    onChange={e => handleManualZaapChange(manualZaapX, e.target.value)}
+                    className="w-full bg-black/60 border border-cyan-500/20 focus:border-cyan-500/50 rounded-lg px-2.5 py-1.5 text-xs text-cyan-300 font-mono focus:outline-none transition-colors"
+                    placeholder="ex: -20"
+                  />
+                </div>
+                {(manualZaapX.trim() || manualZaapY.trim()) ? (
+                  <button
+                    type="button"
+                    onClick={() => handleManualZaapChange("", "")}
+                    className="p-1.5 text-zinc-500 hover:text-zinc-300 bg-zinc-800/60 hover:bg-zinc-800 rounded-lg transition-colors"
+                    title="Effacer le zaap manuel (retour à l'auto)"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                ) : null}
+              </div>
 
               {/* PNJ donneur (recherche locale, 6 494 PNJ du client) */}
               <div className="pt-1">

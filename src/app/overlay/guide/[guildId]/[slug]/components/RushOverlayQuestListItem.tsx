@@ -8,7 +8,7 @@ import { RushCoordinateChip } from "@/components/dofus-quests/rush/RushCoordinat
 import { RushOverlayMemberBubbles, type OverlayBubbleMember } from "./RushOverlayMemberBubbles";
 import { RushOverlayDungeonPopover } from "./RushOverlayDungeonPopover";
 import { getAlignmentSet } from "@/lib/rush-helpers";
-import { resolveRushSeqIcon, getSequenceNpc, isZaapCopyEnabled } from "@/lib/rush-guide-utils";
+import { resolveRushSeqIcon, getSequenceNpc, isZaapCopyEnabled, getSequenceManualZaap } from "@/lib/rush-guide-utils";
 import { NpcBadge } from "@/components/dofus-quests/rush/NpcBadge";
 import type { RushSequence } from "@/types/rush-guide-types";
 
@@ -205,6 +205,7 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
                   coordText={`[${parsedCoord.x},${parsedCoord.y}]`}
                   className="text-[11px]"
                   showZaap={isZaapCopyEnabled(seq)}
+                  manualZaap={getSequenceManualZaap(seq)}
                 />
               )}
               {hasDungeon && (

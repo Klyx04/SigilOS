@@ -61,7 +61,7 @@ import { RushOverlayQuestDetailModal } from "@/app/overlay/guide/[guildId]/[slug
 // l'overlay et la page publique (mêmes clés de coche des deux côtés).
 import { RushOverlayResourcesModal } from "@/app/overlay/guide/[guildId]/[slug]/components/RushOverlayResourcesModal";
 import { aggregateRushResources } from "@/app/overlay/guide/[guildId]/[slug]/components/overlay-utils";
-import { isSequenceBlockedByPrereqs, resolveRushSeqIcon, getGuideMetiersRequires, getSequenceNpc, isZaapCopyEnabled } from "@/lib/rush-guide-utils";
+import { isSequenceBlockedByPrereqs, resolveRushSeqIcon, getGuideMetiersRequires, getSequenceNpc, isZaapCopyEnabled, getSequenceManualZaap } from "@/lib/rush-guide-utils";
 import { toOcrePanelData } from "@/lib/ocre-soul-stones";
 import { metierIds } from "@/lib/metiers";
 import type { RushUIConfig } from "@/lib/rush-ui-config";
@@ -395,9 +395,9 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
               // clic = copie /travel, survol = carte (MapPositionPopover). Le bleu
               // « info » d'avant faisait couleur-décoration : les coordonnées sont
               // une donnée, pas un état.
-              const chip = <RushCoordinateChip coordText={`${x}, ${y}`} showIcon showZaap={isZaapCopyEnabled(seq)} className="shrink-0" />;
+              const chip = <RushCoordinateChip coordText={`${x}, ${y}`} showIcon showZaap={isZaapCopyEnabled(seq)} manualZaap={getSequenceManualZaap(seq)} className="shrink-0" />;
               return (
-                <MapPositionPopover posX={x} posY={y} worldId={worldId} guildId={guildId} contextLabel={`${questName} ${ms.title}`} zaapEnabled={isZaapCopyEnabled(seq)}>
+                <MapPositionPopover posX={x} posY={y} worldId={worldId} guildId={guildId} contextLabel={`${questName} ${ms.title}`} zaapEnabled={isZaapCopyEnabled(seq)} manualZaap={getSequenceManualZaap(seq)}>
                   {chip}
                 </MapPositionPopover>
               );

@@ -70,7 +70,7 @@ import {
   aggregateRushResources,
   getSequenceCoord,
 } from "@/app/overlay/guide/[guildId]/[slug]/components/overlay-utils";
-import { isInfoSequence, isSequenceBlockedByPrereqs, getPrereqRefs, resolveRushSeqIcon, getSequenceNpc, isZaapCopyEnabled } from "@/lib/rush-guide-utils";
+import { isInfoSequence, isSequenceBlockedByPrereqs, getPrereqRefs, resolveRushSeqIcon, getSequenceNpc, isZaapCopyEnabled, getSequenceManualZaap } from "@/lib/rush-guide-utils";
 // Panneau de droite — le MÊME composant que le guide interne (chapitres, progression,
 // donjons & métiers à prévoir, objets requis + bascule Restantes/Toutes).
 import { RushChapterSidebar } from "@/components/dofus-quests/rush/RushChapterSidebar";
@@ -1664,7 +1664,7 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
                                           </>
                                         )}
                                         {parsedCoord && (
-                                          <RushCoordinateChip coordText={parsedCoord.raw} showZaap={isZaapCopyEnabled(seq as any)} />
+                                          <RushCoordinateChip coordText={parsedCoord.raw} showZaap={isZaapCopyEnabled(seq as any)} manualZaap={getSequenceManualZaap(seq as any)} />
                                         )}
                                         {(() => {
                                           const npc = getSequenceNpc(seq as any);

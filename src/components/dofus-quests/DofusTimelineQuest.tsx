@@ -5,7 +5,7 @@ import {
   CheckCircle2, Circle, ChevronDown,
   ExternalLink, MapPin, Sword, Package,
   ArrowUp, BookOpen, Skull, X,
-  ChevronRight, Info, Layers, Users,
+  ChevronRight, Layers, Users,
   Lock, Search, EyeOff, Eye, Crosshair, Flag, RotateCcw, Copy, Trophy,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -15,6 +15,7 @@ import type { DofusPresenceMember } from "@/hooks/use-dofus-presence";
 import { isSafeImageUrl } from "@/lib/security";
 import { QUEST_TYPE_KEYS, questTypeIconPath } from "@/lib/quest-type-icon";
 import { extractNpcRef } from "@/lib/npc-portrait";
+import { brandIconForUrl } from "@/lib/source-icons";
 import { NpcBadge } from "@/components/dofus-quests/rush/NpcBadge";
 import { ZaapCopyButton } from "@/components/dofus-quests/ZaapCopyButton";
 import {
@@ -156,9 +157,11 @@ function QuestDetailInline({ quest, color, isCompleted, onToggle, synergyForQues
                   <MapPin className="w-3 h-3 shrink-0" />{p.x},{p.y}
                   <Copy className="w-3 h-3 opacity-60" />
                 </button>
-                {Number.isSafeInteger(p?.x) && Number.isSafeInteger(p?.y) && p?.zaap === true && (
-                  <ZaapCopyButton x={p.x} y={p.y} />
-                )}
+                {Number.isSafeInteger(p?.x) && Number.isSafeInteger(p?.y) && (p as any)?.zaap && (() => {
+                  const zm = (p as any)?.zaap && typeof (p as any).zaap === "object" && Number.isSafeInteger((p as any).zaap?.x) && Number.isSafeInteger((p as any).zaap?.y)
+                    ? (p as any).zaap : null;
+                  return <ZaapCopyButton x={p.x} y={p.y} zaapX={zm?.x ?? null} zaapY={zm?.y ?? null} />;
+                })()}
               </span>
             ))
           ) : coords ? (
@@ -201,17 +204,35 @@ function QuestDetailInline({ quest, color, isCompleted, onToggle, synergyForQues
           })}
         </div>
 
-        {/* Liens externes */}
+        {/* Liens externes : URLs saisies en God prioritaires, favicons servies
+            en local (`brandIconForUrl`, jamais de requête vers un tiers).
+            Le donneur PNJ s'affiche via `NpcBadge` sur la ligne (nom en hover),
+            jamais comme « Prérequis » — les vrais prérequis viennent de
+            `prereqsByQuestId` (table de liaison, verrou de la ligne). */}
         <div className="flex gap-2 pt-1 border-t border-border items-center">
-          {quest.dofusdbId && <a href={`https://dofusdb.fr/fr/database/quest/${quest.dofusdbId}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-info/10 border border-info/20 text-info text-caption font-bold hover:bg-info/20 transition-all"><img src="/assets/icons/dofusdb.png" alt="" className="w-3 h-3 rounded" /> DofusDB</a>}
-          {quest.externalRef && <a href={quest.externalRef} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-warning/10 border border-warning/20 text-warning text-caption font-bold hover:bg-warning/20 transition-all"><BookOpen className="w-3 h-3" /> Guide Noobs</a>}
-          {quest.isDungeon && !quest.externalRef && (
-            <button onClick={() => { const slug = (quest.name || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, ""); window.open(`https://www.dofuspourlesnoobs.com/donjon-${slug}.html`, "_blank"); }} className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-warning/10 border border-warning/20 text-warning text-caption font-bold hover:bg-warning/20 transition-all"><BookOpen className="w-3 h-3" /> Guide Noobs</button>
-          )}
-          {/* Badge Prérequis si présent */}
-          {quest.requirements && typeof quest.requirements === 'object' && (quest.requirements as any).npc && (
-            <span className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-warning/10 border border-warning/20 text-warning text-caption font-bold"><Info className="w-2.5 h-2.5" /> Prérequis: {(quest.requirements as any).npc}</span>
-          )}
+          {(() => {
+            const dofusdbHref = (typeof quest.dofusdbUrl === "string" && quest.dofusdbUrl.trim() !== "")
+              ? quest.dofusdbUrl.trim()
+              : (quest.dofusdbId ? `https://dofusdb.fr/fr/database/quest/${quest.dofusdbId}` : null);
+            const rawNoobs = (typeof quest.dofuspourlesnoobsUrl === "string" && quest.dofuspourlesnoobsUrl.trim() !== "")
+              ? quest.dofuspourlesnoobsUrl.trim()
+              : (typeof quest.externalRef === "string" && /^https?:\/\//i.test(quest.externalRef.trim()) ? quest.externalRef.trim() : null);
+            const dofusdbBrand = brandIconForUrl(dofusdbHref);
+            const noobsBrand = brandIconForUrl(rawNoobs);
+            return (<>
+              {dofusdbHref && <a href={dofusdbHref} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-info/10 border border-info/20 text-info text-caption font-bold hover:bg-info/20 transition-all">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={dofusdbBrand?.src ?? "/assets/icons/dofusdb.png"} alt="" className="w-3 h-3 rounded" loading="lazy" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} /> DofusDB</a>}
+              {rawNoobs && <a href={rawNoobs} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-warning/10 border border-warning/20 text-warning text-caption font-bold hover:bg-warning/20 transition-all">
+                {noobsBrand ? (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img src={noobsBrand.src} alt="" className="w-3 h-3 rounded" loading="lazy" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                ) : <BookOpen className="w-3 h-3" />} Guide Noobs</a>}
+              {quest.isDungeon && !rawNoobs && (
+                <button onClick={() => { const slug = (quest.name || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, ""); window.open(`https://www.dofuspourlesnoobs.com/donjon-${slug}.html`, "_blank"); }} className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-warning/10 border border-warning/20 text-warning text-caption font-bold hover:bg-warning/20 transition-all"><BookOpen className="w-3 h-3" /> Guide Noobs</button>
+              )}
+            </>);
+          })()}
         </div>
       </div>
     </motion.div>
@@ -326,9 +347,11 @@ function QuestRow({ quest, color, isCompleted, isLast, isNext, isBlocked, isSele
                     <MapPin className="w-2.5 h-2.5" />{quest.positions[0].x},{quest.positions[0].y}
                     <Copy className="w-2.5 h-2.5 opacity-60" />
                   </button>
-                  {Number.isSafeInteger(quest.positions[0]?.x) && Number.isSafeInteger(quest.positions[0]?.y) && quest.positions[0]?.zaap === true && (
-                    <ZaapCopyButton x={quest.positions[0].x} y={quest.positions[0].y} />
-                  )}
+                  {Number.isSafeInteger(quest.positions[0]?.x) && Number.isSafeInteger(quest.positions[0]?.y) && (quest.positions[0] as any)?.zaap && (() => {
+                    const zm = (quest.positions[0] as any)?.zaap && typeof (quest.positions[0] as any).zaap === "object" && Number.isSafeInteger((quest.positions[0] as any).zaap?.x) && Number.isSafeInteger((quest.positions[0] as any).zaap?.y)
+                      ? (quest.positions[0] as any).zaap : null;
+                    return <ZaapCopyButton x={quest.positions[0].x} y={quest.positions[0].y} zaapX={zm?.x ?? null} zaapY={zm?.y ?? null} />;
+                  })()}
                 </span>
               )}
               {quest.level ? <span className="font-semibold">Niveau reco. {quest.level}</span> : null}

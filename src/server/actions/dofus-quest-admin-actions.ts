@@ -7,6 +7,7 @@ import { auth } from "@/auth";
 import { isSuperAdmin, canAccessBrick } from "@/server/actions/super-admin-actions";
 import { createGodAuditLog } from "@/server/actions/audit-actions";
 import { ACHIEVEMENT_KIND, QUEST_KIND, buildQuestTree, collectSubtreeIds, wouldCreateCycle } from "@/lib/dofus-quest-tree";
+import { questPositionSchema } from "@/lib/travel-command";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { exec } from "child_process";
@@ -76,6 +77,9 @@ const ChainSchema = z.object({
     chainOrder: z.number().int().default(0),
 });
 
+// Note : fichier "use server" — n'exporter que des fonctions async (jamais
+// d'objet/valeur : le loader d'actions Next refuse sinon). Le schéma des
+// positions vit dans `questPositionSchema` (@/lib/travel-command, testé).
 const EntrySchema = z.object({
     chainId: z.string(),
     name: z.string().min(1),
@@ -104,11 +108,7 @@ const EntrySchema = z.object({
     objectives: z.array(z.any()).optional().default([]),
     itemsRequired: z.array(z.any()).optional().default([]),
     dungeonsRequired: z.array(z.any()).optional().default([]),
-    positions: z.array(z.object({
-        x: z.number(),
-        y: z.number(),
-        label: z.string().optional().nullable(),
-    })).optional().default([]),
+    positions: z.array(questPositionSchema).optional().default([]),
     dofusdbUrl: z.string().optional().nullable(),
     dofuspourlesnoobsUrl: z.string().optional().nullable(),
     // #148 CodeQL High — URL d'image strictement allowlistée (http(s) ou chemin relatif) : fail-closed.

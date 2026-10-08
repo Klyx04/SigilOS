@@ -18,6 +18,7 @@ import { searchZonesDetected } from "@/server/actions/game-data-actions";
 import { searchDungeonsLocal, searchNpcsLocal } from "@/server/actions/dofus-search-actions";
 import { uploadImageFile } from "@/components/editor/utils/image-upload";
 import { QUEST_TYPE_KEYS, QUEST_TYPE_LABELS, questTypeIconPath } from "@/lib/quest-type-icon";
+import { parseGameCoord, buildManualZaapTravelCommand } from "@/lib/travel-command";
 import { toast } from "sonner";
 import { safeImageUrl, isSafeImageUrl } from "@/lib/security";
 import { ACHIEVEMENT_KIND, QUEST_KIND, buildQuestTree, isAchievement, wouldCreateCycle } from "@/lib/dofus-quest-tree";
@@ -25,7 +26,7 @@ import {
     Gem, Plus, Trash2, Edit2, 
     MapPin, BookOpen, Castle, Trophy, Search,
     ArrowUp, ArrowDown,
-    ExternalLink, Info, Sword, Skull, Copy, ImageIcon
+    ExternalLink, Info, Sword, Skull, Copy
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { 
@@ -471,8 +472,12 @@ function EntryEditDialog({ open, onOpenChange, entry, onSuccess, chainEntries = 
     // Libellé de zone pour le combobox (valeur existante hors résultats game-data)
     const [zoneLabel, setZoneLabel] = useState("");
 
-    // Position GPS input state
-    const [positionsInput, setPositionsInput] = useState("");
+    // Position GPS : champs X / Y dissociés (anti miss-clic) + zaap manuel
+    // optionnel (2e option : `/zaap zx,zy ; /travel x,y`, façon DPLN 3.7).
+    const [travelX, setTravelX] = useState("");
+    const [travelY, setTravelY] = useState("");
+    const [zaapX, setZaapX] = useState("");
+    const [zaapY, setZaapY] = useState("");
 
     // #148 — Sélecteur multi-donjons (même pattern que Rush Sylvestre admin)
     const [dungeonQuery, setDungeonQuery] = useState("");
@@ -552,7 +557,9 @@ function EntryEditDialog({ open, onOpenChange, entry, onSuccess, chainEntries = 
                     x: typeof p?.x === "number" ? p.x : parseInt(p?.x, 10) || 0,
                     y: typeof p?.y === "number" ? p.y : parseInt(p?.y, 10) || 0,
                     label: p?.label || "",
-                    ...(p?.zaap === true ? { zaap: true as const } : {}),
+                    ...(p?.zaap && typeof p.zaap === "object" && Number.isSafeInteger(p.zaap?.x) && Number.isSafeInteger(p.zaap?.y)
+                        ? { zaap: { x: p.zaap.x, y: p.zaap.y } }
+                        : p?.zaap === true ? { zaap: true as const } : {}),
                 })) : [],
                 dofusdbUrl: entry.dofusdbUrl || "",
                 dofuspourlesnoobsUrl: entry.dofuspourlesnoobsUrl || "",
@@ -590,7 +597,13 @@ function EntryEditDialog({ open, onOpenChange, entry, onSuccess, chainEntries = 
             // Succès imbriqués : nature de l'étape + rattachement à un succès parent.
             entryKind: formData.entryKind,
             parentEntryId: formData.parentEntryId || null,
-            requirements: { level: formData.level ? parseInt(formData.level) : null, npc: formData.npcName, subarea: formData.npcSubArea, npcId: formData.npcId ?? null, npcImageUrl: isSafeImageUrl(formData.npcImageUrl) ? String(formData.npcImageUrl).trim() : null },
+            // PNJ donneur + niveau : persistés en colonnes top-level (lues par
+            // `extractNpcRef` côté membres) ET dupliqués dans `requirements`
+            // (compat des saisies historiques + portrait par convention).
+            npcName: typeof formData.npcName === "string" && formData.npcName.trim() !== "" ? formData.npcName.trim() : null,
+            npcSubArea: null,
+            level: formData.level !== "" && formData.level !== null && formData.level !== undefined ? (Number.isSafeInteger(parseInt(formData.level, 10)) ? parseInt(formData.level, 10) : null) : null,
+            requirements: { level: formData.level ? parseInt(formData.level) : null, npc: formData.npcName, subarea: null, npcId: formData.npcId ?? null, npcImageUrl: isSafeImageUrl(formData.npcImageUrl) ? String(formData.npcImageUrl).trim() : null },
             notes: formData.notes,
             externalRef: formData.externalRef,
             positions: formData.positions,
@@ -632,31 +645,37 @@ function EntryEditDialog({ open, onOpenChange, entry, onSuccess, chainEntries = 
         setLoading(false);
     }
 
-    // Add a GPS launch position from text "x, y" (façon Rush Sylvestre)
+    // Ajout d'une position GPS depuis les champs X / Y dissociés.
+    // - travel X + Y seuls ⇒ `/travel x,y` (icône position côté membres).
+    // - zaap X + Y renseignés en plus ⇒ `/zaap zx,zy ; /travel x,y`
+    //   (icône zaap côté membres, façon DPLN 3.7).
     const addPositionFromInput = () => {
-        const text = positionsInput.trim();
-        if (!text) return;
-        const match = text.match(/(-?\d+)[,\s]+(-?\d+)/);
-        if (match) {
-            const pos = { x: parseInt(match[1], 10), y: parseInt(match[2], 10) };
-            setFormData((prev: any) => ({ ...prev, positions: [...(prev.positions || []), pos] }));
-            setPositionsInput("");
-            toast.success(`📍 ${pos.x}, ${pos.y} ajouté`, { duration: 1500 });
-        } else toast.error("Format attendu : -2, 0 ou 10, -22");
+        const tx = parseGameCoord(travelX);
+        const ty = parseGameCoord(travelY);
+        if (tx === null || ty === null) {
+            toast.error("Travel X et Y requis (entiers, ex : -22 et -24)");
+            return;
+        }
+        const hasZaap = zaapX.trim() !== "" || zaapY.trim() !== "";
+        if (hasZaap) {
+            const cmd = buildManualZaapTravelCommand(zaapX, zaapY, tx, ty);
+            if (!cmd) {
+                toast.error("Zaap X et Y doivent être deux entiers (ou vides pour un simple travel)");
+                return;
+            }
+            const zx = parseGameCoord(zaapX) as number;
+            const zy = parseGameCoord(zaapY) as number;
+            setFormData((prev: any) => ({ ...prev, positions: [...(prev.positions || []), { x: tx, y: ty, zaap: { x: zx, y: zy } }] }));
+            toast.success(`📍 ${cmd} ajouté`, { duration: 1500 });
+        } else {
+            setFormData((prev: any) => ({ ...prev, positions: [...(prev.positions || []), { x: tx, y: ty }] }));
+            toast.success(`📍 ${tx}, ${ty} ajouté`, { duration: 1500 });
+        }
+        setTravelX(""); setTravelY(""); setZaapX(""); setZaapY("");
     };
 
     const removePosition = (idx: number) => {
         setFormData((prev: any) => ({ ...prev, positions: (prev.positions || []).filter((_: any, i: number) => i !== idx) }));
-    };
-
-    // Détour zaap par position (choix God explicite façon DPLN) : coché ⇒ les
-    // membres voient le bouton qui copie `/zaap x,y ; /travel x,y`.
-    const togglePositionZaap = (idx: number) => {
-        setFormData((prev: any) => ({
-            ...prev,
-            positions: (prev.positions || []).map((p: any, i: number) =>
-                i === idx ? { ...p, zaap: !(p as any)?.zaap } : p),
-        }));
     };
 
     // #148 — Sélecteur multi-donjons (pattern Rush Sylvestre admin)
@@ -678,12 +697,8 @@ function EntryEditDialog({ open, onOpenChange, entry, onSuccess, chainEntries = 
         setFormData((prev: any) => ({ ...prev, dungeons: prev.dungeons.filter((d: any) => d.id !== id) }));
     };
 
-    // #148 — Image de la quête : localImageUrl prioritaire, sinon tentative image DofusDB (id), sinon icône livre.
-    // CodeQL High — URL allowlistée (http(s)/relatif) avant usage dans <img src> (fail-closed).
-    const questImageUrl = safeImageUrl(
-        (formData.localImageUrl || "").trim()
-            || (formData.dofusdbId ? `https://static.ankama.com/dofus/www/game/quests/${formData.dofusdbId}.png` : "")
-    );
+    // #148 — Image de la quête : le sprite du « Type de quête » suffit côté
+    // membres (`localImageUrl` historique conservé en base, non éditable).
 
     const copyPosition = (x: number, y: number) => {
         navigator.clipboard?.writeText(`/travel ${x},${y}`).then(() => toast.success(`Copié : /travel ${x},${y}`)).catch(() => {});
@@ -790,7 +805,11 @@ function EntryEditDialog({ open, onOpenChange, entry, onSuccess, chainEntries = 
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        {/* Zone (recherche game-data) : seul champ de lieu — la
+                            sous-zone libre du PNJ est supprimée (jamais
+                            persistée, jamais affichée). L'icône de la quête
+                            vient du « Type de quête » ci-dessus. */}
+                        <div className="grid grid-cols-1 gap-4">
                             <div className="space-y-1">
                                 <label className="text-caption font-black uppercase tracking-widest text-muted-foreground">Zone</label>
                                 {/* #146 : sélecteur zones game-data (siphon dofusdb) */}
@@ -804,22 +823,6 @@ function EntryEditDialog({ open, onOpenChange, entry, onSuccess, chainEntries = 
                                     emptyText="Aucune zone en game-data"
                                     className="bg-black/40 border-border h-11 rounded-xl"
                                 />
-                            </div>
-                            {/* #148 — Image de la quête grossie (rendu auto à la place de l'icône livre) */}
-                            <div className="space-y-1 md:col-span-2">
-                                <label className="text-caption font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2"><ImageIcon className="w-3 h-3 text-warning" /> Image de la quête</label>
-                                <div className="flex items-center gap-3">
-                                    <div className="w-16 h-16 rounded-xl bg-black/40 border border-border overflow-hidden flex items-center justify-center shrink-0">
-                                        {questImageUrl ? (
-                                            /* eslint-disable-next-line @next/next/no-img-element */
-                                            <img src={questImageUrl} alt="Aperçu de la quête" className="w-full h-full object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
-                                        ) : (
-                                            /* eslint-disable-next-line @next/next/no-img-element */
-                                            <img src="/assets/icons/icone-quete.png" alt="Icône quête" className="w-8 h-8 object-contain opacity-70" />
-                                        )}
-                                    </div>
-                                    <Input value={formData.localImageUrl || ""} onChange={e => setFormData({...formData, localImageUrl: e.target.value})} className="bg-black/40 border-border h-11 rounded-xl text-xs font-mono flex-1" placeholder="https://… (image du livre de la quête)" />
-                                </div>
                             </div>
                         </div>
                         {/* PNJ donneur (référentiel client 100 % local) : la sélection écrit
@@ -849,14 +852,12 @@ function EntryEditDialog({ open, onOpenChange, entry, onSuccess, chainEntries = 
                                     </div>
                                 )}
                             </div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {/* Nom affiché du PNJ : persisté en colonne `npcName`
+                                (lue côté membres) + `requirements.npc` (compat). */}
+                            <div className="grid grid-cols-1 gap-4">
                                 <div className="space-y-1">
                                     <label className="text-caption font-black uppercase tracking-widest text-muted-foreground">Nom affiché</label>
                                     <Input value={formData.npcName} onChange={e => setFormData({...formData, npcName: e.target.value, npcId: null})} className="bg-black/40 border-border h-9 rounded-xl text-xs" placeholder="Nom du PNJ…" />
-                                </div>
-                                <div className="space-y-1">
-                                    <label className="text-caption font-black uppercase tracking-widest text-muted-foreground">Sous-zone du PNJ</label>
-                                    <Input value={formData.npcSubArea} onChange={e => setFormData({...formData, npcSubArea: e.target.value})} className="bg-black/40 border-border h-9 rounded-xl text-xs" placeholder="Sous-zone…" />
                                 </div>
                             </div>
                             <div className="space-y-1">
@@ -925,29 +926,52 @@ function EntryEditDialog({ open, onOpenChange, entry, onSuccess, chainEntries = 
                                 )}
                             </div>
                         </div>
-                        {/* Positions GPS (façon Rush Sylvestre) */}
+                        {/* Positions GPS : option 1 = travel seul (icône position),
+                            option 2 = zaap + travelmanuels (icône zaap, façon DPLN 3.7).
+                            Champs X / Y dissociés (anti miss-clic). */}
                         <div className="space-y-2">
-                            <label className="text-caption font-black uppercase tracking-widest text-success flex items-center gap-2"><MapPin className="w-3 h-3" /> Positions GPS <span className="text-muted-foreground font-normal normal-case tracking-normal">(ex: -2, 0 ; 10, -22)</span></label>
+                            <label className="text-caption font-black uppercase tracking-widest text-success flex items-center gap-2"><MapPin className="w-3 h-3" /> Positions GPS <span className="text-muted-foreground font-normal normal-case tracking-normal">(X et Y séparés)</span></label>
                             {formData.positions.length > 0 && (
                                 <div className="flex flex-wrap gap-1.5">
-                                    {formData.positions.map((p: any, idx: number) => (
-                                        <span key={idx} className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-success/10 border border-success/20 text-success text-caption font-bold font-mono">
-                                            {p.x}, {p.y}
-                                            <button type="button" onClick={() => copyPosition(p.x, p.y)} className="text-success/50 hover:text-success" title="Copier /travel X,Y"><Copy className="w-2.5 h-2.5" /></button>
-                                            <button type="button" onClick={() => togglePositionZaap(idx)}
-                                                title={p.zaap ? "Détour zaap proposé (cliquer pour retirer)" : "Proposer le détour zaap /zaap + /travel"}
-                                                aria-pressed={!!p.zaap}
-                                                className={`font-mono text-[10px] font-black px-1 rounded transition-colors ${p.zaap ? "bg-info/20 text-info" : "text-muted-foreground/50 hover:text-info"}`}>
-                                                Z
-                                            </button>
-                                            <button type="button" onClick={() => removePosition(idx)} className="text-success/50 hover:text-danger"><Trash2 className="w-2.5 h-2.5" /></button>
+                                    {formData.positions.map((p: any, idx: number) => {
+                                        const manualZaap = p?.zaap && typeof p.zaap === "object" && Number.isSafeInteger(p.zaap?.x) && Number.isSafeInteger(p.zaap?.y)
+                                            ? p.zaap : null;
+                                        const autoZaap = p?.zaap === true;
+                                        return (
+                                        <span key={idx} className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg border text-caption font-bold font-mono ${manualZaap || autoZaap ? "bg-info/10 border-info/20 text-info" : "bg-success/10 border-success/20 text-success"}`}>
+                                            {manualZaap || autoZaap ? (
+                                                /* eslint-disable-next-line @next/next/no-img-element */
+                                                <img src="/assets/dofus/icons/zaap.png" alt="" className="w-3 h-3 object-contain" />
+                                            ) : null}
+                                            {manualZaap ? `/zaap ${manualZaap.x},${manualZaap.y} ; /travel ${p.x},${p.y}` : `${p.x}, ${p.y}`}
+                                            <button type="button" onClick={() => copyPosition(p.x, p.y)} className="opacity-50 hover:opacity-100" title="Copier /travel X,Y"><Copy className="w-2.5 h-2.5" /></button>
+                                            <button type="button" onClick={() => removePosition(idx)} className="opacity-50 hover:text-danger hover:opacity-100"><Trash2 className="w-2.5 h-2.5" /></button>
                                         </span>
-                                    ))}
+                                        );
+                                    })}
                                 </div>
                             )}
-                            <div className="flex gap-2">
-                                <Input value={positionsInput} onChange={e => setPositionsInput(e.target.value)} placeholder="10, -22" className="bg-black/40 border-success/20 h-9 rounded-xl text-xs font-mono flex-1" onKeyDown={e => e.key === "Enter" && (e.preventDefault(), addPositionFromInput())} />
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                                <label className="space-y-1">
+                                    <span className="text-caption text-muted-foreground font-bold">Zaap X <span className="font-normal">(optionnel)</span></span>
+                                    <Input value={zaapX} onChange={e => setZaapX(e.target.value)} inputMode="numeric" placeholder="ex : -20" className="bg-black/40 border-info/20 h-9 rounded-xl text-xs font-mono" />
+                                </label>
+                                <label className="space-y-1">
+                                    <span className="text-caption text-muted-foreground font-bold">Zaap Y <span className="font-normal">(optionnel)</span></span>
+                                    <Input value={zaapY} onChange={e => setZaapY(e.target.value)} inputMode="numeric" placeholder="ex : -20" className="bg-black/40 border-info/20 h-9 rounded-xl text-xs font-mono" />
+                                </label>
+                                <label className="space-y-1">
+                                    <span className="text-caption text-success font-bold">Travel X *</span>
+                                    <Input value={travelX} onChange={e => setTravelX(e.target.value)} inputMode="numeric" placeholder="ex : -22" className="bg-black/40 border-success/20 h-9 rounded-xl text-xs font-mono" onKeyDown={e => e.key === "Enter" && (e.preventDefault(), addPositionFromInput())} />
+                                </label>
+                                <label className="space-y-1">
+                                    <span className="text-caption text-success font-bold">Travel Y *</span>
+                                    <Input value={travelY} onChange={e => setTravelY(e.target.value)} inputMode="numeric" placeholder="ex : -24" className="bg-black/40 border-success/20 h-9 rounded-xl text-xs font-mono" onKeyDown={e => e.key === "Enter" && (e.preventDefault(), addPositionFromInput())} />
+                                </label>
+                            </div>
+                            <div className="flex gap-2 items-center">
                                 <button type="button" onClick={addPositionFromInput} className="h-9 px-3 rounded-xl bg-success/10 border border-success/20 text-success hover:bg-success/20 text-caption font-black uppercase tracking-wider shrink-0">📍 Ajouter</button>
+                                <span className="text-caption text-muted-foreground">Travel seul ⇒ icône position · Zaap renseigné ⇒ icône zaap (`/zaap zx,zy ; /travel x,y`).</span>
                             </div>
                         </div>
 

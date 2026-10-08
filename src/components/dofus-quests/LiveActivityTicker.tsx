@@ -1,38 +1,25 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import type { GuideRealtimeEvent } from "@/lib/guide-realtime";
+import { formatGuideLiveEvent, type GuideLiveLine } from "@/lib/guide-live-lines";
 
-type TickerLine = { id: number; text: string; kind: "step" | "milestone" | "presence" };
+type TickerLine = GuideLiveLine & { id: number };
 
 let lineId = 0;
 const LINE_TTL_MS = 4000;
 const MAX_VISIBLE = 3;
 
-function eventToText(e: GuideRealtimeEvent): string | null {
-  switch (e.type) {
-    case "step:validated":
-      return `${e.userName} a coché l'étape ${e.stepNumber} de [${e.subGuideRef}]`;
-    case "step:validated:batch":
-      return `${e.userName} a coché ${e.count} étapes de [${e.subGuideRef}]`;
-    case "milestone:completed":
-      return `${e.userName} a terminé le jalon « ${e.milestoneTitle} »`;
-    case "presence:join":
-      // milestoneId vide = arrivée sur le guide (les bookmarks de jalon ne notifient pas).
-      return e.milestoneId ? null : `${e.userName} est arrivé sur le guide`;
-    case "presence:leave":
-      return e.milestoneId ? null : `${e.userName ?? "Un membre"} a quitté le guide`;
-    default:
-      return null;
-  }
-}
-
 /**
- * Fil d'activité live du guide (Phase F).
+ * Fil d'activité live du guide (dashboard) — les coéquipiers, en trois lignes.
  *
- * File FIFO de 3 lignes max, chaque ligne disparaît après 4s.
- * ZÉRO glow : fond var(--guide-surface), bordure var(--guide-green) à 20%.
- * Alimenté par les events step:validated / milestone:completed du hook
- * useGuidePresence.
+ * Retour user du 08/10/2026 : « l'encart doré au milieu de l'écran, sans photo de profil ».
+ * Depuis : carte sur les **jetons de thème** (`bg-elevated` / `border-border` / accent par
+ * nature d'event), **avatar Discord** du membre quand l'event en porte un (sinon son
+ * initiale), et la phrase vient de la source unique `formatGuideLiveEvent` — le toast de
+ * l'overlay dit exactement la même chose.
+ *
+ * ZÉRO glow, zéro ombre, zéro aplat doré : la position (milieu-droit) reste pilotée par
+ * `.guide-live-ticker` dans `guide-styles.css`.
  */
 export default function LiveActivityTicker({ events }: { events: GuideRealtimeEvent[] }) {
   const [lines, setLines] = useState<TickerLine[]>([]);
@@ -45,24 +32,17 @@ export default function LiveActivityTicker({ events }: { events: GuideRealtimeEv
     seenCountRef.current = events.length;
 
     const toAdd: TickerLine[] = [];
-    fresh.forEach(e => {
-      const text = eventToText(e);
-      if (text) {
-        const kind = e.type === "milestone:completed"
-          ? "milestone"
-          : (e.type === "presence:join" || e.type === "presence:leave")
-            ? "presence"
-            : "step";
-        toAdd.push({ id: ++lineId, text, kind });
-      }
+    fresh.forEach((e) => {
+      const line = formatGuideLiveEvent(e);
+      if (line) toAdd.push({ ...line, id: ++lineId });
     });
     if (toAdd.length === 0) return;
 
-    setLines(prev => [...prev, ...toAdd].slice(-MAX_VISIBLE));
-    toAdd.forEach(l => {
+    setLines((prev) => [...prev, ...toAdd].slice(-MAX_VISIBLE));
+    toAdd.forEach((l) => {
       const timer = setTimeout(() => {
         timersRef.current.delete(l.id);
-        setLines(prev => prev.filter(x => x.id !== l.id));
+        setLines((prev) => prev.filter((x) => x.id !== l.id));
       }, LINE_TTL_MS);
       timersRef.current.set(l.id, timer);
     });
@@ -80,11 +60,46 @@ export default function LiveActivityTicker({ events }: { events: GuideRealtimeEv
 
   return (
     <div className="guide-live-ticker" aria-live="polite" aria-label="Activité du guide en direct">
-      {lines.map(l => (
-        <div key={l.id} className={`guide-live-line${l.kind === "step" ? " step" : ""}${l.kind === "milestone" ? " milestone" : ""}${l.kind === "presence" ? " presence" : ""}`}>
-          {l.text}
+      {lines.map((l) => (
+        <div
+          key={l.id}
+          className="flex w-full items-center gap-2 rounded-[6px] border border-border bg-elevated px-2.5 py-2"
+        >
+          <LiveAvatar line={l} />
+          <p className="min-w-0 flex-1 text-[11px] leading-snug">
+            <span className="font-semibold text-foreground">{l.name}</span>{" "}
+            <span className={ACCENT[l.kind]}>{l.text}</span>
+          </p>
         </div>
       ))}
     </div>
+  );
+}
+
+/** Accent par nature d'event — les jetons du thème, jamais une couleur codée en dur. */
+const ACCENT: Record<GuideLiveLine["kind"], string> = {
+  step: "text-success",
+  milestone: "text-warning",
+  presence: "text-info",
+};
+
+/** Avatar Discord du membre, sinon son initiale — jamais une image vide. */
+function LiveAvatar({ line }: { line: GuideLiveLine }) {
+  if (line.avatar) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={line.avatar}
+        alt=""
+        aria-hidden="true"
+        loading="lazy"
+        className="h-6 w-6 shrink-0 rounded-full object-cover"
+      />
+    );
+  }
+  return (
+    <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full border border-border bg-surface text-[10px] font-semibold text-muted-foreground">
+      {(line.name || "?").charAt(0).toUpperCase()}
+    </span>
   );
 }

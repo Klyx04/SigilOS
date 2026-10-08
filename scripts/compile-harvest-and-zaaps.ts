@@ -47,7 +47,10 @@ const DOFUS_ZAAPS = [
     // --- FRIGOST ---
     { id: 32, name: "Frigost (La bourgade)", x: -78, y: -41, worldId: 1, subArea: "La bourgade" },
     { id: 33, name: "Frigost (Village enseveli)", x: -77, y: -73, worldId: 1, subArea: "Village enseveli" },
-    { id: 34, name: "Château de Harebourg", x: -67, y: -77, worldId: 1, subArea: "Château de Harebourg" },
+    // ⚠️ Mesure du 08/10/2026 : la case (-67,-77) n'existe QUE dans le monde 12
+    // (« Entrée du château de Harebourg », `worldmap.json`) — la déclarer en monde 1 faisait
+    // proposer ce zaap pour des positions du Monde des Douze, à des dizaines de maps.
+    { id: 34, name: "Château de Harebourg", x: -67, y: -77, worldId: 12, subArea: "Entrée du château de Harebourg" },
 
     // --- SAHARACH ---
     { id: 35, name: "Saharach (Dunes des ossements)", x: 15, y: -58, worldId: 1, subArea: "Dunes des ossements" },
@@ -60,12 +63,16 @@ const DOFUS_ZAAPS = [
     { id: 40, name: "Village des Brigandins", x: -15, y: -23, worldId: 1, subArea: "Village des Brigandins" },
     { id: 41, name: "Village des Dopeuls", x: -34, y: -8, worldId: 1, subArea: "Village des Dopeuls" },
     { id: 43, name: "Nimotopia", x: -64, y: 27, worldId: 1, subArea: "Nimotopia" },
-    { id: 44, name: "Crokuzko", x: -83, y: -15, worldId: 1, subArea: "Archipel des Écailles" },
+    // ⚠️ Mesure du 08/10/2026 : (-83,-15) appartient au monde **22** « Crocuzko » (sa 917),
+    // pas au Monde des Douze — et la zone s'écrit « Crocuzko ».
+    { id: 44, name: "Crocuzko", x: -83, y: -15, worldId: 22, subArea: "Crocuzko" },
 
     // --- INCARNAM (worldId: 2) ---
     { id: 45, name: "Route des âmes", x: -1, y: -3, worldId: 2, subArea: "Route des âmes" },
     { id: 46, name: "Pâturages", x: 2, y: -5, worldId: 2, subArea: "Pâturages" },
-    { id: 47, name: "Cimetière d'Incarnam", x: 3, y: 0, worldId: 2, subArea: "Cimetière" }
+    { id: 47, name: "Cimetière d'Incarnam", x: 3, y: 0, worldId: 2, subArea: "Cimetière" },
+    // Second zaap d'Incarnam sur la Route des âmes (mesuré : case (4,-3), monde 2, sa 450).
+    { id: 48, name: "Route des âmes (nord)", x: 4, y: -3, worldId: 2, subArea: "Route des âmes" }
 ];
 
 type SpotData = { x: number; y: number; count: number; subAreaId: number; worldId: number };

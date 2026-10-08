@@ -52,6 +52,22 @@ export function getItemImageFallback(id?: string | number | null, imageUrl?: str
 }
 
 /**
+ * Picto « Ressources » du jeu — SOURCE UNIQUE des trois surfaces (guide interne,
+ * guide public, overlay PiP).
+ *
+ * Mesure du 08/10/2026 (`sharp`, pixels opaques seulement, sonde `src/temp/`) :
+ *  · `/assets/nav/resources.png` = tracé **255,255,255** (blanc pur) ⇒ invisible
+ *    en thème clair (guide public + overlay `.light`) : jamais utilisable ici ;
+ *  · `/assets/dofus/modules/resources.png` = tracé **121,130,53** + contours
+ *    sombres ⇒ lisible en clair ET en sombre. C'est le picto du module
+ *    « Ressources » du jeu, déjà utilisé par `RushOverlayHeader`.
+ *
+ * Demande user du 08/10/2026 : « ajouter la vraie icône ressources et non un
+ * placeholder » — le carré Lucide `Package` faisait diverger les trois surfaces.
+ */
+export const RUSH_RESOURCES_PICTO = "/assets/dofus/modules/resources.png";
+
+/**
  * Métadonnées graphiques des tags d'activité Rush Sylvestre.
  *
  * Pictos : ce sont les pictos RÉELS du jeu (art Ankama coloré), importés par

@@ -3,7 +3,6 @@
 import React, { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import {
-  Package,
   ChevronDown,
   ChevronUp,
   Sparkles,
@@ -70,7 +69,7 @@ import {
   aggregateRushResources,
   getSequenceCoord,
 } from "@/app/overlay/guide/[guildId]/[slug]/components/overlay-utils";
-import { isInfoSequence, isSequenceBlockedByPrereqs, getPrereqRefs, resolveRushSeqIcon, getSequenceNpc, isZaapCopyEnabled, getSequenceManualZaap } from "@/lib/rush-guide-utils";
+import { isInfoSequence, isSequenceBlockedByPrereqs, getPrereqRefs, resolveRushSeqIcon, getSequenceNpc, isZaapCopyEnabled, getSequenceManualZaap, RUSH_RESOURCES_PICTO } from "@/lib/rush-guide-utils";
 // Panneau de droite — le MÊME composant que le guide interne (chapitres, progression,
 // donjons & métiers à prévoir, objets requis + bascule Restantes/Toutes).
 import { RushChapterSidebar } from "@/components/dofus-quests/rush/RushChapterSidebar";
@@ -998,7 +997,10 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
               onClick={() => setShowResources(true)}
               className="reg-btn reg-btn-secondary w-full"
             >
-              <Package className="w-4 h-4 text-warning" aria-hidden="true" />
+              {/* Picto RÉEL du jeu (source unique `RUSH_RESOURCES_PICTO`), comme le guide
+                  interne et l'overlay — plus de carré Lucide `Package`. */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={RUSH_RESOURCES_PICTO} alt="" aria-hidden="true" loading="lazy" className="w-4 h-4 object-contain" />
               <span>{t.rushGuide.resourcesTab}</span>
             </button>
 
@@ -1722,7 +1724,8 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
                                                 : "border-border bg-surface text-muted-foreground hover:text-foreground"
                                             )}
                                           >
-                                            <Package className="w-3 h-3 text-warning" aria-hidden="true" />
+                                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                                            <img src={RUSH_RESOURCES_PICTO} alt="" aria-hidden="true" loading="lazy" className="w-3 h-3 object-contain" />
                                             <span>{itemTags.length} ressource{itemTags.length > 1 ? "s" : ""}</span>
                                             {isResourceExpanded ? (
                                               <ChevronUp className="w-3 h-3" />

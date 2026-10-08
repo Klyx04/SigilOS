@@ -1,14 +1,14 @@
 "use client";
 
 import React, { memo } from "react";
-import { Check, Flag, BookmarkCheck, Lock, Info, Package } from "lucide-react";
+import { Check, Flag, BookmarkCheck, Lock, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getSequenceCoord, getDungeons, getItemTags, isDungeonSequence } from "./overlay-utils";
 import { RushCoordinateChip } from "@/components/dofus-quests/rush/RushCoordinateChip";
 import { RushOverlayMemberBubbles, type OverlayBubbleMember } from "./RushOverlayMemberBubbles";
 import { RushOverlayDungeonPopover } from "./RushOverlayDungeonPopover";
 import { getAlignmentSet } from "@/lib/rush-helpers";
-import { resolveRushSeqIcon, getSequenceNpc, isZaapCopyEnabled, getSequenceManualZaap } from "@/lib/rush-guide-utils";
+import { resolveRushSeqIcon, getSequenceNpc, isZaapCopyEnabled, getSequenceManualZaap, RUSH_RESOURCES_PICTO } from "@/lib/rush-guide-utils";
 import { NpcBadge } from "@/components/dofus-quests/rush/NpcBadge";
 import type { RushSequence } from "@/types/rush-guide-types";
 
@@ -235,7 +235,8 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
               )}
               {itemTags.length > 0 && (
                 <span className={chip} title={`${itemTags.length} ressource${itemTags.length > 1 ? "s" : ""} à prévoir`}>
-                  <Package className="h-3 w-3" aria-hidden="true" />×{itemTags.length}
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={RUSH_RESOURCES_PICTO} alt="" aria-hidden="true" loading="lazy" className="h-3 w-3 object-contain" />×{itemTags.length}
                 </span>
               )}
               {!isDone && bookmarkers.length > 0 && (

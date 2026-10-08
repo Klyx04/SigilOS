@@ -2,12 +2,12 @@
 
 import React, { useState, useMemo } from "react";
 import { 
-  Package, Sword, Users, Sparkles, ExternalLink, 
+  Sword, Users, Sparkles, ExternalLink, 
   Layers, Check, Copy, CheckCheck, DoorOpen
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { resolveItemImage, getMetierIconPath, isInfoSequence } from "@/lib/rush-guide-utils";
+import { resolveItemImage, getMetierIconPath, isInfoSequence, RUSH_RESOURCES_PICTO } from "@/lib/rush-guide-utils";
 import { copyToClipboard } from "@/lib/clipboard";
 import { ResourceImage } from "@/components/dofus-quests/ResourceImage";
 
@@ -355,7 +355,10 @@ export function RushChapterSidebar({
       <div className="flex flex-col gap-2 bg-elevated p-3 rounded-[6px] border border-border flex-1 min-h-0">
         <div className="flex flex-col gap-2 border-b border-border pb-2">
           <div className="flex items-center gap-1.5 min-w-0">
-            <Package className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+            {/* Picto RÉEL du jeu (source unique `RUSH_RESOURCES_PICTO`) — le carré
+                Lucide `Package` était un placeholder, absent des 2 autres surfaces. */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={RUSH_RESOURCES_PICTO} alt="" loading="lazy" className="w-3.5 h-3.5 object-contain shrink-0" />
             <h4 className="text-xs text-foreground truncate min-w-0 flex-1">
               Objets requis
             </h4>
@@ -404,7 +407,10 @@ export function RushChapterSidebar({
                     /* Ressource : asset du jeu posé NU (plus de tuile sous l'icône). */
                     <ResourceImage id={item.id} imageUrl={item.imageUrl} alt={item.name} className="w-6 h-6 object-contain shrink-0" />
                   ) : (
-                    <Package className="w-4 h-4 text-muted-foreground shrink-0" />
+                    /* Pas d'image d'objet : picto ressources du jeu (jamais un carré
+                       Lucide `Package`, la même source unique que le reste). */
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={RUSH_RESOURCES_PICTO} alt="" loading="lazy" className="w-4 h-4 object-contain shrink-0 opacity-60" />
                   )}
                   <div className="min-w-0 flex-1">
                     <button
@@ -450,7 +456,8 @@ export function RushChapterSidebar({
           </div>
         ) : (
           <div className="py-6 text-center text-[#9aa7b4] text-xs">
-            <Package className="w-6 h-6 mx-auto mb-1 opacity-30 text-[#e6b96b]" />
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={RUSH_RESOURCES_PICTO} alt="" loading="lazy" className="w-6 h-6 mx-auto mb-1 opacity-40 object-contain" />
             <p className="font-bold">Aucune ressource répertoriée</p>
             <p className="text-[10px] text-[#78828f]">pour ce chapitre.</p>
           </div>

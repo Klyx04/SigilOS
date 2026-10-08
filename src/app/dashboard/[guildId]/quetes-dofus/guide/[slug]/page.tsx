@@ -77,9 +77,16 @@ export default async function OptimizedGuideUserPage({ params, searchParams }: P
 
     // Coches MANUELLES de ressources du membre (par personnage : principale ou mule) —
     // non bloquant, même politique que la progression guilde ci-dessus.
+    // Les DEUX lectures qui suivent sont INDÉPENDANTES : elles sont lancées ici, en PARALLÈLE
+    // (elles s'ajoutaient l'une après l'autre sur le chemin critique de la page — G10 du plan).
+    const resourceChecksPromise = getRushResourceChecks(slug, guildId, altPseudo);
+    const profilePromise = user.profileId
+        ? getMemberProfile(guildId, user.profileId)
+        : Promise.resolve(null);
+
     let resourceChecks: string[] = [];
     try {
-        const checks = await getRushResourceChecks(slug, guildId, altPseudo);
+        const checks = await resourceChecksPromise;
         resourceChecks = checks.keys || [];
     } catch (e) {
         // Non fatal (voir ci-dessus) ⇒ `warn`.
@@ -98,10 +105,8 @@ export default async function OptimizedGuideUserPage({ params, searchParams }: P
         pseudoDofus?: string | null;
     } = {};
     try {
-        const profileId = user.profileId;
-        if (!profileId) throw new Error("Profile ID not found");
-        const profileRes = await getMemberProfile(guildId, profileId);
-        if (profileRes.success && profileRes.data) {
+        const profileRes = await profilePromise;
+        if (profileRes?.success && profileRes.data) {
             const p = profileRes.data;
             userProfile = {
                 alignment: p.alignment,

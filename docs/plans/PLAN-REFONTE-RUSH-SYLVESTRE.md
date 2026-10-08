@@ -26,7 +26,7 @@
 > | Lot | État | Livré | Reste |
 > |---|---|---|---|
 > | **1 — correctifs ergonomiques** | ✅ **PR #851** | O1, O2, O4, O8, G1, T4 · **partiels** : O5 (masquage « Chapitre 1/1 »), O6 (Échap PiP), G2 (puces seulement) | O3 **écarté par la mesure** : `scroll-padding-top`/`scroll-mt` étaient des no-ops (le seul défilement ciblé utilise `block: "center"` et aucun élément de l'overlay n'est `sticky`) |
-> | **2 — temps réel** | 🟡 **PR #853** (partiel) | fil d'activité à avatar Discord, `RushOverlayLiveToast`, **présence honnête** (§3.5/§3.6), O12 partiel, O6 (Échap PiP de la modale membres) | **G3/G4** (prérequis par **id**) et **G10** (parallélisation serveur) → lot **`T-2b`** |
+> | **2 — temps réel** | ✅ **PR #853** + **T-2b** (#856) | fil d'activité à avatar Discord, `RushOverlayLiveToast`, **présence honnête** (§3.5/§3.6), O12 partiel, O6 (Échap PiP de la modale membres) · **T-2b** : **G3/G4** (prérequis résolus au **nom exact** — `resolvePrereqTarget` ; surbrillance 1,2 s) et **G10** (page serveur à **deux lectures parallèles**) | l'**id** dans le tag `prereq_text` (God + backfill) → **T-2c** |
 > | **3 — robustesse éditeur GOD** | ⬜ à faire | *rien* — le rappel de syntaxe (`RichTextSyntaxHint`) **existe déjà** (§5.1 du plan initial) | **E1** champ « une ligne = une puce » + exactitude de l'aide, **E3** `order` dans `upsertRushMilestone`, **E4** `confirm()` → `Dialog` (`RushSylvestreAdminClient.tsx:519`), **E5** aperçu live, **E6** ref de scroll (`closest('.flex-1…')` toujours en place, ligne 243) |
 > | **4 — habillage Dofus** | ⬜ à faire | *rien* (le lot 1 a **retiré** du slop, il n'a rien ajouté) | **O14** accents par Dofus, **O15** motion sobre, **G7** hero, **G8** dépli `grid-template-rows`, **G9** célébration (arbitrer — `MilestoneCelebration` existe), **T2** accessibilité |
 > | **5 — overlay avancé** | ⬜ à faire | O12 partiel (toast de validation) | **O9** carte « Maintenant », **O10** 3 densités (container queries), **O11** jauges/anneaux, **O13** mini-carte, O12 (coéquipier sur la même quête, prérequis débloqué) |
@@ -36,6 +36,7 @@
 >
 > ⚠️ **E2** (`achievements?: string[]`) **n'est pas un « lot 3 » ordinaire** : il demande une **migration Prisma** ⇒ arrêt et accord explicite avant de coder.
 > 🧭 **Hors de ce plan** : le **chantier « données »** (branches Tougli Bonta/Brâkmar, prérequis structurés, registre auditable) vit dans la note de recherche `temp/…Dofusdb…` et doit être cadré comme un chantier séparé.
+> 🚫 **Chantier U — « zéro dépendance DofusDB »** (règle du propriétaire, mesurée le 08/10/2026) : cadré dans `docs/plans/FILE-EXECUTION.md` §1 — **5 points de contact** (repli image, recherches, proxy image, health check, crons) + **~1 626 URL DofusDB** dans les 28 `*-compiled.json`, lots **U-1 → U-5**.
 
 ## Sommaire
 

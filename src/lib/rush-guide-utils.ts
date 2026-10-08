@@ -380,6 +380,48 @@ export function getPrereqRefs(seq: RushSequence | null | undefined, allMilestone
 }
 
 /**
+ * Résout la CIBLE d'un prérequis déclaré en God vers la séquence à ouvrir.
+ *
+ * ⚠️ Mesure (08/10/2026) : le tag `prereq_text` ne porte **qu'un nom** —
+ * `RushSylvestreAdminClient` écrit `{ type: "prereq_text", name }`. Il n'y a donc pas d'id à
+ * lire : l'id se **résout**, et c'est l'ORDRE de résolution qui décide de la justesse :
+ *   1. **nom exact** (casse / espaces / espaces insécables normalisés) ;
+ *   2. nom **partiel** en dernier recours — l'ancien code s'arrêtait au premier `includes`,
+ *      donc « La grande bibliothèque » pouvait envoyer vers « La grande bibliothèque
+ *      interdite » (retour user 08/10/2026 : « le prérequis peut viser la mauvaise quête »).
+ *
+ * Fonction PURE (exportée pour les tests) : `null` quand rien ne correspond — on ne devine pas.
+ * Le stockage d'un **id** dans le tag est un changement God + backfill, tracé à part (T-2c).
+ */
+export function resolvePrereqTarget(
+  name: string | null | undefined,
+  allMilestones: RushMilestone[]
+): { seqId: string; milestoneId: string } | null {
+  const wanted = normPrereqName(name);
+  if (!wanted) return null;
+
+  const candidates: { seqId: string; milestoneId: string; label: string }[] = [];
+  for (const ms of allMilestones) {
+    if (ms.type === "SEPARATEUR" || ms.type === "INFO") continue;
+    for (const seq of ms.sequences) {
+      const label = normPrereqName(seq.subGuideName || seq.subGuideRef);
+      if (label) candidates.push({ seqId: seq.id, milestoneId: ms.id, label });
+    }
+  }
+
+  const exact = candidates.find((c) => c.label === wanted);
+  if (exact) return { seqId: exact.seqId, milestoneId: exact.milestoneId };
+  const partial = candidates.find((c) => c.label.includes(wanted));
+  if (partial) return { seqId: partial.seqId, milestoneId: partial.milestoneId };
+  return null;
+}
+
+/** Normalisation d'un libellé de prérequis : espaces (dont insécables), casse. */
+function normPrereqName(value: string | null | undefined): string {
+  return (value ?? "").replace(/\u00a0/g, " ").trim().toLowerCase();
+}
+
+/**
  * Helper pur vérifiant si une séquence est bloquée par des prérequis inachevés.
  * Renvoie false si la séquence n'a pas de tag prereq_text OU si tous les prérequis sont terminés.
  */

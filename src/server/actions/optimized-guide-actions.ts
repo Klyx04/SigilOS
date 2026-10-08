@@ -2847,169 +2847,307 @@ export async function seedRushSylvestreFromGuide(opts: { apply?: boolean } = {})
 
   const raw = fs.readFileSync(path.join(process.cwd(), "src/data/rush-sylvestre-guide.json"), "utf8");
   const data = JSON.parse(raw) as {
-    preparation: { metiers: { name: string; level: number }[]; items: { name: string; ankamaId: number | null; imageUrl: string | null; quantity: number }[] };
-    milestones: { title: string; notes: string | null; succès: string; aide: string; dungeons: { name: string; id: string | null; imageUrl: string | null; totem: boolean; note?: string }[]; sequences: { name: string; dungeonIds: string[]; succès: string }[] }[];
-  };
-
-  // ── Détection du type de milestone ──
-  const detectType = (title: string): string => {
-    const t = (title || "").toLowerCase();
-    if (t.includes("alignement") || t.includes("ordre")) return "ALIGNEMENT";
-    if (t.includes("prérequis") || t.includes("pré-recquis") || t.includes("prerequis")) return "PREREQUIS";
-    if (t.includes("récupérer") || t.includes("recuperer") || t.includes("zone")) return "ZONE";
-    if (t.includes("dofus")) return "DOFUS";
-    return "QUETE_SERIE";
+    meta?: any;
+    preparation: { metiers: { name: string; level: number }[]; items: { name: string; quantity: number; imageUrl?: string | null }[] };
+    milestones: {
+      order?: number;
+      chapter?: number;
+      chapterLabel?: string;
+      title: string;
+      type?: string;
+      description?: string | null;
+      dofusId?: string | null;
+      accentColor?: string | null;
+      imageUrl?: string | null;
+      tips?: string | null;
+      sequences: {
+        order?: number;
+        subGuideName?: string;
+        subGuideRef?: string;
+        name?: string;
+        dofuspourlesnoobsUrl?: string | null;
+        dofusdbUrl?: string | null;
+        alignReq?: string | null;
+        alignOrderReq?: number | null;
+        dungeonNames?: string[];
+        dungeonDbIds?: number[];
+        mapPositions?: any;
+        activityTags?: any[];
+        tips?: string | null;
+        note?: string | null;
+      }[];
+    }[];
   };
 
   const guide = await getOrCreateRushSylvestreGuide();
   const existingMs = await db.guideMilestone.findMany({
     where: { guideId: guide.id },
-    select: { id: true, title: true },
-  });
-  const existingTitles = new Set(existingMs.map((m) => m.title.trim().toLowerCase()));
-  const plan = { milestones: 0, sequences: 0, items: 0, metiers: 0, dungeons: 0 };
-
-  const toCreate: { title: string; type: string; chapter: number; chapterLabel: string; order: number; tips: string | null; dungeons: { name: string; id: string | null; imageUrl: string | null }[]; sequences: { name: string; dungeonIds: string[]; note: string | null }[] }[] = [];
-
-  // ── Milestone « Préparation » (métiers + ressources) ──
-  const prepMilestone = existingMs.find((m) => m.title.trim().toLowerCase() === "préparation");
-  if (!prepMilestone) {
-    toCreate.push({
-      title: "Préparation",
-      type: "PREREQUIS",
-      chapter: 0,
-      chapterLabel: "Préparation",
-      order: -1,
-      tips: "Métiers & ressources à préparer avant de lancer le rush.",
-      dungeons: [],
-      sequences: [
-        { name: "Métiers requis", dungeonIds: [], note: null },
-        { name: "Ressources à prévoir", dungeonIds: [], note: null },
-      ],
-    });
-    plan.metiers = data.preparation.metiers.length;
-    plan.items = data.preparation.items.length;
-  }
-
-  // ── Milestones du guide ──
-  data.milestones.forEach((ms, i) => {
-    const key = ms.title.trim().toLowerCase();
-    if (existingTitles.has(key)) return;
-    plan.milestones++;
-    plan.dungeons += ms.dungeons.length;
-    plan.sequences += ms.sequences.length;
-    toCreate.push({
-      title: ms.title,
-      type: detectType(ms.title),
-      chapter: i + 1,
-      chapterLabel: ms.title.slice(0, 42),
-      order: i,
-      tips: [ms.notes, ms.succès ? `Succès : ${ms.succès}` : "", ms.aide ? `Aide : ${ms.aide}` : ""].filter(Boolean).join(" · ") || null,
-      dungeons: ms.dungeons.filter((d) => d.id),
-      sequences: ms.sequences.map((s) => ({ name: s.name, dungeonIds: s.dungeonIds, note: ms.aide || null })),
-    });
+    include: {
+      sequences: {
+        select: { id: true, subGuideName: true, subGuideRef: true, order: true },
+      },
+    },
   });
 
-  if (!apply) {
-    const enrichment = await enrichRushSylvestreSequences({ apply: false });
-    return { success: true, dryRun: true, plan, guideId: guide.id, totalToCreate: toCreate.length, enrichment };
-  }
+  const normKey = (s?: string | null) =>
+    (s || "")
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]/g, "");
 
-  // ── Écriture (transaction) ──
-  const created = { milestones: 0, sequences: 0 };
-  await db.$transaction(async (tx) => {
-    for (const ms of toCreate) {
-      const milestone = await tx.guideMilestone.create({
+  const existingMsMap = new Map(existingMs.map((m) => [normKey(m.title), m]));
+
+  // ── Résolution / Cache des donjons internes ──
+  const allDbDungeons = await db.dungeon.findMany({
+    select: { id: true, name: true, bossName: true, slug: true, dofusdbId: true, imageUrl: true },
+  });
+  const dungeonByName = new Map<string, typeof allDbDungeons[0]>();
+  const dungeonByBoss = new Map<string, typeof allDbDungeons[0]>();
+  const dungeonByDbId = new Map<number, typeof allDbDungeons[0]>();
+  allDbDungeons.forEach((d) => {
+    dungeonByName.set(normKey(d.name), d);
+    dungeonByBoss.set(normKey(d.bossName), d);
+    if (d.dofusdbId) dungeonByDbId.set(d.dofusdbId, d);
+  });
+
+  const resolveOrCreateDungeon = async (djTag: any): Promise<string | null> => {
+    const nName = normKey(djTag.name);
+    const nBoss = normKey(djTag.bossName);
+    let found = dungeonByName.get(nName) || dungeonByBoss.get(nBoss);
+    if (!found && djTag.id && !isNaN(Number(djTag.id))) {
+      found = dungeonByDbId.get(Number(djTag.id));
+    }
+    if (found) return found.id;
+
+    if (!apply) return "dry-run-dungeon-id";
+
+    // Si le donjon n'existe pas encore en DB, le créer avec un slug unique
+    try {
+      const boss = djTag.bossName || djTag.name || "Boss";
+      const baseSlug = boss
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-|-$/g, "");
+      let slug = baseSlug;
+      let counter = 1;
+      while (await db.dungeon.findUnique({ where: { slug } })) {
+        slug = `${baseSlug}-${counter++}`;
+      }
+
+      const createdDj = await db.dungeon.create({
         data: {
-          guideId: guide.id,
-          type: ms.type as any,
-          chapter: ms.chapter,
-          chapterLabel: ms.chapterLabel,
-          title: ms.title,
-          tips: ms.tips,
-          order: ms.order,
+          name: djTag.name || "Donjon",
+          bossName: boss,
+          slug,
+          level: Number(djTag.level) || 100,
+          imageUrl: djTag.imageUrl || null,
+          dofusdbId: djTag.id && !isNaN(Number(djTag.id)) ? Number(djTag.id) : null,
         },
       });
-      created.milestones++;
-      for (let sIdx = 0; sIdx < ms.sequences.length; sIdx++) {
-        const s = ms.sequences[sIdx];
-        // séquence « Métiers requis » / « Ressources à prévoir » → tags dédiés
-        let activityTags: any[] = [];
-        if (ms.title === "Préparation" && s.name === "Métiers requis") {
-          activityTags = data.preparation.metiers.map((m) => ({ type: "metier", name: m.name, level: m.level }));
-        } else if (ms.title === "Préparation" && s.name === "Ressources à prévoir") {
-          activityTags = data.preparation.items.map((it) => ({ type: "item", name: it.name, count: it.quantity, imageUrl: it.imageUrl, id: it.ankamaId ? String(it.ankamaId) : undefined }));
-        } else {
-          activityTags = ms.dungeons.map((d) => ({ type: "donjon", name: d.name, id: d.id }));
-        }
-        await tx.guideSequence.create({
-          data: {
-            milestoneId: milestone.id,
-            order: sIdx,
-            subGuideRef: s.name,
-            subGuideName: s.name,
-            dungeonIds: ms.dungeons.map((d) => d.id).filter(Boolean) as string[],
-            tips: ms.title === "Préparation" ? undefined : (ms.tips ?? undefined),
-            note: s.note,
-            activityTags,
-          },
-        });
-        created.sequences++;
+      dungeonByName.set(normKey(createdDj.name), createdDj);
+      dungeonByBoss.set(normKey(createdDj.bossName), createdDj);
+      return createdDj.id;
+    } catch {
+      return null;
+    }
+  };
+
+  const plan = {
+    milestones: data.meta?.milestonesCount ?? data.milestones.length,
+    sequences: data.meta?.sequencesCount ?? 0,
+    items: data.meta?.itemsTaggedCount ?? 0,
+    dungeons: data.meta?.dungeonMatchesCount ?? 0,
+    coords: data.meta?.coordsCount ?? 0,
+    prereqs: data.meta?.prereqLinksCount ?? 0,
+  };
+
+  if (!apply) {
+    return {
+      success: true,
+      dryRun: true,
+      plan,
+      guideId: guide.id,
+      existingMilestones: existingMs.length,
+      created: { milestones: 0, sequences: 0 },
+    };
+  }
+
+  // ── Phase 0 : Nettoyage des milestones orphelins et doublons de séquences ──
+  const jsonTitleKeys = new Set(data.milestones.map((ms) => normKey(ms.title)));
+
+  // Supprimer les milestones en DB dont le titre ne correspond plus à aucun entrée du JSON
+  const orphanMilestones = existingMs.filter((m) => !jsonTitleKeys.has(normKey(m.title)));
+  if (orphanMilestones.length > 0) {
+    await db.guideSequence.deleteMany({
+      where: { milestoneId: { in: orphanMilestones.map((m) => m.id) } },
+    });
+    await db.guideMilestone.deleteMany({
+      where: { id: { in: orphanMilestones.map((m) => m.id) } },
+    });
+    orphanMilestones.forEach((m) => existingMsMap.delete(normKey(m.title)));
+  }
+
+  // Dédupliquer les séquences dans chaque milestone existant (par subGuideName)
+  let totalDuplicateSequencesDeleted = 0;
+  for (const m of existingMs) {
+    if (!jsonTitleKeys.has(normKey(m.title))) continue; // sera supprimé ci-dessus
+    const seenNames = new Map<string, string>(); // normKey -> id à garder (premier trouvé)
+    const toDelete: string[] = [];
+    for (const s of (m.sequences || [])) {
+      const k = normKey(s.subGuideName);
+      if (!k) continue;
+      if (seenNames.has(k)) {
+        toDelete.push(s.id); // doublon — on supprime les suivants
+      } else {
+        seenNames.set(k, s.id);
       }
     }
+    if (toDelete.length > 0) {
+      await db.guideSequence.deleteMany({ where: { id: { in: toDelete } } });
+      totalDuplicateSequencesDeleted += toDelete.length;
+      // Mettre à jour le cache local pour éviter de re-résoudre des IDs supprimés
+      m.sequences = m.sequences.filter((s) => !toDelete.includes(s.id));
+    }
+  }
 
-    // ── Idempotence « Préparation » existante ──
-    // Si le milestone « Préparation » existait déjà (base antérieure) mais sans
-    // la séquence « Ressources à prévoir » (ou « Métiers requis »), on l'ajoute
-    // avec les objets/métiers du dataset curé. Non destructif (insert seul).
-    if (prepMilestone) {
-      const existing = await tx.guideSequence.findMany({
-        where: { milestoneId: prepMilestone.id },
-        select: { subGuideName: true, subGuideRef: true, order: true },
+  // ── Synchronisation réelle (milestones & séquences) ──
+  const stats = {
+    milestonesCreated: 0,
+    milestonesUpdated: 0,
+    sequencesCreated: 0,
+    sequencesUpdated: 0,
+    orphanMilestonesDeleted: orphanMilestones.length,
+    duplicateSequencesDeleted: totalDuplicateSequencesDeleted,
+  };
+
+  // Traiter tous les milestones du JSON
+  for (let mIdx = 0; mIdx < data.milestones.length; mIdx++) {
+    const ms = data.milestones[mIdx];
+    const msKey = normKey(ms.title);
+    let milestoneRecord = existingMsMap.get(msKey);
+
+    if (!milestoneRecord) {
+      milestoneRecord = (await db.guideMilestone.create({
+        data: {
+          guideId: guide.id,
+          type: (ms.type as any) || "QUETE_SERIE",
+          chapter: ms.chapter ?? (mIdx + 1),
+          chapterLabel: ms.chapterLabel || ms.title.slice(0, 48),
+          title: ms.title,
+          description: ms.description || null,
+          tips: ms.tips || null,
+          order: ms.order ?? mIdx,
+          dofusId: ms.dofusId || null,
+          accentColor: ms.accentColor || "#64748b",
+          imageUrl: ms.imageUrl || null,
+        },
+        include: {
+          sequences: {
+            select: { id: true, subGuideName: true, subGuideRef: true, order: true },
+          },
+        },
+      })) as any;
+      stats.milestonesCreated++;
+      existingMsMap.set(msKey, milestoneRecord!);
+    } else {
+      await db.guideMilestone.update({
+        where: { id: milestoneRecord.id },
+        data: {
+          type: (ms.type as any) || milestoneRecord.type,
+          chapter: ms.chapter !== undefined ? ms.chapter : milestoneRecord.chapter,
+          chapterLabel: ms.chapterLabel || milestoneRecord.chapterLabel,
+          description: ms.description !== undefined ? ms.description : milestoneRecord.description,
+          tips: ms.tips !== undefined ? ms.tips : milestoneRecord.tips,
+          order: ms.order !== undefined ? ms.order : milestoneRecord.order,
+          dofusId: ms.dofusId || milestoneRecord.dofusId,
+          accentColor: ms.accentColor || milestoneRecord.accentColor,
+          imageUrl: ms.imageUrl || milestoneRecord.imageUrl,
+        },
       });
-      const names = new Set(existing.map((s) => s.subGuideName || s.subGuideRef));
-      let nextOrder = existing.length ? Math.max(...existing.map((s) => s.order ?? 0)) + 1 : 1;
-      if (!names.has("Métiers requis")) {
-        plan.metiers = data.preparation.metiers.length;
-        await tx.guideSequence.create({
+      stats.milestonesUpdated++;
+    }
+
+    // Index des séquences existantes dans ce milestone
+    const existingSeqMap = new Map<string, { id: string; subGuideName: string; subGuideRef: string }>();
+    (milestoneRecord!.sequences || []).forEach((s) => {
+      existingSeqMap.set(normKey(s.subGuideName), s);
+      existingSeqMap.set(normKey(s.subGuideRef), s);
+    });
+
+    for (let sIdx = 0; sIdx < (ms.sequences || []).length; sIdx++) {
+      const s = ms.sequences[sIdx];
+      const seqName = s.subGuideName || s.subGuideRef || s.name || "Quête";
+      const sKey = normKey(seqName);
+
+      // Résoudre les donjons et remplacer l'id dans les tags par le CUID Prisma
+      const resolvedDungeonIds: string[] = [];
+      const updatedActivityTags = await Promise.all(
+        (s.activityTags || []).map(async (tag: any) => {
+          if (tag.type === "donjon") {
+            const cuid = await resolveOrCreateDungeon(tag);
+            if (cuid) {
+              resolvedDungeonIds.push(cuid);
+              return { ...tag, id: cuid };
+            }
+          }
+          return tag;
+        })
+      );
+
+      const seqData = {
+        subGuideRef: seqName,
+        subGuideName: seqName,
+        dofuspourlesnoobsUrl: s.dofuspourlesnoobsUrl || null,
+        dofusdbUrl: s.dofusdbUrl || null,
+        alignReq: s.alignReq || null,
+        alignOrderReq: s.alignOrderReq || null,
+        dungeonId: resolvedDungeonIds[0] ?? null,
+        dungeonIds: resolvedDungeonIds,
+        mapPositions: s.mapPositions || undefined,
+        activityTags: updatedActivityTags,
+        tips: s.tips || null,
+        note: s.note || null,
+        order: s.order ?? sIdx,
+      };
+
+      const existingSeq = existingSeqMap.get(sKey);
+      if (existingSeq) {
+        // Mise à jour de la séquence sans casser son ID (progression membre préservée)
+        await db.guideSequence.update({
+          where: { id: existingSeq.id },
+          data: seqData,
+        });
+        stats.sequencesUpdated++;
+      } else {
+        // Création de la séquence
+        await db.guideSequence.create({
           data: {
-            milestoneId: prepMilestone.id,
-            order: nextOrder++,
-            subGuideRef: "Métiers requis",
-            subGuideName: "Métiers requis",
-            dungeonIds: [],
-            activityTags: data.preparation.metiers.map((m) => ({ type: "metier", name: m.name, level: m.level })),
+            ...seqData,
+            milestoneId: milestoneRecord!.id,
           },
         });
-        created.sequences++;
-      }
-      if (!names.has("Ressources à prévoir")) {
-        plan.items = data.preparation.items.length;
-        await tx.guideSequence.create({
-          data: {
-            milestoneId: prepMilestone.id,
-            order: nextOrder++,
-            subGuideRef: "Ressources à prévoir",
-            subGuideName: "Ressources à prévoir",
-            dungeonIds: [],
-            activityTags: data.preparation.items.map((it) => ({ type: "item", name: it.name, count: it.quantity, imageUrl: it.imageUrl, id: it.ankamaId ? String(it.ankamaId) : undefined })),
-          },
-        });
-        created.sequences++;
+        stats.sequencesCreated++;
       }
     }
-  });
+  }
 
-  const enrichment = await enrichRushSylvestreSequences({ apply: true });
   await logGodWrite({
     action: "GOD_DATABASE_SYNC",
     targetType: "DATA_SYNC",
     targetId: "rush-sylvestre",
-    metadata: { op: "seed-laniyelle", dryRun: false, plan, created, enrichment },
+    metadata: { op: "seed-unified-rush-sylvestre", dryRun: false, plan, stats },
   });
+
   revalidatePath("/god/rush-sylvestre");
   revalidatePath("/dashboard");
-  return { success: true, dryRun: false, plan, created, guideId: guide.id, enrichment };
+  const created = {
+    milestones: stats.milestonesCreated + stats.milestonesUpdated,
+    sequences: stats.sequencesCreated + stats.sequencesUpdated,
+  };
+  return { success: true, dryRun: false, plan, stats, created, guideId: guide.id };
 }
 
 /**

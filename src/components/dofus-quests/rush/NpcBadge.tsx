@@ -21,9 +21,15 @@ interface NpcBadgeProps {
   /**
    * Rendu nu (overlay) : l'image importée seule, **sans cadre ni fond** —
    * rien autour du portrait. Sans image : rien (le nom reste en hover
-   * impossible, donc on ne peint pas de badge vide).
+   * impossible, donc on ne peint pas de badge vide) — sauf `showNameFallback`
+   * (lignes denses : le nom en texte seul prend le relais).
    */
   bare?: boolean;
+  /**
+   * Avec `bare` : si aucun portrait n'est affichable, rend le nom en texte
+   * seul (sans cadre) au lieu de rien. Défaut `false` (overlays inchangés).
+   */
+  showNameFallback?: boolean;
   className?: string;
 }
 
@@ -33,7 +39,7 @@ interface NpcBadgeProps {
  * Partagé par les guides Sylvestre (interne, public, overlays) et les quêtes
  * par Dofus.
  */
-export function NpcBadge({ npcId, name, imageUrl, size = "sm", bare = false, className }: NpcBadgeProps) {
+export function NpcBadge({ npcId, name, imageUrl, size = "sm", bare = false, showNameFallback = false, className }: NpcBadgeProps) {
   const [imgOk, setImgOk] = useState(true);
   const custom = typeof imageUrl === "string" && imageUrl.trim() !== "" && isSafeImageUrl(imageUrl)
     ? imageUrl.trim()
@@ -41,9 +47,22 @@ export function NpcBadge({ npcId, name, imageUrl, size = "sm", bare = false, cla
   const portrait = custom ?? (npcId ? npcPortraitUrl(npcId) : null);
   const showImage = !!portrait && imgOk;
   const imgSize = size === "md" ? "h-6 w-6" : "h-4 w-4";
-  if (!showImage && (bare || !name)) return null;
+  if (!showImage && (bare || !name)) {
+    if (!(bare && showNameFallback && name)) return null;
+  }
 
   if (bare) {
+    if (!showImage) {
+      // Repli ligne dense (`showNameFallback`) : nom en texte seul, sans cadre.
+      return (
+        <span
+          className={cn("min-w-0 truncate text-[11px] font-medium text-muted-foreground", className)}
+          title={name ? `PNJ : ${name}` : "PNJ donneur"}
+        >
+          {name}
+        </span>
+      );
+    }
     return (
       /* eslint-disable-next-line @next/next/no-img-element */
       <img

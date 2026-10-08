@@ -108,26 +108,13 @@ export default async function DofusDetailPage({ params, searchParams }: Props) {
                 }}
             />
 
-            {/* Dofus hero header */}
+            {/* Dofus hero header — teinte d'immersion sans glow premium */}
             <div
-                className="relative overflow-hidden rounded-2xl px-6 py-8 flex flex-col sm:flex-row items-center gap-6"
+                className="relative overflow-hidden rounded-md px-6 py-8 flex flex-col sm:flex-row items-center gap-6 border border-border"
                 style={{
-                    background: `linear-gradient(135deg, ${color}18 0%, var(--foreground)/[0.02] 60%, ${color}08 100%)`,
-                    border: `1px solid ${color}33`,
-                    boxShadow: `0 8px 32px ${color}18`,
+                    background: `linear-gradient(135deg, ${color}14 0%, transparent 60%)`,
                 }}
             >
-                {/* Top accent line */}
-                <div
-                    className="absolute top-0 left-0 right-0 h-[2px]"
-                    style={{ background: `linear-gradient(90deg, transparent, ${color}88, transparent)` }}
-                />
-                {/* Ambient glow */}
-                <div
-                    className="absolute -top-12 -left-12 w-40 h-40 rounded-full pointer-events-none"
-                    style={{ background: `radial-gradient(circle, ${color}20 0%, transparent 70%)` }}
-                />
-
                 {/* Dofus image + ring */}
                 <div className="relative flex-shrink-0">
                     <DofusProgressRing
@@ -144,7 +131,6 @@ export default async function DofusDetailPage({ params, searchParams }: Props) {
                             size={64}
                             color={color}
                             isObtained={dofus.isObtained}
-                            className="drop-shadow-[0_0_12px_rgba(255,255,255,0.3)]"
                         />
                     </div>
                 </div>
@@ -176,7 +162,7 @@ export default async function DofusDetailPage({ params, searchParams }: Props) {
                         )}
                         <span className="text-xs text-muted-foreground/50">Niveau {dofus.levelRecommended}+</span>
                     </div>
-                    <h1 className="text-2xl sm:text-3xl font-black text-foreground mb-1 uppercase tracking-tight">{dofus.name}</h1>
+                    <h1 className="text-2xl sm:text-3xl font-black text-foreground mb-1 tracking-tight">{dofus.name}</h1>
                     {dofus.successName && (
                         <p className="text-sm text-muted-foreground">
                             Succès : <span style={{ color }} className="font-bold">{dofus.successName}</span>
@@ -202,10 +188,7 @@ export default async function DofusDetailPage({ params, searchParams }: Props) {
                                 className="h-full rounded-full transition-all duration-300 "
                                 style={{
                                     width: `${dofus.progressPercent}%`,
-                                    background: dofus.isObtained
-                                        ? `linear-gradient(90deg, ${color}, #fbbf24)`
-                                        : `linear-gradient(90deg, ${color}cc, ${color})`,
-                                    boxShadow: `0 0 12px ${color}66`,
+                                    background: color,
                                 }}
                             />
                         </div>
@@ -278,7 +261,6 @@ export default async function DofusDetailPage({ params, searchParams }: Props) {
                 selectedCharacter={character}
                 initialGlobalCompletedIds={globalCompletedResult.success ? globalCompletedResult.data : []}
                 prereqsByQuestId={prereqsByQuestId}
-                metamobPseudo={user.metamobPseudo}
                 customSlotAfterPrerequisites={
                     dofusSlug === "dokille" ? (
                         <DofusDokilleTracker

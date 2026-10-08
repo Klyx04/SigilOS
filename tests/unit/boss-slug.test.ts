@@ -106,7 +106,10 @@ describe("fiches boss — URL en slug, anciens liens conservés", () => {
         expect(readSource("src/app/boss/_components/PublicBossCatalogClient.tsx")).toContain("/boss/${boss.slug ?? boss.id}");
         expect(readSource("src/components/succes/SuccesAvisTab.tsx")).toContain("/boss/${fiche.dungeon.slug ?? fiche.dungeon.id}");
         expect(readSource("src/components/boss-overlay/BossOverlayClient.tsx")).toContain("selected.slug ?? selected.id");
-        expect(readSource("src/app/overlay/guide/[guildId]/[slug]/components/RushOverlayDungeonCard.tsx")).toContain("dj?.slug ?? dj?.id");
+        // L'overlay passe par la source unique `dungeonFicheHref` (lot 2a) :
+        // la préférence slug > id y est verrouillée, pas dupliquée.
+        expect(readSource("src/app/overlay/guide/[guildId]/[slug]/components/RushOverlayDungeonCard.tsx")).toContain("dungeonFicheHref(");
+        expect(readSource("src/lib/dungeon-fiche.ts")).toContain("dungeon?.slug");
         expect(readSource("src/components/succes/SuccesBossGuide.tsx")).toContain("d.id === dungeonParam || d.slug === dungeonParam");
     });
 });

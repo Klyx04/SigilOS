@@ -5,6 +5,7 @@ import { DoorOpen, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { DungeonInfo } from "./overlay-utils";
 import { isPublicOverlay } from "./overlay-utils";
+import { dungeonFicheHref } from "@/lib/dungeon-fiche";
 
 interface RushOverlayDungeonCardProps {
   dungeons: DungeonInfo[];
@@ -44,13 +45,9 @@ export function RushOverlayDungeonCard({ dungeons, guildId, className }: RushOve
 
       <div className="mt-1.5 space-y-0.5">
         {dungeons.map((dj, i) => {
-          // Segment d'URL : slug public si la donnée de jeu le porte, sinon identifiant.
-          const segment = dj?.slug ?? dj?.id;
-          const href = !segment
-            ? null
-            : isPublic
-              ? `/boss/${encodeURIComponent(segment)}`
-              : `/dashboard/${guildId}/succes?dungeon=${encodeURIComponent(segment)}&view=boss`;
+          // Destination unique (cf. `dungeonFicheHref`) : slug public si la
+          // donnée de jeu le porte, sinon identifiant.
+          const href = dungeonFicheHref(isPublic ? "public" : guildId, dj);
           return <DungeonRow key={i} dj={dj} href={href} isPublic={isPublic} />;
         })}
       </div>

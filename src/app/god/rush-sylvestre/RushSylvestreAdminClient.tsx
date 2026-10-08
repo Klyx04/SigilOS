@@ -14,6 +14,7 @@ import {
   useSortable, verticalListSortingStrategy, arrayMove
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { RUSH_DOFUS_META } from "@/lib/rush-dofus-meta";
 import {
   Zap, Plus, Trash2, ChevronDown, ChevronRight, ChevronUp,
   Settings, Construction, Check, X,
@@ -154,25 +155,11 @@ const MILESTONE_TYPES: { value: MilestoneType; label: string; icon: React.ReactN
   { value: "DOFUS_OBTAINED", label: "Obtention Dofus", icon: <Gem className="w-3 h-3" />, color: "#d4a853" },
 ];
 
-// Dofus du jeu
-const DOFUS_LIST = [
-  { id: "ocre",              label: "Ocre",               color: "#f59e0b", imageUrl: "/assets/icons/ocre.png" },
-  { id: "turquoise",        label: "Turquoise",          color: "#06b6d4", imageUrl: "/module-dofus/Dofus_Turquoise.png" },
-  { id: "argente",          label: "Argenté",            color: "#a1a1aa", imageUrl: "/module-dofus/Dofus_Argente.png" },
-  { id: "argente_scintillant", label: "Arg. Scintillant", color: "#c0c0c0", imageUrl: "/module-dofus/Dofus_Argente_Scintillant.png" },
-  { id: "ebene",            label: "Ébène",              color: "#27272a", imageUrl: "/module-dofus/Dofus_Ebene.png" },
-  { id: "pourpre",          label: "Pourpre",            color: "#a855f7", imageUrl: "/module-dofus/Dofus_Pourpre.png" },
-  { id: "ivoire",           label: "Ivoire",             color: "#e2e8f0", imageUrl: "/module-dofus/Dofus_Ivoire.png" },
-  { id: "emeraude",         label: "Émeraude",           color: "#10b981", imageUrl: "/module-dofus/Dofus_Emeraude.png" },
-  { id: "dolmanax",         label: "Dolmanax",           color: "#ef4444", imageUrl: "/module-dofus/Dofus_Dolmanax.png" },
-  { id: "des_glaces",       label: "Des Glaces",         color: "#93c5fd", imageUrl: "/module-dofus/Dofus_Des_Glaces.png" },
-  { id: "du_cauchemar",     label: "Du Cauchemar",       color: "#7c3aed", imageUrl: "/module-dofus/Dofus_Du_Cauchemar.png" },
-  { id: "des_veilleurs",    label: "Des Veilleurs",      color: "#38bdf8", imageUrl: "/module-dofus/Dofus_Veilleur.png" },
-  { id: "domakuro",         label: "Domakuro",           color: "#84cc16", imageUrl: "/module-dofus/Dofus_Domakuro.png" },
-  { id: "dorigami",         label: "Dorigami",           color: "#f472b6", imageUrl: "/module-dofus/Dofus_Dorigami.png" },
-  { id: "tachete",          label: "Tacheté",            color: "#c084fc", imageUrl: "/module-dofus/Dofus_Tachete.png" },
-  { id: "dom_de_pin",       label: "Dom de Pin",         color: "#a3e635", imageUrl: "/module-dofus/Dom_De_Pin.png" },
-];
+// Dofus du jeu — SOURCE UNIQUE (`src/lib/rush-dofus-meta.ts`) partagée avec le
+// guide (interne + public) et l'overlay. Cette liste existait en cinq copies
+// divergentes (mesuré le 08/10/2026 : `argente`, `pourpre`, `ebene`, `sylvestre`
+// ne concordaient pas d'un écran à l'autre) — une seule table désormais.
+const DOFUS_LIST = RUSH_DOFUS_META;
 
 // ─── Activity Tags ────────────────────────────────────────────────────────────
 // Picto, libellé et couleur viennent du référentiel partagé

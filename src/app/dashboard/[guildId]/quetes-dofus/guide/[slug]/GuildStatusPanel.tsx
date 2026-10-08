@@ -1,6 +1,7 @@
 "use client";
 import { useMemo, memo, useState, useEffect } from "react";
 import { Users } from "lucide-react";
+import { dofusMetaIndex } from "@/lib/rush-dofus-meta";
 
 const MEMBERS_CUTOFF = 8;
 
@@ -23,25 +24,10 @@ type GuildMemberProgress = {
   userAvatar?: string;
 };
 
-// Dofus definitions
-const DOFUS_DEFS: Record<string, { label: string; color: string; imageUrl: string }> = {
-  ocre:               { label: "Ocre",               color: "#f59e0b", imageUrl: "/assets/icons/ocre.png" },
-  turquoise:          { label: "Turquoise",          color: "#06b6d4", imageUrl: "/module-dofus/Dofus_Turquoise.png" },
-  argente:            { label: "Argenté",            color: "#a1a1aa", imageUrl: "/module-dofus/Dofus_Argente.png" },
-  argente_scintillant:{ label: "Arg. Scintillant",   color: "#c0c0c0", imageUrl: "/module-dofus/Dofus_Argente_Scintillant.png" },
-  ebene:              { label: "Ébène",              color: "#52525b", imageUrl: "/module-dofus/Dofus_Ebene.png" },
-  pourpre:            { label: "Pourpre",            color: "#a855f7", imageUrl: "/module-dofus/Dofus_Pourpre.png" },
-  ivoire:             { label: "Ivoire",             color: "#e2e8f0", imageUrl: "/module-dofus/Dofus_Ivoire.png" },
-  emeraude:           { label: "Émeraude",           color: "#10b981", imageUrl: "/module-dofus/Dofus_Emeraude.png" },
-  dolmanax:           { label: "Dolmanax",           color: "#ef4444", imageUrl: "/module-dofus/Dofus_Dolmanax.png" },
-  des_glaces:         { label: "Des Glaces",         color: "#93c5fd", imageUrl: "/module-dofus/Dofus_Des_Glaces.png" },
-  du_cauchemar:       { label: "Du Cauchemar",       color: "#7c3aed", imageUrl: "/module-dofus/Dofus_Du_Cauchemar.png" },
-  des_veilleurs:      { label: "Des Veilleurs",      color: "#38bdf8", imageUrl: "/module-dofus/Dofus_Veilleur.png" },
-  domakuro:           { label: "Domakuro",           color: "#84cc16", imageUrl: "/module-dofus/Dofus_Domakuro.png" },
-  dorigami:           { label: "Dorigami",           color: "#f472b6", imageUrl: "/module-dofus/Dofus_Dorigami.png" },
-  tachete:            { label: "Tacheté",            color: "#c084fc", imageUrl: "/module-dofus/Dofus_Tachete.png" },
-  dom_de_pin:         { label: "Dom de Pin",         color: "#a3e635", imageUrl: "/module-dofus/Dom_De_Pin.png" },
-};
+// Dofus definitions — SOURCE UNIQUE (`src/lib/rush-dofus-meta.ts`), partagée avec
+// le studio God, le guide interne/public et l'overlay. (Cinq copies divergentes
+// avant le 08/10/2026 : `ebene` y valait #27272a, #52525b ou #6366f1.)
+const DOFUS_DEFS: Record<string, { label: string; color: string; imageUrl: string }> = dofusMetaIndex();
 
 type DofusStat = {
   id: string;

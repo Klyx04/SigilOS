@@ -45,7 +45,7 @@ import {
     reportGameDataSync,
 } from "@/server/actions/game-data-sync-actions";
 import { BOUNTY_RACE_IDS, BOUNTY_RACE_NAMES } from "@/lib/bounty";
-import { formatGameDataErrorLines } from "@/lib/game-data-error-causes";
+import { describeGameDataTransportError, formatGameDataErrorLines } from "@/lib/game-data-error-causes";
 import { isLocalThrottleDeferredMessage } from "@/lib/dofusdb-throttle";
 import { getClassName } from "@/lib/dofusbook-utils";
 import { GAME_ITEMS_BATCH_PAUSE_MS, GAME_ITEMS_BATCH_SIZE } from "@/lib/game-items-cadence";
@@ -548,7 +548,10 @@ export async function runInlineGameDataDataset(
                 break;
         }
     } catch (e) {
-        const error = e instanceof Error ? e.message : String(e);
+        // 🌐 Une action serveur qui n'a **pas rendu de réponse** lève une phrase anglaise opaque :
+        // on la traduit en consigne avant de l'enregistrer (jamais un texte technique à l'écran).
+        const raw = e instanceof Error ? e.message : String(e);
+        const error = describeGameDataTransportError(raw) ?? raw;
         await finishGameDataSync(dataset, false, undefined, error, [error]);
         ctx.log(`❌ Exception : ${error}`);
         return { ok: false, summary: "", error };

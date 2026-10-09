@@ -22,6 +22,7 @@ import { join } from "node:path";
 import {
     classifyGameDataError,
     combineGameDataRunError,
+    describeGameDataTransportError,
     groupGameDataErrors,
     stripGameDataErrorContext,
     summarizeGameDataErrors,
@@ -144,5 +145,33 @@ describe("A5 — les points d'écriture ne peignent plus en rouge ce qui n'est p
     it("la classification tolère un préfixe de contexte côté lib (et pas seulement dans le lanceur)", () => {
         expect(read(CAUSES)).toContain("export function stripGameDataErrorContext");
         expect(read(CAUSES)).toContain("GAME_DATA_ERROR_CONTEXT_PREFIX");
+    });
+
+    it("une réponse transport opaque devient une CONSIGNE (jamais l'anglais de Next à l'écran)", () => {
+        // 🐛 Capture du 10/10/2026 (Tableau God) : « Items & ressources · Échec · 750 item(s)
+        // analysé(s) · An unexpected response was received from the server. — 1 erreur(s) ».
+        // La passe tournait **dans l'onglet** (repli) : une action serveur n'a pas rendu de
+        // réponse, et Next a rendu sa phrase anglaise, remontée telle quelle dans `lastError`.
+        expect(describeGameDataTransportError("An unexpected response was received from the server.")).toContain(
+            "Aucune réponse du serveur",
+        );
+        expect(describeGameDataTransportError("An unexpected response was received from the server")).toContain(
+            "Relancez le siphon",
+        );
+        // La consigne dit ce qui est VRAI : on ne prétend pas connaître la cause exacte.
+        expect(describeGameDataTransportError("An unexpected response was received from the server")).toContain(
+            "serveur redémarré ou requête coupée",
+        );
+
+        // Tout autre message est laissé INTACT (aucune réécriture sauvage d'une vraie erreur).
+        expect(describeGameDataTransportError("DofusDB items indisponible")).toBeNull();
+        expect(describeGameDataTransportError("")).toBeNull();
+        expect(describeGameDataTransportError(null)).toBeNull();
+        expect(describeGameDataTransportError(undefined)).toBeNull();
+        expect(describeGameDataTransportError({ message: "An unexpected response…" })).toBeNull();
+
+        // Le lanceur « dans l'onglet » passe bien par cette règle (une seule source).
+        const runners = read(RUNNERS);
+        expect(runners).toContain("describeGameDataTransportError(raw) ?? raw");
     });
 });

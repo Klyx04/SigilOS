@@ -296,12 +296,22 @@ async function runBackgroundDataset(
         total?: number;
         synced?: number;
         errors?: string[];
+        orphaned?: { id: string; dofusdbId: number | null; name: string; slug: string }[];
+        orphanedTotal?: number;
+        orphansComputed?: boolean;
     };
     const batch = result?.errors ?? [];
     reportErrorBatch("BOUNTIES", batch);
+    // 🔶 Instantané « orphelins » pour la revue God (passe complète : seule source fiable).
+    if (result?.orphansComputed) {
+        const { setBountyOrphansSnapshot } = await import("../server/game-data-sync-state-store");
+        await setBountyOrphansSnapshot(result.orphaned ?? [], result.orphanedTotal ?? 0);
+    }
     await finishGameDataRun("BOUNTIES", {
         ok: batch.length === 0,
-        message: result?.total ? `${result.total} avis (${result.synced ?? 0} écrits)` : "Avis synchronisés",
+        message:
+            (result?.total ? `${result.total} avis (${result.synced ?? 0} écrits)` : "Avis synchronisés") +
+            (result?.orphansComputed ? ` · ${result.orphanedTotal ?? 0} orphelin(s) hors races (revue God)` : ""),
         errors: batch,
     });
     return result;

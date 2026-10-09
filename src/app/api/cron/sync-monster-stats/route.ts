@@ -211,10 +211,19 @@ export async function GET(req: Request) {
             bountyIcons = bountyResult.imagesSiphoned;
             bountyUnproven = bountyResult.unproven;
             imagesSiphoned += bountyResult.imagesSiphoned;
+            // 🔶 Instantané « orphelins » pour la revue God (passe complète : seule source
+            // fiable — voir `bounty-siphon.ts` § 5bis). Fail-open : jamais bloquant.
+            if (bountyResult.orphansComputed) {
+                const { setBountyOrphansSnapshot } = await import(
+                    "@/server/game-data-sync-state-store"
+                );
+                await setBountyOrphansSnapshot(bountyResult.orphaned, bountyResult.orphanedTotal);
+            }
             if (bountyResult.entries.length > 0) {
                 logger.info(
                     `[Cron:SyncMonsterStats] Avis de recherche : ${bountyResult.entries.length} avis résolus ` +
                     `(${bountyResult.synced} écrits, ${bountyResult.unchanged} inchangés, ${bountyResult.unproven} non prouvés, ` +
+                    `${bountyResult.orphanedTotal} orphelin(s), ` +
                     `${bountyResult.imagesSiphoned} image(s)).`
                 );
             } else {

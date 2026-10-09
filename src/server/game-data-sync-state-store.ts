@@ -259,3 +259,63 @@ export async function getGameDataRunStates(): Promise<GameDataRunState[]> {
         }
     });
 }
+
+// ─── Instantané « avis orphelins » (08/10/2026) ─────────────────────────────
+// Écrit par les passes COMPLETES d'avis (cron `sync-monster-stats` phase 4, worker
+// `BOUNTIES`), lu par God pour la revue + exclusion en masse. Fail-open comme le
+// reste du store : Redis indisponible ⇒ snapshot absent, jamais d'exception.
+
+const BOUNTY_ORPHANS_KEY = "game-data:bounties:orphans";
+
+export interface BountyOrphansSnapshot {
+    orphans: { id: string; dofusdbId: number | null; name: string; slug: string }[];
+    total: number;
+    updatedAt: string | null;
+}
+
+/** Lit le dernier instantané d'orphelins (`null` si jamais calculé). */
+export async function getBountyOrphansSnapshot(): Promise<BountyOrphansSnapshot | null> {
+    const raw = await withRedis((c) => c.get(BOUNTY_ORPHANS_KEY));
+    if (!raw) return null;
+    try {
+        const parsed = JSON.parse(raw) as Partial<BountyOrphansSnapshot>;
+        const orphans = Array.isArray(parsed.orphans)
+            ? parsed.orphans
+                .filter((o) => o && typeof (o as { id?: unknown }).id === "string")
+                .map((o) => {
+                    // ⚠️ `Number(null)` vaut 0 : un `dofusdbId` absent doit rester `null`
+                    // (0 est la sentinelle « exclusion par nom », jamais un id réel).
+                    const rawId = (o as { dofusdbId?: unknown }).dofusdbId;
+                    const numId = rawId == null || rawId === "" ? NaN : Number(rawId);
+                    return {
+                        id: String((o as { id?: unknown }).id ?? "").trim(),
+                        dofusdbId: Number.isFinite(numId) ? Math.floor(numId) : null,
+                        name: String((o as { name?: unknown }).name ?? "").trim(),
+                        slug: String((o as { slug?: unknown }).slug ?? "").trim(),
+                    };
+                })
+                .filter((o) => o.id !== "" && o.name !== "")
+            : [];
+        const total = Number.isFinite(Number(parsed.total)) ? Math.max(0, Math.floor(Number(parsed.total))) : orphans.length;
+        return {
+            orphans,
+            total,
+            updatedAt: typeof parsed.updatedAt === "string" ? parsed.updatedAt : null,
+        };
+    } catch {
+        return null;
+    }
+}
+
+/** Écrit l'instantané d'orphelins (passe complète uniquement — voir `bounty-siphon`). */
+export async function setBountyOrphansSnapshot(
+    orphans: { id: string; dofusdbId: number | null; name: string; slug: string }[],
+    total: number,
+): Promise<void> {
+    const payload: BountyOrphansSnapshot = {
+        orphans: Array.isArray(orphans) ? orphans : [],
+        total: Number.isFinite(Number(total)) ? Math.max(0, Math.floor(Number(total))) : 0,
+        updatedAt: new Date().toISOString(),
+    };
+    await withRedis((c) => c.set(BOUNTY_ORPHANS_KEY, JSON.stringify(payload), "EX", TTL_SECONDS));
+}

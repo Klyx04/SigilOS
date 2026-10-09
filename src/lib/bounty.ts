@@ -14,6 +14,11 @@
  * 96 avis (38 + 21 + 15 + 19 + 3, 0 doublon) · niveaux **1 → 1600** · 81 sous-zones ·
  * 15 avis sans sous-zone · 5 sans sort · **maps sauvages non exposées par Dofensive**
  * (grille `Cells` = stub) ⇒ carte de simulation = **grille vide**, jamais une carte inventée.
+ *
+ * Périmètre verrouillé le 09/10/2026 (`monster-races?superRaceId=27` : 13 races, dont
+ * exactement 5 « Avis ») : 32 classiques · 90 Frigost · 127 Dimensions · 147 alignés ·
+ * 156 Sufokia. Les libellés « Créatures de quête — Avis de … » sont côté **Dofensive**
+ * (`Race.Name` + famille 27, preuve `isProvenBounty`), pas des races manquantes.
  */
 
 /** Races DofusDB « Avis de recherche » (ordre = source, stable d'un siphon à l'autre). */

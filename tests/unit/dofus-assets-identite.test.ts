@@ -87,9 +87,12 @@ describe("🛡️ Proxy /api/assets-dofus — gardes d'identité (verrou de sour
     });
 
     it("résout l'iconId des objets AVANT l'URL officielle", () => {
-        // …et le repli « espace d'icône » (Dofusbook envoie un iconId, pas un id d'objet) n'existe
-        // QU'APRÈS l'autorité : sans lui, toute la galerie stuff affichait un placeholder.
-        expect(routeSource).toContain("Repli ESPACE D ICONE");
+        // …et l espace d ICONE est un marqueur EXPLICITE (`?icon=1`, appelants Dofusbook) : il lit
+        // `img/items/{n}.png` sans passer par l API des objets — un id d objet peut y repondre avec
+        // une AUTRE image (mesure : 9289 = iconId du Bracelet du Piloztere ET id d un parchemin).
+        expect(routeSource).toContain("const iconNamespace = assetType === 'items'");
+        // Le repli automatique du 09/10 (avant la garde) a ete retire : il servait une fausse icone.
+        expect(routeSource).not.toContain("Repli ESPACE D ICONE");
         expect(routeSource).toContain("const iconId = Math.floor(Number(itemData?.iconId) || 0);");
         expect(routeSource).toContain("https://api.dofusdb.fr/img/items/");
     });

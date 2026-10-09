@@ -68,8 +68,13 @@ export async function GET(
         // ne l'est pas → aucun lookup devinable (fail-closed, plus bas).
         const isNumericId = /^\d+$/.test(safeId);
 
+        // ESPACE D ICONE (parametre explicite des appelants qui envoient un iconId,
+        // cf. Dofusbook `item.picture`) : la valeur est un iconId DofusDB, PAS un id d objet.
+        const iconNamespace = assetType === 'items' && req.nextUrl.searchParams.get('icon') === '1';
+
         ensureAssetDirsExist();
-        const localFilePath = path.join(ASSET_DIRS[assetType], `${safeId}.webp`);
+        const localFileName = iconNamespace ? `${safeId}.icon.webp` : `${safeId}.webp`;
+        const localFilePath = path.join(ASSET_DIRS[assetType], localFileName);
 
         // 1. Si le fichier WebP existe déjà en local sur disque, on le sert directement
         if (fs.existsSync(localFilePath)) {
@@ -265,7 +270,32 @@ export async function GET(
         // AUTRE objet ; item 15990, iconId 3086, ou l id 3086 est un autre item). On resout donc
         // iconId via l API avec GARDE D IDENTITE, puis le dump local par iconId, avant l URL officielle.
         let itemIconHandled = false;
-        if (isNumericId && assetType === 'items') {
+        // ESpace d ICONE : on lit l icone demandee, sans jamais l interpreter comme un id d objet.
+        // Mesure du 09/10/2026 : « Bracelet du Piloztere » = objet 15190, iconId 9289 -> img/items/9289.png
+        // EST le bracelet ; mais l id 9289 existe AUSSI comme objet (un parchemin) : passer par l API
+        // servait donc l icone du parchemin.
+        if (isNumericId && iconNamespace) {
+            itemIconHandled = true;
+            try {
+                const iconRes = await fetch('https://api.dofusdb.fr/img/items/' + safeId + '.png', {
+                    headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+                    signal: AbortSignal.timeout(6_000),
+                });
+                if (iconRes.ok) {
+                    const contentType = iconRes.headers.get('content-type') || '';
+                    if (contentType.startsWith('image/') || contentType.startsWith('application/octet-stream')) {
+                        const arrayBuffer = await iconRes.arrayBuffer();
+                        if (arrayBuffer.byteLength > 0 && arrayBuffer.byteLength <= MAX_IMAGE_BYTES) {
+                            inputBuffer = Buffer.from(arrayBuffer);
+                            downloaded = true;
+                        }
+                    }
+                }
+            } catch {
+                // Icone indisponible : repli declare plus bas, sinon placeholder neutre.
+            }
+        }
+        if (isNumericId && assetType === 'items' && !iconNamespace) {
             itemIconHandled = true;
             try {
                 const itemRes = await fetch('https://api.dofusdb.fr/items/' + safeId, {
@@ -302,31 +332,6 @@ export async function GET(
                 // API indisponible : repli declare ci-dessous.
             }
 
-            // Repli ESPACE D ICONE : certains appelants envoient un iconId et non un id d objet
-            // (Dofusbook : /api/assets-dofus/items/{iconId}?v=2). Mesure du 09/10/2026 : l id 10247
-            // n existe PAS comme objet DofusDB, mais img/items/10247.png existe (200) — sans ce repli
-            // le proxy renvoyait un placeholder et toute la galerie stuff etait vide. L API reste
-            // l autorite (garde d identite ci-dessus) : ce repli ne joue qu APRES un echec.
-            if (!downloaded) {
-                try {
-                    const iconPathRes = await fetch('https://api.dofusdb.fr/img/items/' + safeId + '.png', {
-                        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
-                        signal: AbortSignal.timeout(6_000),
-                    });
-                    if (iconPathRes.ok) {
-                        const contentType = iconPathRes.headers.get('content-type') || '';
-                        if (contentType.startsWith('image/') || contentType.startsWith('application/octet-stream')) {
-                            const arrayBuffer = await iconPathRes.arrayBuffer();
-                            if (arrayBuffer.byteLength > 0 && arrayBuffer.byteLength <= MAX_IMAGE_BYTES) {
-                                inputBuffer = Buffer.from(arrayBuffer);
-                                downloaded = true;
-                            }
-                        }
-                    }
-                } catch {
-                    // Repli espace d icone indisponible : placeholder neutre plus bas.
-                }
-            }
             // Repli DECLARE (url= allowliste) joue APRES l autorite — meme regle que les monstres :
             // une URL perimee (apparence d un autre objet) ne peut plus passer devant la fiche DofusDB.
             if (!downloaded && safeUrlParam) {

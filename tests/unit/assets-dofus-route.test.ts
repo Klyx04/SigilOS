@@ -140,23 +140,27 @@ describe("GET /api/assets-dofus/[type]/[id] — garde-fous", () => {
         expect(res.headers.get("content-type")).toContain("svg");
     });
 
-    it("OBJET absent de DofusDB mais icône existante (Dofusbook envoie un iconId) → 200 webp", async () => {
+    it("Dofusbook (?icon=1) : iconId qui EST aussi un id d'objet → on lit l'ICÔNE, pas l'objet", async () => {
+        const calls: string[] = [];
         const fetchMock = vi.fn((url: any) => {
             const u = String(url);
-            // « img/items/10247.png » est l'icône demandée (espace d'iconId, cf. Dofusbook) —
-            // testée AVANT « /items/10247 » (cette URL contient la même sous-chaîne).
-            if (u.includes("/img/items/10247.png")) return Promise.resolve(imageResponse());
-            // L'id 10247 n'est PAS un objet DofusDB (garde d'identité : id ≠ 10247)…
-            if (u.includes("/items/10247")) return Promise.resolve(jsonResponse({ id: 999, iconId: 4242 }));
+            calls.push(u);
+            // Cas réel (09/10/2026) : « Bracelet du Piloztère » = objet 15190, iconId 9289 ;
+            // l'id 9289 est AUSSI un objet (un parchemin, iconId 24026).
+            if (u.includes("/img/items/9289.png")) return Promise.resolve(imageResponse());
+            if (u.includes("/items/9289")) return Promise.resolve(jsonResponse({ id: 9289, iconId: 24026 }));
             return Promise.resolve({ ok: false, status: 404, headers: new Headers(), json: async () => null } as any);
         });
         vi.stubGlobal("fetch", fetchMock);
         mockExistsSync.mockReturnValue(false);
 
-        const res = await GET(req("http://localhost/api/assets-dofus/items/10247?v=2"), ctx("items", "10247"));
+        const res = await GET(req("http://localhost/api/assets-dofus/items/9289?icon=1&v=2"), ctx("items", "9289"));
 
         expect(res.status).toBe(200);
         expect(res.headers.get("content-type")).toBe("image/webp");
+        expect(calls).toContain("https://api.dofusdb.fr/img/items/9289.png");
+        // Jamais l'API des objets : elle renverrait l'icône du PARCHEMIN.
+        expect(calls).not.toContain("https://api.dofusdb.fr/items/9289");
     });
 
     it("tout échoue → placeholder SVG 200 (pas 404, pas 500)", async () => {

@@ -257,15 +257,16 @@ describe("dofusbookItemIconId — icônes d'items (bug « mauvais items » galer
     });
 
     it("construit une URL de proxy interne (jamais de hotlink Dofusbook/DofusDB)", () => {
-        expect(dofusbookItemIconUrl(9143)).toBe(`/api/assets-dofus/items/9143?v=${DOFUSBOOK_ITEM_ICON_URL_VERSION}`);
-        expect(dofusbookItemIconUrl(23001)).toBe(`/api/assets-dofus/items/23001?v=${DOFUSBOOK_ITEM_ICON_URL_VERSION}`);
+        expect(dofusbookItemIconUrl(9143)).toBe(`/api/assets-dofus/items/9143?icon=1&v=${DOFUSBOOK_ITEM_ICON_URL_VERSION}`);
+        expect(dofusbookItemIconUrl(23001)).toBe(`/api/assets-dofus/items/23001?icon=1&v=${DOFUSBOOK_ITEM_ICON_URL_VERSION}`);
     });
 
     it("versionne la clé d'URL pour contourner un placeholder figé en cache navigateur", () => {
         // Le paramètre `v` change la clé de cache (le proxy ignore les query params) : un
         // ancien placeholder SVG en cache 24 h est ainsi ignoré sans hard-reload manuel.
         expect(DOFUSBOOK_ITEM_ICON_URL_VERSION).toBeGreaterThanOrEqual(2);
-        expect(dofusbookItemIconUrl(1)).toContain(`?v=${DOFUSBOOK_ITEM_ICON_URL_VERSION}`);
+        // Le marqueur `icon=1` est OBLIGATOIRE : il dit au proxy que le nombre est un `iconId` (espace d'icone), pas un id d'objet.
+        expect(dofusbookItemIconUrl(1)).toContain(`icon=1&v=${DOFUSBOOK_ITEM_ICON_URL_VERSION}`);
     });
 
     describe("DOFUSBOOK_STAT_LABELS — libellés des codes de bonus de panoplie", () => {

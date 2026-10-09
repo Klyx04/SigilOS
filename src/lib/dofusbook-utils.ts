@@ -80,7 +80,10 @@ export const DOFUSBOOK_STAT_LABELS: Record<string, string> = {
 export const DOFUSBOOK_ITEM_ICON_URL_VERSION = 2;
 
 export function dofusbookItemIconUrl(iconId: number): string {
-    return `/api/assets-dofus/items/${iconId}?v=${DOFUSBOOK_ITEM_ICON_URL_VERSION}`;
+    // `icon=1` = marqueur EXPLICITE d espace d icone : le nombre est un `iconId` DofusDB
+    // (namespace d images), jamais un id d objet — le proxy lit alors `img/items/{n}.png`
+    // SANS passer par l API des objets (un id d objet peut y repondre avec une AUTRE image).
+    return `/api/assets-dofus/items/${iconId}?icon=1&v=${DOFUSBOOK_ITEM_ICON_URL_VERSION}`;
 }
 
 /**

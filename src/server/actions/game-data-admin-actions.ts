@@ -15,6 +15,8 @@ import { addIgnoredFamily, addIgnoredZone } from "@/server/actions/game-data-act
 import { resolveUniqueDungeonSlug } from "@/server/game/dungeon-slug";
 import { bossSlugWithFallback } from "@/lib/boss-slug";
 import { questMapImageUrl, questStartMapId } from "@/lib/dungeon-finder-utils";
+import { buildGameQuestWhere, gameQuestPageWindow, type GameQuestFilters } from "@/lib/game-quests-filter";
+import type { Prisma } from "@prisma/client";
 import { NO_ACHIEVEMENT_CHALLENGE_SLUG, ensureNoAchievementChallengeId } from "@/lib/dungeon-no-achievement";
 import { addIgnoredBounty, getIgnoredBounties, removeIgnoredBounty, type IgnoredBountyEntry } from "@/lib/bounty-ignore";
 import {
@@ -731,10 +733,109 @@ const GameQuestSchema = z.object({
     category: z.string().optional(),
 });
 
-export async function getGameQuests(): Promise<ActionResponse<any[]>> {
+/** 🎛️ Filtres + page de la liste des quêtes — bornés (jamais fait confiance au client). */
+const GameQuestListSchema = z.object({
+    search: z.string().trim().max(120).optional().default(''),
+    category: z.string().trim().max(120).optional().default(''),
+    levelMin: z.number().int().min(1).max(1000).nullable().optional().default(null),
+    levelMax: z.number().int().min(1).max(1000).nullable().optional().default(null),
+    source: z.enum(['ALL', 'DOFUSDB', 'MANUAL']).optional().default('ALL'),
+    page: z.number().int().min(0).max(1000).optional().default(0),
+});
+
+export interface GameQuestListRow {
+    id: string;
+    name: string;
+    dofusDbId: number | null;
+    levelMin: number | null;
+    levelMax: number | null;
+    description: string | null;
+    imageUrl: string | null;
+    category: string | null;
+}
+
+export interface GameQuestListPage {
+    quests: GameQuestListRow[];
+    total: number;
+    page: number;
+    pageSize: number;
+    hasMore: boolean;
+    /** Compteurs **réels** par catégorie, sous le filtre courant (jamais « 48 » pour 300). */
+    counts: { category: string; count: number }[];
+    /** Toutes les catégories existantes — remplit le sélecteur sans être tronquée par la page. */
+    categories: string[];
+}
+
+/**
+ * 🎒 Liste **paginée** des quêtes du panneau God.
+ *
+ * 🐛 Avant (mesure 10/10/2026) : `findMany` sans `select` ni `take` ⇒ ~2 000 quêtes et leur
+ * `contentJson` dans le navigateur, une carte + une image peintes par quête. Les filtres, eux,
+ * étaient calculés côté client : ils ne voyaient que ce qui était chargé. Ici : filtres **serveur**
+ * (`buildGameQuestWhere`, module pur) + une page bornée (`GAME_QUESTS_PAGE_SIZE`), et des
+ * compteurs par catégorie pour que l'en-tête de groupe dise le **vrai** total.
+ */
+export async function getGameQuests(raw: unknown = {}): Promise<ActionResponse<GameQuestListPage>> {
     try {
-        const quests = await db.gameQuest.findMany({ orderBy: [{ category: 'asc' }, { name: 'asc' }] });
-        return { success: true, data: quests };
+        if (!(await isSuperAdmin()) && !(await canAccessBrick('game-data'))) {
+            return { success: false, error: 'Non autorisé' };
+        }
+        const parsed = GameQuestListSchema.safeParse(raw ?? {});
+        if (!parsed.success) {
+            return { success: false, error: 'Filtres invalides' };
+        }
+        const filters: GameQuestFilters = parsed.data;
+        const where = buildGameQuestWhere(filters) as Prisma.GameQuestWhereInput;
+        const { skip, take } = gameQuestPageWindow(filters.page);
+
+        const [total, rows, grouped, allGrouped] = await Promise.all([
+            db.gameQuest.count({ where }),
+            db.gameQuest.findMany({
+                where,
+                orderBy: [{ category: 'asc' }, { name: 'asc' }],
+                skip,
+                take,
+                // `contentJson` / `contentHash` sont volontairement **absents** : c'est le contenu
+                // des étapes (~Ko par quête), inutile à une liste — c'est lui qui alourdissait la
+                // réponse d'un facteur important.
+                select: {
+                    id: true,
+                    name: true,
+                    dofusDbId: true,
+                    levelMin: true,
+                    levelMax: true,
+                    description: true,
+                    imageUrl: true,
+                    category: true,
+                },
+            }),
+            db.gameQuest.groupBy({
+                by: ['category'],
+                where,
+                _count: { _all: true },
+                orderBy: { category: 'asc' },
+            }),
+            db.gameQuest.groupBy({
+                by: ['category'],
+                _count: { _all: true },
+                orderBy: { category: 'asc' },
+            }),
+        ]);
+
+        return {
+            success: true,
+            data: {
+                quests: rows,
+                total,
+                page: filters.page,
+                pageSize: take,
+                hasMore: skip + rows.length < total,
+                counts: grouped.map((g) => ({ category: g.category ?? 'Non classé', count: g._count._all })),
+                categories: allGrouped
+                    .map((g) => g.category)
+                    .filter((c): c is string => typeof c === 'string' && c.trim() !== ''),
+            },
+        };
     } catch (error) {
         logger.error('[getGameQuests] Error:', error);
         return { success: false, error: 'Erreur lors du chargement des quêtes' };

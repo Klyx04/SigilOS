@@ -16,6 +16,7 @@ import {
     createGameQuest,
     updateGameQuest,
     deleteGameQuest,
+    type GameQuestListRow,
 } from "@/server/actions/game-data-admin-actions";
 import { Map, Trash2, Edit2, Plus, Search, MoreHorizontal, ExternalLink, Loader2, ChevronDown, ChevronUp, BookOpen, Award } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -27,16 +28,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { getQuestPrerequisites } from "@/server/actions/dofus-search-actions";
 
-interface GameQuest {
-    id: string;
-    name: string;
-    dofusDbId?: number | null;
-    levelMin?: number | null;
-    levelMax?: number | null;
-    description?: string | null;
-    imageUrl?: string | null;
-    category?: string | null;
-}
+/**
+ * Une ligne de la liste = **exactement** ce que le serveur renvoie (`GameQuestListRow`) : aucune
+ * colonne recopiée à la main, donc aucune colonne qui disparaît silencieusement côté client.
+ */
+type GameQuest = GameQuestListRow;
 
 const CATEGORIES = [
     "Épique", "Dimensionnelle", "Quête de Zone", "Scénario", "Légendaire", "Autre"
@@ -44,7 +40,13 @@ const CATEGORIES = [
 
 export default function GameQuestManager() {
     const [quests, setQuests] = useState<GameQuest[]>([]);
+    const [categories, setCategories] = useState<string[]>([]);
+    const [categoryCounts, setCategoryCounts] = useState<Record<string, number>>({});
+    const [total, setTotal] = useState(0);
+    const [hasMore, setHasMore] = useState(false);
+    const [loadedPage, setLoadedPage] = useState(0);
     const [loading, setLoading] = useState(true);
+    const [loadingMore, setLoadingMore] = useState(false);
     const [editing, setEditing] = useState<string | null>(null);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
@@ -88,14 +90,52 @@ export default function GameQuestManager() {
         category: "",
     });
 
-    const loadQuests = useCallback(async () => {
-        setLoading(true);
-        const result = await getGameQuests();
-        if (result.success && result.data) setQuests(result.data);
-        setLoading(false);
-    }, []);
+    /**
+     * Charge **une page** de quêtes. `page = 0` remplace la liste (nouveau filtre) ; `page > 0`
+     * l'**allonge** (bouton « Charger plus »).
+     *
+     * 🔎 Les filtres partent au **serveur** : la liste ne descend plus entière dans le navigateur
+     * (~2 000 quêtes + leur `contentJson`, puis une carte et une image peintes par quête —
+     * « beaucoup de chargement », constat du 10/10/2026). Les règles de filtrage vivent dans
+     * `src/lib/game-quests-filter.ts` (module pur, testé sans base).
+     */
+    const loadQuests = useCallback(async (page = 0) => {
+        if (page === 0) setLoading(true);
+        else setLoadingMore(true);
+        try {
+            const res = await getGameQuests({
+                search: searchQuery,
+                category: selectedCategory,
+                levelMin: minLevel === "" ? null : Number(minLevel),
+                levelMax: maxLevel === "" ? null : Number(maxLevel),
+                source: selectedSource as "ALL" | "DOFUSDB" | "MANUAL",
+                page,
+            });
+            if (!res.success || !res.data) {
+                toast.error(res.error || "Erreur de chargement");
+                return;
+            }
+            const data = res.data;
+            setTotal(data.total);
+            setHasMore(data.hasMore);
+            setLoadedPage(page);
+            setCategories(data.categories);
+            setCategoryCounts(Object.fromEntries(data.counts.map((c) => [c.category, c.count])));
+            setQuests((prev) => (page === 0 ? data.quests : [...prev, ...data.quests]));
+        } finally {
+            setLoading(false);
+            setLoadingMore(false);
+        }
+    }, [searchQuery, selectedCategory, minLevel, maxLevel, selectedSource]);
 
-    useEffect(() => { loadQuests(); }, [loadQuests]);
+    // 🔎 Un changement de filtre relance la page 0 : `loadQuests` en dépend, donc son identité
+    // change. Le délai de 250 ms évite un appel serveur par caractère tapé dans la recherche.
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            void loadQuests(0);
+        }, 250);
+        return () => clearTimeout(timer);
+    }, [loadQuests]);
 
     async function handleSubmit(e: React.FormEvent) {
         e.preventDefault();
@@ -148,37 +188,16 @@ export default function GameQuestManager() {
         setIsDialogOpen(true);
     }
 
-    // Dynamically build all categories from all quests
-    const allCategories = [...new Set(quests.map(q => q.category).filter(Boolean))].sort() as string[];
+    const hasActiveFilters =
+        selectedCategory !== "" || minLevel !== "" || maxLevel !== "" || selectedSource !== "ALL" || searchQuery !== "";
 
-    const filtered = quests.filter(q => {
-        // Search query
-        const matchSearch = searchQuery === "" ||
-            q.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            (q.category || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
-            (q.dofusDbId?.toString() || "").includes(searchQuery);
-
-        // Category/Zone
-        const matchCategory = selectedCategory === "" || q.category === selectedCategory;
-
-        // Level bounds
-        const qMin = q.levelMin ?? 1;
-        const passMin = minLevel === "" || qMin >= Number(minLevel);
-        const passMax = maxLevel === "" || qMin <= Number(maxLevel);
-
-        // Source filter
-        const isDofusDb = q.dofusDbId !== null && q.dofusDbId !== undefined;
-        const matchSource = selectedSource === "ALL" ||
-            (selectedSource === "DOFUSDB" && isDofusDb) ||
-            (selectedSource === "MANUAL" && !isDofusDb);
-
-        return matchSearch && matchCategory && passMin && passMax && matchSource;
-    });
-
-    const hasActiveFilters = selectedCategory !== "" || minLevel !== "" || maxLevel !== "" || selectedSource !== "ALL" || searchQuery !== "";
-
-    // Group by category
-    const categories = [...new Set(filtered.map(q => q.category || "Non classé"))].sort();
+    /**
+     * Les quêtes ne sont **plus** filtrées ici : le serveur le fait (`buildGameQuestWhere`,
+     * `src/lib/game-quests-filter.ts`) et n'envoie qu'une page. On ne fait plus que **grouper la
+     * page reçue**. Catégories et compteurs viennent du serveur : un en-tête de groupe annonce donc
+     * le **vrai** total (jamais « 48 » pour une catégorie de 300).
+     */
+    const visibleCategories = [...new Set(quests.map(q => q.category || "Non classé"))].sort();
 
     return (
         <div className="space-y-4">
@@ -213,7 +232,7 @@ export default function GameQuestManager() {
                             className="w-full bg-elevated border border-border/60 rounded-md px-3 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring/40 focus:border-info cursor-pointer"
                         >
                             <option value="">Toutes les zones</option>
-                            {allCategories.map(cat => (
+                            {categories.map(cat => (
                                 <option key={cat} value={cat}>{cat}</option>
                             ))}
                         </select>
@@ -282,18 +301,18 @@ export default function GameQuestManager() {
 
             {loading ? (
                 <div className="p-12 text-center text-muted-foreground animate-pulse">Chargement...</div>
-            ) : filtered.length === 0 ? (
+            ) : quests.length === 0 ? (
                 <div className="p-12 text-center text-muted-foreground border border-dashed border-border rounded-lg">
                     Aucune quête trouvée
                 </div>
             ) : (
                 <div className="space-y-6">
-                    {categories.map(cat => {
-                        const items = filtered.filter(q => (q.category || "Non classé") === cat);
+                    {visibleCategories.map(cat => {
+                        const items = quests.filter(q => (q.category || "Non classé") === cat);
                         return (
                             <div key={cat}>
                                 <h3 className="text-xs font-black uppercase tracking-widest text-info mb-3 flex items-center gap-2 border-b border-border pb-2">
-                                    <Map className="w-3 h-3" /> {cat} ({items.length})
+                                    <Map className="w-3 h-3" /> {cat} ({categoryCounts[cat] ?? items.length})
                                 </h3>
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                                     {items.map(quest => (
@@ -455,6 +474,34 @@ export default function GameQuestManager() {
                     })}
                 </div>
             )}
+
+            {/* 🧵 Pagination : la liste ne descend plus entière dans le navigateur (c'était la
+                cause du « beaucoup de chargement »). Le bouton n'apparaît que s'il reste des
+                quêtes, et il annonce toujours le rapport affichées / total. */}
+            {loadingMore || hasMore ? (
+                <div className="flex flex-col items-center gap-2 pt-2">
+                    <p className="text-caption text-muted-foreground">
+                        {quests.length} affichée(s) sur {total}
+                    </p>
+                    <Button
+                        variant="outline"
+                        onClick={() => { void loadQuests(loadedPage + 1); }}
+                        disabled={loadingMore}
+                        className="font-bold"
+                    >
+                        {loadingMore ? (
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        ) : (
+                            <ChevronDown className="w-4 h-4 mr-2" />
+                        )}
+                        Charger la suite
+                    </Button>
+                </div>
+            ) : quests.length > 0 ? (
+                <p className="pt-2 text-center text-caption text-muted-foreground">
+                    {total} quête{total > 1 ? "s" : ""} — tout est affiché.
+                </p>
+            ) : null}
 
             {/* Form Dialog */}
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>

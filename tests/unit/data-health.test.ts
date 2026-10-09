@@ -11,6 +11,7 @@ const mockMonsterStatFindMany = vi.fn();
 const mockDofensiveMapFindMany = vi.fn();
 const mockGameItemCount = vi.fn();
 const mockGameItemFindFirst = vi.fn();
+const mockGetGameDataRunStates = vi.fn();
 vi.mock("@/lib/prisma", () => ({
     db: {
         dungeon: { findMany: (...args: any[]) => mockDungeonFindMany(...args) },
@@ -33,6 +34,11 @@ vi.mock("@/lib/cron-telemetry", () => ({
         { id: "sync_monster_stats", lastRun: "2026-09-09T03:45:00.000Z" },
         { id: "sync_dofensive_maps", lastRun: null },
     ]),
+}));
+
+// 🔎 Dernier run **suivi** (store Redis) : mocké — le test ne doit toucher ni Redis ni réseau.
+vi.mock("@/server/game-data-sync-state-store", () => ({
+    getGameDataRunStates: (...args: any[]) => mockGetGameDataRunStates(...args),
 }));
 
 vi.mock("@/lib/dofus-asset-siphon", () => ({
@@ -81,6 +87,9 @@ const iso = (ms: number) => new Date(ms).toISOString();
 
 beforeEach(() => {
     vi.clearAllMocks();
+    // Défaut : aucun run suivi en mémoire (la ligne doit alors dire « — » / « script local »,
+    // jamais un faux « Jamais »).
+    mockGetGameDataRunStates.mockResolvedValue([]);
 });
 
 describe("buildBossFicheGaps (pur)", () => {
@@ -193,5 +202,44 @@ describe("getDataHealthOverview (action, mocks)", () => {
         const res = await getDataHealthOverview();
         expect(res.success).toBe(true);
         expect(res.data!.rows[4].fraicheur).toBe("non généré");
+    });
+
+    // ── Honnêteté de la colonne « Dernier run » (constat user du 10/10/2026) ────────────────
+    // « il est jamais iso, toujours des chiffres bizarres partout » : trois lignes affichaient
+    // « Jamais » **en dur** alors que la passe avait tourné (items, catalogue) ou n'existe pas
+    // (récoltables = script local, stockage = compteurs disque/BDD).
+
+    it("les lignes sans passe disent POURQUOI (`script local` / `—`), jamais « Jamais »", async () => {
+        mockAll();
+        const res = await getDataHealthOverview();
+        const rows = res.data!.rows;
+        expect(rows[5].dernierRun).toBeNull();
+        expect(rows[5].dernierRunNote).toBe("script local");
+        expect(rows[6].dernierRun).toBeNull();
+        expect(rows[6].dernierRunNote).toBe("—");
+    });
+
+    it("« Items BDD » et « Catalogue JSON » affichent le vrai dernier run suivi", async () => {
+        mockAll();
+        mockGetGameDataRunStates.mockResolvedValue([
+            { dataset: "ITEMS", finishedAt: "2026-10-09T10:00:00.000Z" },
+            { dataset: "CATALOGUE", finishedAt: "2026-10-08T10:00:00.000Z" },
+        ]);
+        const res = await getDataHealthOverview();
+        const rows = res.data!.rows;
+        expect(rows[3].dernierRun).toBe("2026-10-09T10:00:00.000Z");
+        expect(rows[4].dernierRun).toBe("2026-10-08T10:00:00.000Z");
+    });
+
+    it("« Récoltables » nomme le script local quand le JSON est vide (des zéros ne disent rien)", async () => {
+        mockAll();
+        const { getHarvestResourcesSummary } = await import("@/server/actions/game-data-actions");
+        (getHarvestResourcesSummary as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+            success: true,
+            data: { resources: [], jobs: [1], spots: [] },
+        });
+        const res = await getDataHealthOverview();
+        expect(res.data!.rows[5].couverture).toContain("non généré");
+        expect(res.data!.rows[5].couverture).toContain("script local");
     });
 });

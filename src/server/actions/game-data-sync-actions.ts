@@ -24,9 +24,8 @@ type ActionResponse<T = void> = {
 
 import {
     GAME_DATA_DATASETS,
-    isStaleRun,
     isWatchedDataset,
-    STALE_RUN_MESSAGE,
+    staleRunVerdict,
     type GameDataDataset,
     type GameDataRunState,
 } from "@/lib/game-data-sync-state";
@@ -69,10 +68,12 @@ function isDataset(value: unknown): value is GameDataDataset {
  * État de tous les datasets (jamais `null` : un dataset jamais lancé est `IDLE`).
  *
  * 🔭 **Auto-réparation** (incident du 24/09/2026 : « En cours · il y a 1 h » alors que rien
- * ne tournait) : un état `RUNNING` **trop vieux** est confronté à la file — s'il n'y a
- * aucun job en vol, la passe est morte et on le **dit** (et on l'écrit, pour que le mensonge
- * ne réapparaisse pas au rafraîchissement suivant). Les datasets lancés « dans l'onglet »
- * (sans file) ne sont jamais contredits par ce contrôle.
+ * ne tournait) : un état `RUNNING` **périmé** est confronté à ce qu'il implique — un dataset
+ * d'arrière-plan est confronté à la **file** (un job peut vivre), un dataset « dans l'onglet »
+ * est **tranché sans file** (il n'en a pas : c'est la fermeture de l'onglet qui a tué la passe —
+ * incident du 10/10/2026, la ligne restait « En cours » pour toujours). Dans les deux cas on le
+ * **dit** (et on l'écrit, pour que le mensonge ne réapparaisse pas au rafraîchissement suivant).
+ * Le verdict vient de `staleRunVerdict` (module pur, une seule règle) ; le patch écrit, du store.
  */
 export async function getGameDataSyncStates(): Promise<ActionResponse<GameDataRunState[]>> {
     if (!(await canAccessGameData())) return { success: false, error: "Non autorisé" };
@@ -80,20 +81,16 @@ export async function getGameDataSyncStates(): Promise<ActionResponse<GameDataRu
         const states = await getGameDataRunStates();
         const reconciled = await Promise.all(
             states.map(async (state) => {
-                if (!isBackgroundDataset(state.dataset) || !isStaleRun(state)) return state;
-                const job = await gameDataQueue.getJob(`game-data-${state.dataset}`).catch(() => null);
-                const inFlight = job ? isJobInFlight(await job.getState().catch(() => null)) : false;
-                if (inFlight) return state;
-                await markGameDataRunStale(state.dataset);
-                return {
-                    ...state,
-                    status: "ERROR" as const,
-                    message: STALE_RUN_MESSAGE,
-                    finishedAt: new Date().toISOString(),
-                    lastError: "État périmé : aucun job en file (passe interrompue).",
-                    // Causes de la passe précédente : elles ne décrivent pas cet échec-là.
-                    errorGroups: null,
-                };
+                const verdict = staleRunVerdict(state);
+                if (verdict === "NONE") return state;
+                if (verdict === "QUEUE") {
+                    const job = await gameDataQueue.getJob(`game-data-${state.dataset}`).catch(() => null);
+                    const inFlight = job ? isJobInFlight(await job.getState().catch(() => null)) : false;
+                    if (inFlight) return state;
+                }
+                // Le store écrit le patch complet (message adapté au mode : onglet vs file) et le
+                // renvoie : une seule vérité, aucun libellé recopié ici.
+                return await markGameDataRunStale(state.dataset);
             }),
         );
         return { success: true, data: reconciled };

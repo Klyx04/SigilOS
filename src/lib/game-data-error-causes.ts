@@ -238,3 +238,26 @@ export function normalizeGameDataErrorGroups(value: unknown): GameDataErrorGroup
     }
     return out.length > 0 ? capGameDataErrorGroups(out) : null;
 }
+
+/**
+ * 🌐 **Erreur de transport d'une server action** — Next rend une phrase **anglaise opaque** quand
+ * l'appel échoue au niveau du transport (serveur redémarré, requête coupée, exception hors
+ * enveloppe) au lieu de renvoyer une `ActionResponse`. La passe « dans l'onglet » la remontait
+ * **telle quelle** dans `lastError`, et le God lisait « An unexpected response was received from
+ * the server » — un texte qui ne dit ni **pourquoi** ni **quoi faire** (capture du 10/10/2026 :
+ * « Items & ressources · Échec · 750 item(s) analysé(s) · An unexpected response… »).
+ *
+ * Ici on la **traduit en consigne** : c'est la seule chose utile qu'on puisse en tirer (aucune
+ * exception JS ne l'accompagne). `null` = ce n'est pas cette erreur ⇒ l'appelant garde son message.
+ *
+ * ⚠️ Volontairement **sans cause affirmée** : on ne prétend pas savoir si le serveur a redémarré
+ * ou si l'appel a été coupé — on dit ce qui est vrai (aucune réponse rendue) et quoi faire.
+ */
+export function describeGameDataTransportError(message: unknown): string | null {
+    const text = typeof message === "string" ? message.trim() : "";
+    if (!/unexpected response was received from the server/i.test(text)) return null;
+    return (
+        "Aucune réponse du serveur pour ce lot (appel d'action interrompu — serveur redémarré ou " +
+        "requête coupée). Relancez le siphon : « En arrière-plan » survit à la fermeture de l'onglet."
+    );
+}

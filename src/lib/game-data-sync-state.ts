@@ -224,6 +224,42 @@ export function isStaleRun(state: Pick<GameDataRunState, "dataset" | "status" | 
 /** Message unique affiché quand une passe est déclarée morte (le God comprend quoi faire). */
 export const STALE_RUN_MESSAGE = "Passe interrompue : aucun job en file — relancez le siphon.";
 
+/**
+ * Message affiché quand une passe **dans l'onglet** est déclarée morte (dataset `INLINE`) : il
+ * n'y a **pas** de file à interroger — la seule cause possible est l'onglet fermé (ou la
+ * navigation) avant la fin. « Aucun job en file » serait faux, on ne le dit donc pas.
+ */
+export const INTERRUPTED_RUN_MESSAGE =
+    "Passe interrompue : l'onglet a été fermé avant la fin — relancez le siphon.";
+
+/** Détail (`lastError`) qui accompagne `INTERRUPTED_RUN_MESSAGE`. */
+export const INTERRUPTED_RUN_ERROR =
+    "État périmé : la passe vivait dans l'onglet (aucune file en arrière-plan).";
+
+/** Ce qu'un état `RUNNING` périmé **prouve** — voir `staleRunVerdict`. */
+export type StaleRunVerdict = "NONE" | "QUEUE" | "INTERRUPTED";
+
+/**
+ * Que conclure d'un état `RUNNING` périmé (`isStaleRun`) ?
+ *   · `QUEUE`       — dataset d'arrière-plan : un job peut vivre ⇒ confronter à la file ;
+ *   · `INTERRUPTED` — dataset `INLINE` : **aucune file n'existe** ⇒ périmé = onglet fermé ;
+ *   · `NONE`        — pas périmé, ou dataset sans passe en ligne (`SCRIPT`).
+ *
+ * 🐛 Mesure du 10/10/2026 (capture God : « Images WebP · En cours · 96 % (95/99) · il y a 11 h »
+ * alors que rien ne tournait, et qui survivait au changement de page) : le contrôle ne
+ * s'appliquait qu'aux datasets d'arrière-plan (le `!isBackgroundDataset(...)` était évalué en
+ * premier) ⇒ un dataset `INLINE` restait `RUNNING` **pour toujours** après la fermeture de
+ * l'onglet. C'est cette fonction qui tranche, une seule fois, pour le store comme pour le Tableau.
+ */
+export function staleRunVerdict(
+    state: Pick<GameDataRunState, "dataset" | "status" | "startedAt">,
+    now = Date.now(),
+): StaleRunVerdict {
+    if (!isStaleRun(state, now)) return "NONE";
+    if (isBackgroundDataset(state.dataset)) return "QUEUE";
+    return isInlineDataset(state.dataset) ? "INTERRUPTED" : "NONE";
+}
+
 /** Pourcentage borné 0-100, `null` si le total est inconnu ou nul. */
 export function computePercent(done: number, total: number | null | undefined): number | null {
     if (total === null || total === undefined || total <= 0) return null;

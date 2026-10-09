@@ -993,6 +993,32 @@ export async function getIgnoredBountiesAction(): Promise<ActionResponse<{ entri
 }
 
 /**
+ * Lignes `Bounty` **orphelines** (ni dans les 5 races DofusDB, ni exclues) — revue God.
+ * Source : l'instantané écrit par les passes COMPLÈTES (cron phase 4, worker BOUNTIES),
+ * `null` tant qu'aucune passe complète n'a tourné. L'exclusion en masse passe par
+ * `deleteBountyAction` (déjà testée), ligne par ligne ou en boucle côté client.
+ */
+export async function getBountyOrphansAction(): Promise<ActionResponse<{
+    orphans: { id: string; dofusdbId: number | null; name: string; slug: string }[];
+    total: number;
+    updatedAt: string | null;
+}>> {
+    try {
+        const userId = await requireGameDataBounties();
+        if (!userId) return { success: false, error: "Accès refusé" };
+        const { getBountyOrphansSnapshot } = await import("@/server/game-data-sync-state-store");
+        const snapshot = await getBountyOrphansSnapshot();
+        return {
+            success: true,
+            data: snapshot ?? { orphans: [], total: 0, updatedAt: null },
+        };
+    } catch (error: any) {
+        logger.error('[getBountyOrphansAction] Error:', error);
+        return { success: false, error: error?.message || 'Erreur de lecture des orphelins' };
+    }
+}
+
+/**
  * Supprime un avis de recherche : la ligne `Bounty` (+ sa fiche `MonsterStat`) est retirée **et**
  * l'id entre dans la **liste d'exclusion** ⇒ le siphon ne le recrée pas à la passe suivante
  * (sans cette liste, la suppression serait annulée chaque nuit).

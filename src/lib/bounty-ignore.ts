@@ -12,6 +12,11 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { logger } from "@/lib/logger";
+import { normalizeBountyName } from "@/lib/bounty";
+
+/** Réexport des versions pures (`bounty.ts`, client-safe) : une seule implémentation. */
+export { normalizeBountyName, filterVisibleBountyOrphans } from "@/lib/bounty";
+export type { BountyOrphanView } from "@/lib/bounty";
 
 /** Emplacement du fichier d'exclusion (relatif au `cwd`, comme les autres datasets de jeu). */
 export const IGNORED_BOUNTIES_PATH = join(process.cwd(), "public", "game-data", "ignored-bounties.json");
@@ -76,10 +81,7 @@ export function normalizeIgnoredBounties(entries: unknown): IgnoredBountyEntry[]
     return [...byKey.values()].sort((a, b) => a.dofusdbId - b.dofusdbId);
 }
 
-/** Normalisation d'un nom d'avis pour la comparaison (casse + espaces). */
-export function normalizeBountyName(name: string | null | undefined): string {
-    return String(name ?? "").trim().toLowerCase().replace(/\s+/g, " ");
-}
+/** `filterVisibleBountyOrphans` vit dans `bounty.ts` (pur, client-safe) — voir ce module. */
 
 /** Sérialise la liste d'exclusion (fichier lisible et versionnable, comme les autres datasets). */
 export function serializeIgnoredBounties(entries: unknown, updatedAt?: Date | string | null): string {
@@ -174,3 +176,5 @@ export function isIgnoredBountyName(name: string | null | undefined, ignoredName
     if (!target) return false;
     return (ignoredNames ?? getIgnoredBountyNames()).includes(target);
 }
+// Note : `BountyOrphanView` + `filterVisibleBountyOrphans` vivent dans `bounty.ts`
+// (pur, client-safe) et sont réexportés en tête de ce fichier — une seule implémentation.

@@ -59,7 +59,8 @@ describe("avis de recherche — un seul rail de synchronisation", () => {
         expect(page).toContain('runInlineGameDataDataset("BOUNTIES"');
         expect(page).not.toContain("syncBountiesCompleteFromDofusDb");
         // Une seule implémentation : la page ne ré-écrit ni la boucle des races ni l'appel du rail.
-        expect(page).not.toContain("BOUNTY_RACE_IDS");
+        // 🔶 B2 (09/10/2026) — `BOUNTY_RACE_IDS` peut alimenter le FILTRE d'affichage (pastilles
+        // de type) : ce qui reste interdit, c'est d'appeler le rail depuis la page.
         expect(page).not.toContain("siphonBountiesRaceAction");
     });
 

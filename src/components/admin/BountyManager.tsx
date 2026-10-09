@@ -2,15 +2,14 @@
 
 import React, { useState, useEffect } from "react";
 import {
-    Search, Save, Info, Sparkles, Coins, ShieldAlert,
-    ArrowLeft, Loader2, Edit3, Image as ImageIcon,
-    Plus, Trash2, Map as MapIcon, SwatchBook,
-    Layers, Crosshair, ExternalLink, Copy, Check, MapPin, RotateCcw
+    Search, Save, Sparkles, Coins, ShieldAlert,
+    ArrowLeft, Loader2, Image as ImageIcon,
+    Plus, Trash2, SwatchBook,
+    Crosshair, ExternalLink, Copy, Check, MapPin, RotateCcw
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
@@ -22,10 +21,17 @@ import { ZoneLocationCard } from "@/components/worldmap/ZoneLocationCard";
 
 import { getAllBounties } from "@/server/actions/admin-actions";
 import { updateGodBountyRecord } from "@/server/actions/game-data-actions";
-import { deleteBountyAction, getIgnoredBountiesAction, restoreBountyAction } from "@/server/actions/game-data-admin-actions";
+import { deleteBountyAction, getBountyOrphansAction, getIgnoredBountiesAction, restoreBountyAction } from "@/server/actions/game-data-admin-actions";
 // 🔗 Une seule implémentation du siphon d'avis (courses + suivi d'état serveur) :
 // `src/components/admin/game-data-inline-runners.ts` — la même que le Tableau.
 import { runInlineGameDataDataset } from "@/components/admin/game-data-inline-runners";
+// Règles pures (client-safe) : types d'avis + visibilité des orphelins.
+import {
+    BOUNTY_RACE_IDS,
+    bountyRaceShortLabel,
+    filterVisibleBountyOrphans,
+    type BountyOrphanView,
+} from "@/lib/bounty";
 
 const REWARD_TYPES = [
     { id: "Aliton", label: "Alitons", icon: "/assets/avis/aliton.png" },
@@ -97,6 +103,13 @@ export default function BountyManager() {
     const [subareaNames, setSubareaNames] = useState<string[]>([]);
     const [zoneSearch, setZoneSearch] = useState('');
     const [zoneOpen, setZoneOpen] = useState(false);
+    /* Filtre par type d'avis (5 races DofusDB, `null` = toutes). */
+    const [raceFilter, setRaceFilter] = useState<number | null>(null);
+    /* Orphelins (lignes hors races, instantané du siphon) : revue + exclusion en masse. */
+    const [orphans, setOrphans] = useState<BountyOrphanView[]>([]);
+    const [orphansTotal, setOrphansTotal] = useState(0);
+    const [orphansUpdatedAt, setOrphansUpdatedAt] = useState<string | null>(null);
+    const [excludingAll, setExcludingAll] = useState(false);
 
     // Load worldmap subarea names client-side (public file, no server action needed)
     useEffect(() => {
@@ -123,15 +136,26 @@ export default function BountyManager() {
         getIgnoredBountiesAction().then(res => {
             if (res.success && res.data) setIgnoredEntries(res.data.entries);
         }).catch(() => {});
+        /* Orphelins (snapshot des passes complètes) — silencieux lui aussi. */
+        getBountyOrphansAction().then(res => {
+            if (res.success && res.data) {
+                setOrphans(res.data.orphans);
+                setOrphansTotal(res.data.total);
+                setOrphansUpdatedAt(res.data.updatedAt);
+            }
+        }).catch(() => {});
     }, []);
 
     useEffect(() => {
-        const filtered = bounties.filter(b =>
-            b.name.toLowerCase().includes(search.toLowerCase()) ||
-            (b.zoneName && b.zoneName.toLowerCase().includes(search.toLowerCase()))
+        const q = search.toLowerCase();
+        setFilteredBounties(
+            bounties.filter(b =>
+                (raceFilter === null || Math.floor(Number(b.raceId) || 0) === raceFilter) &&
+                (b.name.toLowerCase().includes(q) ||
+                    (b.zoneName && b.zoneName.toLowerCase().includes(q)))
+            )
         );
-        setFilteredBounties(filtered);
-    }, [search, bounties]);
+    }, [search, bounties, raceFilter]);
 
     const handleSelectBounty = (b: any) => {
         let rewards = b.rewards;
@@ -237,6 +261,88 @@ export default function BountyManager() {
     };
 
     /**
+     * Orphelins encore visibles : l'instantané moins ce qui vient d'être exclu (la passe
+     * complète suivante recalcule — entre-temps, on ne remontre pas le travail déjà fait).
+     */
+    const visibleOrphans = filterVisibleBountyOrphans(
+        orphans,
+        ignoredEntries.map((e) => e.dofusdbId),
+        ignoredEntries.map((e) => e.name),
+    );
+
+    /**
+     * Exclut TOUS les orphelins visibles (suppression + exclusion durable, comme
+     * `handleDeleteBounty` mais en boucle) : c'est le nettoyage du stock historique en
+     * un clic. Borné à l'affichage (l'instantané est déjà plafonné à 100).
+     *
+     * 🛡️ Garde curation : une ligne orpheline qui porte une curation God (texte, position,
+     * milice, récompenses…) est CONSERVÉE et signalée — seul un humain peut arbitrer sa
+     * suppression, jamais un clic de masse.
+     */
+    const handleExcludeAllOrphans = async () => {
+        if (visibleOrphans.length === 0 || excludingAll) return;
+        const confirmed = confirm(
+            `Exclure ${visibleOrphans.length} ligne(s) orpheline(s) ?\n\n` +
+            "Elles seront supprimées ET exclues du siphon (restaurables depuis « Avis supprimés »)."
+        );
+        if (!confirmed) return;
+        setExcludingAll(true);
+        try {
+            // L'id God (`Bounty.id`) est retrouvé par `dofusdbId`, sinon par nom exact.
+            const idByDofusdbId = new Map<number, string>();
+            const idByName = new Map<string, string>();
+            for (const b of bounties) {
+                const did = Math.floor(Number(b.dofusdbId) || 0);
+                if (did > 0 && !idByDofusdbId.has(did)) idByDofusdbId.set(did, String(b.id));
+                const n = String(b.name ?? "").trim().toLowerCase();
+                if (n && !idByName.has(n)) idByName.set(n, String(b.id));
+            }
+            let done = 0;
+            const kept: string[] = [];
+            for (const orphan of visibleOrphans) {
+                const targetId = (orphan.dofusdbId && orphan.dofusdbId > 0
+                    ? idByDofusdbId.get(orphan.dofusdbId)
+                    : undefined) ?? idByName.get(orphan.name.trim().toLowerCase());
+                if (!targetId) continue;
+                const row = bounties.find((b) => String(b.id) === String(targetId));
+                // 🛡️ Curation God = arbitrage humain uniquement : on ne touche pas.
+                const curated = row != null && (
+                    ["mechanics", "position", "milice", "dpnlUrl", "mapUrl", "reward"].some((k) =>
+                        String(row?.[k] ?? "").trim() !== ""
+                    ) ||
+                    (Array.isArray(row?.rewards) && row.rewards.length > 0) ||
+                    Number(row?.doplons) > 0
+                );
+                if (curated) {
+                    kept.push(orphan.name);
+                    continue;
+                }
+                const res = await deleteBountyAction(targetId);
+                if (res.success && res.data) {
+                    done++;
+                    setIgnoredEntries(res.data.entries);
+                    setBounties((prev) => prev.filter((b) => String(b.id) !== String(targetId)));
+                    if (selectedBounty && String(selectedBounty.id) === String(targetId)) setSelectedBounty(null);
+                }
+            }
+            // L'instantané sera recalculé à la prochaine passe complète : on retire
+            // localement ce qui vient d'être exclu (voir `visibleOrphans`).
+            if (kept.length > 0) {
+                toast.success(
+                    `${done} ligne(s) exclue(s), ${kept.length} conservée(s) (curation à arbitrer)`,
+                    { description: kept.slice(0, 3).join(", ") + (kept.length > 3 ? "…" : "") }
+                );
+            } else {
+                toast.success(done > 0 ? `${done} ligne(s) exclue(s) du siphon` : "Aucune ligne exclue");
+            }
+        } catch {
+            toast.error("Erreur de connexion");
+        } finally {
+            setExcludingAll(false);
+        }
+    };
+
+    /**
      * Synchronise **tous** les avis par le **rail unique** — `runInlineGameDataDataset("BOUNTIES")` :
      * les 5 races d'avis DofusDB, race par race, avec suivi d'état serveur (la colonne
      * « Progression » du Tableau reste vraie quelle que soit la porte d'entrée).
@@ -275,9 +381,9 @@ export default function BountyManager() {
 
     if (loading) {
         return (
-            <div className="flex min-h-[16rem] items-center justify-center gap-3 rounded-2xl border border-white/10 bg-black/20">
-                <Loader2 className="animate-spin text-amber-500" size={28} />
-                <span className="text-caption font-black uppercase tracking-widest text-zinc-500">
+            <div className="flex min-h-[16rem] items-center justify-center gap-3 rounded-xl border border-border bg-surface">
+                <Loader2 className="animate-spin text-accent" size={24} />
+                <span className="text-xs font-semibold text-muted-foreground">
                     Chargement des avis…
                 </span>
             </div>
@@ -285,110 +391,186 @@ export default function BountyManager() {
     }
 
     return (
-        <div className="overflow-hidden rounded-2xl border border-white/10 bg-black/20">
+        <div className="overflow-hidden rounded-xl border border-border bg-surface">
             {/* Barre d'outils — l'onglet « Avis de recherche » des Éditeurs porte déjà le titre et sa
-                légende : ici, les compteurs et les deux actions, rien de plus. */}
-            <header className="flex flex-col gap-3 border-b border-white/5 p-3 sm:flex-row sm:items-center sm:justify-between sm:p-4">
-                <p className="text-caption font-black uppercase tracking-widest text-zinc-500">
-                    {filteredBounties.length === bounties.length
-                        ? `${bounties.length} avis`
-                        : `${filteredBounties.length} / ${bounties.length} avis`}
-                    {ignoredEntries.length > 0 ? ` · ${ignoredEntries.length} supprimé(s)` : ""}
-                </p>
+                légende : ici, les compteurs, le filtre par type et les deux actions, rien de plus. */}
+            <header className="flex flex-col gap-3 border-b border-border p-3 sm:p-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <p className="text-xs font-semibold text-muted-foreground">
+                        {filteredBounties.length === bounties.length
+                            ? `${bounties.length} avis`
+                            : `${filteredBounties.length} / ${bounties.length} avis`}
+                        {ignoredEntries.length > 0 ? ` · ${ignoredEntries.length} supprimé(s)` : ""}
+                        {visibleOrphans.length > 0 ? ` · ${visibleOrphans.length} orphelin(s)` : ""}
+                    </p>
 
-                <div className="flex items-center gap-3">
-                    <Button
-                        onClick={handleSyncAllBounties}
-                        disabled={syncingAll}
-                        className="bg-amber-500 hover:bg-amber-400 text-black font-bold uppercase italic text-xs h-10 px-4 rounded-xl flex items-center gap-2 shadow-lg shadow-amber-500/20"
-                    >
-                        {syncingAll ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
-                        {syncingAll ? (syncProgress ?? "Synchronisation…") : "Sync & remplir tous les avis"}
-                    </Button>
+                    <div className="flex items-center gap-2">
+                        <Button
+                            onClick={handleSyncAllBounties}
+                            disabled={syncingAll}
+                            className="bg-accent text-accent-foreground hover:opacity-90 h-9 px-3 rounded-lg flex items-center gap-2 text-xs font-semibold"
+                        >
+                            {syncingAll ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
+                            {syncingAll ? (syncProgress ?? "Synchronisation…") : "Sync & remplir tous les avis"}
+                        </Button>
 
-                    <div className="relative w-full sm:w-72 group">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-600 group-focus-within:text-amber-500 transition-colors" size={16} />
-                        <Input
-                            placeholder="Rechercher une cible..."
-                            value={search}
-                            onChange={(e) => setSearch(e.target.value)}
-                            className="pl-10 bg-white/5 border-white/5 text-white font-bold italic h-10 rounded-xl focus-visible:ring-amber-500/50 group-hover:bg-white/[0.07] transition-all"
-                        />
+                        <div className="relative w-full sm:w-64">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={14} />
+                            <Input
+                                placeholder="Rechercher une cible…"
+                                value={search}
+                                onChange={(e) => setSearch(e.target.value)}
+                                className="pl-9 bg-surface border-border h-9 rounded-lg text-sm placeholder:text-muted-foreground/60"
+                            />
+                        </div>
                     </div>
+                </div>
+
+                {/* Filtre par type d'avis (5 races DofusDB). */}
+                <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Filtrer par type d'avis">
+                    <button
+                        type="button"
+                        onClick={() => setRaceFilter(null)}
+                        className={cn(
+                            "px-2.5 py-1 rounded-md text-xs font-semibold border transition-colors",
+                            raceFilter === null
+                                ? "bg-accent text-accent-foreground border-transparent"
+                                : "border-border text-muted-foreground hover:text-foreground"
+                        )}
+                    >
+                        Tous
+                    </button>
+                    {BOUNTY_RACE_IDS.map((id) => (
+                        <button
+                            key={id}
+                            type="button"
+                            onClick={() => setRaceFilter(raceFilter === id ? null : (id as number))}
+                            className={cn(
+                                "px-2.5 py-1 rounded-md text-xs font-semibold border transition-colors",
+                                raceFilter === id
+                                    ? "bg-accent text-accent-foreground border-transparent"
+                                    : "border-border text-muted-foreground hover:text-foreground"
+                            )}
+                        >
+                            {bountyRaceShortLabel(id as number)}
+                        </button>
+                    ))}
                 </div>
             </header>
 
             <div className="flex min-h-[32rem] flex-col overflow-hidden lg:h-[38rem] lg:flex-row">
                 {/* Bounty List */}
                 <div className={cn(
-                    "w-full lg:w-[380px] border-r border-white/5 overflow-y-auto p-4 sm:p-6 space-y-3 bg-black/20 shrink-0 custom-scrollbar transition-all duration-300",
+                    "w-full lg:w-[360px] border-r border-border overflow-y-auto p-3 space-y-2 bg-surface/60 shrink-0",
                     selectedBounty && "hidden lg:block"
                 )}>
-                    {filteredBounties.map(b => (
-                        <button
-                            key={b.id}
-                            onClick={() => handleSelectBounty(b)}
-                            className={cn(
-                                "w-full flex items-center gap-4 p-4 rounded-2xl transition-all text-left group border relative overflow-hidden",
-                                selectedBounty?.id === b.id
-                                    ? 'bg-amber-500/10 border-amber-500/40 '
-                                    : 'bg-white/[0.02] border-white/5 hover:bg-white/5 hover:border-white/10'
-                            )}
-                        >
-                            <div className="w-14 h-14 rounded-xl bg-black/60 flex items-center justify-center overflow-hidden border border-white/10 shrink-0 group- transition-transform relative z-10">
-                                <BountyPortrait
-                                    bounty={b}
-                                    className="w-12 h-12 object-contain"
-                                    fallback={<ShieldAlert size={24} className="text-zinc-800" />}
-                                />
+                    {filteredBounties.map(b => {
+                        const raceId = Math.floor(Number(b.raceId) || 0);
+                        return (
+                            <button
+                                key={b.id}
+                                onClick={() => handleSelectBounty(b)}
+                                className={cn(
+                                    "w-full flex items-center gap-3 p-3 rounded-xl transition-colors text-left border",
+                                    selectedBounty?.id === b.id
+                                        ? "border-accent/60 bg-elevated"
+                                        : "bg-surface border-border hover:border-accent/40"
+                                )}
+                            >
+                                <div className="w-11 h-11 rounded-lg bg-elevated flex items-center justify-center overflow-hidden border border-border shrink-0">
+                                    <BountyPortrait
+                                        bounty={b}
+                                        className="w-10 h-10 object-contain"
+                                        fallback={<ShieldAlert size={20} className="text-muted-foreground/50" />}
+                                    />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <p className={cn(
+                                        "text-sm font-semibold truncate",
+                                        selectedBounty?.id === b.id ? "text-accent" : "text-foreground"
+                                    )}>
+                                        {b.name}
+                                    </p>
+                                    <p className="text-xs text-muted-foreground truncate mt-0.5">
+                                        {raceId > 0 ? `${bountyRaceShortLabel(raceId, b.raceName)} · ` : ""}
+                                        {b.zoneName || "Zone non exposée"}
+                                    </p>
+                                </div>
+                                {b.mechanics && (
+                                    <div className="w-1.5 h-1.5 rounded-full bg-accent shrink-0" title="Briefing renseigné" />
+                                )}
+                            </button>
+                        );
+                    })}
+
+                    {/* Orphelins : lignes hors races DofusDB — revue + exclusion en masse. */}
+                    {visibleOrphans.length > 0 && (
+                        <div className="mt-4 pt-4 border-t border-border space-y-2">
+                            <div className="flex items-center justify-between gap-2 px-1">
+                                <span className="text-xs font-semibold text-muted-foreground">
+                                    Orphelins ({visibleOrphans.length}{orphansTotal > visibleOrphans.length ? ` / ${orphansTotal}` : ""})
+                                </span>
+                                <button
+                                    type="button"
+                                    onClick={handleExcludeAllOrphans}
+                                    disabled={excludingAll}
+                                    className="shrink-0 flex items-center gap-1.5 px-2.5 h-8 rounded-lg border border-destructive/30 bg-destructive/5 text-destructive hover:bg-destructive/15 text-xs font-semibold transition-colors disabled:opacity-50"
+                                >
+                                    {excludingAll ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
+                                    Tout exclure
+                                </button>
                             </div>
-                            <div className="flex-1 min-w-0 relative z-10">
-                                <p className={cn(
-                                    "text-sm font-black uppercase italic truncate tracking-tight",
-                                    selectedBounty?.id === b.id ? "text-amber-400" : "text-zinc-200"
-                                )}>
-                                    {b.name}
-                                </p>
-                                <p className="text-caption font-bold text-zinc-500 truncate mt-1 flex items-center gap-2">
-                                    <MapIcon size={10} /> {b.zoneName || "Zone Inconnue"}
-                                </p>
-                            </div>
-                            {b.mechanics && (
-                                <div className="w-1 h-1 rounded-full bg-amber-500  relative z-10" />
-                            )}
-                            {selectedBounty?.id === b.id && (
-                                <div className="absolute right-0 top-0 bottom-0 w-1 bg-amber-500 " />
-                            )}
-                        </button>
-                    ))}
+                            <p className="px-1 text-xs text-muted-foreground leading-relaxed">
+                                Hors des 5 races DofusDB{orphansUpdatedAt ? ` (relevé ${new Date(orphansUpdatedAt).toLocaleDateString("fr-FR")})` : ""} : historique pré-siphon ou graines de pannes.
+                                L'exclusion est durable (restaurable ci-dessous).
+                            </p>
+                            {visibleOrphans.map((orphan) => (
+                                <div
+                                    key={orphan.id}
+                                    className="flex items-center gap-2 p-2.5 rounded-lg bg-surface border border-border"
+                                >
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-xs font-semibold text-foreground truncate">
+                                            {orphan.name || "Avis sans nom"}
+                                        </p>
+                                        <p className="text-xs text-muted-foreground font-mono mt-0.5">
+                                            {orphan.dofusdbId && orphan.dofusdbId > 0 ? `#${orphan.dofusdbId}` : "sans id DofusDB"}
+                                        </p>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
 
                     {ignoredEntries.length > 0 && (
-                        <div className="mt-6 pt-5 border-t border-white/5 space-y-3">
+                        <div className="mt-4 pt-4 border-t border-border space-y-2">
                             <div className="flex items-center gap-2 px-1">
-                                <Trash2 size={12} className="text-red-400/80" />
-                                <span className="text-caption font-black uppercase tracking-widest text-zinc-500 italic">
+                                <Trash2 size={12} className="text-muted-foreground" />
+                                <span className="text-xs font-semibold text-muted-foreground">
                                     Avis supprimés ({ignoredEntries.length})
                                 </span>
                             </div>
-                            <p className="px-1 text-caption text-zinc-600 leading-relaxed">
+                            <p className="px-1 text-xs text-muted-foreground leading-relaxed">
                                 Exclus du siphon : ils ne seront pas recréés à la prochaine synchronisation.
                                 « Restaurer » les réintègre (le siphon les réécrit ensuite).
                             </p>
                             {ignoredEntries.map(entry => (
                                 <div
-                                    key={entry.dofusdbId}
-                                    className="flex items-center gap-3 p-3 rounded-xl bg-red-500/[0.04] border border-red-500/15"
+                                    key={`${entry.dofusdbId}-${entry.name ?? "sans-nom"}`}
+                                    className="flex items-center gap-2 p-2.5 rounded-lg bg-surface border border-border"
                                 >
                                     <div className="flex-1 min-w-0">
-                                        <p className="text-caption font-black uppercase italic text-zinc-400 truncate">
+                                        <p className="text-xs font-semibold text-foreground truncate">
                                             {entry.name || "Avis sans nom"}
                                         </p>
-                                        <p className="text-caption text-zinc-600 font-mono mt-0.5">#{entry.dofusdbId}</p>
+                                        <p className="text-xs text-muted-foreground font-mono mt-0.5">
+                                            {entry.dofusdbId > 0 ? `#${entry.dofusdbId}` : "sans id DofusDB (exclusion par nom)"}
+                                        </p>
                                     </div>
                                     <button
                                         onClick={() => handleRestoreBounty(entry.dofusdbId, entry.name)}
                                         title="Réintégrer cet avis (le prochain siphon le recréera)"
-                                        className="shrink-0 flex items-center gap-1.5 px-3 h-8 rounded-lg border border-emerald-500/30 bg-emerald-500/5 text-emerald-400 hover:bg-emerald-500/15 text-caption font-black uppercase italic transition-all"
+                                        className="shrink-0 flex items-center gap-1.5 px-2.5 h-8 rounded-lg border border-border text-muted-foreground hover:text-foreground hover:border-accent/40 text-xs font-semibold transition-colors"
                                     >
                                         <RotateCcw size={12} /> Restaurer
                                     </button>
@@ -400,50 +582,50 @@ export default function BountyManager() {
 
                 {/* Editor Section */}
                 <div className={cn(
-                    "flex-1 overflow-y-auto bg-[#080808] custom-scrollbar transition-all duration-300",
+                    "flex-1 overflow-y-auto bg-surface",
                     !selectedBounty && "hidden lg:block"
                 )}>
                     {selectedBounty ? (
-                        <div className="p-4 sm:p-8 lg:p-12 max-w-5xl mx-auto space-y-8 lg:space-y-12">
-                            <div className="lg:hidden mb-4">
-                                <Button 
-                                    variant="ghost" 
+                        <div className="p-4 sm:p-6 max-w-4xl mx-auto space-y-6">
+                            <div className="lg:hidden">
+                                <Button
+                                    variant="ghost"
                                     onClick={() => setSelectedBounty(null)}
-                                    className="text-zinc-500 hover:text-white pl-0"
+                                    className="text-muted-foreground hover:text-foreground pl-0"
                                 >
                                     <ArrowLeft className="mr-2" size={16} /> Retour à la liste
                                 </Button>
                             </div>
 
-                            <Tabs defaultValue="general" className="space-y-8 lg:space-y-12">
-                                <div className="flex flex-col lg:flex-row lg:items-center justify-between sticky top-0 py-2 bg-[#080808] z-20 gap-4">
-                                    <TabsList className="bg-black/40 border border-white/5 p-1 h-auto lg:h-14 rounded-xl lg:rounded-2xl flex-wrap lg:flex-nowrap">
-                                        <TabsTrigger value="general" className="flex-1 lg:flex-none rounded-lg lg:rounded-xl px-4 lg:px-8 py-2 lg:py-0 font-black uppercase italic text-caption lg:text-caption tracking-widest data-[state=active]:bg-amber-500 data-[state=active]:text-black transition-all">
-                                            Config
+                            <Tabs defaultValue="general" className="space-y-6">
+                                <div className="flex flex-col lg:flex-row lg:items-center justify-between sticky top-0 py-2 bg-surface z-20 gap-3">
+                                    <TabsList className="bg-elevated border border-border p-1 h-10 rounded-lg">
+                                        <TabsTrigger value="general" className="rounded-md px-4 text-xs font-semibold data-[state=active]:bg-accent data-[state=active]:text-accent-foreground">
+                                            Configuration
                                         </TabsTrigger>
-                                        <TabsTrigger value="rewards" className="flex-1 lg:flex-none rounded-lg lg:rounded-xl px-4 lg:px-8 py-2 lg:py-0 font-black uppercase italic text-caption lg:text-caption tracking-widest data-[state=active]:bg-amber-500 data-[state=active]:text-black transition-all">
-                                            Rewards
+                                        <TabsTrigger value="rewards" className="rounded-md px-4 text-xs font-semibold data-[state=active]:bg-accent data-[state=active]:text-accent-foreground">
+                                            Récompenses
                                         </TabsTrigger>
-                                        <TabsTrigger value="mechanics" className="flex-1 lg:flex-none rounded-lg lg:rounded-xl px-4 lg:px-8 py-2 lg:py-0 font-black uppercase italic text-caption lg:text-caption tracking-widest data-[state=active]:bg-amber-500 data-[state=active]:text-black transition-all">
-                                            Briefing
+                                        <TabsTrigger value="mechanics" className="rounded-md px-4 text-xs font-semibold data-[state=active]:bg-accent data-[state=active]:text-accent-foreground">
+                                            Stratégie
                                         </TabsTrigger>
                                     </TabsList>
 
-                                    <div className="flex items-center gap-4">
+                                    <div className="flex items-center gap-2">
                                         <Button
                                             variant="outline"
                                             onClick={handleDeleteBounty}
                                             disabled={deleting || saving}
                                             title="Supprime cet avis et l'exclut du siphon (il ne sera pas recréé à la prochaine synchronisation)"
-                                            className="border-red-500/30 bg-red-500/5 hover:bg-red-500/15 text-red-400 hover:text-red-300 font-black uppercase italic h-14 px-6 rounded-2xl transition-all"
+                                            className="border-destructive/30 bg-destructive/5 hover:bg-destructive/15 text-destructive h-10 px-4 rounded-lg text-xs font-semibold"
                                         >
-                                            {deleting ? <Loader2 className="animate-spin mr-2" size={18} /> : <Trash2 className="mr-2" size={18} />}
+                                            {deleting ? <Loader2 className="animate-spin mr-2" size={16} /> : <Trash2 className="mr-2" size={16} />}
                                             Supprimer
                                         </Button>
                                         <Button
                                             onClick={handleSave}
                                             disabled={saving}
-                                            className="bg-amber-500 hover:bg-amber-600 text-black font-black uppercase italic px-12 h-14 rounded-2xl shadow-2xl shadow-amber-500/20 active:scale-95 transition-all"
+                                            className="bg-accent text-accent-foreground hover:opacity-90 px-6 h-10 rounded-lg text-xs font-semibold"
                                         >
                                             {saving ? <Loader2 className="animate-spin mr-2" /> : <Save className="mr-2" size={20} />}
                                             Mettre à jour
@@ -451,48 +633,47 @@ export default function BountyManager() {
                                     </div>
                                 </div>
 
-                                <TabsContent value="general" className="mt-0 space-y-12">
-                                    <div className="grid grid-cols-2 gap-12">
-                                        <div className="space-y-8">
-                                            <div className="grid grid-cols-1 gap-6">
-                                                <div className="space-y-3">
-                                                    <label className="text-caption font-black text-amber-500 uppercase tracking-widest italic ml-1 flex items-center gap-2 drop-shadow-sm">
-                                                        <Crosshair size={12} /> Portrait Cible
+                                <TabsContent value="general" className="mt-0">
+                                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                        <div className="space-y-5">
+                                            <div className="space-y-2">
+                                                    <label className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
+                                                        <Crosshair size={12} /> Portrait de la cible
                                                     </label>
-                                                    <button 
+                                                    <button
                                                         onClick={() => setGalleryOpen(true)}
-                                                        className="w-full aspect-square rounded-3xl bg-zinc-950/80 border border-white/10 flex items-center justify-center overflow-hidden relative group shadow-xl transition-all hover:border-amber-500/50"
+                                                        className="w-full aspect-square rounded-xl bg-elevated border border-border flex items-center justify-center overflow-hidden relative group hover:border-accent/40"
                                                     >
                                                         <BountyPortrait
                                                             bounty={selectedBounty}
-                                                            className="w-full h-full object-contain group- transition-transform duration-300"
-                                                            fallback={<ImageIcon size={48} className="text-zinc-700" />}
+                                                            className="w-full h-full object-contain"
+                                                            fallback={<ImageIcon size={40} className="text-muted-foreground/50" />}
                                                         />
                                                         <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2">
-                                                            <ImageIcon size={24} className="text-amber-500" />
-                                                            <span className="text-caption font-black uppercase tracking-widest text-white">Changer</span>
+                                                            <ImageIcon size={20} className="text-accent" />
+                                                            <span className="text-xs font-semibold text-white">Changer</span>
                                                         </div>
                                                     </button>
                                                     <div className="flex gap-2">
                                                         <Input
                                                             value={selectedBounty.imageUrl || ""}
                                                             onChange={(e) => setSelectedBounty({ ...selectedBounty, imageUrl: e.target.value })}
-                                                            placeholder="Portrait URL..."
-                                                            className="flex-1 bg-zinc-950/50 border-white/10 font-mono text-caption text-zinc-400 h-11 rounded-xl focus-visible:ring-amber-500/50"
+                                                            placeholder="URL du portrait…"
+                                                            className="flex-1 bg-surface border-border font-mono text-xs text-muted-foreground h-10 rounded-lg"
                                                         />
-                                                        <Button 
+                                                        <Button
                                                             onClick={() => setGalleryOpen(true)}
                                                             variant="outline"
-                                                            className="h-11 w-11 p-0 rounded-xl border-white/10 bg-zinc-950/50 hover:bg-amber-500 hover:text-black"
+                                                            className="h-10 w-10 p-0 rounded-lg"
                                                         >
-                                                            <SwatchBook size={18} />
+                                                            <SwatchBook size={16} />
                                                         </Button>
                                                     </div>
                                                 </div>
 
-                                                <div className="space-y-3">
-                                                    <label className="text-caption font-black text-amber-500 uppercase tracking-widest italic ml-1 flex items-center gap-2 drop-shadow-sm">
-                                                        <MapPin size={12} /> Localisation de la traque
+                                                <div className="space-y-2">
+                                                    <label className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
+                                                        <MapPin size={12} /> Zone de traque
                                                     </label>
                                                     <ZoneLocationCard
                                                         subareaIds={bountySubareaIds(selectedBounty)}
@@ -502,51 +683,50 @@ export default function BountyManager() {
                                                         openLabel="Ouvrir sur la carte"
                                                     />
                                                 </div>
-                                            </div>
                                         </div>
 
-                                        <div className="space-y-8">
-                                            <div className="space-y-3">
-                                                <label className="text-caption font-black text-amber-500/50 uppercase tracking-widest italic ml-1">Identité de l'avis</label>
+                                        <div className="space-y-5">
+                                            <div className="space-y-2">
+                                                <label className="text-xs font-semibold text-muted-foreground">Nom de l'avis</label>
                                                 <Input
                                                     value={selectedBounty.name}
                                                     onChange={(e) => setSelectedBounty({ ...selectedBounty, name: e.target.value })}
-                                                    className="text-2xl font-black bg-black/40 border-white/5 h-16 italic rounded-2xl focus-visible:ring-amber-500/50"
+                                                    className="text-lg font-semibold bg-surface border-border h-12 rounded-lg"
                                                 />
                                             </div>
 
-                                            <div className="grid grid-cols-2 gap-6">
-                                                <div className="space-y-3">
-                                                    <label className="text-caption font-black text-amber-500/50 uppercase tracking-widest italic ml-1">Niveau prérequis &gt;</label>
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <div className="space-y-2">
+                                                    <label className="text-xs font-semibold text-muted-foreground">Niveau prérequis</label>
                                                     <Input
                                                         type="number"
                                                         value={selectedBounty.level}
                                                         onChange={(e) => setSelectedBounty({ ...selectedBounty, level: parseInt(e.target.value) })}
-                                                        className="bg-black/40 border-white/5 font-black h-14 rounded-2xl text-lg text-amber-500 focus-visible:ring-amber-500/30"
+                                                        className="bg-surface border-border h-11 rounded-lg text-accent font-semibold"
                                                     />
                                                 </div>
-                                                <div className="space-y-3">
-                                                    <label className="text-caption font-black text-amber-500/50 uppercase tracking-widest italic ml-1">Origine / Milice</label>
+                                                <div className="space-y-2">
+                                                    <label className="text-xs font-semibold text-muted-foreground">Origine / Milice</label>
                                                     <Input
                                                         value={selectedBounty.milice || ""}
                                                         onChange={(e) => setSelectedBounty({ ...selectedBounty, milice: e.target.value })}
-                                                        className="bg-black/40 border-white/5 font-black h-14 rounded-2xl text-lg italic focus-visible:ring-amber-500/30"
+                                                        className="bg-surface border-border h-11 rounded-lg"
                                                     />
                                                 </div>
                                             </div>
 
-                                            <div className="space-y-3">
-                                                <label className="text-caption font-black text-amber-500/50 uppercase tracking-widest italic ml-1 flex items-center justify-between">
-                                                    <span>Position de départ (NPC / Milice)</span>
-                                                    <span className="text-caption opacity-40">Format: X,Y (ex: 4,-18)</span>
+                                            <div className="space-y-2">
+                                                <label className="text-xs font-semibold text-muted-foreground flex items-center justify-between">
+                                                    <span>Position de départ (PNJ / milice)</span>
+                                                    <span className="font-normal opacity-70">Format X,Y (ex : 4,-18)</span>
                                                 </label>
-                                                <div className="relative group">
-                                                    <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-600 group-focus-within:text-amber-500 transition-colors" size={18} />
+                                                <div className="relative">
+                                                    <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
                                                     <Input
                                                         value={selectedBounty.position || ""}
                                                         onChange={(e) => setSelectedBounty({ ...selectedBounty, position: e.target.value })}
                                                         placeholder="4,-18"
-                                                        className="pl-12 bg-black/40 border-white/5 font-black h-14 rounded-2xl focus-visible:ring-amber-500/30 text-amber-500"
+                                                        className="pl-10 bg-surface border-border h-11 rounded-lg text-accent font-semibold"
                                                     />
                                                     {selectedBounty.position && (
                                                         <Button
@@ -556,43 +736,43 @@ export default function BountyManager() {
                                                                 navigator.clipboard.writeText(`/travel ${selectedBounty.position}`);
                                                                 toast.success("Commande /travel copiée !");
                                                             }}
-                                                            className="absolute right-2 top-1/2 -translate-y-1/2 text-caption font-black uppercase text-zinc-500 hover:text-white h-10 px-4 rounded-xl"
+                                                            className="absolute right-1.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground hover:text-foreground h-8 px-3 rounded-lg"
                                                         >
-                                                            <Copy size={12} className="mr-2" /> /travel
+                                                            <Copy size={12} className="mr-1.5" /> /travel
                                                         </Button>
                                                     )}
                                                 </div>
                                             </div>
 
-                                            <div className="space-y-3">
-                                                <label className="text-caption font-black text-amber-500/50 uppercase tracking-widest italic ml-1">Lien DofusPourLesNoobs (DPNL)</label>
-                                                <div className="relative group">
-                                                    <ExternalLink className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-600 group-focus-within:text-amber-500 transition-colors" size={18} />
+                                            <div className="space-y-2">
+                                                <label className="text-xs font-semibold text-muted-foreground">Lien DofusPourLesNoobs</label>
+                                                <div className="relative">
+                                                    <ExternalLink className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
                                                     <Input
                                                         value={selectedBounty.dpnlUrl || ""}
                                                         onChange={(e) => setSelectedBounty({ ...selectedBounty, dpnlUrl: e.target.value })}
-                                                        placeholder="https://www.dofuspourlesnoobs.com/..."
-                                                        className="pl-12 bg-black/40 border-white/5 font-bold h-14 rounded-2xl focus-visible:ring-amber-500/30"
+                                                        placeholder="https://www.dofuspourlesnoobs.com/…"
+                                                        className="pl-10 bg-surface border-border h-11 rounded-lg text-sm"
                                                     />
                                                 </div>
                                             </div>
 
-                                            <div className="space-y-3 relative">
-                                                <label className="text-caption font-black text-amber-500/50 uppercase tracking-widest italic ml-1 flex items-center justify-between">
-                                                    <span className="flex items-center gap-2"><MapPin size={11} /> Localisation (Zones)</span>
+                                            <div className="space-y-2 relative">
+                                                <label className="text-xs font-semibold text-muted-foreground flex items-center justify-between">
+                                                    <span className="flex items-center gap-1.5"><MapPin size={11} /> Zone (worldmap)</span>
                                                     {selectedBounty.zoneName && (
                                                         <span className={cn(
-                                                            "text-caption font-black uppercase px-2 py-0.5 rounded-md",
+                                                            "text-xs font-semibold px-2 py-0.5 rounded-md",
                                                             subareaNames.includes(selectedBounty.zoneName)
-                                                                ? "bg-emerald-500/10 text-emerald-400"
-                                                                : "bg-rose-500/10 text-rose-400"
+                                                                ? "bg-elevated text-accent"
+                                                                : "bg-destructive/10 text-destructive"
                                                         )}>
-                                                            {subareaNames.includes(selectedBounty.zoneName) ? '✓ Zone trouvée' : '⚠ Zone introuvable'}
+                                                            {subareaNames.includes(selectedBounty.zoneName) ? "Zone reconnue" : "Zone introuvable"}
                                                         </span>
                                                     )}
                                                 </label>
                                                 <div className="relative">
-                                                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-600 pointer-events-none" size={16} />
+                                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" size={14} />
                                                     <input
                                                         value={zoneOpen ? zoneSearch : (selectedBounty.zoneName || '')}
                                                         onChange={(e) => {
@@ -604,18 +784,18 @@ export default function BountyManager() {
                                                             setZoneOpen(true);
                                                         }}
                                                         onBlur={() => setTimeout(() => setZoneOpen(false), 150)}
-                                                        placeholder="Rechercher une zone du worldmap..."
-                                                        className="w-full pl-12 pr-4 bg-black/40 border border-white/5 font-bold h-14 rounded-2xl text-white text-sm focus:outline-none focus:border-amber-500/40 focus:ring-1 focus:ring-amber-500/20 transition-all"
+                                                        placeholder="Rechercher une zone de la worldmap…"
+                                                        className="w-full pl-10 pr-4 bg-surface border border-border h-11 rounded-lg text-foreground text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:border-accent transition-colors"
                                                     />
                                                     {zoneOpen && (
-                                                        <div className="absolute top-full left-0 right-0 mt-1 max-h-64 overflow-y-auto bg-[#0d1117] border border-white/10 rounded-2xl shadow-2xl z-50">
+                                                        <div className="absolute top-full left-0 right-0 mt-1 max-h-64 overflow-y-auto bg-elevated border border-border rounded-xl shadow-xl z-50">
                                                             {(() => {
                                                                 const q = zoneSearch.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
                                                                 const filtered = subareaNames.filter(n =>
                                                                     n.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().includes(q)
                                                                 ).slice(0, 40);
                                                                 if (filtered.length === 0) return (
-                                                                    <div className="px-4 py-3 text-zinc-600 text-caption italic text-center">Aucune zone trouvée</div>
+                                                                    <div className="px-4 py-3 text-muted-foreground text-xs text-center">Aucune zone trouvée</div>
                                                                 );
                                                                 return filtered.map(name => (
                                                                     <button
@@ -627,14 +807,14 @@ export default function BountyManager() {
                                                                             setZoneOpen(false);
                                                                         }}
                                                                         className={cn(
-                                                                            "w-full text-left px-4 py-2.5 text-sm font-bold transition-colors border-b border-white/5 last:border-0 flex items-center justify-between group",
+                                                                            "w-full text-left px-4 py-2.5 text-sm transition-colors border-b border-border last:border-0 flex items-center justify-between",
                                                                             selectedBounty.zoneName === name
-                                                                                ? "bg-amber-500/10 text-amber-400"
-                                                                                : "text-zinc-300 hover:bg-white/5 hover:text-white"
+                                                                                ? "bg-accent/10 text-accent"
+                                                                                : "text-foreground hover:bg-elevated"
                                                                         )}
                                                                     >
                                                                         <span>{name}</span>
-                                                                        {selectedBounty.zoneName === name && <Check size={12} className="text-amber-400 flex-shrink-0" />}
+                                                                        {selectedBounty.zoneName === name && <Check size={12} className="text-accent flex-shrink-0" />}
                                                                     </button>
                                                                 ));
                                                             })()}
@@ -646,47 +826,48 @@ export default function BountyManager() {
                                     </div>
                                 </TabsContent>
 
-                                <TabsContent value="rewards" className="mt-0 space-y-8">
+                                <TabsContent value="rewards" className="mt-0 space-y-4">
                                     <div className="flex items-center justify-between">
                                         <div className="flex flex-col">
-                                            <h3 className="text-xl font-black text-white uppercase italic tracking-tight flex items-center gap-3">
-                                                <Coins className="text-amber-500" size={24} />
-                                                Dotations de Capture
+                                            <h3 className="text-base font-semibold text-foreground flex items-center gap-2">
+                                                <Coins className="text-accent" size={18} />
+                                                Récompenses de capture
                                             </h3>
-                                            <p className="text-caption font-bold text-zinc-500 uppercase tracking-widest mt-1">Liste des récompenses obtenues à la remise de l'avis</p>
+                                            <p className="text-xs text-muted-foreground mt-0.5">Jetons remis avec l'avis</p>
                                         </div>
                                         <Button
                                             onClick={addReward}
-                                            className="bg-white/5 border border-white/10 hover:bg-white/10 text-white font-black uppercase italic rounded-xl px-6 h-12"
+                                            variant="outline"
+                                            className="rounded-lg px-4 h-9 text-xs font-semibold"
                                         >
-                                            <Plus size={18} className="mr-2" /> Ajouter
+                                            <Plus size={14} className="mr-1.5" /> Ajouter
                                         </Button>
                                     </div>
 
-                                    <div className="grid grid-cols-1 gap-4">
+                                    <div className="grid grid-cols-1 gap-3">
                                         {selectedBounty.rewards?.map((reward: any, idx: number) => (
-                                            <div key={idx} className="p-6 rounded-3xl bg-black/40 border border-white/5 flex items-center gap-8 relative group hover:border-amber-500/30 transition-all">
-                                                <div className="w-16 h-16 rounded-2xl bg-black border border-white/5 flex items-center justify-center shrink-0">
+                                            <div key={idx} className="p-4 rounded-xl bg-surface border border-border flex items-center gap-4">
+                                                <div className="w-12 h-12 rounded-lg bg-elevated border border-border flex items-center justify-center shrink-0">
                                                     <img
                                                         src={REWARD_TYPES.find(t => t.id === reward.type)?.icon || "/assets/avis/aliton.png"}
                                                         alt=""
-                                                        className="w-12 h-12 object-contain"
+                                                        className="w-9 h-9 object-contain"
                                                     />
                                                 </div>
 
-                                                <div className="flex-1 grid grid-cols-3 gap-8">
-                                                    <div className="space-y-2">
-                                                        <label className="text-caption font-black text-zinc-600 uppercase tracking-[0.2em] italic ml-1">Type de monnaie</label>
-                                                        <div className="flex flex-wrap gap-2">
+                                                <div className="flex-1 grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                                    <div className="space-y-1.5 sm:col-span-2">
+                                                        <label className="text-xs font-semibold text-muted-foreground">Type de jeton</label>
+                                                        <div className="flex flex-wrap gap-1.5">
                                                             {REWARD_TYPES.map(type => (
                                                                 <button
                                                                     key={type.id}
                                                                     onClick={() => updateReward(idx, "type", type.id)}
                                                                     className={cn(
-                                                                        "px-4 py-2 rounded-xl text-caption font-black uppercase italic transition-all border",
+                                                                        "px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors border",
                                                                         reward.type === type.id
-                                                                            ? "bg-amber-500 text-black border-amber-500 "
-                                                                            : "bg-white/5 text-zinc-500 border-white/5 hover:border-white/10"
+                                                                            ? "bg-accent text-accent-foreground border-transparent"
+                                                                            : "border-border text-muted-foreground hover:text-foreground"
                                                                     )}
                                                                 >
                                                                     {type.label}
@@ -694,86 +875,77 @@ export default function BountyManager() {
                                                             ))}
                                                         </div>
                                                     </div>
-                                                    <div className="space-y-2">
-                                                        <label className="text-caption font-black text-zinc-600 uppercase tracking-[0.2em] italic ml-1">Montant</label>
+                                                    <div className="space-y-1.5">
+                                                        <label className="text-xs font-semibold text-muted-foreground">Montant</label>
                                                         <Input
                                                             type="number"
                                                             value={reward.amount}
                                                             onChange={(e) => updateReward(idx, "amount", parseInt(e.target.value) || 0)}
-                                                            className="bg-black/60 border-white/5 font-black h-12 rounded-xl text-lg text-amber-500 focus-visible:ring-amber-500/30"
+                                                            className="bg-surface border-border h-10 rounded-lg text-accent font-semibold"
                                                         />
                                                     </div>
                                                 </div>
 
                                                 <button
                                                     onClick={() => removeReward(idx)}
-                                                    className="p-3 text-zinc-700 hover:text-rose-500 transition-colors bg-white/5 rounded-xl border border-white/5 hover:border-rose-500/20"
+                                                    className="p-2.5 text-muted-foreground hover:text-destructive transition-colors bg-surface rounded-lg border border-border hover:border-destructive/30"
                                                 >
-                                                    <Trash2 size={20} />
+                                                    <Trash2 size={16} />
                                                 </button>
                                             </div>
                                         ))}
                                     </div>
                                 </TabsContent>
 
-                                <TabsContent value="mechanics" className="mt-0 space-y-8">
+                                <TabsContent value="mechanics" className="mt-0 space-y-4">
                                     <div className="flex items-center justify-between">
                                         <div className="flex flex-col">
-                                            <h3 className="text-xl font-black text-white uppercase italic tracking-tight flex items-center gap-3">
-                                                <Sparkles className="text-amber-500" size={24} />
-                                                Briefing Tactique
+                                            <h3 className="text-base font-semibold text-foreground flex items-center gap-2">
+                                                <Sparkles className="text-accent" size={18} />
+                                                Stratégie de capture
                                             </h3>
-                                            <p className="text-caption font-bold text-zinc-500 uppercase tracking-widest mt-1">Supporte le Markdown pour un formattage riche</p>
+                                            <p className="text-xs text-muted-foreground mt-0.5">Markdown pris en charge</p>
                                         </div>
-                                        <div className="flex bg-white/5 p-1 rounded-xl border border-white/10">
+                                        <div className="flex bg-elevated p-1 rounded-lg border border-border">
                                             <button
                                                 onClick={() => setPreviewMode(false)}
-                                                className={cn("px-4 py-2 rounded-lg text-caption font-black uppercase transition-all", !previewMode ? "bg-amber-500 text-black" : "text-zinc-500 hover:text-white")}
+                                                className={cn("px-3 py-1.5 rounded-md text-xs font-semibold transition-colors", !previewMode ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:text-foreground")}
                                             >
                                                 Édition
                                             </button>
                                             <button
                                                 onClick={() => setPreviewMode(true)}
-                                                className={cn("px-4 py-2 rounded-lg text-caption font-black uppercase transition-all", previewMode ? "bg-amber-500 text-black" : "text-zinc-500 hover:text-white")}
+                                                className={cn("px-3 py-1.5 rounded-md text-xs font-semibold transition-colors", previewMode ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:text-foreground")}
                                             >
                                                 Aperçu
                                             </button>
                                         </div>
                                     </div>
 
-                                    <div className="grid grid-cols-1 gap-6">
-                                        <div className="p-1 rounded-[2.5rem] bg-gradient-to-br from-white/5 to-transparent border border-white/5 shadow-2xl relative overflow-hidden group min-h-[500px]">
-                                            <div className="absolute top-0 left-0 w-1 h-full bg-amber-500/20 group-hover:bg-amber-500 transition-all " />
+                                    <div className="rounded-xl border border-border bg-surface overflow-hidden min-h-[400px]">
                                             {!previewMode ? (
                                                 <div className="relative h-full">
                                                     <AdvancedEditor
                                                         initialContent={selectedBounty.mechanics || ""}
                                                         onChange={(html) => setSelectedBounty({ ...selectedBounty, mechanics: html })}
-                                                        contentClassName="min-h-[500px]"
+                                                        contentClassName="min-h-[400px]"
                                                     />
                                                 </div>
                                             ) : (
-                                                <div className="p-10">
-                                                    <DocContent 
-                                                        content={selectedBounty.mechanics || "<p><em>Aucun contenu à prévisualiser</em></p>"} 
+                                                <div className="p-6">
+                                                    <DocContent
+                                                        content={selectedBounty.mechanics || "<p><em>Aucun contenu à prévisualiser</em></p>"}
                                                     />
                                                 </div>
                                             )}
                                         </div>
-                                    </div>
                                 </TabsContent>
                             </Tabs>
                         </div>
                     ) : (
-                        <div className="h-full flex flex-col items-center justify-center text-center space-y-8 opacity-40 min-h-[600px]">
-                            <div className="relative">
-                                <ShieldAlert size={120} className="text-zinc-900" />
-                                <div className="absolute inset-0 animate-pulse bg-amber-500/5 rounded-full blur-3xl" />
-                            </div>
-                            <div className="space-y-4">
-                                <p className="text-4xl font-black uppercase italic tracking-tighter text-zinc-800">Archive Scellée</p>
-                                <p className="text-caption font-black uppercase tracking-widest text-zinc-600">Sélectionnez une cible pour engager le protocole d'édition</p>
-                            </div>
+                        <div className="h-full flex flex-col items-center justify-center text-center gap-3 min-h-[24rem] p-8">
+                            <ShieldAlert size={48} className="text-muted-foreground/40" />
+                            <p className="text-sm font-semibold text-muted-foreground">Sélectionnez un avis pour l'éditer</p>
                         </div>
                     )}
                 </div>
@@ -786,22 +958,6 @@ export default function BountyManager() {
                 onSelect={(url) => setSelectedBounty({ ...selectedBounty, imageUrl: url })}
                 title="Sélecteur de Portraits"
             />
-
-            <style jsx global>{`
-                .custom-scrollbar::-webkit-scrollbar {
-                    width: 4px;
-                }
-                .custom-scrollbar::-webkit-scrollbar-track {
-                    background: transparent;
-                }
-                .custom-scrollbar::-webkit-scrollbar-thumb {
-                    background: rgba(255, 255, 255, 0.03);
-                    border-radius: 10px;
-                }
-                .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-                    background: rgba(255, 255, 255, 0.08);
-                }
-            `}</style>
         </div>
     );
 }

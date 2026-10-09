@@ -5,12 +5,18 @@
  * DRY-RUN par défaut ; `--apply` pour écrire en base.
  * Usage : npx tsx scripts/seed-rush-sylvestre-cli.mjs [--apply]
  */
-import "dotenv/config";
+// `dotenv` n'est PAS dans l'image *standalone* (le serveur ne l'importe pas) : en
+// conteneur, l'environnement vient de Docker ⇒ chargement TOLÉRANT, jamais bloquant.
+try {
+  process.env.NODE_ENV ||= "development";
+  await import("dotenv/config");
+} catch {}
 import { PrismaClient } from "@prisma/client";
 import { Pool } from "pg";
 import { PrismaPg } from "@prisma/adapter-pg";
 import fs from "node:fs";
 import path from "node:path";
+import { normKey } from "./lib/rush-guide-keys.mjs";
 
 const apply = process.argv.includes("--apply");
 const connectionString =
@@ -39,7 +45,8 @@ async function main() {
     include: { sequences: { select: { id: true, subGuideName: true, subGuideRef: true } } },
   });
 
-  const normKey = (s) => (s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
+  // `normKey` vient de `./lib/rush-guide-keys.mjs` (source unique partagée avec les
+  // scripts de maintenance : une règle d'appariement, un seul endroit).
   const existingMsMap = new Map(existingMs.map((m) => [normKey(m.title), m]));
 
   const allDbDungeons = await db.dungeon.findMany({

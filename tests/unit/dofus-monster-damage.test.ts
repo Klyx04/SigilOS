@@ -7,6 +7,7 @@ import {
     scaleDamageDice,
     scaleDamageEffect,
     scaleDamageInEffectGroups,
+    scaleHealDice,
 } from "@/lib/dofus-monster-damage";
 
 /**
@@ -142,5 +143,20 @@ describe("dofus-monster-damage — calcul de dégâts des sorts de monstre (pari
         expect(damageStatsFromDofensiveGrade({ PrimaryCharacteristics: { Strength: -20 } }))
             .toEqual({ earth: 0, fire: 0, water: 0, air: 0, neutral: 0 });
         expect(damageStatsFromDofensiveGrade(null)).toEqual(NO_DAMAGE_BONUS);
+        // DoFensive 3.7 : caractéristiques secondaires (Power, Damage, HealBonus, CriticalHit)
+        expect(damageStatsFromDofensiveGrade({
+            PrimaryCharacteristics: { Strength: 100 },
+            SecondaryCharacteristics: { Power: 50, Damage: 10, HealBonus: 20, CriticalHit: 5 }
+        })).toEqual({
+            earth: 100, fire: 0, water: 0, air: 0, neutral: 0,
+            power: 50, damage: 10, healBonus: 20, criticalHit: 5
+        });
+    });
+
+    it("scaleDamageDice avec puissance et dommages fixes + scaleHealDice avec bonus de soins (parité 3.7)", () => {
+        // Base 50 avec 100 Force, 50 Puissance et 10 Dommages fixes : 50 * (1 + 150/100) + 10 = 125 + 10 = 135
+        expect(scaleDamageDice(50, 100, 50, 10)).toBe(135);
+        // Base 100 soin avec 200 Intelligence et 30 Soins : 100 * (1 + 200/100) + 30 = 300 + 30 = 330
+        expect(scaleHealDice(100, 200, 30)).toBe(330);
     });
 });

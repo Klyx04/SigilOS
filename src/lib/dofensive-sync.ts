@@ -586,7 +586,7 @@ function normalizeMapItem(item: any): DofensiveMapData {
  * ne réécrit que `lastSyncedAt`). Maps fraîches (< 24 h) sautées (anti-ratelimit).
  */
 export async function syncDofensiveMaps(): Promise<SyncResult> {
-    const result: SyncResult = { synced: 0, unchanged: 0, skippedFresh: 0, errors: [] };
+    const result: SyncResult = { synced: 0, unchanged: 0, skippedFresh: 0, syncedMaps: [], dungeonsCount: 0, errors: [] };
     if (!DB_READABLE) return result;
 
     const dungeons = await dofensiveFetch<any[]>("/dungeons/preview?lang=fr", "sync-dungeons-preview", true);
@@ -594,27 +594,30 @@ export async function syncDofensiveMaps(): Promise<SyncResult> {
         result.errors.push("Dofensive dungeons/preview indisponible");
         return result;
     }
+    result.dungeonsCount = dungeons.length;
 
     // 1. Donjons + leurs maps (lite) + monstres → DofensiveDungeon.
-    const allMaps: { dungeonId: number; mapId: number; isBoss: boolean }[] = [];
+    const allMaps: { dungeonId: number; dungeonName: string; mapId: number; isBoss: boolean }[] = [];
+
     for (const d of dungeons) {
         const dungeonId = toInt(d?.Id);
         if (!dungeonId) continue;
+        const dungeonName = String(d.Name ?? "");
         const monsters: { id: number; name: string }[] = Array.isArray(d.Monsters)
             ? d.Monsters.map((m: any) => ({ id: Number(m?.Id) || 0, name: String(m?.Name ?? "") })).filter((m: { id: number; name: string }) => m.id > 0)
             : [];
         const liteMaps: { id: number; name: string; isBoss: boolean }[] = Array.isArray(d.Maps)
             ? d.Maps.map((m: any) => ({ id: Number(m?.Id) || 0, name: String(m?.Name ?? "") })).filter((m: { id: number; name: string }) => m.id > 0)
             : [];
-        const boss = monsters.find((m) => norm(m.name) === norm(String(d.Name ?? "")));
+        const boss = monsters.find((m) => norm(m.name) === norm(dungeonName));
         const payload = {
             dungeonId,
-            name: String(d.Name ?? ""),
+            name: dungeonName,
             maps: liteMaps,
             monsters,
             bossMonsterId: boss?.id ?? (monsters[0]?.id ?? null),
         };
-        for (const m of liteMaps) allMaps.push({ dungeonId, mapId: m.id, isBoss: !!m.isBoss });
+        for (const m of liteMaps) allMaps.push({ dungeonId, dungeonName, mapId: m.id, isBoss: !!m.isBoss });
 
         try {
             const existing = await db.dofensiveDungeon.findUnique({ where: { dungeonId } });
@@ -689,6 +692,12 @@ export async function syncDofensiveMaps(): Promise<SyncResult> {
                 },
             });
             result.synced++;
+            result.syncedMaps.push({
+                mapId: m.mapId,
+                name: data.name || `Salle ${m.mapId}`,
+                dungeonName: m.dungeonName || "Donjon inconnu",
+                isBoss: data.isBossMap || m.isBoss,
+            });
         } catch (error) {
             result.errors.push(`Map ${m.mapId}: ${String(error)}`);
         }
@@ -698,10 +707,19 @@ export async function syncDofensiveMaps(): Promise<SyncResult> {
     return result;
 }
 
+export interface SyncedMapDetail {
+    mapId: number;
+    name: string;
+    dungeonName: string;
+    isBoss: boolean;
+}
+
 export interface SyncResult {
     synced: number;
     unchanged: number;
     skippedFresh: number;
+    syncedMaps: SyncedMapDetail[];
+    dungeonsCount?: number;
     errors: string[];
 }
 

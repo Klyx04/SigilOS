@@ -1580,6 +1580,7 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
                                   <QuestItemResourceGrid
                                     items={itemTags}
                                     completedIds={completedItemKeys}
+                                    hideProvided={hideDone}
                                   />
                                 </div>
                               );
@@ -1902,6 +1903,8 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
                                   <div className="pt-2 border-t border-border">
                                     <QuestItemResourceGrid
                                       items={itemTags}
+                                      completedIds={completedItemKeys}
+                                      hideProvided={hideDone}
                                       showHeaderMeta={false}
                                     />
                                   </div>
@@ -1929,9 +1932,10 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
             16 de marge) → on le borne au viewport et il défile en interne, sinon sa
             fin (objets requis) restait hors écran. */}
         <RushChapterSidebar
-          className="xl:sticky xl:top-20 xl:max-h-[calc(100vh-6rem)] xl:overflow-y-auto custom-scrollbar"
+          className="xl:sticky xl:top-20 xl:max-h-[calc(100dvh-6rem)] xl:overflow-y-auto custom-scrollbar"
           milestones={milestones as any}
           completedSeqIds={completedSeqIds}
+          hideProvidedResources={hideDone}
           selectedChapter={currentPage?.ms.chapter ?? "ALL"}
           onSelectChapter={(chapter) => {
             const idx = chapterPages.findIndex((p) => chapter === "ALL" || p.ms.chapter === chapter);
@@ -1978,6 +1982,7 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
             )
           }
           isLightMode={false}
+          hideProvidedResources={hideDone}
           onClose={() => setDetailModalSeq(null)}
         />
       )}
@@ -1992,6 +1997,7 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
           isLightMode={false}
           checkedKeys={resourceChecks}
           onToggleCheck={handleToggleResourceCheck}
+          hideProvidedResources={hideDone}
           onClose={() => setShowResources(false)}
         />
       )}

@@ -412,10 +412,13 @@ describe("game-data — veille ciblée & bilan de passe", () => {
         expect(core).toContain("name, level, description, typeId, imageSrc, typeName, effects, hasRecipe,");
     });
 
-    it("le worker n'avance le filigrane que sur une passe complète, et écrit le bilan", () => {
+    it("le worker n'avance le filigrane que sur une passe complète (ni tronquée ni différée), et écrit le bilan", () => {
         const worker = read("src/workers/game-data-worker.ts");
         expect(worker).toContain("job.data?.incremental === true");
-        expect(worker).toContain("since: result.truncated ? watch.since : result.nextWatermark ?? watch.since");
+        // 08/10/2026 : une passe « différée » (notre limiteur local a refusé la page)
+        // fige le filigrane comme une passe tronquée — l'item n'est jamais sauté.
+        expect(worker).toContain("const partial = result.truncated || result.deferred;");
+        expect(worker).toContain("since: partial ? watch.since : result.nextWatermark ?? watch.since");
         expect(worker).toContain("counts: { inserted: result.inserted, updated: result.updated, unchanged }");
     });
 

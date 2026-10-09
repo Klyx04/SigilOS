@@ -94,16 +94,22 @@ describe("avis de recherche — un éditeur de l'interface Game Data (fusion D-4
         );
     });
 
-    it("🛡️ un avis supprimé ne revient pas : le siphon saute les ids exclus", () => {
+    it("🛡️ un avis supprimé ne revient pas : le siphon saute les ids **et les noms** exclus", () => {
         const siphon = readSource("src/lib/bounty-siphon.ts");
         expect(siphon).toContain("const ignoredIds = getIgnoredBountyIds();");
-        expect(siphon).toContain("targets.filter((t) => !isIgnoredBounty(t.id, ignoredIds))");
+        // 08/10/2026 : une ligne historique (sans `dofusdbId`) s'exclut PAR SON NOM —
+        // sans ce second filtre, le siphon la recréait à la passe suivante.
+        expect(siphon).toContain("const ignoredNames = getIgnoredBountyNames();");
+        expect(siphon).toContain(
+            "!isIgnoredBounty(t.id, ignoredIds) && !isIgnoredBountyName(t.name, ignoredNames)",
+        );
     });
 
-    it("🛡️ la suppression exclut dès qu'un `dofusdbId` existe (c'est la clé du siphon)", () => {
+    it("🛡️ la suppression enregistre TOUJOURS l'exclusion (id, sinon nom)", () => {
         const code = codeOnly(readSource("src/server/actions/game-data-admin-actions.ts"));
-        expect(code).toContain("if (bounty.dofusdbId) {");
-        expect(code).toContain("addIgnoredBounty(bounty.dofusdbId, bounty.name);");
+        // Une ligne purement historique (`dofusdbId` nul) supprimée sans exclusion était
+        // RECRÉÉE à la passe suivante : l'exclusion par nom (`dofusdbId: 0`) ferme ce trou.
+        expect(code).toContain("addIgnoredBounty(bounty.dofusdbId ?? 0, bounty.name);");
     });
 
     it("🛡️ la liste curée survit au déploiement (les 2 scripts la protègent du `git pull`)", () => {

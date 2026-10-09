@@ -832,6 +832,10 @@ export async function getMonsterStats(
                         pmDodge: carac.pmDodge,
                         gradeXp: carac.gradeXp,
                     },
+                    power: g.power ?? g.Power ?? g.SecondaryCharacteristics?.Power ?? 0,
+                    damage: g.damage ?? g.Damage ?? g.SecondaryCharacteristics?.Damage ?? 0,
+                    healBonus: g.healBonus ?? g.HealBonus ?? g.SecondaryCharacteristics?.HealBonus ?? g.SecondaryCharacteristics?.Heals ?? 0,
+                    criticalHit: g.criticalHit ?? g.CriticalHit ?? g.SecondaryCharacteristics?.CriticalHit ?? 0,
                 };
             }),
             drops: monster.drops?.map((d: any) => {

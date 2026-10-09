@@ -76,6 +76,63 @@ describe("Panneau de droite — le MÊME composant dans les deux guides", () => 
   });
 });
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Rail de droite — UNE seule zone de défilement, aucune brique écrasée.
+// 🎯 Mesure Playwright du 08/10/2026 (guide public, 1440×900 puis 1280×720) : le rail
+// borné (`xl:max-h-[calc(100vh-6rem)]`) ne défilait PAS (`scrollHeight === clientHeight`)
+// parce que ses blocs gardaient `flex-shrink: 1` → « Chapitres » tombait à 201 px pour
+// 242 px de contenu, « Objets requis » à 302 px (63 objets), et 2 barres de défilement
+// s'imbriquaient. Correctif : blocs `shrink-0`, listes à hauteur NATURELLE, une seule
+// zone de défilement (le rail) — après, 0 scroller imbriqué et 3311 px de contenu.
+// ─────────────────────────────────────────────────────────────────────────────
+const SIDE = codeOf(SIDEBAR);
+
+describe("Rail de droite — une seule zone de défilement (jamais de brique écrasée)", () => {
+  it("aucune liste à défilement interne (les `max-h` fantômes ont disparu)", () => {
+    expect(SIDE).not.toMatch(/max-h-\[340px\]/);
+    expect(SIDE).not.toMatch(/max-h-\[380px\]/);
+    // Le rail ne porte AUCUN `overflow` propre : c'est la surface qui le borne.
+    expect(SIDE).not.toMatch(/overflow-y-auto/);
+  });
+
+  it("chaque bloc est insécable (`shrink-0`) — aucun ne se comprime", () => {
+    expect(SIDE).toMatch(/flex shrink-0 items-center justify-between border-b border-border pb-2\.5/);
+    expect(SIDE).toMatch(/flex shrink-0 flex-col gap-1"/); // sommaire des chapitres
+    expect(SIDE).toMatch(/flex shrink-0 items-center gap-4 bg-elevated/); // progression
+    expect(SIDE).toMatch(/flex shrink-0 flex-col gap-2\.5 bg-elevated/); // donjons + métiers
+    expect(SIDE).toMatch(/hidden shrink-0 flex-col gap-2 bg-elevated/); // objets requis (xl+)
+  });
+
+  it("le rail accepte de descendre sous son contenu (`min-h-0`) et les lignes restent tapables", () => {
+    expect(SIDE).toMatch(/"flex min-h-0 flex-col gap-3\.5 bg-surface/);
+    expect(SIDE).toMatch(/w-full min-h-9 flex items-center gap-2\.5/);
+  });
+
+  it("« Objets requis » est masqué sous `xl` (la modale « Ressources à prévoir » le porte)", () => {
+    // Mesure 390 px : ce bloc faisait ~2 900 px en flux naturel sous le contenu.
+    expect(SIDE).toMatch(
+      /className="hidden shrink-0 flex-col gap-2 bg-elevated p-3 rounded-\[6px\] border border-border xl:flex"/
+    );
+    // Les autres blocs du rail restent visibles au doigt : ils n'ont pas d'équivalent.
+    expect(SIDE).toMatch(/flex shrink-0 flex-col gap-1"/); // sommaire des chapitres
+    expect(SIDE).toMatch(/flex shrink-0 flex-col gap-2\.5 bg-elevated/); // donjons + métiers
+  });
+
+  it("les DEUX surfaces le bornent au SCROLLPORT (fin atteignable, défilement interne)", () => {
+    // ⚠️ Mesure Playwright du 08/10/2026 : dans le guide interne le défilement se fait
+    // dans `<main overflow-y-auto>` (le TopNav `h-14` = 3,5 rem est HORS du scrollport,
+    // le footer est dedans) ⇒ `100dvh − 6rem` faisait déborder le rail de 40 px sous la
+    // ligne (bas coupé, fin « Objets requis » inatteignable). Corrigé : `top-4` (1 rem
+    // sous le topnav) + `100dvh − 5,5 rem`.
+    expect(DASH).toMatch(/sticky top-4 max-h-\[calc\(100dvh-5\.5rem\)\] overflow-y-auto custom-scrollbar/);
+    // Le guide public défile par la FENÊTRE : `100dvh − 6rem` y est juste (mesuré).
+    expect(PUB).toMatch(
+      /xl:sticky xl:top-20 xl:max-h-\[calc\(100dvh-6rem\)\] xl:overflow-y-auto custom-scrollbar/
+    );
+  });
+});
+
+
 describe("Pense-bête — monté côté public, avec la config GOD", () => {
   it("le public rend la même modale que l'interne", () => {
     expect(PUB).toMatch(/import \{ RushPenseBeteModal \}/);
@@ -143,3 +200,67 @@ describe("Panneau public — les quatre actions sont alignées", () => {
     expect(PUB.match(/reg-btn reg-btn-primary w-full/g)?.length).toBe(1);
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Ressources — UN SEUL état : le toggle « Masquer les étapes faites » du guide
+// les pilote sur les TROIS surfaces, au lieu de trois bascules indépendantes
+// (rail « Restantes/Toutes », modale « Restantes/Toutes », filtre de la grille).
+// 🎯 Demande user (08/10/2026) : « les ressources doivent aussi être masquées si
+// on coche afficher tout / masquer côté overlay et dans les guides ».
+// ─────────────────────────────────────────────────────────────────────────────
+const OVERLAY = "src/app/overlay/guide/[guildId]/[slug]/GuideOverlayClient.tsx";
+const DETAIL_MODAL = "src/app/overlay/guide/[guildId]/[slug]/components/RushOverlayQuestDetailModal.tsx";
+
+describe("Ressources — le toggle du guide les masque partout (un seul état)", () => {
+  it("les trois surfaces passent LEUR toggle aux ressources", () => {
+    expect(PUB).toMatch(/hideProvidedResources=\{hideDone\}/);
+    expect(DASH).toMatch(/hideProvidedResources=\{hideDone\}/);
+    expect(codeOf(OVERLAY)).toMatch(/hideProvidedResources=\{hideCompleted\}/);
+  });
+
+  it("rail, modale et grille escamotent leur filtre local quand le guide impose l'état", () => {
+    // Rail « Objets requis » : un seul état dérivé (le guide prime) + bascule non rendue.
+    expect(codeOf(SIDEBAR)).toMatch(/const hideProvided = hideProvidedResources \|\| hideCompletedItems;/);
+    expect(codeOf(SIDEBAR)).toMatch(/if \(hideProvided\) return aggregatedItems\.filter/);
+    expect(codeOf(SIDEBAR)).toMatch(/\{visibleItems\.length\}<\/span>/);
+    expect(codeOf(SIDEBAR)).toMatch(/aggregatedItems\.length > 0 && !hideProvidedResources &&/);
+    // Modale globale : mode forcé « restantes » + bascule non rendue.
+    const modal = codeOf(RESOURCES_MODAL);
+    expect(modal).toMatch(/const effectiveMode = hideProvidedResources \? "restantes" : mode;/);
+    expect(modal).toMatch(/!hideProvidedResources &&\s*\(\[\["restantes", "Restantes"\], \["toutes", "Toutes"\]\]/);
+    // Grille d'objets : les fournis sortent, et son filtre local disparaît.
+    const grid = codeOf(QUEST_ITEM_GRID);
+    expect(grid).toMatch(/if \(hideProvided\) return parsedItems\.filter\(\(it\) => !it\.isDone\)/);
+    expect(grid).toMatch(/showHeaderMeta && !hideProvided &&/);
+  });
+
+  it("la fiche détail ne montre plus les ressources d'une quête validée", () => {
+    const detail = codeOf(DETAIL_MODAL);
+    expect(detail).toMatch(/resources\.length > 0 && !\(hideProvidedResources && isDone\)/);
+  });
+
+  it("les grilles par quête du public reçoivent la clé fournie et l'état", () => {
+    // Grille de parcours ET panneau déroulant d'étape : même filtre.
+    expect(PUB.match(/hideProvided=\{hideDone\}/g)?.length).toBe(2);
+    expect(PUB.match(/completedIds=\{completedItemKeys\}/g)?.length).toBe(2);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Guide interne — l'interrupteur de densité est DANS la barre d'actions.
+// 🎯 Demande user (08/10/2026) : « ce bouton doit être dispo en dehors du menu
+// d'option dans le guide interne, c'est pas assez intuitif ».
+// ─────────────────────────────────────────────────────────────────────────────
+describe("Guide interne — le masquage des étapes faites n'est plus enterré dans « Options »", () => {
+  it("le menu Options ne le porte plus", () => {
+    expect(DASH).not.toMatch(/<DropdownMenuItem onClick=\{\(\) => setHideDone/);
+    expect(DASH).not.toMatch(/"Masquer les terminées"/);
+  });
+
+  it("il est monté à côté de « Ressources à prévoir » / « Pense-bête », état lisible", () => {
+    expect(DASH).toMatch(/Pense-bête[\s\S]{0,1200}aria-pressed=\{hideDone\}/);
+    expect(DASH).toMatch(/aria-label=\{hideDone \? "Afficher les étapes terminées" : "Masquer les étapes terminées"\}/);
+    expect(DASH).toMatch(/\{hideDone \? <Eye className="w-3\.5 h-3\.5" \/> : <EyeOff className="w-3\.5 h-3\.5" \/>\}/);
+  });
+});
+

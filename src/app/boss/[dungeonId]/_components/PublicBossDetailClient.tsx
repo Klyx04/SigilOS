@@ -21,6 +21,7 @@ import {
   X,
   ChevronDown,
   ChevronUp,
+  ShieldAlert,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n/client";
@@ -41,6 +42,7 @@ import { ZoneLocationCard } from "@/components/worldmap/ZoneLocationCard";
 import { getAnomalyBossBattleMap, getAnomalyBossFamily } from "@/server/actions/anomaly-boss-actions";
 import { getBountyBattleMap } from "@/server/actions/bounty-actions";
 import type { BountyPublicMeta } from "@/lib/bounty-fiche";
+import { encycloProperties } from "@/lib/dofus-encyclo";
 import { PublicBossQuestsTab } from "./PublicBossQuestsTab";
 import { PublicBossAchievementsTab } from "./PublicBossAchievementsTab";
 import type { PublicLinkedQuestsData, PublicDungeonAchievement } from "@/server/actions/public-boss-tabs-actions";
@@ -60,10 +62,12 @@ interface PublicDungeon {
   /* 🌀 Chantier « boss d'anomalie » — carte de combat + famille siphonnées localement. */
   isAnomalyBoss?: boolean | null;
   anomalyMapId?: number | null;
+  /* 🐉 Boss de raid */
+  isRaidBoss?: boolean | null;
   /** Map d'entrée (worldmap.json) — résout la zone de l'encart « Localisation ». */
   mapId?: number | null;
   /* 🎯 Chantier « Avis de recherche » — 3ᵉ type de fiche (ni donjon, ni titan). */
-  kind?: "boss" | "titan" | "bounty";
+  kind?: "boss" | "titan" | "bounty" | "raid";
 }
 
 interface FamilyMember {
@@ -209,6 +213,8 @@ export function PublicBossDetailClient({
   // 🎯 Avis de recherche : ni donjon ni titan — pas de salle, pas de carte Dofensive, mais une
   // zone de traque, une prime (curée dans God) et des critères de quête SIPHONNÉS.
   const isBounty = dungeon.kind === "bounty";
+  // 🐉 Boss de raid : catégorie dédiée
+  const isRaid = !!dungeon.isRaidBoss || dungeon.kind === "raid";
   // 🌀 Boss d'anomalie : Dofensive n'expose pas ces donjons ⇒ carte + famille sont résolues
   // LOCALEMENT (lecteurs dédiés) au lieu du resolver Dofensive standard.
   const isAnomalyBoss = !!dungeon.isAnomalyBoss;
@@ -448,7 +454,7 @@ export function PublicBossDetailClient({
               </div>
               <div className="min-w-0">
                 <p className="flex items-center gap-2 text-[11px] uppercase tracking-wide text-muted-foreground">
-                  {isTitan ? "Titan" : isBounty ? (bountyMeta?.raceName ?? (locale === "en" ? "Wanted Bounty" : "Avis de recherche")) : (locale === "en" ? "Dungeon Boss" : "Boss de donjon")}
+                  {isRaid ? (locale === "en" ? "Raid Boss" : "Boss de raid") : isTitan ? "Titan" : isBounty ? (bountyMeta?.raceName ?? (locale === "en" ? "Wanted Bounty" : "Avis de recherche")) : isAnomalyBoss ? (locale === "en" ? "Anomaly Boss" : "Boss d'anomalie") : (locale === "en" ? "Dungeon Boss" : "Boss de donjon")}
                   <span className="font-mono normal-case">{t.bossPage.levelShort} {dungeon.level ?? 200}</span>
                 </p>
                 <h1 className="mt-0.5 truncate text-2xl font-semibold text-foreground sm:text-3xl">
@@ -584,28 +590,88 @@ export function PublicBossDetailClient({
                   </div>
                 </div>
 
-                {/* Caractéristiques avancées officielles du client (Tacle, Fuite, Esquives, Initiative) */}
-                {(activeGrade?.tackle !== undefined || activeGrade?.apDodge !== undefined) && (
-                  <div className="grid grid-cols-4 gap-2 rounded-lg border border-border bg-surface/40 p-2.5 text-[11px] font-mono">
-                    <div className="flex flex-col items-center">
-                      <span className="text-muted-foreground text-[10px] uppercase font-sans">{locale === "en" ? "Lock" : "Tacle"}</span>
-                      <span className="text-foreground font-semibold tabular-nums mt-0.5">{activeGrade.tackle ?? "—"}</span>
+                {/* Caractéristiques avancées officielles du client (Tacle, Fuite, Esquives, Retraits, Puissance, Soin, Initiative) */}
+                {(activeGrade?.tackle !== undefined || activeGrade?.apDodge !== undefined || activeGrade?.power !== undefined) && (
+                  <div className="space-y-2 rounded-lg border border-border bg-surface/40 p-2.5 text-[11px] font-mono">
+                    <div className="grid grid-cols-4 gap-2">
+                      <div className="flex flex-col items-center">
+                        <span className="flex items-center gap-1 text-muted-foreground text-[10px] uppercase font-sans">
+                          <img src="/assets/dofus/stats/tacle.png" alt="" className="w-3.5 h-3.5 object-contain" />
+                          {locale === "en" ? "Lock" : "Tacle"}
+                        </span>
+                        <span className="text-foreground font-semibold tabular-nums mt-0.5">{activeGrade?.tackle ?? "—"}</span>
+                      </div>
+                      <div className="flex flex-col items-center">
+                        <span className="flex items-center gap-1 text-muted-foreground text-[10px] uppercase font-sans">
+                          <img src="/assets/dofus/stats/fuite.png" alt="" className="w-3.5 h-3.5 object-contain" />
+                          {locale === "en" ? "Dodge" : "Fuite"}
+                        </span>
+                        <span className="text-foreground font-semibold tabular-nums mt-0.5">{activeGrade?.evade ?? "—"}</span>
+                      </div>
+                      <div className="flex flex-col items-center">
+                        <span className="flex items-center gap-1 text-muted-foreground text-[10px] uppercase font-sans">
+                          <img src="/assets/dofus/stats/esquivePA.png" alt="" className="w-3.5 h-3.5 object-contain" />
+                          {locale === "en" ? "AP Dodge" : "Esq PA"}
+                        </span>
+                        <span className="text-foreground font-semibold tabular-nums mt-0.5">{activeGrade?.apDodge ?? "—"}</span>
+                      </div>
+                      <div className="flex flex-col items-center">
+                        <span className="flex items-center gap-1 text-muted-foreground text-[10px] uppercase font-sans">
+                          <img src="/assets/dofus/stats/esquivePM.png" alt="" className="w-3.5 h-3.5 object-contain" />
+                          {locale === "en" ? "MP Dodge" : "Esq PM"}
+                        </span>
+                        <span className="text-foreground font-semibold tabular-nums mt-0.5">{activeGrade?.mpDodge ?? "—"}</span>
+                      </div>
                     </div>
-                    <div className="flex flex-col items-center">
-                      <span className="text-muted-foreground text-[10px] uppercase font-sans">{locale === "en" ? "Dodge" : "Fuite"}</span>
-                      <span className="text-foreground font-semibold tabular-nums mt-0.5">{activeGrade.evade ?? "—"}</span>
-                    </div>
-                    <div className="flex flex-col items-center">
-                      <span className="text-muted-foreground text-[10px] uppercase font-sans">{locale === "en" ? "AP Dodge" : "Esq PA"}</span>
-                      <span className="text-foreground font-semibold tabular-nums mt-0.5">{activeGrade.apDodge ?? "—"}</span>
-                    </div>
-                    <div className="flex flex-col items-center">
-                      <span className="text-muted-foreground text-[10px] uppercase font-sans">{locale === "en" ? "MP Dodge" : "Esq PM"}</span>
-                      <span className="text-foreground font-semibold tabular-nums mt-0.5">{activeGrade.mpDodge ?? "—"}</span>
-                    </div>
-                    {activeGrade.initiative !== undefined && activeGrade.initiative > 0 && (
-                      <div className="col-span-4 flex items-center justify-between pt-1.5 border-t border-border px-1 text-[11px]">
-                        <span className="text-muted-foreground font-sans">Initiative</span>
+
+                    {/* Ligne secondaire : Retraits, Puissance, Soins (si présents) */}
+                    {(activeGrade?.apRemoval !== undefined || activeGrade?.mpRemoval !== undefined || (activeGrade?.power !== undefined && activeGrade.power > 0) || (activeGrade?.healBonus !== undefined && activeGrade.healBonus > 0)) && (
+                      <div className="grid grid-cols-4 gap-2 pt-1.5 border-t border-border">
+                        {activeGrade?.apRemoval !== undefined && (
+                          <div className="flex flex-col items-center">
+                            <span className="flex items-center gap-1 text-muted-foreground text-[10px] uppercase font-sans">
+                              <img src="/assets/dofus/stats/retraitPA.png" alt="" className="w-3.5 h-3.5 object-contain" />
+                              {locale === "en" ? "AP Red" : "Ret PA"}
+                            </span>
+                            <span className="text-foreground font-semibold tabular-nums mt-0.5">{activeGrade.apRemoval}</span>
+                          </div>
+                        )}
+                        {activeGrade?.mpRemoval !== undefined && (
+                          <div className="flex flex-col items-center">
+                            <span className="flex items-center gap-1 text-muted-foreground text-[10px] uppercase font-sans">
+                              <img src="/assets/dofus/stats/retraitPM.png" alt="" className="w-3.5 h-3.5 object-contain" />
+                              {locale === "en" ? "MP Red" : "Ret PM"}
+                            </span>
+                            <span className="text-foreground font-semibold tabular-nums mt-0.5">{activeGrade.mpRemoval}</span>
+                          </div>
+                        )}
+                        {activeGrade?.power !== undefined && activeGrade.power > 0 && (
+                          <div className="flex flex-col items-center">
+                            <span className="flex items-center gap-1 text-muted-foreground text-[10px] uppercase font-sans">
+                              <img src="/assets/dofus/stats/puissance.png" alt="" className="w-3.5 h-3.5 object-contain" />
+                              {locale === "en" ? "Power" : "Puissance"}
+                            </span>
+                            <span className="text-foreground font-semibold tabular-nums mt-0.5">{activeGrade.power}</span>
+                          </div>
+                        )}
+                        {activeGrade?.healBonus !== undefined && activeGrade.healBonus > 0 && (
+                          <div className="flex flex-col items-center">
+                            <span className="flex items-center gap-1 text-muted-foreground text-[10px] uppercase font-sans">
+                              <img src="/assets/dofus/stats/soin.png" alt="" className="w-3.5 h-3.5 object-contain" />
+                              {locale === "en" ? "Heal" : "Soin"}
+                            </span>
+                            <span className="text-foreground font-semibold tabular-nums mt-0.5">{activeGrade.healBonus}</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {activeGrade?.initiative !== undefined && activeGrade.initiative > 0 && (
+                      <div className="flex items-center justify-between pt-1.5 border-t border-border px-1 text-[11px]">
+                        <span className="flex items-center gap-1.5 text-muted-foreground font-sans">
+                          <img src="/assets/dofus/stats/initiative.png" alt="" className="w-3.5 h-3.5 object-contain" />
+                          Initiative
+                        </span>
                         <span className="text-foreground font-semibold tabular-nums">
                           {activeGrade.initiative.toLocaleString(locale === "en" ? "en-US" : "fr-FR")}
                         </span>
@@ -613,6 +679,25 @@ export function PublicBossDetailClient({
                     )}
                   </div>
                 )}
+
+                {/* Immunités et restrictions de combat (Dofensive / DofusDB) */}
+                {currentStats?.encyclo && (() => {
+                  const props = encycloProperties(currentStats.encyclo, activeGrade?.level ?? null);
+                  if (props.length === 0) return null;
+                  return (
+                    <div className="flex flex-wrap gap-1.5 pt-0.5">
+                      {props.map((p, idx) => (
+                        <span
+                          key={idx}
+                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium bg-rose-500/10 text-rose-300 border border-rose-500/20"
+                        >
+                          <ShieldAlert className="w-3 h-3 text-rose-400 shrink-0" />
+                          {p}
+                        </span>
+                      ))}
+                    </div>
+                  );
+                })()}
               </>
             )}
           </div>

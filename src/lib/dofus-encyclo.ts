@@ -92,6 +92,8 @@ export interface EncycloIdentity {
     canBeCarried: boolean | null;
     canUsePortal: boolean | null;
     soulCaptureForbidden: boolean | null;
+    canMove: boolean | null;
+    canBeControlledByFightOwner: boolean | null;
 }
 
 /** Identité encyclopédique depuis le payload DofusDB brut (pur, borné). */
@@ -112,10 +114,20 @@ export function encycloIdentity(monster: any): EncycloIdentity {
         canTackle: bool(monster?.canTackle),
         canBePushed: bool(monster?.canBePushed),
         canSwitchPos: bool(monster?.canSwitchPos),
-        canSwitchPosOnTarget: bool(monster?.canSwitchPosOnTarget),
+        canSwitchPosOnTarget: monster?.cantSwitchPosOnTarget !== undefined
+            ? !monster.cantSwitchPosOnTarget
+            : monster?.CantSwitchPosOnTarget !== undefined
+            ? !monster.CantSwitchPosOnTarget
+            : bool(monster?.canSwitchPosOnTarget),
         canBeCarried: bool(monster?.canBeCarried),
         canUsePortal: bool(monster?.canUsePortal),
         soulCaptureForbidden: bool(monster?.soulCaptureForbidden),
+        canMove: monster?.cantMove !== undefined
+            ? !monster.cantMove
+            : monster?.CantMove !== undefined
+            ? !monster.CantMove
+            : bool(monster?.canMove),
+        canBeControlledByFightOwner: bool(monster?.canBeControlledByFightOwner ?? monster?.CanBeControlledByFightOwner),
     };
 }
 
@@ -151,9 +163,11 @@ export function encycloProperties(
         [identity.soulCaptureForbidden, "Ne peut pas être capturé"],
         [identity.canBeCarried === false ? true : null, "Ne peut pas être porté"],
         [identity.canBePushed === false ? true : null, "Ne peut pas être poussé"],
+        [identity.canMove === false ? true : null, "Ne peut pas se déplacer"],
         [identity.canSwitchPos === false ? true : null, "Ne peut pas échanger de position"],
         [identity.canSwitchPosOnTarget === false ? true : null, "Ne peut pas échanger de position avec la cible"],
         [identity.canUsePortal === false ? true : null, "Ne peut pas utiliser de portail"],
+        [identity.canBeControlledByFightOwner === true ? true : null, "Peut être contrôlé par le lanceur"],
     ];
     for (const [active, label] of denials) {
         if (active) lines.push(label);

@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-09-23T22:58:31.790Z",
+  "updatedAt": "2026-10-08T20:31:52.172Z",
   "totalDungeons": 187,
   "totalMonsters": 800,
   "dungeons": [
@@ -2400,8 +2400,8 @@
           "isBoss": true,
           "raceId": 2,
           "raceName": "Bandits d'Amakna",
-          "level": 50,
-          "gradesCount": 5
+          "level": 200,
+          "gradesCount": 8
         }
       ],
       "monsters": [
@@ -2412,8 +2412,8 @@
           "isBoss": false,
           "raceId": 2,
           "raceName": "Bandits d'Amakna",
-          "level": 50,
-          "gradesCount": 5
+          "level": 200,
+          "gradesCount": 8
         },
         {
           "id": 119,
@@ -2422,8 +2422,8 @@
           "isBoss": false,
           "raceId": 2,
           "raceName": "Bandits d'Amakna",
-          "level": 50,
-          "gradesCount": 5
+          "level": 200,
+          "gradesCount": 8
         },
         {
           "id": 153,
@@ -2432,8 +2432,8 @@
           "isBoss": false,
           "raceId": 2,
           "raceName": "Bandits d'Amakna",
-          "level": 47,
-          "gradesCount": 5
+          "level": 200,
+          "gradesCount": 8
         },
         {
           "id": 155,
@@ -2442,8 +2442,8 @@
           "isBoss": false,
           "raceId": 2,
           "raceName": "Bandits d'Amakna",
-          "level": 49,
-          "gradesCount": 5
+          "level": 200,
+          "gradesCount": 8
         },
         {
           "id": 252,
@@ -2452,8 +2452,8 @@
           "isBoss": true,
           "raceId": 2,
           "raceName": "Bandits d'Amakna",
-          "level": 50,
-          "gradesCount": 5
+          "level": 200,
+          "gradesCount": 8
         }
       ],
       "raceId": 2,
@@ -2466,8 +2466,8 @@
           "isBoss": false,
           "raceId": 2,
           "raceName": "Bandits d'Amakna",
-          "level": 50,
-          "gradesCount": 5
+          "level": 200,
+          "gradesCount": 8
         },
         {
           "id": 119,
@@ -2476,8 +2476,8 @@
           "isBoss": false,
           "raceId": 2,
           "raceName": "Bandits d'Amakna",
-          "level": 50,
-          "gradesCount": 5
+          "level": 200,
+          "gradesCount": 8
         },
         {
           "id": 153,
@@ -2486,8 +2486,8 @@
           "isBoss": false,
           "raceId": 2,
           "raceName": "Bandits d'Amakna",
-          "level": 47,
-          "gradesCount": 5
+          "level": 200,
+          "gradesCount": 8
         },
         {
           "id": 155,
@@ -2496,8 +2496,8 @@
           "isBoss": false,
           "raceId": 2,
           "raceName": "Bandits d'Amakna",
-          "level": 49,
-          "gradesCount": 5
+          "level": 200,
+          "gradesCount": 8
         },
         {
           "id": 252,
@@ -2506,8 +2506,8 @@
           "isBoss": true,
           "raceId": 2,
           "raceName": "Bandits d'Amakna",
-          "level": 50,
-          "gradesCount": 5
+          "level": 200,
+          "gradesCount": 8
         }
       ]
     },
@@ -2929,8 +2929,8 @@
           "isBoss": true,
           "raceId": 72,
           "raceName": "Colonie du Magistral",
-          "level": 50,
-          "gradesCount": 5
+          "level": 200,
+          "gradesCount": 8
         }
       ],
       "monsters": [
@@ -2941,8 +2941,8 @@
           "isBoss": false,
           "raceId": 72,
           "raceName": "Colonie du Magistral",
-          "level": 50,
-          "gradesCount": 5
+          "level": 200,
+          "gradesCount": 8
         },
         {
           "id": 1027,
@@ -2951,8 +2951,8 @@
           "isBoss": true,
           "raceId": 72,
           "raceName": "Colonie du Magistral",
-          "level": 50,
-          "gradesCount": 5
+          "level": 200,
+          "gradesCount": 8
         },
         {
           "id": 1060,
@@ -2961,8 +2961,8 @@
           "isBoss": false,
           "raceId": 72,
           "raceName": "Colonie du Magistral",
-          "level": 48,
-          "gradesCount": 5
+          "level": 200,
+          "gradesCount": 8
         },
         {
           "id": 1061,
@@ -2971,8 +2971,8 @@
           "isBoss": false,
           "raceId": 72,
           "raceName": "Colonie du Magistral",
-          "level": 48,
-          "gradesCount": 5
+          "level": 200,
+          "gradesCount": 8
         },
         {
           "id": 1062,
@@ -2981,8 +2981,8 @@
           "isBoss": false,
           "raceId": 72,
           "raceName": "Colonie du Magistral",
-          "level": 48,
-          "gradesCount": 5
+          "level": 200,
+          "gradesCount": 8
         },
         {
           "id": 1063,
@@ -2991,8 +2991,8 @@
           "isBoss": false,
           "raceId": 72,
           "raceName": "Colonie du Magistral",
-          "level": 48,
-          "gradesCount": 5
+          "level": 200,
+          "gradesCount": 8
         },
         {
           "id": 1064,
@@ -3001,8 +3001,8 @@
           "isBoss": false,
           "raceId": 72,
           "raceName": "Colonie du Magistral",
-          "level": 49,
-          "gradesCount": 5
+          "level": 200,
+          "gradesCount": 8
         },
         {
           "id": 1065,
@@ -3011,8 +3011,8 @@
           "isBoss": false,
           "raceId": 72,
           "raceName": "Colonie du Magistral",
-          "level": 49,
-          "gradesCount": 5
+          "level": 200,
+          "gradesCount": 8
         },
         {
           "id": 1066,
@@ -3021,8 +3021,8 @@
           "isBoss": false,
           "raceId": 72,
           "raceName": "Colonie du Magistral",
-          "level": 49,
-          "gradesCount": 5
+          "level": 200,
+          "gradesCount": 8
         },
         {
           "id": 1067,
@@ -3031,8 +3031,8 @@
           "isBoss": false,
           "raceId": 72,
           "raceName": "Colonie du Magistral",
-          "level": 49,
-          "gradesCount": 5
+          "level": 200,
+          "gradesCount": 8
         }
       ],
       "raceId": 72,
@@ -3045,8 +3045,8 @@
           "isBoss": false,
           "raceId": 72,
           "raceName": "Colonie du Magistral",
-          "level": 50,
-          "gradesCount": 5
+          "level": 200,
+          "gradesCount": 8
         },
         {
           "id": 1027,
@@ -3055,8 +3055,8 @@
           "isBoss": true,
           "raceId": 72,
           "raceName": "Colonie du Magistral",
-          "level": 50,
-          "gradesCount": 5
+          "level": 200,
+          "gradesCount": 8
         },
         {
           "id": 1060,
@@ -3065,8 +3065,8 @@
           "isBoss": false,
           "raceId": 72,
           "raceName": "Colonie du Magistral",
-          "level": 48,
-          "gradesCount": 5
+          "level": 200,
+          "gradesCount": 8
         },
         {
           "id": 1061,
@@ -3075,8 +3075,8 @@
           "isBoss": false,
           "raceId": 72,
           "raceName": "Colonie du Magistral",
-          "level": 48,
-          "gradesCount": 5
+          "level": 200,
+          "gradesCount": 8
         },
         {
           "id": 1062,
@@ -3085,8 +3085,8 @@
           "isBoss": false,
           "raceId": 72,
           "raceName": "Colonie du Magistral",
-          "level": 48,
-          "gradesCount": 5
+          "level": 200,
+          "gradesCount": 8
         },
         {
           "id": 1063,
@@ -3095,8 +3095,8 @@
           "isBoss": false,
           "raceId": 72,
           "raceName": "Colonie du Magistral",
-          "level": 48,
-          "gradesCount": 5
+          "level": 200,
+          "gradesCount": 8
         },
         {
           "id": 1064,
@@ -3105,8 +3105,8 @@
           "isBoss": false,
           "raceId": 72,
           "raceName": "Colonie du Magistral",
-          "level": 49,
-          "gradesCount": 5
+          "level": 200,
+          "gradesCount": 8
         },
         {
           "id": 1065,
@@ -3115,8 +3115,8 @@
           "isBoss": false,
           "raceId": 72,
           "raceName": "Colonie du Magistral",
-          "level": 49,
-          "gradesCount": 5
+          "level": 200,
+          "gradesCount": 8
         },
         {
           "id": 1066,
@@ -3125,8 +3125,8 @@
           "isBoss": false,
           "raceId": 72,
           "raceName": "Colonie du Magistral",
-          "level": 49,
-          "gradesCount": 5
+          "level": 200,
+          "gradesCount": 8
         },
         {
           "id": 1067,
@@ -3135,8 +3135,8 @@
           "isBoss": false,
           "raceId": 72,
           "raceName": "Colonie du Magistral",
-          "level": 49,
-          "gradesCount": 5
+          "level": 200,
+          "gradesCount": 8
         }
       ]
     },
@@ -3152,8 +3152,8 @@
           "isBoss": true,
           "raceId": 20,
           "raceName": "Kannibouls de Moon",
-          "level": 60,
-          "gradesCount": 5
+          "level": 200,
+          "gradesCount": 8
         }
       ],
       "monsters": [
@@ -3164,8 +3164,8 @@
           "isBoss": false,
           "raceId": 20,
           "raceName": "Kannibouls de Moon",
-          "level": 60,
-          "gradesCount": 5
+          "level": 200,
+          "gradesCount": 8
         },
         {
           "id": 212,
@@ -3174,8 +3174,8 @@
           "isBoss": false,
           "raceId": 20,
           "raceName": "Kannibouls de Moon",
-          "level": 60,
-          "gradesCount": 5
+          "level": 200,
+          "gradesCount": 8
         },
         {
           "id": 213,
@@ -3184,8 +3184,8 @@
           "isBoss": false,
           "raceId": 20,
           "raceName": "Kannibouls de Moon",
-          "level": 60,
-          "gradesCount": 5
+          "level": 200,
+          "gradesCount": 8
         },
         {
           "id": 214,
@@ -3194,8 +3194,8 @@
           "isBoss": false,
           "raceId": 20,
           "raceName": "Kannibouls de Moon",
-          "level": 60,
-          "gradesCount": 5
+          "level": 200,
+          "gradesCount": 8
         },
         {
           "id": 2960,
@@ -3204,8 +3204,8 @@
           "isBoss": true,
           "raceId": 20,
           "raceName": "Kannibouls de Moon",
-          "level": 60,
-          "gradesCount": 5
+          "level": 200,
+          "gradesCount": 8
         },
         {
           "id": 4151,
@@ -3214,8 +3214,8 @@
           "isBoss": false,
           "raceId": 20,
           "raceName": "Kannibouls de Moon",
-          "level": 60,
-          "gradesCount": 5
+          "level": 200,
+          "gradesCount": 8
         }
       ],
       "raceId": 20,
@@ -3228,8 +3228,8 @@
           "isBoss": false,
           "raceId": 20,
           "raceName": "Kannibouls de Moon",
-          "level": 60,
-          "gradesCount": 5
+          "level": 200,
+          "gradesCount": 8
         },
         {
           "id": 212,
@@ -3238,8 +3238,8 @@
           "isBoss": false,
           "raceId": 20,
           "raceName": "Kannibouls de Moon",
-          "level": 60,
-          "gradesCount": 5
+          "level": 200,
+          "gradesCount": 8
         },
         {
           "id": 213,
@@ -3248,8 +3248,8 @@
           "isBoss": false,
           "raceId": 20,
           "raceName": "Kannibouls de Moon",
-          "level": 60,
-          "gradesCount": 5
+          "level": 200,
+          "gradesCount": 8
         },
         {
           "id": 214,
@@ -3258,8 +3258,8 @@
           "isBoss": false,
           "raceId": 20,
           "raceName": "Kannibouls de Moon",
-          "level": 60,
-          "gradesCount": 5
+          "level": 200,
+          "gradesCount": 8
         },
         {
           "id": 2960,
@@ -3268,8 +3268,8 @@
           "isBoss": true,
           "raceId": 20,
           "raceName": "Kannibouls de Moon",
-          "level": 60,
-          "gradesCount": 5
+          "level": 200,
+          "gradesCount": 8
         },
         {
           "id": 4151,
@@ -3278,8 +3278,8 @@
           "isBoss": false,
           "raceId": 20,
           "raceName": "Kannibouls de Moon",
-          "level": 60,
-          "gradesCount": 5
+          "level": 200,
+          "gradesCount": 8
         }
       ]
     },
@@ -4533,13 +4533,13 @@
       "cleanName": "cavernedenowel",
       "bosses": [
         {
-          "id": 1194,
-          "name": "Père Fwetar",
-          "imageUrl": "https://api.dofusdb.fr/img/monsters/651.png",
+          "id": 872,
+          "name": "Papa Nowel",
+          "imageUrl": "https://api.dofusdb.fr/img/monsters/487.png",
           "isBoss": true,
-          "raceId": 345,
-          "raceName": "Monstres de la Taïga de Nowel",
-          "level": 180,
+          "raceId": 344,
+          "raceName": "Monstres de la Terre de Nowel",
+          "level": 110,
           "gradesCount": 5
         }
       ],
@@ -4602,6 +4602,159 @@
           "raceId": 344,
           "raceName": "Monstres de la Terre de Nowel",
           "level": 110,
+          "gradesCount": 5
+        }
+      ],
+      "raceId": 344,
+      "raceName": "Monstres de la Terre de Nowel",
+      "familyMonsters": [
+        {
+          "id": 840,
+          "name": "Kanigrou hivernal",
+          "imageUrl": "https://api.dofusdb.fr/img/monsters/470.png",
+          "isBoss": false,
+          "raceId": 344,
+          "raceName": "Monstres de la Terre de Nowel",
+          "level": 110,
+          "gradesCount": 5
+        },
+        {
+          "id": 845,
+          "name": "Bonhomme de neige",
+          "imageUrl": "https://api.dofusdb.fr/img/monsters/474.png",
+          "isBoss": false,
+          "raceId": 344,
+          "raceName": "Monstres de la Terre de Nowel",
+          "level": 110,
+          "gradesCount": 5
+        },
+        {
+          "id": 867,
+          "name": "Bouboule de neige",
+          "imageUrl": "https://api.dofusdb.fr/img/monsters/484.png",
+          "isBoss": false,
+          "raceId": 344,
+          "raceName": "Monstres de la Terre de Nowel",
+          "level": 110,
+          "gradesCount": 5
+        },
+        {
+          "id": 872,
+          "name": "Papa Nowel",
+          "imageUrl": "https://api.dofusdb.fr/img/monsters/487.png",
+          "isBoss": true,
+          "raceId": 344,
+          "raceName": "Monstres de la Terre de Nowel",
+          "level": 110,
+          "gradesCount": 5
+        },
+        {
+          "id": 891,
+          "name": "Mininuit",
+          "imageUrl": "https://api.dofusdb.fr/img/monsters/501.png",
+          "isBoss": false,
+          "raceId": 344,
+          "raceName": "Monstres de la Terre de Nowel",
+          "level": 110,
+          "gradesCount": 5
+        },
+        {
+          "id": 2622,
+          "name": "Croc gland de Nowel",
+          "imageUrl": "https://api.dofusdb.fr/img/monsters/187.png",
+          "isBoss": false,
+          "raceId": 344,
+          "raceName": "Monstres de la Terre de Nowel",
+          "level": 110,
+          "gradesCount": 5
+        }
+      ]
+    },
+    {
+      "id": 38,
+      "name": "Maison du Papa Nowel",
+      "cleanName": "maisondupapanowel",
+      "bosses": [
+        {
+          "id": 1194,
+          "name": "Père Fwetar",
+          "imageUrl": "https://api.dofusdb.fr/img/monsters/651.png",
+          "isBoss": true,
+          "raceId": 345,
+          "raceName": "Monstres de la Taïga de Nowel",
+          "level": 180,
+          "gradesCount": 5
+        }
+      ],
+      "monsters": [
+        {
+          "id": 839,
+          "name": "Abominable yiti des neiges",
+          "imageUrl": "https://api.dofusdb.fr/img/monsters/469.png",
+          "isBoss": false,
+          "raceId": 345,
+          "raceName": "Monstres de la Taïga de Nowel",
+          "level": 180,
+          "gradesCount": 5
+        },
+        {
+          "id": 869,
+          "name": "Craqueleur des glaces",
+          "imageUrl": "https://api.dofusdb.fr/img/monsters/485.png",
+          "isBoss": false,
+          "raceId": 345,
+          "raceName": "Monstres de la Taïga de Nowel",
+          "level": 180,
+          "gradesCount": 5
+        },
+        {
+          "id": 906,
+          "name": "Cadob'",
+          "imageUrl": "https://api.dofusdb.fr/img/monsters/494.png",
+          "isBoss": false,
+          "raceId": 345,
+          "raceName": "Monstres de la Taïga de Nowel",
+          "level": 180,
+          "gradesCount": 5
+        },
+        {
+          "id": 1194,
+          "name": "Père Fwetar",
+          "imageUrl": "https://api.dofusdb.fr/img/monsters/651.png",
+          "isBoss": true,
+          "raceId": 345,
+          "raceName": "Monstres de la Taïga de Nowel",
+          "level": 180,
+          "gradesCount": 5
+        },
+        {
+          "id": 3107,
+          "name": "Peluche tofu",
+          "imageUrl": "https://api.dofusdb.fr/img/monsters/858.png",
+          "isBoss": false,
+          "raceId": 345,
+          "raceName": "Monstres de la Taïga de Nowel",
+          "level": 180,
+          "gradesCount": 5
+        },
+        {
+          "id": 3108,
+          "name": "Peluche bouftou",
+          "imageUrl": "https://api.dofusdb.fr/img/monsters/859.png",
+          "isBoss": false,
+          "raceId": 345,
+          "raceName": "Monstres de la Taïga de Nowel",
+          "level": 180,
+          "gradesCount": 5
+        },
+        {
+          "id": 3109,
+          "name": "Peluche wabbit",
+          "imageUrl": "https://api.dofusdb.fr/img/monsters/860.png",
+          "isBoss": false,
+          "raceId": 345,
+          "raceName": "Monstres de la Taïga de Nowel",
+          "level": 180,
           "gradesCount": 5
         }
       ],
@@ -4676,159 +4829,6 @@
           "raceId": 345,
           "raceName": "Monstres de la Taïga de Nowel",
           "level": 180,
-          "gradesCount": 5
-        }
-      ]
-    },
-    {
-      "id": 38,
-      "name": "Maison du Papa Nowel",
-      "cleanName": "maisondupapanowel",
-      "bosses": [
-        {
-          "id": 872,
-          "name": "Papa Nowel",
-          "imageUrl": "https://api.dofusdb.fr/img/monsters/487.png",
-          "isBoss": true,
-          "raceId": 344,
-          "raceName": "Monstres de la Terre de Nowel",
-          "level": 110,
-          "gradesCount": 5
-        }
-      ],
-      "monsters": [
-        {
-          "id": 839,
-          "name": "Abominable yiti des neiges",
-          "imageUrl": "https://api.dofusdb.fr/img/monsters/469.png",
-          "isBoss": false,
-          "raceId": 345,
-          "raceName": "Monstres de la Taïga de Nowel",
-          "level": 180,
-          "gradesCount": 5
-        },
-        {
-          "id": 869,
-          "name": "Craqueleur des glaces",
-          "imageUrl": "https://api.dofusdb.fr/img/monsters/485.png",
-          "isBoss": false,
-          "raceId": 345,
-          "raceName": "Monstres de la Taïga de Nowel",
-          "level": 180,
-          "gradesCount": 5
-        },
-        {
-          "id": 906,
-          "name": "Cadob'",
-          "imageUrl": "https://api.dofusdb.fr/img/monsters/494.png",
-          "isBoss": false,
-          "raceId": 345,
-          "raceName": "Monstres de la Taïga de Nowel",
-          "level": 180,
-          "gradesCount": 5
-        },
-        {
-          "id": 1194,
-          "name": "Père Fwetar",
-          "imageUrl": "https://api.dofusdb.fr/img/monsters/651.png",
-          "isBoss": true,
-          "raceId": 345,
-          "raceName": "Monstres de la Taïga de Nowel",
-          "level": 180,
-          "gradesCount": 5
-        },
-        {
-          "id": 3107,
-          "name": "Peluche tofu",
-          "imageUrl": "https://api.dofusdb.fr/img/monsters/858.png",
-          "isBoss": false,
-          "raceId": 345,
-          "raceName": "Monstres de la Taïga de Nowel",
-          "level": 180,
-          "gradesCount": 5
-        },
-        {
-          "id": 3108,
-          "name": "Peluche bouftou",
-          "imageUrl": "https://api.dofusdb.fr/img/monsters/859.png",
-          "isBoss": false,
-          "raceId": 345,
-          "raceName": "Monstres de la Taïga de Nowel",
-          "level": 180,
-          "gradesCount": 5
-        },
-        {
-          "id": 3109,
-          "name": "Peluche wabbit",
-          "imageUrl": "https://api.dofusdb.fr/img/monsters/860.png",
-          "isBoss": false,
-          "raceId": 345,
-          "raceName": "Monstres de la Taïga de Nowel",
-          "level": 180,
-          "gradesCount": 5
-        }
-      ],
-      "raceId": 344,
-      "raceName": "Monstres de la Terre de Nowel",
-      "familyMonsters": [
-        {
-          "id": 840,
-          "name": "Kanigrou hivernal",
-          "imageUrl": "https://api.dofusdb.fr/img/monsters/470.png",
-          "isBoss": false,
-          "raceId": 344,
-          "raceName": "Monstres de la Terre de Nowel",
-          "level": 110,
-          "gradesCount": 5
-        },
-        {
-          "id": 845,
-          "name": "Bonhomme de neige",
-          "imageUrl": "https://api.dofusdb.fr/img/monsters/474.png",
-          "isBoss": false,
-          "raceId": 344,
-          "raceName": "Monstres de la Terre de Nowel",
-          "level": 110,
-          "gradesCount": 5
-        },
-        {
-          "id": 867,
-          "name": "Bouboule de neige",
-          "imageUrl": "https://api.dofusdb.fr/img/monsters/484.png",
-          "isBoss": false,
-          "raceId": 344,
-          "raceName": "Monstres de la Terre de Nowel",
-          "level": 110,
-          "gradesCount": 5
-        },
-        {
-          "id": 872,
-          "name": "Papa Nowel",
-          "imageUrl": "https://api.dofusdb.fr/img/monsters/487.png",
-          "isBoss": true,
-          "raceId": 344,
-          "raceName": "Monstres de la Terre de Nowel",
-          "level": 110,
-          "gradesCount": 5
-        },
-        {
-          "id": 891,
-          "name": "Mininuit",
-          "imageUrl": "https://api.dofusdb.fr/img/monsters/501.png",
-          "isBoss": false,
-          "raceId": 344,
-          "raceName": "Monstres de la Terre de Nowel",
-          "level": 110,
-          "gradesCount": 5
-        },
-        {
-          "id": 2622,
-          "name": "Croc gland de Nowel",
-          "imageUrl": "https://api.dofusdb.fr/img/monsters/187.png",
-          "isBoss": false,
-          "raceId": 344,
-          "raceName": "Monstres de la Terre de Nowel",
-          "level": 110,
           "gradesCount": 5
         }
       ]
@@ -7081,8 +7081,8 @@
           "isBoss": true,
           "raceId": 3,
           "raceName": "Wabbits",
-          "level": 60,
-          "gradesCount": 5
+          "level": 200,
+          "gradesCount": 8
         }
       ],
       "monsters": [
@@ -7093,8 +7093,8 @@
           "isBoss": false,
           "raceId": 3,
           "raceName": "Wabbits",
-          "level": 52,
-          "gradesCount": 5
+          "level": 200,
+          "gradesCount": 8
         },
         {
           "id": 65,
@@ -7103,8 +7103,8 @@
           "isBoss": false,
           "raceId": 3,
           "raceName": "Wabbits",
-          "level": 54,
-          "gradesCount": 5
+          "level": 200,
+          "gradesCount": 8
         },
         {
           "id": 68,
@@ -7113,8 +7113,8 @@
           "isBoss": false,
           "raceId": 3,
           "raceName": "Wabbits",
-          "level": 50,
-          "gradesCount": 5
+          "level": 200,
+          "gradesCount": 8
         },
         {
           "id": 72,
@@ -7123,8 +7123,8 @@
           "isBoss": false,
           "raceId": 3,
           "raceName": "Wabbits",
-          "level": 48,
-          "gradesCount": 5
+          "level": 200,
+          "gradesCount": 8
         },
         {
           "id": 96,
@@ -7133,8 +7133,8 @@
           "isBoss": false,
           "raceId": 3,
           "raceName": "Wabbits",
-          "level": 49,
-          "gradesCount": 5
+          "level": 200,
+          "gradesCount": 8
         },
         {
           "id": 97,
@@ -7143,8 +7143,8 @@
           "isBoss": false,
           "raceId": 3,
           "raceName": "Wabbits",
-          "level": 60,
-          "gradesCount": 5
+          "level": 200,
+          "gradesCount": 8
         },
         {
           "id": 99,
@@ -7153,8 +7153,8 @@
           "isBoss": false,
           "raceId": 3,
           "raceName": "Wabbits",
-          "level": 60,
-          "gradesCount": 5
+          "level": 200,
+          "gradesCount": 8
         },
         {
           "id": 180,
@@ -7163,8 +7163,8 @@
           "isBoss": true,
           "raceId": 3,
           "raceName": "Wabbits",
-          "level": 60,
-          "gradesCount": 5
+          "level": 200,
+          "gradesCount": 8
         }
       ],
       "raceId": 3,
@@ -7177,8 +7177,8 @@
           "isBoss": false,
           "raceId": 3,
           "raceName": "Wabbits",
-          "level": 52,
-          "gradesCount": 5
+          "level": 200,
+          "gradesCount": 8
         },
         {
           "id": 65,
@@ -7187,8 +7187,8 @@
           "isBoss": false,
           "raceId": 3,
           "raceName": "Wabbits",
-          "level": 54,
-          "gradesCount": 5
+          "level": 200,
+          "gradesCount": 8
         },
         {
           "id": 68,
@@ -7197,8 +7197,8 @@
           "isBoss": false,
           "raceId": 3,
           "raceName": "Wabbits",
-          "level": 50,
-          "gradesCount": 5
+          "level": 200,
+          "gradesCount": 8
         },
         {
           "id": 72,
@@ -7207,8 +7207,8 @@
           "isBoss": false,
           "raceId": 3,
           "raceName": "Wabbits",
-          "level": 48,
-          "gradesCount": 5
+          "level": 200,
+          "gradesCount": 8
         },
         {
           "id": 96,
@@ -7217,8 +7217,8 @@
           "isBoss": false,
           "raceId": 3,
           "raceName": "Wabbits",
-          "level": 49,
-          "gradesCount": 5
+          "level": 200,
+          "gradesCount": 8
         },
         {
           "id": 97,
@@ -7227,8 +7227,8 @@
           "isBoss": false,
           "raceId": 3,
           "raceName": "Wabbits",
-          "level": 60,
-          "gradesCount": 5
+          "level": 200,
+          "gradesCount": 8
         },
         {
           "id": 99,
@@ -7237,8 +7237,8 @@
           "isBoss": false,
           "raceId": 3,
           "raceName": "Wabbits",
-          "level": 60,
-          "gradesCount": 5
+          "level": 200,
+          "gradesCount": 8
         },
         {
           "id": 180,
@@ -7247,8 +7247,8 @@
           "isBoss": true,
           "raceId": 3,
           "raceName": "Wabbits",
-          "level": 60,
-          "gradesCount": 5
+          "level": 200,
+          "gradesCount": 8
         }
       ]
     },
@@ -19055,7 +19055,7 @@
           "imageUrl": "https://api.dofusdb.fr/img/monsters/204.png",
           "isBoss": true,
           "raceId": 301,
-          "raceName": "Gros Tofus",
+          "raceName": "Gros Tofus (Expéditions)",
           "level": 220,
           "gradesCount": 5
         },
@@ -19065,7 +19065,7 @@
           "imageUrl": "https://api.dofusdb.fr/img/monsters/935.png",
           "isBoss": false,
           "raceId": 301,
-          "raceName": "Gros Tofus",
+          "raceName": "Gros Tofus (Expéditions)",
           "level": 212,
           "gradesCount": 5
         },
@@ -19075,7 +19075,7 @@
           "imageUrl": "https://api.dofusdb.fr/img/monsters/451.png",
           "isBoss": false,
           "raceId": 301,
-          "raceName": "Gros Tofus",
+          "raceName": "Gros Tofus (Expéditions)",
           "level": 212,
           "gradesCount": 5
         },
@@ -19085,7 +19085,7 @@
           "imageUrl": "https://api.dofusdb.fr/img/monsters/934.png",
           "isBoss": false,
           "raceId": 301,
-          "raceName": "Gros Tofus",
+          "raceName": "Gros Tofus (Expéditions)",
           "level": 212,
           "gradesCount": 5
         },
@@ -19095,7 +19095,7 @@
           "imageUrl": "https://api.dofusdb.fr/img/monsters/933.png",
           "isBoss": false,
           "raceId": 301,
-          "raceName": "Gros Tofus",
+          "raceName": "Gros Tofus (Expéditions)",
           "level": 212,
           "gradesCount": 5
         },
@@ -19105,7 +19105,7 @@
           "imageUrl": "https://api.dofusdb.fr/img/monsters/932.png",
           "isBoss": false,
           "raceId": 301,
-          "raceName": "Gros Tofus",
+          "raceName": "Gros Tofus (Expéditions)",
           "level": 212,
           "gradesCount": 5
         }
@@ -19136,7 +19136,7 @@
           "imageUrl": "https://api.dofusdb.fr/img/monsters/147.png",
           "isBoss": true,
           "raceId": 310,
-          "raceName": "Abraknydiens Irascibles",
+          "raceName": "Abraknydiens Irascibles (Expéditions)",
           "level": 220,
           "gradesCount": 5
         },
@@ -19146,7 +19146,7 @@
           "imageUrl": "https://api.dofusdb.fr/img/monsters/148.png",
           "isBoss": false,
           "raceId": 310,
-          "raceName": "Abraknydiens Irascibles",
+          "raceName": "Abraknydiens Irascibles (Expéditions)",
           "level": 212,
           "gradesCount": 5
         },
@@ -19156,7 +19156,7 @@
           "imageUrl": "https://api.dofusdb.fr/img/monsters/150.png",
           "isBoss": false,
           "raceId": 310,
-          "raceName": "Abraknydiens Irascibles",
+          "raceName": "Abraknydiens Irascibles (Expéditions)",
           "level": 212,
           "gradesCount": 5
         },
@@ -19166,7 +19166,7 @@
           "imageUrl": "https://api.dofusdb.fr/img/monsters/505.png",
           "isBoss": false,
           "raceId": 310,
-          "raceName": "Abraknydiens Irascibles",
+          "raceName": "Abraknydiens Irascibles (Expéditions)",
           "level": 212,
           "gradesCount": 5
         },
@@ -19176,7 +19176,7 @@
           "imageUrl": "https://api.dofusdb.fr/img/monsters/346.png",
           "isBoss": false,
           "raceId": 310,
-          "raceName": "Abraknydiens Irascibles",
+          "raceName": "Abraknydiens Irascibles (Expéditions)",
           "level": 212,
           "gradesCount": 5
         }
@@ -19197,7 +19197,7 @@
           "imageUrl": "https://api.dofusdb.fr/img/monsters/79.png",
           "isBoss": false,
           "raceId": 293,
-          "raceName": "Bandits d'Amakna",
+          "raceName": "Bandits d'Amakna (Expéditions)",
           "level": 212,
           "gradesCount": 5
         },
@@ -19207,7 +19207,7 @@
           "imageUrl": "https://api.dofusdb.fr/img/monsters/66.png",
           "isBoss": false,
           "raceId": 293,
-          "raceName": "Bandits d'Amakna",
+          "raceName": "Bandits d'Amakna (Expéditions)",
           "level": 212,
           "gradesCount": 5
         }
@@ -23102,16 +23102,6 @@
       "gradesCount": 5
     },
     {
-      "id": 153,
-      "name": "Boulanger Sombre",
-      "imageUrl": "https://api.dofusdb.fr/img/monsters/79.png",
-      "isBoss": false,
-      "raceId": 2,
-      "raceName": "Bandits d'Amakna",
-      "level": 47,
-      "gradesCount": 5
-    },
-    {
       "id": 74,
       "name": "Bwork Archer",
       "imageUrl": "https://api.dofusdb.fr/img/monsters/29.png",
@@ -23119,126 +23109,6 @@
       "raceId": 5,
       "raceName": "Bworks d'Amakna",
       "level": 48,
-      "gradesCount": 5
-    },
-    {
-      "id": 1060,
-      "name": "Crustorail Kouraçao",
-      "imageUrl": "https://api.dofusdb.fr/img/monsters/584.png",
-      "isBoss": false,
-      "raceId": 72,
-      "raceName": "Colonie du Magistral",
-      "level": 48,
-      "gradesCount": 5
-    },
-    {
-      "id": 1061,
-      "name": "Crustorail Malibout",
-      "imageUrl": "https://api.dofusdb.fr/img/monsters/585.png",
-      "isBoss": false,
-      "raceId": 72,
-      "raceName": "Colonie du Magistral",
-      "level": 48,
-      "gradesCount": 5
-    },
-    {
-      "id": 1063,
-      "name": "Crustorail Morito",
-      "imageUrl": "https://api.dofusdb.fr/img/monsters/587.png",
-      "isBoss": false,
-      "raceId": 72,
-      "raceName": "Colonie du Magistral",
-      "level": 48,
-      "gradesCount": 5
-    },
-    {
-      "id": 1062,
-      "name": "Crustorail Passaoh",
-      "imageUrl": "https://api.dofusdb.fr/img/monsters/586.png",
-      "isBoss": false,
-      "raceId": 72,
-      "raceName": "Colonie du Magistral",
-      "level": 48,
-      "gradesCount": 5
-    },
-    {
-      "id": 72,
-      "name": "Tiwabbit Kiafin",
-      "imageUrl": "https://api.dofusdb.fr/img/monsters/28.png",
-      "isBoss": false,
-      "raceId": 3,
-      "raceName": "Wabbits",
-      "level": 48,
-      "gradesCount": 5
-    },
-    {
-      "id": 155,
-      "name": "Bandit du clan des Roublards",
-      "imageUrl": "https://api.dofusdb.fr/img/monsters/81.png",
-      "isBoss": false,
-      "raceId": 2,
-      "raceName": "Bandits d'Amakna",
-      "level": 49,
-      "gradesCount": 5
-    },
-    {
-      "id": 1064,
-      "name": "Palmifleur Kouraçao",
-      "imageUrl": "https://api.dofusdb.fr/img/monsters/588.png",
-      "isBoss": false,
-      "raceId": 72,
-      "raceName": "Colonie du Magistral",
-      "level": 49,
-      "gradesCount": 5
-    },
-    {
-      "id": 1065,
-      "name": "Palmifleur Malibout",
-      "imageUrl": "https://api.dofusdb.fr/img/monsters/589.png",
-      "isBoss": false,
-      "raceId": 72,
-      "raceName": "Colonie du Magistral",
-      "level": 49,
-      "gradesCount": 5
-    },
-    {
-      "id": 1067,
-      "name": "Palmifleur Morito",
-      "imageUrl": "https://api.dofusdb.fr/img/monsters/591.png",
-      "isBoss": false,
-      "raceId": 72,
-      "raceName": "Colonie du Magistral",
-      "level": 49,
-      "gradesCount": 5
-    },
-    {
-      "id": 1066,
-      "name": "Palmifleur Passaoh",
-      "imageUrl": "https://api.dofusdb.fr/img/monsters/590.png",
-      "isBoss": false,
-      "raceId": 72,
-      "raceName": "Colonie du Magistral",
-      "level": 49,
-      "gradesCount": 5
-    },
-    {
-      "id": 96,
-      "name": "Tiwabbit",
-      "imageUrl": "https://api.dofusdb.fr/img/monsters/48.png",
-      "isBoss": false,
-      "raceId": 3,
-      "raceName": "Wabbits",
-      "level": 49,
-      "gradesCount": 5
-    },
-    {
-      "id": 68,
-      "name": "Black Tiwabbit",
-      "imageUrl": "https://api.dofusdb.fr/img/monsters/27.png",
-      "isBoss": false,
-      "raceId": 3,
-      "raceName": "Wabbits",
-      "level": 50,
       "gradesCount": 5
     },
     {
@@ -23332,52 +23202,12 @@
       "gradesCount": 5
     },
     {
-      "id": 252,
-      "name": "Coffre des Forgerons",
-      "imageUrl": "https://api.dofusdb.fr/img/monsters/98.png",
-      "isBoss": true,
-      "raceId": 2,
-      "raceName": "Bandits d'Amakna",
-      "level": 50,
-      "gradesCount": 5
-    },
-    {
-      "id": 1022,
-      "name": "Corailleur",
-      "imageUrl": "https://api.dofusdb.fr/img/monsters/560.png",
-      "isBoss": false,
-      "raceId": 72,
-      "raceName": "Colonie du Magistral",
-      "level": 50,
-      "gradesCount": 5
-    },
-    {
-      "id": 1027,
-      "name": "Corailleur Magistral",
-      "imageUrl": "https://api.dofusdb.fr/img/monsters/563.png",
-      "isBoss": true,
-      "raceId": 72,
-      "raceName": "Colonie du Magistral",
-      "level": 50,
-      "gradesCount": 5
-    },
-    {
       "id": 6903,
       "name": "Directeur Grunob",
       "imageUrl": "https://api.dofusdb.fr/img/monsters/2279.png",
       "isBoss": true,
       "raceId": 6,
       "raceName": "Gobelins d'Amakna",
-      "level": 50,
-      "gradesCount": 5
-    },
-    {
-      "id": 119,
-      "name": "Forgeron Sombre",
-      "imageUrl": "https://api.dofusdb.fr/img/monsters/66.png",
-      "isBoss": false,
-      "raceId": 2,
-      "raceName": "Bandits d'Amakna",
       "level": 50,
       "gradesCount": 5
     },
@@ -23552,16 +23382,6 @@
       "gradesCount": 5
     },
     {
-      "id": 118,
-      "name": "Mineur Sombre",
-      "imageUrl": "https://api.dofusdb.fr/img/monsters/65.png",
-      "isBoss": false,
-      "raceId": 2,
-      "raceName": "Bandits d'Amakna",
-      "level": 50,
-      "gradesCount": 5
-    },
-    {
       "id": 7197,
       "name": "Rakoopeur",
       "imageUrl": "https://api.dofusdb.fr/img/monsters/2319.png",
@@ -23629,26 +23449,6 @@
       "raceId": 255,
       "raceName": "Rebelles de la futaie",
       "level": 50,
-      "gradesCount": 5
-    },
-    {
-      "id": 64,
-      "name": "Wabbit",
-      "imageUrl": "https://api.dofusdb.fr/img/monsters/25.png",
-      "isBoss": false,
-      "raceId": 3,
-      "raceName": "Wabbits",
-      "level": 52,
-      "gradesCount": 5
-    },
-    {
-      "id": 65,
-      "name": "Black Wabbit",
-      "imageUrl": "https://api.dofusdb.fr/img/monsters/26.png",
-      "isBoss": false,
-      "raceId": 3,
-      "raceName": "Wabbits",
-      "level": 54,
       "gradesCount": 5
     },
     {
@@ -23792,76 +23592,6 @@
       "gradesCount": 5
     },
     {
-      "id": 99,
-      "name": "Grand Pa Wabbit",
-      "imageUrl": "https://api.dofusdb.fr/img/monsters/50.png",
-      "isBoss": false,
-      "raceId": 3,
-      "raceName": "Wabbits",
-      "level": 60,
-      "gradesCount": 5
-    },
-    {
-      "id": 211,
-      "name": "Kanniboul Ark",
-      "imageUrl": "https://api.dofusdb.fr/img/monsters/110.png",
-      "isBoss": false,
-      "raceId": 20,
-      "raceName": "Kannibouls de Moon",
-      "level": 60,
-      "gradesCount": 5
-    },
-    {
-      "id": 2960,
-      "name": "Kanniboul Ebil",
-      "imageUrl": "https://api.dofusdb.fr/img/monsters/837.png",
-      "isBoss": true,
-      "raceId": 20,
-      "raceName": "Kannibouls de Moon",
-      "level": 60,
-      "gradesCount": 5
-    },
-    {
-      "id": 212,
-      "name": "Kanniboul Eth",
-      "imageUrl": "https://api.dofusdb.fr/img/monsters/111.png",
-      "isBoss": false,
-      "raceId": 20,
-      "raceName": "Kannibouls de Moon",
-      "level": 60,
-      "gradesCount": 5
-    },
-    {
-      "id": 213,
-      "name": "Kanniboul Jav",
-      "imageUrl": "https://api.dofusdb.fr/img/monsters/112.png",
-      "isBoss": false,
-      "raceId": 20,
-      "raceName": "Kannibouls de Moon",
-      "level": 60,
-      "gradesCount": 5
-    },
-    {
-      "id": 214,
-      "name": "Kanniboul Sarbak",
-      "imageUrl": "https://api.dofusdb.fr/img/monsters/113.png",
-      "isBoss": false,
-      "raceId": 20,
-      "raceName": "Kannibouls de Moon",
-      "level": 60,
-      "gradesCount": 5
-    },
-    {
-      "id": 4151,
-      "name": "Kanniboul Tam",
-      "imageUrl": "https://api.dofusdb.fr/img/monsters/1322.png",
-      "isBoss": false,
-      "raceId": 20,
-      "raceName": "Kannibouls de Moon",
-      "level": 60,
-      "gradesCount": 5
-    },
-    {
       "id": 5653,
       "name": "Mawabouaino",
       "imageUrl": "https://api.dofusdb.fr/img/monsters/1841.png",
@@ -23888,16 +23618,6 @@
       "isBoss": false,
       "raceId": 190,
       "raceName": "Waddicts",
-      "level": 60,
-      "gradesCount": 5
-    },
-    {
-      "id": 180,
-      "name": "Wa Wabbit",
-      "imageUrl": "https://api.dofusdb.fr/img/monsters/101.png",
-      "isBoss": true,
-      "raceId": 3,
-      "raceName": "Wabbits",
       "level": 60,
       "gradesCount": 5
     },
@@ -23938,16 +23658,6 @@
       "isBoss": false,
       "raceId": 190,
       "raceName": "Waddicts",
-      "level": 60,
-      "gradesCount": 5
-    },
-    {
-      "id": 97,
-      "name": "Wo Wabbit",
-      "imageUrl": "https://api.dofusdb.fr/img/monsters/49.png",
-      "isBoss": false,
-      "raceId": 3,
-      "raceName": "Wabbits",
       "level": 60,
       "gradesCount": 5
     },
@@ -28342,6 +28052,266 @@
       "gradesCount": 5
     },
     {
+      "id": 155,
+      "name": "Bandit du clan des Roublards",
+      "imageUrl": "https://api.dofusdb.fr/img/monsters/81.png",
+      "isBoss": false,
+      "raceId": 2,
+      "raceName": "Bandits d'Amakna",
+      "level": 200,
+      "gradesCount": 8
+    },
+    {
+      "id": 68,
+      "name": "Black Tiwabbit",
+      "imageUrl": "https://api.dofusdb.fr/img/monsters/27.png",
+      "isBoss": false,
+      "raceId": 3,
+      "raceName": "Wabbits",
+      "level": 200,
+      "gradesCount": 8
+    },
+    {
+      "id": 65,
+      "name": "Black Wabbit",
+      "imageUrl": "https://api.dofusdb.fr/img/monsters/26.png",
+      "isBoss": false,
+      "raceId": 3,
+      "raceName": "Wabbits",
+      "level": 200,
+      "gradesCount": 8
+    },
+    {
+      "id": 153,
+      "name": "Boulanger Sombre",
+      "imageUrl": "https://api.dofusdb.fr/img/monsters/79.png",
+      "isBoss": false,
+      "raceId": 2,
+      "raceName": "Bandits d'Amakna",
+      "level": 200,
+      "gradesCount": 8
+    },
+    {
+      "id": 252,
+      "name": "Coffre des Forgerons",
+      "imageUrl": "https://api.dofusdb.fr/img/monsters/98.png",
+      "isBoss": true,
+      "raceId": 2,
+      "raceName": "Bandits d'Amakna",
+      "level": 200,
+      "gradesCount": 8
+    },
+    {
+      "id": 1022,
+      "name": "Corailleur",
+      "imageUrl": "https://api.dofusdb.fr/img/monsters/560.png",
+      "isBoss": false,
+      "raceId": 72,
+      "raceName": "Colonie du Magistral",
+      "level": 200,
+      "gradesCount": 8
+    },
+    {
+      "id": 1027,
+      "name": "Corailleur Magistral",
+      "imageUrl": "https://api.dofusdb.fr/img/monsters/563.png",
+      "isBoss": true,
+      "raceId": 72,
+      "raceName": "Colonie du Magistral",
+      "level": 200,
+      "gradesCount": 8
+    },
+    {
+      "id": 1060,
+      "name": "Crustorail Kouraçao",
+      "imageUrl": "https://api.dofusdb.fr/img/monsters/584.png",
+      "isBoss": false,
+      "raceId": 72,
+      "raceName": "Colonie du Magistral",
+      "level": 200,
+      "gradesCount": 8
+    },
+    {
+      "id": 1061,
+      "name": "Crustorail Malibout",
+      "imageUrl": "https://api.dofusdb.fr/img/monsters/585.png",
+      "isBoss": false,
+      "raceId": 72,
+      "raceName": "Colonie du Magistral",
+      "level": 200,
+      "gradesCount": 8
+    },
+    {
+      "id": 1063,
+      "name": "Crustorail Morito",
+      "imageUrl": "https://api.dofusdb.fr/img/monsters/587.png",
+      "isBoss": false,
+      "raceId": 72,
+      "raceName": "Colonie du Magistral",
+      "level": 200,
+      "gradesCount": 8
+    },
+    {
+      "id": 1062,
+      "name": "Crustorail Passaoh",
+      "imageUrl": "https://api.dofusdb.fr/img/monsters/586.png",
+      "isBoss": false,
+      "raceId": 72,
+      "raceName": "Colonie du Magistral",
+      "level": 200,
+      "gradesCount": 8
+    },
+    {
+      "id": 119,
+      "name": "Forgeron Sombre",
+      "imageUrl": "https://api.dofusdb.fr/img/monsters/66.png",
+      "isBoss": false,
+      "raceId": 2,
+      "raceName": "Bandits d'Amakna",
+      "level": 200,
+      "gradesCount": 8
+    },
+    {
+      "id": 99,
+      "name": "Grand Pa Wabbit",
+      "imageUrl": "https://api.dofusdb.fr/img/monsters/50.png",
+      "isBoss": false,
+      "raceId": 3,
+      "raceName": "Wabbits",
+      "level": 200,
+      "gradesCount": 8
+    },
+    {
+      "id": 211,
+      "name": "Kanniboul Ark",
+      "imageUrl": "https://api.dofusdb.fr/img/monsters/110.png",
+      "isBoss": false,
+      "raceId": 20,
+      "raceName": "Kannibouls de Moon",
+      "level": 200,
+      "gradesCount": 8
+    },
+    {
+      "id": 2960,
+      "name": "Kanniboul Ebil",
+      "imageUrl": "https://api.dofusdb.fr/img/monsters/837.png",
+      "isBoss": true,
+      "raceId": 20,
+      "raceName": "Kannibouls de Moon",
+      "level": 200,
+      "gradesCount": 8
+    },
+    {
+      "id": 212,
+      "name": "Kanniboul Eth",
+      "imageUrl": "https://api.dofusdb.fr/img/monsters/111.png",
+      "isBoss": false,
+      "raceId": 20,
+      "raceName": "Kannibouls de Moon",
+      "level": 200,
+      "gradesCount": 8
+    },
+    {
+      "id": 213,
+      "name": "Kanniboul Jav",
+      "imageUrl": "https://api.dofusdb.fr/img/monsters/112.png",
+      "isBoss": false,
+      "raceId": 20,
+      "raceName": "Kannibouls de Moon",
+      "level": 200,
+      "gradesCount": 8
+    },
+    {
+      "id": 214,
+      "name": "Kanniboul Sarbak",
+      "imageUrl": "https://api.dofusdb.fr/img/monsters/113.png",
+      "isBoss": false,
+      "raceId": 20,
+      "raceName": "Kannibouls de Moon",
+      "level": 200,
+      "gradesCount": 8
+    },
+    {
+      "id": 4151,
+      "name": "Kanniboul Tam",
+      "imageUrl": "https://api.dofusdb.fr/img/monsters/1322.png",
+      "isBoss": false,
+      "raceId": 20,
+      "raceName": "Kannibouls de Moon",
+      "level": 200,
+      "gradesCount": 8
+    },
+    {
+      "id": 118,
+      "name": "Mineur Sombre",
+      "imageUrl": "https://api.dofusdb.fr/img/monsters/65.png",
+      "isBoss": false,
+      "raceId": 2,
+      "raceName": "Bandits d'Amakna",
+      "level": 200,
+      "gradesCount": 8
+    },
+    {
+      "id": 1064,
+      "name": "Palmifleur Kouraçao",
+      "imageUrl": "https://api.dofusdb.fr/img/monsters/588.png",
+      "isBoss": false,
+      "raceId": 72,
+      "raceName": "Colonie du Magistral",
+      "level": 200,
+      "gradesCount": 8
+    },
+    {
+      "id": 1065,
+      "name": "Palmifleur Malibout",
+      "imageUrl": "https://api.dofusdb.fr/img/monsters/589.png",
+      "isBoss": false,
+      "raceId": 72,
+      "raceName": "Colonie du Magistral",
+      "level": 200,
+      "gradesCount": 8
+    },
+    {
+      "id": 1067,
+      "name": "Palmifleur Morito",
+      "imageUrl": "https://api.dofusdb.fr/img/monsters/591.png",
+      "isBoss": false,
+      "raceId": 72,
+      "raceName": "Colonie du Magistral",
+      "level": 200,
+      "gradesCount": 8
+    },
+    {
+      "id": 1066,
+      "name": "Palmifleur Passaoh",
+      "imageUrl": "https://api.dofusdb.fr/img/monsters/590.png",
+      "isBoss": false,
+      "raceId": 72,
+      "raceName": "Colonie du Magistral",
+      "level": 200,
+      "gradesCount": 8
+    },
+    {
+      "id": 96,
+      "name": "Tiwabbit",
+      "imageUrl": "https://api.dofusdb.fr/img/monsters/48.png",
+      "isBoss": false,
+      "raceId": 3,
+      "raceName": "Wabbits",
+      "level": 200,
+      "gradesCount": 8
+    },
+    {
+      "id": 72,
+      "name": "Tiwabbit Kiafin",
+      "imageUrl": "https://api.dofusdb.fr/img/monsters/28.png",
+      "isBoss": false,
+      "raceId": 3,
+      "raceName": "Wabbits",
+      "level": 200,
+      "gradesCount": 8
+    },
+    {
       "id": 111,
       "name": "Tofu Maléfique",
       "imageUrl": "https://api.dofusdb.fr/img/monsters/58.png",
@@ -28352,12 +28322,42 @@
       "gradesCount": 6
     },
     {
+      "id": 180,
+      "name": "Wa Wabbit",
+      "imageUrl": "https://api.dofusdb.fr/img/monsters/101.png",
+      "isBoss": true,
+      "raceId": 3,
+      "raceName": "Wabbits",
+      "level": 200,
+      "gradesCount": 8
+    },
+    {
+      "id": 64,
+      "name": "Wabbit",
+      "imageUrl": "https://api.dofusdb.fr/img/monsters/25.png",
+      "isBoss": false,
+      "raceId": 3,
+      "raceName": "Wabbits",
+      "level": 200,
+      "gradesCount": 8
+    },
+    {
+      "id": 97,
+      "name": "Wo Wabbit",
+      "imageUrl": "https://api.dofusdb.fr/img/monsters/49.png",
+      "isBoss": false,
+      "raceId": 3,
+      "raceName": "Wabbits",
+      "level": 200,
+      "gradesCount": 8
+    },
+    {
       "id": 7924,
       "name": "Abrakne Sombre Irascible",
       "imageUrl": "https://api.dofusdb.fr/img/monsters/346.png",
       "isBoss": false,
       "raceId": 310,
-      "raceName": "Abraknydiens Irascibles",
+      "raceName": "Abraknydiens Irascibles (Expéditions)",
       "level": 212,
       "gradesCount": 5
     },
@@ -28377,7 +28377,7 @@
       "imageUrl": "https://api.dofusdb.fr/img/monsters/505.png",
       "isBoss": false,
       "raceId": 310,
-      "raceName": "Abraknydiens Irascibles",
+      "raceName": "Abraknydiens Irascibles (Expéditions)",
       "level": 212,
       "gradesCount": 5
     },
@@ -28467,7 +28467,7 @@
       "imageUrl": "https://api.dofusdb.fr/img/monsters/79.png",
       "isBoss": false,
       "raceId": 293,
-      "raceName": "Bandits d'Amakna",
+      "raceName": "Bandits d'Amakna (Expéditions)",
       "level": 212,
       "gradesCount": 5
     },
@@ -28507,7 +28507,7 @@
       "imageUrl": "https://api.dofusdb.fr/img/monsters/148.png",
       "isBoss": false,
       "raceId": 310,
-      "raceName": "Abraknydiens Irascibles",
+      "raceName": "Abraknydiens Irascibles (Expéditions)",
       "level": 212,
       "gradesCount": 5
     },
@@ -28517,7 +28517,7 @@
       "imageUrl": "https://api.dofusdb.fr/img/monsters/150.png",
       "isBoss": false,
       "raceId": 310,
-      "raceName": "Abraknydiens Irascibles",
+      "raceName": "Abraknydiens Irascibles (Expéditions)",
       "level": 212,
       "gradesCount": 5
     },
@@ -28907,7 +28907,7 @@
       "imageUrl": "https://api.dofusdb.fr/img/monsters/66.png",
       "isBoss": false,
       "raceId": 293,
-      "raceName": "Bandits d'Amakna",
+      "raceName": "Bandits d'Amakna (Expéditions)",
       "level": 212,
       "gradesCount": 5
     },
@@ -29807,7 +29807,7 @@
       "imageUrl": "https://api.dofusdb.fr/img/monsters/935.png",
       "isBoss": false,
       "raceId": 301,
-      "raceName": "Gros Tofus",
+      "raceName": "Gros Tofus (Expéditions)",
       "level": 212,
       "gradesCount": 5
     },
@@ -29817,7 +29817,7 @@
       "imageUrl": "https://api.dofusdb.fr/img/monsters/934.png",
       "isBoss": false,
       "raceId": 301,
-      "raceName": "Gros Tofus",
+      "raceName": "Gros Tofus (Expéditions)",
       "level": 212,
       "gradesCount": 5
     },
@@ -29827,7 +29827,7 @@
       "imageUrl": "https://api.dofusdb.fr/img/monsters/933.png",
       "isBoss": false,
       "raceId": 301,
-      "raceName": "Gros Tofus",
+      "raceName": "Gros Tofus (Expéditions)",
       "level": 212,
       "gradesCount": 5
     },
@@ -29837,7 +29837,7 @@
       "imageUrl": "https://api.dofusdb.fr/img/monsters/451.png",
       "isBoss": false,
       "raceId": 301,
-      "raceName": "Gros Tofus",
+      "raceName": "Gros Tofus (Expéditions)",
       "level": 212,
       "gradesCount": 5
     },
@@ -29977,7 +29977,7 @@
       "imageUrl": "https://api.dofusdb.fr/img/monsters/932.png",
       "isBoss": false,
       "raceId": 301,
-      "raceName": "Gros Tofus",
+      "raceName": "Gros Tofus (Expéditions)",
       "level": 212,
       "gradesCount": 5
     },
@@ -30067,7 +30067,7 @@
       "imageUrl": "https://api.dofusdb.fr/img/monsters/147.png",
       "isBoss": true,
       "raceId": 310,
-      "raceName": "Abraknydiens Irascibles",
+      "raceName": "Abraknydiens Irascibles (Expéditions)",
       "level": 220,
       "gradesCount": 5
     },
@@ -30327,7 +30327,7 @@
       "imageUrl": "https://api.dofusdb.fr/img/monsters/204.png",
       "isBoss": true,
       "raceId": 301,
-      "raceName": "Gros Tofus",
+      "raceName": "Gros Tofus (Expéditions)",
       "level": 220,
       "gradesCount": 5
     },

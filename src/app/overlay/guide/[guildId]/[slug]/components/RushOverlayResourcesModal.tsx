@@ -33,6 +33,12 @@ interface RushOverlayResourcesModalProps {
    * public en lecture seule garde sa liste telle quelle).
    */
   onToggleCheck?: (key: string) => void;
+  /**
+   * Le toggle « Masquer les étapes faites » du guide PRIME sur cette modale : quand il est
+   * actif, seules les ressources RESTANTES sont listées et la bascule locale
+   * « Restantes / Toutes » n'est plus rendue (un seul état pour une même chose).
+   */
+  hideProvidedResources?: boolean;
 }
 
 const EMPTY_KEYS = new Set<string>();
@@ -54,11 +60,14 @@ export function RushOverlayResourcesModal({
   theme = "overlay",
   checkedKeys,
   onToggleCheck,
+  hideProvidedResources = false,
 }: RushOverlayResourcesModalProps) {
   const [query, setQuery] = useState("");
   const [mode, setMode] = useState<"restantes" | "toutes">("restantes");
   const checked = checkedKeys ?? EMPTY_KEYS;
-  const list = mode === "restantes" ? resources : allResources;
+  // Le toggle du guide prime sur la bascule locale (cf. `hideProvidedResources`).
+  const effectiveMode = hideProvidedResources ? "restantes" : mode;
+  const list = effectiveMode === "restantes" ? resources : allResources;
   // Les ressources cochées à la main restent DANS la liste (on doit pouvoir décocher),
   // mais elles descendent en bas : ce qu'il reste à préparer se lit en premier.
   const visible = (query.trim()
@@ -154,10 +163,11 @@ export function RushOverlayResourcesModal({
           </button>
         </div>
 
-        {/* Bascule Restantes / Toutes */}
+        {/* Bascule Restantes / Toutes — escamotée quand le guide impose déjà « restantes » */}
         <div className="flex items-center gap-1.5 px-4 pt-2.5 shrink-0">
-          {([["restantes", "Restantes"], ["toutes", "Toutes"]] as const).map(([m, label]) => {
-            const active = mode === m;
+          {!hideProvidedResources &&
+            ([["restantes", "Restantes"], ["toutes", "Toutes"]] as const).map(([m, label]) => {
+            const active = effectiveMode === m;
             return (
               <button
                 key={m}
@@ -183,7 +193,7 @@ export function RushOverlayResourcesModal({
             )}
             title={totalCount != null ? `Total sur toutes les étapes : ${totalCount}` : undefined}
           >
-            {mode === "restantes" && totalCount != null ? `${remainingCount} / ${totalCount}` : `${list.length}`}
+            {effectiveMode === "restantes" && totalCount != null ? `${remainingCount} / ${totalCount}` : `${list.length}`}
           </span>
         </div>
 

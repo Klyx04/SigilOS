@@ -49,6 +49,13 @@ interface RushChapterSidebarProps {
   /** Pilotage externe du chapitre sélectionné (sync au clic d'un chapitre dans le feed). */
   selectedChapter?: number | "ALL";
   onSelectChapter?: (chapter: number | "ALL") => void;
+  /**
+   * Le toggle « Masquer les étapes faites » du guide PRIME sur la liste « Objets requis » :
+   * quand il est actif, les objets déjà fournis sortent et le filtre local
+   * « Restantes/Toutes » n'est plus rendu (un seul état pour une même chose, sur les
+   * deux surfaces qui montent ce rail).
+   */
+  hideProvidedResources?: boolean;
 }
 
 export function RushChapterSidebar({
@@ -58,6 +65,7 @@ export function RushChapterSidebar({
   className,
   selectedChapter: selectedChapterProp,
   onSelectChapter,
+  hideProvidedResources = false,
 }: RushChapterSidebarProps) {
   // Liste des chapitres distincts
   const chapters = useMemo(() => {
@@ -225,12 +233,13 @@ export function RushChapterSidebar({
     });
   }, [currentMilestones, completedSeqIds]);
 
+  // Un SEUL état pour la liste « Objets requis » : le toggle du guide prime, sinon la
+  // bascule locale du bloc (qui disparaît quand le guide impose l'état).
+  const hideProvided = hideProvidedResources || hideCompletedItems;
   const visibleItems = useMemo(() => {
-    if (hideCompletedItems) {
-      return aggregatedItems.filter((it) => !it.isCompleted);
-    }
+    if (hideProvided) return aggregatedItems.filter((it) => !it.isCompleted);
     return aggregatedItems;
-  }, [aggregatedItems, hideCompletedItems]);
+  }, [aggregatedItems, hideProvided]);
 
   const currentChapterLabel = useMemo(() => {
     if (selectedChapter === "ALL") return "Tout le Guide";
@@ -241,12 +250,18 @@ export function RushChapterSidebar({
   return (
     <aside
       className={cn(
-        "flex flex-col gap-3.5 bg-surface p-4 rounded-[6px] border border-border",
+        // Rail de droite : UNE seule zone de défilement — celle-ci (`max-h` + `overflow-y-auto`
+        // posés par la surface qui l'affiche, cf. guide public et dashboard). Les blocs sont
+        // `shrink-0` et leurs listes n'ont PLUS de `max-h` interne : sans ça le flex comprimait
+        // « Chapitres » et « Objets requis » au lieu de faire défiler le rail (mesure Playwright
+        // du 08/10/2026 : 201 px pour 242 px de contenu, et 2 barres de défilement imbriquées).
+        // `min-h-0` : un enfant flex refuse par défaut de descendre sous la taille de son contenu.
+        "flex min-h-0 flex-col gap-3.5 bg-surface p-4 rounded-[6px] border border-border",
         className
       )}
     >
       {/* Chapitres */}
-      <div className="flex items-center justify-between border-b border-border pb-2.5">
+      <div className="flex shrink-0 items-center justify-between border-b border-border pb-2.5">
         <div className="flex items-center gap-2 min-w-0">
           <Layers className="w-4 h-4 text-muted-foreground shrink-0" />
           <span className="text-xs font-medium text-foreground">Chapitres</span>
@@ -254,8 +269,8 @@ export function RushChapterSidebar({
         <span className="text-[11px] font-mono tabular-nums text-muted-foreground">{chapters.length}</span>
       </div>
 
-      {/* Rail des chapitres (scrollable) */}
-      <div className="flex flex-col gap-1 max-h-[340px] overflow-y-auto custom-scrollbar pr-1">
+      {/* Sommaire des chapitres — hauteur NATURELLE : c'est le rail qui défile, pas lui. */}
+      <div className="flex shrink-0 flex-col gap-1">
         {chapters.map((ch) => {
           const allSeq = ch.milestones.flatMap((m) => m.sequences.filter((s) => !isInfoSequence(s)));
           const doneSeq = allSeq.filter((s) => completedSeqIds.has(s.id)).length;
@@ -264,7 +279,7 @@ export function RushChapterSidebar({
           const isDone = allSeq.length > 0 && doneSeq === allSeq.length;
           return (
             <button key={ch.chapter} type="button" onClick={() => handleSelectChapter(ch.chapter)}
-              className={cn("w-full flex items-center gap-2.5 px-2 py-1.5 rounded-[4px] border transition-colors text-left",
+              className={cn("w-full min-h-9 flex items-center gap-2.5 px-2 py-1.5 rounded-[4px] border transition-colors text-left",
                 active ? "bg-elevated border-border" : "border-transparent hover:border-border")}>
               <span className={cn("w-5 h-5 shrink-0 rounded-[3px] flex items-center justify-center text-[11px] font-mono border",
                 isDone ? "border-success text-success" : active ? "border-warning text-warning" : "border-border text-muted-foreground")}>{isDone ? <Check className="w-3 h-3" strokeWidth={2}/> : ch.chapter}</span>
@@ -278,7 +293,7 @@ export function RushChapterSidebar({
         })}
       </div>
       {/* ─── Progression du Chapitre ─── */}
-      <div className="flex items-center gap-4 bg-elevated p-3 rounded-[6px] border border-border">
+      <div className="flex shrink-0 items-center gap-4 bg-elevated p-3 rounded-[6px] border border-border">
         <div className="relative w-12 h-12 shrink-0 flex items-center justify-center">
           <svg className="w-12 h-12 transform -rotate-90" viewBox="0 0 36 36">
             <path
@@ -311,7 +326,7 @@ export function RushChapterSidebar({
 
       {/* ─── Donjons & Métiers requis ─── */}
       {(chapterDungeons.length > 0 || chapterMetiers.length > 0) && (
-        <div className="flex flex-col gap-2.5 bg-elevated p-3 rounded-[6px] border border-border">
+        <div className="flex shrink-0 flex-col gap-2.5 bg-elevated p-3 rounded-[6px] border border-border">
             {chapterDungeons.length > 0 && (
               <div>
                 <p className="text-[11px] text-muted-foreground mb-1">Donjons à prévoir</p>
@@ -352,7 +367,13 @@ export function RushChapterSidebar({
       )}
 
       {/* ─── Objets & Ressources nécessaires ─── */}
-      <div className="flex flex-col gap-2 bg-elevated p-3 rounded-[6px] border border-border flex-1 min-h-0">
+      {/* ─── Objets & Ressources nécessaires — MASQUÉ sous `xl` ───
+          Au doigt, la même liste vit déjà dans la modale « Ressources à prévoir » (bouton
+          de la barre d'actions) : l'afficher aussi sous le contenu allongeait la page de
+          ~2 900 px pour rien (mesure Playwright du 08/10/2026 à 390 px). Le rail garde sur
+          mobile ce qui n'a pas d'équivalent : sommaire des chapitres, progression, donjons
+          et métiers à prévoir. */}
+      <div className="hidden shrink-0 flex-col gap-2 bg-elevated p-3 rounded-[6px] border border-border xl:flex">
         <div className="flex flex-col gap-2 border-b border-border pb-2">
           <div className="flex items-center gap-1.5 min-w-0">
             <Package className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
@@ -363,7 +384,7 @@ export function RushChapterSidebar({
               ({aggregatedItems.length})
             </span>
           </div>
-          {aggregatedItems.length > 0 && (
+          {aggregatedItems.length > 0 && !hideProvidedResources && (
             <div className="grid grid-cols-2 gap-0.5 p-0.5 rounded-[4px] bg-surface border border-border">
               <button
                 onClick={() => setHideCompletedItems(true)}
@@ -382,13 +403,13 @@ export function RushChapterSidebar({
         </div>
         {aggregatedItems.length > 0 && (
           <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-            <span>{hideCompletedItems ? "Encore requis" : "Total"}</span>
-            <span className="font-mono tabular-nums text-foreground">{hideCompletedItems ? aggregatedItems.filter((it) => !it.isCompleted).length : aggregatedItems.length}</span>
+            <span>{hideProvided ? "Encore requis" : "Total"}</span>
+            <span className="font-mono tabular-nums text-foreground">{visibleItems.length}</span>
           </div>
         )}
 
         {visibleItems.length > 0 ? (
-          <div className="flex flex-col gap-1.5 max-h-[380px] overflow-y-auto custom-scrollbar pr-1">
+          <div className="flex flex-col gap-1.5">
             {visibleItems.map((item, idx) => (
               <div
                 key={idx}

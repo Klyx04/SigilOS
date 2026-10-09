@@ -10,7 +10,7 @@ import { RushOverlayTagSection } from "./RushOverlayTagSection";
 import { RushCoordinateChip } from "@/components/dofus-quests/rush/RushCoordinateChip";
 import { QuestHelpersSection } from "@/components/dofus-quests/rush/QuestHelpersSection";
 import { RushTipLines } from "@/components/dofus-quests/rush/RushRichText";
-import { classifyTags, getDungeons, getItemTags, getSequenceCoord, type TagClassification } from "./overlay-utils";
+import { classifyTags, getDungeons, getItemTags, getSequenceCoord, isPublicOverlay, type TagClassification } from "./overlay-utils";
 import { resolveRushSeqIcon, getSequenceNpc, isZaapCopyEnabled, getSequenceManualZaap } from "@/lib/rush-guide-utils";
 import { NpcBadge } from "@/components/dofus-quests/rush/NpcBadge";
 import { resolveDofusLocalImage } from "@/lib/dofus-image-url";
@@ -29,6 +29,12 @@ interface RushOverlayQuestDetailModalProps {
   isLightMode?: boolean;
   guildId?: string;
   onClose: () => void;
+  /**
+   * Le toggle « Masquer les étapes faites » du guide PRIME ici aussi : sur une quête **validée**,
+   * le bloc « Ressources requises » disparaît (il n'y a plus rien à préparer) — même règle dans
+   * les trois surfaces (guide public, guide interne, overlay).
+   */
+  hideProvidedResources?: boolean;
 }
 
 /**
@@ -53,6 +59,7 @@ export function RushOverlayQuestDetailModal({
   isDone,
   guildId,
   onClose,
+  hideProvidedResources = false,
 }: RushOverlayQuestDetailModalProps) {
   const tags = useMemo(() => classifyTags(seq.activityTags), [seq.activityTags]);
   // Badges affichés sans les donjons (déjà listés dans la carte « Donjon requis »).
@@ -77,6 +84,9 @@ export function RushOverlayQuestDetailModal({
   const seqIcon = resolveRushSeqIcon(seq.icon);
   // PNJ donneur (tag God) : nom + portrait par convention.
   const seqNpc = getSequenceNpc(seq);
+  // Guilde RÉELLE pour la section « Qui peut aider » : `null` quand la fiche est celle
+  // du guide public ou de son overlay PiP (`guildId` absent ou sentinelle `"public"`).
+  const helpersGuildId = isPublicOverlay(guildId) ? null : guildId ?? null;
 
   // Échap ferme le panneau : cette modale remplace un `Dialog` Radix, qui gérait
   // la touche pour nous.
@@ -209,7 +219,8 @@ export function RushOverlayQuestDetailModal({
               </section>
             )}
 
-            {resources.length > 0 && (
+            {/* Toggle du guide actif + quête déjà validée ⇒ plus rien à préparer : pas de bloc. */}
+            {resources.length > 0 && !(hideProvidedResources && isDone) && (
               <section className="py-3">
                 <QuestItemResourceGrid items={resources} showHeaderMeta={false} />
               </section>
@@ -222,9 +233,16 @@ export function RushOverlayQuestDetailModal({
               </section>
             )}
 
-            {guildId && (
+            {/* « Qui peut aider » est **guild-scopé** (action `getSequenceHelpers` +
+                membres de la guilde) : la règle partagée `isPublicOverlay` couvre
+                l'absence de guilde **et** la sentinelle `"public"` — que
+                `GuideOverlayClient` pose par défaut, donc pour le guide public ET son
+                overlay PiP. Sans cette garde, la fiche publique appelait une action de
+                guilde et affichait « Aucun membre ne correspond pour l'instant »
+                (mesuré le 08/10/2026). Même traitement que `RushOverlayDungeonCard`. */}
+            {helpersGuildId && (
               <section className="py-3">
-                <QuestHelpersSection guildId={guildId} seq={seq} />
+                <QuestHelpersSection guildId={helpersGuildId} seq={seq} />
               </section>
             )}
 

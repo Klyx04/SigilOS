@@ -103,9 +103,11 @@ describe("guide public — le rail de droite reste affiché au scroll (retour us
         expect(code).toContain('<div className="mb-8 reg-panel bg-background p-4 sm:p-5 space-y-4">');
     });
 
-    it("le rail est collant, borné au viewport et défilable en interne", () => {
+    it("le rail est collant, borné au scrollport et défilable en interne", () => {
+        // `100dvh` (et non `100vh`) : sur mobile la barre d'URL fait varier la hauteur
+        // visible — `dvh` suit la hauteur VISIBLE, `vh` la maximale (mesure du 08/10/2026).
         expect(codeOf(PUBLIC)).toContain(
-            'className="xl:sticky xl:top-20 xl:max-h-[calc(100vh-6rem)] xl:overflow-y-auto custom-scrollbar"'
+            'className="xl:sticky xl:top-20 xl:max-h-[calc(100dvh-6rem)] xl:overflow-y-auto custom-scrollbar"'
         );
     });
 
@@ -116,3 +118,41 @@ describe("guide public — le rail de droite reste affiché au scroll (retour us
         expect(code).toContain("id={`bloc-${ms.id}`}");
     });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Encart « Personnage Actif » — primitives du design system, jamais de pastille
+// bricolée. Retour user (08/10/2026, verbatim) : « uniformise au bon format
+// dashboard les bouton main, choix du perso etc, bouton reset ai slop etc ».
+// ─────────────────────────────────────────────────────────────────────────────
+const DASHBOARD_RUSH = "src/app/dashboard/[guildId]/quetes-dofus/guide/[slug]/RushTimelineClient.tsx";
+
+describe("guide interne — encart « Personnage Actif » aligné sur le design system", () => {
+    it("le statut du personnage est un `Badge` (plus de `span` teinté fait main)", () => {
+        const code = codeOf(DASHBOARD_RUSH);
+        expect(code).toMatch(/<Badge\s+variant="outline"/);
+        expect(code).not.toMatch(/inline-flex items-center gap-1 text-caption font-medium text-warning border/);
+        expect(code).not.toMatch(/inline-flex items-center gap-1 text-caption font-medium text-info border/);
+    });
+
+    it("le choix du perso passe par `Button` + des RadioItems (l'actif porte la pastille)", () => {
+        const code = codeOf(DASHBOARD_RUSH);
+        expect(code).toMatch(/<Button variant="outline" size="sm" role="combobox"/);
+        expect(code).toMatch(/<DropdownMenuRadioGroup value=\{selectedCharacter\} onValueChange=\{handleSelect\}>/);
+        expect(code).toMatch(/<DropdownMenuRadioItem value="PRINCIPAL"/);
+        // Plus d'item maison souligné en vert.
+        expect(code).not.toMatch(/rounded-lg cursor-pointer transition-colors \$\{selectedCharacter/);
+    });
+
+    it("le reset est un `Button` sobre et nommé pour les lecteurs d'écran", () => {
+        const code = codeOf(DASHBOARD_RUSH);
+        expect(code).toMatch(/size="icon-sm"[\s\S]{0,400}onClick=\{\(\) => setResetModalOpen\(true\)\}[\s\S]{0,400}aria-label=\{`Réinitialiser la progression de/);
+        expect(code).not.toMatch(/bg-danger\/10 hover:bg-danger\/20 border border-danger\/20 text-danger transition-all shadow-sm/);
+    });
+
+    it("les appairages (pseudo, Metamob) passent par `Button` : plus de pastille ambre qui brille", () => {
+        const code = codeOf(DASHBOARD_RUSH);
+        expect(code.match(/variant="outline" size="sm"/g)?.length ?? 0).toBeGreaterThanOrEqual(3);
+        expect(code).not.toMatch(/bg-warning\/10 hover:bg-warning\/20 px-2\.5 py-1/);
+    });
+});
+

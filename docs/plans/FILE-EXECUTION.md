@@ -11,7 +11,7 @@ description: File d'exécution unique — tous les chantiers (A→Q), un seul or
 > suivant ; la branche suivante naît de `dev` **après** le merge (`git fetch origin dev && git merge origin/dev`).
 > **On ne supprime jamais un chantier** : livré, il passe en `✅` **ici** (son détail part dans un bloc de
 > session du `docs/ROADMAP.md`).
-> **Dernière mise à jour** : 08/10/2026 · `dev` = `c878c2d5` · **T-1, T-2, T-2b et T-3 du chantier T (rush Sylvestre) livrés** (lot 1 « affichage » — **PR #851** ; lot 2 « temps réel » — **PR #853** ; **T-2b** prérequis résolus au **nom exact** — **PR #856** ; **T-3** studio God robuste : E1/E3/E4/E5/E6 — **PR #857**). Le détail est aux blocs du 08/10 du `docs/ROADMAP.md`, la file ne le duplique pas. Restent **T-2c** (id de quête dans le tag `prereq_text`) puis les lots 4 à 6 · **chantier U « zéro dépendance DofusDB » cadré** (5 points de contact mesurés, lots U-1 → U-5, §1).
+> **Dernière mise à jour** : 08/10/2026 · `dev` = `76f3f28b` (**PR #858 mergée** + docs #859) · **T-1, T-2, T-2b, T-3 livrés le 08/10** (lots 1-3 : affichage — **PR #851** ; temps réel — **PR #853** ; prérequis au nom exact — **PR #856** ; studio God robuste — **PR #857**) et **#858** (pictos réels, rail de droite défilant, **alignement en lecture seule**, table Dofus unique). **En cours : T-7 « route d'alignement Bonta/Brâkmar »** (étape 49 — la moitié « branche » du chantier rush, corrélation mesurée). Le détail est aux blocs du 08/10 du `docs/ROADMAP.md`, la file ne le duplique pas. Restent **T-2c** (id de quête dans le tag `prereq_text`) et les lots 4 à 6 du plan rush · **chantier U « zéro dépendance DofusDB » cadré** (5 points de contact mesurés, lots U-1 → U-5, §1).
 
 ## 0. Comment s'en servir
 
@@ -49,7 +49,7 @@ description: File d'exécution unique — tous les chantiers (A→Q), un seul or
 | **Q** | **Salons vocaux** (module, cahier V2.1 du 30/09) | **idée neuve, à cadrer** | `docs/plans/PLAN-SALONS-VOCAUX.md` (cahier rapatrié le 01/10) | — |
 | **R** | **Durcissement réseau** (Cloudflare devant le domaine ? WAF/DDoS + impact RGPD) | à décider | — (décision **D8**) | — |
 | **S** | **Démo publique** — une guilde de démonstration **en lecture seule**, essayable sans compte depuis la landing | **S-0 ✅ fait** (02/10, mesure, 0 PR) — S-1 → S-5 à faire | `docs/plans/PLAN-DEMO-PUBLIQUE.md` | S-1 → S-5 |
-| **T** | **Rush Sylvestre — refonte** (overlay & guide : ergonomie, temps réel, éditeur God, habillage Dofus, perf) | en cours — **T-1, T-2, T-2b + T-3 ✅ livrés le 08/10** | `docs/plans/PLAN-REFONTE-RUSH-SYLVESTRE.md` | T-1 → T-6 |
+| **T** | **Rush Sylvestre — refonte** (overlay & guide : ergonomie, temps réel, éditeur God, habillage Dofus, perf) | en cours — **T-1, T-2, T-2b, T-3 ✅ livrés le 08/10** (**PR #851 · #853 · #856 · #857**) + **#858** (pictos réels, rail de droite défilant, **alignement en lecture seule**, table Dofus unique) · **T-7 ouvert** (route Bonta/Brâkmar, étape 49) | `docs/plans/PLAN-REFONTE-RUSH-SYLVESTRE.md` | T-1 → T-7 |
 | **U** | **Zéro dépendance DofusDB** — règle du propriétaire : **plus aucun appel à DofusDB à l'exécution** (le produit doit vivre sans lui) | **cadré le 08/10/2026** (mesures ci-dessous) — **aucun lot commencé** | **à créer** (tant qu'il n'existe pas, le cadrage vit ici) | U-1 → U-5 |
 
 > ### 🚫 Chantier U — cadrage mesuré le 08/10/2026 (règle : « aucune dépendance à DofusDB »)
@@ -127,6 +127,8 @@ description: File d'exécution unique — tous les chantiers (A→Q), un seul or
 | **46** | **U · U-3** | Images : **plus de repli réseau** (`resolveItemImage`/`getItemImageFallback` → placeholder local), et `/api/assets-dofus` cesse de `fetch` DofusDB (ou disparaît s'il n'a plus d'appelant) | M | étape 45 |
 | **47** | **U · U-4** | Recherches : basculer `/api/dofusdb/*` sur le **catalogue local** (`GameItem`, cf. « chantier #38 Siphon & Autonomie Local-First ») ; trancher le sort des routes devenues sans appelant | M/L | — |
 | **48** | **U · U-5** | Ops : retirer DofusDB du `/api/health`, des crons (`data-watch`, `sync-monster-stats`) et de l'allowlist `proxy-image` | S | — |
+| **49** | **T · T-7** | **Route d'alignement Bonta / Brâkmar** (piste d'alignement du guide) : corrélation **mesurée** — **100 slots appariés** (par `<li>`, pas par lien), **98/100 Bonta en base**, **0/100 Brâkmar** ; à créer **102 quêtes Brâkmar + 6 blocs d'Ordre** (CLI `scripts/correlate-rush-guides.mjs`, **`--apply` non branché**, à committer), puis **lots B→E** : B `src/lib/rush-alignment.ts` (`branchesFor`, `isSequenceVisibleFor`) + God en vocabulaire fermé · C guide interne + overlay = **une seule voie déduite du profil** · D guide public invité = sélecteur + `localStorage` · E wizard = confirmation du camp | L | ⚠️ **merge de `dev` d'abord** (#858) — cadrage : `docs/plans/MAPPING-RUSH-SYLVESTRE.md` + `ARCHITECTURE-ALIGNEMENT-RUSH-SYLVESTRE.md` (**sur `dev`**) |
+| **50** | **T · T-8** | **Coche fine par donjon** (« j'y suis » / « c'est fait » **par donjon**, pas par quête) : aujourd'hui `PlayerGuideProgress` porte « qui est rendu / qui a fait » au niveau **quête** ; la granularité donjon suppose **1 migration Prisma** (progression donjon) — sinon rien ne change | M | ⏸ **D9** |
 
 `S` < 1 jour · `M` quelques jours · `L` chantier.
 
@@ -142,6 +144,7 @@ description: File d'exécution unique — tous les chantiers (A→Q), un seul or
 | **D6** | Acquisition : **ordre des lots** + une page n'entre au sitemap **que** si elle porte de la donnée réelle | étape 30 |
 | **D7** | Landing immersive : `maintenance.html` vs `page.tsx` (`DECISION-OUVERTURE-LANDING.md`) | étape 31 |
 | **D8** | **Cloudflare devant le domaine** : **oui** (→ DPA + sous-traitant + cookie `__cf_bm` à déclarer dans la politique) ou **non** (garder Caddy seul, mesuré aujourd'hui : `Server: Caddy`, DNS A `213.32.18.129` OVH) | étape 32 |
+| **D9** | **Coche fine par donjon** : ajoute-t-on une **table de progression donjon** (1 migration Prisma) ou reste-t-on sur `PlayerGuideProgress` (granularité quête) ? | étape 50 |
 
 ## 4. Volatil & fichiers à trancher (inventaire 01/10/2026)
 

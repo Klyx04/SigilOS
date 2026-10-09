@@ -29,6 +29,10 @@ export interface MonsterDamageStats {
     water: number;
     air: number;
     neutral: number;
+    power?: number;
+    damage?: number;
+    healBonus?: number;
+    criticalHit?: number;
 }
 
 /** Aucun bonus élémentaire (repli sûr : les jets restent bruts). */
@@ -40,6 +44,7 @@ export const NO_DAMAGE_BONUS: MonsterDamageStats = { earth: 0, fire: 0, water: 0
  * = **Neutre** (mesuré : « Épicentre » → « dommages Neutre »).
  */
 const LIFE_LOSS_LABEL = /^ACTION_CHARACTER_LIFE_POINTS_(?:LOST|STEAL)/;
+const HEAL_LABEL = /^ACTION_CHARACTER_LIFE_POINTS_WIN/;
 
 /** Les variantes « pourcentage » (ex. `_LOST_PERCENT`) ne se calculent PAS par stat. */
 const PERCENT_LABEL = /PERCENT/;
@@ -71,6 +76,16 @@ function toStat(v: unknown): number {
 }
 
 /**
+ * Détecte si l'effet est un soin direct en PV.
+ */
+export function isHealEffect(effect: any): boolean {
+    const label = String(effect?.TechnicalLabel ?? "").trim().toUpperCase();
+    if (label && HEAL_LABEL.test(label) && !PERCENT_LABEL.test(label)) return true;
+    const name = String(effect?.Name ?? effect?.label ?? "");
+    return !NAME_EXCLUDED.test(name) && /(?:soigne|rend|soins?)\s+#\d+/i.test(name);
+}
+
+/**
  * Élément d'un effet Dofensive, ou `null` si l'effet n'inflige pas de dommages élémentaires.
  * 1. `TechnicalLabel` (autorité : `ACTION_CHARACTER_LIFE_POINTS_LOST[_FROM_<ELEMENT>]`) ;
  * 2. repli sur le libellé localisé quand le label est absent (payloads DofusDB/inconnus).
@@ -92,12 +107,22 @@ export function damageElementOfEffect(effect: any): DamageElement | null {
     return null;
 }
 
-/** Dégâts réels d'un jet : `floor(jet × (1 + stat/100))` (convention Dofus déjà utilisée côté DofusDB). */
-export function scaleDamageDice(value: number, stat: number): number {
+/** Dégâts réels d'un jet : `floor(jet × (1 + (stat + puissance)/100)) + dommagesFixes`. */
+export function scaleDamageDice(value: number, stat: number, power = 0, fixedDamage = 0): number {
     if (!Number.isFinite(value)) return value;
-    const bonus = toStat(stat);
-    if (bonus === 0) return Math.floor(value);
-    return Math.floor(value * (1 + bonus / 100));
+    const bonus = toStat(stat) + toStat(power);
+    const fix = toStat(fixedDamage);
+    if (bonus === 0) return Math.floor(value) + fix;
+    return Math.floor(value * (1 + bonus / 100)) + fix;
+}
+
+/** Soins réels d'un jet : `floor(jet × (1 + int/100)) + bonusSoins`. */
+export function scaleHealDice(value: number, intStat = 0, healBonus = 0): number {
+    if (!Number.isFinite(value)) return value;
+    const bonus = toStat(intStat);
+    const heal = toStat(healBonus);
+    if (bonus === 0) return Math.floor(value) + heal;
+    return Math.floor(value * (1 + bonus / 100)) + heal;
 }
 
 /**
@@ -105,18 +130,40 @@ export function scaleDamageDice(value: number, stat: number): number {
  * le payload source reste intact pour les autres consommateurs).
  */
 export function scaleDamageEffect(effect: any, stats: MonsterDamageStats): any {
-    const element = damageElementOfEffect(effect);
-    if (!element) return effect;
-    const stat = toStat(stats?.[element]);
-    if (stat === 0) return effect;
+    const isHeal = isHealEffect(effect);
+    const element = isHeal ? null : damageElementOfEffect(effect);
+    if (!element && !isHeal) return effect;
+
     const params: any[] = Array.isArray(effect?.Parameters) ? effect.Parameters : [];
     if (params.length === 0) return effect;
+
+    const power = toStat(stats?.power);
+    const fixedDmg = toStat(stats?.damage);
+    const healBonus = toStat(stats?.healBonus);
+
+    if (isHeal) {
+        const intStat = toStat(stats?.fire);
+        if (intStat === 0 && healBonus === 0) return effect;
+        let changed = false;
+        const scaledParams = params.map((p) => {
+            const raw = Number(p?.Value ?? p?.Name);
+            if (!Number.isFinite(raw)) return p;
+            const scaled = scaleHealDice(raw, intStat, healBonus);
+            if (scaled === raw) return p;
+            changed = true;
+            return { ...p, Name: String(scaled), Value: scaled };
+        });
+        return changed ? { ...effect, Parameters: scaledParams } : effect;
+    }
+
+    const stat = toStat(stats?.[element!]);
+    if (stat === 0 && power === 0 && fixedDmg === 0) return effect;
 
     let changed = false;
     const scaledParams = params.map((p) => {
         const raw = Number(p?.Value ?? p?.Name);
         if (!Number.isFinite(raw)) return p;
-        const scaled = scaleDamageDice(raw, stat);
+        const scaled = scaleDamageDice(raw, stat, power, fixedDmg);
         if (scaled === raw) return p;
         changed = true;
         return { ...p, Name: String(scaled), Value: scaled };
@@ -140,14 +187,24 @@ export function scaleDamageInEffectGroups<T>(groups: T, stats: MonsterDamageStat
 /** Caractéristiques élémentaires d'un grade **Dofensive** (`Grades[].PrimaryCharacteristics`). */
 export function damageStatsFromDofensiveGrade(grade: any): MonsterDamageStats {
     const chars = grade?.PrimaryCharacteristics ?? {};
-    return {
+    const sec = grade?.SecondaryCharacteristics ?? {};
+    const power = toStat(sec.Power ?? chars.Power ?? grade?.Power);
+    const damage = toStat(sec.Damage ?? chars.Damage ?? grade?.Damage);
+    const healBonus = toStat(sec.HealBonus ?? chars.HealBonus ?? grade?.HealBonus ?? sec.Heals ?? grade?.Heals);
+    const criticalHit = toStat(sec.CriticalHit ?? chars.CriticalHit ?? grade?.CriticalHit);
+
+    const stats: MonsterDamageStats = {
         earth: toStat(chars.Strength),
         fire: toStat(chars.Intelligence),
         water: toStat(chars.Chance),
         air: toStat(chars.Agility),
-        // Aucune caractéristique ne booste le Neutre (même convention que la fiche DofusDB).
         neutral: 0,
     };
+    if (power > 0) stats.power = power;
+    if (damage > 0) stats.damage = damage;
+    if (healBonus > 0) stats.healBonus = healBonus;
+    if (criticalHit > 0) stats.criticalHit = criticalHit;
+    return stats;
 }
 
 /** Caractéristiques du grade demandé (1-based) — repli sur le **dernier grade** (le plus haut),

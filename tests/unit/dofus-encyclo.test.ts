@@ -112,6 +112,8 @@ describe("encycloIdentity — race, zone, agression, restrictions (mesuré 7222)
             canBeCarried: false,
             canUsePortal: false,
             soulCaptureForbidden: true,
+            canMove: null,
+            canBeControlledByFightOwner: null,
         });
     });
 
@@ -170,6 +172,20 @@ describe("encycloProperties — libellés façon DofusDB", () => {
             "Ne peut pas échanger de position avec la cible",
             "Ne peut pas utiliser de portail",
         ]);
+    });
+
+    it("supporte les restrictions 3.7 : canMove et canBeControlledByFightOwner", () => {
+        const id = encycloIdentity({
+            ...MONSTER,
+            canMove: false,
+            canBeControlledByFightOwner: true,
+        });
+        expect(id.canMove).toBe(false);
+        expect(id.canBeControlledByFightOwner).toBe(true);
+
+        const props = encycloProperties(id, 900);
+        expect(props).toContain("Ne peut pas se déplacer");
+        expect(props).toContain("Peut être contrôlé par le lanceur");
     });
 });
 

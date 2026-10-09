@@ -40,13 +40,50 @@ export async function GET(req: Request) {
             errors: result.errors.slice(0, 5),
         });
 
-        // Envoi d'une alerte/notification God
+        // Envoi d'une alerte/notification God avec embed Discord structuré et lisible
         const { notifyGod } = await import("@/server/actions/god-notif-actions");
+        const embedFields: { name: string; value: string; inline?: boolean }[] = [
+            {
+                name: "📊 Bilan synchronisation",
+                value: `**${result.synced}** mise(s) à jour • **${result.unchanged}** inchangée(s) • **${result.skippedFresh}** fraîche(s)`,
+                inline: false,
+            },
+        ];
+
+        if (result.syncedMaps && result.syncedMaps.length > 0) {
+            const mapLines = result.syncedMaps.slice(0, 10).map((m) =>
+                `• **${m.dungeonName}** : ${m.name} (\`#${m.mapId}\`)${m.isBoss ? " 👑 *Boss*" : ""}`
+            );
+            if (result.syncedMaps.length > 10) {
+                mapLines.push(`*... et ${result.syncedMaps.length - 10} autre(s) carte(s)*`);
+            }
+            embedFields.push({
+                name: `🗺️ Cartes mises à jour (${result.syncedMaps.length})`,
+                value: mapLines.join("\n").slice(0, 1024),
+                inline: false,
+            });
+        } else {
+            embedFields.push({
+                name: "🗺️ Donjons vérifiés",
+                value: `${result.dungeonsCount ?? "Tous"} donjons vérifiés. Toutes les cartes sont déjà à jour.`,
+                inline: false,
+            });
+        }
+
+        if (result.errors.length > 0) {
+            embedFields.push({
+                name: `⚠️ Erreurs (${result.errors.length})`,
+                value: result.errors.slice(0, 5).map((e) => `• ${e}`).join("\n").slice(0, 1024),
+                inline: false,
+            });
+        }
+
         await notifyGod({
             title: "Siphon Maps Dofensive terminé",
-            message: `${result.synced} maps synchronisées, ${result.unchanged} inchangées (${result.errors.length} erreurs).`,
+            message: `${result.synced} map(s) synchronisée(s), ${result.unchanged} inchangée(s)${result.errors.length > 0 ? ` (${result.errors.length} erreur(s))` : ""}.`,
             type: "WORKER_SYNC",
             success: result.errors.length === 0,
+            fields: embedFields,
             metadata: {
                 synced: result.synced,
                 unchanged: result.unchanged,

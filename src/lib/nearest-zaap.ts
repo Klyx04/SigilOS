@@ -4,11 +4,11 @@
  *
  * Pourquoi il existe : le calcul n'existait qu'en local dans deux composants du
  * worldmap, en distance de Manhattan sur **tous** les zaaps sans tenir compte du
- * monde. Or `public/game-data/zaaps.json` ne contient que 44 zaaps, tous dans le
- * Monde des Douze (monde 1) et Incarnam (monde 2) : dans un monde sans zaap (les
- * dimensions, les sous-sols de donjon…), l'ancien calcul proposait un zaap du
- * monde 1 à 800 maps de distance, présenté comme « le plus proche » — un
- * mensonge silencieux.
+ * monde. Or `public/game-data/zaaps.json` ne recense que **45 zaaps, dans quatre mondes
+ * seulement** (Monde des Douze, Incarnam, Château de Harebourg, Crocuzko — mesuré le
+ * 08/10/2026) : dans un monde sans zaap (les dimensions, les sous-sols de donjon…),
+ * l'ancien calcul proposait un zaap du monde 1 à 800 maps de distance, présenté comme
+ * « le plus proche » — un mensonge silencieux.
  *
  * Règle ici : on cherche d'abord DANS le monde demandé, et si ce monde n'a aucun
  * zaap on rend `sameWorld: false` (avec, en repli, le zaap le plus proche hors

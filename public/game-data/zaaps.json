@@ -252,8 +252,8 @@
     "name": "Château de Harebourg",
     "x": -67,
     "y": -77,
-    "worldId": 1,
-    "subArea": "Château de Harebourg"
+    "worldId": 12,
+    "subArea": "Entrée du château de Harebourg"
   },
   {
     "id": 35,
@@ -321,11 +321,11 @@
   },
   {
     "id": 44,
-    "name": "Crokuzko",
+    "name": "Crocuzko",
     "x": -83,
     "y": -15,
-    "worldId": 1,
-    "subArea": "Archipel des Écailles"
+    "worldId": 22,
+    "subArea": "Crocuzko"
   },
   {
     "id": 45,
@@ -350,5 +350,13 @@
     "y": 0,
     "worldId": 2,
     "subArea": "Cimetière"
+  },
+  {
+    "id": 48,
+    "name": "Route des âmes (nord)",
+    "x": 4,
+    "y": -3,
+    "worldId": 2,
+    "subArea": "Route des âmes"
   }
 ]

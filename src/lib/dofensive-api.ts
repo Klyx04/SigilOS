@@ -450,13 +450,27 @@ function normalizeZone(zone: any): DofensiveSpellZone | null {
  *   - `{A|0}`           → A si non vide, sinon rien (ex. "{La cible |0}" → "La cible ")
  * Ex. "#1{ à #2|~2} dommages Eau" + [101, 110] → "101 à 110 dommages Eau".
  */
-function resolveTemplate(name: any, params: any[] | undefined): string {
+export function resolveTemplate(name: any, params: any[] | undefined): string {
     let s = String(name ?? "");
     // Pluriels — à résoudre AVANT les conditionnels génériques.
+    // {s|#N} : "s" si |valeur| != 1
     s = s.replace(/\{s\|(#\d+)\}/g, (_m, ref: string) => (pluralizeParams(params, ref) ? "s" : ""));
-    s = s.replace(/\{s\|\|\|(#\d+)\}/g, (_m, ref: string) => (pluralizeParams(params, ref) ? "s" : ""));
-    // Conditionnels `{A|~B}` / `{A|0}` → A si non vide.
-    s = s.replace(/\{([^}|]*)\|([^}]*)\}/g, (_m, a: string, b: string) => (a.trim() ? a : b.replace(/^~/, "")));
+    // {s|||#N} : dans Ankama I18n, syntaxe 3 branches {0|1|>1|#N} -> pour >1 c'est branche 2 (vide), pour 0 c'est branche 0 ("s")
+    s = s.replace(/\{s\|\|\|(#\d+)\}/g, (_m, ref: string) => {
+        const n = Number(ref.slice(1));
+        const v = Array.isArray(params) ? Number(params[n - 1]?.Name) : Number.NaN;
+        return v === 0 ? "s" : "";
+    });
+    // Conditionnels `{A|~B}` / `{A|0}` : si B commence par '~', B est l'indice du paramètre conditionnant
+    s = s.replace(/\{([^}|]*)\|([^}]*)\}/g, (_m, a: string, b: string) => {
+        if (b.startsWith("~")) {
+            const condParamIdx = Number(b.slice(1));
+            const p = Array.isArray(params) && Number.isFinite(condParamIdx) ? params[condParamIdx - 1] : undefined;
+            const hasParam = p && p.Name !== undefined && p.Name !== null && String(p.Name).trim() !== "";
+            return hasParam ? a : "";
+        }
+        return a.trim() ? a : b.replace(/^~/, "");
+    });
     // Paramètres `#N`.
     s = s.replace(/#(\d+)/g, (_m, n: string) => {
         const p = Array.isArray(params) ? params[Number(n) - 1] : undefined;

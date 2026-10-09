@@ -39,7 +39,8 @@ import { useI18n } from "@/lib/i18n/client";
 import { SpellData, SpellRangeGrid } from "@/components/succes/SpellRangeGrid";
 import { OverlayPinNotice } from "@/components/overlay-pin-notice";
 import { BossMechanicsView, type BossPassiveData } from "@/components/boss/BossMechanicsView";
-import { formatDofusEffectLine } from "@/lib/dofus-effects-formatter";
+import { formatDofusEffectLine, SpellDamageSummaryChips, cleanDofusText } from "@/lib/dofus-effects-formatter";
+import { enrichPassiveIfNeeded, normalizeSpellEffectDetails } from "@/lib/dofus-spells";
 import { encycloProperties } from "@/lib/dofus-encyclo";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -262,6 +263,11 @@ function SpellCard({
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5 flex-wrap">
             <span className="text-[12px] font-medium text-white/90 truncate">{spell.name}</span>
+            {spell.grade !== undefined && (
+              <span className="text-[10px] font-mono text-white/50 bg-white/[0.08] px-1 py-px rounded shrink-0">
+                {isEn ? "Lvl" : "Niv."} {spell.grade}
+              </span>
+            )}
             {/* PA / PO : texte mono compact (icônes du jeu), plus de pastilles colorées */}
             {spell.apCost !== undefined && (
               <span className="inline-flex items-center gap-0.5 font-mono text-[10px] text-white/55 shrink-0">
@@ -275,6 +281,7 @@ function SpellCard({
                 {spell.minRange && spell.minRange !== spell.range ? `${spell.minRange}-${spell.range}` : spell.range}
               </span>
             )}
+            <SpellDamageSummaryChips effectDetails={normalizeSpellEffectDetails(spell)} />
           </div>
           <div className="flex items-center gap-2 text-[10px] text-white/40 mt-0.5">
             {spell.castInLine && <span>{isEn ? "Line" : "Ligne"}</span>}
@@ -337,7 +344,7 @@ function SpellCard({
 
           {spell.description && (
             <p className="text-[11px] text-white/60 italic leading-relaxed bg-white/[0.02] p-2 rounded-md border border-white/[0.04]">
-              {spell.description}
+              {cleanDofusText(spell.description)}
             </p>
           )}
 
@@ -932,9 +939,12 @@ export function BossOverlayClient({
                 )}
 
                 {/* Mécanique de combat officielle / Passif */}
-                {stats?.passive?.description && (
-                  <BossMechanicsView passive={stats.passive} isCompact />
-                )}
+                {(() => {
+                  const enriched = enrichPassiveIfNeeded(stats?.passive, stats?.spells ?? []);
+                  return enriched?.description ? (
+                    <BossMechanicsView passive={enriched} isCompact />
+                  ) : null;
+                })()}
 
                 {/* Caractéristiques : une ligne de lecture (icône + valeur + libellé),
                     séparée par des filets — remplace les 3 cartes à gros nombres colorés. */}
@@ -1131,14 +1141,17 @@ export function BossOverlayClient({
             ) : (
               <>
                 {/* Mécanique de combat officielle / Passif de début de combat (repliable) */}
-                {stats?.passive?.description && (
-                  <BossMechanicsView
-                    passive={stats.passive}
-                    isCompact
-                    collapsible
-                    defaultCollapsed={false}
-                  />
-                )}
+                {(() => {
+                  const enriched = enrichPassiveIfNeeded(stats?.passive, stats?.spells ?? []);
+                  return enriched?.description ? (
+                    <BossMechanicsView
+                      passive={enriched}
+                      isCompact
+                      collapsible
+                      defaultCollapsed={false}
+                    />
+                  ) : null;
+                })()}
 
                 {stats?.spells && stats.spells.length > 0 ? (
                   <div className="space-y-2">

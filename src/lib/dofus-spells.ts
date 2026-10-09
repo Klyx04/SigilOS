@@ -15,6 +15,8 @@
  * → Source de vérité des dégâts de base : DofusDB `api.dofusdb.fr/spells` (by grade).
  */
 
+import type { DofensiveSpellEffect } from "@/lib/dofensive-spells";
+
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 export type SpellElementKey = "terre" | "feu" | "eau" | "air" | "neutre";
@@ -194,7 +196,112 @@ const ELEMENT_ALIASES: Record<string, SpellElementKey> = {
 };
 
 /**
- * Dégâts d'un sort, par élément, à partir de ses effets structurés.
+ * Nettoie les scories de balises Dofus Unity résiduelles dans les libellés de sorts :
+ * - `case{{-ps}}` / `case{{~ps}}` -> `cases` (ou `case` si 1 case)
+ * - `tour{{-ps}}` / `tour{{~ps}}` -> `tours` (ou `tour` si 1 tour)
+ * - `{{-ps}}` / `{{~ps}}` / `{{-p}}` / `{{~p}}` -> `s`
+ * - `{{?}}` et toute balise `{{...}}` orpheline -> supprimée
+ * - `Dommagess` -> `Dommages`
+ */
+export function cleanDofusText(text: string | null | undefined): string {
+    if (!text) return "";
+    let s = String(text);
+    // Gérer "1 case{{-ps}}" vs "N case{{-ps}}" (où N != 1)
+    s = s.replace(/\b1\s+(\w+)\{\{[~-]?p?s\}\}/gi, "1 $1");
+    // Pluriel général précédé d'un mot : "4 case{{-ps}}" -> "4 cases"
+    s = s.replace(/(\w+)\{\{[~-]?p?s\}\}/gi, "$1s");
+    // Scories isolées
+    s = s.replace(/\{\{[~-]?p?s\}\}/gi, "s");
+    s = s.replace(/\{\{[~-]?p\}\}/gi, "s");
+    // Supprimer toute balise résiduelle {{...}}
+    s = s.replace(/\{\{[^}]*\}\}/g, "");
+    // Nettoyer les doublons de pluriels fréquents issus de gabarits corrompus
+    s = s.replace(/\bDommagess\b/g, "Dommages");
+    s = s.replace(/\bcases{2,}\b/gi, "cases");
+    // Espaces multiples
+    return s.replace(/\s+/g, " ").trim();
+}
+
+/**
+ * Extrait un jet de dégâts ou de vol de vie élémentaire depuis une chaîne brute (Unity / DofusDB).
+ * Reconnaît :
+ * - « 8 à 11 vol Feu », « 11 à 15 dommages Neutre », « 7 à 9 vol de vie Eau »
+ * - « Vol de vie Neutre : 11 à 15 », « Dommages Feu : 8 à 11 »
+ * - « 15 dommages Terre », « 8 vol Eau »
+ */
+export function extractDamageFromLabel(
+    label: string | null | undefined
+): { element: SpellElementKey; min: number; max: number } | null {
+    if (!label) return null;
+    const cleaned = cleanDofusText(label);
+
+    // Pattern 1 : "8 à 11 vol Feu", "11 à 15 dommages Neutre", "7 à 9 vol de vie Eau"
+    const rangeMatch = cleaned.match(
+        /(\d+)\s*(?:à|a|-)\s*(\d+)\s*(?:dommages?|vol(?:s)?(?:\s+de\s+vie)?)\s*(?:d['’])?(feu|eau|terre|air|neutre)/i
+    );
+    if (rangeMatch) {
+        const min = Number(rangeMatch[1]);
+        const max = Number(rangeMatch[2]);
+        const el = ELEMENT_ALIASES[rangeMatch[3].toLowerCase()];
+        if (el && Number.isFinite(min) && Number.isFinite(max)) {
+            return { element: el, min, max: Math.max(min, max) };
+        }
+    }
+
+    // Pattern 2 : "Vol de vie Neutre : 11 à 15" ou "Dommages Feu : 8 à 11"
+    const prefixRangeMatch = cleaned.match(
+        /(?:dommages?|vol(?:s)?(?:\s+de\s+vie)?)\s*(?:d['’])?(feu|eau|terre|air|neutre)\s*:\s*(\d+)\s*(?:à|a|-)\s*(\d+)/i
+    );
+    if (prefixRangeMatch) {
+        const el = ELEMENT_ALIASES[prefixRangeMatch[1].toLowerCase()];
+        const min = Number(prefixRangeMatch[2]);
+        const max = Number(prefixRangeMatch[3]);
+        if (el && Number.isFinite(min) && Number.isFinite(max)) {
+            return { element: el, min, max: Math.max(min, max) };
+        }
+    }
+
+    // Pattern 3 : Valeur unique "15 dommages Terre", "8 vol Eau"
+    const singleMatch = cleaned.match(
+        /(?:^|\s)(\d+)\s*(?:dommages?|vol(?:s)?(?:\s+de\s+vie)?)\s*(?:d['’])?(feu|eau|terre|air|neutre)/i
+    );
+    if (singleMatch) {
+        const val = Number(singleMatch[1]);
+        const el = ELEMENT_ALIASES[singleMatch[2].toLowerCase()];
+        if (el && Number.isFinite(val) && val > 0) {
+            return { element: el, min: val, max: val };
+        }
+    }
+
+    // Pattern 4 : "Vol de vie Neutre : 15"
+    const prefixSingleMatch = cleaned.match(
+        /(?:dommages?|vol(?:s)?(?:\s+de\s+vie)?)\s*(?:d['’])?(feu|eau|terre|air|neutre)\s*:\s*(\d+)/i
+    );
+    if (prefixSingleMatch) {
+        const el = ELEMENT_ALIASES[prefixSingleMatch[1].toLowerCase()];
+        const val = Number(prefixSingleMatch[2]);
+        if (el && Number.isFinite(val) && val > 0) {
+            return { element: el, min: val, max: val };
+        }
+    }
+
+    return null;
+}
+
+/** Extrait la distance de poussée depuis un libellé textuel (« Repousse de 4 cases »). */
+export function extractPushFromLabel(label: string | null | undefined): number | null {
+    if (!label) return null;
+    const cleaned = cleanDofusText(label);
+    const match = cleaned.match(/repousse\s+de\s+(\d+)\s+case/i);
+    if (match) {
+        const dist = Number(match[1]);
+        if (Number.isFinite(dist) && dist > 0) return dist;
+    }
+    return null;
+}
+
+/**
+ * Dégâts d'un sort, par élément, à partir de ses effets structurés ou de ses libellés bruts.
  *
  * @returns `lines` : un jet cumulé par élément (l'ordre suit l'apparition) ; `push` : la distance
  * de poussée (cases) si le sort pousse — **affichée telle quelle**, aucun dégât de poussée n'est
@@ -207,30 +314,55 @@ const ELEMENT_ALIASES: Record<string, SpellElementKey> = {
  */
 export function damageLinesFromEffects(
     effectDetails:
-        | {
-              damage?: {
-                  element: string;
-                  min: number;
-                  max: number;
-                  critMin?: number | null;
-                  critMax?: number | null;
-                  decrease?: ZoneDamageDecrease | null;
-              } | null;
-              pushDistance?: number | null;
-          }[]
+        | Array<
+              | {
+                    label?: string;
+                    damage?: {
+                        element: string;
+                        min: number;
+                        max: number;
+                        critMin?: number | null;
+                        critMax?: number | null;
+                        decrease?: ZoneDamageDecrease | null;
+                    } | null;
+                    pushDistance?: number | null;
+                }
+              | string
+          >
         | null
         | undefined
 ): { lines: SpellDamageLine[]; push: number | null } {
     const byElement = new Map<SpellElementKey, SpellDamageLine>();
     let push: number | null = null;
 
-    for (const effect of effectDetails ?? []) {
-        if (!effect) continue;
+    for (const item of effectDetails ?? []) {
+        if (!item) continue;
+        const effect = typeof item === "string" ? { label: item, damage: null, pushDistance: null } : item;
+        const rawLabel = effect.label ?? "";
+
+        // Poussée (depuis pushDistance ou extraction du libellé)
         if (typeof effect.pushDistance === "number" && effect.pushDistance > 0) {
             push = Math.max(push ?? 0, effect.pushDistance);
+        } else if (rawLabel) {
+            const extractedPush = extractPushFromLabel(rawLabel);
+            if (extractedPush !== null) push = Math.max(push ?? 0, extractedPush);
         }
-        const damage = effect.damage;
+
+        // Dégâts : priorité au damage structuré existant.
+        // 🔒 Règle de versionnage : si l'item est un objet structuré (DofensiveSpellEffect),
+        // on NE fait PAS de repli textuel. Les formes v1 (sans champ `damage`) doivent rester
+        // sans dégâts pour déclencher le re-fetch automatique côté serveur.
+        // En revanche, si l'item est une chaîne brute (de effects[] ou unityEffects[]), on
+        // peut extraire les dégâts depuis le texte (sorts Unity dont les labels portent les jets).
+        let damage = effect.damage;
+        if (!damage && typeof item === "string" && rawLabel) {
+            const parsed = extractDamageFromLabel(rawLabel);
+            if (parsed) {
+                damage = { element: parsed.element, min: parsed.min, max: parsed.max };
+            }
+        }
         if (!damage) continue;
+
         const element = ELEMENT_ALIASES[String(damage.element ?? "").toLowerCase()];
         if (!element) continue;
         const min = Math.max(0, Math.floor(Number(damage.min) || 0));
@@ -260,6 +392,156 @@ export function damageLinesFromEffects(
     }
 
     return { lines: [...byElement.values()], push };
+}
+
+/**
+ * Normalise les effets d'un sort en `DofensiveSpellEffect[]` complets :
+ * - Conserve `effectDetails` et ses dégâts calculés s'ils existent déjà ;
+ * - Déduit les jets de dégâts et poussées manquants depuis les libellés ;
+ * - Nettoie les scories `{{~ps}}` ;
+ * - Formate les durées de façon uniforme.
+ */
+export function normalizeSpellEffectDetails(
+    spell: {
+        effects?: string[];
+        effectDetails?: any[];
+        unityEffects?: string[];
+    } | null | undefined
+): DofensiveSpellEffect[] {
+    if (!spell) return [];
+
+    // Si on a déjà des effectDetails structurés
+    if (Array.isArray(spell.effectDetails) && spell.effectDetails.length > 0) {
+        return spell.effectDetails.map((eff: any) => {
+            const cleanedLabel = cleanDofusText(eff.label ?? "");
+            let damage = eff.damage ?? null;
+            let pushDistance = typeof eff.pushDistance === "number" ? eff.pushDistance : null;
+
+            if (!damage && cleanedLabel) {
+                const parsed = extractDamageFromLabel(cleanedLabel);
+                if (parsed) {
+                    damage = { element: parsed.element, min: parsed.min, max: parsed.max };
+                }
+            }
+            if (pushDistance === null && cleanedLabel) {
+                pushDistance = extractPushFromLabel(cleanedLabel);
+            }
+
+            return {
+                label: cleanedLabel,
+                duration: eff.duration ?? null,
+                triggerDuration: eff.triggerDuration ?? null,
+                triggers: Array.isArray(eff.triggers) ? eff.triggers : [],
+                masks: Array.isArray(eff.masks) ? eff.masks : [],
+                stateDescription: eff.stateDescription ?? null,
+                damage,
+                pushDistance,
+            };
+        });
+    }
+
+    // Sinon, repli sur les chaînes de texte d'effets (unityEffects ou effects)
+    const rawList: string[] = Array.isArray(spell.unityEffects) && spell.unityEffects.length > 0
+        ? spell.unityEffects
+        : (Array.isArray(spell.effects) ? spell.effects : []);
+
+    if (rawList.length === 0) return [];
+
+    return rawList.map((raw: string) => {
+        const cleaned = cleanDofusText(raw);
+        const durationMatch = cleaned.match(/\s*-\s*(\d+\s*tours?|infini)\s*$/i);
+        const label = durationMatch ? cleaned.slice(0, durationMatch.index).trim() : cleaned;
+        const duration = durationMatch ? durationMatch[1] : null;
+        const damage = extractDamageFromLabel(cleaned);
+        const pushDistance = extractPushFromLabel(cleaned);
+
+        return {
+            label,
+            duration,
+            triggers: [],
+            masks: [],
+            damage: damage ? { element: damage.element, min: damage.min, max: damage.max } : null,
+            pushDistance,
+        };
+    });
+}
+
+export interface BossPassiveEffect {
+    effectId?: number | null;
+    label: string;
+    type: "invulnerable" | "swap" | "resurrect" | "glyph" | "buff" | "unknown";
+    duration: string;
+    isLocked?: boolean;
+}
+
+export interface BossPassiveData {
+    spellId?: number;
+    name: string;
+    description: string;
+    iconId?: number;
+    effects?: BossPassiveEffect[];
+    apCost?: number;
+    range?: number;
+    minRange?: number;
+    castTestLos?: boolean;
+}
+
+/**
+ * Enrichit le passif officiel d'un monstre UNIQUEMENT si ses effets sont vides.
+ *
+ * 🔒 RÈGLE ABSOLUE DE NON-RÉGRESSION :
+ * Si le passif porte déjà des effets non-vides (ex. Tal Kasha avec ses 4 mécaniques
+ * extraites du client Unity : Invulnérabilité, Échange de positions, Résurrection),
+ * il est conservé 100% INTACT, jamais écrasé !
+ *
+ * Seuls les monstres dont le passif n'a aucun effet (ex. Kwakwa Kwayauté) sont enrichis
+ * depuis le sort Dofensive correspondant (`StartingSpell`).
+ */
+export function enrichPassiveIfNeeded(
+    passive: BossPassiveData | null | undefined,
+    spells: any[]
+): BossPassiveData | null {
+    if (!passive) return null;
+    const p = { ...passive };
+
+    // Si le passif a déjà des effets non-vides, ne rien modifier
+    if (Array.isArray(p.effects) && p.effects.length > 0) {
+        return p;
+    }
+
+    // Sinon, enrichir depuis le sort Dofensive / StartingSpell correspondant
+    const match = (spells || []).find(
+        (s: any) =>
+            (p.spellId && Number(s.id) === Number(p.spellId)) ||
+            (s.name && p.name && s.name.toLowerCase().trim() === p.name.toLowerCase().trim())
+    );
+
+    if (match) {
+        const effs = normalizeSpellEffectDetails(match);
+        if (effs.length > 0) {
+            p.effects = effs.map((e) => {
+                let type: BossPassiveEffect["type"] = "buff";
+                const lower = e.label.toLowerCase();
+                if (lower.includes("invuln")) type = "invulnerable";
+                else if (lower.includes("échange") || lower.includes("swap") || lower.includes("téléport")) type = "swap";
+                else if (lower.includes("ressusc") || lower.includes("invoque")) type = "resurrect";
+                else if (lower.includes("glyphe") || lower.includes("sceau")) type = "glyph";
+
+                return {
+                    label: e.label,
+                    duration: e.duration || "infini",
+                    type,
+                    isLocked: true,
+                };
+            });
+        }
+        if (match.apCost !== undefined) p.apCost = match.apCost;
+        if (match.range !== undefined) p.range = match.range;
+        if (match.minRange !== undefined) p.minRange = match.minRange;
+        if (match.castTestLos !== undefined) p.castTestLos = match.castTestLos;
+    }
+
+    return p;
 }
 
 /** Nombre exploitables ≥ 0, ou `null` (valeur absente/non finie : on n'invente rien). */

@@ -106,18 +106,18 @@ export function SimulationSpellPicker({
     const displayName = (spell: SimulationSpellOption) =>
         locale === "en" ? spell.nameEn || spell.name : spell.name;
 
-    /** Jets par élément d'un sort (données serveur) — sert au filtre ET aux chips du menu. */
-    const damagesOf = (spell: SimulationSpellOption) => damageLinesFromEffects(spell.effectDetails);
+    /** Jets par élément d'un sort (données serveur ou repli textuel) — sert au filtre ET aux chips du menu. */
+    const damagesOf = (spell: SimulationSpellOption) =>
+        damageLinesFromEffects(spell.effectDetails ?? (spell as any).unityEffects ?? (spell as any).effects);
 
     const activeSpell = spells.find((s) => s.id === activeSpellId) ?? null;
 
     /**
      * Filtre « sorts qui tapent », actif par défaut. Repli sûr documenté : si **aucun** sort de la
-     * famille ne porte de jet exploitable (payload sans `effectDetails`, ex. sorts DofusDB seuls),
-     * on montre tous les sorts plutôt qu'une liste vide.
+     * famille ne porte de jet exploitable, on montre tous les sorts plutôt qu'une liste vide.
      */
     const visibleSpells = useMemo(() => {
-        const withDamage = spells.filter((s) => damageLinesFromEffects(s.effectDetails).lines.length > 0);
+        const withDamage = spells.filter((s) => damagesOf(s).lines.length > 0);
         if (showAll || withDamage.length === 0) return spells;
         return withDamage;
     }, [spells, showAll]);

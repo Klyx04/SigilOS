@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { Shield, RefreshCw, Users, Lock, Clock, Sparkles, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { cleanDofusText } from "@/lib/dofus-spells";
 
 export interface BossPassiveEffect {
   effectId?: number | null;
@@ -16,6 +17,10 @@ export interface BossPassiveData {
   description: string;
   iconId?: number;
   effects?: BossPassiveEffect[];
+  apCost?: number;
+  range?: number;
+  minRange?: number;
+  castTestLos?: boolean;
 }
 
 interface BossMechanicsViewProps {
@@ -34,7 +39,8 @@ interface BossMechanicsViewProps {
 function renderHighlightedText(text: string) {
   if (!text) return null;
 
-  const paragraphs = text.split(/\n\s*\n/);
+  const cleaned = cleanDofusText(text);
+  const paragraphs = cleaned.split(/\n\s*\n/);
 
   return (
     <div className="space-y-2 leading-relaxed text-[12px]">
@@ -167,6 +173,24 @@ export function BossMechanicsView({
             <span className="text-[10px] font-mono text-muted-foreground/60">
               Rang 1
             </span>
+            {passive.apCost !== undefined && (
+              <span className="inline-flex items-center gap-0.5 font-mono text-[10px] text-muted-foreground">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/assets/dofus/stats/pa.png" alt="PA" className="w-3 h-3 object-contain opacity-90 inline" />
+                <span>{passive.apCost}</span>
+              </span>
+            )}
+            {passive.range !== undefined && (
+              <span className="inline-flex items-center gap-0.5 font-mono text-[10px] text-muted-foreground">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/assets/dofus/stats/po.png" alt="PO" className="w-3 h-3 object-contain opacity-90 inline" />
+                <span>
+                  {passive.minRange !== undefined && passive.minRange !== passive.range
+                    ? `${passive.minRange}-${passive.range}`
+                    : `${passive.range}`}
+                </span>
+              </span>
+            )}
           </div>
           <p className="text-[11px] text-muted-foreground mt-0.5 truncate">
             {isCollapsed ? "Cliquer pour afficher la mécanique détaillée" : "Mécanique officielle — client Unity"}
@@ -226,7 +250,7 @@ export function BossMechanicsView({
                     )}
 
                     <span className="text-foreground/80 font-medium truncate">
-                      {eff.label}
+                      {cleanDofusText(eff.label)}
                     </span>
                   </div>
 

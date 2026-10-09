@@ -29,16 +29,26 @@ interface AssetGalleryModalProps {
     onSelect: (url: string) => void;
     initialType?: AssetType;
     title?: string;
+    /**
+     * 🔶 Onglets exposés (09/10/2026) : les avis n'ont NI salle NI carte Dofensive
+     * (simulation sur grille vide par design) ⇒ l'onglet « Maps » n'a aucun sens pour
+     * eux (`types={["portraits"]}` côté `BountyManager`). Un seul type ⇒ pas de switch.
+     */
+    types?: AssetType[];
 }
+
+const ALL_ASSET_TYPES: AssetType[] = ["portraits", "maps"];
 
 export function AssetGalleryModal({
     open,
     onOpenChange,
     onSelect,
     initialType = "portraits",
-    title = "Galerie d'Assets"
+    title = "Galerie d'Assets",
+    types,
 }: AssetGalleryModalProps) {
-    const [type, setType] = useState<AssetType>(initialType);
+    const available: AssetType[] = types && types.length > 0 ? types : ALL_ASSET_TYPES;
+    const [type, setType] = useState<AssetType>(available.includes(initialType) ? initialType : available[0]);
     const [assets, setAssets] = useState<AssetInfo[]>([]);
     const [loading, setLoading] = useState(false);
     const [search, setSearch] = useState("");
@@ -90,7 +100,9 @@ export function AssetGalleryModal({
                             </DialogDescription>
                         </div>
                         
+                        {available.length > 1 && (
                         <div className="flex bg-surface p-1 rounded-xl border border-border self-start sm:self-auto">
+                            {available.includes("portraits") && (
                             <button
                                 onClick={() => setType("portraits")}
                                 className={cn(
@@ -101,6 +113,8 @@ export function AssetGalleryModal({
                                 <ImageIconLucide size={14} />
                                 Portraits
                             </button>
+                            )}
+                            {available.includes("maps") && (
                             <button
                                 onClick={() => setType("maps")}
                                 className={cn(
@@ -111,7 +125,9 @@ export function AssetGalleryModal({
                                 <MapIcon size={14} />
                                 Maps
                             </button>
+                            )}
                         </div>
+                        )}
                     </div>
 
                     <div className="mt-6 relative group">

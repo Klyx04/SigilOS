@@ -89,9 +89,49 @@ export function throttleWaitMs(
  * Message d'échec **honnête** d'une requête DofusDB : on nomme la cause réelle (notre budget
  * partagé) au lieu de faire croire à une panne de DofusDB.
  */
+export const LOCAL_THROTTLE_MESSAGE_PREFIX = "Limite locale atteinte";
+
 export function dofusDbFailureMessage(status: number, local: boolean): string {
     if (local) {
-        return `Limite locale atteinte (${DOFUSDB_RATE_LIMIT} req/${DOFUSDB_RATE_WINDOW_MS / 1000} s partagées) — page mise en attente, reprise au prochain passage`;
+        return `${LOCAL_THROTTLE_MESSAGE_PREFIX} (${DOFUSDB_RATE_LIMIT} req/${DOFUSDB_RATE_WINDOW_MS / 1000} s partagées) — page mise en attente, reprise au prochain passage`;
     }
     return `DofusDB a renvoyé HTTP ${status}`;
+}
+
+/**
+ * 🔶 Échec **différé** (08/10/2026) : notre limiteur a refusé la page ET les rejeux ont
+ * épuisé le budget. Ce n'est PAS une panne (ni la nôtre, ni celle de DofusDB) : la page
+ * est simplement mise en attente et reprise au prochain passage, filigrane inchangé.
+ * Les cœurs le lèvent, les passes l'attrapent et s'arrêtent **proprement** (`ok: true`
+ * + mention explicite) au lieu de peindre le Tableau en rouge — même sémantique que
+ * `throttledPages` des référentiels (`referential-siphon.ts`), jamais `failedPages`.
+ */
+export class LocalThrottleDeferredError extends Error {
+    readonly code = "LOCAL_THROTTLE_DEFERRED";
+    /** Attente conseillée avant de rejouer (reste de fenêtre + marge, bornée). */
+    readonly retryAfterMs: number;
+    constructor(retryAfterMs: number) {
+        super(dofusDbFailureMessage(429, true));
+        this.name = "LocalThrottleDeferredError";
+        this.retryAfterMs = Math.max(0, Math.floor(Number(retryAfterMs) || 0));
+    }
+}
+
+/** L'erreur est-elle un différé de notre limiteur (attrape ciblée, jamais de `instanceof` inter-bundles) ? */
+export function isLocalThrottleDeferred(error: unknown): error is LocalThrottleDeferredError {
+    return (
+        error instanceof LocalThrottleDeferredError ||
+        ((error as { code?: unknown } | null)?.code === "LOCAL_THROTTLE_DEFERRED" &&
+            typeof (error as { message?: unknown })?.message === "string" &&
+            ((error as { message: string }).message.startsWith(LOCAL_THROTTLE_MESSAGE_PREFIX)))
+    );
+}
+
+/**
+ * Le message d'une `ActionResponse` porte-t-il un différé de notre limiteur ? Sert au
+ * runner « Ici » (qui ne reçoit que des chaînes sérialisées) pour **attendre la fin de
+ * fenêtre** au lieu d'abandonner la passe en échec.
+ */
+export function isLocalThrottleDeferredMessage(message: unknown): boolean {
+    return typeof message === "string" && message.includes(LOCAL_THROTTLE_MESSAGE_PREFIX);
 }

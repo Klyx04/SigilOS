@@ -46,6 +46,7 @@ import {
 } from "@/server/actions/game-data-sync-actions";
 import { BOUNTY_RACE_IDS, BOUNTY_RACE_NAMES } from "@/lib/bounty";
 import { formatGameDataErrorLines } from "@/lib/game-data-error-causes";
+import { isLocalThrottleDeferredMessage } from "@/lib/dofusdb-throttle";
 import { getClassName } from "@/lib/dofusbook-utils";
 import { GAME_ITEMS_BATCH_PAUSE_MS, GAME_ITEMS_BATCH_SIZE } from "@/lib/game-items-cadence";
 import type { GameDataDataset } from "@/lib/game-data-sync-state";
@@ -61,6 +62,15 @@ export const ASSET_SIPHON_MAX_TARGETS = 100;
 
 /** Backoff sur 429 côté client : 2 s → 4 s → 8 s, abandon au 3ᵉ échec consécutif. */
 export const INLINE_MAX_RETRIES = 3;
+
+/**
+ * 🔶 Attente sur **différé local** (08/10/2026) : notre budget partagé (30 req/60 s) est
+ * épuisé — souvent parce qu'une autre passe tourne en parallèle. On attend la fin de
+ * fenêtre au lieu d'abandonner la passe en échec (même sémantique que le worker).
+ * Plafonné : si le budget ne se libère pas, l'abandon reste honnête (voir ci-dessous).
+ */
+export const INLINE_THROTTLE_WAIT_MS = 65_000;
+export const INLINE_THROTTLE_MAX_WAITS = 5;
 
 /** Datasets qui savent tourner **dans l'onglet** (les 4 `INLINE` + le repli des autres). */
 export const INLINE_RUNNABLE_DATASETS = [
@@ -194,11 +204,20 @@ async function runItemBatches(ctx: RunContext): Promise<InlineRunResult> {
     let updated = 0;
     let processed = 0;
     let consecutiveFailures = 0;
+    let throttleWaits = 0;
 
     while (hasMore) {
         const res = await siphonGameItemsBatch(skip, GAME_ITEMS_BATCH_SIZE);
 
         if (!res.success || !res.data) {
+            // 🔶 Différé de NOTRE limiteur (pas une panne) : on attend la fin de la
+            // fenêtre et on rejoue le MÊME lot — sans consommer le budget d'échecs.
+            if (isLocalThrottleDeferredMessage(res.error) && throttleWaits < INLINE_THROTTLE_MAX_WAITS) {
+                throttleWaits++;
+                ctx.log(`⏳ Budget local épuisé — attente de la fin de fenêtre (${throttleWaits}/${INLINE_THROTTLE_MAX_WAITS}), le lot sera rejoué…`);
+                await sleep(INLINE_THROTTLE_WAIT_MS);
+                continue;
+            }
             consecutiveFailures++;
             const waitMs = Math.min(2000 * Math.pow(2, consecutiveFailures - 1), 16_000);
             if (consecutiveFailures > INLINE_MAX_RETRIES) {

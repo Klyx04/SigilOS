@@ -36,7 +36,12 @@ vi.mock("@/lib/prisma", () => ({
     },
 }));
 
-import { siphonGameItemsIncrementalCore } from "@/lib/game-items-siphon";
+import { siphonGameItemsBatchCore, siphonGameItemsIncrementalCore } from "@/lib/game-items-siphon";
+import {
+    isLocalThrottleDeferred,
+    isLocalThrottleDeferredMessage,
+    LocalThrottleDeferredError,
+} from "@/lib/dofusdb-throttle";
 
 /** Réponse DofusDB minimale (le cœur ne lit que `total` et `data`). */
 function remoteItem(id: number, name: string, updatedAt: string) {
@@ -178,18 +183,42 @@ describe("veille ciblée ITEMS — plafond et reprise (aucun item sauté)", () =
         expect(mockDofusDbFetch).toHaveBeenCalledTimes(2); // le rejeu
     }, 10_000);
 
-    it("429 locale persistante : le message NOMME notre budget, jamais « DofusDB a renvoyé »", async () => {
+    it("429 locale persistante : le lot LÈVE un différé typé (message inchangé, `retryAfterMs` porté)", async () => {
         mockDofusDbFetch.mockResolvedValue(mockLocalThrottle());
 
-        let message = "(aucune erreur levée)";
-        try {
-            await siphonGameItemsIncrementalCore(0, "2026-09-01T00:00:00.000Z");
-        } catch (e) {
-            message = e instanceof Error ? e.message : String(e);
-        }
+        const caught = await siphonGameItemsBatchCore(0, 50, "2026-09-01T00:00:00.000Z").then(
+            () => null,
+            (e: unknown) => e,
+        );
 
+        expect(isLocalThrottleDeferred(caught)).toBe(true);
+        const message = caught instanceof Error ? caught.message : String(caught);
         expect(message).toContain("Limite locale atteinte");
         expect(message).toContain("reprise au prochain passage");
         expect(message).not.toContain("DofusDB a renvoyé");
+        expect((caught as LocalThrottleDeferredError).retryAfterMs).toBeGreaterThan(0);
+        expect(isLocalThrottleDeferredMessage(message)).toBe(true);
+        expect(isLocalThrottleDeferredMessage("DofusDB a renvoyé HTTP 500")).toBe(false);
+        expect(isLocalThrottleDeferredMessage(null)).toBe(false);
+    }, 15_000);
+
+    /**
+     * 🔶 08/10/2026 (bêta : *Items & ressources* en Échec sur notre propre budget partagé,
+     * 5 passes lancées en même temps) : un différé local n'est PAS une erreur de passe —
+     * l'incrémental s'arrête proprement (`deferred`), filigrane inchangé, reprise au même
+     * `skip`. Le Tableau reste vert avec la mention explicite (même sémantique que
+     * `throttledPages` des référentiels).
+     */
+    it("429 locale persistante : l'incrémental s'arrête PROPREMENT (`deferred`, reprise au même skip)", async () => {
+        mockPage([remoteItem(1, "Amulette A", "2026-09-20T10:00:00.000Z")], 500);
+        mockDofusDbFetch.mockResolvedValue(mockLocalThrottle());
+
+        const res = await siphonGameItemsIncrementalCore(0, "2026-09-01T00:00:00.000Z");
+
+        expect(res.deferred).toBe(true);
+        expect(res.truncated).toBe(false);
+        expect(res.inserted).toBe(1); // le premier lot est acquis
+        expect(res.nextSkip).toBe(1); // reprise au lot NON lu (pas de saut : `skip + lus`)
+        expect(res.nextWatermark).toBe("2026-09-20T10:00:00.000Z");
     }, 15_000);
 });

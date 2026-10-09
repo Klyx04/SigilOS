@@ -94,9 +94,15 @@ vi.mock("@/lib/dofensive-api", () => ({
 
 /* Liste d'exclusion « avis supprimés dans God » (module fs) : pilotée par le test. */
 const mockIgnoredBountyIds = vi.fn();
+const mockIgnoredBountyNames = vi.fn();
 vi.mock("@/lib/bounty-ignore", () => ({
     getIgnoredBountyIds: (...args: any[]) => mockIgnoredBountyIds(...args),
     isIgnoredBounty: (id: number, ignored?: number[]) => (ignored ?? mockIgnoredBountyIds()).includes(id),
+    // 🔶 08/10/2026 — le siphon filtre aussi sur le nom normalisé (lignes historiques
+    // sans id) : le mock suit, piloté par `mockIgnoredBountyNames` (vide par défaut).
+    getIgnoredBountyNames: (...args: any[]) => mockIgnoredBountyNames(...args),
+    isIgnoredBountyName: (name: string, ignoredNames?: string[]) =>
+        (ignoredNames ?? mockIgnoredBountyNames()).includes(String(name ?? "").trim().toLowerCase()),
 }));
 
 const { syncBounties } = await import("@/lib/bounty-siphon");
@@ -144,6 +150,7 @@ const PREDAGOB_META = {
 beforeEach(() => {
     vi.clearAllMocks();
     mockIgnoredBountyIds.mockReturnValue([]);
+    mockIgnoredBountyNames.mockReturnValue([]);
     mockDofusDbFetch.mockResolvedValue([]);
     mockDofensiveFetch.mockResolvedValue(null);
     mockFindUniqueBounty.mockResolvedValue(null);
@@ -480,6 +487,21 @@ describe("syncBounties — liste, preuve, écriture", () => {
         const res = await syncBounties();
 
         expect(res.ignored).toBe(1);                       // compté, donc jamais silencieux
+        expect(res.entries).toEqual([]);
+        expect(mockCreateBounty).not.toHaveBeenCalled();
+        expect(mockUpdateBounty).not.toHaveBeenCalled();
+        expect(mockPersist).not.toHaveBeenCalled();
+    });
+
+    it("un avis exclu PAR SON NOM (ligne historique sans id) n'est ni écrit ni recréé", async () => {
+        // 🔶 08/10/2026 : une suppression God d'une ligne sans `dofusdbId` enregistre une
+        // exclusion par nom (`dofusdbId: 0`) — le siphon doit la filtrer comme un id.
+        standardSources();
+        mockIgnoredBountyNames.mockReturnValue(["predagob"]);
+
+        const res = await syncBounties();
+
+        expect(res.ignored).toBe(1);
         expect(res.entries).toEqual([]);
         expect(mockCreateBounty).not.toHaveBeenCalled();
         expect(mockUpdateBounty).not.toHaveBeenCalled();

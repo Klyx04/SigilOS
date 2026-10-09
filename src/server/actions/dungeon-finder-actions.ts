@@ -14,6 +14,7 @@ import { createAuditLog } from "./audit-actions";
 import { sanitizeName } from "@/lib/security";
 import { getMultiDungeons, achievementLines, embedCoverUrl, formatDiscordDateStamp, mergeMultiDungeonTargetDates } from "@/lib/dungeon-finder-utils";
 import { buildClassDispatchFields, buildClassSelectRow, type DispatchEntry } from "@/server/discord-class-dispatch";
+import { syncDjMirror } from "@/server/agenda-mirror-sync";
 import { loadEmojiResolver } from "@/server/discord-app-emojis";
 import { classEmojiName } from "@/lib/discord-emoji-catalog";
 
@@ -1349,6 +1350,8 @@ export async function createDjPost(
 
         revalidatePath(`/dashboard/${guildId}/donjons-et-quetes`);
         await notifyDjUpdate(guildId);
+        // Miroir agenda (R1) : best-effort, n'interrompt jamais la création.
+        await syncDjMirror(guildId, post.id);
         return { success: true, data: { id: post.id } };
     } catch (error) {
         logger.error("[createDjPost]", error);
@@ -1469,6 +1472,8 @@ export async function createDjPosts(
 
         revalidatePath(`/dashboard/${guildId}/donjons-et-quetes`);
         await notifyDjUpdate(guildId);
+        // Miroir agenda (R1) : best-effort.
+        await syncDjMirror(guildId, post.id);
         return { success: true, data: { id: post.id } };
     } catch (error) {
         logger.error("[createDjPosts]", error);
@@ -1612,6 +1617,8 @@ export async function updateDjPost(
         await notifyDjUpdate(guildId);
 
         revalidatePath(`/dashboard/${guildId}/donjons-et-quetes`);
+        // Miroir agenda (R1) : la date a peut-être changé → patch ou sortie.
+        await syncDjMirror(guildId, postId);
         return { success: true };
     } catch (error) {
         logger.error("[updateDjPost]", error);
@@ -1810,6 +1817,8 @@ export async function closeDjPostWithContributions(
         disableDjDiscordEmbed(guildId, (post as any).discordChannelId ?? null, (post as any).discordMessageId ?? null).catch(() => { });
 
         revalidatePath(`/dashboard/${guildId}/donjons-et-quetes`);
+        // Miroir agenda (R1) : post clôturé → COMPLETED (filigrane « Terminé »).
+        await syncDjMirror(guildId, postId);
         return { success: true, data: { pointsAwarded: pts } };
     } catch (error) {
         logger.error("[closeDjPostWithContributions]", error);
@@ -1921,6 +1930,8 @@ export async function closeDjPost(
 
         revalidatePath(`/dashboard/${guildId}/donjons-et-quetes`);
         await notifyDjUpdate(guildId);
+        // Miroir agenda (R1) : post fermé → COMPLETED (filigrane « Terminé »).
+        await syncDjMirror(guildId, postId);
         return { success: true };
     } catch (error) {
         logger.error("[closeDjPost]", error);
@@ -2022,6 +2033,8 @@ export async function joinDjPost(
 
         revalidatePath(`/dashboard/${guildId}/donjons-et-quetes`);
         await notifyDjUpdate(guildId);
+        // Miroir agenda (R1) : la composition affichée suit les inscrits.
+        await syncDjMirror(guildId, postId);
         return { success: true, data: { waitlisted: newStatus === "PENDING" } as any };
     } catch (error) {
         logger.error("[joinDjPost]", error);
@@ -2115,6 +2128,8 @@ export async function leaveDjPost(
 
         revalidatePath(`/dashboard/${guildId}/donjons-et-quetes`);
         await notifyDjUpdate(guildId);
+        // Miroir agenda (R1) : la composition affichée suit les inscrits.
+        await syncDjMirror(guildId, postId);
         return { success: true };
     } catch (error) {
         logger.error("[leaveDjPost]", error);
@@ -2243,6 +2258,8 @@ export async function internalJoinDjPost(
             updateDjDiscordEmbed(joinGuildId, postId).catch(() => { });
             await notifyDjUpdate(joinGuildId);
             revalidatePath(`/dashboard/${joinGuildId}/donjons-et-quetes`);
+            // Miroir agenda (R1) : best-effort.
+            await syncDjMirror(joinGuildId, postId);
         }
 
         return { success: true, data: { waitlisted: newStatus === "PENDING" } as any };
@@ -2296,6 +2313,8 @@ export async function internalLeaveDjPost(
             updateDjDiscordEmbed(embedGuildId, postId).catch(() => { });
             await notifyDjUpdate(embedGuildId);
             revalidatePath(`/dashboard/${embedGuildId}/donjons-et-quetes`);
+            // Miroir agenda (R1) : best-effort.
+            await syncDjMirror(embedGuildId, postId);
         }
 
 
@@ -2348,6 +2367,8 @@ export async function updateDjParticipantClass(
         updateDjDiscordEmbed(guildId, postId).catch(() => { });
         await notifyDjUpdate(guildId);
         revalidatePath(`/dashboard/${guildId}/donjons-et-quetes`);
+        // Miroir agenda (R1) : l'icône de classe affichée suit ce changement.
+        await syncDjMirror(guildId, postId);
 
         return { success: true, data: { updated: true } };
     } catch (error) {
@@ -2376,6 +2397,8 @@ export async function handleDiscordDjPostDelete(discordGuildId: string, messageI
 
         revalidatePath(`/dashboard/${discordGuildId}/donjons-et-quetes`);
         await notifyDjUpdate(discordGuildId);
+        // Miroir agenda (R1) : post fermé → COMPLETED (filigrane « Terminé »).
+        await syncDjMirror(discordGuildId, post.id);
     } catch (err) {
         logger.error("[handleDiscordDjPostDelete] Error:", err);
     }
@@ -2401,6 +2424,8 @@ export async function handleDiscordDjChannelDelete(discordGuildId: string, chann
 
         revalidatePath(`/dashboard/${discordGuildId}/donjons-et-quetes`);
         await notifyDjUpdate(discordGuildId);
+        // Miroir agenda (R1) : post fermé → COMPLETED (filigrane « Terminé »).
+        await syncDjMirror(discordGuildId, post.id);
     } catch (err) {
         logger.error("[handleDiscordDjChannelDelete] Error:", err);
     }
@@ -2613,6 +2638,8 @@ export async function acceptDjParticipant(
         updateDjDiscordEmbed(guildId, postId).catch(() => { });
         await notifyDjUpdate(guildId);
         revalidatePath(`/dashboard/${guildId}/donjons-et-quetes`);
+        // Miroir agenda (R1) : best-effort.
+        await syncDjMirror(guildId, postId);
         return { success: true };
     } catch (error) {
         logger.error("[acceptParticipant]", error);
@@ -2653,6 +2680,8 @@ export async function rejectDjParticipant(
         updateDjDiscordEmbed(guildId, postId).catch(() => { });
         await notifyDjUpdate(guildId);
         revalidatePath(`/dashboard/${guildId}/donjons-et-quetes`);
+        // Miroir agenda (R1) : best-effort.
+        await syncDjMirror(guildId, postId);
         return { success: true };
     } catch (error) {
         logger.error("[rejectParticipant]", error);

@@ -28,6 +28,8 @@ import {
     TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { DofusUiIcon } from "@/components/shared/dofus-ui-icon";
+import { ClassIcon } from "@/components/shared/class-icon";
+import { isAgendaMirror } from "@/lib/agenda-mirror";
 import { calendarEventTheme } from "@/lib/calendar-event-theme";
 import { cn } from "@/lib/utils";
 
@@ -86,10 +88,20 @@ export function EventCard({
         ? metamobParticipants
         : (event.participants?.filter((a: any) => a.status === "REGISTERED") || []);
 
+    // Miroir agenda R1 (DJ/Songes) : composition lue dans `metadata.mirror`
+    // (aucune inscription depuis le calendrier — lecture seule).
+    const mirror = (isAgendaMirror(eventMetadata) ? (eventMetadata as any).mirror : null) as {
+        classes?: { classe: string; count: number }[];
+        memberCount?: number;
+        maxMembers?: number | null;
+    } | null;
+
     // Override attendee count for Kralamoure events using metadata count if available
-    const displayAttendeeCount = isKralamoure 
-        ? (eventMetadata?.metamobParticipantsCount || attendeesGoing.length) 
-        : (event.participants?.length || 0);
+    // (miroirs : effectif du groupe d'origine).
+    const displayAttendeeCount = mirror?.memberCount
+        ?? (isKralamoure
+            ? (eventMetadata?.metamobParticipantsCount || attendeesGoing.length)
+            : (event.participants?.length || 0));
 
     // View: List (Horizontal Row)
     if (variant === "list") {
@@ -129,6 +141,15 @@ export function EventCard({
                             <Users className="h-3.5 w-3.5 text-muted-foreground" />
                             <span>{attendeeCount}{event.maxParticipants ? ` / ${event.maxParticipants}` : ""} participants</span>
                         </div>
+                        {mirror && (mirror.classes ?? []).length > 0 && (
+                            <div className="flex items-center gap-1">
+                                {mirror.classes!.slice(0, 4).map((c) => (
+                                    <span key={c.classe} title={`${c.classe} × ${c.count}`}>
+                                        <ClassIcon classId={c.classe} size={18} />
+                                    </span>
+                                ))}
+                            </div>
+                        )}
                         {event.location && (
                             <div className="flex items-center gap-1.5 truncate max-w-[200px]">
                                 <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
@@ -230,6 +251,13 @@ export function EventCard({
                                 ✓ Terminé
                             </Badge>
                         )}
+
+                        {/* Miroir DJ/Songes : lecture seule, géré depuis le post d'origine */}
+                        {mirror && (
+                            <Badge variant="outline" className="bg-info/10 text-info border-info/30 px-2 py-0.5 text-xs font-semibold uppercase tracking-wider">
+                                Miroir
+                            </Badge>
+                        )}
                     </div>
 
                     {/* Attendance Status Indicator */}
@@ -315,8 +343,7 @@ export function EventCard({
 
                     <div className="flex flex-col gap-2">
                         {attendeesGoing.length > 0 ? (
-                            attendeesGoing.slice(0, 3).map((a: any, idx: number) => {
-                                // For Kralamoure events, participants are objects { username, character_count } or strings
+                            attendeesGoing.slice(0, 3).map((a: any, idx: number) => {                                // For Kralamoure events, participants are objects { username, character_count } or strings
                                 // For other events, participants have user objects
                                 const participantName = isKralamoure
                                     ? (typeof a === 'string' ? a : a.username || a.name || 'Inconnu')
@@ -337,8 +364,26 @@ export function EventCard({
                                     </div>
                                 );
                             })
+                        ) : mirror && (mirror.classes ?? []).length > 0 ? (
+                            <>
+                                {mirror.classes!.slice(0, 3).map((c) => (
+                                    <div key={c.classe} className="flex items-center gap-2.5">
+                                        <ClassIcon classId={c.classe} size={24} />
+                                        <span className="text-sm text-foreground font-medium truncate">
+                                            {c.classe} × {c.count}
+                                        </span>
+                                    </div>
+                                ))}
+                                {(mirror.classes ?? []).length > 3 && (
+                                    <div className="pl-9 text-xs text-muted-foreground font-medium">
+                                        +{(mirror.classes ?? []).length - 3} autres...
+                                    </div>
+                                )}
+                            </>
                         ) : (
-                            <span className="text-sm text-muted-foreground italic">Aucun participant</span>
+                            <span className="text-sm text-muted-foreground italic">
+                                {mirror ? "Groupe sur le post d'origine" : "Aucun participant"}
+                            </span>
                         )}
 
                         {attendeesGoing.length > 3 && (

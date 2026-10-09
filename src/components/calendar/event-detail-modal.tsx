@@ -50,6 +50,7 @@ import {
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { DofusUiIcon, type DofusUiIconName } from "@/components/shared/dofus-ui-icon";
+import { isAgendaMirror } from "@/lib/agenda-mirror";
 import { resolveEventImagePath } from "@/lib/calendar-event-images";
 import { calendarEventTheme } from "@/lib/calendar-event-theme";
 import { PseudoChip } from "@/components/shared/pseudo-chip";
@@ -269,6 +270,21 @@ export function EventDetailModal({
 
     const eventMetadata = (event as any)?.metadata as any;
     const missionIds = eventMetadata?.missionIds as string[] | undefined;
+    // Miroir agenda R1 (DJ/Songes) : lecture seule pour tout le monde, même admin —
+    // toute action se fait dans le post / la run d'origine (décision D6).
+    const mirrorDetail = (isAgendaMirror(eventMetadata) ? (eventMetadata as any).mirror : null) as {
+        label?: string;
+        names?: string[];
+        message?: string | null;
+        achievements?: string[];
+        classes?: { classe: string; count: number }[];
+        memberCount?: number;
+        maxMembers?: number | null;
+        multiLines?: { name: string; date: string | null }[];
+        href?: string | null;
+        objectives?: string[];
+    } | null;
+    const isMirror = !!mirrorDetail;
     // Raid metadata
     const isRaid = event?.type === "RAID_OFFICIAL";
     const raidMeta = isRaid ? eventMetadata : null;
@@ -321,7 +337,7 @@ export function EventDetailModal({
     const isFull = event.maxParticipants ? registeredCount >= event.maxParticipants : false;
     const isCreator = event.creator.id === currentUserId;
     const isRegistered = isUserRegistered;
-    const canRegister = isOpen && !isRegistered && !isExternal;
+    const canRegister = isOpen && !isRegistered && !isExternal && !isMirror;
 
     // Extract Metamob creator from metadata or description for Kralamoure events
     const metamobCreator = (isDirectKralamoure || isImportedKralamoure)
@@ -465,8 +481,9 @@ export function EventDetailModal({
                             </div>
 
                             {/* Actions — repliées sous le titre sur mobile, alignées à droite
-                                sur desktop (jamais de débordement horizontal). */}
-                            {canManage && (
+                                sur desktop (jamais de débordement horizontal).
+                                Miroirs R1 : aucune action, même admin (lecture seule). */}
+                            {canManage && !isMirror && (
                                 <div className="flex flex-wrap items-center gap-2 sm:shrink-0 sm:justify-end">
                                     {/* Edit button — only creator or admin, disabled for Kralamoure */}
                                     {onEdit && event.type !== "KRALAMOURE" && (isCreator || isAdmin) && (
@@ -662,6 +679,72 @@ export function EventDetailModal({
                             {event.description && (
                                 <div className="p-3 rounded-lg bg-elevated/30 border border-border/30">
                                     <p className="text-sm text-foreground whitespace-pre-wrap">{event.description}</p>
+                                </div>
+                            )}
+
+                            {/* ========== MIROIR DJ / SONGES (R1) ========== */}
+                            {mirrorDetail && (
+                                <div className="space-y-3 rounded-lg border border-border bg-elevated/30 p-4">
+                                    <div className="flex items-center justify-between gap-2">
+                                        <div className="flex items-center gap-2">
+                                            <DofusUiIcon name={event.type === "SONGES_RUN" ? "hourglass" : "dungeon"} size={16} />
+                                            <span className="text-xs font-black text-muted-foreground uppercase tracking-wider">
+                                                {mirrorDetail.label || "Groupe"} · {mirrorDetail.memberCount ?? 0}{mirrorDetail.maxMembers ? ` / ${mirrorDetail.maxMembers}` : ""} joueurs
+                                            </span>
+                                        </div>
+                                        <Badge variant="outline" className="bg-info/10 text-info border-info/30 text-caption font-black uppercase tracking-wider">
+                                            Miroir
+                                        </Badge>
+                                    </div>
+
+                                    {/* Composition : icônes de classes du groupe */}
+                                    {(mirrorDetail.classes ?? []).length > 0 && (
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            {mirrorDetail.classes!.map((c) => (
+                                                <span key={c.classe} className="flex items-center gap-1.5 rounded-lg border border-border bg-background px-2 py-1" title={`${c.classe} × ${c.count}`}>
+                                                    <ClassIcon classId={c.classe} size={22} />
+                                                    <span className="text-xs font-black text-foreground">× {c.count}</span>
+                                                </span>
+                                            ))}
+                                        </div>
+                                    )}
+
+                                    {/* Succès visés */}
+                                    {(mirrorDetail.achievements ?? []).length > 0 && (
+                                        <div className="flex flex-wrap items-center gap-1.5">
+                                            {mirrorDetail.achievements!.map((name) => (
+                                                <span key={name} className="flex items-center gap-1.5 rounded-lg bg-warning/10 border border-warning/20 px-2 py-1 text-xs font-bold text-warning">
+                                                    <DofusUiIcon name="success" size={14} />
+                                                    {name}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    )}
+
+                                    {/* Multi-donjons : détail par date */}
+                                    {(mirrorDetail.multiLines ?? []).length > 0 && (
+                                        <div className="space-y-1 border-t border-border pt-2">
+                                            {mirrorDetail.multiLines!.map((line, i) => (
+                                                <div key={i} className="flex items-center justify-between gap-2 text-xs">
+                                                    <span className="font-bold text-foreground truncate">{line.name}</span>
+                                                    <span className="text-muted-foreground font-semibold shrink-0">
+                                                        {line.date ? format(new Date(line.date), "EEE d MMM HH:mm", { locale: fr }) : "Sans date"}
+                                                    </span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+
+                                    {/* Objectifs Songes */}
+                                    {(mirrorDetail.objectives ?? []).length > 0 && (
+                                        <div className="flex flex-wrap items-center gap-1.5 border-t border-border pt-2">
+                                            {mirrorDetail.objectives!.map((objective) => (
+                                                <Badge key={objective} variant="outline" className="bg-elevated text-muted-foreground border-border text-caption font-bold uppercase tracking-wider">
+                                                    {objective.replace(/_/g, " ")}
+                                                </Badge>
+                                            ))}
+                                        </div>
+                                    )}
                                 </div>
                             )}
 
@@ -977,7 +1060,9 @@ export function EventDetailModal({
                                                     <p className="text-muted-foreground font-medium">
                                                         {isKrala
                                                             ? "Détails des participants indisponibles"
-                                                            : "Aucun participant inscrit"
+                                                            : isMirror
+                                                              ? "Les inscrits sont sur le post d'origine"
+                                                              : "Aucun participant inscrit"
                                                         }
                                                     </p>
                                                     {isKrala && (
@@ -998,9 +1083,29 @@ export function EventDetailModal({
 
                     {/* Footer */}
                     <div className="px-6 py-4 bg-background/50 border-t border-border/50 space-y-3">
-                        {/* User Actions */}
+                        {/* User Actions — miroirs R1 : seul CTA « Ouvrir le post d'origine »,
+                            même admin (aucune inscription ni action depuis le calendrier). */}
                         <div className="flex items-center gap-2 flex-wrap">
-                            {(isDirectKralamoure || isImportedKralamoure) ? (
+                            {isMirror ? (
+                                <div className="flex flex-col gap-2 w-full">
+                                    <Button
+                                        asChild
+                                        size="lg"
+                                        className="h-12 rounded-xl font-black text-sm uppercase tracking-wider px-8 bg-info hover:bg-info text-info-foreground"
+                                    >
+                                        <Link
+                                            href={mirrorDetail?.href ?? `/dashboard/${guildId}/donjons-et-quetes`}
+                                            className="flex items-center w-full h-full px-4 py-2"
+                                        >
+                                            <ExternalLink className="h-4 w-4 mr-2" />
+                                            Ouvrir le post d'origine
+                                        </Link>
+                                    </Button>
+                                    <p className="text-caption text-muted-foreground italic">
+                                        Miroir lecture seule — inscriptions et modifications depuis le post d'origine.
+                                    </p>
+                                </div>
+                            ) : (isDirectKralamoure || isImportedKralamoure) ? (
                                 <div className="flex flex-col gap-3 w-full">
                                     <div className="flex items-center gap-2">
                                         <Button
@@ -1115,8 +1220,8 @@ export function EventDetailModal({
                             )}
                         </div>
 
-                        {/* Admin Actions — only Rappel Discord (creator or admin) */}
-                        {canManage && !isExternal && (isCreator || isAdmin) && (
+                        {/* Admin Actions — only Rappel Discord (creator or admin, jamais sur un miroir) */}
+                        {canManage && !isMirror && !isExternal && (isCreator || isAdmin) && (
                             <div className="flex items-center justify-between gap-2 flex-wrap pt-4 mt-2 border-t border-border/30">
                                 <div className="flex items-center gap-2 ml-auto">
                                     {event.status === "PUBLISHED" && onSendReminder && event.participants.length > 0 && hasDiscordForType && (

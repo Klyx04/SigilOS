@@ -14,6 +14,7 @@ import { getUserContext } from "@/server/actions/user-actions";
 import { deleteChannelMessage } from "@/server/discord";
 import { buildClassSelectRow } from "@/server/discord-class-dispatch";
 import { rateLimit } from "@/lib/ratelimit";
+import { isAgendaMirror } from "@/lib/agenda-mirror";
 import { blindAutoCloseWhere, shouldBlindAutoClose } from "@/lib/calendar-auto-close";
 import { startOfWeek, addDays } from "date-fns";
 
@@ -74,6 +75,25 @@ const RegisterEventSchema = z.object({
     classe: z.string().max(50).optional(),
     comment: z.string().max(200).optional(),
 });
+
+/**
+ * Miroirs agenda R1 (DJ/Songes) : lecture seule pour tout le monde, même admin
+ * (décision D6) — toute inscription ou modification se fait dans le post
+ * d'origine. `true` = mutation refusée.
+ */
+const MIRROR_READONLY_ERROR = "Miroir lecture seule — rendez-vous sur le post d'origine";
+async function isReadonlyMirror(guildId: string, eventId: string): Promise<boolean> {
+    const guildConfig = await db.guildConfig.findUnique({
+        where: { discordGuildId: guildId },
+        select: { id: true },
+    });
+    if (!guildConfig) return false;
+    const event = await db.guildEvent.findUnique({
+        where: { id: eventId },
+        select: { guildId: true, metadata: true },
+    });
+    return !!event && event.guildId === guildConfig.id && isAgendaMirror(event.metadata);
+}
 
 // ============================================
 // TYPES
@@ -891,6 +911,7 @@ export async function updateCalendarEvent(guildId: string, eventId: string, data
 
         // Merge missionIds into metadata
         const existingEvent = await db.guildEvent.findUnique({ where: { id: eventId }, select: { metadata: true } });
+        if (isAgendaMirror(existingEvent?.metadata)) return { success: false, error: MIRROR_READONLY_ERROR };
         const prevMeta = (existingEvent?.metadata as any) || {};
         const finalMetadata = {
             ...prevMeta,
@@ -955,6 +976,7 @@ export async function cancelCalendarEvent(guildId: string, eventId: string) {
 
         if (!event) return { success: false, error: "Événement introuvable" };
         if (event.status !== "PUBLISHED") return { success: false, error: "Seuls les événements publiés peuvent être annulés" };
+        if (isAgendaMirror(event.metadata)) return { success: false, error: MIRROR_READONLY_ERROR };
         if (event.creatorId !== ctx.id && !ctx.isAdmin) {
             return { success: false, error: "Seul le créateur de l'événement ou un administrateur peut l'annuler." };
         }
@@ -1006,6 +1028,7 @@ export async function deleteCalendarEvent(guildId: string, eventId: string) {
 
         if (!event) return { success: false, error: "Événement introuvable" };
         if (event.status !== "CANCELLED") return { success: false, error: "Seuls les événements annulés peuvent être supprimés définitivement." };
+        if (isAgendaMirror(event.metadata)) return { success: false, error: MIRROR_READONLY_ERROR };
         if (event.creatorId !== ctx.id && !ctx.isAdmin) {
             return { success: false, error: "Seul le créateur de l'événement ou un administrateur peut le supprimer." };
         }
@@ -1047,6 +1070,7 @@ export async function publishEvent(guildId: string, eventId: string) {
         });
         if (!guildConfig) return { success: false, error: "Guilde non trouvée" };
 
+        if (await isReadonlyMirror(guildId, eventId)) return { success: false, error: MIRROR_READONLY_ERROR };
         const { publishDiscordEvent } = await import("@/server/calendar-service");
         const result = await publishDiscordEvent(guildId, eventId);
 
@@ -1098,6 +1122,7 @@ export async function completeEvent(guildId: string, eventId: string) {
 
         if (!event) return { success: false, error: "Événement introuvable" };
         if (event.status === "COMPLETED") return { success: false, error: "Déjà terminé" };
+        if (isAgendaMirror((event as any).metadata)) return { success: false, error: MIRROR_READONLY_ERROR };
 
         const xpReward = event.type === "RAID_OFFICIAL" ? 50 : 20;
 
@@ -1169,6 +1194,7 @@ export async function completeRaidEvent(
 
         if (!event) return { success: false, error: "Événement introuvable" };
         if (event.status === "COMPLETED") return { success: false, error: "Déjà terminé" };
+        if (isAgendaMirror(event.metadata)) return { success: false, error: MIRROR_READONLY_ERROR };
 
         // Save score + completion data in metadata
         const existingMeta = (event.metadata as any) || {};
@@ -1400,6 +1426,7 @@ export async function registerForEvent(
     if (!(ctx as any).canViewCalendar) return { success: false, error: "Accès calendrier requis" };
 
     try {
+        if (await isReadonlyMirror(guildId, eventId)) return { success: false, error: MIRROR_READONLY_ERROR };
         const { processRegistration } = await import("@/server/calendar-service");
         return await processRegistration(guildId, eventId, ctx.id!, data);
     } catch (error) {
@@ -1421,8 +1448,8 @@ export async function updateMyRegistrationClass(guildId: string, eventId: string
     if (!ctx.isAuthenticated) return { success: false, error: "Non authentifié" };
     if (!ctx.isMember) return { success: false, error: "Membre requis" };
     if (!(ctx as any).canViewCalendar) return { success: false, error: "Accès calendrier requis" };
-
     try {
+        if (await isReadonlyMirror(guildId, eventId)) return { success: false, error: MIRROR_READONLY_ERROR };
         const raw = (classe ?? "").trim().slice(0, 30);
         // Classe FACULTATIVE : une valeur inconnue reste un refus explicite (jamais écrit).
         const { matchDispatchClass } = await import("@/server/discord-class-dispatch");
@@ -1449,6 +1476,7 @@ export async function unregisterFromEvent(guildId: string, eventId: string) {
     if (!(ctx as any).canViewCalendar) return { success: false, error: "Accès calendrier requis" };
 
     try {
+        if (await isReadonlyMirror(guildId, eventId)) return { success: false, error: MIRROR_READONLY_ERROR };
         const { processUnregistration } = await import("@/server/calendar-service");
         return await processUnregistration(guildId, eventId, ctx.id!);
     } catch (error) {

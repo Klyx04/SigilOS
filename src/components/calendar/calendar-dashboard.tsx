@@ -80,7 +80,7 @@ interface DiscordRole {
 }
 
 /** Types filtrables (dans l'ordre d'affichage) — libellés/couleurs via `calendarEventTheme`. */
-const FILTER_TYPE_KEYS = ["RAID_OFFICIAL", "EVENT_GUILD", "SESSION_MISSIONS", "SORTIE_FARM"] as const;
+const FILTER_TYPE_KEYS = ["RAID_OFFICIAL", "EVENT_GUILD", "SESSION_MISSIONS", "SORTIE_FARM", "DUNGEON_FARM", "SONGES_RUN"] as const;
 
 export function CalendarDashboard({ guildId, currentUserId, canManage, canManageRaid, userPseudo, discordChannels, isAdmin = false, myCharacters }: CalendarDashboardProps) {
     const [displayMode] = useState<ViewMode>("grid");

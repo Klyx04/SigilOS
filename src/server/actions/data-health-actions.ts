@@ -13,6 +13,9 @@ import {
 } from '@/lib/data-health';
 import fs from 'fs';
 import path from 'path';
+// 🔎 Dernier run **suivi** (Redis) : les lignes qui ont une passe affichaient « Jamais » en dur.
+import { getGameDataRunStates } from '@/server/game-data-sync-state-store';
+import type { GameDataDataset, GameDataRunState } from '@/lib/game-data-sync-state';
 
 export type { BossFicheGap, DataHealthRow };
 
@@ -60,14 +63,24 @@ export async function getDataHealthOverview(): Promise<
 > {
     if (!(await canViewHealth())) return { success: false, error: 'Accès non autorisé' };
     try {
-        const [dungeons, statsRows, mapsRows, gameItemTotal, lastItem, statuses] = await Promise.all([
+        const [dungeons, statsRows, mapsRows, gameItemTotal, lastItem, statuses, gameDataRuns] = await Promise.all([
             db.dungeon.findMany({ select: { bossName: true, name: true, level: true } }),
             db.monsterStat.findMany({ select: { monsterName: true, lastSyncedAt: true } }),
             db.dofensiveMap.findMany({ select: { mapId: true, lastSyncedAt: true } }),
             db.gameItem.count({ where: { isDeprecated: false } }).catch(() => 0),
             db.gameItem.findFirst({ orderBy: { updatedAt: 'desc' }, select: { updatedAt: true } }).catch(() => null),
             getAllCronStatuses().catch(() => [] as { id: string; lastRun: string | null }[]),
+            getGameDataRunStates().catch(() => [] as GameDataRunState[]),
         ]);
+
+        /**
+         * 🔎 Dernier **run suivi** d'un dataset game-data (`finishedAt` du store Redis), ou `null`
+         * si la passe n'a jamais tourné. Les lignes « Items BDD » et « Catalogue JSON » avaient
+         * `dernierRun: null` **en dur** ⇒ « Jamais » alors que la passe avait tourné (constat user
+         * du 10/10/2026). `null` veut maintenant dire « jamais lancé », jamais « je ne sais pas ».
+         */
+        const datasetLastRun = (dataset: GameDataDataset): string | null =>
+            gameDataRuns.find((s) => s.dataset === dataset)?.finishedAt ?? null;
 
         const now = Date.now();
         const gaps = buildBossFicheGaps(
@@ -124,8 +137,12 @@ export async function getDataHealthOverview(): Promise<
             const res = await getHarvestResourcesSummary();
             if (res.success && res.data) {
                 const d = res.data as { resources?: unknown[]; jobs?: unknown[]; spots?: unknown[] };
+                const counts = `${d.resources?.length ?? 0} ressources · ${d.jobs?.length ?? 0} métiers · ${d.spots?.length ?? 0} spots`;
+                // 🔎 Des zéros ne disent pas POURQUOI : le fichier est produit **hors ligne**
+                // (`scripts/compile-harvest-and-zaaps.ts`, dataset `SCRIPT`) ⇒ on le nomme, au lieu
+                // de laisser croire qu'un siphon est passé dans le vide (constat user du 10/10/2026).
                 harvest = {
-                    label: `${d.resources?.length ?? 0} ressources · ${d.jobs?.length ?? 0} métiers · ${d.spots?.length ?? 0} spots`,
+                    label: (d.resources?.length ?? 0) === 0 ? `non généré — ${counts} (script local)` : counts,
                 };
             }
         } catch {
@@ -180,7 +197,7 @@ export async function getDataHealthOverview(): Promise<
                 fraicheur: lastItem?.updatedAt ? `dernier item : ${lastItem.updatedAt.toISOString().slice(0, 10)}` : null,
                 couverture: `${gameItemTotal} items non dépréciés`,
                 couverturePct: null,
-                dernierRun: null,
+                dernierRun: datasetLastRun('ITEMS'),
                 goTab: 'items',
                 goLabel: 'Onglet Items',
             },
@@ -192,7 +209,7 @@ export async function getDataHealthOverview(): Promise<
                 fraicheur: catalogue.mtime ? `généré le ${catalogue.mtime.slice(0, 10)} (${catalogue.sizeKb} Ko)` : 'non généré',
                 couverture: `${catalogue.dungeons} donjons · ${catalogue.monsters} monstres`,
                 couverturePct: null,
-                dernierRun: lastRunOf(statuses, 'sync_monster_stats'),
+                dernierRun: datasetLastRun('CATALOGUE') ?? lastRunOf(statuses, 'sync_monster_stats'),
                 goTab: 'siphon',
                 goLabel: 'Régénérer',
             },
@@ -205,6 +222,7 @@ export async function getDataHealthOverview(): Promise<
                 couverture: harvest.label,
                 couverturePct: null,
                 dernierRun: null,
+                dernierRunNote: 'script local',
                 goTab: 'harvest',
                 goLabel: 'Onglet Récoltables',
             },
@@ -216,7 +234,9 @@ export async function getDataHealthOverview(): Promise<
                 fraicheur: null,
                 couverture: `${storage.totalCount} webp (${storage.totalSizeFormatted}) · ${statsRows.length} fiches · ${gameItemTotal} items`,
                 couverturePct: null,
+                // Compteurs disque/BDD : aucune passe à afficher ⇒ « — », jamais « Jamais ».
                 dernierRun: null,
+                dernierRunNote: '—',
                 goTab: 'siphon',
                 goLabel: 'Détail Siphon',
             },

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Activity, CheckCircle2, Loader2, ArrowRight, FlaskConical, Play } from 'lucide-react';
+import { Activity, CheckCircle2, Loader2, ArrowRight, FlaskConical, Play, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
     getDataHealthOverview,
@@ -23,6 +23,19 @@ function relativeTime(iso: string | null): string {
     const h = Math.floor(min / 60);
     if (h < 48) return `il y a ${h}h`;
     return new Date(iso).toLocaleDateString('fr-FR');
+}
+
+/**
+ * 🔎 Ce que dit la colonne « Dernier run ».
+ *
+ * Une ligne **sans passe** (fichier produit par un script local, compteurs disque/BDD) affichait
+ * « Jamais » — on croyait qu'une passe aurait dû tourner. Le serveur dit maintenant pourquoi
+ * (`dernierRunNote`) au lieu de laisser le vide parler (constat user du 10/10/2026 : « il est
+ * jamais iso, toujours des chiffres bizarres partout »).
+ */
+function dernierRunLabel(row: DataHealthRow): string {
+    if (row.dernierRun) return relativeTime(row.dernierRun);
+    return row.dernierRunNote ?? 'Jamais';
 }
 
 /**
@@ -226,9 +239,23 @@ export function DataHealthPanel({ onGoTab }: { onGoTab: (tab: string) => void })
 
     return (
         <div className="space-y-5">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Activity className="w-4 h-4 text-emerald-400" />
-                <span>Lecture seule — source → cible, fraîcheur, couverture réelle, dernier run. Le dry-run n'écrit jamais.</span>
+            <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-muted-foreground">
+                <div className="flex items-center gap-2">
+                    <Activity className="w-4 h-4 text-emerald-400" />
+                    <span>Lecture seule — source → cible, fraîcheur, couverture réelle, dernier run. Le dry-run n'écrit jamais.</span>
+                </div>
+                {/* 🔄 Le panneau lit le disque et la base **au montage** : après un siphon lancé
+                    ailleurs (Tableau), les chiffres restaient ceux d'avant. Un rafraîchissement
+                    explicite, plutôt qu'un « pourquoi ça ne bouge pas ? ». */}
+                <Button
+                    size="sm"
+                    variant="outline"
+                    className="text-xs font-bold shrink-0"
+                    onClick={loadOverview}
+                    title="Relire le disque et la base maintenant"
+                >
+                    <RefreshCw className="w-3.5 h-3.5 mr-1" /> Rafraîchir
+                </Button>
             </div>
 
             <div ref={containerRef} className={cn('rounded-2xl border border-border overflow-hidden', slots.table)}>
@@ -255,7 +282,7 @@ export function DataHealthPanel({ onGoTab }: { onGoTab: (tab: string) => void })
                                     <HealthCoverage row={r} />
                                 </td>
                                 <td className="p-3 hidden lg:table-cell text-xs text-muted-foreground">
-                                    {relativeTime(r.dernierRun)}
+                                    {dernierRunLabel(r)}
                                 </td>
                                 <td className="p-3 text-right">
                                     <HealthActions row={r} checking={checking} onCheck={checkGaps} onGoTab={onGoTab} />
@@ -285,7 +312,7 @@ export function DataHealthPanel({ onGoTab }: { onGoTab: (tab: string) => void })
                                 {r.source} <ArrowRight className="w-3 h-3 inline mx-1" /> {r.cible}
                             </p>
                             <p className="text-caption text-muted-foreground">
-                                Dernier run : {relativeTime(r.dernierRun)}
+                                Dernier run : {dernierRunLabel(r)}
                             </p>
                             <HealthActions row={r} checking={checking} onCheck={checkGaps} onGoTab={onGoTab} />
                         </article>

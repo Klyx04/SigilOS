@@ -15,6 +15,13 @@ export interface DataHealthRow {
     couverture: string;
     couverturePct: number | null; // 0-100 ou null si non applicable
     dernierRun: string | null;
+    /**
+     * Remplace « Jamais » quand la ligne **n'a pas de passe** à afficher : « script local »
+     * (fichier produit hors ligne — dataset `SCRIPT`) ou « — » (compteurs disque/BDD).
+     * Sans ça, une ligne qui n'a jamais eu de run prétendait que quelque chose aurait dû tourner
+     * et n'a jamais tourné (constat user du 10/10/2026).
+     */
+    dernierRunNote?: string | null;
     goTab: string;
     goLabel: string;
 }

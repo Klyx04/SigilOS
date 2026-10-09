@@ -172,6 +172,11 @@ export default async function PublicBossDetailPage({ params }: PageProps) {
   // 🌀 Boss d'anomalie (« Gardiens des anomalies ») : Dofensive n'expose PAS ces donjons.
   // Sans branchement dédié, la landing publique restait sans carte ⇒ ni « Salle », ni
   // « Placements de départ », ni Placement/Butin (constat user du 15/09/2026).
+  // 🐉 Boss de raid : Dofensive n'expose PAS de carte de salle pour un raid (constat user du
+  // 09/10/2026 : « Sanctuaire de Torkélonia » propose pour Reine Ecarlate). La simulation reste
+  // sur la grille vide (« Map vide ») : aucune salle n'est devinee, la resolution Dofensive est sautee.
+  const isRaidBoss = !!dungeon?.isRaidBoss;
+
   const isAnomalyBoss = !!dungeon?.isAnomalyBoss;
 
   // Avis de recherche : tout est déjà siphonné (fiche + carte) ⇒ on ne rappelle AUCUNE source.
@@ -195,7 +200,9 @@ export default async function PublicBossDetailPage({ params }: PageProps) {
       ? Promise.resolve({ success: true, data: bounty!.dungeonMaps })
       : isAnomalyBoss
         ? getAnomalyBossBattleMap(bossName, dungeon!.anomalyMapId)
-        : getDofensiveDungeonForBoss(
+        : isRaidBoss
+          ? Promise.resolve({ success: true, data: null })
+          : getDofensiveDungeonForBoss(
             bossName,
             dungeonName,
             dungeon
@@ -315,6 +322,7 @@ export default async function PublicBossDetailPage({ params }: PageProps) {
                   dofensiveMonsterName: dungeon.dofensiveMonsterName,
                   dofensiveDungeonName: dungeon.dofensiveDungeonName,
                   isAnomalyBoss: !!dungeon.isAnomalyBoss,
+                  isRaidBoss: !!dungeon.isRaidBoss,
                   anomalyMapId: dungeon.anomalyMapId ?? null,
                   mapId: dungeon.mapId ?? null,
                   kind: "boss" as const,

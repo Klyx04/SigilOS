@@ -87,7 +87,9 @@ describe("icône de sort — DofusDB est l'autorité, jamais une image d'un autr
         // ⚠️ Depuis le 27/09/2026 les MONSTRES sont aussi résolus par l'API (apparence = `gfxId`,
         // 100 % des monstres DofusDB ont `gfxId != id`) : le `?url=` ne sert donc plus, pour eux
         // non plus, de source prioritaire — même garde d'ordre, étendue.
-        expect(PROXY).toMatch(/if \(remoteUrl && !spellIconHandled && !monsterImageHandled\) \{/);
+        // 09/10/2026 : les OBJETS aussi sont résolus par l'API (apparence = iconId) : la meme
+        // garde d'ordre les exclut du chemin direct (comme les monstres et les sorts).
+        expect(PROXY).toMatch(/if \(remoteUrl && !spellIconHandled && !monsterImageHandled && !itemIconHandled\) \{/);
     });
 
     it("un `iconId` négatif ne devient jamais une icône (`-1` → aucun candidat)", () => {

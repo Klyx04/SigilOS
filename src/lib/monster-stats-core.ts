@@ -169,7 +169,10 @@ function buildMonsterDataFromUnity(unity: UnityMonsterData): any {
         id: unity.id,
         name: unity.name,
         nameEn: null,
-        imageUrl: `/assets/dofus/monsters/${unity.id}.png`,
+        // Mesure du 09/10/2026 : ce chemin local derive n existe pas pour la plupart des
+        // monstres (et melange deux espaces d ids) : la simulation affichait la couronne. Le proxy
+        // resout l apparence par l API avec garde d identite et met en cache sous cet id.
+        imageUrl: "/api/assets-dofus/monsters/" + unity.id,
         familyId: unity.raceId,
         coordinates: null,
         encyclo: {

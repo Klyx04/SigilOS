@@ -67,8 +67,10 @@ export function normalizeItemIconUrl(
         try {
             const url = new URL(value);
             if (url.hostname.toLowerCase() === DOFUSDB_IMAGE_HOST && url.pathname.startsWith("/img/items/")) {
-                const idFromName = extractAnkamaIdFromName(url.pathname.slice("/img/items/".length));
-                return itemImageProxyUrl(idFromName ?? ankamaId) ?? value;
+                // Mesure du 09/10/2026 : le nombre d une URL img/items/... est un ICONID, jamais l id
+                // de l objet (item 11107 -> iconId 38677 ; l id 38677 est un AUTRE objet). On garde
+                // donc l ankamaId comme cle du proxy : le serveur resout iconId avec garde d identite.
+                return itemImageProxyUrl(ankamaId) ?? value;
             }
         } catch {
             return fallback;

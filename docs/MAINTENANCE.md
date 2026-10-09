@@ -310,6 +310,30 @@ Chaque tâche CRON enregistre automatiquement son état, sa durée et son résum
 
 ---
 
+## 🖼️ Purger le cache d'images siphonnées (identités DofusDB)
+
+> **Pourquoi** (mesure du 09/10/2026 — PR #872) : chez DofusDB, `img/{type}/{id}.png` est indexé par
+> l'**apparence** (gfxId pour un monstre, iconId pour un objet), jamais par l'id de l'entité. L'ancien
+> code écrivait ces fichiers sous le **mauvais nom** (`items/11107.webp` contenait l'icône d'un AUTRE
+> objet ; `monsters/*.webp` l'apparence d'un autre monstre) avec `Cache-Control: immutable` (**1 an**).
+> Le code est corrigé, mais **les fichiers déjà écrits restent faux** : ils doivent être supprimés
+> pour être re-siphonnés proprement.
+
+```bash
+# Sur l'environnement concerné (beta d'abord, puis prod), depuis la racine du dépôt :
+rm -f public/uploads/assets-dofus/items/*.webp
+rm -f public/uploads/assets-dofus/monsters/*.webp
+# NE PAS toucher spells/ : les icônes de sorts étaient déjà résolues par iconId (garde d'identité).
+```
+
+**Rien à lancer ensuite.** Le proxy `/api/assets-dofus/{type}/{id}` re-siphonne chaque image à la
+première demande (identité vérifiée) et le cron `sync-monster-stats` (03 h 45) refait les fiches de
+monstres. Pour remplir d'un coup, lancer l'import **Objets** du worker Game Data (dataset `ITEMS` vers
+`siphonAllGameItemsCore`, batché et throttle) depuis l'écran God d'import.
+
+**Effet visible pendant le re-remplissage** : une icône jamais revue depuis la purge peut afficher son
+repli le temps d'un aller-retour. Jamais de 404, jamais l'image d'une autre entité.
+
 ## 🔍 Monitoring
 
 ### Check Hardening

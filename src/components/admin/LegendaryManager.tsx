@@ -30,15 +30,12 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
+import { DOFUS_JOBS, JOB_CATEGORIES } from "@/lib/dofus-assets";
 
-// Métiers pouvant créer des légendaires
-const LEGENDARY_JOBS = [
-    { id: "bijoutier",  name: "Bijoutier",   icon: "/assets/dofus/jobs/bijoutier.png" },
-    { id: "cordonnier", name: "Cordonnier",  icon: "/assets/dofus/jobs/cordonnier.png" },
-    { id: "faconneur",  name: "Façonneur",   icon: "/assets/dofus/jobs/faconneur.png" },
-    { id: "sculpteur",  name: "Sculpteur",   icon: "/assets/dofus/jobs/sculpteur.png" },
-    { id: "tailleur",   name: "Tailleur",    icon: "/assets/dofus/jobs/tailleur.png" },
-];
+// Métiers pouvant créer des légendaires — dérivés de la source unique `DOFUS_JOBS`
+// (08/10/2026 : la liste codée en dur oubliait **Forgeron**). `bricoleur` reste exclu
+// comme avant : il ne forge pas de légendaires.
+const LEGENDARY_JOBS = DOFUS_JOBS[JOB_CATEGORIES.ARTISANAT].filter((j) => j.id !== "bricoleur");
 
 const CATEGORIES = ["Chapeau", "Cape", "Bottes", "Ceinture", "Amulette", "Anneau", "Bouclier", "Arme"];
 

@@ -21,7 +21,8 @@ import { toast } from "sonner";
 import { getWorldName } from "@/lib/dofus-assets";
 import { SpellData, SpellRangeGrid } from "./SpellRangeGrid";
 import { BossMechanicsView, type BossPassiveData } from "@/components/boss/BossMechanicsView";
-import { formatDofusEffectLine } from "@/lib/dofus-effects-formatter";
+import { formatDofusEffectLine, SpellDamageSummaryChips, cleanDofusText } from "@/lib/dofus-effects-formatter";
+import { enrichPassiveIfNeeded, normalizeSpellEffectDetails } from "@/lib/dofus-spells";
 import { ZoneLocationCard } from "@/components/worldmap/ZoneLocationCard";
 import { DungeonMinimapCard } from "@/app/boss/[dungeonId]/_components/DungeonMinimapCard";
 
@@ -954,9 +955,13 @@ export function SuccesBossGuide({ guildId, anomalyOnly = false }: { guildId: str
                     {detailTab === "sorts" && (
                         <div className="space-y-4">
                             {/* Passif officiel Unity — mécanique de début de combat (repliable) */}
-                            {statsOf(selected)?.passive && (
-                                <BossMechanicsView passive={statsOf(selected)!.passive!} collapsible defaultCollapsed={false} />
-                            )}
+                            {(() => {
+                                const spells = statsOf(selected)?.spells ?? [];
+                                const enrichedPassive = enrichPassiveIfNeeded(statsOf(selected)?.passive, spells);
+                                return enrichedPassive ? (
+                                    <BossMechanicsView passive={enrichedPassive} collapsible defaultCollapsed={false} />
+                                ) : null;
+                            })()}
 
                             {(() => {
                                 const spells = statsOf(selected)?.spells ?? [];
@@ -978,12 +983,7 @@ export function SuccesBossGuide({ guildId, anomalyOnly = false }: { guildId: str
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-start">
                                             {spells.map((spell: any) => {
                                                 const isExpanded = !!expandedSpells[spell.id];
-                                                const rawEffects: string[] = spell.unityEffects?.length > 0
-                                                    ? spell.unityEffects
-                                                    : (Array.isArray(spell.effects) ? spell.effects : []);
-                                                const details = rawEffects.length > 0
-                                                    ? rawEffects.map((e: string) => ({ label: e, duration: null, triggers: [] as string[], masks: [] as string[] }))
-                                                    : (spell.effectDetails?.length > 0 ? spell.effectDetails : []);
+                                                const details = normalizeSpellEffectDetails(spell);
                                                 const criticals = spell.unityCriticalEffects?.length > 0
                                                     ? spell.unityCriticalEffects
                                                     : (Array.isArray(spell.criticalEffects) ? spell.criticalEffects : []);
@@ -1015,12 +1015,17 @@ export function SuccesBossGuide({ guildId, anomalyOnly = false }: { guildId: str
                                                                             </span>
                                                                         )}
                                                                     </span>
-                                                                    <span className="text-[11px] font-mono text-muted-foreground flex items-center gap-1 mt-0.5">
-                                                                        <img src="/assets/dofus/stats/pa.png" alt="PA" className="w-3 h-3 object-contain inline" />
-                                                                        <span>{spell.apCost || 0}</span>
+                                                                    <span className="text-[11px] font-mono text-muted-foreground flex items-center gap-1.5 mt-0.5 flex-wrap">
+                                                                        <span className="inline-flex items-center gap-0.5">
+                                                                            <img src="/assets/dofus/stats/pa.png" alt="PA" className="w-3 h-3 object-contain inline" />
+                                                                            <span>{spell.apCost || 0}</span>
+                                                                        </span>
                                                                         <span>·</span>
-                                                                        <img src="/assets/dofus/stats/po.png" alt="PO" className="w-3 h-3 object-contain inline" />
-                                                                        <span>{spell.minRange === spell.range ? `${spell.range}` : `${spell.minRange ?? 0}-${spell.range ?? 0}`}</span>
+                                                                        <span className="inline-flex items-center gap-0.5">
+                                                                            <img src="/assets/dofus/stats/po.png" alt="PO" className="w-3 h-3 object-contain inline" />
+                                                                            <span>{spell.minRange === spell.range ? `${spell.range}` : `${spell.minRange ?? 0}-${spell.range ?? 0}`}</span>
+                                                                        </span>
+                                                                        <SpellDamageSummaryChips effectDetails={details} />
                                                                     </span>
                                                                 </div>
                                                             </button>
@@ -1036,7 +1041,7 @@ export function SuccesBossGuide({ guildId, anomalyOnly = false }: { guildId: str
                                                         {isExpanded && hasBody && (
                                                             <div className="pt-2 border-t border-border/60 space-y-2 text-[11px] leading-relaxed">
                                                                 {(spell.unityDescription || spell.description) && (
-                                                                    <p className="text-muted-foreground">{spell.unityDescription || spell.description}</p>
+                                                                    <p className="text-muted-foreground">{cleanDofusText(spell.unityDescription || spell.description)}</p>
                                                                 )}
                                                                 {details.length > 0 && (
                                                                     <div className="space-y-1">

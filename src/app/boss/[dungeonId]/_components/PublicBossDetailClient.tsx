@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import {
   Sparkles,
@@ -47,7 +47,8 @@ import { PublicBossQuestsTab } from "./PublicBossQuestsTab";
 import { PublicBossAchievementsTab } from "./PublicBossAchievementsTab";
 import type { PublicLinkedQuestsData, PublicDungeonAchievement } from "@/server/actions/public-boss-tabs-actions";
 import { BossMechanicsView } from "@/components/boss/BossMechanicsView";
-import { formatDofusEffectLine } from "@/lib/dofus-effects-formatter";
+import { formatDofusEffectLine, SpellDamageSummaryChips, cleanDofusText } from "@/lib/dofus-effects-formatter";
+import { enrichPassiveIfNeeded, normalizeSpellEffectDetails } from "@/lib/dofus-spells";
 
 interface PublicDungeon {
   id: string;
@@ -219,6 +220,7 @@ export function PublicBossDetailClient({
   // LOCALEMENT (lecteurs dédiés) au lieu du resolver Dofensive standard.
   const isAnomalyBoss = !!dungeon.isAnomalyBoss;
   const { openBossOverlay } = useBossOverlay("public");
+  const { t, locale } = useI18n();
 
   const [detailTab, setDetailTab] = useState<DetailTab>("sorts");
   const [activeMonsterName, setActiveMonsterName] = useState<string | null>(null);
@@ -250,12 +252,19 @@ export function PublicBossDetailClient({
   const grades: any[] = currentStats?.grades ?? [];
   const gradeIdx = activeGradeIndex ?? (grades.length > 0 ? grades.length - 1 : 0);
   const activeGrade = grades.length > 0 ? grades[Math.min(gradeIdx, grades.length - 1)] : null;
-  const spells: any[] = currentStats?.spells ?? [];
-  const drops: any[] = currentStats?.drops ?? [];
+  const gradeKey = `${entityKey}::g${gradeIdx + 1}`;
+  const displayStats = statsByKey[gradeKey] ?? currentStats;
+  const spells: any[] = displayStats?.spells ?? [];
+  const drops: any[] = displayStats?.drops ?? currentStats?.drops ?? [];
   const roomMonsters = familyByDungeon[dungeon.id]?.monsters ?? [];
   const hasRoomMonsters = roomMonsters.length > 1;
   const activeBossKey = activeMonsterName ?? bossName;
   const dungeonMaps = mapsByBoss[activeBossKey];
+
+  // Passif enrichi : 100% intact si déjà des effets (Tal Kasha), enrichi via StartingSpell sinon (Kwakwa)
+  const enrichedPassive = useMemo(() => {
+    return enrichPassiveIfNeeded(currentStats?.passive, spells);
+  }, [currentStats?.passive, spells]);
 
   // Reset quand on change de fiche.
   useEffect(() => {
@@ -299,6 +308,34 @@ export function PublicBossDetailClient({
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [entityKey]);
+
+  // Lazy-load sorts pour le grade actif (si le monstre a plusieurs grades)
+  useEffect(() => {
+    if (grades.length <= 1 || !currentStats) return;
+    const target = activeMonsterName ?? bossName;
+    const targetGrade = gradeIdx + 1;
+    const targetGradeKey = `${entityKey}::g${targetGrade}`;
+    if (statsByKey[targetGradeKey] || loadingByKey[targetGradeKey]) return;
+
+    let cancelled = false;
+    setLoadingByKey((p) => ({ ...p, [targetGradeKey]: true }));
+    getBossDofensiveSpells(target, dungeon.name, targetGrade, false, undefined, locale)
+      .then((dRes) => {
+        if (!cancelled && dRes.success && dRes.data && currentStats) {
+          const merged = mergeDofensiveSpells(currentStats.spells ?? [], dRes.data);
+          setStatsByKey((prev) => ({
+            ...prev,
+            [targetGradeKey]: { ...currentStats, spells: merged },
+          }));
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setLoadingByKey((p) => ({ ...p, [targetGradeKey]: false }));
+      });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gradeIdx, entityKey, activeMonsterName, bossName, dungeon.name, locale, grades.length, currentStats]);
 
   // Lazy-load famille si absente (rare : la page serveur la pré-charge déjà).
   // 🌀 Anomalie : les « monstres de la salle » viennent du siphon local (co-gardiens + 3
@@ -395,8 +432,6 @@ export function PublicBossDetailClient({
     setActiveGradeIndex(null);
     setSelectedSpellId(undefined);
   };
-
-  const { t, locale } = useI18n();
 
   const tabs = (
     [
@@ -574,18 +609,38 @@ export function PublicBossDetailClient({
                       ))}
                     </div>
                     {grades.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => setDetailTab("grades")}
-                        className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-                        title={locale === "en" ? "Open grades & tiers tab" : "Ouvrir l'onglet des grades & paliers"}
-                      >
-                        <Flame className="w-3.5 h-3.5" />
-                        <span className="font-mono">
-                          {locale === "en" ? "Rank" : "Rang"} {1 + gradeIdx}
-                        </span>
-                        <ArrowRight className="w-3 h-3" />
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <div className="inline-flex items-center gap-1 rounded-md bg-background/70 border border-border/70 p-0.5">
+                          <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider px-1">
+                            {locale === "en" ? "Rank:" : "Rang :"}
+                          </span>
+                          {grades.map((g: any, idx: number) => (
+                            <button
+                              key={idx}
+                              type="button"
+                              onClick={() => setActiveGradeIndex(idx)}
+                              className={cn(
+                                "min-w-[22px] h-5 text-[10px] px-1.5 rounded-[4px] font-mono transition-colors cursor-pointer",
+                                idx === gradeIdx
+                                  ? "bg-accent text-accent-foreground font-bold"
+                                  : "text-muted-foreground hover:text-foreground"
+                              )}
+                              title={`${locale === "en" ? "Rank" : "Rang"} ${idx + 1} · ${t.bossPage.levelShort} ${g.level}`}
+                            >
+                              {idx + 1}
+                            </button>
+                          ))}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setDetailTab("grades")}
+                          className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                          title={locale === "en" ? "Open grades & tiers tab" : "Ouvrir l'onglet des grades & paliers"}
+                        >
+                          <Flame className="w-3.5 h-3.5" />
+                          <ArrowRight className="w-3 h-3" />
+                        </button>
+                      </div>
                     )}
                   </div>
                 </div>
@@ -833,8 +888,8 @@ export function PublicBossDetailClient({
       {detailTab === "sorts" && (
         <div className="space-y-4">
           {/* Passif officiel Unity — mécanique de début de combat (repliable) */}
-          {currentStats?.passive && (
-            <BossMechanicsView passive={currentStats.passive} collapsible defaultCollapsed={false} />
+          {enrichedPassive && (
+            <BossMechanicsView passive={enrichedPassive} collapsible defaultCollapsed={false} />
           )}
           <div>
           <div className="flex items-center gap-2 mb-3">
@@ -849,12 +904,7 @@ export function PublicBossDetailClient({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-start">
               {spells.map((spell: any) => {
                 const isExpanded = !!expandedSpells[spell.id];
-                const rawEffects: string[] = spell.unityEffects?.length > 0
-                  ? spell.unityEffects
-                  : (Array.isArray(spell.effects) ? spell.effects : []);
-                const details = rawEffects.length > 0
-                  ? rawEffects.map((e: string) => ({ label: e, duration: null, triggers: [] as string[], masks: [] as string[] }))
-                  : (spell.effectDetails?.length > 0 ? spell.effectDetails : []);
+                const details = normalizeSpellEffectDetails(spell);
                 const criticals = spell.unityCriticalEffects?.length > 0
                   ? spell.unityCriticalEffects
                   : (Array.isArray(spell.criticalEffects) ? spell.criticalEffects : []);
@@ -886,12 +936,19 @@ export function PublicBossDetailClient({
                               </span>
                             )}
                           </span>
-                          <span className="text-[11px] font-mono text-muted-foreground flex items-center gap-1 mt-0.5">
-                            <img src="/assets/dofus/stats/pa.png" alt="PA" className="w-3 h-3 object-contain inline" />
-                            <span>{spell.apCost || 0}</span>
+                          <span className="text-[11px] font-mono text-muted-foreground flex items-center gap-1.5 mt-0.5 flex-wrap">
+                            <span className="inline-flex items-center gap-0.5">
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img src="/assets/dofus/stats/pa.png" alt="PA" className="w-3 h-3 object-contain inline" />
+                              <span>{spell.apCost || 0}</span>
+                            </span>
                             <span>·</span>
-                            <img src="/assets/dofus/stats/po.png" alt="PO" className="w-3 h-3 object-contain inline" />
-                            <span>{spell.minRange === spell.range ? `${spell.range}` : `${spell.minRange ?? 0}-${spell.range ?? 0}`}</span>
+                            <span className="inline-flex items-center gap-0.5">
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img src="/assets/dofus/stats/po.png" alt="PO" className="w-3 h-3 object-contain inline" />
+                              <span>{spell.minRange === spell.range ? `${spell.range}` : `${spell.minRange ?? 0}-${spell.range ?? 0}`}</span>
+                            </span>
+                            <SpellDamageSummaryChips effectDetails={details} />
                           </span>
                         </div>
                       </button>
@@ -908,7 +965,7 @@ export function PublicBossDetailClient({
                       <div className="pt-2 border-t border-border/60 space-y-2 text-[11px] leading-relaxed">
                         {/* Description Unity en priorité, sinon DofusDB */}
                         {(spell.unityDescription || spell.description) && (
-                          <p className="text-muted-foreground">{spell.unityDescription || spell.description}</p>
+                          <p className="text-muted-foreground">{cleanDofusText(spell.unityDescription || spell.description)}</p>
                         )}
                         {details.length > 0 && (
                           <div className="space-y-1">
@@ -921,10 +978,10 @@ export function PublicBossDetailClient({
                                   <span className="w-1 h-1 rounded-full bg-border shrink-0" />
                                   <span>{formatDofusEffectLine(det.label)}</span>
                                   {det.duration && <span className="font-mono text-[10px] text-muted-foreground/70">({det.duration})</span>}
-                                  {det.masks?.length > 0 && <span className="block w-full text-muted-foreground/80 pl-2.5">{det.masks.join(" · ")}</span>}
+                                  {det.masks?.length > 0 && <span className="block w-full text-muted-foreground/80 pl-2.5">{det.masks.map(cleanDofusText).join(" · ")}</span>}
                                   {det.triggers?.length > 0 && (
                                     <span className="block w-full text-muted-foreground/80 flex items-center gap-1 pl-2.5">
-                                      <Zap className="w-3 h-3 shrink-0 opacity-70" />{det.triggers.join(" · ")}
+                                      <Zap className="w-3 h-3 shrink-0 opacity-70" />{det.triggers.map(cleanDofusText).join(" · ")}
                                     </span>
                                   )}
                                 </li>

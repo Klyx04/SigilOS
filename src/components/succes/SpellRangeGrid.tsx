@@ -1162,9 +1162,12 @@ export function SpellRangeGrid({
         showDamage,
     ].filter(Boolean).length;
 
-    // Dégâts du sort affiché : jets **réels** du grade, par élément (données déjà calculées par le
-    // serveur) + distance de poussée quand le sort pousse. Rien n'est dérivé du texte des effets.
-    const damageInfo = useMemo(() => damageLinesFromEffects(currentSpell?.effectDetails), [currentSpell]);
+    // Dégâts du sort affiché : jets **réels** du grade, par élément (données calculées par le
+    // serveur ou repli textuel) + distance de poussée quand le sort pousse.
+    const damageInfo = useMemo(
+        () => damageLinesFromEffects(currentSpell?.effectDetails ?? (currentSpell as any)?.unityEffects ?? (currentSpell as any)?.effects),
+        [currentSpell]
+    );
     const damageTotal = useMemo(() => totalDamageRange(damageInfo.lines), [damageInfo.lines]);
 
     /**

@@ -7,6 +7,8 @@
  * données avec les sorts DofusDB (images/descriptions) sans passer par un server action.
  */
 
+import { normalizeSpellEffectDetails } from "@/lib/dofus-spells";
+
 export type DofensiveZoneShape =
     | "Cercle"
     | "Croix"
@@ -219,6 +221,12 @@ export function mergeDofensiveSpells(
         const uDesc = db?.unityDescription;
         const uEff = db?.unityEffects;
         const uCrit = db?.unityCriticalEffects;
+        const activeEffects = Array.isArray(uEff) && uEff.length > 0 ? uEff : ds.effects;
+        const normalizedEffDetails = normalizeSpellEffectDetails({
+            effects: activeEffects,
+            effectDetails: ds.effectDetails,
+            unityEffects: uEff,
+        });
         merged.push({
             ...ds,
             name: db?.name || ds.name,
@@ -231,6 +239,7 @@ export function mergeDofensiveSpells(
             unityDescription: uDesc,
             unityEffects: uEff,
             unityCriticalEffects: uCrit,
+            effectDetails: normalizedEffDetails,
             // Si les effets officiels Unity existent, ils priment
             ...(Array.isArray(uEff) && uEff.length > 0 ? { effects: uEff } : {}),
             ...(Array.isArray(uCrit) && uCrit.length > 0 ? { criticalEffects: uCrit } : {}),
@@ -241,7 +250,11 @@ export function mergeDofensiveSpells(
     for (const db of dbSpells) {
         const sid = Number(db?.id);
         if (Number.isFinite(sid) && sid > 0 && !seen.has(sid)) {
-            merged.push(db as unknown as DofensiveMergedSpell);
+            const effDetails = normalizeSpellEffectDetails(db as any);
+            merged.push({
+                ...(db as unknown as DofensiveMergedSpell),
+                effectDetails: effDetails,
+            });
         }
     }
     return merged;

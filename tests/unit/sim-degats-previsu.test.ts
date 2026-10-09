@@ -156,7 +156,10 @@ describe("option « Dégâts estimés » — allumée par défaut, interrupteur 
     });
 
     it("les jets affichés viennent du serveur (aucun calcul de dégâts côté client)", () => {
-        expect(GRID).toMatch(/damageLinesFromEffects\(currentSpell\?\.effectDetails\)/);
+        // Priorité : effectDetails (jets calculés côté serveur / Dofensive) ??
+        // repli unityEffects ?? effects (libellés Unity bruts — sorts Kwakwa sans jet Dofensive encore calculé).
+        // La garde Math.floor(stat) (calcul côté client) ne doit JAMAIS apparaître.
+        expect(GRID).toMatch(/damageLinesFromEffects\(currentSpell\?\.effectDetails/);
         expect(GRID).not.toMatch(/Math\.floor\([^)]*stat[^)]*\)/);
     });
 });

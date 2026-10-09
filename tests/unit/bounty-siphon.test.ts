@@ -103,6 +103,8 @@ vi.mock("@/lib/bounty-ignore", () => ({
     getIgnoredBountyNames: (...args: any[]) => mockIgnoredBountyNames(...args),
     isIgnoredBountyName: (name: string, ignoredNames?: string[]) =>
         (ignoredNames ?? mockIgnoredBountyNames()).includes(String(name ?? "").trim().toLowerCase()),
+    normalizeBountyName: (name: string | null | undefined) =>
+        String(name ?? "").trim().toLowerCase().replace(/\s+/g, " "),
 }));
 
 const { syncBounties } = await import("@/lib/bounty-siphon");
@@ -606,6 +608,92 @@ describe("syncBounties — liste, preuve, écriture", () => {
         expect(mockUpdateManyBounty).toHaveBeenCalledTimes(1);
         expect(mockCreateBounty).toHaveBeenCalledTimes(1);
         expect(mockCreateBounty.mock.calls[0][0].data.dofusdbId).toBe(4834);
+    });
+});
+
+// ─── Réconciliation : lignes orphelines (ni dans les races, ni exclues) ─────
+describe("syncBounties — réconciliation des orphelins (passe complète uniquement)", () => {
+    /**
+     * 🔶 08/10/2026 (bêta : 162 lignes pour 96 avis réels) : le siphon ne supprime
+     * JAMAIS (la curation est sacrée) mais SIGNALE les lignes hors races pour la revue
+     * God + exclusion en masse. L'adoption (`where.dofusdbId = null`) garde son routage.
+     */
+    function orphanRows(rows: any[]) {
+        mockFindManyBounty.mockImplementation(async (args: any) =>
+            args?.where?.dofusdbId === null ? [] : rows
+        );
+    }
+
+    it("signale les lignes hors races (avec et sans id), sans rien écrire ni supprimer", async () => {
+        standardSources();
+        orphanRows([
+            { id: "junk-1", dofusdbId: 99999, name: "Faux Avis", slug: "faux-avis" },
+            { id: "junk-2", dofusdbId: null, name: "Vieux Dopeul", slug: "vieux-dopeul" },
+            // Ligne historique du MÊME nom qu'un avis des races : pas orpheline (adoptable).
+            { id: "legacy-9", dofusdbId: null, name: "Predagob", slug: "predagob" },
+        ]);
+
+        const res = await syncBounties();
+
+        expect(res.orphansComputed).toBe(true);
+        expect(res.orphanedTotal).toBe(2);
+        expect(res.orphaned.map((o) => o.id).sort()).toEqual(["junk-1", "junk-2"]);
+        expect(res.orphaned[0]).toMatchObject({ id: expect.any(String), name: expect.any(String), slug: expect.any(String) });
+        // Aucune écriture pour les orphelins (le seul `create` est l'avis réel Predagob).
+        expect(mockCreateBounty).toHaveBeenCalledTimes(1);
+        expect(mockCreateBounty.mock.calls[0][0].data.dofusdbId).toBe(4834);
+        expect(mockUpdateBounty).not.toHaveBeenCalled();
+    });
+
+    it("une ligne exclue (id ou nom) n'est jamais remontée comme orpheline", async () => {
+        standardSources();
+        orphanRows([
+            { id: "junk-1", dofusdbId: 99999, name: "Faux Avis", slug: "faux-avis" },
+            { id: "junk-2", dofusdbId: null, name: "Vieux Dopeul", slug: "vieux-dopeul" },
+        ]);
+        mockIgnoredBountyIds.mockReturnValue([99999]);
+        mockIgnoredBountyNames.mockReturnValue(["vieux dopeul"]);
+
+        const res = await syncBounties();
+
+        expect(res.orphanedTotal).toBe(0);
+        expect(res.orphaned).toEqual([]);
+    });
+
+    it("passage par race (bouton God « Ici ») : pas de calcul d'orphelins (faux positifs sinon)", async () => {
+        standardSources();
+        orphanRows([
+            { id: "junk-1", dofusdbId: 99999, name: "Faux Avis", slug: "faux-avis" },
+        ]);
+
+        const res = await syncBounties([32]);
+
+        expect(res.orphansComputed).toBe(false);
+        expect(res.orphaned).toEqual([]);
+        expect(res.orphanedTotal).toBe(0);
+    });
+});
+
+// ─── Périmètre : les 5 races DofusDB « Avis de recherche » ───────────────────
+describe("périmètre avis — 5 races DofusDB, aucune autre", () => {
+    /**
+     * 🔶 Mesuré le 09/10/2026 (`monster-races?superRaceId=27` : 13 races, dont 5
+     * « Avis/Kopfgeld/Wanted ») : 32 (classiques, 38) · 90 (Frigost, 21) ·
+     * 127 (Dimensions, 15) · 147 (alignés, 19) · 156 (Sufokia, 3) = 96 avis.
+     * Les libellés « Créatures de quête — Avis de … » sont côté Dofensive (preuve,
+     * famille 27), pas des races manquantes. Ce test verrouille le périmètre : toute
+     * nouvelle race d'avis doit être ajoutée ici consciemment (avec son libellé).
+     */
+    it("BOUNTY_RACE_IDS = les 5 races, dans l'ordre stable", async () => {
+        const { BOUNTY_RACE_IDS, BOUNTY_RACE_NAMES } = await import("@/lib/bounty");
+        expect([...BOUNTY_RACE_IDS]).toEqual([32, 90, 127, 147, 156]);
+        expect(BOUNTY_RACE_NAMES).toMatchObject({
+            32: "Avis de recherche",
+            90: "Avis de recherche de Frigost",
+            127: "Avis de recherche des Dimensions",
+            147: "Avis de recherche alignés",
+            156: "Avis de recherche de Sufokia",
+        });
     });
 });
 

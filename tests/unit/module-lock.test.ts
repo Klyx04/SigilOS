@@ -291,6 +291,7 @@ describe("couverture — le verrou atteint enfin la carte de la guilde", () => {
         expect(client).toMatch(/state\?\.lockedBy/);
     });
 
+    // ⚠️ Scan de TOUT `src/` : voir `avis-sync-rail.test.ts` (timeout relevé, flake sous charge).
     it("plus une seule occurrence de « verrouillé par le staff » dans `src/`", () => {
         const files: string[] = [];
         const walk = (dir: string) => {
@@ -303,7 +304,7 @@ describe("couverture — le verrou atteint enfin la carte de la guilde", () => {
         walk("src");
         const offenders = files.filter((f) => /verrouill[ée]?\s*par\s+le\s+staff/i.test(readFileSync(f, "utf8")));
         expect(offenders).toEqual([]);
-    });
+    }, 30000);
 
     it("toute page gardée par `isModuleEnabled` laisse le God entrer (`bypassModules = isGod` RESTE)", () => {
         const files = [

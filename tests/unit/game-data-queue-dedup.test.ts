@@ -51,13 +51,20 @@ describe("file game-data — un job vivant n'est jamais doublé, un job mort ne 
         expect(beginIdx).toBeGreaterThan(guardIdx);
     });
 
-    it("le Tableau s'auto-répare : un « En cours » trop vieux sans job est déclaré interrompu", () => {
+    it("le Tableau s'auto-répare : un « En cours » périmé est déclaré interrompu", () => {
         const action = read("src/server/actions/game-data-sync-actions.ts");
-        expect(action).toContain("isStaleRun(state)");
-        expect(action).toContain("markGameDataRunStale(state.dataset)");
+        // La règle (quel verdict pour quel dataset) vit dans `staleRunVerdict` — module **pur**,
+        // testé dans `game-data-sync-state.test.ts`. L'action ne fait que l'appliquer et écrire
+        // le patch du store : elle ne réimplémente aucun test de fraîcheur.
+        expect(action).toContain("staleRunVerdict(state)");
+        expect(action).toContain('if (verdict === "QUEUE")');
         expect(action).toContain("if (inFlight) return state");
-        // Les datasets lancés « dans l'onglet » (pas de file) ne sont jamais contredits.
-        expect(action).toContain("!isBackgroundDataset(state.dataset)");
+        expect(action).toContain("return await markGameDataRunStale(state.dataset);");
+        // ⚠️ Correctif du 10/10/2026 : les datasets « dans l'onglet » étaient **exclus** de cette
+        // réconciliation (`!isBackgroundDataset(state.dataset)` en premier terme) ⇒ un `RUNNING`
+        // interrompu y restait affiché « En cours » **pour toujours** (capture God : « Images WebP ·
+        // En cours · 95/99 · il y a 11 h »). Cette exclusion ne doit pas revenir.
+        expect(action).not.toContain("!isBackgroundDataset(state.dataset)");
     });
 
     it("le seuil de péremption est mesuré par dataset (jamais un seuil unique arbitraire)", () => {

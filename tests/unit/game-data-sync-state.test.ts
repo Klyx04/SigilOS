@@ -7,13 +7,19 @@ import {
     GAME_DATA_DATASET_LABEL,
     GAME_DATA_INLINE_DATASETS,
     GAME_DATA_SCRIPT_DATASETS,
+    GAME_DATA_STALE_RUN_MINUTES,
     GAME_DATA_WATCH_DATASETS,
+    INTERRUPTED_RUN_MESSAGE,
+    STALE_RUN_MESSAGE,
     computePercent,
     emptyGameDataRunState,
     gameDataLaunchKind,
     hydrateGameDataRunState,
     isAutoSyncDataset,
+    isStaleRun,
     isWatchedDataset,
+    staleRunVerdict,
+    type GameDataDataset,
 } from "@/lib/game-data-sync-state";
 import { GAME_DATA_ERROR_GROUPS_MAX } from "@/lib/game-data-error-causes";
 import {
@@ -522,6 +528,73 @@ describe("game-data — tableau → cartes sous 768 px (une seule règle, deux p
             // Une seule bascule par panneau : les cartes vivent dans UN conteneur, pas deux.
             expect(code.match(/className=\{slots\.cards\}/g)?.length).toBe(1);
         }
+    });
+});
+
+/**
+ * 🐛 Mesure du 10/10/2026 (capture God : « Images WebP · En cours · 96 % (95/99) · il y a 11 h »
+ * alors que rien ne tournait, et qui survivait au changement de page) : la réconciliation ne
+ * s'appliquait qu'aux datasets d'arrière-plan ⇒ une passe `INLINE` interrompue restait « En cours »
+ * **pour toujours**. `staleRunVerdict` tranche désormais pour les deux modes.
+ */
+describe("game-data — un « En cours » périmé est tranché, jamais affiché pour toujours", () => {
+    const now = Date.now();
+    const running = (dataset: GameDataDataset, ageMinutes: number) => ({
+        dataset,
+        status: "RUNNING" as const,
+        startedAt: new Date(now - ageMinutes * 60_000).toISOString(),
+    });
+
+    it("un dataset « dans l'onglet » périmé est INTERROMPU (aucune file à interroger)", () => {
+        // ASSETS_WEBP = le seul dataset INLINE : l'onglet fermé est la seule cause possible.
+        expect(staleRunVerdict(running("ASSETS_WEBP", 600), now)).toBe("INTERRUPTED");
+    });
+
+    it("un dataset d'arrière-plan périmé est renvoyé à la FILE (un job peut vivre)", () => {
+        expect(staleRunVerdict(running("ITEMS", 600), now)).toBe("QUEUE");
+        expect(staleRunVerdict(running("QUESTS", 600), now)).toBe("QUEUE");
+    });
+
+    it("un run frais n'est jamais contredit (le seuil du dataset est respecté)", () => {
+        const seuil = GAME_DATA_STALE_RUN_MINUTES.ASSETS_WEBP;
+        expect(staleRunVerdict(running("ASSETS_WEBP", seuil - 1), now)).toBe("NONE");
+        expect(isStaleRun(running("ASSETS_WEBP", seuil - 1), now)).toBe(false);
+        expect(isStaleRun(running("ASSETS_WEBP", seuil + 1), now)).toBe(true);
+        expect(staleRunVerdict(running("ASSETS_WEBP", seuil + 1), now)).toBe("INTERRUPTED");
+    });
+
+    it("seul un `RUNNING` est concerné : OK, Échec et « jamais lancé » ne sont pas réconciliés", () => {
+        const done = {
+            dataset: "ASSETS_WEBP" as GameDataDataset,
+            startedAt: new Date(now - 600 * 60_000).toISOString(),
+        };
+        expect(staleRunVerdict({ ...done, status: "OK" }, now)).toBe("NONE");
+        expect(staleRunVerdict({ ...done, status: "ERROR" }, now)).toBe("NONE");
+        expect(staleRunVerdict({ ...done, status: "IDLE" }, now)).toBe("NONE");
+    });
+
+    it("un dataset `SCRIPT` (aucune passe en ligne) n'est jamais contredit", () => {
+        expect(staleRunVerdict(running("HARVEST", 600), now)).toBe("NONE");
+    });
+
+    it("les deux messages disent la même chose sans mentir sur la cause", () => {
+        expect(INTERRUPTED_RUN_MESSAGE).toContain("relancez le siphon");
+        expect(STALE_RUN_MESSAGE).toContain("relancez le siphon");
+        // Message dédié : « aucun job en file » serait faux pour une passe lancée dans l'onglet.
+        expect(INTERRUPTED_RUN_MESSAGE).not.toBe(STALE_RUN_MESSAGE);
+        expect(INTERRUPTED_RUN_MESSAGE).toContain("onglet");
+    });
+
+    it("la règle vit à un seul endroit : action (verdict) + store (message dédié)", () => {
+        const actions = read("src/server/actions/game-data-sync-actions.ts");
+        expect(actions).toContain("staleRunVerdict(state)");
+        expect(actions).not.toContain("!isBackgroundDataset(state.dataset) || !isStaleRun(state)");
+        expect(actions).toContain("return await markGameDataRunStale(state.dataset);");
+
+        const store = read("src/server/game-data-sync-state-store.ts");
+        expect(store).toContain("INTERRUPTED_RUN_MESSAGE");
+        expect(store).toContain("INTERRUPTED_RUN_ERROR");
+        expect(store).toContain("isInlineDataset(dataset)");
     });
 });
 

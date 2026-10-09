@@ -20,6 +20,9 @@ import {
     emptyGameDataRunState,
     GAME_DATA_DATASETS,
     hydrateGameDataRunState,
+    INTERRUPTED_RUN_ERROR,
+    INTERRUPTED_RUN_MESSAGE,
+    isInlineDataset,
     STALE_RUN_MESSAGE,
     type GameDataDataset,
     type GameDataRunCounts,
@@ -154,23 +157,34 @@ export async function finishGameDataRun(
 }
 
 /**
- * Marque une passe **morte** (état `RUNNING` sans aucun job en file) : le Tableau ne doit
- * jamais afficher « En cours » pour un travail qui n'existe pas (incident du 24/09/2026).
+ * Marque une passe **morte** (état `RUNNING` périmé — verdict tranché par `staleRunVerdict`) : le
+ * Tableau ne doit jamais afficher « En cours » pour un travail qui n'existe pas. Deux incidents
+ * mesurés : un job déjà en file (24/09/2026) et une passe `INLINE` interrompue par la fermeture de
+ * l'onglet, qui n'était **jamais** réconciliée (10/10/2026).
  * Auto-réparation : la correction est **écrite**, donc le mensonge ne réapparaît pas au
  * prochain rafraîchissement.
  */
-export async function markGameDataRunStale(dataset: GameDataDataset): Promise<void> {
+export async function markGameDataRunStale(dataset: GameDataDataset): Promise<GameDataRunState> {
     const current = await readState(dataset);
-    await writeState({
+    // 🧩 Un dataset « dans l'onglet » n'a **pas** de file BullMQ : la seule cause d'un `RUNNING`
+    // périmé est l'onglet fermé avant la fin. Le dire avec ces mots — « aucun job en file »
+    // serait faux ici (même décision que `staleRunVerdict`, appliquée une seconde fois dans le
+    // store pour que le message écrit soit le bon, quel que soit l'appelant).
+    const inline = isInlineDataset(dataset);
+    const next: GameDataRunState = {
         ...current,
         status: "ERROR",
         percent: current.percent,
-        message: STALE_RUN_MESSAGE,
+        message: inline ? INTERRUPTED_RUN_MESSAGE : STALE_RUN_MESSAGE,
         finishedAt: new Date().toISOString(),
-        lastError: "État périmé : aucun job en file (passe interrompue).",
+        lastError: inline
+            ? INTERRUPTED_RUN_ERROR
+            : "État périmé : aucun job en file (passe interrompue).",
         // Les causes de la passe **précédente** ne décrivent pas cet échec-là : on ne les montre pas.
         errorGroups: null,
-    });
+    };
+    await writeState(next);
+    return next;
 }
 
 /**

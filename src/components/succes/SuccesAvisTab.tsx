@@ -362,6 +362,7 @@ export function SuccesAvisTab({ guildId }: { guildId: string }) {
                                     onSelectSpell={(s) => setActiveSpellId(s.id)}
                                     bossName={fiche.dungeon.bossName}
                                     bossImageUrl={fiche.monsterStats?.imageUrl ?? fiche.dungeon.imageUrl ?? undefined}
+                                    bossId={fiche.monsterStats?.id ?? undefined}
                                     dungeonMaps={fiche.dungeonMaps?.maps ?? undefined}
                                     dungeonName={fiche.dungeonMaps?.dungeonName}
                                     grades={grades.map((g: any) => ({ level: g.level }))}

@@ -1139,6 +1139,7 @@ export function SuccesBossGuide({ guildId, anomalyOnly = false }: { guildId: str
                                 onSelectSpell={(spell) => setSelectedSpellId(spell.id)}
                                 bossName={selected.dofensiveMonsterName ?? (activeMonsterName ?? deriveDofensiveMonsterName(selected.bossName) ?? selected.bossName)}
                                 bossImageUrl={statsOf(selected)?.imageUrl}
+                                bossId={statsOf(selected)?.id ?? undefined}
                                 dungeonMaps={dungeonMapsByBoss[activeMonsterName ?? selected.bossName]?.maps}
                                 dungeonName={dungeonMapsByBoss[activeMonsterName ?? selected.bossName]?.dungeonName}
                                 grades={statsOf(selected)?.grades?.map((g) => ({ level: g.level })) ?? []}

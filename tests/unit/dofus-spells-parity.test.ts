@@ -28,6 +28,15 @@ describe("dofus-spells-parity — Nettoyage scories Unity", () => {
         expect(cleanDofusText("40 Dommagess Poussée")).toBe("40 Dommages Poussée");
     });
 
+    it("supprime les balises <br />, <br>, <br/> et préserve les paragraphes", () => {
+        expect(cleanDofusText("Ligne 1.<br /><br />Ligne 2.")).toBe("Ligne 1.\n\nLigne 2.");
+        expect(cleanDofusText("Mot<br/>suite")).toBe("Mot\nsuite");
+        expect(cleanDofusText("Mot<br >suite")).toBe("Mot\nsuite");
+        expect(cleanDofusText("Kwakwa perd des résistances.<br /><br />Le Kwakwa perd également.")).toBe(
+            "Kwakwa perd des résistances.\n\nLe Kwakwa perd également."
+        );
+    });
+
     it("laisse passer un texte propre sans balise", () => {
         expect(cleanDofusText("Texte propre sans balises")).toBe("Texte propre sans balises");
     });

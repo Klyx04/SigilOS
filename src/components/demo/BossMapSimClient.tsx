@@ -76,6 +76,7 @@ export function BossMapSimClient({ dungeon }: { dungeon: DofensiveDungeonInfo })
                     spells={stats.spells ?? []}
                     bossName={bossName}
                     bossImageUrl={stats.imageUrl}
+                    bossId={stats.id}
                     dungeonMaps={dungeon.maps}
                     dungeonName={dungeon.dungeonName}
                 />

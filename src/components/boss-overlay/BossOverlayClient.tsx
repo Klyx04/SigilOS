@@ -1195,6 +1195,7 @@ export function BossOverlayClient({
                     onSelectSpell={(s) => setActiveSpellId(s.id)}
                     bossName={activeMonsterName ?? selected.bossName}
                     bossImageUrl={stats?.imageUrl ?? selected.imageUrl ?? undefined}
+                    bossId={stats?.id ?? undefined}
                     dungeonMaps={dungeonMaps?.maps ?? undefined}
                     dungeonName={selected.name}
                     grades={stats?.grades}

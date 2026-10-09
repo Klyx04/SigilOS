@@ -206,6 +206,10 @@ const ELEMENT_ALIASES: Record<string, SpellElementKey> = {
 export function cleanDofusText(text: string | null | undefined): string {
     if (!text) return "";
     let s = String(text);
+    // Normaliser les retours chariot
+    s = s.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+    // Balises HTML littérales (Unity injecte parfois <br />, <br>, <br/>) → saut de ligne
+    s = s.replace(/<br\s*\/?>/gi, "\n");
     // Gérer "1 case{{-ps}}" vs "N case{{-ps}}" (où N != 1)
     s = s.replace(/\b1\s+(\w+)\{\{[~-]?p?s\}\}/gi, "1 $1");
     // Pluriel général précédé d'un mot : "4 case{{-ps}}" -> "4 cases"
@@ -218,8 +222,12 @@ export function cleanDofusText(text: string | null | undefined): string {
     // Nettoyer les doublons de pluriels fréquents issus de gabarits corrompus
     s = s.replace(/\bDommagess\b/g, "Dommages");
     s = s.replace(/\bcases{2,}\b/gi, "cases");
-    // Espaces multiples
-    return s.replace(/\s+/g, " ").trim();
+    // Espaces horizontaux multiples → espace simple
+    s = s.replace(/[ \t]+/g, " ");
+    // Normaliser les sauts de lignes consécutifs (max 2 = saut de paragraphe)
+    s = s.replace(/\n{3,}/g, "\n\n");
+    // Nettoyer espaces en début/fin de chaque ligne
+    return s.split("\n").map((line) => line.trim()).join("\n").trim();
 }
 
 /**

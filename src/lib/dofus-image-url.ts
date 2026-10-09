@@ -232,6 +232,23 @@ function isInternalServePath(value: string): boolean {
     return /^\/[\w\-./%?&=+:@!$'()*,;]*$/.test(value);
 }
 
+/** `/(monsters|items|spells)/{id}.png` → `{ type, id }` (icônes CDN officiel Ankama). */
+function parseAnkamaCdnImageUrl(rawUrl: string): { type: DofusAssetType; id: string } | null {
+    let url: URL;
+    try {
+        url = new URL(rawUrl);
+    } catch {
+        return null;
+    }
+    if (url.protocol !== "https:") return null;
+    const host = url.hostname.toLowerCase();
+    if (host !== "static.ankama.com" && !host.endsWith(".ankama.com")) return null;
+
+    const match = url.pathname.match(/\/(?:dofus\/www\/game\/)?(monsters|items|spells)\/(\d+)\.(?:png|webp|jpg)$/i);
+    if (!match) return null;
+    return { type: match[1].toLowerCase() as DofusAssetType, id: match[2] };
+}
+
 /**
  * Normalise une URL d'asset **telle qu'elle est stockée** vers la forme que le navigateur doit
  * demander : `/api/assets-dofus/{type}/{id}` (proxy auto-siphon, jamais de 404).
@@ -249,7 +266,7 @@ function isInternalServePath(value: string): boolean {
  *   2. URL interne du proxy ⇒ conservée (idempotent) ;
  *   3. chemin legacy `/uploads/assets-dofus/{type}/{id}.{ext}` ⇒ proxy depuis l'id du chemin
  *      (**même type** uniquement : on ne sert pas l'asset d'un autre type sous cette route) ;
- *   4. URL absolue DofusDB ⇒ proxy interne ; autre hôte ⇒ conservée ;
+ *   4. URL absolue DofusDB / Ankama CDN ⇒ proxy interne ; autre hôte ⇒ conservée ;
  *   5. nom nu (`4834.webp`) ⇒ proxy depuis ce nom ;
  *   6. chemin local **dans nos dossiers servis** (`/api/assets-dofus/…`, `/game-data/…`,
  *      `/uploads/…`, `/assets/…`) ⇒ conservé ; tout autre chemin ou hôte ⇒ **repli canonique**
@@ -273,9 +290,15 @@ export function normalizeDofusAssetStoredUrl(
         return resolveDofusAssetImageUrl(type, stored[2]) ?? fallback ?? value;
     }
 
-    // URL absolue : DofusDB → proxy interne ; tout autre hôte n'est JAMAIS publié (il retombe sur
+    // URL absolue : DofusDB ou CDN Ankama → proxy interne ; tout autre hôte n'est JAMAIS publié (il retombe sur
     // le proxy canonique) — une donnée stockée ne doit pas pouvoir désigner un hôte arbitraire.
-    if (/^https?:\/\//i.test(value)) return internalDofusDbImageUrl(value) ?? fallback;
+    if (/^https?:\/\//i.test(value)) {
+        const fromDofusDb = internalDofusDbImageUrl(value);
+        if (fromDofusDb) return fromDofusDb;
+        const fromAnkama = parseAnkamaCdnImageUrl(value);
+        if (fromAnkama) return resolveDofusAssetImageUrl(fromAnkama.type, fromAnkama.id) ?? fallback;
+        return fallback;
+    }
 
     const bare = STORED_ASSET_BARE_NAME.exec(value);
     if (bare) return resolveDofusAssetImageUrl(type, bare[1]) ?? fallback;

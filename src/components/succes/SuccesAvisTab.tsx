@@ -24,6 +24,7 @@ import {
     Compass,
     Shield,
     Info,
+    BookOpen,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getBestiaireCatalog, type BestiaireEntry } from "@/server/actions/game-data-actions";
@@ -31,9 +32,10 @@ import { getBountyFiche, type BountyFichePayload } from "@/server/actions/bounty
 import { SpellRangeGrid } from "@/components/succes/SpellRangeGrid";
 import { SuccesBossEncyclo } from "@/components/succes/SuccesBossEncyclo";
 import { BountyRewardCard } from "@/components/succes/BountyRewardCard";
+import { DocContent } from "@/components/doc/doc-content";
 import { useBossOverlay } from "@/hooks/use-boss-overlay";
 
-type DetailTab = "info" | "sorts" | "sim" | "loot";
+type DetailTab = "info" | "sorts" | "sim" | "strategy" | "loot";
 
 /** Icône de monstre via le proxy d'assets (jamais de 404 : placeholder interne sinon). */
 function MonsterImage({ src, alt = "", className = "", monsterId }: { src?: string | null; alt?: string; className?: string; monsterId?: number | string }) {
@@ -140,9 +142,10 @@ export function SuccesAvisTab({ guildId }: { guildId: string }) {
             { id: "info" as DetailTab, label: "Fiche", icon: Shield },
             { id: "sorts" as DetailTab, label: `Sorts (${spells.length})`, icon: Zap },
             { id: "sim" as DetailTab, label: "Simulation", icon: Target },
-            { id: "loot" as DetailTab, label: `Butin (${drops.length})`, icon: Gem },
+            { id: "strategy" as DetailTab, label: "Stratégie", icon: BookOpen, hidden: !fiche?.meta?.mechanics },
+            { id: "loot" as DetailTab, label: `Butin (${drops.length})`, icon: Gem, hidden: drops.length === 0 },
         ]
-    ).filter((t) => !(t.id === "loot" && drops.length === 0));
+    ).filter((t) => !t.hidden);
 
     return (
         <div className="grid gap-4 lg:grid-cols-[320px_1fr]">
@@ -376,6 +379,11 @@ export function SuccesAvisTab({ guildId }: { guildId: string }) {
                                     Aucun sort disponible pour la simulation.
                                 </p>
                             )
+                        )}
+                        {detailTab === "strategy" && fiche.meta.mechanics && (
+                            <div className="rounded-xl border border-border bg-background/40 p-4">
+                                <DocContent content={fiche.meta.mechanics} />
+                            </div>
                         )}
                         {detailTab === "loot" && (
                             <div className="grid gap-2 sm:grid-cols-2">

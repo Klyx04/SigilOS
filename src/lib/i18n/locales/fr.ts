@@ -748,6 +748,7 @@ export const fr = {
             room: "Monstres de la salle",
             maps: "Cartes Dofensive",
             bounty: "Avis de recherche",
+            strategy: "Stratégie",
         },
         stats: {
             hp: "Points de vie",

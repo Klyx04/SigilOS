@@ -37,23 +37,26 @@ const TOUGLI_JSON = path.join(SIPHON, "tougli-guide-details.json");
 const YELLE_JS = path.join(SIPHON, "dofusyelle-com-assets-js-rush-sylvestre-data-js.js");
 
 const readFile = (p) => fs.readFileSync(path.resolve(p), "utf8");
-/** Entités HTML → texte (les pages NOOBS sont encodées : `qu&ecirc;tes`). */
+const ENTITY_MAP = {
+  "&eacute;": "é", "&egrave;": "è", "&agrave;": "à",
+  "&ecirc;": "ê", "&icirc;": "î", "&ocirc;": "ô",
+  "&ucirc;": "û", "&acirc;": "â", "&ccedil;": "ç",
+  "&Eacute;": "É", "&Ecirc;": "Ê", "&Agrave;": "À",
+  "&amp;": "&", "&nbsp;": " ",
+  "&quot;": '"', "&#39;": "'", "&rsquo;": "’",
+  "&OElig;": "Œ", "&oelig;": "œ", "&iuml;": "ï",
+  "&Acirc;": "Â", "&Icirc;": "Î", "&Ocirc;": "Ô",
+  "&Ucirc;": "Û", "&Egrave;": "È", "&Ccedil;": "Ç",
+  "&euml;": "ë", "&Euml;": "Ë", "&Iuml;": "Ï",
+  // `&gt;` sert aux seuils d'Ordre (« Alignement &gt; 20 ») : sans ce décodage, aucune
+  // ligne d'Ordre ne s'analyse. `&lt;` reste encodé exprès (le décoder créerait de
+  // fausses balises que `stripTags` mangerait ensuite).
+  "&gt;": ">",
+};
+
+/** Entités HTML → texte (les pages NOOBS sont encodées : `qu&ecirc;tes`) — décodage en une seule passe pour éviter tout double-unescaping. */
 const decodeEntities = (s) =>
-  s
-    .replace(/&eacute;/g, "é").replace(/&egrave;/g, "è").replace(/&agrave;/g, "à")
-    .replace(/&ecirc;/g, "ê").replace(/&icirc;/g, "î").replace(/&ocirc;/g, "ô")
-    .replace(/&ucirc;/g, "û").replace(/&acirc;/g, "â").replace(/&ccedil;/g, "ç")
-    .replace(/&Eacute;/g, "É").replace(/&Ecirc;/g, "Ê").replace(/&Agrave;/g, "À")
-    .replace(/&ocirc;/g, "ô").replace(/&amp;/g, "&").replace(/&nbsp;/g, " ")
-    .replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&rsquo;/g, "’")
-    .replace(/&OElig;/g, "Œ").replace(/&oelig;/g, "œ").replace(/&iuml;/g, "ï")
-    .replace(/&Acirc;/g, "Â").replace(/&Icirc;/g, "Î").replace(/&Ocirc;/g, "Ô")
-    .replace(/&Ucirc;/g, "Û").replace(/&Egrave;/g, "È").replace(/&Ccedil;/g, "Ç")
-    .replace(/&euml;/g, "ë").replace(/&Euml;/g, "Ë").replace(/&Iuml;/g, "Ï")
-    // `&gt;` sert aux seuils d'Ordre (« Alignement &gt; 20 ») : sans ce décodage, aucune
-    // ligne d'Ordre ne s'analyse. `&lt;` reste encodé exprès (le décoder créerait de
-    // fausses balises que `stripTags` mangerait ensuite).
-    .replace(/&gt;/g, ">");
+  String(s).replace(/&(?:#[0-9]+|[a-zA-Z]+);/g, (m) => ENTITY_MAP[m] ?? m);
 /** Retire les balises et normalise les espaces (les pages NOOBS sont encodées en entités). */
 const stripTags = (s) => decodeEntities(s.replace(/<[^>]*>/g, " ")).replace(/\s+/g, " ").trim();
 /**

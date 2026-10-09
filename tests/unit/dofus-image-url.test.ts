@@ -168,6 +168,9 @@ describe("normalizeDofusAssetStoredUrl — un chemin STOCKÉ n'est jamais rendu 
         expect(normalizeDofusAssetStoredUrl("monsters", DB)).toBe(
             `/api/assets-dofus/monsters/4834?url=${encodeURIComponent(DB)}`
         );
+        // CDN officiel Ankama (static.ankama.com) : extrait l'id et réécrit vers le proxy interne
+        const ANKAMA_URL = "https://static.ankama.com/dofus/www/game/monsters/4744.png";
+        expect(normalizeDofusAssetStoredUrl("monsters", ANKAMA_URL)).toBe("/api/assets-dofus/monsters/4744");
         // ⚠️ Un hôte arbitraire ne sort JAMAIS de cette fonction : la donnée stockée ne doit pas
         // pouvoir désigner une origine tierce (alerte CodeQL `js/xss-through-dom`).
         expect(normalizeDofusAssetStoredUrl("monsters", "https://cdn.exemple.fr/monstre.png", 4834)).toBe(

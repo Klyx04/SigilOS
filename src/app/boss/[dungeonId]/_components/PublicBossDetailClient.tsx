@@ -757,7 +757,7 @@ export function PublicBossDetailClient({
             )}
           </div>
 
-          {/* ── Colonne droite : où se trouve le donjon (zone encadrée, sinon entrée seule) ── */}
+          {/* ── Colonne droite : où se trouve le donjon / l'avis (zone encadrée, sinon entrée seule) ── */}
           {hasZoneLocation && (
             <ZoneLocationCard
               subareaIds={bountySubareaIds}
@@ -768,17 +768,18 @@ export function PublicBossDetailClient({
                   ? `/carte-du-monde?play=1&x=${coords.x}&y=${coords.y}&zoom=-2&world=${zoneWorldId}`
                   : null
               }
-              title={t.bossPage.minimapTitle}
+              title={isBounty ? (locale === "en" ? "Hunt Zone" : "Zone de traque") : t.bossPage.minimapTitle}
               placeName={dungeon.name}
               openLabel={t.bossPage.minimapOpen}
               markerIcon="/assets/worldmap/dungeon-boss.png"
+              className="lg:max-w-md lg:ml-auto w-full"
               fallback={
                 coords ? (
                   <DungeonMinimapCard
                     x={coords.x}
                     y={coords.y}
                     worldMapId={coords.worldMapId}
-                    title={t.bossPage.minimapTitle}
+                    title={isBounty ? (locale === "en" ? "Hunt Zone" : "Zone de traque") : t.bossPage.minimapTitle}
                     placeName={dungeon.name}
                     openLabel={t.bossPage.minimapOpen}
                   />
@@ -1064,6 +1065,7 @@ export function PublicBossDetailClient({
               onSelectSpell={(s) => setSelectedSpellId(s.id)}
               bossName={locale === "en" ? (currentStats?.nameEn || resolvedBossName) : resolvedBossName}
               bossImageUrl={currentStats?.imageUrl ?? dungeon.imageUrl ?? undefined}
+              bossId={currentStats?.id ?? undefined}
               dungeonMaps={dungeonMaps?.maps}
               dungeonName={dungeonMaps?.dungeonName ?? dungeon.name}
               grades={grades.map((g: any) => ({ level: g.level }))}

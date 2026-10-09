@@ -577,6 +577,7 @@ export function SuccesTitanTab({ guildId, canEdit }: { guildId: string; canEdit:
                                     onSelectSpell={(s) => setActiveSpellId(s.id)}
                                     bossName={selected.name}
                                     bossImageUrl={stats?.imageUrl ?? selected.imageUrl ?? undefined}
+                                    bossId={stats?.id ?? (selected as any)?.dofusdbId ?? undefined}
                                     dungeonMaps={dungeonMaps?.maps ?? undefined}
                                     dungeonName={dungeonMaps?.dungeonName}
                                     grades={stats?.grades?.map((g: any) => ({ level: g.level })) ?? []}

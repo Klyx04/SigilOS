@@ -161,7 +161,7 @@ export function ZoneLocationCard({
             </div>
             {grid ? (
                 <a href={mapHref || grid.mapHref} className="block" title={openLabel}>
-                    <div className="relative w-full overflow-hidden" style={{ aspectRatio: `${grid.cols} / ${grid.rows}` }}>
+                    <div className="relative w-full max-h-[380px] overflow-hidden mx-auto" style={{ aspectRatio: `${grid.cols} / ${grid.rows}` }}>
                         <div
                             className="grid h-full w-full"
                             style={{ gridTemplateColumns: `repeat(${grid.cols}, minmax(0, 1fr))` }}

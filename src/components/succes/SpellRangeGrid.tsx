@@ -18,6 +18,7 @@ import {
     type SpellElementKey,
     type ZoneDamageDecrease,
 } from "@/lib/dofus-spells";
+import { normalizeDofusAssetStoredUrl } from "@/lib/dofus-image-url";
 import {
     zoneFalloffPercent,
     zoneLinesAtOffset,
@@ -152,6 +153,9 @@ interface SpellRangeGridProps {
     onSelectSpell?: (spell: SpellData) => void;
     bossName?: string;
     bossImageUrl?: string;
+    /** ID numérique du monstre boss (DofusDB/Unity). Quand fourni, `SpellRangeGrid` construit
+     *  l'URL proxy `/api/assets-dofus/monsters/{id}` pour éviter les 403 static.ankama.com. */
+    bossId?: number | string;
     /** Salles du donjon du boss (Dofensive) — alimentent le sélecteur de map. */
     dungeonMaps?: DofensiveMapLite[];
     /** Nom du donjon (label du sélecteur). */
@@ -222,6 +226,7 @@ export function SpellRangeGrid({
     onSelectSpell,
     bossName = "Boss",
     bossImageUrl,
+    bossId,
     dungeonMaps,
     dungeonName,
     grades,
@@ -376,10 +381,16 @@ export function SpellRangeGrid({
         name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
     const bossScale = Math.min(5, Math.max(0.5, entityScale));
     const titanCandidate = bossScale > 1 && bossName ? `/game-data/titans/${slugifyTitan(bossName)}.webp` : null;
+
+    // Normalisation proxy : transforme tout chemin stocké ou static.ankama.com en URL proxy locale
+    const resolvedBossImageUrl = useMemo(() => {
+        return normalizeDofusAssetStoredUrl("monsters", bossImageUrl, bossId) ?? bossImageUrl ?? null;
+    }, [bossImageUrl, bossId]);
+
     const [artSrc, setArtSrc] = useState<string | null>(null);
     useEffect(() => {
-        setArtSrc(titanCandidate ?? bossImageUrl ?? null);
-    }, [titanCandidate, bossImageUrl, bossName]);
+        setArtSrc(titanCandidate ?? resolvedBossImageUrl ?? null);
+    }, [titanCandidate, resolvedBossImageUrl, bossName]);
 
     // Bas d'encre réel du sprite (les fichiers ont des marges transparentes
     // variables — sans mesure, les pieds flottent au-dessus de la case).
@@ -464,7 +475,7 @@ export function SpellRangeGrid({
         list.push({
             order: 1,
             name: bossName,
-            imageUrl: bossImageUrl,
+            imageUrl: resolvedBossImageUrl,
             cellId: computed.bossCell,
             x: bossPos.x,
             y: bossPos.y,
@@ -477,10 +488,13 @@ export function SpellRangeGrid({
             const cellId = computed.otherMonsterCells[i];
             const pos = cellIdToXY(cellId);
             const mob = roomMonsters[i % (roomMonsters.length || 1)];
+            const mobImageUrl = mob
+                ? normalizeDofusAssetStoredUrl("monsters", mob.imageUrl, mob.id) ?? mob.imageUrl
+                : null;
             list.push({
                 order: i + 2,
                 name: mob?.name ?? `Monstre ${i + 2}`,
-                imageUrl: mob?.imageUrl,
+                imageUrl: mobImageUrl,
                 cellId,
                 x: pos.x,
                 y: pos.y,
@@ -489,7 +503,7 @@ export function SpellRangeGrid({
         }
 
         return list;
-    }, [mapData, placementIndex, lootCount, bossName, bossImageUrl, roomMonsters]);
+    }, [mapData, placementIndex, lootCount, bossName, resolvedBossImageUrl, roomMonsters]);
 
     // Cases de départ (alliés/ennemis) rendues quand le toggle est actif.
     // Convention Dofus (Ankama_Fight.d2ui, prouvée) : joueurs/attaquants = ROUGE = `enemyCells`,
@@ -2452,7 +2466,7 @@ export function SpellRangeGrid({
                                                     preserveAspectRatio="xMidYMax meet"
                                                     onError={() => {
                                                         // Art titan HS → repli icône, puis 👑.
-                                                        setArtSrc((prev) => (titanCandidate && prev === titanCandidate && bossImageUrl ? bossImageUrl : null));
+                                                        setArtSrc((prev) => (titanCandidate && prev === titanCandidate && resolvedBossImageUrl ? resolvedBossImageUrl : null));
                                                     }}
                                                 />
                                             ) : (
@@ -2639,7 +2653,7 @@ export function SpellRangeGrid({
                                                         className="drop-shadow-2xl"
                                                         preserveAspectRatio="xMidYMax meet"
                                                         onError={() => {
-                                                            setArtSrc((prev) => (titanCandidate && prev === titanCandidate && bossImageUrl ? bossImageUrl : null));
+                                                            setArtSrc((prev) => (titanCandidate && prev === titanCandidate && resolvedBossImageUrl ? resolvedBossImageUrl : null));
                                                         }}
                                                     />
                                                 ) : (

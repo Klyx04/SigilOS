@@ -117,7 +117,12 @@ export async function GET(
             return null;
         };
 
-        const godFile = findGodFile(safeId);
+        // Mesure du 09/10/2026 : le dump Game data est indexe par l APPARENCE (gfxId pour un monstre,
+        // iconId pour un objet), JAMAIS par l id de l entite. Un lookup par safeId servait donc
+        // l image d une AUTRE entite (281/300 ids de monstres portent aussi un fichier de dump :
+        // celui d un autre monstre), figee 1 an dans le cache. Les dumps sont desormais lus APRES
+        // resolution de l apparence par l API, avec garde d identite (blocs OBJETS / MONSTRES).
+        const godFile: string | null = null;
         if (godFile) {
             try {
                 const rawBuffer = fs.readFileSync(godFile);
@@ -169,12 +174,14 @@ export async function GET(
         // on ne peut pas faire un lookup DofusDB fiable → on tente uniquement le ?url= fourni
         // sinon on renvoie directement le placeholder pour éviter de retourner le mauvais monstre.
         //
-        // 🐛 `img/{type}/{id}.png` n'est VALABLE QUE POUR LES ITEMS (leur clé de cache EST leur id).
+        // 🐛 `img/{type}/{id}.png` n'est fiable NI pour un monstre NI pour un objet : le nombre y est
+        // une APPARENCE (gfxId / iconId), jamais l'id de l'entité — mesure du 09/10/2026, cf. blocs
+        // OBJETS / MONSTRES ci-dessous.
         // Mesure du 27/09/2026 sur 300 monstres DofusDB : **100 % ont `gfxId ≠ id`**
         // (Predagob 4834 → `img/monsters/1583.png` ; `img/monsters/4834.png` → **404**). Deviner
         // l'apparence d'un monstre par son id servait donc l'image d'un AUTRE monstre (ou un 404),
         // puis la figeait en cache. Les monstres sont désormais résolus par l'API (bloc MONSTRES).
-        const remoteUrl = safeUrlParam || (isNumericId && assetType === 'items' ? `${REMOTE_BASE_URLS.items}/${safeId}.png` : null);
+        const remoteUrl = safeUrlParam; // plus de devinette img/items/{id}.png : la cle DofusDB est l iconId, pas l id de l objet (cf. bloc OBJETS).
 
         let downloaded = false;
         let inputBuffer: Buffer | null = null;
@@ -252,6 +259,71 @@ export async function GET(
             }
         }
 
+        // ── OBJETS : DofusDB est la SEULE autorité de l'icône
+        // img/items/{n}.png est indexe par l ICONID, jamais par l id de l objet (mesure du 09/10/2026 :
+        // item 11107 Bois de Tremble, iconId 38677, et img/items/11107.png repond 200 avec l icone d un
+        // AUTRE objet ; item 15990, iconId 3086, ou l id 3086 est un autre item). On resout donc
+        // iconId via l API avec GARDE D IDENTITE, puis le dump local par iconId, avant l URL officielle.
+        let itemIconHandled = false;
+        if (isNumericId && assetType === 'items') {
+            itemIconHandled = true;
+            try {
+                const itemRes = await fetch('https://api.dofusdb.fr/items/' + safeId, {
+                    headers: { 'User-Agent': 'SigilOS/1.0 (+https://sigilos.fr)' },
+                    signal: AbortSignal.timeout(6_000),
+                });
+                if (itemRes.ok) {
+                    const itemData = await itemRes.json();
+                    if (Number(itemData?.id) === Number(safeId)) {
+                        const iconId = Math.floor(Number(itemData?.iconId) || 0);
+                        const dumpFile = iconId > 0 ? findGodFile(String(iconId)) : null;
+                        if (dumpFile) {
+                            inputBuffer = fs.readFileSync(dumpFile);
+                            downloaded = true;
+                        } else if (iconId > 0) {
+                            const iconRes = await fetch('https://api.dofusdb.fr/img/items/' + iconId + '.png', {
+                                headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+                                signal: AbortSignal.timeout(6_000),
+                            });
+                            if (iconRes.ok) {
+                                const contentType = iconRes.headers.get('content-type') || '';
+                                if (contentType.startsWith('image/') || contentType.startsWith('application/octet-stream')) {
+                                    const arrayBuffer = await iconRes.arrayBuffer();
+                                    if (arrayBuffer.byteLength > 0 && arrayBuffer.byteLength <= MAX_IMAGE_BYTES) {
+                                        inputBuffer = Buffer.from(arrayBuffer);
+                                        downloaded = true;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            } catch {
+                // API indisponible : repli declare ci-dessous.
+            }
+
+            // Repli DECLARE (url= allowliste) joue APRES l autorite — meme regle que les monstres :
+            // une URL perimee (apparence d un autre objet) ne peut plus passer devant la fiche DofusDB.
+            if (!downloaded && safeUrlParam) {
+                try {
+                    await assertSafeUrl(safeUrlParam);
+                    const declared = await fetch(safeUrlParam, {
+                        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+                        signal: AbortSignal.timeout(6_000),
+                    });
+                    if (declared.ok) {
+                        const arrayBuffer = await declared.arrayBuffer();
+                        if (arrayBuffer.byteLength > 0 && arrayBuffer.byteLength <= MAX_IMAGE_BYTES) {
+                            inputBuffer = Buffer.from(arrayBuffer);
+                            downloaded = true;
+                        }
+                    }
+                } catch {
+                    // Repli declare indisponible : placeholder neutre plus bas.
+                }
+            }
+        }
+
         // ── SORTS : DofusDB est la SEULE autorité de l'icône ────────────────────────────────
         // L'icône réelle d'un sort est `img/spells/sort_{iconId}.png` (`iconId` ≠ id du sort ; il
         // vaut **-1** quand le sort n'a PAS d'icône — mesuré le 22/09/2026 : `Ancrépulsion` 15144 →
@@ -308,7 +380,7 @@ export async function GET(
         // Tentative 1 : Téléchargement direct depuis remoteUrl (si disponible)
         // (jamais pour les sorts : leur icône est résolue ci-dessus, cf. § SORTS ;
         //  jamais pour les monstres : apparence résolue par l'API, cf. § MONSTRES.)
-        if (remoteUrl && !spellIconHandled && !monsterImageHandled) {
+        if (remoteUrl && !spellIconHandled && !monsterImageHandled && !itemIconHandled) {
             try {
                 // 🔒 SSRF : re-valide DNS/IP juste avant fetch (anti-rebinding), fail-closed.
                 await assertSafeUrl(remoteUrl);

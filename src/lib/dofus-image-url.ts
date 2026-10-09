@@ -174,7 +174,10 @@ export function resolveDofusAssetImageUrl(
     id?: number | string | null,
     upstreamUrl?: string | null,
 ): string | null {
-    const fromUrl = upstreamUrl ? parseDofusDbImageUrl(upstreamUrl) : null;
+    // Mesure du 09/10/2026 : pour un MONSTRE ou un OBJET, le nombre d'une URL img/... est une
+    // APPARENCE (gfxId / iconId), jamais l'id de l'entite (Reine Ecarlate : id 8278, gfx 2601 ; et
+    // l'id 2601 est un AUTRE monstre). La cle de cache ne peut donc venir que de l'id explicite.
+    const fromUrl = type === "spells" && upstreamUrl ? parseDofusDbImageUrl(upstreamUrl) : null;
     const rawId = id != null && String(id).trim() !== "" ? String(id).trim() : fromUrl?.id ?? "";
     if (!rawId || !/^[\w-]+$/.test(rawId)) return null;
 
@@ -293,10 +296,10 @@ export function normalizeDofusAssetStoredUrl(
     // URL absolue : DofusDB ou CDN Ankama → proxy interne ; tout autre hôte n'est JAMAIS publié (il retombe sur
     // le proxy canonique) — une donnée stockée ne doit pas pouvoir désigner un hôte arbitraire.
     if (/^https?:\/\//i.test(value)) {
-        const fromDofusDb = internalDofusDbImageUrl(value);
-        if (fromDofusDb) return fromDofusDb;
+        const parsedDb = parseDofusDbImageUrl(value);
+        if (parsedDb) return resolveDofusAssetImageUrl(type, id ?? parsedDb.id, value) ?? fallback;
         const fromAnkama = parseAnkamaCdnImageUrl(value);
-        if (fromAnkama) return resolveDofusAssetImageUrl(fromAnkama.type, fromAnkama.id) ?? fallback;
+        if (fromAnkama) return resolveDofusAssetImageUrl(type, id ?? fromAnkama.id) ?? fallback;
         return fallback;
     }
 
@@ -306,5 +309,13 @@ export function normalizeDofusAssetStoredUrl(
     // Chemin local : accepté seulement s'il appartient à NOS dossiers servis (allowlist), sinon
     // on retombe sur le proxy canonique. C'est ce qui rend la sortie de cette fonction sûre à
     // poser dans le DOM (alerte CodeQL `js/xss-through-dom`).
+    // Mesure du 09/10/2026 (Tal Kasha affiche en couronne dans la simulation) : un chemin local
+    // DERIVE (/assets/dofus/monsters/{n}.png ecrit par monster-stats-core, illustration
+    // /game-data/dungeons/*.webp) n'est PAS le sprite du boss, et peut ne pas exister (404,
+    // onError, couronne). Des que l'id de l'entite est connu, le proxy (identite verifiee,
+    // auto-reparateur) est la bonne reponse ; le sprite titan local reste prioritaire.
+    if (type === "monsters" && id != null && String(id).trim() !== "" && !value.startsWith("/game-data/titans/")) {
+        return fallback ?? value;
+    }
     return isInternalServePath(value) ? value : fallback;
 }

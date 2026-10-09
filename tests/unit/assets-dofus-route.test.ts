@@ -107,8 +107,18 @@ describe("GET /api/assets-dofus/[type]/[id] — garde-fous", () => {
         expect(res.headers.get("content-type")).toContain("svg");
     });
 
-    it("id numérique (ITEM), distant OK → 200 webp + persistance disque", async () => {
-        vi.stubGlobal("fetch", vi.fn().mockResolvedValue(imageResponse()));
+    it("id numérique (ITEM) : l'iconId est résolu par l'API (garde d'identité) → 200 webp + persistance", async () => {
+        const calls: string[] = [];
+        const fetchMock = vi.fn((url: any) => {
+            const u = String(url);
+            calls.push(u);
+            // 1) fiche DofusDB : l'id DOIT correspondre (garde d'identité).
+            if (u.includes("/items/456")) return Promise.resolve(jsonResponse({ id: 456, iconId: 4242 }));
+            // 2) image de l'APPARENCE (iconId), jamais « /img/items/456.png ».
+            if (u.includes("/img/items/4242.png")) return Promise.resolve(imageResponse());
+            return Promise.resolve({ ok: false, status: 404, headers: new Headers(), json: async () => null } as any);
+        });
+        vi.stubGlobal("fetch", fetchMock);
         mockExistsSync.mockReturnValue(false);
 
         const res = await GET(req("http://localhost/api/assets-dofus/items/456"), ctx("items", "456"));
@@ -116,6 +126,18 @@ describe("GET /api/assets-dofus/[type]/[id] — garde-fous", () => {
         expect(res.status).toBe(200);
         expect(res.headers.get("content-type")).toBe("image/webp");
         expect(mockWriteFile).toHaveBeenCalled();
+        expect(calls).toContain("https://api.dofusdb.fr/img/items/4242.png");
+        expect(calls).not.toContain("https://api.dofusdb.fr/img/items/456.png");
+    });
+
+    it("ITEM dont l'id ne correspond pas à la fiche DofusDB → placeholder (jamais l'icône d'un autre objet)", async () => {
+        vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse({ id: 999, iconId: 4242 })));
+        mockExistsSync.mockReturnValue(false);
+
+        const res = await GET(req("http://localhost/api/assets-dofus/items/456"), ctx("items", "456"));
+
+        expect(res.status).toBe(200);
+        expect(res.headers.get("content-type")).toContain("svg");
     });
 
     it("tout échoue → placeholder SVG 200 (pas 404, pas 500)", async () => {

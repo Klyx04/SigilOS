@@ -117,9 +117,31 @@ export async function loadItemImageDataUrl(ankamaId: number | null | undefined):
 
     input = readLocal();
 
+    // Mesure du 09/10/2026 : img/items/{n}.png est indexe par l ICONID, jamais par l id de
+    // l objet. L appeler avec l ankamaId (ou lire le cache ecrit par cet appel) servait l icone
+    // d un AUTRE objet - Discord inclus. On resout donc iconId par l API, avec garde d identite.
+    let remoteIconUrl: string | null = null;
     if (!input) {
         try {
-            const url = new URL(`https://api.dofusdb.fr/img/items/${ankamaId}.png`);
+            const itemRes = await fetch("https://api.dofusdb.fr/items/" + ankamaId, {
+                headers: { "User-Agent": "SigilOS/1.0 (+https://sigilos.fr)" },
+                signal: AbortSignal.timeout(6_000),
+            });
+            if (itemRes.ok) {
+                const itemData = await itemRes.json();
+                if (Number(itemData?.id) === Number(ankamaId)) {
+                    const iconId = Math.floor(Number(itemData?.iconId) || 0);
+                    if (iconId > 0) remoteIconUrl = "https://api.dofusdb.fr/img/items/" + iconId + ".png";
+                }
+            }
+        } catch {
+            remoteIconUrl = null;
+        }
+    }
+
+    if (!input && remoteIconUrl) {
+        try {
+            const url = new URL(remoteIconUrl);
             if (!ALLOWED_ITEM_IMAGE_HOSTS.has(url.hostname.toLowerCase())) return null;
             const res = await fetch(url, { signal: AbortSignal.timeout(6_000) });
             if (res.ok) {
@@ -141,7 +163,7 @@ export async function loadItemImageDataUrl(ankamaId: number | null | undefined):
         // (hôte validé, fichier écrit localement, donc les rendus suivants sont
         // instantanés), puis relecture du WebP tout juste créé.
         try {
-            const siphoned = await siphonAndCompressImage(null, "items", ankamaId);
+            const siphoned = await siphonAndCompressImage(remoteIconUrl, "items", ankamaId);
             if (siphoned.success) input = readLocal();
         } catch {
             input = null;

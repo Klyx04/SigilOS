@@ -86,6 +86,10 @@ describe("BUG-4 — carte OG : plus de « ? », objet agrandi sans stats", () =>
 
     it("siphone l'image à la volée au lieu d'abandonner (source du « ? »)", () => {
         const source = codeOnly(read("src/lib/market/og-assets.ts"));
-        expect(source).toMatch(/siphonAndCompressImage\(null, "items", ankamaId\)/);
+        // Mesure du 09/10/2026 : « img/items/{n}.png » est indexé par l'ICONID, jamais par l'id de
+        // l'objet. Le siphon reprend donc l'URL d'APPARENCE résolue par l'API (garde d'identité).
+        expect(source).toMatch(/siphonAndCompressImage\(remoteIconUrl, "items", ankamaId\)/);
+        expect(source).toMatch(/Number\(itemData\?\.id\) === Number\(ankamaId\)/);
+        expect(source).not.toMatch(/img\/items\/\$/);
     });
 });

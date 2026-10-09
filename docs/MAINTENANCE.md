@@ -310,30 +310,6 @@ Chaque tâche CRON enregistre automatiquement son état, sa durée et son résum
 
 ---
 
-## 🖼️ Purger le cache d'images siphonnées (identités DofusDB)
-
-> **Pourquoi** (mesure du 09/10/2026 — PR #872) : chez DofusDB, `img/{type}/{id}.png` est indexé par
-> l'**apparence** (gfxId pour un monstre, iconId pour un objet), jamais par l'id de l'entité. L'ancien
-> code écrivait ces fichiers sous le **mauvais nom** (`items/11107.webp` contenait l'icône d'un AUTRE
-> objet ; `monsters/*.webp` l'apparence d'un autre monstre) avec `Cache-Control: immutable` (**1 an**).
-> Le code est corrigé, mais **les fichiers déjà écrits restent faux** : ils doivent être supprimés
-> pour être re-siphonnés proprement.
-
-```bash
-# Sur l'environnement concerné (beta d'abord, puis prod), depuis la racine du dépôt :
-rm -f public/uploads/assets-dofus/items/*.webp
-rm -f public/uploads/assets-dofus/monsters/*.webp
-# NE PAS toucher spells/ : les icônes de sorts étaient déjà résolues par iconId (garde d'identité).
-```
-
-**Rien à lancer ensuite.** Le proxy `/api/assets-dofus/{type}/{id}` re-siphonne chaque image à la
-première demande (identité vérifiée) et le cron `sync-monster-stats` (03 h 45) refait les fiches de
-monstres. Pour remplir d'un coup, lancer l'import **Objets** du worker Game Data (dataset `ITEMS` vers
-`siphonAllGameItemsCore`, batché et throttle) depuis l'écran God d'import.
-
-**Effet visible pendant le re-remplissage** : une icône jamais revue depuis la purge peut afficher son
-repli le temps d'un aller-retour. Jamais de 404, jamais l'image d'une autre entité.
-
 ## 🔍 Monitoring
 
 ### Check Hardening
@@ -408,16 +384,27 @@ journalctl --vacuum-time=1d
 df -h
 ```
 
-### Purge du cache d'images siphonnées (monstres)
+### Purge du cache d'images siphonnées (monstres ET objets — identités DofusDB)
 ```bash
 # Pourquoi : jusqu'au 27/09/2026 le proxy `/api/assets-dofus` pouvait écrire dans le cache
 # disque (`public/uploads/assets-dofus/monsters/{id}.webp`, volume `assets-*-data`) l'apparence
 # d'un AUTRE monstre — l'apparence est indexée par `gfxId`, jamais par l'id (mesure : 100 % des
 # 300 monstres DofusDB testés ont `gfxId != id`, 281/300 collisions avec le dump local). Le
-# fichier étant ensuite servi avec `Cache-Control: immutable` (1 an), il faut le PURGER après
+# 2e vague, 09/10/2026 (PR #872) : les OBJETS aussi — `img/items/{n}.png` est indexé par l ICONID,
+# jamais par l id de l objet (item 11107 Bois de Tremble -> iconId 38677 ; l id 3086 est un autre item).
+# Dans les deux cas ces fichiers sont servis avec `Cache-Control: immutable` (1 an) : il faut les PURGER après
 # le déploiement du correctif — les images se re-téléchargent À LA DEMANDE (correctes).
-sudo docker compose -f docker-compose.prod.yml --env-file .env.beta exec app-beta rm -f public/uploads/assets-dofus/monsters/*.webp
-sudo docker compose -f docker-compose.prod.yml --env-file .env.prod exec app-prod rm -f public/uploads/assets-dofus/monsters/*.webp
+# ATTENTION `sh -c` est OBLIGATOIRE : sans shell, `*.webp` n est PAS developpe (un `rm -f` direct
+# ne supprime rien, en silence). NE PAS toucher spells/ (icones deja resolues par iconId).
+cd ~/SigilOS
+sudo docker compose -f docker-compose.prod.yml --env-file .env.beta exec app-beta \
+  sh -c 'rm -f public/uploads/assets-dofus/monsters/*.webp public/uploads/assets-dofus/items/*.webp'
+sudo docker compose -f docker-compose.prod.yml --env-file .env.prod exec app-prod \
+  sh -c 'rm -f public/uploads/assets-dofus/monsters/*.webp public/uploads/assets-dofus/items/*.webp'
+
+# Controle : le compteur doit tomber a 0 puis remonter au fil des visites (jamais de 404).
+sudo docker compose -f docker-compose.prod.yml --env-file .env.beta exec app-beta \
+  sh -c 'ls public/uploads/assets-dofus/monsters/*.webp 2>/dev/null | wc -l'
 
 # Contrôle (l'apparence doit correspondre au gfxId de la fiche) :
 # curl -s "https://api.dofusdb.fr/monsters/4834" | grep -o '"gfxId":[0-9]*'   # Predagob -> 1583

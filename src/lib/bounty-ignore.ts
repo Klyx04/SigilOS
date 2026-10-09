@@ -50,23 +50,35 @@ export function parseIgnoredBounties(content: string | null | undefined): Ignore
 /**
  * Normalise des entrées d'exclusion : accepte des objets `{ dofusdbId, name, deletedAt }` **ou**
  * des ids nus. Dédoublonné par id (le dernier nom connu gagne), trié par id.
+ *
+ * 🔶 08/10/2026 — une entrée **sans id mais avec un nom** (`dofusdbId: 0`) est CONSERVÉE :
+ * c'est le cas d'une ligne historique (`dofusdbId` nul en base) supprimée dans God — sans
+ * cela, aucune exclusion n'était enregistrée et le siphon recréait l'avis à la passe
+ * suivante. Le siphon filtre sur l'id **ou** le nom normalisé (voir `isIgnoredBountyName`).
  */
 export function normalizeIgnoredBounties(entries: unknown): IgnoredBountyEntry[] {
-    const byId = new Map<number, IgnoredBountyEntry>();
+    const byKey = new Map<string, IgnoredBountyEntry>();
     for (const raw of Array.isArray(entries) ? entries : []) {
         const item = raw !== null && typeof raw === "object" ? (raw as any) : null;
         const id = Math.floor(Number(item ? (item.dofusdbId ?? item.id) : raw) || 0);
-        if (id <= 0) continue;
         const name = item?.name != null ? String(item.name).trim() || null : null;
-        const deletedAt = item?.deletedAt != null ? String(item.deletedAt) : null;
-        const previous = byId.get(id);
-        byId.set(id, {
-            dofusdbId: id,
+        if (id <= 0 && !name) continue;
+        // Clé de dédoublonnage : l'id quand il existe, sinon le nom normalisé (deux
+        // exclusions sans id ne doivent jamais se cannibaliser).
+        const key = id > 0 ? `id:${id}` : `name:${normalizeBountyName(name ?? "")}`;
+        const previous = byKey.get(key);
+        byKey.set(key, {
+            dofusdbId: id > 0 ? id : 0,
             name: name ?? previous?.name ?? null,
-            deletedAt: deletedAt ?? previous?.deletedAt ?? null,
+            deletedAt: item?.deletedAt != null ? String(item.deletedAt) : (previous?.deletedAt ?? null),
         });
     }
-    return [...byId.values()].sort((a, b) => a.dofusdbId - b.dofusdbId);
+    return [...byKey.values()].sort((a, b) => a.dofusdbId - b.dofusdbId);
+}
+
+/** Normalisation d'un nom d'avis pour la comparaison (casse + espaces). */
+export function normalizeBountyName(name: string | null | undefined): string {
+    return String(name ?? "").trim().toLowerCase().replace(/\s+/g, " ");
 }
 
 /** Sérialise la liste d'exclusion (fichier lisible et versionnable, comme les autres datasets). */
@@ -92,7 +104,14 @@ export function getIgnoredBounties(): IgnoredBountyEntry[] {
 
 /** Ids des avis exclus (forme la plus utilisée : filtre du siphon). */
 export function getIgnoredBountyIds(): number[] {
-    return getIgnoredBounties().map((e) => e.dofusdbId);
+    return getIgnoredBounties().map((e) => e.dofusdbId).filter((id) => id > 0);
+}
+
+/** Noms des avis exclus, normalisés (second filtre du siphon : couvre les lignes sans id). */
+export function getIgnoredBountyNames(): string[] {
+    return getIgnoredBounties()
+        .map((e) => normalizeBountyName(e.name))
+        .filter((n) => n.length > 0);
 }
 
 /** Écrit la liste d'exclusion (retourne les entrées normalisées écrites). */
@@ -109,18 +128,33 @@ function writeIgnoredBounties(entries: unknown): IgnoredBountyEntry[] {
 /** Exclut un avis (idempotent) — `name` sert uniquement à l'affichage dans God. */
 export function addIgnoredBounty(dofusdbId: number, name?: string | null): IgnoredBountyEntry[] {
     const id = Math.floor(Number(dofusdbId) || 0);
-    if (id <= 0) return getIgnoredBounties();
-    const current = getIgnoredBounties().filter((e) => e.dofusdbId !== id);
+    const cleanName = name != null ? String(name).trim() || null : null;
+    // 🔶 Un avis sans id (ligne historique) s'exclut PAR SON NOM (`dofusdbId: 0`) : sans
+    // cela, la suppression n'enregistrait rien et le siphon recréait l'avis. Voir
+    // `normalizeIgnoredBounties` + `isIgnoredBountyName`.
+    if (id <= 0 && !cleanName) return getIgnoredBounties();
+    const keyId = id > 0 ? id : 0;
+    const current = getIgnoredBounties().filter((e) =>
+        keyId > 0 ? e.dofusdbId !== keyId : normalizeBountyName(e.name) !== normalizeBountyName(cleanName),
+    );
     return writeIgnoredBounties([
         ...current,
-        { dofusdbId: id, name: name != null ? String(name).trim() || null : null, deletedAt: new Date().toISOString() },
+        { dofusdbId: keyId, name: cleanName, deletedAt: new Date().toISOString() },
     ]);
 }
 
 /** Réintègre un avis (le prochain siphon le recrée) — retourne la liste restante. */
-export function removeIgnoredBounty(dofusdbId: number): IgnoredBountyEntry[] {
+export function removeIgnoredBounty(dofusdbId: number, name?: string | null): IgnoredBountyEntry[] {
     const id = Math.floor(Number(dofusdbId) || 0);
-    return writeIgnoredBounties(getIgnoredBounties().filter((e) => e.dofusdbId !== id));
+    if (id > 0) {
+        return writeIgnoredBounties(getIgnoredBounties().filter((e) => e.dofusdbId !== id));
+    }
+    // Exclusion par nom seul (`dofusdbId: 0`) : on la retire par le nom normalisé.
+    const target = normalizeBountyName(name);
+    if (!target) return getIgnoredBounties();
+    return writeIgnoredBounties(
+        getIgnoredBounties().filter((e) => !(e.dofusdbId === 0 && normalizeBountyName(e.name) === target)),
+    );
 }
 
 /** Un avis est-il exclu ? (`ignored` peut être fourni pour éviter une relecture disque.) */
@@ -128,4 +162,15 @@ export function isIgnoredBounty(dofusdbId: number | null | undefined, ignored?: 
     const id = Math.floor(Number(dofusdbId) || 0);
     if (id <= 0) return false;
     return (ignored ?? getIgnoredBountyIds()).includes(id);
+}
+
+/**
+ * Un avis est-il exclu **par son nom** ? (`ignoredNames` = `getIgnoredBountyNames()`.)
+ * Couvre les exclusions sans id (lignes historiques) : deux monstres homonymes partagent
+ * un nom mais jamais un id — le filtre par id reste prioritaire dans le siphon.
+ */
+export function isIgnoredBountyName(name: string | null | undefined, ignoredNames?: string[]): boolean {
+    const target = normalizeBountyName(name);
+    if (!target) return false;
+    return (ignoredNames ?? getIgnoredBountyNames()).includes(target);
 }

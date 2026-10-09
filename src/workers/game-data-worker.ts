@@ -235,11 +235,13 @@ async function runBackgroundDataset(
                     message: `${done} / ${total ?? "?"} item(s) modifié(s)`,
                 });
             });
-            // Passe complète ⇒ filigrane = le plus récent vu ; passe tronquée ⇒ on garde le
-            // filigrane et on mémorise le lot de reprise (aucun item sauté, aucune boucle).
+            // Passe complète ⇒ filigrane = le plus récent vu ; passe tronquée OU différée
+            // (limite locale) ⇒ on garde le filigrane et on mémorise le lot de reprise
+            // (aucun item sauté, aucune boucle).
+            const partial = result.truncated || result.deferred;
             await setGameDataWatchState("ITEMS", {
-                since: result.truncated ? watch.since : result.nextWatermark ?? watch.since,
-                skip: result.truncated ? result.nextSkip : 0,
+                since: partial ? watch.since : result.nextWatermark ?? watch.since,
+                skip: partial ? result.nextSkip : 0,
             });
             const unchanged = Math.max(0, result.processed - result.inserted - result.updated);
             /**
@@ -248,14 +250,18 @@ async function runBackgroundDataset(
              * DofusDB ne renvoie **aucun** item modifié depuis le filigrane, il n'y avait rien à
              * faire — on le dit avec ces mots au lieu d'aligner trois zéros muets.
              */
-            const detail = result.processed === 0
+            const detail = result.processed === 0 && !result.deferred
                 ? "aucun item modifié chez DofusDB depuis le filigrane (rien à faire)"
                 : `${result.inserted} créé(s) · ${result.updated} modifié(s) · ${unchanged} inchangé(s)`;
             await finishGameDataRun("ITEMS", {
                 ok: true,
                 message:
                     `Veille ciblée depuis ${watch.since} : ${detail}` +
-                    (result.truncated ? " · plafond atteint, reprise au prochain passage" : ""),
+                    (result.truncated ? " · plafond atteint, reprise au prochain passage" : "") +
+                    // 🔶 Limite LOCALE (notre budget partagé, pas DofusDB) : la page est mise
+                    // en attente et reprise au prochain passage — ce n'est pas un échec
+                    // (même sémantique que `throttledPages` des référentiels).
+                    (result.deferred ? " · limite locale atteinte, page mise en attente, reprise au prochain passage" : ""),
                 counts: { inserted: result.inserted, updated: result.updated, unchanged },
             });
             return result;

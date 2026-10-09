@@ -21,8 +21,10 @@ import { logger } from '@/lib/logger';
 import { dofusDbFetch } from '@/lib/dofusdb-limiter';
 import {
     DOFUSDB_THROTTLE_MAX_REPLAYS,
+    LocalThrottleDeferredError,
     dofusDbFailureMessage,
     isLocalThrottle,
+    isLocalThrottleDeferred,
     throttleWaitMs,
 } from '@/lib/dofusdb-throttle';
 import { siphonAndCompressImage } from '@/lib/dofus-asset-siphon';
@@ -127,7 +129,11 @@ export async function siphonGameItemsBatchCore(
     }
 
     if (!res.ok) {
-        throw new Error(dofusDbFailureMessage(res.status, isLocalThrottle(res)));
+        // 🔶 Budget local épuisé malgré les rejeux ⇒ DIFFÉRÉ (reprise au prochain
+        // passage, filigrane inchangé), jamais une erreur de passe — même sémantique
+        // que `throttledPages` des référentiels. Seule une vraie panne DofusDB lève.
+        if (isLocalThrottle(res)) throw new LocalThrottleDeferredError(throttleWaitMs(res));
+        throw new Error(dofusDbFailureMessage(res.status, false));
     }
 
     const json = await res.json();
@@ -409,6 +415,12 @@ export async function siphonAllGameItemsCore(
 export interface GameItemsIncrementalResult extends GameItemsSiphonTotals {
     /** `true` = plafond atteint : la passe **doit reprendre** au même `skip` (aucune perte). */
     truncated: boolean;
+    /**
+     * 🔶 `true` = arrêt **propre** sur notre limite locale (budget partagé épuisé) : rien
+     * n'est en panne, la page est mise en attente et la passe suivante reprend au même
+     * `skip`, filigrane inchangé. L'appelant termine en `ok` avec la mention explicite.
+     */
+    deferred: boolean;
     /** Nouveau filigrane à mémoriser (ISO) — `null` si DofusDB n'expose pas d'`updatedAt`. */
     nextWatermark: string | null;
     /** Reprise de pagination (le filtre est déterministe : le même `skip` reprend au même endroit). */
@@ -442,6 +454,7 @@ export async function siphonGameItemsIncrementalCore(
     let total: number | null = null;
     let nextWatermark: string | null = null;
     let truncated = false;
+    let deferred = false;
     let hasMore = true;
 
     while (hasMore) {
@@ -449,7 +462,18 @@ export async function siphonGameItemsIncrementalCore(
             truncated = true;
             break;
         }
-        const batch = await siphonGameItemsBatchCore(skip, GAME_ITEMS_BATCH_SIZE, since);
+        let batch: GameItemsBatchResult;
+        try {
+            batch = await siphonGameItemsBatchCore(skip, GAME_ITEMS_BATCH_SIZE, since);
+        } catch (error) {
+            // 🔶 Notre budget est épuisé (passes concurrentes, 30 req/60 s partagées) :
+            // on s'arrête PROPREMENT — le filigrane n'avance pas, la reprise se fera au
+            // même `skip`. Toute autre erreur (DofusDB, DB) remonte et met la passe en échec.
+            if (!isLocalThrottleDeferred(error)) throw error;
+            deferred = true;
+            hasMore = false;
+            break;
+        }
         if (batch.total > 0) total = batch.total;
         inserted += batch.inserted;
         updated += batch.updated;
@@ -474,8 +498,8 @@ export async function siphonGameItemsIncrementalCore(
 
     logger.info(
         `[game-items-siphon] veille ciblée${since ? ` depuis ${since}` : " (sans filigrane)"} : ` +
-        `${inserted} créé(s) · ${updated} mis à jour · ${processed} analysé(s)${truncated ? " (plafond atteint, reprise au lot suivant)" : ""}`,
+        `${inserted} créé(s) · ${updated} mis à jour · ${processed} analysé(s)${truncated ? " (plafond atteint, reprise au lot suivant)" : ""}${deferred ? " (limite locale, page mise en attente)" : ""}`,
     );
-    return { inserted, updated, processed, batches, truncated, nextWatermark, nextSkip: skip };
+    return { inserted, updated, processed, batches, truncated, deferred, nextWatermark, nextSkip: skip };
 }
 

@@ -222,7 +222,9 @@ export default function BountyManager() {
     /** Réintègre un avis supprimé : il sort de la liste d'exclusion, le prochain siphon le recrée. */
     const handleRestoreBounty = async (dofusdbId: number, name: string | null) => {
         try {
-            const res = await restoreBountyAction(dofusdbId);
+            // 🔶 Le nom est transmis : les exclusions sans id (lignes historiques) se
+            // réintègrent par le nom normalisé (`restoreBountyAction`).
+            const res = await restoreBountyAction(dofusdbId, name);
             if (res.success && res.data) {
                 setIgnoredEntries(res.data.entries);
                 toast.success(`« ${name ?? dofusdbId} » réintégré — relancez le siphon pour le recréer`);

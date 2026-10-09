@@ -13,7 +13,7 @@
 > **Mesures (jamais supposées)** : ① « dj quête » = mode `QUETE` du post (`DjSearchMode`, `schema.prisma:3141`), pas le module quêtes ; ② `GuildEventType` portait déjà `SONGES_RUN`/`DUNGEON_FARM` (zéro migration) mais sans thème ni filtre ; ③ filigrane « Terminé » déjà présent sur `COMPLETED`/fin passée ; ④ `closeRunWithContributions` **supprime** la run ⇒ miroir figé avant ; ⑤ idempotence sur le rail `getImportedKralamoureIds`.
 > **Fait** : `src/lib/agenda-mirror.ts` (pure, 19 tests) + `src/server/agenda-mirror-sync.ts` (upsert idempotent, `WHERE` scopé, best-effort) branchés sur toutes les mutations DJ/Songes · modale lecture seule (panneau classes/succès/multi/objectifs + CTA origine, zéro bouton même admin) · cartes (badge Miroir, effectif, classes) · filtres + thèmes · mutations serveur refusées (`MIRROR_READONLY_ERROR`).
 > **Preuves** : **310 fichiers / 3 338 tests ✓** · `tsc` **0** · `eslint` **0 erreur** · `security:audit` ✓.
-> **Reste / ops (humain)** : `./scripts/deploy-cd.sh beta` (**0 migration**) + contrôle visuel · **R0** (P0 sécu) reste 1er · backfill rétroactif à trancher.
+> **Reste / ops (humain)** : `./scripts/deploy-cd.sh beta` (**0 migration**) + contrôle visuel · **R0** (P0 sécu) reste 1er · pas de backfill (décision user 09/10 : remplissage au fil de l'usage).
 > **File** : `docs/plans/FILE-EXECUTION.md` étape 2 → ✅.
 
 ## 🎯 Session 08/10/2026 (Rush Sylvestre — **one shot** : pictos réels, rail défilant, alignement en **lecture seule**, **table Dofus unique**, bruit Sentry) — **PR #858 mergée** · `dev` = `60f72a19`

@@ -80,7 +80,7 @@ description: File d'exécution unique — tous les chantiers (A→Q), un seul or
 | Étape | Chantier · lot | Sujet | Taille | Bloqué par |
 |---|---|---|---|---|
 | **1** | **G · R0** | P0 sécu : RBAC `calendar` (+ `bounties`, `relance`) | S | — |
-| **2** | **G · R1** | §4 agenda : miroir **lecture seule** DJ / Songes | M+ | — |
+| **2** | **G · R1** | ✅ **livré le 09/10/2026** — §4 agenda : miroir **lecture seule** DJ/Songes (**PR #866**) | M+ | — |
 | **3** | **G · R2** | §14 clôture raid + **no-show** (1 migration additive) | M/L | ⏸ **D1 + D2** |
 | **4** | **F · F-A** | Orphelins : lever les impasses capitaine / leader | S | ⏸ **D3** |
 | **5** | **J · J-1** | §12 services (clôture, inactivité, feedback, images, forum) | M | — |

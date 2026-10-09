@@ -302,6 +302,31 @@ export async function GET(
                 // API indisponible : repli declare ci-dessous.
             }
 
+            // Repli ESPACE D ICONE : certains appelants envoient un iconId et non un id d objet
+            // (Dofusbook : /api/assets-dofus/items/{iconId}?v=2). Mesure du 09/10/2026 : l id 10247
+            // n existe PAS comme objet DofusDB, mais img/items/10247.png existe (200) — sans ce repli
+            // le proxy renvoyait un placeholder et toute la galerie stuff etait vide. L API reste
+            // l autorite (garde d identite ci-dessus) : ce repli ne joue qu APRES un echec.
+            if (!downloaded) {
+                try {
+                    const iconPathRes = await fetch('https://api.dofusdb.fr/img/items/' + safeId + '.png', {
+                        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+                        signal: AbortSignal.timeout(6_000),
+                    });
+                    if (iconPathRes.ok) {
+                        const contentType = iconPathRes.headers.get('content-type') || '';
+                        if (contentType.startsWith('image/') || contentType.startsWith('application/octet-stream')) {
+                            const arrayBuffer = await iconPathRes.arrayBuffer();
+                            if (arrayBuffer.byteLength > 0 && arrayBuffer.byteLength <= MAX_IMAGE_BYTES) {
+                                inputBuffer = Buffer.from(arrayBuffer);
+                                downloaded = true;
+                            }
+                        }
+                    }
+                } catch {
+                    // Repli espace d icone indisponible : placeholder neutre plus bas.
+                }
+            }
             // Repli DECLARE (url= allowliste) joue APRES l autorite — meme regle que les monstres :
             // une URL perimee (apparence d un autre objet) ne peut plus passer devant la fiche DofusDB.
             if (!downloaded && safeUrlParam) {

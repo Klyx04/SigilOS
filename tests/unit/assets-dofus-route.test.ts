@@ -140,6 +140,25 @@ describe("GET /api/assets-dofus/[type]/[id] — garde-fous", () => {
         expect(res.headers.get("content-type")).toContain("svg");
     });
 
+    it("OBJET absent de DofusDB mais icône existante (Dofusbook envoie un iconId) → 200 webp", async () => {
+        const fetchMock = vi.fn((url: any) => {
+            const u = String(url);
+            // « img/items/10247.png » est l'icône demandée (espace d'iconId, cf. Dofusbook) —
+            // testée AVANT « /items/10247 » (cette URL contient la même sous-chaîne).
+            if (u.includes("/img/items/10247.png")) return Promise.resolve(imageResponse());
+            // L'id 10247 n'est PAS un objet DofusDB (garde d'identité : id ≠ 10247)…
+            if (u.includes("/items/10247")) return Promise.resolve(jsonResponse({ id: 999, iconId: 4242 }));
+            return Promise.resolve({ ok: false, status: 404, headers: new Headers(), json: async () => null } as any);
+        });
+        vi.stubGlobal("fetch", fetchMock);
+        mockExistsSync.mockReturnValue(false);
+
+        const res = await GET(req("http://localhost/api/assets-dofus/items/10247?v=2"), ctx("items", "10247"));
+
+        expect(res.status).toBe(200);
+        expect(res.headers.get("content-type")).toBe("image/webp");
+    });
+
     it("tout échoue → placeholder SVG 200 (pas 404, pas 500)", async () => {
         vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("down")));
         mockExistsSync.mockReturnValue(false);

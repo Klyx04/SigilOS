@@ -1017,13 +1017,11 @@ export async function deleteBountyAction(bountyId: string): Promise<ActionRespon
             /* La fiche de combat (sorts/butin/simulation) suit la suppression de l'avis. */
             await db.monsterStat.deleteMany({ where: { monsterId: bounty.dofusdbId } });
         }
-        /* 🛡️ Exclusion dès qu'un `dofusdbId` existe : c'est LA clé du siphon (`findUnique({
-           dofusdbId })` puis réécriture). Se fier à `isBountyMonster` laissait une porte ouverte —
-           une ligne portant un `dofusdbId` sans ce drapeau était réécrite à la passe suivante.
-           Une ligne purement historique (`dofusdbId` nul) n'est jamais recréée : rien à exclure. */
-        if (bounty.dofusdbId) {
-            addIgnoredBounty(bounty.dofusdbId, bounty.name);
-        }
+        /* 🛡️ Exclusion TOUJOURS enregistrée (08/10/2026 : même sans `dofusdbId`) : une ligne
+           purement historique (`dofusdbId` nul) supprimée sans exclusion était RECRÉÉE à la
+           passe suivante quand son nom figure dans les races DofusDB — l'exclusion par nom
+           (`dofusdbId: 0`, voir `bounty-ignore.ts`) ferme ce trou. */
+        addIgnoredBounty(bounty.dofusdbId ?? 0, bounty.name);
 
         await logGameDataWrite("delete-bounty", bounty.name, { dofusdbId: bounty.dofusdbId });
         revalidatePath('/god/game-data');
@@ -1038,15 +1036,17 @@ export async function deleteBountyAction(bountyId: string): Promise<ActionRespon
 }
 
 /** Réintègre un avis supprimé (le prochain siphon le recrée). */
-export async function restoreBountyAction(dofusdbId: number): Promise<ActionResponse<{ entries: IgnoredBountyEntry[] }>> {
+export async function restoreBountyAction(dofusdbId: number, name?: string | null): Promise<ActionResponse<{ entries: IgnoredBountyEntry[] }>> {
     try {
         const userId = await requireGameDataBounties();
         if (!userId) return { success: false, error: "Accès refusé" };
         const id = Math.floor(Number(dofusdbId) || 0);
-        if (id <= 0) return { success: false, error: "Identifiant invalide" };
+        // 🔶 Les exclusions sans id (`dofusdbId: 0`, lignes historiques) se réintègrent
+        // par le nom normalisé — voir `removeIgnoredBounty`.
+        if (id <= 0 && !String(name ?? "").trim()) return { success: false, error: "Identifiant invalide" };
 
-        const entries = removeIgnoredBounty(id);
-        await logGameDataWrite("restore-bounty", `dofusdbId-${id}`);
+        const entries = removeIgnoredBounty(id, name);
+        await logGameDataWrite("restore-bounty", id > 0 ? `dofusdbId-${id}` : `nom-${String(name ?? "").trim()}`);
         revalidatePath('/god/game-data');
         return { success: true, data: { entries } };
     } catch (error: any) {

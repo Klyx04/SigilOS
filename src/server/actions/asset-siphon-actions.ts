@@ -250,13 +250,16 @@ export async function triggerBatchAssetSiphonAction(
     targets: Array<{ id: number | string; name: string; dungeonName?: string; remoteUrl?: string }>,
     options: { forceRefresh?: boolean } = {}
 ): Promise<ActionResponse<{ siphoned: number; skipped: number; errors: number; details: string[] }>> {
-    if (!(await canManageSiphon())) {
-        return { success: false, error: 'Accès non autorisé' };
-    }
+    // 🛡️ Garde DANS le try (même règle que `warmClassSpellbook` ci-dessous : une
+    // exception du guard hors try = « An unexpected response… » opaque côté client).
+    try {
+        if (!(await canManageSiphon())) {
+            return { success: false, error: 'Accès non autorisé' };
+        }
 
-    if (!Array.isArray(targets) || targets.length === 0) {
-        return { success: false, error: 'Aucune cible sélectionnée' };
-    }
+        if (!Array.isArray(targets) || targets.length === 0) {
+            return { success: false, error: 'Aucune cible sélectionnée' };
+        }
 
     let siphoned = 0;
     let skipped = 0;
@@ -351,6 +354,11 @@ export async function triggerBatchAssetSiphonAction(
         success: true,
         data: { siphoned, skipped, errors, details },
     };
+    } catch (error: any) {
+        logger.error('[triggerBatchAssetSiphonAction] Error:', { error: error?.message });
+        const detail = error?.message ? ` : ${error.message}` : "";
+        return { success: false, error: `Siphon d'images impossible${detail}` };
+    }
 }
 
 export interface ClassSpellbookWarmResult {
@@ -372,15 +380,20 @@ export interface ClassSpellbookWarmResult {
  * déjà sur disque sautées sans appel réseau (`siphonAndCompressImage`).
  */
 export async function warmClassSpellbook(classId: number): Promise<ActionResponse<ClassSpellbookWarmResult>> {
-    if (!(await canManageSiphon())) {
-        return { success: false, error: 'Non autorisé' };
-    }
-    if (!Number.isInteger(classId) || classId < 1 || classId > 19) {
-        return { success: false, error: 'Classe invalide (1-19)' };
-    }
-
-    const className = getClassName(classId) || `Classe ${classId}`;
+    const fallbackName = `Classe ${classId}`;
+    // 🛡️ Garde DANS le try : une exception du guard (session, DB) hors try remonte
+    // en "An unexpected response was received from the server" côté client (mesuré sur
+    // la bêta le 08/10/2026 : 19/19 classes en échec opaque). Même règle que
+    // `siphonDungeonMonstersDatasetAction` (`game-data-admin-actions.ts`).
     try {
+        if (!(await canManageSiphon())) {
+            return { success: false, error: 'Non autorisé' };
+        }
+        if (!Number.isInteger(classId) || classId < 1 || classId > 19) {
+            return { success: false, error: 'Classe invalide (1-19)' };
+        }
+
+        const className = getClassName(classId) || fallbackName;
         const full = await fetchClassSpellsFull(classId);
         if (full.length === 0) {
             return { success: false, error: `Aucun sort récupéré pour ${className} (DofusDB injoignable ?)` };
@@ -422,6 +435,9 @@ export async function warmClassSpellbook(classId: number): Promise<ActionRespons
         };
     } catch (error: any) {
         logger.error('[warmClassSpellbook] Error:', { error: error?.message, classId });
-        return { success: false, error: `Warm impossible pour ${className}` };
+        // Le message interne est remonté (jamais d'échec muet) : c'est lui que le
+        // Journal God affiche au lieu d'un « An unexpected response… » opaque.
+        const detail = error?.message ? ` : ${error.message}` : "";
+        return { success: false, error: `Warm impossible pour ${fallbackName}${detail}` };
     }
 }

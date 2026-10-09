@@ -41,7 +41,7 @@ import { db } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 import { dofusdbFetch } from "@/lib/dofusdb-fetch";
 import { dofensiveFetch } from "@/lib/dofensive-fetch";
-import { getIgnoredBountyIds, isIgnoredBounty } from "@/lib/bounty-ignore";
+import { getIgnoredBountyIds, getIgnoredBountyNames, isIgnoredBounty, isIgnoredBountyName } from "@/lib/bounty-ignore";
 import { diffFields, recordGameDataChanges } from "@/lib/game-data-changelog";
 import { DB_READABLE, mapWithConcurrency, persistMonsterStat } from "@/lib/dofensive-sync";
 import { mergeDofensiveSpells, type DofensiveSpellCombat } from "@/lib/dofensive-spells";
@@ -253,8 +253,14 @@ export async function syncBounties(raceIds?: readonly number[]): Promise<BountyS
 
     // 3bis. EXCLUSIONS VOLONTAIRES (God « Supprimer cet avis ») : un avis supprimé ne doit pas
     //       réapparaître à la passe suivante — la liste d'exclusion fait foi (jamais de résurrection).
+    //       🔶 08/10/2026 : filtre sur l'id **ou** le nom normalisé. Le nom couvre les lignes
+    //       historiques supprimées sans `dofusdbId` (aucune exclusion n'était enregistrée pour
+    //       elles et le siphon les recréait) — voir `bounty-ignore.ts`.
     const ignoredIds = getIgnoredBountyIds();
-    const keptTargets = targets.filter((t) => !isIgnoredBounty(t.id, ignoredIds));
+    const ignoredNames = getIgnoredBountyNames();
+    const keptTargets = targets.filter(
+        (t) => !isIgnoredBounty(t.id, ignoredIds) && !isIgnoredBountyName(t.name, ignoredNames),
+    );
     result.ignored = targets.length - keptTargets.length;
 
     // 3ter. SLUGS PROPRES (décision user 27/09/2026 : « les avis ont un chiffre dans l'URL,

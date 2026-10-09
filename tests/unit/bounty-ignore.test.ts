@@ -9,6 +9,8 @@ import { describe, expect, it } from "vitest";
 
 import {
     IGNORED_BOUNTIES_PATH,
+    isIgnoredBounty,
+    isIgnoredBountyName,
     normalizeIgnoredBounties,
     parseIgnoredBounties,
     serializeIgnoredBounties,
@@ -88,5 +90,45 @@ describe("bounty-ignore — exclusions d'avis (God)", () => {
         const json = serializeIgnoredBounties([], new Date("n/a"));
         expect(JSON.parse(json).updatedAt).toBeNull();
         expect(serializeIgnoredBounties([])).toMatch(/"updatedAt": "\d{4}-\d{2}-\d{2}T/);
+    });
+
+    /**
+     * 🔶 08/10/2026 (bêta : un avis supprimé SANS `dofusdbId` — ligne historique — était
+     * recréé à la passe suivante car aucune exclusion n'était enregistrée). Une entrée
+     * sans id mais avec un nom est conservée (`dofusdbId: 0`) et le siphon filtre aussi
+     * sur le nom normalisé : aucune résurrection possible.
+     */
+    it("normalise : une entrée sans id mais avec un nom est CONSERVÉE (`dofusdbId: 0`)", () => {
+        expect(normalizeIgnoredBounties([
+            { dofusdbId: 0, name: "  Avigropol " },
+            { dofusdbId: null, name: "Ronce" },
+            { dofusdbId: 0 }, // sans nom : toujours jeté
+            { dofusdbId: -5, name: "Fantôme" }, // id invalide + nom : conservé par le nom
+        ])).toEqual([
+            // Tri par `dofusdbId` (stable : les sentinelles 0 gardent l'ordre d'insertion).
+            { dofusdbId: 0, name: "Avigropol", deletedAt: null },
+            { dofusdbId: 0, name: "Ronce", deletedAt: null },
+            { dofusdbId: 0, name: "Fantôme", deletedAt: null },
+        ]);
+    });
+
+    it("exclusion par nom : normalisation casse/espaces, jamais de faux positif", () => {
+        const names = ["avigropol", "ronce"];
+        expect(isIgnoredBountyName("  AVIGROPOL ", names)).toBe(true);
+        expect(isIgnoredBountyName("Ronce", names)).toBe(true);
+        expect(isIgnoredBountyName("Roncette", names)).toBe(false); // pas de sous-chaîne
+        expect(isIgnoredBountyName("", names)).toBe(false);
+        expect(isIgnoredBountyName(null, names)).toBe(false);
+        expect(isIgnoredBountyName("Avigropol", [])).toBe(false); // liste vide explicite (jamais le disque en test)
+    });
+
+    it("`getIgnoredBountyIds` ignore les entrées sans id (sentinelle 0 jamais filtrante)", () => {
+        // `getIgnoredBountyIds` lit le disque : on prouve la règle au niveau pur via
+        // `normalize` + filtre — la sentinelle 0 ne doit jamais devenir un filtre par id.
+        const normalized = normalizeIgnoredBounties([{ dofusdbId: 0, name: "Avigropol" }, 4834]);
+        const ids = normalized.map((e) => e.dofusdbId).filter((id) => id > 0);
+        expect(ids).toEqual([4834]);
+        expect(isIgnoredBounty(0, ids)).toBe(false);
+        expect(isIgnoredBounty(4834, ids)).toBe(true);
     });
 });

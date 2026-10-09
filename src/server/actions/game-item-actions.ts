@@ -460,11 +460,14 @@ export async function siphonGameItemsBatch(skip = 0, limit = 50): Promise<
         nextSkip: number;
     }>
 > {
-    if (!(await canManageGameItems())) {
-        return { success: false, error: 'Non autorisé' };
-    }
-
+    // 🛡️ Garde DANS le try : une exception du guard hors try remonte en
+    // « An unexpected response was received from the server » côté client
+    // (mesuré sur la bêta le 08/10/2026 sur les grimoires — même pattern ici).
     try {
+        if (!(await canManageGameItems())) {
+            return { success: false, error: 'Non autorisé' };
+        }
+
         const batch = await siphonGameItemsBatchCore(skip, limit);
 
         return {

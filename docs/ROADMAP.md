@@ -1549,9 +1549,11 @@ un même `ok` : ce sont deux causes opposées (attente vs échec), la distinctio
     de poussée** en cases) — aujourd'hui `SpellData.effects` n'est qu'un **texte** et
     `effectDetails` (label/durée/déclencheurs) ne porte **aucune valeur numérique** : aucune valeur
     ne doit être inventée.
-  - **Lot 3 — visuel premium** : prévisu de dégâts **optionnelle** (à activer) sur cible visée,
-    lisibilité des zones (dégradés/contours, pas seulement la couleur), accessibilité (daltonisme :
-    forme + couleur), palette documentée.
+  - **✅ Lot 3 — visuel premium & parité dégâts (LIVRÉ 09/10, PR #868)** : prévisu de dégâts
+    automatiquement rattachée aux sorts offensifs (y compris sorts portant des chaînes brutes comme
+    Kwakwa via `extractDamageFromLabel`), sélecteur de rang interactif (tranches Niv. 1 à 6) dans
+    la fiche boss, nettoyage des scories de balises Unity (`cleanDofusText`), et enrichissement
+    non destructif des passifs vides (`enrichPassiveIfNeeded` : Tal Kasha 4 effets 100% intact, Kwakwa enrichi).
 
 ## 🟠 Retours user (suite #202)
 

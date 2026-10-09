@@ -417,14 +417,16 @@ export async function getDofensiveMap(mapId: number | string): Promise<ActionRes
 // simulation (bien plus fiable que les spell-levels DofusDB incomplets).
 // Types partagés (client-safe) : src/lib/dofensive-spells.ts.
 
-/** Normalise la zone AoE d'un effet Dofensive (shape déduite du nom FR + taille/portée). */
+/** Normalise la zone AoE d'un effet Dofensive (shape déduite du nom FR + taille/portée + prédicats 3.7). */
 function normalizeZone(zone: any): DofensiveSpellZone | null {
     if (!zone || typeof zone !== "object") return null;
     const size = Math.max(0, Number(zone.Size) || 0);
     const range = Math.max(0, Number(zone.Range) || 0);
-    const lower = String(zone.Name ?? "").toLowerCase();
+    const name = String(zone.Name ?? "");
+    const lower = name.toLowerCase();
     let shape: DofensiveZoneShape = "Inconnue";
-    if (lower.includes("cercle")) shape = "Cercle";
+    if (lower.includes("cercle de distance") || lower.includes("anneau")) shape = "Cercle de distance";
+    else if (lower.includes("cercle")) shape = "Cercle";
     else if (lower.includes("ligne")) shape = "Ligne";
     else if (lower.includes("croix")) shape = "Croix";
     else if (lower.includes("cône") || lower.includes("cone")) shape = "Cône";
@@ -432,7 +434,12 @@ function normalizeZone(zone: any): DofensiveSpellZone | null {
     else if (lower.includes("rect")) shape = "Rectangle";
     else if (lower.includes("cellule") || lower.includes("proximité") || lower.includes("point")) shape = "Point";
     if (shape === "Inconnue" && size <= 0) shape = "Point";
-    return { shape, size, range };
+
+    const lineOfSightOnly = !!(zone.LineOfSightOnly ?? zone.IsLineOfSight ?? lower.includes("en ligne de vue uniquement"));
+    const includeCarriedEntities = !!(zone.IncludeCarriedEntities ?? lower.includes("inclus les entités portées"));
+    const presetOrientation = !!(zone.PresetOrientation ?? lower.includes("orientation prédéfinie"));
+
+    return { shape, size, range, lineOfSightOnly, includeCarriedEntities, presetOrientation };
 }
 
 /**
@@ -518,11 +525,15 @@ function collectEffectDetails(groups: any): DofensiveSpellEffect[] {
         for (const e of Array.isArray(group?.Effects) ? group.Effects : []) {
             const label = resolveTemplate(e?.Name, Array.isArray(e?.Parameters) ? e.Parameters : undefined);
             if (!label) continue;
+            const triggerDur = formatEffectDuration(e?.TriggerDuration);
+            const stateDesc = e?.StateDescription ?? e?.State?.Description ?? null;
             out.push({
                 label,
                 duration: formatEffectDuration(e?.Duration),
+                triggerDuration: triggerDur,
                 triggers: renderEffectTriggers(e),
                 masks: renderEffectMasks(e),
+                stateDescription: stateDesc,
                 damage: damageRangeOfEffect(e),
                 pushDistance: pushDistanceOfEffect(e),
             });
@@ -677,11 +688,16 @@ export async function getDofensiveSpells(
                 castTestLos: level.CastLineOfSight ?? true,
                 castInLine: level.CastInLine ?? false,
                 castInDiagonal: level.CastInDiagonal ?? false,
-                criticalChance: Number(level.CriticalProbability) || 0,
+                criticalChance: Math.min(100, Math.max(0, (Number(level.CriticalProbability) || 0) + (Number(level.CriticalProbability) > 0 ? (damageStats.criticalHit ?? 0) : 0))),
                 // 0 = pas de restriction (ne PAS forcer à 1 : afficherait un mauvais « 1×/tour »).
                 maxCastPerTurn: Number(level.MaxCastPerTurn) || 0,
                 maxCastPerTarget: Number(level.MaxCastPerTarget) || 0,
+                maxGlobalCastPerTurn: Number(level.MaxGlobalCastPerTurn) || undefined,
+                maxGlobalCastPerTarget: Number(level.MaxGlobalCastPerTarget) || undefined,
                 minCastInterval: Number(level.MinCastInterval) || 0,
+                needCellWithoutPortal: level.NeedCellWithoutPortal ? true : undefined,
+                needVisibleEntity: level.NeedVisibleEntity ? true : undefined,
+                hasProportionalDiagonal: level.HasProportionalDiagonal ? true : undefined,
                 description: String(spell.Description ?? "") || undefined,
                 grade: Number(level.Grade) || undefined,
                 effects,

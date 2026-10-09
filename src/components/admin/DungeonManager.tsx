@@ -65,6 +65,9 @@ interface Dungeon {
     isAnomalyBoss?: boolean | null;
     anomalyMapId?: number | null;
     anomalyFamily?: string | null;
+    /* Chantier « boss de raid » */
+    isRaidBoss?: boolean | null;
+    raidId?: string | null;
     achievements: { challengeId: string; challenge: { name: string; slug: string; iconUrl?: string | null } }[];
 }
 
@@ -117,6 +120,8 @@ export default function DungeonManager() {
         dofensiveDungeonName: "",
         isNoAchievement: false,
         isAnomalyBoss: false,
+        isRaidBoss: false,
+        raidId: "",
     });
 
     useEffect(() => {
@@ -239,6 +244,8 @@ export default function DungeonManager() {
             dofensiveDungeonName: "",
             isNoAchievement: false,
             isAnomalyBoss: false,
+            isRaidBoss: false,
+            raidId: "",
         });
     }
 
@@ -263,6 +270,8 @@ export default function DungeonManager() {
             dofensiveDungeonName: dungeon.dofensiveDungeonName || "",
             isNoAchievement: dungeon.isNoAchievement ?? false,
             isAnomalyBoss: dungeon.isAnomalyBoss ?? false,
+            isRaidBoss: dungeon.isRaidBoss ?? false,
+            raidId: dungeon.raidId || "",
         });
         setIsDialogOpen(true);
     }
@@ -274,9 +283,13 @@ export default function DungeonManager() {
             d.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
             d.bossName.toLowerCase().includes(searchQuery.toLowerCase());
         if (!matchSearch) return false;
-        // Filtre « type » : boss d'anomalie (siphonné) vs donjons classiques.
+        // Filtre « type » : boss d'anomalie, boss de raid, expéditions, quête ocre, donjon sans succès ou donjons classiques.
         if (selectedKind === "anomaly") return !!d.isAnomalyBoss;
-        if (selectedKind === "classic") return !d.isAnomalyBoss;
+        if (selectedKind === "raid") return !!d.isRaidBoss;
+        if (selectedKind === "expedition") return !!d.isExpedition;
+        if (selectedKind === "ocre") return !!d.isOcreQuest;
+        if (selectedKind === "no_achievement") return !!d.isNoAchievement;
+        if (selectedKind === "classic") return !d.isAnomalyBoss && !d.isRaidBoss && !d.isExpedition;
         return true;
     });
 
@@ -311,8 +324,8 @@ export default function DungeonManager() {
                     </Select>
                 </div>
 
-                {/* Type Filter (chantier boss d'anomalie) */}
-                <div className="w-full md:w-52">
+                {/* Type Filter */}
+                <div className="w-full md:w-56">
                     <Select value={selectedKind} onValueChange={setSelectedKind}>
                         <SelectTrigger className="bg-elevated border-border text-foreground">
                             <SelectValue placeholder="Filtrer par type" />
@@ -320,7 +333,11 @@ export default function DungeonManager() {
                         <SelectContent className="bg-surface border-border">
                             <SelectItem value="all">Tous les types</SelectItem>
                             <SelectItem value="classic">Donjons classiques</SelectItem>
+                            <SelectItem value="expedition">⚔️ Expéditions</SelectItem>
+                            <SelectItem value="ocre">🥚 Quête Ocre</SelectItem>
+                            <SelectItem value="no_achievement">🛡️ Donjons sans succès</SelectItem>
                             <SelectItem value="anomaly">🌀 Fiches Anomalies</SelectItem>
+                            <SelectItem value="raid">🐉 Boss de raid</SelectItem>
                         </SelectContent>
                     </Select>
                 </div>
@@ -445,6 +462,13 @@ export default function DungeonManager() {
                                                     Anomalie
                                                 </Badge>
                                             )}
+                                            {/* Chantier « boss de raid » */}
+                                            {dungeon.isRaidBoss && (
+                                                <Badge variant="outline" className="bg-purple-500/20 border-purple-500/30 text-purple-400 text-caption h-5 gap-1" title="Boss de raid">
+                                                    <ShieldAlert className="w-3 h-3 text-purple-400" />
+                                                    Raid
+                                                </Badge>
+                                            )}
                                             {dungeon.achievements.length > 0 && (
                                                 <Badge variant="outline" className="bg-warning/20 border-warning/30 text-warning text-caption h-5 gap-1">
                                                     <Trophy className="w-3 h-3" />
@@ -545,6 +569,17 @@ export default function DungeonManager() {
                                                     <Switch
                                                         checked={formData.isAnomalyBoss}
                                                         onCheckedChange={(checked) => setFormData({ ...formData, isAnomalyBoss: checked })}
+                                                    />
+                                                </label>
+                                                {/* Chantier « boss de raid » */}
+                                                <label className="flex items-center justify-between gap-3 text-xs text-muted-foreground cursor-pointer">
+                                                    <span className="flex items-center gap-1.5">
+                                                        <ShieldAlert className="w-4 h-4 text-purple-400" />
+                                                        Boss de raid
+                                                    </span>
+                                                    <Switch
+                                                        checked={formData.isRaidBoss}
+                                                        onCheckedChange={(checked) => setFormData({ ...formData, isRaidBoss: checked })}
                                                     />
                                                 </label>
                                             </div>

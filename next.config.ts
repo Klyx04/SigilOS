@@ -142,6 +142,18 @@ const nextConfig: NextConfig = {
     '/**': [
       './node_modules/sharp/**/*',
       './node_modules/@img/**/*',
+      // Données du guide Rush Sylvestre : l'image *standalone* ne copie PAS `src/`
+      // (mesuré le 08/10/2026 : `/app/src/data` absent) alors que le seed du guide les
+      // lit au runtime (`seedRushSylvestreFromGuide`, bouton God « Importer ») et que
+      // les CLI de maintenance les prennent en argument ⇒ sans ces 2 fichiers, l'import
+      // du guide échoue sur la bêta et la prod.
+      './src/data/rush-sylvestre-guide.json',
+      './src/data/rush-sylvestre-guide.enriched.json',
+      // Dépendances des CLI de maintenance (`scripts/seed-*.mjs`, `scripts/prune-*.mjs`)
+      // absentes du *standalone* parce que le serveur ne les importe pas : minuscules,
+      // mais leur absence fait échouer tout script lancé dans le conteneur.
+      './node_modules/dotenv/**/*',
+      './node_modules/@prisma/adapter-pg/**/*',
     ],
   },
   experimental: {

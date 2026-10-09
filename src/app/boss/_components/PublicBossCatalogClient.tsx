@@ -25,6 +25,7 @@ const RAW_TYPE_FILTERS = [
   "anomalie",
   "titan",
   "bounty",
+  "raid",
 ] as const;
 
 type TypeFilter = (typeof RAW_TYPE_FILTERS)[number];
@@ -119,6 +120,7 @@ export function PublicBossCatalogClient({ bosses }: PublicBossCatalogClientProps
     { value: "anomalie", label: t.bossPage.anomalieType },
     { value: "titan", label: t.bossPage.titanType },
     { value: "bounty", label: t.bossPage.bountyType },
+    { value: "raid", label: locale === "en" ? "Raid Boss" : "Boss de raid" },
   ];
 
   const levelOptions = RAW_LEVEL_RANGES.map((r, i) => {
@@ -134,7 +136,7 @@ export function PublicBossCatalogClient({ bosses }: PublicBossCatalogClientProps
     const q = search.trim().toLowerCase();
 
     return bosses.filter((b) => {
-      if (b.type !== "boss" && b.type !== "titan" && b.type !== "anomalie" && b.type !== "bounty") return false;
+      if (b.type !== "boss" && b.type !== "titan" && b.type !== "anomalie" && b.type !== "bounty" && b.type !== "raid") return false;
       if (selectedType !== "all" && b.type !== selectedType) return false;
       const lvl = b.level ?? 0;
       if (lvl < range.min || lvl > range.max) return false;

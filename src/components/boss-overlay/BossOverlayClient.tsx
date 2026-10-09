@@ -14,6 +14,7 @@ import {
   Move,
   Search,
   Shield,
+  ShieldAlert,
   Sparkles,
   Swords,
   Users,
@@ -39,6 +40,7 @@ import { SpellData, SpellRangeGrid } from "@/components/succes/SpellRangeGrid";
 import { OverlayPinNotice } from "@/components/overlay-pin-notice";
 import { BossMechanicsView, type BossPassiveData } from "@/components/boss/BossMechanicsView";
 import { formatDofusEffectLine } from "@/lib/dofus-effects-formatter";
+import { encycloProperties } from "@/lib/dofus-encyclo";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -48,6 +50,7 @@ interface MonsterStats {
   imageUrl?: string;
   passive?: BossPassiveData;
   unity?: any;
+  encyclo?: any;
   grades?: {
     level: number;
     lifePoints: number;
@@ -63,6 +66,10 @@ interface MonsterStats {
     mpRemoval?: number;
     apDodge?: number;
     mpDodge?: number;
+    power?: number;
+    damage?: number;
+    healBonus?: number;
+    criticalHit?: number;
     resists?: {
       neutral?: number;
       earth?: number;
@@ -93,7 +100,7 @@ interface DungeonFamily {
   monsters: FamilyMember[];
 }
 
-type CatalogFilter = "boss" | "anomalie" | "monstre" | "titan" | "bounty";
+type CatalogFilter = "boss" | "anomalie" | "raid" | "monstre" | "titan" | "bounty";
 type OverlayTab = "info" | "sorts" | "sim" | "loot";
 
 // ─── MonsterImage ─────────────────────────────────────────────────────────────
@@ -521,6 +528,8 @@ export function BossOverlayClient({
       pool = pool.filter((e) => e.type === "boss");
     } else if (catalogFilter === "anomalie") {
       pool = pool.filter((e) => e.type === "anomalie");
+    } else if (catalogFilter === "raid") {
+      pool = pool.filter((e) => e.type === "raid");
     } else if (catalogFilter === "monstre") {
       pool = pool.filter((e) => e.type === "monstre");
     } else if (catalogFilter === "titan") {
@@ -614,6 +623,14 @@ export function BossOverlayClient({
               <Sparkles className="w-2.5 h-2.5" /> {isEn ? "Ochre" : "Ocre"}
             </span>
           )}
+          {/* Boss de raid */}
+          {selected?.type === "raid" && (
+            <span
+              className="inline-flex items-center gap-1 text-[10px] text-purple-300/90 shrink-0 font-medium"
+            >
+              <ShieldAlert className="w-2.5 h-2.5 text-purple-400" /> {isEn ? "Raid" : "Raid"}
+            </span>
+          )}
         </div>
 
       </div>
@@ -646,10 +663,11 @@ export function BossOverlayClient({
           </div>
 
           {/* Filtres du catalogue : contrôle segmenté unique, état actif neutre */}
-          <div className="grid grid-cols-5 gap-0.5 rounded-lg bg-white/[0.05] p-0.5">
+          <div className="grid grid-cols-6 gap-0.5 rounded-lg bg-white/[0.05] p-0.5">
             {([
               { id: "boss" as CatalogFilter, label: isEn ? "Bosses" : "Boss" },
               { id: "anomalie" as CatalogFilter, label: isEn ? "Anomalies" : "Anomalies" },
+              { id: "raid" as CatalogFilter, label: isEn ? "Raids" : "Raids" },
               { id: "bounty" as CatalogFilter, label: isEn ? "Bounties" : "Avis" },
               { id: "monstre" as CatalogFilter, label: isEn ? "Monsters" : "Monstres" },
               { id: "titan" as CatalogFilter, label: isEn ? "Titans" : "Titans" },
@@ -936,36 +954,96 @@ export function BossOverlayClient({
                   ))}
                 </div>
 
-                {/* Caractéristiques avancées (Tacle, Fuite, Esquives, Retraits, Initiative) */}
-                {(currentGrade.tackle !== undefined || currentGrade.tackleBlock !== undefined) && (
-                  <div className="grid grid-cols-4 gap-1.5 p-2 rounded-lg bg-black/40 border border-white/[0.06] text-[10px] font-mono">
-                    <div className="flex flex-col items-center">
-                      <span className="text-white/40 text-[9px] uppercase">{isEn ? "Lock" : "Tacle"}</span>
-                      <span className="text-white font-semibold tabular-nums mt-0.5">
-                        {currentGrade.tackle ?? currentGrade.tackleBlock ?? "—"}
-                      </span>
+                {/* Caractéristiques avancées officielles (Tacle, Fuite, Esquives, Retraits, Puissance, Soin, Initiative) */}
+                {(currentGrade.tackle !== undefined || currentGrade.tackleBlock !== undefined || currentGrade.apDodge !== undefined || currentGrade.power !== undefined) && (
+                  <div className="space-y-1.5 p-2 rounded-lg bg-black/40 border border-white/[0.06] text-[10px] font-mono">
+                    <div className="grid grid-cols-4 gap-1.5">
+                      <div className="flex flex-col items-center">
+                        <span className="flex items-center gap-1 text-white/40 text-[9px] uppercase">
+                          <img src="/assets/dofus/stats/tacle.png" alt="" className="w-3 h-3 object-contain" />
+                          {isEn ? "Lock" : "Tacle"}
+                        </span>
+                        <span className="text-white font-semibold tabular-nums mt-0.5">
+                          {currentGrade.tackle ?? currentGrade.tackleBlock ?? "—"}
+                        </span>
+                      </div>
+                      <div className="flex flex-col items-center">
+                        <span className="flex items-center gap-1 text-white/40 text-[9px] uppercase">
+                          <img src="/assets/dofus/stats/fuite.png" alt="" className="w-3 h-3 object-contain" />
+                          {isEn ? "Dodge" : "Fuite"}
+                        </span>
+                        <span className="text-white font-semibold tabular-nums mt-0.5">
+                          {currentGrade.evade ?? currentGrade.tackleEvade ?? "—"}
+                        </span>
+                      </div>
+                      <div className="flex flex-col items-center">
+                        <span className="flex items-center gap-1 text-white/40 text-[9px] uppercase">
+                          <img src="/assets/dofus/stats/esquivePA.png" alt="" className="w-3 h-3 object-contain" />
+                          {isEn ? "AP Dodge" : "Esq PA"}
+                        </span>
+                        <span className="text-white font-semibold tabular-nums mt-0.5">
+                          {currentGrade.apDodge ?? "—"}
+                        </span>
+                      </div>
+                      <div className="flex flex-col items-center">
+                        <span className="flex items-center gap-1 text-white/40 text-[9px] uppercase">
+                          <img src="/assets/dofus/stats/esquivePM.png" alt="" className="w-3 h-3 object-contain" />
+                          {isEn ? "MP Dodge" : "Esq PM"}
+                        </span>
+                        <span className="text-white font-semibold tabular-nums mt-0.5">
+                          {currentGrade.mpDodge ?? "—"}
+                        </span>
+                      </div>
                     </div>
-                    <div className="flex flex-col items-center">
-                      <span className="text-white/40 text-[9px] uppercase">{isEn ? "Dodge" : "Fuite"}</span>
-                      <span className="text-white font-semibold tabular-nums mt-0.5">
-                        {currentGrade.evade ?? currentGrade.tackleEvade ?? "—"}
-                      </span>
-                    </div>
-                    <div className="flex flex-col items-center">
-                      <span className="text-white/40 text-[9px] uppercase">{isEn ? "AP Dodge" : "Esq PA"}</span>
-                      <span className="text-white font-semibold tabular-nums mt-0.5">
-                        {currentGrade.apDodge ?? "—"}
-                      </span>
-                    </div>
-                    <div className="flex flex-col items-center">
-                      <span className="text-white/40 text-[9px] uppercase">{isEn ? "MP Dodge" : "Esq PM"}</span>
-                      <span className="text-white font-semibold tabular-nums mt-0.5">
-                        {currentGrade.mpDodge ?? "—"}
-                      </span>
-                    </div>
+
+                    {/* Ligne secondaire : Retraits, Puissance, Soins (si présents) */}
+                    {(currentGrade.apRemoval !== undefined || currentGrade.mpRemoval !== undefined || (currentGrade.power !== undefined && currentGrade.power > 0) || (currentGrade.healBonus !== undefined && currentGrade.healBonus > 0)) && (
+                      <div className="grid grid-cols-4 gap-1.5 pt-1.5 border-t border-white/[0.05]">
+                        {currentGrade.apRemoval !== undefined && (
+                          <div className="flex flex-col items-center">
+                            <span className="flex items-center gap-1 text-white/40 text-[9px] uppercase">
+                              <img src="/assets/dofus/stats/retraitPA.png" alt="" className="w-3 h-3 object-contain" />
+                              {isEn ? "AP Red" : "Ret PA"}
+                            </span>
+                            <span className="text-white font-semibold tabular-nums mt-0.5">{currentGrade.apRemoval}</span>
+                          </div>
+                        )}
+                        {currentGrade.mpRemoval !== undefined && (
+                          <div className="flex flex-col items-center">
+                            <span className="flex items-center gap-1 text-white/40 text-[9px] uppercase">
+                              <img src="/assets/dofus/stats/retraitPM.png" alt="" className="w-3 h-3 object-contain" />
+                              {isEn ? "MP Red" : "Ret PM"}
+                            </span>
+                            <span className="text-white font-semibold tabular-nums mt-0.5">{currentGrade.mpRemoval}</span>
+                          </div>
+                        )}
+                        {currentGrade.power !== undefined && currentGrade.power > 0 && (
+                          <div className="flex flex-col items-center">
+                            <span className="flex items-center gap-1 text-white/40 text-[9px] uppercase">
+                              <img src="/assets/dofus/stats/puissance.png" alt="" className="w-3 h-3 object-contain" />
+                              {isEn ? "Power" : "Puissance"}
+                            </span>
+                            <span className="text-white font-semibold tabular-nums mt-0.5">{currentGrade.power}</span>
+                          </div>
+                        )}
+                        {currentGrade.healBonus !== undefined && currentGrade.healBonus > 0 && (
+                          <div className="flex flex-col items-center">
+                            <span className="flex items-center gap-1 text-white/40 text-[9px] uppercase">
+                              <img src="/assets/dofus/stats/soin.png" alt="" className="w-3 h-3 object-contain" />
+                              {isEn ? "Heal" : "Soin"}
+                            </span>
+                            <span className="text-white font-semibold tabular-nums mt-0.5">{currentGrade.healBonus}</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
                     {currentGrade.initiative !== undefined && currentGrade.initiative > 0 && (
-                      <div className="col-span-4 flex items-center justify-between pt-1 border-t border-white/[0.05] px-1 text-[10px]">
-                        <span className="text-white/40">{isEn ? "Initiative" : "Initiative"}</span>
+                      <div className="flex items-center justify-between pt-1 border-t border-white/[0.05] px-1 text-[10px]">
+                        <span className="flex items-center gap-1 text-white/40">
+                          <img src="/assets/dofus/stats/initiative.png" alt="" className="w-3 h-3 object-contain" />
+                          {isEn ? "Initiative" : "Initiative"}
+                        </span>
                         <span className="text-amber-300/90 font-semibold tabular-nums">
                           {currentGrade.initiative.toLocaleString(locale === "en" ? "en-US" : "fr-FR")}
                         </span>
@@ -973,6 +1051,25 @@ export function BossOverlayClient({
                     )}
                   </div>
                 )}
+
+                {/* Immunités et restrictions de combat (Dofensive / DofusDB) */}
+                {stats?.encyclo && (() => {
+                  const props = encycloProperties(stats.encyclo, currentGrade?.level ?? null);
+                  if (props.length === 0) return null;
+                  return (
+                    <div className="flex flex-wrap gap-1 pt-0.5">
+                      {props.map((p, idx) => (
+                        <span
+                          key={idx}
+                          className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-medium bg-red-500/10 text-red-300 border border-red-500/20"
+                        >
+                          <ShieldAlert className="w-2.5 h-2.5 text-red-400 shrink-0" />
+                          {p}
+                        </span>
+                      ))}
+                    </div>
+                  );
+                })()}
 
                 {/* Résistances — 5 lignes, une couleur par élément (donnée de jeu) */}
                 {resists && (

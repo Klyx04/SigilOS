@@ -962,6 +962,9 @@ model Dungeon {
   isAnomalyBoss        Boolean               @default(false) // Boss d'anomalie temporelle (Gardiens des anomalies)
   anomalyMapId         Int?                  // Map de combat Dofensive (résolue par le siphon)
   anomalyFamily        String?               // Famille/race Dofensive du gardien (affichage)
+  /* Chantier « boss de raid » (Créatures des raids, ex. Willorque, Mureine, Gigalodon...) */
+  isRaidBoss           Boolean               @default(false) // Boss de raid
+  raidId               String?               // Identifiant du raid associé (ex. "gigalodon", "jardin-eternel")
   djSearchPosts        DjSearchPost[]
   achievements         DungeonAchievement[]
   userProgress         UserDungeonProgress[]
@@ -973,6 +976,7 @@ model Dungeon {
   @@index([isExpedition])
   @@index([isEventDungeon])
   @@index([isAnomalyBoss])
+  @@index([isRaidBoss])
   @@index([dofusdbId])
 }
 

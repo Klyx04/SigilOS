@@ -293,7 +293,7 @@ export interface BestiaireEntry {
     dofensiveDungeonName?: string | null;
     isOcreQuest: boolean;
     /* 🎯 `bounty` = avis de recherche (chantier 16/09/2026) : ni donjon, ni titan, ni monstre de salle. */
-    type: 'boss' | 'monstre' | 'titan' | 'anomalie' | 'bounty';
+    type: 'boss' | 'monstre' | 'titan' | 'anomalie' | 'bounty' | 'raid';
 }
 
 /**
@@ -322,6 +322,7 @@ export async function getBestiaireCatalog(): Promise<ActionResponse<BestiaireEnt
                 isOcreQuest: true,
                 isAnomalyBoss: true,
                 anomalyFamily: true,
+                isRaidBoss: true,
             }
         });
 
@@ -340,8 +341,8 @@ export async function getBestiaireCatalog(): Promise<ActionResponse<BestiaireEnt
                 dofensiveMonsterName: d.dofensiveMonsterName ?? null,
                 dofensiveDungeonName: d.dofensiveDungeonName ?? null,
                 isOcreQuest: !!d.isOcreQuest,
-                // 🌀 Boss d'anomalie : catégorie dédiée (jamais mélangée aux boss de donjon).
-                type: d.isAnomalyBoss ? ('anomalie' as const) : ('boss' as const),
+                // 🐉 Boss de raid & 🌀 Boss d'anomalie : catégories dédiées
+                type: d.isRaidBoss ? ('raid' as const) : d.isAnomalyBoss ? ('anomalie' as const) : ('boss' as const),
             }));
 
         // Fail-soft : le seed référence des visuels `/game-data/...` qui n'existent

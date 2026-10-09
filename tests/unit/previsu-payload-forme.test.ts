@@ -33,7 +33,6 @@ const codeOf = (p: string) =>
         .replace(/\/\*[\s\S]*?\*\//g, "")
         .replace(/(^|[^:])\/\/[^\n]*/g, "$1");
 
-const SYNC_RAW = readFileSync("src/lib/dofensive-sync.ts", "utf8");
 const SPELLS_RAW = readFileSync("src/lib/dofensive-spells.ts", "utf8");
 const SYNC = codeOf("src/lib/dofensive-sync.ts");
 const ACTIONS = codeOf("src/lib/dofensive-api.ts");
@@ -43,18 +42,19 @@ describe("version de FORME du payload stocké — règle pure", () => {
         expect(SPELLS_RAW).toMatch(/0 ligne sur 256/);
         expect(SPELLS_RAW).toMatch(/v2\*\* = lot 3a/);
         expect(SPELLS_RAW).toMatch(/v3\*\* = lot 4/);
+        expect(SPELLS_RAW).toMatch(/v4\*\* = MAJ 3.7/);
     });
 
-    it("la version courante est la v3 (lot 4 : jets critiques par ligne)", () => {
-        expect(COMBAT_SPELLS_PAYLOAD_VERSION).toBe(3);
-        expect(SPELLS_RAW).toMatch(/COMBAT_SPELLS_PAYLOAD_VERSION = 3;/);
+    it("la version courante est la v4 (MAJ 3.7 : puissance, soins, triggers, zones 3.7)", () => {
+        expect(COMBAT_SPELLS_PAYLOAD_VERSION).toBe(4);
+        expect(SPELLS_RAW).toMatch(/COMBAT_SPELLS_PAYLOAD_VERSION = 4;/);
     });
 
     it("toute forme antérieure (ou absente) est obsolète — la courante et les suivantes non", () => {
-        for (const version of [undefined, null, "", NaN, 0, 1, 1.9, "1", 2, "2"]) {
+        for (const version of [undefined, null, "", NaN, 0, 1, 1.9, "1", 2, "2", 3, "3"]) {
             expect(isCombatSpellsPayloadOutdated(version)).toBe(true);
         }
-        for (const version of [3, 3.0, "3", 4, 99]) {
+        for (const version of [4, 4.0, "4", 5, 99]) {
             expect(isCombatSpellsPayloadOutdated(version)).toBe(false);
         }
     });

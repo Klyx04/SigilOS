@@ -153,7 +153,14 @@ describe("dofensive-actions — sorts Dofensive (données de combat)", () => {
             maxCastPerTurn: 2,
             minCastInterval: 1,
         });
-        expect(spell?.zone).toEqual({ shape: "Cercle", size: 2, range: 0 });
+        expect(spell?.zone).toEqual({
+            shape: "Cercle",
+            size: 2,
+            range: 0,
+            lineOfSightOnly: false,
+            includeCarriedEntities: false,
+            presetOrientation: false,
+        });
     });
 
     it("getDofensiveSpells inclut le StartingSpell du Grade (ex. Instinct maternel) et garde maxCastPerTurn 0", async () => {
@@ -217,7 +224,14 @@ describe("dofensive-actions — sorts Dofensive (données de combat)", () => {
         expect(starting?.criticalChance).toBe(15);
         expect(starting?.effects).toEqual(["101 dommages Eau"]);
         expect(starting?.imageUrl).toBe("https://cdn.static.dofensive.com/dofensive/spells/2676");
-        expect(starting?.zone).toEqual({ shape: "Point", size: 0, range: 0 }); // Cellule ciblée → Point
+        expect(starting?.zone).toEqual({
+            shape: "Point",
+            size: 0,
+            range: 0,
+            lineOfSightOnly: false,
+            includeCarriedEntities: false,
+            presetOrientation: false,
+        }); // Cellule ciblée → Point
         // Nouveaux champs enrichis : grade + version structurée des effets.
         expect(starting?.grade).toBe(1);
         expect(starting?.effectDetails).toEqual([
@@ -230,6 +244,8 @@ describe("dofensive-actions — sorts Dofensive (données de combat)", () => {
                 // aucune caractéristique) — c'est la donnée affichée par la prévisu de dégâts.
                 damage: { element: "water", min: 101, max: 101 },
                 pushDistance: null,
+                triggerDuration: null,
+                stateDescription: null,
             },
         ]);
         expect(starting?.hasCriticalEffects).toBe(false);
@@ -326,6 +342,8 @@ describe("dofensive-actions — sorts Dofensive (données de combat)", () => {
             // Un état n'inflige aucun dommage : aucune valeur devinée (jamais de chiffre faux).
             damage: null,
             pushDistance: null,
+            triggerDuration: null,
+            stateDescription: null,
         });
         expect(spell?.effectDetails?.[1]).toEqual({
             label: "-10 Fuite",
@@ -334,6 +352,8 @@ describe("dofensive-actions — sorts Dofensive (données de combat)", () => {
             masks: [],
             damage: null,
             pushDistance: null,
+            triggerDuration: null,
+            stateDescription: null,
         });
         // Aucun effet critique → « Aucun effet critique » côté UI.
         expect(spell?.hasCriticalEffects).toBe(false);

@@ -16,9 +16,13 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { DjPostCreateModal } from "@/components/dungeon-finder/DjPostCreateModal";
@@ -572,6 +576,7 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
           isDone={isSeqCompleted}
           isLightMode={false}
           guildId={guildId}
+          hideProvidedResources={!!hideSeqCompleted}
           onClose={() => setDetailOpen(false)}
         />,
         document.body
@@ -871,7 +876,7 @@ const MilestoneRow = memo(function MilestoneRow({ ms, isCompleted, completedStep
                       isInfoSequence(s) ? (
                         <RushInfoSequenceBanner key={s.id} seq={s} accentColor={c} />
                       ) : (
-                        <SequenceRow key={s.id} seq={s} ms={ms} isSeqCompleted={completedStepsSet.has(s.id)} focusedSeqId={focusedSeqId} accentColor={c} userAlignmentInfo={userAlignmentInfo} onToggleSeq={()=>onToggleSequence(ms,s.id)} onDungeonClick={onDungeonClick} isFirstVisible={s.id===firstVisibleSeqId}/>
+                        <SequenceRow key={s.id} seq={s} ms={ms} isSeqCompleted={completedStepsSet.has(s.id)} focusedSeqId={focusedSeqId} accentColor={c} userAlignmentInfo={userAlignmentInfo} onToggleSeq={()=>onToggleSequence(ms,s.id)} onDungeonClick={onDungeonClick} isFirstVisible={s.id===firstVisibleSeqId} hideSeqCompleted={hideDone}/>
                       )
                     ))
                   )}
@@ -966,9 +971,9 @@ function CharacterSelectorDropdown({selectedCharacter,mainPseudo,mainClass,mules
   const router=useRouter();
   const currentLabel=selectedCharacter==="PRINCIPAL"?mainPseudo:selectedCharacter;
   const selClass=selectedCharacter==="PRINCIPAL"?mainClass:mules.find((m:any)=>m.pseudo===selectedCharacter)?.classe||null;
-  const selIcon=selClass?(()=>{const d=getClass(selClass);return d?<img src={d.icon} alt={d.name} className="w-4 h-4 object-contain"/>:null;})():selectedCharacter==="PRINCIPAL"?<Crown className="w-3.5 h-3.5 text-warning"/>:<Users className="w-3.5 h-3.5 text-info"/>;
+  const selIcon=selClass?(()=>{const d=getClass(selClass);return d?<img src={d.icon} alt={d.name} className="w-4 h-4 object-contain"/>:null;})():selectedCharacter==="PRINCIPAL"?<Crown className="size-3.5 text-warning"/>:<Users className="size-3.5 text-info"/>;
   const handleSelect=(char:string)=>{const params=new URLSearchParams(window.location.search);if(char==="PRINCIPAL")params.delete("character");else params.set("character",char);router.push(`${window.location.pathname}?${params.toString()}`);};
-  return <DropdownMenu><DropdownMenuTrigger asChild><Button variant="outline" role="combobox" aria-expanded={false} className="bg-background/60 border-border hover:border-success/20 text-foreground justify-between w-full min-w-0 max-w-full transition-all rounded-[4px] h-9 px-2.5 cursor-pointer text-xs font-semibold"><div className="flex items-center gap-2 truncate min-w-0">{selIcon}<span className="truncate">{currentLabel}</span></div><ChevronDown className="w-3 h-3 opacity-30 shrink-0"/></Button></DropdownMenuTrigger><DropdownMenuContent align="end" className="bg-background/95 border-border text-foreground min-w-[180px] rounded-[4px] p-1.5  z-[100]"><DropdownMenuItem onClick={()=>handleSelect("PRINCIPAL")} className={`flex items-center gap-2.5 px-2.5 py-2 rounded-lg cursor-pointer transition-colors ${selectedCharacter==="PRINCIPAL"?"bg-elevated text-success":"hover:bg-elevated"}`}><div className="w-6 h-6 rounded-lg bg-warning/10 flex items-center justify-center border border-warning/20 shrink-0">{mainClass?(()=>{const d=getClass(mainClass);return d?<img src={d.icon} alt="" className="w-4 h-4 object-contain"/>:null;})():<Crown className="w-3 h-3 text-warning"/>}</div><div className="flex flex-col text-left"><span className="text-xs font-bold">{mainPseudo}</span><span className="text-caption text-muted-foreground font-medium ">{mainClass||"Principal"}</span></div></DropdownMenuItem>{mules.length>0&&<div className="h-px bg-elevated my-1"/>}{mules.map((mule:any)=><DropdownMenuItem key={mule.pseudo} onClick={()=>handleSelect(mule.pseudo)} className={`flex items-center gap-2.5 px-2.5 py-2 rounded-lg cursor-pointer transition-colors ${selectedCharacter===mule.pseudo?"bg-elevated text-success":"hover:bg-elevated"}`}><div className="w-6 h-6 rounded-lg bg-info/10 flex items-center justify-center border border-info/20 shrink-0">{mule.classe?(()=>{const d=getClass(mule.classe);return d?<img src={d.icon} alt="" className="w-4 h-4 object-contain"/>:null;})():<Users className="w-3 h-3 text-info"/>}</div><div className="flex flex-col text-left"><span className="text-xs font-bold">{mule.pseudo}</span><span className="text-caption text-muted-foreground font-medium ">Niv. {mule.level||200}{mule.classe?` • ${mule.classe}`:""}</span></div></DropdownMenuItem>)}</DropdownMenuContent></DropdownMenu>;
+  return <DropdownMenu><DropdownMenuTrigger asChild><Button variant="outline" size="sm" role="combobox" aria-expanded={false} aria-label="Choisir le personnage actif" className="justify-between gap-2 min-w-0 max-w-full text-xs font-medium cursor-pointer"><span className="flex items-center gap-2 truncate min-w-0">{selIcon}<span className="truncate">{currentLabel}</span></span><ChevronDown className="size-3 opacity-40 shrink-0"/></Button></DropdownMenuTrigger><DropdownMenuContent align="end" className="bg-background/95 border-border text-foreground min-w-[200px] rounded-[4px] p-1.5 z-[100]"><DropdownMenuRadioGroup value={selectedCharacter} onValueChange={handleSelect}><DropdownMenuRadioItem value="PRINCIPAL" className="gap-2.5 py-2 cursor-pointer">{mainClass?(()=>{const d=getClass(mainClass);return d?<img src={d.icon} alt="" className="w-4 h-4 object-contain"/>:null;})():<Crown className="size-3.5 text-warning"/>}<span className="flex flex-col text-left"><span className="text-xs font-medium">{mainPseudo}</span><span className="text-caption text-muted-foreground">{mainClass||"Principal"}</span></span></DropdownMenuRadioItem>{mules.length>0&&<DropdownMenuSeparator className="my-1 h-px bg-border"/>}{mules.map((mule:any)=><DropdownMenuRadioItem key={mule.pseudo} value={mule.pseudo} className="gap-2.5 py-2 cursor-pointer">{mule.classe?(()=>{const d=getClass(mule.classe);return d?<img src={d.icon} alt="" className="w-4 h-4 object-contain"/>:null;})():<Users className="size-3.5 text-info"/>}<span className="flex flex-col text-left"><span className="text-xs font-medium">{mule.pseudo}</span><span className="text-caption text-muted-foreground">Niv. {mule.level||200}{mule.classe?` • ${mule.classe}`:""}</span></span></DropdownMenuRadioItem>)}</DropdownMenuRadioGroup></DropdownMenuContent></DropdownMenu>;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -1908,6 +1913,21 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
               <ClipboardList className="w-3.5 h-3.5 text-muted-foreground" />
               Pense-bête
             </button>
+
+            {/* Interrupteur de densité — SORTI du menu « Options » : il pilote à la fois les
+                étapes affichées ET les ressources (rail « Objets requis », modale, fiche
+                détail), donc son état devait être lisible d'un coup d'œil. */}
+            <button
+              type="button"
+              onClick={() => setHideDone(v => !v)}
+              aria-pressed={hideDone}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[4px] border text-xs font-medium transition-colors ${hideDone ? "border-accent/40 text-accent bg-accent/[0.06]" : "border-border text-muted-foreground hover:text-foreground hover:border-foreground/20"}`}
+              title={hideDone ? "Réafficher les étapes terminées et leurs ressources" : "Masquer les étapes terminées et les ressources déjà fournies"}
+              aria-label={hideDone ? "Afficher les étapes terminées" : "Masquer les étapes terminées"}
+            >
+              {hideDone ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+              {hideDone ? "Afficher" : "Masquer"}
+            </button>
           </div>
         </div>
 
@@ -1939,37 +1959,39 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
                 {(() => {
                   const isMain = selectedCharacter === "PRINCIPAL";
                   return (
-                    <span
-                      className={
-                        isMain
-                          ? "inline-flex items-center gap-1 text-caption font-medium text-warning border border-warning/30 px-1.5 py-0.5 rounded-[3px] shrink-0"
-                          : "inline-flex items-center gap-1 text-caption font-medium text-info border border-info/30 px-1.5 py-0.5 rounded-[3px] shrink-0"
-                      }
+                    <Badge
+                      variant="outline"
+                      className={`gap-1 rounded-[3px] px-1.5 py-0.5 text-caption font-medium shrink-0 ${isMain ? "border-warning/40 text-warning" : "border-info/40 text-info"}`}
                       title={isMain ? "Personnage principal" : "Mule"}
                     >
-                      {isMain ? <Crown className="w-3 h-3" /> : <Users className="w-3 h-3" />}
+                      {isMain ? <Crown /> : <Users />}
                       {isMain ? "Main" : "Mule"}
-                    </span>
+                    </Badge>
                   );
                 })()}
                 <div className="min-w-0 shrink">
                   {localProfile?.pseudoDofus ? (
                     <CharacterSelectorDropdown selectedCharacter={selectedCharacter} mainPseudo={localProfile.pseudoDofus} mainClass={localProfile?.dofusClass||null} mules={mules||[]} guildId={guildId} />
                   ) : (
-                    <Link href={`/dashboard/${guildId}/profile`} className="inline-flex items-center gap-1.5 text-caption font-medium text-warning hover:text-warning transition-colors bg-warning/10 hover:bg-warning/20 px-2.5 py-1.5 rounded-lg border border-warning/30">
-                      <Pencil className="w-3 h-3" />
-                      Lier mon pseudo
-                      <ExternalLink className="w-3 h-3" />
-                    </Link>
+                    <Button variant="outline" size="sm" asChild className="text-xs font-medium text-warning hover:border-warning/40 hover:bg-warning/10 hover:text-warning">
+                      <Link href={`/dashboard/${guildId}/profile`} title="Le pseudo Dofus se renseigne sur la page Profil">
+                        <Pencil />
+                        Lier mon pseudo
+                        <ExternalLink />
+                      </Link>
+                    </Button>
                   )}
                 </div>
-                <button
+                <Button
+                  variant="outline"
+                  size="icon-sm"
                   onClick={() => setResetModalOpen(true)}
-                  className="flex items-center justify-center p-2 rounded-lg text-caption font-medium bg-danger/10 hover:bg-danger/20 border border-danger/20 text-danger transition-all shadow-sm shrink-0"
+                  className="shrink-0 text-danger hover:border-danger/40 hover:bg-danger/10 hover:text-danger"
                   title={`Réinitialiser ${selectedCharacter}`}
+                  aria-label={`Réinitialiser la progression de ${selectedCharacter}`}
                 >
-                  <RotateCcw className="w-3.5 h-3.5" />
-                </button>
+                  <RotateCcw />
+                </Button>
               </div>
             </div>
           </div>
@@ -1990,10 +2012,10 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
                     }
                   </button>
                 ) : (
-                  <button onClick={()=>setMetamobLinkOpen(true)} className="flex items-center gap-1.5 text-caption font-medium text-warning hover:text-foreground transition-colors bg-warning/10 hover:bg-warning/20 px-2.5 py-1 rounded-lg border border-warning/30">
-                    <img src="/assets/icons/ocre.png" alt="" className="w-3.5 h-3.5 object-contain" />
+                  <Button variant="outline" size="sm" onClick={()=>setMetamobLinkOpen(true)} className="text-xs font-medium text-warning hover:border-warning/40 hover:bg-warning/10 hover:text-warning">
+                    <img src="/assets/icons/ocre.png" alt="" className="w-4 h-4 object-contain" />
                     Lier Metamob
-                  </button>
+                  </Button>
                 )}
               </div>
             </div>
@@ -2145,10 +2167,6 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="bg-background/95 border-border text-foreground min-w-[220px] rounded-[4px] p-1.5 z-[var(--z-dropdown)]">
-          <DropdownMenuItem onClick={() => setHideDone(v => !v)} className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg cursor-pointer">
-            {hideDone ? <Eye className="w-4 h-4 text-success" /> : <EyeOff className="w-4 h-4 text-muted-foreground" />}
-            <span className="text-xs font-bold">{hideDone ? "Afficher tout" : "Masquer les terminées"}</span>
-          </DropdownMenuItem>
           <DropdownMenuItem onClick={toggleIncognito} className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg cursor-pointer">
             <Ghost className={`w-4 h-4 ${incognito ? "text-info" : "text-muted-foreground"}`} />
             <span className="text-xs font-bold">{incognito ? "Mode discret : actif" : "Mode discret"}</span>
@@ -2307,17 +2325,23 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
           </div>
         )}
       </div>
-      {/* Rail de droite : MÊME recette que le guide public (mesure du 22/09/2026 :
-          barre collante + rail plus haut que le viewport ⇒ sa fin, « Objets requis »,
-          restait hors écran et le rail ne défilait pas → il est borné au viewport et
-          défile en interne). Corrigé le 08/10 sur le dashboard, qui ne l'avait pas eu. */}
-      <div className="rush-sidebar sticky top-20 max-h-[calc(100vh-6rem)] overflow-y-auto custom-scrollbar pr-1">
+      {/* Rail borné au SCROLLPORT de `<main>` et défilant en interne.
+          ⚠️ Mesure Playwright du 08/10/2026 : le TopNav fait `h-14` = 3,5 rem et il est
+          HORS du conteneur de défilement (le footer, lui, est dedans) ⇒ le scrollport
+          vaut `100dvh − 3,5 rem`. L'ancien `top-20` + `max-h-[calc(100vh-6rem)]` faisait
+          déborder le rail de **40 px** sous la ligne (fin « Objets requis » inatteignable :
+          il était épinglé et son bas coupé). Ici : `top-4` (1 rem sous le topnav) et
+          `100dvh − 5,5 rem` (3,5 topnav + 1 rem de haut + 1 rem d'air) ⇒ bas du rail à
+          884 px pour un scrollport de 900 ✓. Le rail est masqué sous 900 px par
+          `.rush-content-grid`, d'où le `custom-scrollbar` desktop. */}
+      <div className="rush-sidebar sticky top-4 max-h-[calc(100dvh-5.5rem)] overflow-y-auto custom-scrollbar pr-1">
         <RushChapterSidebar
           milestones={contentMilestones as any}
           completedSeqIds={allCompletedSeqIds}
           activeMilestoneId={(() => { for (const [msId] of bookmarksByMs) { return msId; } return null; })()}
           selectedChapter={(isAllChapters ? "ALL" : currentPage?.chapterNum ?? undefined) as any}
           onSelectChapter={setActiveChapter}
+          hideProvidedResources={hideDone}
         />
       </div>
     </div>
@@ -2429,6 +2453,7 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
         isLightMode={false}
         checkedKeys={resourceChecks}
         onToggleCheck={handleToggleResourceCheck}
+        hideProvidedResources={hideDone}
         onClose={() => setResourcesModalOpen(false)}
       />
     )}

@@ -800,3 +800,30 @@ salon de notification est un **forum** (un post de forum est un thread).
 2. **Renouveler GHCR_TOKEN** (expire ≈ début nov 2026) — cf. section 3b.
 
 
+
+---
+
+## 🌿 Guide Rush Sylvestre — rafraîchir les données d'un environnement (bêta / prod)
+
+Le guide vit **en base** (`GuideMilestone` / `GuideSequence`), seedé depuis le **dataset versionné**
+`src/data/rush-sylvestre-guide.json` (source unique, committée). Trois commandes, dans cet ordre,
+**par environnement** :
+
+| Étape | Commande | Effet |
+|---|---|---|
+| 1. Seed / re-seed | bouton **« Importer »** de `/god/rush-sylvestre` **ou** `node scripts/seed-rush-sylvestre-cli.mjs --apply` | crée/enrichit les blocs et quêtes **sans perte** (appariement par bloc + nom normalisé) |
+| 2. Doublons (contrôle) | `node scripts/prune-rush-guide-orphans.mjs` | **ne supprime rien**, liste les quêtes absentes du dataset |
+| 3. Doublons (suppression) | `node scripts/prune-rush-guide-orphans.mjs --apply` | supprime ces quêtes (les **blocs** absents sont seulement signalés) |
+
+- **Pourquoi le prune** : un dataset qui renomme une quête laisse l'ancienne ligne **à côté** de la
+  nouvelle. Mesuré le 08/10/2026 sur `rush-sylvestre` : **26 lignes fantômes** d'un import antérieur
+  (quêtes reprises « à point final »), dont **13 affichant encore des tags `item` « Objet »** —
+  visibles **jusque dans le guide public**.
+- **Dans le conteneur** : l'image *standalone* embarque désormais le dataset **et** les deux petites
+  dépendances des CLI (`dotenv`, `@prisma/adapter-pg`) — `next.config.ts`
+  (`outputFileTracingIncludes`) : l'image ne copie pas `src/` (`/app/src/data` était **absent**,
+  mesuré) et **le bouton d'import du guide échouait donc sur la bêta et la prod**.
+- **Hors environnement** : `scripts/enrich-rush-guide-items.mjs` (trame siphonée → vrais noms + ids
+  d'objets) est un outil de **session** — il lui faut la trame HTML ; on le joue là où le siphon est
+  fait, **avant** de committer le dataset (il n'écrit rien en base : re-seeder ensuite).
+

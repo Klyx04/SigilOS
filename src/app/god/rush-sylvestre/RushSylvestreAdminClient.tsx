@@ -660,15 +660,17 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
               onClick={(e) => e.stopPropagation()}
               className="w-full max-w-md bg-zinc-900 border border-white/10 rounded-2xl p-6 space-y-4">
               <div className="flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-purple-400" />
-                <h3 className="text-base font-black text-white">Importer le guide Laniyelle</h3>
+                <Sparkles className="w-4 h-4 text-emerald-400" />
+                <h3 className="text-base font-black text-white">Importer le Guide Rush Sylvestre Unifié</h3>
               </div>
-              <p className="text-sm text-zinc-400">Aperçu (aucune écriture). L'import est <b>non destructif</b> : il ne crée que les jalons/quêtes absents.</p>
-              <div className="grid grid-cols-2 gap-2 text-sm">
+              <p className="text-sm text-zinc-400">Aperçu du dataset unifié (Dofusyelle + Tougli + SigilOS Engine). L'import est <b>non destructif</b> : il ne crée que les jalons/quêtes absents.</p>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-sm">
                 <PreviewStat label="Jalons" value={importPreview.plan.milestones} />
                 <PreviewStat label="Quêtes" value={importPreview.plan.sequences} />
                 <PreviewStat label="Donjons" value={importPreview.plan.dungeons} />
                 <PreviewStat label="Objets" value={importPreview.plan.items} />
+                <PreviewStat label="Prérequis" value={(importPreview.plan as any)?.prereqs ?? 0} />
+                <PreviewStat label="À créer" value={importPreview.totalToCreate ?? 0} />
               </div>
               <div className="flex justify-end gap-2 pt-2">
                 <button onClick={() => setImportPreview(null)} disabled={importing}

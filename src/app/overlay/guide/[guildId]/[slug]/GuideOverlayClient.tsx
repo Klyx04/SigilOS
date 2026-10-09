@@ -1185,6 +1185,7 @@ export default function GuideOverlayClient({
           allResources={allResources}
           isLightMode={isLightMode}
           totalCount={allResources.length}
+          hideProvidedResources={hideCompleted}
           onClose={() => setShowResources(false)}
         />
       )}
@@ -1213,6 +1214,7 @@ export default function GuideOverlayClient({
           isDone={(completedStepsByMs.get(detailSeq.ms.id) || new Set<string>()).has(detailSeq.seq.id)}
           isLightMode={isLightMode}
           guildId={guildId}
+          hideProvidedResources={hideCompleted}
           onClose={() => setDetailSeq(null)}
         />
       )}

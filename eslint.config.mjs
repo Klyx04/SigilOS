@@ -84,6 +84,7 @@ const eslintConfig = defineConfig([
     "scripts/**",
     "prisma/**",
     "tmp/**",
+    "temp/**",
     "artifacts/**",
     // Legacy / scratch / debug — jamais lintés
     "cloudflare-workers/**",

@@ -15,12 +15,19 @@ export type DofensiveZoneShape =
     | "Perpend"
     | "Rectangle"
     | "Point"
+    | "Cercle de distance"
     | "Inconnue";
 
 export interface DofensiveSpellZone {
     shape: DofensiveZoneShape;
     size: number;
     range: number;
+    /** 'en ligne de vue uniquement' */
+    lineOfSightOnly?: boolean;
+    /** 'inclus les entités portées' */
+    includeCarriedEntities?: boolean;
+    /** 'orientation prédéfinie' */
+    presetOrientation?: boolean;
 }
 
 /** Effet Dofensive structuré (durée, déclencheurs, masques d'affectation). */
@@ -29,10 +36,14 @@ export interface DofensiveSpellEffect {
     label: string;
     /** Durée formatée : « infini », « pour N tour(s) », ou null (instantané). */
     duration: string | null;
+    /** Durée d'un déclencheur dans la description d'un effet (ex. « pour 2 tours »). */
+    triggerDuration?: string | null;
     /** Déclencheurs (ex. « L'effet est déclenché lorsque la cible reçoit des dommages d'une invocation »). */
     triggers: string[];
     /** Masques d'affectation (ex. « Affecte le lanceur (même en-dehors de la zone d'effet) »). */
     masks: string[];
+    /** Description de l'état si disponible */
+    stateDescription?: string | null;
     /**
      * **Jet de dégâts numérique** (déjà calculé par les caractéristiques du monstre) — c'est la
      * donnée de la prévisu sur la grille : `null` pour un effet qui n'inflige pas de dommages
@@ -69,8 +80,18 @@ export interface DofensiveSpellCombat {
     maxCastPerTurn: number;
     /** Nombre de lancers par cible. */
     maxCastPerTarget: number;
+    /** Nombre de lancers max par tour au global (équipe). */
+    maxGlobalCastPerTurn?: number;
+    /** Nombre de lancers max par cible au global (équipe). */
+    maxGlobalCastPerTarget?: number;
     /** Cooldown (tours). */
     minCastInterval: number;
+    /** Nécessite une case sans portail. */
+    needCellWithoutPortal?: boolean;
+    /** Nécessite une entité visible. */
+    needVisibleEntity?: boolean;
+    /** Diagonale proportionnelle. */
+    hasProportionalDiagonal?: boolean;
     /** Description Dofensive du sort (ex. « Ce sort est lancé une seule fois par l'ennemi lorsqu'il rejoint le combat. »). */
     description?: string;
     /** Grade/Niveau Dofensive du level utilisé (« Niv. X »). */
@@ -162,9 +183,11 @@ export function pickSpellLevelForMonster<T extends { Grade?: number | null }>(
  *   · **v1** = historique (aucun champ de jet) ;
  *   · **v2** = lot 3a « prévisu de dégâts » (`effectDetails[].damage` + `.pushDistance`) ;
  *   · **v3** = lot 4 « jets critiques & règle de zone 3.6 » (`effectDetails[].damage.critMin`
- *     + `.critMax`, rattachés par ÉLÉMENT depuis `GroupCriticalEffects`).
+ *     + `.critMax`, rattachés par ÉLÉMENT depuis `GroupCriticalEffects`) ;
+ *   · **v4** = MAJ 3.7 (Puissance, Soins, triggers/durations, Cercles de distance,
+ *     maxGlobalCast, needCellWithoutPortal, needVisibleEntity, hasProportionalDiagonal).
  */
-export const COMBAT_SPELLS_PAYLOAD_VERSION = 3;
+export const COMBAT_SPELLS_PAYLOAD_VERSION = 4;
 
 /** `true` quand le payload stocké n'a pas (ou plus) la forme attendue par le code courant. */
 export function isCombatSpellsPayloadOutdated(payloadVersion: unknown): boolean {

@@ -17,6 +17,13 @@ interface QuestItemResourceGridProps {
   onToggleItem?: (id: string) => void;
   /** Variante sobre pour les grilles par quête : titre seul, sans compteur ni filtre */
   showHeaderMeta?: boolean;
+  /**
+   * Le toggle « Masquer les étapes faites » du guide PRIME sur cette grille : quand il est
+   * actif, les objets déjà fournis (portés par une étape cochée, donc dans `completedIds`)
+   * sortent de la liste et le filtre local « Restantes/Toutes » n'est plus rendu — un seul
+   * état pour une même chose, sur les 3 surfaces (guide public, interne, overlay).
+   */
+  hideProvided?: boolean;
 }
 
 /**
@@ -29,6 +36,7 @@ export function QuestItemResourceGrid({
   completedIds = EMPTY_SET,
   onToggleItem,
   showHeaderMeta = true,
+  hideProvided = false,
 }: QuestItemResourceGridProps) {
   const [filterMode, setFilterMode] = useState<"remaining" | "all">("remaining");
   const [copiedName, setCopiedName] = useState<string | null>(null);
@@ -49,12 +57,14 @@ export function QuestItemResourceGrid({
   }, [items, completedIds]);
 
   const visibleItems = useMemo(() => {
+    // Le toggle du guide prime (cf. `hideProvided`) : les objets déjà fournis sortent.
+    if (hideProvided) return parsedItems.filter((it) => !it.isDone);
     if (!showHeaderMeta) return parsedItems;
     if (filterMode === "remaining") {
       return parsedItems.filter((it) => !it.isDone);
     }
     return parsedItems;
-  }, [parsedItems, filterMode, showHeaderMeta]);
+  }, [parsedItems, filterMode, showHeaderMeta, hideProvided]);
 
   const remainingCount = parsedItems.filter((it) => !it.isDone).length;
 
@@ -89,7 +99,7 @@ export function QuestItemResourceGrid({
           )}
         </div>
 
-        {showHeaderMeta && (
+        {showHeaderMeta && !hideProvided && (
           <div className="flex items-center gap-1 rounded-[4px] border border-border bg-elevated p-0.5">
           <button
             type="button"

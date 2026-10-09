@@ -82,6 +82,9 @@ const DungeonFormSchema = z.object({
     isNoAchievement: z.boolean().default(false),
     /* Chantier « boss d'anomalie » : coché en God (le contenu lui-même est siphonné). */
     isAnomalyBoss: z.boolean().default(false),
+    /* Chantier « boss de raid » : coché en God. */
+    isRaidBoss: z.boolean().default(false),
+    raidId: z.string().optional().or(z.literal("")),
 });
 
 // --- Helper: Check super-admin access ---
@@ -419,7 +422,7 @@ export async function createDungeon(
 
     try {
         const validated = DungeonFormSchema.parse(data);
-        const { challengeIds, isNoAchievement, isAnomalyBoss, ...dungeonData } = validated;
+        const { challengeIds, isNoAchievement, isAnomalyBoss, isRaidBoss, raidId, ...dungeonData } = validated;
 
         // Slug public `/boss/<slug>` : slugifié, et suffixé automatiquement s'il est
         // déjà pris (« minotoror », « minotoror-2 »).
@@ -432,6 +435,8 @@ export async function createDungeon(
                 slug,
                 isNoAchievement: !!isNoAchievement,
                 isAnomalyBoss: !!isAnomalyBoss,
+                isRaidBoss: !!isRaidBoss,
+                raidId: raidId || null,
                 dpnlUrl: dungeonData.dpnlUrl || null,
                 dofuspourlesnoobsUrl: dungeonData.dofuspourlesnoobsUrl || null,
                 dofensiveUrl: dungeonData.dofensiveUrl || null,
@@ -490,7 +495,7 @@ export async function updateDungeon(
 
     try {
         const validated = DungeonFormSchema.parse(data);
-        const { challengeIds, isNoAchievement, isAnomalyBoss, ...dungeonData } = validated;
+        const { challengeIds, isNoAchievement, isAnomalyBoss, isRaidBoss, raidId, ...dungeonData } = validated;
 
         // Update dungeon and sync achievements
         const dungeon = await db.$transaction(async (tx) => {
@@ -511,6 +516,8 @@ export async function updateDungeon(
                     ...slugUpdate,
                     isNoAchievement: !!isNoAchievement,
                     isAnomalyBoss: !!isAnomalyBoss,
+                    isRaidBoss: !!isRaidBoss,
+                    raidId: raidId || null,
                     dpnlUrl: dungeonData.dpnlUrl || null,
                     dofuspourlesnoobsUrl: dungeonData.dofuspourlesnoobsUrl || null,
                     dofensiveUrl: dungeonData.dofensiveUrl || null,

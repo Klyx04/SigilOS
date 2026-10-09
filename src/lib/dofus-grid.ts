@@ -207,7 +207,7 @@ export function losToXY(u: number, v: number): DofusPos {
 // au lancer), là où le code les dessinait en croix (5 cases) ou, non calibrées, en case unique.
 
 export interface SpellZoneInput {
-    shape: "Cercle" | "Croix" | "Ligne" | "Cône" | "Perpend" | "Rectangle" | "Point" | "Inconnue";
+    shape: "Cercle" | "Croix" | "Ligne" | "Cône" | "Perpend" | "Rectangle" | "Point" | "Cercle de distance" | "Inconnue";
     size: number;
     range: number;
 }
@@ -262,6 +262,16 @@ export function spellZoneCells(opts: {
                     }
                 }
                 break;
+            case "Cercle de distance": {
+                const minD = zone.range || 0;
+                for (let y = 0; y < rows; y++) {
+                    for (let x = 0; x < cols; x++) {
+                        const d = Math.abs(x - target.x) + Math.abs(y - target.y);
+                        if (d >= minD && d <= size) add(x, y);
+                    }
+                }
+                break;
+            }
             case "Croix":
                 for (let i = -size; i <= size; i++) {
                     add(target.x + i, target.y);
@@ -314,6 +324,16 @@ export function spellZoneCells(opts: {
                 }
             }
             break;
+        case "Cercle de distance": {
+            const minD = zone.range || 0;
+            for (let y = 0; y < rows; y++) {
+                for (let x = 0; x < cols; x++) {
+                    const d = distance(target, { x, y });
+                    if (d >= minD && d <= size) add(x, y);
+                }
+            }
+            break;
+        }
         case "Croix":
             for (let i = -size; i <= size; i++) {
                 const p1 = losToXY(t.x + i, t.y);

@@ -412,7 +412,7 @@ describe("game-data — veille ciblée & bilan de passe", () => {
         expect(core).toContain("name, level, description, typeId, imageSrc, typeName, effects, hasRecipe,");
     });
 
-    it("le worker n'avance le filigrane que sur une passe complète, et écrit le bilan", () => {
+    it("le worker n'avance le filigrane que sur une passe complète (ni tronquée ni différée), et écrit le bilan", () => {
         const worker = read("src/workers/game-data-worker.ts");
         expect(worker).toContain("job.data?.incremental === true");
         // 🔶 08/10/2026 — passe tronquée OU différée (limite locale) : le filigrane est

@@ -46,7 +46,7 @@ import {
 } from "@/lib/dofus-grid";
 
 export interface SpellZone {
-    shape: "Cercle" | "Croix" | "Ligne" | "Cône" | "Perpend" | "Rectangle" | "Point" | "Inconnue";
+    shape: "Cercle" | "Croix" | "Ligne" | "Cône" | "Perpend" | "Rectangle" | "Point" | "Cercle de distance" | "Inconnue";
     size: number;
     range: number;
 }

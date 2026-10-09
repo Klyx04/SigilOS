@@ -35,32 +35,13 @@ import { RushOverlayOcreModal } from "./components/RushOverlayOcreModal";
 import { buildOcrePlan, type OcrePanelData } from "@/lib/ocre-soul-stones";
 import { RushOverlayTutorialModal } from "./components/RushOverlayTutorialModal";
 import { OverlayPinNotice } from "@/components/overlay-pin-notice";
+import { dofusMetaIndex, type RushDofusMeta } from "@/lib/rush-dofus-meta";
 
-// Dofus defs pour récupération des visuels d'œufs
-const DOFUS_DEFS: Record<string, { label: string; imageUrl: string; color: string }> = {
-  argente: { label: "Argenté", imageUrl: "/module-dofus/Dofus_Argente.png", color: "#a8c0d6" },
-  argente_scintillant: { label: "Arg. Scintillant", imageUrl: "/module-dofus/Dofus_Argente_Scintillant.png", color: "#c0c0c0" },
-  cawotte: { label: "Cawotte", imageUrl: "/module-dofus/Dofus_Cawotte.png", color: "#f59e0b" },
-  dokoko: { label: "Dokoko", imageUrl: "/module-dofus/Dofus_Dokoko.png", color: "#a3e635" },
-  emeraude: { label: "Émeraude", imageUrl: "/module-dofus/Dofus_Emeraude.png", color: "#10b981" },
-  pourpre: { label: "Pourpre", imageUrl: "/module-dofus/Dofus_Pourpre.png", color: "#ef4444" },
-  turquoise: { label: "Turquoise", imageUrl: "/module-dofus/Dofus_Turquoise.png", color: "#06b6d4" },
-  vulbis: { label: "Vulbis", imageUrl: "/module-dofus/Dofus_Vulbis.png", color: "#f97316" },
-  ocre: { label: "Ocre", imageUrl: "/assets/icons/ocre.png", color: "#eab308" },
-  ebene: { label: "Ébène", imageUrl: "/module-dofus/Dofus_Ebene.png", color: "#6366f1" },
-  ivoire: { label: "Ivoire", imageUrl: "/module-dofus/Dofus_Ivoire.png", color: "#f1f5f9" },
-  abyssal: { label: "Abyssal", imageUrl: "/module-dofus/Dofus_Abyssal.png", color: "#3b82f6" },
-  sylvestre: { label: "Sylvestre", imageUrl: "/module-dofus/Dofus_Sylvestre.png", color: "#39bc95" },
-  dolmanax: { label: "Dolmanax", imageUrl: "/module-dofus/Dofus_Dolmanax.png", color: "#ef4444" },
-  des_glaces: { label: "Des Glaces", imageUrl: "/module-dofus/Dofus_Des_Glaces.png", color: "#93c5fd" },
-  du_cauchemar: { label: "Du Cauchemar", imageUrl: "/module-dofus/Dofus_Du_Cauchemar.png", color: "#7c3aed" },
-  cauchemar: { label: "Du Cauchemar", imageUrl: "/module-dofus/Dofus_Du_Cauchemar.png", color: "#7c3aed" },
-  des_veilleurs: { label: "Des Veilleurs", imageUrl: "/module-dofus/Dofus_Veilleur.png", color: "#38bdf8" },
-  domakuro: { label: "Domakuro", imageUrl: "/module-dofus/Dofus_Domakuro.png", color: "#84cc16" },
-  dorigami: { label: "Dorigami", imageUrl: "/module-dofus/Dofus_Dorigami.png", color: "#f472b6" },
-  tachete: { label: "Tacheté", imageUrl: "/module-dofus/Dofus_Tachete.png", color: "#c084fc" },
-  dom_de_pin: { label: "Dom de Pin", imageUrl: "/module-dofus/Dom_De_Pin.png", color: "#a3e635" },
-};
+// Dofus defs pour récupération des visuels d'œufs — SOURCE UNIQUE
+// (`src/lib/rush-dofus-meta.ts`). Cette copie-ci divergeait des quatre autres
+// (mesuré le 08/10/2026 : `argente` #a8c0d6 vs #a1a1aa, `pourpre` #ef4444 vs
+// #a855f7, `ebene` #6366f1 vs #52525b, `sylvestre` #39bc95 vs #d4a017).
+const DOFUS_DEFS: Record<string, RushDofusMeta> = dofusMetaIndex();
 
 type Props = {
   guildId?: string;

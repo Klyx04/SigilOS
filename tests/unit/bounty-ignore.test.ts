@@ -132,3 +132,39 @@ describe("bounty-ignore — exclusions d'avis (God)", () => {
         expect(isIgnoredBounty(4834, ids)).toBe(true);
     });
 });
+
+describe("bounty — orphelins visibles dans God (pur, sans disque)", () => {
+    /**
+     * 🔶 B2 (09/10/2026) : l'instantané du siphon moins ce qui vient d'être exclu —
+     * le composant God n'a qu'à afficher. Importé depuis `@/lib/bounty` (pur,
+     * client-safe), jamais depuis `bounty-ignore` (accès disque, cf. incident 22/09).
+     */
+    it("soustrait les exclusions par id ET par nom, sans jamais jeter le reste", async () => {
+        const { filterVisibleBountyOrphans } = await import("@/lib/bounty");
+        const snapshot = [
+            { id: "a", dofusdbId: 99999, name: "Faux Avis", slug: "faux-avis" },
+            { id: "b", dofusdbId: null, name: "Vieux Dopeul", slug: "vieux-dopeul" },
+            { id: "c", dofusdbId: 123, name: "Vrai Gars", slug: "vrai-gars" },
+            { id: "", dofusdbId: 7, name: "Sans id God", slug: "x" },
+        ];
+        expect(filterVisibleBountyOrphans(snapshot, [99999], ["vieux dopeul"]).map((o) => o.id))
+            .toEqual(["c"]);
+        expect(filterVisibleBountyOrphans(snapshot, [], []).map((o) => o.id))
+            .toEqual(["a", "b", "c"]);
+        expect(filterVisibleBountyOrphans(null, [1], ["x"])).toEqual([]);
+    });
+
+    it("libellés courts des 5 types (pastilles du filtre God)", async () => {
+        const { BOUNTY_RACE_SHORT, bountyRaceShortLabel } = await import("@/lib/bounty");
+        expect(BOUNTY_RACE_SHORT).toEqual({
+            32: "Classiques",
+            90: "Frigost",
+            127: "Dimensions",
+            147: "Alignés",
+            156: "Sufokia",
+        });
+        expect(bountyRaceShortLabel(90)).toBe("Frigost");
+        expect(bountyRaceShortLabel(999, "Repli")).toBe("Repli");
+        expect(bountyRaceShortLabel(null)).toBe("Avis de recherche");
+    });
+});

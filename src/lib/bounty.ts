@@ -14,6 +14,11 @@
  * 96 avis (38 + 21 + 15 + 19 + 3, 0 doublon) · niveaux **1 → 1600** · 81 sous-zones ·
  * 15 avis sans sous-zone · 5 sans sort · **maps sauvages non exposées par Dofensive**
  * (grille `Cells` = stub) ⇒ carte de simulation = **grille vide**, jamais une carte inventée.
+ *
+ * Périmètre verrouillé le 09/10/2026 (`monster-races?superRaceId=27` : 13 races, dont
+ * exactement 5 « Avis ») : 32 classiques · 90 Frigost · 127 Dimensions · 147 alignés ·
+ * 156 Sufokia. Les libellés « Créatures de quête — Avis de … » sont côté **Dofensive**
+ * (`Race.Name` + famille 27, preuve `isProvenBounty`), pas des races manquantes.
  */
 
 /** Races DofusDB « Avis de recherche » (ordre = source, stable d'un siphon à l'autre). */
@@ -27,6 +32,58 @@ export const BOUNTY_RACE_NAMES: Record<number, string> = {
     147: "Avis de recherche alignés",
     156: "Avis de recherche de Sufokia",
 };
+
+/**
+ * Libellés COURTS des types d'avis (filtre God — les libellés officiels sont trop
+ * longs pour des pastilles). Vocabulaire repris de DofusDB/DPLN, jamais inventé.
+ */
+export const BOUNTY_RACE_SHORT: Record<number, string> = {
+    32: "Classiques",
+    90: "Frigost",
+    127: "Dimensions",
+    147: "Alignés",
+    156: "Sufokia",
+};
+
+/** Libellé court d'un type d'avis (repli : le libellé officiel, jamais vide). */
+export function bountyRaceShortLabel(raceId: number | null | undefined, fallback?: string | null): string {
+    const id = Math.floor(Number(raceId) || 0);
+    return BOUNTY_RACE_SHORT[id] ?? bountyRaceName(id, fallback);
+}
+
+/** Normalisation d'un nom d'avis pour la comparaison (casse + espaces). Pur, client-safe. */
+export function normalizeBountyName(name: string | null | undefined): string {
+    return String(name ?? "").trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+export interface BountyOrphanView {
+    id: string;
+    dofusdbId: number | null;
+    name: string;
+    slug: string;
+}
+
+/**
+ * Orphelins **visibles** dans God : l'instantané du siphon moins ce qui a déjà été
+ * exclu depuis (la passe complète suivante recalcule — entre-temps, on ne remontre pas
+ * ce que God vient d'exclure). Pur et testé : le composant n'a qu'à afficher.
+ */
+export function filterVisibleBountyOrphans(
+    orphans: BountyOrphanView[] | null | undefined,
+    ignoredIds?: number[] | null,
+    ignoredNames?: (string | null)[] | null,
+): BountyOrphanView[] {
+    const list = Array.isArray(orphans) ? orphans : [];
+    const ids = Array.isArray(ignoredIds) ? ignoredIds : [];
+    const names = (Array.isArray(ignoredNames) ? ignoredNames : []).map(normalizeBountyName);
+    return list.filter((o) => {
+        if (!o || typeof o.id !== "string" || o.id === "") return false;
+        const id = Math.floor(Number((o as { dofusdbId?: unknown }).dofusdbId) || 0);
+        if (id > 0 && ids.includes(id)) return false;
+        if (names.includes(normalizeBountyName((o as { name?: unknown }).name as string | null | undefined))) return false;
+        return true;
+    });
+}
 
 /** Famille Dofensive des avis (« Créatures de quête ») — 2ᵉ preuve d'appartenance. */
 export const BOUNTY_FAMILY_ID = 27;

@@ -415,10 +415,12 @@ describe("game-data — veille ciblée & bilan de passe", () => {
     it("le worker n'avance le filigrane que sur une passe complète (ni tronquée ni différée), et écrit le bilan", () => {
         const worker = read("src/workers/game-data-worker.ts");
         expect(worker).toContain("job.data?.incremental === true");
-        // 08/10/2026 : une passe « différée » (notre limiteur local a refusé la page)
-        // fige le filigrane comme une passe tronquée — l'item n'est jamais sauté.
+        // 🔶 08/10/2026 — passe tronquée OU différée (limite locale) : le filigrane est
+        // conservé et le lot de reprise mémorisé ; le différé reste VERT avec la mention
+        // explicite (même sémantique que `throttledPages` des référentiels).
         expect(worker).toContain("const partial = result.truncated || result.deferred;");
         expect(worker).toContain("since: partial ? watch.since : result.nextWatermark ?? watch.since");
+        expect(worker).toContain("limite locale atteinte, page mise en attente, reprise au prochain passage");
         expect(worker).toContain("counts: { inserted: result.inserted, updated: result.updated, unchanged }");
     });
 

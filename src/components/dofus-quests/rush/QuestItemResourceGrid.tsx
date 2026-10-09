@@ -1,10 +1,11 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
-import { Package, ChevronDown, ChevronUp, CheckCheck, Copy } from "lucide-react";
+import { ChevronDown, ChevronUp, CheckCheck, Copy } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { copyToClipboard } from "@/lib/clipboard";
+import { RUSH_RESOURCES_PICTO } from "@/lib/rush-guide-utils";
 import { ResourceImage } from "@/components/dofus-quests/ResourceImage";
 import type { RushActivityTag } from "@/types/rush-guide-types";
 
@@ -84,7 +85,10 @@ export function QuestItemResourceGrid({
       {/* En-tête avec filtres Restantes / Toutes */}
       <div className="flex items-center justify-between gap-2 border-b border-border pb-2.5">
         <div className="flex items-center gap-2">
-          <Package className="w-4 h-4 text-warning" aria-hidden="true" />
+          {/* Picto RÉEL du jeu (source unique `RUSH_RESOURCES_PICTO`) — le carré
+              Lucide `Package` était un placeholder. */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={RUSH_RESOURCES_PICTO} alt="" loading="lazy" className="w-4 h-4 object-contain" />
           <span className="text-xs font-semibold text-foreground">
             Ressources requises
           </span>

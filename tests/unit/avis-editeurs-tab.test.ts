@@ -94,21 +94,19 @@ describe("avis de recherche — un éditeur de l'interface Game Data (fusion D-4
         );
     });
 
-    it("🛡️ un avis supprimé ne revient pas : le siphon saute les ids **et les noms** exclus", () => {
+    it("🛡️ un avis supprimé ne revient pas : le siphon saute les ids exclus ET les noms exclus", () => {
         const siphon = readSource("src/lib/bounty-siphon.ts");
         expect(siphon).toContain("const ignoredIds = getIgnoredBountyIds();");
-        // 08/10/2026 : une ligne historique (sans `dofusdbId`) s'exclut PAR SON NOM —
-        // sans ce second filtre, le siphon la recréait à la passe suivante.
+        // 🔶 08/10/2026 — les lignes historiques supprimées sans `dofusdbId` étaient
+        // recréées (aucune exclusion enregistrée) : le siphon filtre aussi sur le nom.
         expect(siphon).toContain("const ignoredNames = getIgnoredBountyNames();");
-        expect(siphon).toContain(
-            "!isIgnoredBounty(t.id, ignoredIds) && !isIgnoredBountyName(t.name, ignoredNames)",
-        );
+        expect(siphon).toContain("!isIgnoredBountyName(t.name, ignoredNames)");
     });
 
-    it("🛡️ la suppression enregistre TOUJOURS l'exclusion (id, sinon nom)", () => {
+    it("🛡️ la suppression exclut TOUJOURS (même sans `dofusdbId` : exclusion par nom)", () => {
         const code = codeOnly(readSource("src/server/actions/game-data-admin-actions.ts"));
-        // Une ligne purement historique (`dofusdbId` nul) supprimée sans exclusion était
-        // RECRÉÉE à la passe suivante : l'exclusion par nom (`dofusdbId: 0`) ferme ce trou.
+        // 🔶 08/10/2026 — l'ancienne condition `if (bounty.dofusdbId)` laissait les lignes
+        // historiques sans exclusion : le siphon les recréait à la passe suivante.
         expect(code).toContain("addIgnoredBounty(bounty.dofusdbId ?? 0, bounty.name);");
     });
 
@@ -117,5 +115,42 @@ describe("avis de recherche — un éditeur de l'interface Game Data (fusion D-4
             /PRESERVED=\([\s\S]*?ignored-bounties\.json[\s\S]*?\)/,
         );
         expect(readSource("scripts/deploy.sh")).toContain("public/game-data/ignored-bounties.json");
+    });
+
+    /**
+     * 🔶 B2 (09/10/2026) — l'UI God des avis cesse d'être du slop ET devient opérable :
+     * filtre par type (5 races), section Orphelins + exclusion en masse, libellés FR,
+     * zone honnête. Ce test verrouille la structure (pas le pixel).
+     */
+    it("l'éditeur God filtre par type, affiche les orphelins et parle français", () => {
+        const manager = readSource("src/components/admin/BountyManager.tsx");
+        // Filtre par type (5 races, libellés courts).
+        expect(manager).toContain("bountyRaceShortLabel");
+        expect(manager).toContain("BOUNTY_RACE_IDS");
+        // Section Orphelins (snapshot + exclusion en masse + garde curation).
+        expect(manager).toContain("getBountyOrphansAction");
+        expect(manager).toContain("handleExcludeAllOrphans");
+        expect(manager).toContain("Tout exclure");
+        expect(manager).toContain("filterVisibleBountyOrphans");
+        // Libellés FR (fini les onglets EN).
+        expect(manager).toContain("Configuration");
+        expect(manager).toContain("Récompenses");
+        expect(manager).not.toContain(">Rewards<");
+        // Zone honnête (jamais « Zone Inconnue »).
+        expect(manager).toContain("Zone non exposée");
+        expect(manager).not.toContain("Zone Inconnue");
+        // Design tokens (fini le amber-500 codé en dur).
+        expect(manager).not.toContain("amber-500");
+        expect(manager).not.toContain("bg-black/20");
+    });
+
+    it("l'action de lecture des orphelins existe et reste gardée", () => {
+        const actions = readSource("src/server/actions/game-data-admin-actions.ts");
+        expect(actions).toContain("export async function getBountyOrphansAction");
+        expect(actions).toContain("getBountyOrphansSnapshot");
+        // Même garde que le reste de l'éditeur (jamais d'ouverture anonyme).
+        const start = actions.indexOf("export async function getBountyOrphansAction");
+        const body = actions.slice(start, start + 1200);
+        expect(body).toContain("requireGameDataBounties");
     });
 });

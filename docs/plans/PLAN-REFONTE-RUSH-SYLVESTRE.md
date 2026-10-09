@@ -34,6 +34,15 @@
 >
 > **Transverses restants** : **O5** (bouton « Aller à la suite » + défilement auto vers la 1ʳᵉ quête non cochée), **O6** (`autoFocus` sur Fermer + verrou de scroll), **O7** (callout `touglibox` dans la modale de l'overlay), **G2** (succès en badges), **G5** (`ContextualHelp` au clic/clavier), **T1** (parsing des succès, résolution des prérequis par id), **T5** (`useQuestGroups` : collisions d'id de groupe).
 >
+> 🔭 **Session du 08/10/2026 « one shot »** (**PR #858 mergée** — 4 commits : 3 de code + 1 de docs) — livré **hors lots** : pictos **réels**
+> (source unique `RUSH_RESOURCES_PICTO` ; mesure `sharp` : `nav/resources.png` est **blanc pur** ⇒ écarté), rail de droite
+> **défilant** (le dashboard n'avait pas le correctif du public du 22/09), **alignement & ordre en LECTURE SEULE** (modale de
+> choix **supprimée** ; source = profil du personnage, mise à jour par quête conservée), **table Dofus unique**
+> (`src/lib/rush-dofus-meta.ts` — **cinq** copies divergentes supprimées, cf. mesure ci-dessus), bruit **Sentry** filtré/annoté.
+> Les lots **4** (reste : O15, G7, G8, G9, T2), **5** (O9, O10, O11, O13, O12) et **6** (perf) restent **ouverts**.
+> Détail et preuves : bloc du 08/10/2026 du `docs/ROADMAP.md` · arbitrage **O13** tranché : mini-carte = **composant dédié**
+> (pas `MapDetailsPanel` : *dark-locked* et Leaflet ⇒ contraire à T2, et portail hors fenêtre PiP).
+>
 > ⚠️ **E2** (`achievements?: string[]`) **n'est pas un « lot 3 » ordinaire** : il demande une **migration Prisma** ⇒ arrêt et accord explicite avant de coder.
 > 🧭 **Hors de ce plan** : le **chantier « données »** (branches Tougli Bonta/Brâkmar, prérequis structurés, registre auditable) vit dans la note de recherche `temp/…Dofusdb…` et doit être cadré comme un chantier séparé.
 > 🚫 **Chantier U — « zéro dépendance DofusDB »** (règle du propriétaire, mesurée le 08/10/2026) : cadré dans `docs/plans/FILE-EXECUTION.md` §1 — **5 points de contact** (repli image, recherches, proxy image, health check, crons) + **~1 626 URL DofusDB** dans les 28 `*-compiled.json`, lots **U-1 → U-5**.

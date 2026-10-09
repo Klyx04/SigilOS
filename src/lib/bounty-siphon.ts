@@ -41,7 +41,7 @@ import { db } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 import { dofusdbFetch } from "@/lib/dofusdb-fetch";
 import { dofensiveFetch } from "@/lib/dofensive-fetch";
-import { getIgnoredBountyIds, getIgnoredBountyNames, isIgnoredBounty, isIgnoredBountyName } from "@/lib/bounty-ignore";
+import { getIgnoredBountyIds, getIgnoredBountyNames, isIgnoredBounty, isIgnoredBountyName, normalizeBountyName } from "@/lib/bounty-ignore";
 import { diffFields, recordGameDataChanges } from "@/lib/game-data-changelog";
 import { DB_READABLE, mapWithConcurrency, persistMonsterStat } from "@/lib/dofensive-sync";
 import { mergeDofensiveSpells, type DofensiveSpellCombat } from "@/lib/dofensive-spells";
@@ -74,6 +74,18 @@ import {
 /** Concurrence bornée (anti-rate-limit Dofensive) — même valeur que les autres siphons. */
 const CONCURRENCY = 4;
 
+/** Bornes de l'instantané « orphelins » (snapshot Redis lu par God, 7 j TTL). */
+export const BOUNTY_ORPHANS_SNAPSHOT_MAX = 100;
+
+/** Une ligne `Bounty` orpheline : à examiner (et exclure) dans God, jamais supprimée ici. */
+export interface BountyOrphanEntry {
+    /** Id de la ligne (pour l'exclusion en masse côté God). */
+    id: string;
+    dofusdbId: number | null;
+    name: string;
+    slug: string;
+}
+
 /** Un avis résolu par le siphon (sortie = télémétrie God + filtres des écrans). */
 export interface BountySiphonEntry {
     id: number;
@@ -104,6 +116,19 @@ export interface BountySyncResult {
     defaultMap: number;
     /** Avis **exclus volontairement** (supprimés dans God) — non réécrits, non recréés. */
     ignored: number;
+    /**
+     * 🔶 Lignes `Bounty` **orphelines** (08/10/2026) : ni dans les 5 races DofusDB, ni
+     * exclues — historique pré-siphon, jumeaux d'homonymes, graines semées pendant une
+     * panne Dofensive. Calculé sur PASSE COMPLÈTE uniquement (un passage par race
+     * verrait les autres races comme orphelines — faux positif). Jamais supprimé par
+     * le siphon (la curation est sacrée) : God les passe en exclusion en un clic.
+     * Borné à `BOUNTY_ORPHANS_SNAPSHOT_MAX` (le total exact est dans `orphanedTotal`).
+     */
+    orphaned: BountyOrphanEntry[];
+    /** Nombre total d'orphelins (avant borne). */
+    orphanedTotal: number;
+    /** `true` si `orphaned` a été calculé (passe complète — seule source fiable). */
+    orphansComputed: boolean;
     /** Fiches dont les grades manquaient et ont été relus depuis la liste (zéro appel en plus). */
     gradesBackfilled: number;
     /** Fiches dont le butin manquait et a été relu (1 appel `items?` borné). */
@@ -161,6 +186,9 @@ export async function syncBounties(raceIds?: readonly number[]): Promise<BountyS
         perRace: {},
         defaultMap: 0,
         ignored: 0,
+        orphaned: [],
+        orphanedTotal: 0,
+        orphansComputed: false,
         gradesBackfilled: 0,
         dropsBackfilled: 0,
         entries: [],
@@ -323,10 +351,49 @@ export async function syncBounties(raceIds?: readonly number[]): Promise<BountyS
         }
     });
 
+    // 5bis. RÉCONCILIATION — lignes `Bounty` orphelines (ni dans les races, ni exclues).
+    //        ⚠️ PASSE COMPLÈTE UNIQUEMENT : un passage par race (`raceIds` fourni, bouton
+    //        God « Ici ») ne voit qu'une race et prendrait les 4 autres pour des orphelines.
+    //        Jamais destructif : on SIGNALE (snapshot God), on ne supprime rien — une ligne
+    //        historique peut porter une curation God que seul un humain peut arbitrer.
+    if ((!raceIds || raceIds.length === 0) && DB_READABLE) {
+        try {
+            const memberIds = new Set(byId.keys());
+            const memberNames = new Set(
+                [...byId.values()].map((m) => normalizeBountyName(String(m?.name?.fr ?? ""))),
+            );
+            const rows = await db.bounty.findMany({ select: { id: true, dofusdbId: true, name: true, slug: true } });
+            const orphans: BountyOrphanEntry[] = [];
+            for (const row of rows) {
+                const rowId = Math.floor(Number(row?.dofusdbId) || 0);
+                const rowName = String(row?.name ?? "");
+                const isOrphan = rowId > 0
+                    ? !memberIds.has(rowId) && !isIgnoredBounty(rowId, ignoredIds)
+                    : !memberNames.has(normalizeBountyName(rowName)) &&
+                      !isIgnoredBountyName(rowName, ignoredNames);
+                if (!isOrphan) continue;
+                orphans.push({
+                    id: String(row?.id ?? ""),
+                    dofusdbId: rowId > 0 ? rowId : null,
+                    name: rowName,
+                    slug: String((row as { slug?: unknown })?.slug ?? ""),
+                });
+            }
+            orphans.sort((a, b) => a.name.localeCompare(b.name, "fr"));
+            result.orphanedTotal = orphans.length;
+            result.orphaned = orphans.slice(0, BOUNTY_ORPHANS_SNAPSHOT_MAX);
+            result.orphansComputed = true;
+        } catch (error) {
+            // Fail-soft : la réconciliation ne doit jamais faire échouer la passe.
+            logger.warn("[bounty-siphon] réconciliation orphelins impossible:", { error: String(error) });
+        }
+    }
+
     logger.info(
         `[bounty-siphon] ${result.entries.length} avis de recherche résolus ` +
         `(${result.synced} écrits, ${result.unchanged} inchangés, ${result.unproven} non prouvés, ` +
-        `${result.ignored} exclu(s), ${result.errors.length} erreur(s), ${result.imagesSiphoned} image(s), ` +
+        `${result.ignored} exclu(s), ${result.orphanedTotal} orphelin(s), ${result.errors.length} erreur(s), ` +
+        `${result.imagesSiphoned} image(s), ` +
         `${result.gradesBackfilled} grades relus, ${result.dropsBackfilled} butins relus, ` +
         `simulation sur grille vide).`
     );

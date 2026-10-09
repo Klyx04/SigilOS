@@ -1,13 +1,14 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { Package, X, Search, Check } from "lucide-react";
+import { X, Search, Check } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { copyToClipboard } from "@/lib/clipboard";
 import type { RushResourceAgg } from "./overlay-utils";
 import { ResourceImage } from "@/components/dofus-quests/ResourceImage";
 import { BRAND_ICONS } from "@/lib/source-icons";
+import { RUSH_RESOURCES_PICTO } from "@/lib/rush-guide-utils";
 
 interface RushOverlayResourcesModalProps {
   /** Ressources « restantes » (quêtes cochées exclues). */
@@ -128,7 +129,10 @@ export function RushOverlayResourcesModal({
           )}
         >
           <div className="flex items-center gap-2 min-w-0">
-            <Package className={cn("w-4 h-4 shrink-0", pick("text-warning", "text-amber-600", "text-[#d5a94e]"))} />
+            {/* Picto RÉEL du jeu (source unique `RUSH_RESOURCES_PICTO`) — plus de carré
+                Lucide `Package`, qui divergeait du guide interne et du public. */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={RUSH_RESOURCES_PICTO} alt="" loading="lazy" className="w-4 h-4 object-contain shrink-0" />
             <h2
               className={cn(
                 "text-sm font-bold min-w-0 truncate",
@@ -299,7 +303,8 @@ export function RushOverlayResourcesModal({
                   {r.imageUrl ? (
                     <ResourceImage id={r.id} imageUrl={r.imageUrl} alt={r.name} className="w-7 h-7 object-contain" />
                   ) : (
-                    <Package className={cn("w-4 h-4", pick("text-warning", "text-amber-400", "text-[#d5a94e]/60"))} />
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img src={RUSH_RESOURCES_PICTO} alt="" loading="lazy" className="w-4 h-4 object-contain opacity-60" />
                   )}
                 </div>
 

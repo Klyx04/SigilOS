@@ -59,7 +59,8 @@ describe("avis de recherche — un seul rail de synchronisation", () => {
         expect(page).toContain('runInlineGameDataDataset("BOUNTIES"');
         expect(page).not.toContain("syncBountiesCompleteFromDofusDb");
         // Une seule implémentation : la page ne ré-écrit ni la boucle des races ni l'appel du rail.
-        expect(page).not.toContain("BOUNTY_RACE_IDS");
+        // 🔶 B2 (09/10/2026) — `BOUNTY_RACE_IDS` peut alimenter le FILTRE d'affichage (pastilles
+        // de type) : ce qui reste interdit, c'est d'appeler le rail depuis la page.
         expect(page).not.toContain("siphonBountiesRaceAction");
     });
 
@@ -74,9 +75,11 @@ describe("avis de recherche — un seul rail de synchronisation", () => {
         expect(codeOffenders("syncBountiesCompleteFromDofusDb")).toEqual([]);
     });
 
+    // ⚠️ Scan de TOUT `src/` : sous charge de la suite complète (300+ fichiers en
+    // parallèle), 5 s ne suffisent pas toujours (timeouts mesurés le 09/10/2026).
     it("plus aucune requête DofusDB par `typeId=23` (mesurée à `total: 0`)", () => {
         expect(codeOffenders("typeId=23")).toEqual([]);
-    });
+    }, 30000);
 
     it("le filtre « boss » interroge `isBoss` (DofusDB), pas un typeId mort", () => {
         const actions = codeOnly(readSource(ACTIONS));

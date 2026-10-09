@@ -116,4 +116,41 @@ describe("avis de recherche — un éditeur de l'interface Game Data (fusion D-4
         );
         expect(readSource("scripts/deploy.sh")).toContain("public/game-data/ignored-bounties.json");
     });
+
+    /**
+     * 🔶 B2 (09/10/2026) — l'UI God des avis cesse d'être du slop ET devient opérable :
+     * filtre par type (5 races), section Orphelins + exclusion en masse, libellés FR,
+     * zone honnête. Ce test verrouille la structure (pas le pixel).
+     */
+    it("l'éditeur God filtre par type, affiche les orphelins et parle français", () => {
+        const manager = readSource("src/components/admin/BountyManager.tsx");
+        // Filtre par type (5 races, libellés courts).
+        expect(manager).toContain("bountyRaceShortLabel");
+        expect(manager).toContain("BOUNTY_RACE_IDS");
+        // Section Orphelins (snapshot + exclusion en masse + garde curation).
+        expect(manager).toContain("getBountyOrphansAction");
+        expect(manager).toContain("handleExcludeAllOrphans");
+        expect(manager).toContain("Tout exclure");
+        expect(manager).toContain("filterVisibleBountyOrphans");
+        // Libellés FR (fini les onglets EN).
+        expect(manager).toContain("Configuration");
+        expect(manager).toContain("Récompenses");
+        expect(manager).not.toContain(">Rewards<");
+        // Zone honnête (jamais « Zone Inconnue »).
+        expect(manager).toContain("Zone non exposée");
+        expect(manager).not.toContain("Zone Inconnue");
+        // Design tokens (fini le amber-500 codé en dur).
+        expect(manager).not.toContain("amber-500");
+        expect(manager).not.toContain("bg-black/20");
+    });
+
+    it("l'action de lecture des orphelins existe et reste gardée", () => {
+        const actions = readSource("src/server/actions/game-data-admin-actions.ts");
+        expect(actions).toContain("export async function getBountyOrphansAction");
+        expect(actions).toContain("getBountyOrphansSnapshot");
+        // Même garde que le reste de l'éditeur (jamais d'ouverture anonyme).
+        const start = actions.indexOf("export async function getBountyOrphansAction");
+        const body = actions.slice(start, start + 1200);
+        expect(body).toContain("requireGameDataBounties");
+    });
 });

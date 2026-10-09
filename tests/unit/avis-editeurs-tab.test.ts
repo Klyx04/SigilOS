@@ -153,4 +153,32 @@ describe("avis de recherche — un éditeur de l'interface Game Data (fusion D-4
         const body = actions.slice(start, start + 1200);
         expect(body).toContain("requireGameDataBounties");
     });
+
+    /**
+     * 🔶 C1 (09/10/2026) — parité d'import d'images avec les donjons + galerie utile :
+     * ① l'onglet « Maps » n'a aucun sens pour les avis (pas de carte, grille vide par
+     * design) ⇒ la galerie accepte `types` et masque le switch à un seul type ;
+     * ② `BountyManager` n'affiche que les portraits ET câble `ImageDownloader`
+     * (URL + fichier, parité Donjons) ; ③ le composant client n'importe jamais le
+     * module disque `bounty-ignore` (incident 22/09/2026 : `dns` dans le bundle).
+     */
+    it("la galerie restreint ses onglets et masque le switch à un seul type", () => {
+        const gallery = readSource("src/components/admin/asset-gallery-modal.tsx");
+        expect(gallery).toContain("types?: AssetType[]");
+        expect(gallery).toContain("available.length > 1");
+    });
+
+    it("l'éditeur avis importe des portraits (URL + fichier) sans l'onglet Maps", () => {
+        const manager = readSource("src/components/admin/BountyManager.tsx");
+        expect(manager).toContain('types={["portraits"]}');
+        expect(manager).toContain("ImageDownloader");
+        expect(manager).toContain('type="monster"');
+        expect(manager).toContain("onImageDownloaded");
+    });
+
+    it("l'éditeur avis ne touche jamais au module disque (client-safe)", () => {
+        const manager = readSource("src/components/admin/BountyManager.tsx");
+        expect(manager).not.toContain("@/lib/bounty-ignore");
+        expect(manager).not.toContain("game-data-sync-state-store");
+    });
 });

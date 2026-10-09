@@ -17,6 +17,7 @@ import { normalizeDofusAssetStoredUrl, isSafeDofusImageSrc } from "@/lib/dofus-i
 import { DocContent } from '@/components/doc/doc-content';
 import { AdvancedEditor } from '@/components/editor/advanced-editor';
 import { AssetGalleryModal } from "@/components/admin/asset-gallery-modal";
+import { ImageDownloader } from "@/components/admin/ImageDownloader";
 import { ZoneLocationCard } from "@/components/worldmap/ZoneLocationCard";
 
 import { getAllBounties } from "@/server/actions/admin-actions";
@@ -669,6 +670,22 @@ export default function BountyManager() {
                                                             <SwatchBook size={16} />
                                                         </Button>
                                                     </div>
+                                                    {/*
+                                                        Import d'un portrait (URL ou fichier, parité Donjons) :
+                                                        `ImageDownloader` télécharge vers `public/game-data/monsters`
+                                                        et rend le chemin local, appliqué au portrait God ci-dessus.
+                                                        ⚠️ Autorité d'affichage : les fiches internes/publiques
+                                                        résolvent l'apparence par DofusDB (`gfxId`, route
+                                                        `/api/assets-dofus/monsters/[id]`) et IGNORENT ce portrait
+                                                        God (décision anti-mauvaise-image du 27/09/2026 — une URL
+                                                        périmée servirait l'apparence d'un autre monstre).
+                                                    */}
+                                                    <ImageDownloader
+                                                        imageUrl={selectedBounty.imageUrl || ""}
+                                                        type="monster"
+                                                        identifier={selectedBounty.slug || String(selectedBounty.dofusdbId || selectedBounty.name)}
+                                                        onImageDownloaded={(localPath) => setSelectedBounty({ ...selectedBounty, imageUrl: localPath })}
+                                                    />
                                                 </div>
 
                                                 <div className="space-y-2">
@@ -955,6 +972,7 @@ export default function BountyManager() {
                 open={galleryOpen}
                 onOpenChange={setGalleryOpen}
                 initialType="portraits"
+                types={["portraits"]}
                 onSelect={(url) => setSelectedBounty({ ...selectedBounty, imageUrl: url })}
                 title="Sélecteur de Portraits"
             />

@@ -3,6 +3,14 @@ import path from 'path';
 import sharp from 'sharp';
 import { logger } from '@/lib/logger';
 import { dofusDbFetch } from '@/lib/dofusdb-limiter';
+// 🚦 Le refus **local** du budget partagé n'est pas une panne : ces helpers purs le nomment
+// (même sémantique que les items, mesure du 28/09/2026 — « DofusDB a renvoyé HTTP 429 » mentait).
+import {
+    LocalThrottleDeferredError,
+    isLocalThrottle,
+    isLocalThrottleDeferredMessage,
+    throttleWaitMs,
+} from '@/lib/dofusdb-throttle';
 import { recordGameDataChanges } from '@/lib/game-data-changelog';
 
 // ─── Répertoires de stockage des assets siphonnés ───────────────────────────
@@ -127,7 +135,7 @@ export async function siphonAndCompressImage(
     entityId: number | string,
     force = false,
     opts: SiphonAndCompressOptions = {}
-): Promise<{ success: boolean; localUrl?: string; sizeBytes?: number; error?: string }> {
+): Promise<{ success: boolean; localUrl?: string; sizeBytes?: number; error?: string; retryAfterMs?: number }> {
     ensureAssetDirsExist();
 
     const parsedId = typeof entityId === 'number' ? entityId : parseInt(String(entityId).replace(/[^0-9]/g, ''), 10);
@@ -153,6 +161,15 @@ export async function siphonAndCompressImage(
     }
 
     let downloadedBuffer: Buffer | null = null;
+    /**
+     * 🚦 Dernière réponse **locale** du limiteur partagé (budget épuisé) : elle n'est PAS un
+     * « asset manquant ». Sans cette distinction, un pré-chauffage concurrent d'un autre siphon
+     * peignait chaque icône en échec (« Impossible de récupérer l'image ») alors que la source
+     * allait très bien — mesuré le 10/10/2026 : **391/391 icônes** en échec, toutes par budget.
+     */
+    let throttledRes: Response | null = null;
+    /** Causes réelles d'un échec, NOMMÉES (leçon du 24/09/2026 : « essayé : … » sans pourquoi). */
+    const failureReasons: string[] = [];
 
     try {
         // Jitter poli : pause de 250ms à 550ms pour ne pas bombarder le serveur source
@@ -172,6 +189,8 @@ export async function siphonAndCompressImage(
                 if (providedRes.ok) {
                     const arrayBuffer = await providedRes.arrayBuffer();
                     downloadedBuffer = Buffer.from(arrayBuffer);
+                } else if (isLocalThrottle(providedRes)) {
+                    throttledRes = providedRes;
                 }
             } catch {}
         }
@@ -262,14 +281,40 @@ export async function siphonAndCompressImage(
                             if (imgRes.ok) {
                                 const arrayBuffer = await imgRes.arrayBuffer();
                                 downloadedBuffer = Buffer.from(arrayBuffer);
+                            } else if (isLocalThrottle(imgRes)) {
+                                throttledRes = imgRes;
+                            } else {
+                                failureReasons.push(`img/items/${iconId}.png → HTTP ${imgRes.status}`);
                             }
+                        } else {
+                            failureReasons.push(`fiche /items/${cleanId} : aucun iconId exploitable`);
                         }
+                    } else {
+                        failureReasons.push(
+                            `garde d'identité : la fiche renvoie l'id ${itemData?.id ?? 'inconnu'} au lieu de ${cleanId}`
+                        );
                     }
+                } else if (isLocalThrottle(itemRes)) {
+                    throttledRes = itemRes;
+                } else {
+                    failureReasons.push(`fiche /items/${cleanId} → HTTP ${itemRes.status}`);
                 }
             } catch {}
         }
 
         if (!downloadedBuffer) {
+        // 🚦 Avant de conclure, la VRAIE question : est-ce que notre propre budget partagé a
+        // refusé ? Si oui, ce n'est ni une panne ni un asset manquant — c'est « reviens plus
+        // tard ». On le rend **typé par son message** (la classe partagée porte la formulation)
+        // + l'attente conseillée : aucun appelant existant n'est cassé (contrat inchangé).
+        if (throttledRes) {
+            const retryAfterMs = throttleWaitMs(throttledRes);
+            return {
+                success: false,
+                error: new LocalThrottleDeferredError(retryAfterMs).message,
+                retryAfterMs,
+            };
+        }
         // ⚠️ On nomme les URL essayées : « impossible de récupérer » sans URL est
         // indiagnosticable (leçon du 24/09/2026, 21 échecs inexpliqués sur 143 images).
         const triedDetail =
@@ -280,7 +325,8 @@ export async function siphonAndCompressImage(
                 : targetType === 'spells'
                 ? `essayé : img/spells/${cleanId}.png`
                 : `essayé : img/monsters/${cleanId}.png puis la fiche /monsters/${cleanId} → img`;
-        throw new Error(`Impossible de récupérer l'image pour ${targetType} #${cleanId} (${triedDetail})`);
+        const why = failureReasons.length > 0 ? ` — cause : ${failureReasons.join(' | ')}` : '';
+        throw new Error(`Impossible de récupérer l'image pour ${targetType} #${cleanId} (${triedDetail}${why})`);
         }
 
         // Compression WebP via Sharp avec suppression des métadonnées superflues
@@ -338,6 +384,15 @@ export interface ItemIconSiphonResult {
     errors: number;
     /** Messages lisibles des échecs (bornés à la tranche) — le journal du panneau les affiche. */
     details: string[];
+    /**
+     * 🚦 `true` = la tranche s'est arrêtée parce que **notre budget partagé** a refusé la suite
+     * (un autre siphon le consomme, un cron, …). Ce n'est **pas** un échec d'icône : l'appelant
+     * doit attendre `retryAfterMs` puis rejouer la même tranche (les icônes déjà écrites
+     * ressortiront « ignorées », sans réseau).
+     */
+    deferred?: boolean;
+    /** Attente conseillée avant de rejouer (reste de fenêtre, borné par le module de cadence). */
+    retryAfterMs?: number;
 }
 
 /**
@@ -375,11 +430,25 @@ export async function siphonItemIconsBatchCore(ids: readonly number[]): Promise<
                 result.siphoned++;
                 continue;
             }
+            // 🚦 Notre budget partagé a refusé la suite : ce n'est **pas** un échec d'icône (mesure
+            // du 10/10/2026 : 391/391 « échecs » alors que DofusDB allait très bien — un autre
+            // siphon consommait le budget). On arrête la tranche ICI, sans brûler les refus
+            // suivants, et on le dit à l'appelant : il attendra la fin de fenêtre puis rejouera.
+            if (isLocalThrottleDeferredMessage(res.error)) {
+                result.deferred = true;
+                result.retryAfterMs = res.retryAfterMs;
+                break;
+            }
             result.errors++;
             result.details.push(`#${id} : ${res.error ?? 'échec inconnu'}`);
         } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            if (isLocalThrottleDeferredMessage(message)) {
+                result.deferred = true;
+                break;
+            }
             result.errors++;
-            result.details.push(`#${id} : ${error instanceof Error ? error.message : String(error)}`);
+            result.details.push(`#${id} : ${message}`);
         }
     }
 

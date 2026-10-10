@@ -52,7 +52,7 @@ import { getClassName } from "@/lib/dofusbook-utils";
 import { GAME_ITEMS_BATCH_PAUSE_MS, GAME_ITEMS_BATCH_SIZE } from "@/lib/game-items-cadence";
 // 🧊 Cadence **pure** du pré-chauffage d'icônes (ce module ne tire ni `sharp` ni `fs` — un lanceur
 // client ne doit jamais embarquer le cœur d'assets : leçon du 23/09/2026).
-import { chunkItemIconIds } from "@/lib/rush-resources-preheat";
+import { GUIDE_ICON_CHUNK_SIZE, chunkItemIconIds } from "@/lib/rush-resources-preheat";
 import type { GameDataDataset } from "@/lib/game-data-sync-state";
 
 /** Les 19 classes : un appel serveur **par classe** (un appel unique de ~10 min casse). */
@@ -134,6 +134,12 @@ export interface InlineRunResult {
     summary: string;
     error?: string;
     /**
+     * 🚦 `true` = la passe s'est arrêtée **proprement** parce que le budget DofusDB partagé était
+     * saturé (un autre siphon le consomme). Ce n'est ni un succès franc ni une panne : l'appelant
+     * l'annonce comme tel (avertissement) au lieu de peindre un rouge mensonger.
+     */
+    deferred?: boolean;
+    /**
      * 🔢 **Lot brut** des erreurs rencontrées (jamais tronqué ici : c'est le store qui regroupe par
      * cause et qui chiffre `lastError`). Absent tant qu'aucune passe n'en produit.
      */
@@ -181,17 +187,44 @@ async function siphonAssetTargets(
      * `GUIDE_ICON_CHUNK_SIZE` (chaque icône coûte 1 à 2 requêtes sur un budget partagé de 30/min).
      */
     const itemTargets = targets.filter((t) => t.kind === "items");
+    /** 🚦 Le budget partagé a refusé la suite : on s'arrête en le DISANT (jamais un rouge de panne). */
+    let budgetStopped = false;
     if (itemTargets.length > 0) {
         const itemIds = itemTargets
             .map((t) => Number(t.id))
             .filter((id) => Number.isInteger(id) && id > 0);
         for (const chunk of chunkItemIconIds(itemIds)) {
-            const res = await triggerBatchItemIconSiphonAction(chunk);
+            let res = await triggerBatchItemIconSiphonAction(chunk);
+            // ⏳ Un refus de **notre** budget partagé n'est pas un échec d'icône : on attend la fin
+            // de fenêtre et on rejoue la MÊME tranche. Les icônes déjà écrites ressortent
+            // « ignorées » (idempotence : aucun appel réseau), donc le rejeu est gratuit.
+            // Même patron que la boucle Items (`isLocalThrottleDeferredMessage`, 08/10/2026).
+            let waits = 0;
+            for (;;) {
+                const data = res.data;
+                if (!res.success || !data?.deferred || waits >= INLINE_THROTTLE_MAX_WAITS) break;
+                waits++;
+                const waitMs = data.retryAfterMs ?? INLINE_THROTTLE_WAIT_MS;
+                ctx.log(
+                    `⏳ Budget DofusDB partagé épuisé — reprise de la tranche dans ${Math.ceil(waitMs / 1000)} s (${waits}/${INLINE_THROTTLE_MAX_WAITS})…`,
+                );
+                await sleep(waitMs);
+                res = await triggerBatchItemIconSiphonAction(chunk);
+            }
             if (res.success && res.data) {
                 siphoned += res.data.siphoned;
                 skipped += res.data.skipped;
                 errors += res.data.errors;
                 for (const line of res.data.details ?? []) ctx.log(`⚠️ ${line}`);
+                if (res.data.deferred) {
+                    // On ne rapporte que ce qui a RÉELLEMENT été traité dans cette tranche.
+                    done += res.data.siphoned + res.data.skipped + res.data.errors;
+                    budgetStopped = true;
+                    ctx.log(
+                        "⛔ Budget DofusDB toujours saturé après les rejeux — passe interrompue PROPREMENT : les icônes déjà écrites sont gardées, relance quand l'autre siphon a fini.",
+                    );
+                    break;
+                }
             } else {
                 errors += chunk.length;
                 ctx.log(`❌ Lot d'icônes en échec : ${res.error || "inconnue"}`);
@@ -236,12 +269,17 @@ async function siphonAssetTargets(
         await ctx.report(done, total, `${done} / ${total} image(s)`);
     }
 
-    const summary = `Images WebP : ${siphoned} siphonnée(s), ${skipped} ignorée(s), ${errors} erreur(s).`;
-    ctx.log(`🎉 ${summary}`);
+    const summary = budgetStopped
+        ? `Images WebP : ${siphoned} siphonnée(s), ${skipped} ignorée(s) — passe INTERROMPUE : budget DofusDB partagé saturé par un autre siphon (relance quand il a fini, rien n'est perdu).`
+        : `Images WebP : ${siphoned} siphonnée(s), ${skipped} ignorée(s), ${errors} erreur(s).`;
+    ctx.log(`${budgetStopped ? "⏸️" : "🎉"} ${summary}`);
     return {
         ok: errors === 0 || siphoned > 0,
         summary,
-        error: siphoned === 0 && errors > 0 ? "Aucune image siphonnée" : undefined,
+        // 🚦 Interrompu par le budget partagé : l'appelant l'annonce comme un avertissement (ni
+        // un succès franc, ni un échec) — `error` reste vide, ce n'est pas une panne.
+        deferred: budgetStopped || undefined,
+        error: budgetStopped ? undefined : siphoned === 0 && errors > 0 ? "Aucune image siphonnée" : undefined,
     };
 }
 
@@ -545,7 +583,7 @@ async function runFamilies(ctx: RunContext): Promise<InlineRunResult> {
 /** Message d'attente affiché dans le tableau pendant le run inline. */
 const INLINE_START_MESSAGE: Record<string, string> = {
     CLASS_SPELLS: "Grimoires de classes (DofusDB, classe par classe)",
-    ASSETS_WEBP: "Images WebP manquantes (par lots de 5)",
+    ASSETS_WEBP: "Images WebP manquantes (boss et icônes d'objets)",
     REFERENTIALS: "Référentiels (effets & caractéristiques)",
     QUESTS: "Quêtes (écarts DofusDB)",
     CATALOGUE: "Catalogue local (donjons & monstres)",
@@ -633,7 +671,8 @@ async function runAssetWebp(
         ctx.log(`ℹ️ ${summary}`);
         return { ok: true, summary };
     }
-    ctx.log(`🚀 ${targets.length} image(s) à siphonner — lots de ${ASSET_SIPHON_CHUNK_SIZE}…`);
+    const itemCount = targets.filter((t) => t.kind === "items").length;
+    ctx.log(`🚀 ${targets.length} image(s) à siphonner — ${targets.length - itemCount} fiche(s) boss (lots de ${ASSET_SIPHON_CHUNK_SIZE}) + ${itemCount} icône(s) d'objet (lots de ${GUIDE_ICON_CHUNK_SIZE})…`);
     return siphonAssetTargets(targets, ctx);
 }
 

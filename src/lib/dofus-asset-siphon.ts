@@ -374,6 +374,67 @@ export function getLocalAssetUrl(
 }
 
 /**
+ * 🚦 Taille d'une **requête groupée** de fiches d'objets (`items?id[$in][]=…`).
+ * Mesure du 10/10/2026 : DofusDB accepte ce filtre (`HTTP 200`, `total: 3` pour 3 ids, chacun avec
+ * son `img` définitif) ⇒ 50 fiches pour **1** requête au lieu de 50. C'est ce qui fait tomber le
+ * pré-chauffage de ~2 requêtes/icône à ~1 : sur un budget partagé de 30 req/min, 391 icônes
+ * passent d'environ **26 min** à environ **14 min**.
+ */
+export const ITEM_ICON_FICHE_BATCH_MAX = 50;
+
+/**
+ * URL d'image d'un objet, telle que **l'API la donne** (`imgset[0].sd` → `imgset[0].icon` → `img`).
+ * Même règle que le cœur du catalogue (`game-items-siphon`, mesurée le 23/09/2026) : c'est la seule
+ * source qui porte l'id d'**apparence** — un chemin fabriqué depuis l'id d'entité peut servir
+ * l'icône d'un autre objet (cf. `SiphonAndCompressOptions`).
+ */
+export function itemImageUrlFromApi(row: unknown): string | null {
+    const r = (row ?? {}) as { imgset?: Array<{ sd?: unknown; icon?: unknown }>; img?: unknown };
+    const first = Array.isArray(r.imgset) ? r.imgset[0] : null;
+    const candidates = [first?.sd, first?.icon, r.img];
+    for (const candidate of candidates) {
+        if (typeof candidate === 'string' && candidate.trim() !== '') return candidate;
+    }
+    return null;
+}
+
+/**
+ * Fiches DofusDB d'un lot d'ids en **une seule requête** (`id[$in][]`), restreinte aux imageUrl
+ * **réellement associées** à un id demandé (garde d'identité : DofusDB répond 200 avec un item de
+ * repli quand l'id n'existe pas).
+ *
+ * Renvoie `"deferred"` si **notre** budget partagé a refusé (ce n'est pas un échec : le lanceur
+ * attendra la fin de fenêtre), et lève si DofusDB a vraiment répondu autre chose qu'un 200.
+ */
+async function fetchItemImageUrlsBatch(
+    ids: readonly number[],
+): Promise<Map<number, string> | 'deferred'> {
+    const targets = ids.slice(0, ITEM_ICON_FICHE_BATCH_MAX);
+    const query = targets.map((id) => `id[$in][]=${id}`).join('&');
+    const url = `https://api.dofusdb.fr/items?${query}&$limit=${ITEM_ICON_FICHE_BATCH_MAX}`;
+
+    const res = await dofusDbFetch(url, {
+        headers: { 'User-Agent': 'SigilOS/1.0 (+https://sigilos.fr)' },
+        signal: AbortSignal.timeout(ASSET_FETCH_TIMEOUT_MS),
+    });
+    if (isLocalThrottle(res)) return 'deferred';
+    if (!res.ok) throw new Error(`fiches groupées /items?id[$in] → HTTP ${res.status}`);
+
+    const json = (await res.json().catch(() => null)) as { data?: unknown } | null;
+    const rows = Array.isArray(json?.data) ? json.data : [];
+    const asked = new Set(targets);
+    const urls = new Map<number, string>();
+
+    for (const row of rows) {
+        const id = Number((row as { id?: unknown })?.id);
+        if (!asked.has(id)) continue; // ni l'item de repli, ni un voisin : que ce qu'on a demandé
+        const imageUrl = itemImageUrlFromApi(row);
+        if (imageUrl) urls.set(id, imageUrl);
+    }
+    return urls;
+}
+
+/**
  * 🔥 Bilan d'une tranche de pré-chauffage d'icônes — jamais un échec muet.
  */
 export interface ItemIconSiphonResult {
@@ -400,32 +461,76 @@ export interface ItemIconSiphonResult {
  * `/uploads/assets-dofus/items/{id}.webp`, celui que `ResourceImage` cherche en premier
  * (modale « Ressources à prévoir » du guide Rush Sylvestre, entre autres).
  *
- * ⚠️ **Jamais de chemin deviné** : on passe `allowGuessedPath: false`. Pour un objet, l'id de
+ * Déroulé (mesuré le 10/10/2026) : ① on ne garde que ce qui manque **vraiment** sur disque ;
+ * ② **une** requête groupée ramène les fiches (`items?id[$in][]`) — c'est l'API qui donne l'URL
+ * de chaque icône ; ③ une requête par image. Soit ~1 requête par icône au lieu de 2, ce qui
+ * ramène le pré-chauffage des 391 ressources du guide d'environ 26 min à environ 14 min.
+ *
+ * ⚠️ **Jamais de chemin deviné** : `allowGuessedPath: false` partout. Pour un objet, l'id de
  * fichier est l'id d'**entité** alors que `/img/items/*` est indexé par id d'**apparence** — la
  * Tentative 1 pourrait donc graver l'icône d'un AUTRE objet pour un an (mesure du 09/10/2026,
- * cf. `SiphonAndCompressOptions`). L'image vient donc de la fiche `/items/{id}` **avec garde
- * d'identité**, ou bien la ligne est un échec **nommé**.
+ * cf. `SiphonAndCompressOptions`). L'URL vient de la réponse de l'API, ou bien la ligne est un
+ * échec **nommé**.
  *
  *   · **idempotent** : un id déjà présent sort sans aucun appel réseau ;
- *   · **budget partagé** : tout passe par `dofusDbFetch` (30 req/min) — la boucle appelante
- *     découpe en tranches courtes (`GUIDE_ICON_CHUNK_SIZE`, module pur `rush-resources-preheat`).
+ *   · **budget partagé** : tout passe par `dofusDbFetch` (30 req/min) — un refus **local** rend
+ *     `deferred: true` (l'appelant attend la fin de fenêtre et rejoue : jamais un faux échec) ;
+ *   · la boucle appelante découpe en tranches courtes (`GUIDE_ICON_CHUNK_SIZE`, module pur
+ *     `rush-resources-preheat`).
  */
 export async function siphonItemIconsBatchCore(ids: readonly number[]): Promise<ItemIconSiphonResult> {
     const result: ItemIconSiphonResult = { siphoned: 0, skipped: 0, errors: 0, details: [] };
 
+    // ① Ce qui manque VRAIMENT — zéro appel réseau pour ce qui est déjà sur disque.
+    const todo: number[] = [];
     for (const id of ids) {
         if (!Number.isInteger(id) || id <= 0) {
             result.skipped++;
             result.details.push(`#${String(id)} : identifiant illisible, ignoré`);
             continue;
         }
-        // Déjà sur disque : rien à faire (et surtout, aucun appel réseau).
         if (getLocalAssetUrl('items', id, null)) {
             result.skipped++;
             continue;
         }
+        todo.push(id);
+    }
+    if (todo.length === 0) return result;
+
+    // ② UNE requête groupée pour toutes les fiches du lot (`id[$in][]`) : c'est l'API qui nomme
+    //    l'icône (id d'apparence), donc une seule requête par image au lieu de deux.
+    let imageUrls: Map<number, string>;
+    try {
+        const batch = await fetchItemImageUrlsBatch(todo);
+        if (batch === 'deferred') {
+            result.deferred = true;
+            result.retryAfterMs = throttleWaitMs();
+            return result;
+        }
+        imageUrls = batch;
+    } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        if (isLocalThrottleDeferredMessage(message)) {
+            result.deferred = true;
+            result.retryAfterMs = throttleWaitMs();
+            return result;
+        }
+        // La fiche groupée n'a pas abouti : on ne conclut RIEN sur les icônes (aucun échec inventé).
+        result.errors += todo.length;
+        result.details.push(`fiches groupées en échec — ${message}`);
+        return result;
+    }
+
+    // ③ Une requête par icône, depuis l'URL **donnée par l'API** (jamais devinée).
+    for (const id of todo) {
+        const imageUrl = imageUrls.get(id);
+        if (!imageUrl) {
+            result.errors++;
+            result.details.push(`#${id} : absente de la fiche groupée (id inconnu de l'API ?)`);
+            continue;
+        }
         try {
-            const res = await siphonAndCompressImage(null, 'items', id, false, { allowGuessedPath: false });
+            const res = await siphonAndCompressImage(imageUrl, 'items', id, false, { allowGuessedPath: false });
             if (res.success) {
                 result.siphoned++;
                 continue;

@@ -38,12 +38,15 @@ Verdict : **cité + lancé** = vivant (à garder) · **cité seulement dans un v
 | `.github/` `.husky/` | CI/CD + hook pre-commit (scan de secrets, tsc, vérif migration Prisma) | ✅ |
 | `node_modules/` `.next/` `dist/` `.playwright-profile/` | Artefacts locaux (jamais commités) | ❌ jetables |
 
-## 2. La racine, fichier par fichier (26 fichiers suivis)
+## 2. La racine, fichier par fichier (25 fichiers suivis)
 
 > **Pourquoi tout ça à la racine ?** Trois familles, par ordre de contrainte :
 > 1. **Imposé par l'outil** (déplacer casse le build) : `package.json` / `package-lock.json`, `next.config.ts`,
 >    `tsconfig.json`, `postcss.config.mjs`, `eslint.config.mjs`, `vitest.config.ts`, `prisma.config.js`,
->    `sentry.{client,server,edge}.config.ts` (lus **à la racine** par `@sentry/nextjs`), `Dockerfile`,
+>    `sentry.{server,edge}.config.ts` (lus **à la racine** par `@sentry/nextjs` ; l'init
+>    **client** vit dans `src/instrumentation-client.ts` — `sentry.client.config.ts` est
+>    **déprécié** par le SDK v10 et **ignoré sous Turbopack**, le moteur du build depuis Next 16),
+>    `Dockerfile`,
 >    `.dockerignore`, `.gitignore`, `.gitattributes`, `.npmrc`, `.env`.
 > 2. **Convention forte de l'écosystème** (déplaçable, mais tout le monde l'attend là) : `AGENTS.md`
 >    (standard lu **automatiquement** par les assistants IA — Cline, Cursor, Copilot, Codex…),
@@ -71,7 +74,7 @@ Verdict : **cité + lancé** = vivant (à garder) · **cité seulement dans un v
 | `postcss.config.mjs` / `components.json` | Design system (Tailwind v4 **CSS-first** + shadcn) |
 | `eslint.config.mjs` | Règles de lint |
 | `vitest.config.ts` | Config des tests |
-| `sentry.client.config.ts` / `.server.` / `.edge.` | Monitoring d'erreurs Sentry (3 runtimes) |
+| `sentry.server.config.ts` / `sentry.edge.config.ts` | Monitoring d'erreurs Sentry — runtimes **serveur** et **edge** (l'init **client** vit dans `src/instrumentation-client.ts`) |
 | `prisma.config.js` | Config Prisma |
 | `Dockerfile` / `Dockerfile.caddy` | Images Docker de l'app et du reverse-proxy |
 | `docker-compose.yml` / `docker-compose.prod.yml` | Orchestration (dev/CI vs prod) |

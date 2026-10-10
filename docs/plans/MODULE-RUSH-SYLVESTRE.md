@@ -112,7 +112,11 @@ WHERE s."activityTags" @> '[{"id": 22058}]'::jsonb;
 docker exec -i sigilos-db-beta sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -v ON_ERROR_STOP=1 -f -' < fix-rush-22058.sql
 ```
 
-- **Reste** : trancher le nom de `33380` (données) · pré-chauffer les **319** icônes siphonnables (bouton God) · les **~21 000** objets hors guide relèvent du chantier **U**.
+- **Ops (humain) — état au 10/10/2026** :
+  - **Bêta : FAIT** — les 4 WebP sont en place (`items/{7807,7809,7864,10000000001}.webp`, propriété rendue à l'app par `docker exec -u root … chown nextjs:nodejs`) et la base est corrigée (`reste_22058` **1 → 0**, `avec_32079` = 2).
+  - **Reste bêta** : merger le lot puis **déployer** (c'est le deploy qui active le correctif `migrate-uploads`) → **ensuite** pré-chauffer les **319** icônes (bouton God) → contrôle visuel de la modale « Ressources à prévoir ».
+  - 🅿️ **Prod : RIEN À FAIRE aujourd'hui** (mesuré le 10/10) : le guide n'y est **pas seedé** (`22058` = 0, `32079` = 0) et le volume d'assets est **vide** (`/app/public/uploads/assets-dofus/items` n'existe pas ⇒ la copie échoue ; il faut `mkdir -p` d'abord). Au moment du déploiement prod : ① **aucun SQL** — le correctif est dans la **source de seed**, le futur seed prod naîtra bon ; ② `docker exec -u root sigilos-prod mkdir -p /app/public/uploads/assets-dofus/items`, copie des 4 WebP (hors git) puis `chown nextjs:nodejs` ; ③ pré-chauffage des 319.
+- **Reste (données)** : trancher le nom de `33380` · les **~21 000** objets hors guide relèvent du chantier **U**.
 - **Tests** : `tests/unit/rush-guide-item-ids.test.ts` (garde de **données**, sans réseau : l'id fautif ne revient pas, le bon est présent) + parité du rail (`rush-resource-checks`, `rush-public-parity`).
 - **Dépendances** : — · **Statut** : **livré le 10/10/2026** (les 5 cas mesurés traités ; le balayage du guide ne laisse qu'une décision de **nom**).
 

@@ -42,6 +42,20 @@ ENV NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL
 # le navigateur ne remonte jamais rien même si le VPS a les vars.
 ARG NEXT_PUBLIC_SENTRY_DSN
 ENV NEXT_PUBLIC_SENTRY_DSN=$NEXT_PUBLIC_SENTRY_DSN
+# Environnement Sentry figé dans le bundle CLIENT au build. Une variable qui n'est PAS
+# `NEXT_PUBLIC_*` n'est pas inlinée côté navigateur (`process.env.X` y vaut `undefined`)
+# ⇒ sans ce build-arg, TOUTES les erreurs du navigateur s'étiquetaient « production »,
+# bêta comprise (mesure du 11/10/2026).
+ARG NEXT_PUBLIC_SENTRY_ENVIRONMENT
+ENV NEXT_PUBLIC_SENTRY_ENVIRONMENT=$NEXT_PUBLIC_SENTRY_ENVIRONMENT
+# ── Source maps → Sentry : c'est CE jeton qui rend les stack traces LISIBLES ────────
+# Le plugin n'uploade QUE si le jeton est présent : sans lui, le bloc `sourcemaps {}`
+# de `next.config.ts` est **inerte** et Sentry ne reçoit que des traces MINIFIÉES
+# (mesure du 11/10/2026 : `SENTRY_AUTH_TOKEN` absent du Dockerfile ET du workflow).
+# ⚠️ `ARG` (jamais `ENV`) et dans le stage `builder` uniquement : le stage `runner`
+# ne copie pas cette couche ⇒ le jeton n'existe **pas** dans l'image livrée.
+# Secret à poser : GitHub → Settings → Secrets and variables → Actions.
+ARG SENTRY_AUTH_TOKEN
 
 # Plafond mémoire du build Next : la phase « Running TypeScript » de `next build`
 # (type-check complet du projet + client Prisma généré) atteint ~2 Go → OOM avec le

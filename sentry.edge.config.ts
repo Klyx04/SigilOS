@@ -12,6 +12,9 @@ Sentry.init({
     // Performance monitoring
     tracesSampleRate: 0.05,
 
-    // Environment tag
-    environment: process.env.NODE_ENV,
+    // Environment tag — MÊME règle que le serveur et le client : `SENTRY_ENVIRONMENT`
+    // prime (bêta vs prod). Mesure du 11/10/2026 : l'edge était le SEUL des trois
+    // runtimes à ignorer la variable ⇒ une erreur du middleware s'étiquetait
+    // « production » même sur la bêta.
+    environment: process.env.SENTRY_ENVIRONMENT || process.env.NODE_ENV,
 });

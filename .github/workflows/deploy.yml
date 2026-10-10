@@ -11,7 +11,9 @@ name: Build & Push Images
 # Prérequis :
 #  - Secrets GitHub : GHCR_PAT (Personal Access Token avec
 #    write:packages) ou utiliser GITHUB_TOKEN (défaut).
-#  - Secrets du build : BETA_PASSWORD, NEXT_PUBLIC_APP_URL, NEXT_PUBLIC_SENTRY_DSN
+#  - Secrets du build : BETA_PASSWORD, NEXT_PUBLIC_APP_URL, NEXT_PUBLIC_SENTRY_DSN,
+#    SENTRY_AUTH_TOKEN (upload des source maps → stack traces LISIBLES dans Sentry ;
+#    sans lui le bloc `sourcemaps {}` de `next.config.ts` est inerte).
 #    (définis dans Settings > Secrets and variables > Actions).
 # ─────────────────────────────────────────────────────────────
 on:
@@ -70,9 +72,12 @@ jobs:
           if [ "${{ env.BRANCH }}" == "main" ]; then
             echo "suffix=prod" >> $GITHUB_OUTPUT
             echo "app_url=https://sigilos.fr" >> $GITHUB_OUTPUT
+            # Étiquette Sentry de la PROD (même convention que `.env.prod` du dépôt).
+            echo "sentry_env=production" >> $GITHUB_OUTPUT
           else
             echo "suffix=beta" >> $GITHUB_OUTPUT
             echo "app_url=https://beta.sigilos.fr" >> $GITHUB_OUTPUT
+            echo "sentry_env=beta" >> $GITHUB_OUTPUT
           fi
           # GHCR impose des noms de repo en minuscules
           echo "owner_lower=${IMAGE_OWNER,,}" >> $GITHUB_OUTPUT
@@ -104,6 +109,7 @@ jobs:
         run: |
           SUFFIX=${{ steps.env.outputs.suffix }}
           APP_URL=${{ steps.env.outputs.app_url }}
+          SENTRY_ENV=${{ steps.env.outputs.sentry_env }}
           SHA_SHORT=${SHA:0:7}
           REG="ghcr.io/${{ steps.env.outputs.owner_lower }}"
 
@@ -143,6 +149,8 @@ jobs:
               --build-arg NEXT_PUBLIC_APP_URL="${APP_URL}" \
               --build-arg BETA_PASSWORD="${{ secrets.BETA_PASSWORD }}" \
               --build-arg NEXT_PUBLIC_SENTRY_DSN="${{ secrets.NEXT_PUBLIC_SENTRY_DSN }}" \
+              --build-arg NEXT_PUBLIC_SENTRY_ENVIRONMENT="${SENTRY_ENV}" \
+              --build-arg SENTRY_AUTH_TOKEN="${{ secrets.SENTRY_AUTH_TOKEN }}" \
               --target runner \
               -t "${REG}/sigilos-${NAME}-${SUFFIX}:${SHA_SHORT}" \
               -t "${REG}/sigilos-${NAME}-${SUFFIX}:latest" \

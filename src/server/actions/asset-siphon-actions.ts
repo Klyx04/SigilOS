@@ -20,6 +20,18 @@ import { bossMatchKey } from '@/lib/data-health';
 import { deriveDofensiveMonsterName, resolveMonsterKey } from '@/lib/dofensive-boss';
 import { getClassName } from '@/lib/dofusbook-utils';
 import { upsertClassSpellbookWithJournal, fetchClassSpellsFull } from '@/lib/class-spells-siphon';
+import {
+    GUIDE_ICON_CHUNK_SIZE,
+    RUSH_GUIDE_SLUG,
+    guideResourceNumericIds,
+    splitMissingGuideIcons,
+} from '@/lib/rush-resources-preheat';
+// Le CŒUR (téléchargement + WebP) vit dans le module d'assets : jamais importé par un composant
+// client (il tire `sharp`). Le lanceur n'importe que la cadence pure.
+import { siphonItemIconsBatchCore, type ItemIconSiphonResult } from '@/lib/dofus-asset-siphon';
+// 🔥 Pré-chauffage du guide : les ressources viennent de **la même** agrégation que l'affichage.
+import { aggregateRushResources } from '@/app/overlay/guide/[guildId]/[slug]/components/overlay-utils';
+import type { RushMilestone } from '@/types/rush-guide-types';
 
 type ActionResponse<T = void> = {
     success: boolean;
@@ -439,5 +451,91 @@ export async function warmClassSpellbook(classId: number): Promise<ActionRespons
         // Journal God affiche au lieu d'un « An unexpected response… » opaque.
         const detail = error?.message ? ` : ${error.message}` : "";
         return { success: false, error: `Warm impossible pour ${fallbackName}${detail}` };
+    }
+}
+
+// ─── 🔥 Pré-chauffage des icônes du guide Rush Sylvestre ──────────────────────────────────────
+
+/** Inventaire du pré-chauffage : ce que le guide demande, et ce qui manque déjà sur le disque. */
+export interface GuideResourceIconTargets {
+    /** Ids (id de jeu) encore **absents** du disque — la cible de la passe. */
+    missing: number[];
+    /** Ids déjà en cache local (rien à faire). */
+    present: number[];
+    /** Ressources sans id numérique : servies à la volée par le proxy, jamais pré-chauffables. */
+    unmapped: number;
+    /** Nombre total de ressources agrégées du guide (toutes étapes confondues). */
+    total: number;
+}
+
+/**
+ * 🎯 Ce qu'il faut pré-chauffer pour que la modale « Ressources à prévoir » du guide n'ait plus
+ * **aucun** 404 : les icônes d'objets du guide absentes du disque.
+ *
+ * La liste vient de `aggregateRushResources` — la **même** source que l'affichage (guide interne,
+ * overlay, page publique) : on ne redérive jamais les ressources ailleurs, donc une ressource
+ * ajoutée au guide devient pré-chauffable sans toucher à ce fichier.
+ */
+export async function getGuideResourceIconTargets(
+    slug: string = RUSH_GUIDE_SLUG,
+): Promise<ActionResponse<GuideResourceIconTargets>> {
+    try {
+        if (!(await canManageSiphon())) {
+            return { success: false, error: 'Accès non autorisé' };
+        }
+        // 📚 Import **différé** (patron de `data-health-actions`) : le module du guide tire
+        // `next-auth` et toute la chaîne des actions de guide. Un import statique alourdirait
+        // chaque chargement de CE module — y compris dans les tests qui ne s'en servent pas
+        // (mesuré : `tests/unit/siphon-stats.test.ts` échouait au chargement).
+        const { getPublicGuideDetail } = await import('@/server/actions/optimized-guide-actions');
+        const guide = await getPublicGuideDetail(slug);
+        if (!guide.success) {
+            return { success: false, error: guide.error || 'Guide introuvable' };
+        }
+        if (!guide.guide) {
+            return { success: false, error: 'Guide introuvable' };
+        }
+        // Les blocs du guide sont stockés en base (JSON `activityTags`) : on ne valide ici que la
+        // **forme attendue** par l'agrégation, la même que celle des écrans (`aggregateRushResources`).
+        const rawMilestones = (guide.guide as { milestones?: unknown }).milestones;
+        const milestones = (Array.isArray(rawMilestones) ? rawMilestones : []) as unknown as RushMilestone[];
+        const resources = aggregateRushResources(milestones);
+        const ids = guideResourceNumericIds(resources);
+        const { missing, present } = splitMissingGuideIcons(ids, (id) => !!getLocalAssetUrl('items', id, null));
+        return {
+            success: true,
+            data: { missing, present, unmapped: Math.max(0, resources.length - ids.length), total: resources.length },
+        };
+    } catch (error: any) {
+        logger.error('[getGuideResourceIconTargets] Error:', { error: error?.message, slug });
+        return { success: false, error: 'Inventaire du guide impossible' };
+    }
+}
+
+/**
+ * 🔥 Pré-chauffe **une tranche** d'icônes d'objets (le panneau boucle dessus, comme pour les fiches
+ * boss : un appel unique de plusieurs minutes casse). Même contrat que
+ * `triggerBatchAssetSiphonAction` — et jamais de chemin deviné (cf. `siphonItemIconsBatchCore`).
+ */
+export async function triggerBatchItemIconSiphonAction(
+    ids: number[],
+): Promise<ActionResponse<ItemIconSiphonResult>> {
+    try {
+        if (!(await canManageSiphon())) {
+            return { success: false, error: 'Accès non autorisé' };
+        }
+        if (!Array.isArray(ids) || ids.length === 0) {
+            return { success: false, error: 'Aucune cible sélectionnée' };
+        }
+        // 🛡️ Bornage : jamais plus qu'une tranche, même si l'appelant en envoie davantage.
+        const safeIds = ids.filter((id) => Number.isInteger(id) && id > 0).slice(0, GUIDE_ICON_CHUNK_SIZE);
+        if (safeIds.length === 0) {
+            return { success: false, error: 'Identifiants invalides' };
+        }
+        return { success: true, data: await siphonItemIconsBatchCore(safeIds) };
+    } catch (error: any) {
+        logger.error('[triggerBatchItemIconSiphonAction] Error:', { error: error?.message });
+        const detail = error?.message ? ` : ${error.message}` : "";
+        return { success: false, error: `Pré-chauffage impossible${detail}` };
     }
 }

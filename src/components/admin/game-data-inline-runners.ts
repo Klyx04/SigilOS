@@ -30,6 +30,7 @@
 import {
     getSiphonInventory,
     triggerBatchAssetSiphonAction,
+    triggerBatchItemIconSiphonAction,
     warmClassSpellbook,
 } from "@/server/actions/asset-siphon-actions";
 import {
@@ -49,6 +50,9 @@ import { describeGameDataTransportError, formatGameDataErrorLines } from "@/lib/
 import { isLocalThrottleDeferredMessage } from "@/lib/dofusdb-throttle";
 import { getClassName } from "@/lib/dofusbook-utils";
 import { GAME_ITEMS_BATCH_PAUSE_MS, GAME_ITEMS_BATCH_SIZE } from "@/lib/game-items-cadence";
+// 🧊 Cadence **pure** du pré-chauffage d'icônes (ce module ne tire ni `sharp` ni `fs` — un lanceur
+// client ne doit jamais embarquer le cœur d'assets : leçon du 23/09/2026).
+import { chunkItemIconIds } from "@/lib/rush-resources-preheat";
 import type { GameDataDataset } from "@/lib/game-data-sync-state";
 
 /** Les 19 classes : un appel serveur **par classe** (un appel unique de ~10 min casse). */
@@ -91,13 +95,23 @@ export function isInlineRunnable(dataset: GameDataDataset): dataset is InlineRun
     return (INLINE_RUNNABLE_DATASETS as readonly string[]).includes(dataset);
 }
 
-/** Cible d'un siphon d'images (sous-ensemble structurel de `SiphonInventoryItem`). */
+/**
+ * Cible d'un siphon d'images (sous-ensemble structurel de `SiphonInventoryItem`, plus le cas
+ * « objet » du pré-chauffage du guide).
+ */
 export interface AssetSiphonTarget {
     id: number | string;
     name: string;
     resolvedMonsterName?: string | null;
     dungeonName?: string | null;
     remoteImageUrl?: string | null;
+    /**
+     * 🖼️ Nature de l'asset : `monsters` (défaut — fiches boss, avec relecture de la carte
+     * Dofensive) ou `items` (pré-chauffage des ressources du guide : le fichier visé est
+     * `/uploads/assets-dofus/items/{id}.webp`, celui que `ResourceImage` cherche en premier).
+     * Deux voies différentes, **un seul** rail de progression.
+     */
+    kind?: "monsters" | "items";
 }
 
 export interface InlineRunHooks {
@@ -158,9 +172,46 @@ async function siphonAssetTargets(
     let siphoned = 0;
     let skipped = 0;
     let errors = 0;
+    const total = targets.length;
+    let done = 0;
 
-    for (let i = 0; i < targets.length; i += ASSET_SIPHON_CHUNK_SIZE) {
-        const chunk = targets.slice(i, i + ASSET_SIPHON_CHUNK_SIZE);
+    /**
+     * ① **Objets** (pré-chauffage des ressources du guide Sylvestre) : aucune fiche boss ni carte
+     * Dofensive à relire ⇒ leur propre voie (`triggerBatchItemIconSiphonAction`), en tranches de
+     * `GUIDE_ICON_CHUNK_SIZE` (chaque icône coûte 1 à 2 requêtes sur un budget partagé de 30/min).
+     */
+    const itemTargets = targets.filter((t) => t.kind === "items");
+    if (itemTargets.length > 0) {
+        const itemIds = itemTargets
+            .map((t) => Number(t.id))
+            .filter((id) => Number.isInteger(id) && id > 0);
+        for (const chunk of chunkItemIconIds(itemIds)) {
+            const res = await triggerBatchItemIconSiphonAction(chunk);
+            if (res.success && res.data) {
+                siphoned += res.data.siphoned;
+                skipped += res.data.skipped;
+                errors += res.data.errors;
+                for (const line of res.data.details ?? []) ctx.log(`⚠️ ${line}`);
+            } else {
+                errors += chunk.length;
+                ctx.log(`❌ Lot d'icônes en échec : ${res.error || "inconnue"}`);
+            }
+            done += chunk.length;
+            await ctx.report(done, total, `${done} / ${total} image(s)`);
+        }
+        // Un id illisible n'entre dans aucune tranche : on le compte (jamais en silence).
+        const unreadable = itemTargets.length - itemIds.length;
+        if (unreadable > 0) {
+            skipped += unreadable;
+            done += unreadable;
+            ctx.log(`⚠️ ${unreadable} cible(s) d'objet sans identifiant numérique — ignorée(s).`);
+        }
+    }
+
+    /** ② **Monstres** (fiches boss) : voie historique, inchangée (fiche + carte Dofensive). */
+    const monsterTargets = targets.filter((t) => t.kind !== "items");
+    for (let i = 0; i < monsterTargets.length; i += ASSET_SIPHON_CHUNK_SIZE) {
+        const chunk = monsterTargets.slice(i, i + ASSET_SIPHON_CHUNK_SIZE);
         const res = await triggerBatchAssetSiphonAction(
             chunk.map((t) => ({
                 id: t.id,
@@ -181,7 +232,8 @@ async function siphonAssetTargets(
             errors += chunk.length;
             ctx.log(`❌ Lot d'images en échec : ${res.error || "inconnue"}`);
         }
-        await ctx.report(Math.min(i + chunk.length, targets.length), targets.length, `${Math.min(i + chunk.length, targets.length)} / ${targets.length} image(s)`);
+        done = Math.min(done + chunk.length, total);
+        await ctx.report(done, total, `${done} / ${total} image(s)`);
     }
 
     const summary = `Images WebP : ${siphoned} siphonnée(s), ${skipped} ignorée(s), ${errors} erreur(s).`;

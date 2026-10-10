@@ -22,6 +22,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import {
+    getGuideResourceIconTargets,
     getSiphonDashboardStats,
     getSiphonInventory,
     triggerBatchAssetSiphonAction,
@@ -147,6 +148,67 @@ export function GameDataSiphonPanel() {
                 toast.success(res.summary);
             } else {
                 toast.error(res.error || 'Siphon interrompu — voir le journal.');
+            }
+            setIsSiphoning(false);
+            await loadData();
+        });
+    };
+
+    /**
+     * 🔥 Pré-chauffe les icônes d'objets du **guide Rush Sylvestre** (une seule passe, ciblée).
+     *
+     * 🐛 Mesure du 10/10/2026 (constat user : « les ressources quand on ouvre la fenêtre des +300
+     * ressources des guides sylvestres on voit des espèces de chargement ») : la modale
+     * « Ressources à prévoir » demande **d'abord** le WebP local
+     * `/uploads/assets-dofus/items/{id}.webp` ; après la purge du cache il manque pour la
+     * quasi-totalité des lignes ⇒ des centaines de 404, puis autant de seconds appels au proxy
+     * (budget partagé de 30 req/min) : les icônes arrivent une par une.
+     * On écrit donc les fichiers **une fois pour toutes**, sur le **même rail d'état** que le reste
+     * (la ligne « Images WebP » du Tableau suit la progression).
+     */
+    const handlePreheatGuideIcons = async () => {
+        setIsSiphoning(true);
+        setProgressValue(0);
+        setSiphonSummary(null);
+        setLogs((prev) => ['🔥 Inventaire des ressources du guide Rush Sylvestre…', ...prev]);
+
+        startTransition(async () => {
+            const targets = await getGuideResourceIconTargets();
+            if (!targets.success || !targets.data) {
+                const error = targets.error || 'Inventaire du guide indisponible';
+                setSiphonSummary(error);
+                toast.error(error);
+                setIsSiphoning(false);
+                return;
+            }
+
+            const { missing, present, unmapped, total } = targets.data;
+            setLogs((prev) => [
+                `🔎 ${total} ressource(s) au guide · ${present.length} déjà en cache · ${missing.length} à pré-chauffer` +
+                    (unmapped > 0 ? ` · ${unmapped} sans id numérique (servies à la volée par le proxy)` : ''),
+                ...prev,
+            ]);
+
+            if (missing.length === 0) {
+                setSiphonSummary('Guide : toutes les icônes sont déjà en cache local.');
+                toast.success('Rien à pré-chauffer : le guide est déjà 100 % local');
+                setIsSiphoning(false);
+                await loadData();
+                return;
+            }
+
+            const res = await runInlineGameDataDataset('ASSETS_WEBP', {
+                assetTargets: missing.map((id) => ({ id, name: `Objet #${id}`, kind: 'items' as const })),
+                log: (line) => setLogs((prev) => [line, ...prev]),
+                onProgress: (done, totalCount) =>
+                    setProgressValue(Math.min(100, Math.round((done / totalCount) * 100))),
+            });
+
+            setSiphonSummary(res.summary || res.error || null);
+            if (res.ok) {
+                toast.success(res.summary);
+            } else {
+                toast.error(res.error || 'Pré-chauffage interrompu — voir le journal.');
             }
             setIsSiphoning(false);
             await loadData();
@@ -313,6 +375,19 @@ export function GameDataSiphonPanel() {
                     >
                         {isSiphoning ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
                         Siphonner les manquants affichés (100 max)
+                    </Button>
+
+                    {/* 🔥 Pré-chauffage CIBLÉ du guide : la modale « Ressources à prévoir » n'a plus
+                        aucun 404 (une icône lue tantôt = une requête DofusDB sous budget partagé). */}
+                    <Button
+                        onClick={handlePreheatGuideIcons}
+                        disabled={isSiphoning || isPending}
+                        variant="secondary"
+                        className="rounded-xl gap-2"
+                        title="Écrit sur le disque les icônes des objets du guide Rush Sylvestre (aucun chemin deviné : identité vérifiée par l'API)"
+                    >
+                        {isSiphoning ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                        Pré-chauffer les icônes du guide
                     </Button>
 
                     <Button

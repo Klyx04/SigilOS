@@ -130,10 +130,13 @@ export function MarketItemCard({ data, className }: { data: MarketItemCardData; 
      * 📐 BUG-3 + constat beta : une annonce de **lot** n'a pas d'`itemIconUrl`,
      * la carte restait donc sur un cube gris. Repli : l'icône du **premier
      * composant** du lot, normalisée vers le proxy auto-siphon (jamais 404).
+     * Correctif 10/10/2026 — un lot montre **toutes** ses icônes (une par objet,
+     * comme les messages Discord par objet), plus jamais une seule.
      */
     const itemIconUrl =
         normalizeItemIconUrl(data.iconUrl ?? null, null) ??
         normalizeItemIconUrl(components[0]?.iconUrl ?? null, null);
+    const bundleIcons = components.length > 1 ? components.slice(0, 5) : [];
     // S8.4 — bloc STATUT : le mapping carte → lignes est **pur et testé**
     // (`describeSmithmagicStatus`) ; ce composant ne fait que le rendre.
     const statusLines: SmithmagicStatusLine[] = describeSmithmagicStatus({
@@ -180,7 +183,27 @@ export function MarketItemCard({ data, className }: { data: MarketItemCardData; 
                         compact ? "h-16 w-16 rounded-xl" : "h-28 w-28 rounded-2xl"
                     )}
                 >
-                    {itemIconUrl ? (
+                    {bundleIcons.length > 0 ? (
+                        <div className="absolute inset-0 grid grid-cols-2 gap-0.5 p-1">
+                            {bundleIcons.map((component, index) => {
+                                const src = normalizeItemIconUrl(component.iconUrl ?? null, null);
+                                return src ? (
+                                    <span key={index} className="relative min-h-0 min-w-0 overflow-hidden">
+                                        <Image
+                                            src={src}
+                                            alt={component.name}
+                                            fill
+                                            sizes="32px"
+                                            className="object-contain p-0.5"
+                                            unoptimized
+                                        />
+                                    </span>
+                                ) : (
+                                    <Package key={index} className="m-auto h-4 w-4 text-muted-foreground/40" />
+                                );
+                            })}
+                        </div>
+                    ) : itemIconUrl ? (
                         <Image
                             src={itemIconUrl}
                             alt={data.name}

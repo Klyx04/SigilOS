@@ -1,6 +1,10 @@
 /**
  * Phase 1.1 — Proxy `/api/assets-dofus/[type]/[id]` : jamais de 404.
- * local → siphon à la volée → placeholder SVG 200. Hôtes distants allowlistés.
+ * local → siphon à la volée → placeholder PNG 200. Hôtes distants allowlistés.
+ *
+ * Correctif 10/10/2026 — le placeholder est un **PNG** (1×1 transparent), jamais
+ * du SVG : Discord ne sait pas rendre le SVG dans un embed (symptôme mesuré :
+ * l'image de l'embed « tente de se générer puis rien », ex. Muldo sans jet).
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
@@ -94,7 +98,7 @@ describe("GET /api/assets-dofus/[type]/[id] — garde-fous", () => {
         expect(fetchMock).not.toHaveBeenCalled();
     });
 
-    it("?url= hors allowlist + id non numérique → placeholder SVG 200 (jamais 404)", async () => {
+    it("?url= hors allowlist + id non numérique → placeholder PNG 200 (jamais 404)", async () => {
         vi.stubGlobal("fetch", vi.fn());
         mockExistsSync.mockReturnValue(false);
 
@@ -104,7 +108,7 @@ describe("GET /api/assets-dofus/[type]/[id] — garde-fous", () => {
         );
 
         expect(res.status).toBe(200);
-        expect(res.headers.get("content-type")).toContain("svg");
+        expect(res.headers.get("content-type")).toContain("image/png");
     });
 
     it("id numérique (ITEM) : l'iconId est résolu par l'API (garde d'identité) → 200 webp + persistance", async () => {
@@ -137,7 +141,7 @@ describe("GET /api/assets-dofus/[type]/[id] — garde-fous", () => {
         const res = await GET(req("http://localhost/api/assets-dofus/items/456"), ctx("items", "456"));
 
         expect(res.status).toBe(200);
-        expect(res.headers.get("content-type")).toContain("svg");
+        expect(res.headers.get("content-type")).toContain("image/png");
     });
 
     it("Dofusbook (?icon=1) : iconId qui EST aussi un id d'objet → on lit l'ICÔNE, pas l'objet", async () => {
@@ -163,14 +167,14 @@ describe("GET /api/assets-dofus/[type]/[id] — garde-fous", () => {
         expect(calls).not.toContain("https://api.dofusdb.fr/items/9289");
     });
 
-    it("tout échoue → placeholder SVG 200 (pas 404, pas 500)", async () => {
+    it("tout échoue → placeholder PNG 200 (pas 404, pas 500)", async () => {
         vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("down")));
         mockExistsSync.mockReturnValue(false);
 
         const res = await GET(req("http://localhost/api/assets-dofus/monsters/789"), ctx("monsters", "789"));
 
         expect(res.status).toBe(200);
-        expect(res.headers.get("content-type")).toContain("svg");
+        expect(res.headers.get("content-type")).toContain("image/png");
     });
 });
 
@@ -240,7 +244,7 @@ describe("GET /api/assets-dofus/monsters/[id] — l'apparence suit le gfxId (aut
 
         const res = await GET(req(`http://localhost/api/assets-dofus/monsters/999999`), ctx("monsters", "999999"));
 
-        expect(res.headers.get("content-type")).toContain("svg");
+        expect(res.headers.get("content-type")).toContain("image/png");
         expect(fetched(fetchMock).some((u) => u.includes("img/monsters/1.png"))).toBe(false);
     });
 

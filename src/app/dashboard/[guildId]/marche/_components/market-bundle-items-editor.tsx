@@ -26,12 +26,15 @@ import {
     computeBundleTotal,
     computeItemUnitPrice,
     type BundleItemInput,
+    type BundleItemStatInput,
 } from "@/lib/market/bundle";
+import type { MarketStatDraft } from "@/lib/market/effects";
+import { MarketJetEditor } from "./market-jet-editor";
 import { KamasAmount } from "@/components/market/kamas-amount";
 
 /** Objet vide d'un nouveau lot (prix à 1 kama : à corriger par le vendeur). */
 export function emptyBundleItem(): BundleItemInput {
-    return { name: "", quantity: 1, unitLabel: null, priceKamas: 1 };
+    return { name: "", quantity: 1, unitLabel: null, priceKamas: 1, stats: [] };
 }
 
 interface MarketBundleItemsEditorProps {
@@ -39,6 +42,12 @@ interface MarketBundleItemsEditorProps {
     onChange: (items: BundleItemInput[]) => void;
     /** Objet suggéré par le catalogue (facultatif) : préremplit la 1ʳᵉ ligne. */
     suggested?: Partial<BundleItemInput> | null;
+    /**
+     * Correctif 10/10/2026 — `true` par ligne quand l'objet est un équipement
+     * modifiable : seul ce cas ouvre l'éditeur de jet (une ressource comme
+     * l'eau potable se vend brute, sans jet, sans miniature de stats).
+     */
+    jetEditable?: boolean[];
     /**
      * 🧺 Recherche dans le catalogue **par ligne** (facultatif).
      *
@@ -57,6 +66,7 @@ export function MarketBundleItemsEditor({
     items,
     onChange,
     suggested,
+    jetEditable,
     renderPicker,
     disabled = false,
 }: MarketBundleItemsEditorProps) {
@@ -66,6 +76,19 @@ export function MarketBundleItemsEditor({
 
     const update = (index: number, patch: Partial<BundleItemInput>) => {
         onChange(items.map((item, position) => (position === index ? { ...item, ...patch } : item)));
+    };
+
+    const updateStats = (index: number, stats: MarketStatDraft[]) => {
+        const mapped: BundleItemStatInput[] = stats.map((stat) => ({
+            effectId: stat.effectId,
+            characteristic: stat.characteristic ?? null,
+            label: stat.label,
+            naturalMin: stat.naturalMin ?? null,
+            naturalMax: stat.naturalMax ?? null,
+            actualValue: stat.actualValue,
+            origin: stat.origin,
+        }));
+        update(index, { stats: mapped });
     };
 
     const addItem = () => {
@@ -135,6 +158,7 @@ export function MarketBundleItemsEditor({
                                                         name: "",
                                                         dofusDbItemId: null,
                                                         iconUrl: null,
+                                                        stats: [],
                                                     })
                                                 }
                                                 disabled={disabled}
@@ -208,6 +232,35 @@ export function MarketBundleItemsEditor({
                                 <p className="flex items-center gap-1 text-xs text-muted-foreground">
                                     Soit <KamasAmount value={unit} /> l&apos;unité.
                                 </p>
+                            )}
+
+                            {/* Correctif 10/10/2026 — jet **de cet objet** : proposé
+                                uniquement pour un équipement (ex. cape) ; une
+                                ressource (ex. eau potable) se vend brute. La
+                                miniature Discord de cet objet devient la carte
+                                des stats, régénérée à chaque édition du jet. */}
+                            {jetEditable?.[index] === true && item.dofusDbItemId != null && (
+                                <div className="rounded-lg border border-border bg-background/50 p-2">
+                                    <p className="text-xs font-semibold text-foreground">
+                                        Jet de {item.name || `l'objet n°${index + 1}`}
+                                    </p>
+                                    <p className="mb-2 text-[11px] text-muted-foreground">
+                                        Ajuste la valeur réelle de chaque ligne. La miniature Discord
+                                        de cet objet affichera ces stats.
+                                    </p>
+                                    <MarketJetEditor
+                                        stats={(item.stats ?? []).map((stat) => ({
+                                            effectId: stat.effectId,
+                                            characteristic: stat.characteristic ?? null,
+                                            label: stat.label,
+                                            naturalMin: stat.naturalMin ?? null,
+                                            naturalMax: stat.naturalMax ?? null,
+                                            actualValue: stat.actualValue,
+                                            origin: stat.origin ?? "NATIVE",
+                                        }))}
+                                        onChange={(stats) => updateStats(index, stats)}
+                                    />
+                                </div>
                             )}
                         </li>
                     );

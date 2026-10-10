@@ -112,6 +112,12 @@ function formatKamas(value: number | null): string {
     return value == null ? "Prix non fixé" : `${value.toLocaleString("fr-FR")} K`;
 }
 
+/** Total d'un lot = somme des prix **par objet** (l'annonce porte `NULL`). */
+function bundleTotal(components: readonly { priceKamas?: number | null }[]): number | null {
+    if (components.length === 0) return null;
+    return components.reduce((sum, c) => sum + Math.max(0, Math.trunc(c.priceKamas ?? 0)), 0);
+}
+
 /**
  * GET /api/og/market/[id] — **carte d'annonce** du Marché (S2.16, refonte S8.22).
  *
@@ -129,23 +135,37 @@ function formatKamas(value: number | null): string {
 export async function GET(req: NextRequest, context: { params: Promise<{ id: string }> }) {
     try {
         const { id } = await context.params;
+        const componentId = req.nextUrl.searchParams.get("component");
         const listing = await db.marketListing.findUnique({
             where: { id },
             include: {
                 stats: true,
-                components: { orderBy: { position: "asc" } },
+                components: {
+                    orderBy: { position: "asc" },
+                    include: { componentStats: true },
+                },
             },
         });
         if (!listing || !PUBLIC_STATUSES.includes(listing.status)) {
             return new Response("Carte introuvable", { status: 404 });
         }
 
-        const headerName = listing.itemName || listing.title;
+        // 🧺 Carte **d'un objet de lot** (correctif 10/10/2026) : miniature de
+        // stats de **cet** équipement, comme l'unitaire. `componentId` inconnu
+        // ou hors lot ⇒ 404 (jamais la carte d'un autre objet).
+        const component =
+            componentId != null ? listing.components.find((c) => c.id === componentId) ?? null : null;
+        if (componentId != null && !component) {
+            return new Response("Carte introuvable", { status: 404 });
+        }
+
+        const headerName = component?.name ?? listing.itemName ?? listing.title;
+        const cardPrice = component ? component.priceKamas : (listing.priceKamas ?? bundleTotal(listing.components));
 
         // Les PODS viennent du CATALOGUE (GameItem), pas de l'annonce.
-        const catalogItem = listing.dofusDbItemId
+        const catalogItem = (component?.dofusDbItemId ?? listing.dofusDbItemId)
             ? await db.gameItem.findUnique({
-                  where: { ankamaId: listing.dofusDbItemId },
+                  where: { ankamaId: (component?.dofusDbItemId ?? listing.dofusDbItemId) as number },
                   select: { realWeight: true },
               })
             : null;
@@ -155,8 +175,9 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
         // Satori ne décode pas le WebP et un auto-appel HTTP pouvait échouer.
         // Constat beta — un **lot** n'a pas d'`ankamaId` d'annonce : on retombe
         // sur le **1ᵉʳ composant** (la carte montrait un cadre vide).
+        // Correctif 10/10/2026 — carte d'objet : l'image de **cet** objet.
         const itemImageDataUrl = await loadItemImageDataUrl(
-            listing.dofusDbItemId ?? listing.components[0]?.dofusDbItemId ?? null
+            component?.dofusDbItemId ?? listing.dofusDbItemId ?? listing.components[0]?.dofusDbItemId ?? null
         );
         // BUG-5 — icône Kamas officielle, embarquée DANS l'image (spec §2.4).
         const kamasIconDataUrl = loadKamasIconDataUrl();
@@ -165,8 +186,9 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
          * Constat beta — les lignes de **métadonnées** (`0 → 0`) sont écartées
          * avant tout calcul : une annonce ancienne qui les porte s'affiche comme
          * un objet sans jet (objet en grand), jamais « +0 Échangeable : [0] ».
+         * Correctif 10/10/2026 — carte d'objet : le jet de **cet** objet.
          */
-        const statLines = listing.stats.filter(isStatBearingStatRow);
+        const statLines = (component ? component.componentStats : listing.stats).filter(isStatBearingStatRow);
         // Constat beta — **toutes** les lignes sont peintes (aucune troncature,
         // aucun « + N autre(s) ligne(s) ») : la carte grandit, les lignes se
         // compressent par paliers (`statRowMetrics`).
@@ -180,7 +202,9 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
          */
         const hasStatLines = visibleStats.length > 0;
         const boxSize = hasStatLines ? ITEM_BOX : ITEM_BOX_LARGE;
-        const visibleComponents = listing.components.slice(0, 6);
+        // Correctif 10/10/2026 — carte d'objet : pas de bloc « contenu du lot »
+        // (c'est la carte de **cet** objet) ; carte d'annonce : contenu + prix.
+        const visibleComponents = component ? [] : listing.components.slice(0, 6);
         /**
          * Hauteur **dynamique** : la carte s'allonge avec le nombre de lignes de
          * jet et le contenu du lot (jamais de ligne perdue, jamais de texte
@@ -379,9 +403,12 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
                                     >
                                         CONTENU DU LOT
                                     </div>
-                                    {visibleComponents.map((component, index) => (
+                                    {visibleComponents.map((lotComponent, index) => (
                                         <div key={index} style={{ display: "flex", fontSize: 14, color: "#cbd5e1" }}>
-                                            ×{component.quantity.toLocaleString("fr-FR")} {component.name}
+                                            ×{lotComponent.quantity.toLocaleString("fr-FR")} {lotComponent.name}
+                                            {lotComponent.priceKamas != null
+                                                ? ` — ${lotComponent.priceKamas.toLocaleString("fr-FR")} K`
+                                                : ""}
                                         </div>
                                     ))}
                                 </div>
@@ -456,7 +483,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
                                     <img src={kamasIconDataUrl} width={22} height={22} alt="" />
                                 )}
                                 <div style={{ display: "flex", fontSize: 26, fontWeight: 900, color: "#fbbf24" }}>
-                                    {formatKamas(listing.priceKamas)}
+                                    {formatKamas(cardPrice)}
                                 </div>
                             </div>
 

@@ -81,7 +81,7 @@ export interface MarketPublishStepProps {
      * du 14/09/2026) : l'aperçu en montre donc **N**, chacun avec son objet, son
      * prix et ses propres boutons. Vide pour les annonces simples.
      */
-    bundleItems?: { name: string; quantity: number; priceKamas: number; iconUrl?: string | null }[];
+    bundleItems?: { name: string; quantity: number; priceKamas: number; iconUrl?: string | null; hasStats?: boolean }[];
     context: MarketPublishContext | null;
     /**
      * Rôles cochés à l'**étape 5 « Notification »** (`market-notify-step.tsx`) :
@@ -245,6 +245,7 @@ export function MarketPublishStep({
                             <div key={`${index}-${bundleItem.name}`} className="space-y-2">
                                 <p className="text-xs font-semibold text-foreground">
                                     {index + 1}/{bundleItems.length} — {bundleItem.name}
+                                    {bundleItem.hasStats ? " · carte des stats jointe" : ""}
                                 </p>
                                 <DiscordEmbedPreview
                                     title={itemPayload.embedTitle}

@@ -137,6 +137,23 @@ type SerializedListing = {
          */
         priceKamas?: number | null;
         status?: "AVAILABLE" | "RESERVED" | "SOLD";
+        /**
+         * Correctif 10/10/2026 — icône **de cet objet** (chaque objet du lot
+         * affiche sa vraie icône, plus jamais celle du 1er) + jet déclaré
+         * **de cet objet** (équipement en lot, comme l'unitaire).
+         */
+        iconUrl?: string | null;
+        dofusDbItemId?: number | null;
+        stats?: {
+            effectId: number;
+            characteristic: number | null;
+            label: string;
+            actualValue: number;
+            quality: string;
+            origin: string;
+            naturalMin: number | null;
+            naturalMax: number | null;
+        }[];
     }[];
 };
 
@@ -241,6 +258,16 @@ export function MarketListingClient({
 
     const sellerName = listing.profile?.pseudoDofus || listing.profile?.user?.name || "Membre";
     /**
+     * Correctif 10/10/2026 — un lot ne porte **aucun** prix global (`NULL`) :
+     * le prix affiché (carte, fiche, catalogue) est le **total recalculé**
+     * depuis les objets, jamais « — ».
+     */
+    const bundleTotal =
+        listing.type === "BUNDLE"
+            ? listing.components.reduce((sum, c) => sum + Math.max(0, Math.trunc(c.priceKamas ?? 0)), 0)
+            : null;
+    const displayPrice = listing.type === "BUNDLE" ? bundleTotal : listing.priceKamas;
+    /**
      * 🧺 **Option A (§A4)** — avancement du lot : nombre d'objets encore
      * **disponibles** (badge « 3/5 disponibles » de la fiche). Tolérant aux données
      * historiques : un objet dont l'état n'est pas porté est considéré disponible —
@@ -313,7 +340,7 @@ export function MarketListingClient({
                         isLegendary,
                         realWeight,
                         averagePrice,
-                        priceKamas: listing.priceKamas,
+                        priceKamas: displayPrice,
                         unitLabel: listing.unitLabel,
                         // Constat beta — quantité du lot + minimum par acheteur :
                         // rappelés ici, la carte « Le lot / l'objet » ayant disparu.
@@ -355,9 +382,19 @@ export function MarketListingClient({
                                 return (
                                     <div
                                         key={component.id}
-                                        className="flex items-center justify-between gap-3 rounded-xl border border-border bg-background/40 px-3 py-2"
+                                        className="rounded-xl border border-border bg-background/40 px-3 py-2"
                                     >
-                                        <div className="min-w-0">
+                                        <div className="flex items-center justify-between gap-3">
+                                        <div className="min-w-0 flex items-center gap-2">
+                                            {component.iconUrl ? (
+                                                // eslint-disable-next-line @next/next/no-img-element
+                                                <img
+                                                    src={component.iconUrl}
+                                                    alt=""
+                                                    className="h-8 w-8 shrink-0 rounded-lg border border-border bg-background/70 object-contain p-0.5"
+                                                />
+                                            ) : null}
+                                            <div className="min-w-0">
                                             <p className="text-xs font-semibold text-foreground truncate">
                                                 {component.quantity > 1 ? `${component.quantity} × ` : ""}
                                                 {component.name}
@@ -370,6 +407,7 @@ export function MarketListingClient({
                                                     <span>Prix non détaillé</span>
                                                 )}
                                             </p>
+                                            </div>
                                         </div>
                                         <div className="flex shrink-0 items-center gap-2">
                                             <Badge
@@ -416,6 +454,33 @@ export function MarketListingClient({
                                                 </Button>
                                             )}
                                         </div>
+                                    </div>
+                                        {/* Correctif 10/10/2026 — jet déclaré **de cet
+                                            objet** (équipement en lot, comme
+                                            l'unitaire) : la fiche montre les vraies
+                                            stats, pas seulement le nom. */}
+                                        {(component.stats ?? []).length > 0 && (
+                                            <ul className="mt-2 space-y-1 border-t border-border/60 pt-2">
+                                                {(component.stats ?? []).map((stat) => (
+                                                    <li key={`${stat.effectId}-${stat.origin}`} className="flex items-center gap-2 text-[11px]">
+                                                        <StatIcon
+                                                            characteristicId={stat.characteristic}
+                                                            effectId={stat.effectId}
+                                                            label={stat.label}
+                                                        />
+                                                        <span className="font-bold tabular-nums text-foreground">
+                                                            {stat.actualValue >= 0 ? `+${stat.actualValue}` : stat.actualValue}
+                                                        </span>
+                                                        <span className="min-w-0 flex-1 truncate text-foreground/90">
+                                                            {stat.label}
+                                                        </span>
+                                                        <span className="shrink-0 tabular-nums text-muted-foreground">
+                                                            {formatDeclaredRange(stat.naturalMin, stat.naturalMax)}
+                                                        </span>
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        )}
                                     </div>
                                 );
                             })}
@@ -550,7 +615,12 @@ export function MarketListingClient({
                     <CardContent className="p-5 space-y-4">
                         <div>
                             <p className="text-[11px] uppercase tracking-wider font-black text-muted-foreground">Prix</p>
-                            <p className="text-2xl font-black text-gold tabular-nums">{formatKamas(listing.priceKamas)}</p>
+                            <p className="text-2xl font-black text-gold tabular-nums">{formatKamas(displayPrice)}</p>
+                            {listing.type === "BUNDLE" && (
+                                <p className="text-[11px] text-muted-foreground">
+                                    Total du lot ({listing.components.length} objets)
+                                </p>
+                            )}
                             <p className="text-xs text-muted-foreground">
                                 {listing.negotiable ? "Négociable" : "Prix ferme"}
                                 {listing.acceptsTrade ? " · Troc accepté" : ""}

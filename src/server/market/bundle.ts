@@ -21,6 +21,8 @@ import {
     bundleItemsSchema,
     computeBundleTotal,
 } from "@/lib/market/bundle";
+import { normalizeItemIconUrl } from "@/lib/market/item-image";
+import { resolveMarketItemPolicy } from "@/lib/market/item-families";
 import { writeMarketAuditLog } from "@/server/market/audit";
 
 /** Motifs typés d'un refus de moteur (miroir des moteurs existants). */
@@ -51,11 +53,46 @@ function reservationExpiry(hours: number): Date {
 
 
 /**
+ * Garde famille **par objet** (correctif 10/10/2026) : un jet n'est accepté que
+ * sur un objet de type équipement modifiable (`statEditorAllowed`). Les autres
+ * familles (ressource, cosmétique, vente brute) se vendent telles quelles.
+ * Fail-closed : objet inconnu du catalogue + stats ⇒ refus.
+ */
+export async function guardBundleItemStats(item: BundleItemInput): Promise<string | null> {
+    const stats = item.stats ?? [];
+    if (stats.length === 0) return null;
+    if (!item.dofusDbItemId) {
+        return `« ${item.name} » : objet hors catalogue, aucune statistique ne peut être déclarée.`;
+    }
+    const catalog = await db.gameItem.findUnique({
+        where: { ankamaId: item.dofusDbItemId },
+        select: { typeId: true, superTypeId: true, typeName: true, category: true },
+    });
+    if (!catalog) {
+        return `« ${item.name} » : objet inconnu du catalogue.`;
+    }
+    const policy = resolveMarketItemPolicy({
+        typeId: catalog.typeId,
+        superTypeId: catalog.superTypeId,
+        typeName: catalog.typeName,
+        category: catalog.category,
+    });
+    if (!policy.statEditorAllowed) {
+        return `« ${item.name} » se vend tel quel : aucune statistique ne peut être déclarée.`;
+    }
+    return null;
+}
+
+/**
  * Crée une annonce **`BUNDLE`** et ses objets (2 à 5, prix **par objet**).
  *
  * Aucun prix n'est écrit sur l'annonce : `priceKamas` de la ligne
  * `MarketListing` reste `NULL` (le total du lot est la **somme** des objets,
  * recalculée côté serveur via `computeBundleTotal`, jamais reçue du client).
+ *
+ * Correctif 10/10/2026 : chaque objet de type équipement porte son **propre jet**
+ * (`MarketListingComponentStat`, résolu côté serveur comme l'unitaire) ; sa
+ * miniature Discord est la carte des stats, régénérée à chaque édition du jet.
  */
 export async function createBundleListingCore(params: {
     guildId: string;
@@ -66,6 +103,8 @@ export async function createBundleListingCore(params: {
     items: BundleItemInput[];
     publish?: boolean;
     expiresAt?: Date | null;
+    negotiable?: boolean;
+    acceptsTrade?: boolean;
 }): Promise<BundleCoreResult<{ listingId: string; componentIds: string[]; totalKamas: number }>> {
     const parsed = bundleItemsSchema.safeParse(params.items);
     if (!parsed.success) {
@@ -80,6 +119,34 @@ export async function createBundleListingCore(params: {
     const items = parsed.data;
     const totalKamas = computeBundleTotal(items);
 
+    // Garde famille par objet : un jet sur une ressource / un cosmétique est refusé.
+    for (const item of items) {
+        const refusal = await guardBundleItemStats(item);
+        if (refusal) {
+            return { success: false, reason: "INVALID", error: refusal };
+        }
+    }
+
+    // Résolution serveur des jets (plages catalogue + qualité recalculée),
+    // comme l'annonce unitaire (`resolveServerStats`, jamais le client).
+    const { resolveServerStats } = await import("@/server/market/stats");
+    const resolvedPerItem = await Promise.all(
+        items.map((item) =>
+            resolveServerStats(
+                item.dofusDbItemId ?? null,
+                (item.stats ?? []).map((stat) => ({
+                    effectId: stat.effectId,
+                    characteristic: stat.characteristic ?? null,
+                    label: stat.label,
+                    naturalMin: stat.naturalMin ?? null,
+                    naturalMax: stat.naturalMax ?? null,
+                    actualValue: stat.actualValue,
+                    origin: stat.origin ?? "NATIVE",
+                }))
+            )
+        )
+    );
+
     try {
         const listing = await db.marketListing.create({
             data: {
@@ -93,8 +160,8 @@ export async function createBundleListingCore(params: {
                 // Un lot ne porte ni prix global ni quantité globale : tout vit sur les objets.
                 priceKamas: null,
                 quantity: null,
-                negotiable: true,
-                acceptsTrade: false,
+                negotiable: params.negotiable ?? true,
+                acceptsTrade: params.acceptsTrade ?? false,
                 publishedAt: params.publish ? new Date() : null,
                 expiresAt: params.expiresAt ?? null,
             },
@@ -107,11 +174,13 @@ export async function createBundleListingCore(params: {
                 position: index,
                 dofusDbItemId: item.dofusDbItemId ?? null,
                 name: item.name,
-                iconUrl: item.iconUrl ?? null,
+                // BUG-1 — même normalisation que l'unitaire (proxy auto-siphon).
+                iconUrl: normalizeItemIconUrl(item.iconUrl ?? null, item.dofusDbItemId ?? null),
                 quantity: item.quantity,
                 unitLabel: item.unitLabel ?? null,
                 priceKamas: item.priceKamas,
                 status: "AVAILABLE",
+                statsHash: resolvedPerItem[index]?.hash ?? null,
             })),
         });
 
@@ -121,12 +190,26 @@ export async function createBundleListingCore(params: {
             select: { id: true },
         });
 
+        // Jets par objet (un `createMany` global : les ids sont ordonnés par position).
+        const statRows = resolvedPerItem.flatMap((resolved, index) => {
+            const componentId = components[index]?.id;
+            if (!componentId) return [];
+            return resolved.rows.map((row) => ({ ...row, componentId }));
+        });
+        if (statRows.length > 0) {
+            await db.marketListingComponentStat.createMany({ data: statRows });
+        }
+
         await writeMarketAuditLog({
             guildId: params.guildId,
             listingId: listing.id,
             actorUserId: params.userId,
             action: "BUNDLE_CREATED",
-            nextData: { itemCount: items.length, totalKamas },
+            nextData: {
+                itemCount: items.length,
+                totalKamas,
+                withStats: resolvedPerItem.filter((r) => r.rows.length > 0).length,
+            },
             reason: "Création d'un lot multiple",
         });
 

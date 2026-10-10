@@ -59,16 +59,18 @@ describe("constat beta — les lignes de métadonnées `0 → 0` ne sont jamais 
     });
 
     it("le serveur ne persiste plus ces lignes et la garde de famille reste intacte", () => {
-        const source = codeOnly(read("src/server/actions/market-actions.ts"));
         // Écriture : filtre **après** le recalcul serveur, avant la persistance.
-        expect(source).toMatch(/const rows = mapped\.filter\(isStatBearingStatRow\);/);
-        expect(source).toMatch(/if \(rows\.length === 0\) return \{ rows: \[\], hash: null \};/);
+        // Source unique depuis le 10/10/2026 : `src/server/market/stats.ts`
+        // (consommée par l'unitaire ET par le jet par objet du lot).
+        const stats = codeOnly(read("src/server/market/stats.ts"));
+        expect(stats).toMatch(/const rows = mapped\.filter\(isStatBearingStatRow\);/);
+        expect(stats).toMatch(/if \(rows\.length === 0\) return \{ rows: \[\], hash: null \};/);
+        const source = codeOnly(read("src/server/actions/market-actions.ts"));
         // La garde de famille existe toujours (on ne la contourne pas)…
         expect(source).toMatch(/statsCount > 0 && !policy\.statEditorAllowed/);
         // …et elle est appelée avec le compte **filtré** (création **et** édition).
-        const filterIndex = indexOf(source, "const rows = mapped.filter(isStatBearingStatRow);");
         const guardIndex = indexOf(source, "guardItemFamilyPolicy(data, resolvedStats.rows.length)");
-        expect(filterIndex).toBeLessThan(guardIndex);
+        expect(guardIndex).toBeGreaterThanOrEqual(0);
         expect(source.match(/guardItemFamilyPolicy\(data, resolvedStats\.rows\.length\)/g)).toHaveLength(2);
     });
 
@@ -80,7 +82,10 @@ describe("constat beta — les lignes de métadonnées `0 → 0` ne sont jamais 
         expect(actions).toMatch(/stats: row\.stats\.filter\(isStatBearingStatRow\),/);
 
         const og = codeOnly(read("src/app/api/og/market/[id]/route.tsx"));
-        expect(og).toMatch(/const statLines = listing\.stats\.filter\(isStatBearingStatRow\);/);
+        // Carte d'annonce : jet de l'annonce ; carte d'objet (`?component=`,
+        // correctif 10/10/2026) : jet de CET objet — le filtre anti-métadonnées
+        // s'applique aux deux (0 migration).
+        expect(og).toMatch(/\(component \? component\.componentStats : listing\.stats\)\.filter\(isStatBearingStatRow\);/);
         // Constat beta — **toutes** les lignes sont peintes : plus de troncature
         // (`MAX_STAT_LINES`) ni de mention « + N autres lignes ».
         expect(og).not.toMatch(/MAX_STAT_LINES/);

@@ -110,6 +110,18 @@ export type ComponentDraft = {
      * lot de ressources classique, où le prix reste global à l'annonce).
      */
     priceKamas?: number | null;
+    /**
+     * Correctif 10/10/2026 — jet déclaré **de cet objet** (lot multiple) :
+     * renseigné uniquement pour un équipement (l'éditeur n'est proposé que dans
+     * ce cas). Le serveur recalcule plages et qualité.
+     */
+    stats?: MarketStatDraft[];
+    /** Snapshot catalogue minimal (famille + plages natives) pour le jet par objet. */
+    typeId?: number | null;
+    superTypeId?: number | null;
+    typeName?: string | null;
+    category?: string | null;
+    nativeEffects?: MarketNativeEffect[] | null;
 };
 
 /**
@@ -519,7 +531,36 @@ export function MarketCreateClient({ guildId, initial = null, natureIcons }: Mar
                 quantity: component.quantity,
                 unitLabel: component.unitLabel,
                 priceKamas: component.priceKamas ?? 0,
+                stats: (component.stats ?? []).map((stat) => ({
+                    effectId: stat.effectId,
+                    characteristic: stat.characteristic ?? null,
+                    label: stat.label,
+                    naturalMin: stat.naturalMin ?? null,
+                    naturalMax: stat.naturalMax ?? null,
+                    actualValue: stat.actualValue,
+                    origin: stat.origin,
+                })),
             })),
+        [components]
+    );
+
+    /**
+     * Correctif 10/10/2026 — l'éditeur de jet n'est proposé **que** pour les
+     * objets de type équipement modifiable (ex. cape) ; une ressource (ex. eau
+     * potable) se vend brute, sans jet. Calculé depuis le snapshot catalogue
+     * de chaque ligne (même règle pure que le serveur).
+     */
+    const bundleJetEditable: boolean[] = useMemo(
+        () =>
+            components.map(
+                (component) =>
+                    resolveMarketItemPolicy({
+                        typeId: component.typeId ?? null,
+                        superTypeId: component.superTypeId ?? null,
+                        typeName: component.typeName ?? null,
+                        category: component.category ?? null,
+                    }).statEditorAllowed && component.dofusDbItemId != null
+            ),
         [components]
     );
 
@@ -597,6 +638,15 @@ export function MarketCreateClient({ guildId, initial = null, natureIcons }: Mar
                     quantity: entry.quantity,
                     unitLabel: entry.unitLabel ?? null,
                     priceKamas: entry.priceKamas,
+                    stats: (entry.stats ?? []).map((stat) => ({
+                        effectId: stat.effectId,
+                        characteristic: stat.characteristic ?? null,
+                        label: stat.label,
+                        naturalMin: stat.naturalMin ?? null,
+                        naturalMax: stat.naturalMax ?? null,
+                        actualValue: stat.actualValue,
+                        origin: stat.origin ?? "NATIVE",
+                    })),
                 })),
                 components: [],
                 stats: [],
@@ -853,28 +903,76 @@ export function MarketCreateClient({ guildId, initial = null, natureIcons }: Mar
             {step === 2 && kind === "BUNDLE" && (
                 <MarketBundleItemsEditor
                     items={bundleItems}
-                    renderPicker={(index, onPick) => (
+                    jetEditable={bundleJetEditable}
+                    renderPicker={(index) => (
                         <CataloguePicker
                             placeholder={`Rechercher l'objet n°${index + 1} — tout le catalogue Dofus`}
-                            onSelect={(picked) =>
-                                onPick({
-                                    ankamaId: picked.ankamaId,
-                                    name: picked.name,
-                                    iconUrl: picked.iconUrl ?? null,
-                                })
-                            }
+                            onSelect={(picked) => {
+                                const pickedPolicy = resolveMarketItemPolicy({
+                                    typeId: picked.typeId ?? null,
+                                    superTypeId: picked.superTypeId ?? null,
+                                    typeName: picked.typeName ?? null,
+                                    category: picked.category ?? null,
+                                });
+                                const prefilled = pickedPolicy.statEditorAllowed
+                                    ? buildNativeStatDrafts(
+                                          (picked.nativeEffects as MarketNativeEffect[] | null) ?? null,
+                                          statDraftOptions
+                                      )
+                                    : [];
+                                // Snapshot catalogue posé **directement** (famille +
+                                // plages natives) : l'éditeur de jet de la ligne
+                                // survit aux allers-retours prix/quantité/jet.
+                                setComponents((prev) =>
+                                    prev.map((row, position) =>
+                                        position === index
+                                            ? {
+                                                  ...row,
+                                                  dofusDbItemId: picked.ankamaId,
+                                                  name: picked.name,
+                                                  iconUrl: picked.iconUrl ?? null,
+                                                  stats: prefilled,
+                                                  typeId: picked.typeId ?? null,
+                                                  superTypeId: picked.superTypeId ?? null,
+                                                  typeName: picked.typeName ?? null,
+                                                  category: picked.category ?? null,
+                                                  nativeEffects:
+                                                      (picked.nativeEffects as MarketNativeEffect[] | null) ??
+                                                      null,
+                                              }
+                                            : row
+                                    )
+                                );
+                            }}
                         />
                     )}
                     onChange={(items) =>
-                        setComponents(
+                        setComponents((prev) =>
                             items.map((entry, index) => ({
-                                key: `bundle-${index}-${entry.name}`,
+                                key: prev[index]?.key ?? `bundle-${index}-${entry.name}`,
                                 dofusDbItemId: entry.dofusDbItemId ?? null,
                                 name: entry.name,
                                 iconUrl: entry.iconUrl ?? null,
                                 quantity: entry.quantity,
                                 unitLabel: entry.unitLabel ?? null,
                                 priceKamas: entry.priceKamas,
+                                stats: (entry.stats ?? []).map((stat) => ({
+                                    effectId: stat.effectId,
+                                    characteristic: stat.characteristic ?? null,
+                                    label: stat.label,
+                                    naturalMin: stat.naturalMin ?? null,
+                                    naturalMax: stat.naturalMax ?? null,
+                                    actualValue: stat.actualValue,
+                                    origin: stat.origin ?? "NATIVE",
+                                })),
+                                // Le snapshot catalogue survit aux frappes
+                                // (prix, quantité, jet) : sans lui l'éditeur de
+                                // jet disparaîtrait à la première modification.
+                                typeId: prev[index]?.typeId ?? null,
+                                superTypeId: prev[index]?.superTypeId ?? null,
+                                typeName: prev[index]?.typeName ?? null,
+                                category: prev[index]?.category ?? null,
+                                nativeEffects: prev[index]?.nativeEffects ?? null,
                             }))
                         )
                     }
@@ -998,6 +1096,7 @@ export function MarketCreateClient({ guildId, initial = null, natureIcons }: Mar
                                   quantity: entry.quantity,
                                   priceKamas: entry.priceKamas,
                                   iconUrl: entry.iconUrl ?? null,
+                                  hasStats: (entry.stats ?? []).length > 0,
                               }))
                             : []
                     }

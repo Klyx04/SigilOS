@@ -205,7 +205,11 @@ export function GameDataSiphonPanel() {
             });
 
             setSiphonSummary(res.summary || res.error || null);
-            if (res.ok) {
+            if (res.ok && res.deferred) {
+                // ⏸️ Interrompu par le budget DofusDB partagé : ni un succès franc, ni une panne —
+                // on le dit franchement (les icônes déjà écrites sont gardées).
+                toast.warning(res.summary);
+            } else if (res.ok) {
                 toast.success(res.summary);
             } else {
                 toast.error(res.error || 'Pré-chauffage interrompu — voir le journal.');

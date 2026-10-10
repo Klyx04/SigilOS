@@ -24,6 +24,7 @@ import {
     guideResourceNumericIds,
     splitMissingGuideIcons,
 } from "@/lib/rush-resources-preheat";
+import { isLocalThrottleDeferredMessage } from "@/lib/dofusdb-throttle";
 
 const read = (path: string) => readFileSync(path, "utf8");
 
@@ -33,6 +34,13 @@ const read = (path: string) => readFileSync(path, "utf8");
  */
 const codeOf = (source: string) =>
     source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/[^\n]*/g, "$1");
+
+/** Chemins des fichiers verrouillés par les gardes de source (hors des `describe`, partagés). */
+const PURE = "src/lib/rush-resources-preheat.ts";
+const ASSETS = "src/lib/dofus-asset-siphon.ts";
+const RUNNERS = "src/components/admin/game-data-inline-runners.ts";
+const PANEL = "src/components/admin/GameDataSiphonPanel.tsx";
+const ACTIONS = "src/server/actions/asset-siphon-actions.ts";
 
 const mockExistsSync = vi.fn();
 const mockStatSync = vi.fn();
@@ -199,12 +207,6 @@ describe("pré-chauffage — passe idempotente et honnête", () => {
 });
 
 describe("pré-chauffage — câblage (gardes de source)", () => {
-    const PURE = "src/lib/rush-resources-preheat.ts";
-    const ASSETS = "src/lib/dofus-asset-siphon.ts";
-    const RUNNERS = "src/components/admin/game-data-inline-runners.ts";
-    const PANEL = "src/components/admin/GameDataSiphonPanel.tsx";
-    const ACTIONS = "src/server/actions/asset-siphon-actions.ts";
-
     it("la cadence reste PURE : aucun import du module d'assets (sinon `sharp` part au navigateur)", () => {
         const pure = codeOf(read(PURE));
         expect(pure).not.toContain("dofus-asset-siphon");
@@ -251,5 +253,85 @@ describe("pré-chauffage — câblage (gardes de source)", () => {
         expect(panel).toContain("kind: 'items' as const");
         expect(panel).toContain("runInlineGameDataDataset('ASSETS_WEBP'");
         expect(panel).toContain("Pré-chauffer les icônes du guide");
+    });
+});
+
+/**
+ * 🐛 Mesure du 10/10/2026 (bêta) : **391/391 icônes « en échec »** alors que DofusDB répondait
+ * parfaitement (mesuré : `/items/11107` → `iconId` 38677, 30 ms). La cause n'était pas l'asset mais
+ * **notre propre budget partagé** (30 req/min) consommé par un autre siphon : `dofusDbFetch` rend
+ * alors un **faux 429 local**, que le cœur traduisait en « Impossible de récupérer l'image ».
+ * Ces gardes verrouillent la distinction — un budget épuisé est un « reviens plus tard », pas un
+ * asset manquant (même leçon que le 28/09/2026 sur les Items).
+ */
+describe("pré-chauffage — un budget partagé épuisé n'est PAS un asset manquant", () => {
+    /** Le refus **local** du limiteur : 429 + en-tête `x-sigilos-throttle: local`. */
+    const localThrottle = (retryAfter?: string) =>
+        ({
+            ok: false,
+            status: 429,
+            headers: new Headers({
+                "x-sigilos-throttle": "local",
+                ...(retryAfter ? { "retry-after": retryAfter } : {}),
+            }),
+        }) as any;
+
+    it("refus local → différé typé, jamais « impossible de récupérer l'image »", async () => {
+        vi.stubGlobal("fetch", vi.fn().mockResolvedValue(localThrottle("12")));
+
+        const res = await siphonAndCompressImage(null, "items", 15190, false, { allowGuessedPath: false });
+
+        expect(res.success).toBe(false);
+        expect(isLocalThrottleDeferredMessage(res.error)).toBe(true);
+        expect(res.retryAfterMs).toBe(12_000); // `retry-after` du limiteur honoré
+        expect(String(res.error)).not.toContain("Impossible de récupérer");
+    });
+
+    it("la tranche s'arrête au PREMIER refus local (pas 10 faux échecs d'affilée)", async () => {
+        const fetchMock = vi.fn().mockResolvedValue(localThrottle());
+        vi.stubGlobal("fetch", fetchMock);
+
+        const res = await siphonItemIconsBatchCore([464, 466, 468, 470]);
+
+        expect(res.deferred).toBe(true);
+        expect(res.errors).toBe(0); // ⭐ aucun faux échec
+        expect(res.siphoned).toBe(0);
+        expect(res.details).toEqual([]);
+        expect(fetchMock).toHaveBeenCalledTimes(1); // ⭐ un seul appel : on ne brûle pas la tranche
+    });
+
+    it("un 429 de DofusDB (pas local) reste un échec NOMMÉ, jamais un différé", async () => {
+        const real429 = { ok: false, status: 429, headers: new Headers() } as any;
+        vi.stubGlobal("fetch", vi.fn().mockResolvedValue(real429));
+
+        const res = await siphonItemIconsBatchCore([464]);
+
+        expect(res.deferred).toBeUndefined();
+        expect(res.errors).toBe(1);
+        expect(res.details[0]).toContain("#464");
+        expect(res.details[0]).toContain("429"); // la cause réelle est NOMMÉE
+    });
+
+    it("le lanceur attend la fin de fenêtre puis rejoue la MÊME tranche (patron des Items)", () => {
+        const runners = read(RUNNERS);
+        expect(runners).toContain("data?.deferred");
+        expect(runners).toContain("const data = res.data;");
+        expect(runners).toContain("data.retryAfterMs ?? INLINE_THROTTLE_WAIT_MS");
+        expect(runners).toContain("res = await triggerBatchItemIconSiphonAction(chunk)");
+        expect(runners).toContain("budgetStopped");
+        // …et l'interruption est annoncée (avertissement), pas peinte en échec.
+        expect(runners).toContain("deferred: budgetStopped || undefined");
+        expect(read(PANEL)).toContain("toast.warning(res.summary)");
+    });
+
+    it("le siphon d'assets distingue le refus local AVANT de conclure à un asset absent", () => {
+        const assets = read(ASSETS);
+        expect(assets).toContain("if (isLocalThrottle(providedRes))");
+        expect(assets).toContain("if (isLocalThrottle(itemRes))");
+        expect(assets).toContain("new LocalThrottleDeferredError(retryAfterMs).message");
+        // La core s'arrête sur ce message (jamais compté en erreur).
+        const core = assets.slice(assets.indexOf("export async function siphonItemIconsBatchCore"));
+        expect(core).toContain("isLocalThrottleDeferredMessage(res.error)");
+        expect(core).toContain("result.deferred = true;");
     });
 });

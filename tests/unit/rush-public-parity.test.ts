@@ -220,10 +220,19 @@ describe("Ressources — le toggle du guide les masque partout (un seul état)",
 
   it("rail, modale et grille escamotent leur filtre local quand le guide impose l'état", () => {
     // Rail « Objets requis » : un seul état dérivé (le guide prime) + bascule non rendue.
-    expect(codeOf(SIDEBAR)).toMatch(/const hideProvided = hideProvidedResources \|\| hideCompletedItems;/);
-    expect(codeOf(SIDEBAR)).toMatch(/if \(hideProvided\) return aggregatedItems\.filter/);
-    expect(codeOf(SIDEBAR)).toMatch(/\{visibleItems\.length\}<\/span>/);
-    expect(codeOf(SIDEBAR)).toMatch(/aggregatedItems\.length > 0 && !hideProvidedResources &&/);
+    const side = codeOf(SIDEBAR);
+    expect(side).toMatch(/const hideProvided = hideProvidedResources \|\| hideCompletedItems;/);
+    expect(side).toMatch(/if \(hideProvided\) return rushResources\.filter/);
+    expect(side).toMatch(/\{visibleItems\.length\}<\/span>/);
+    expect(side).toMatch(/rushResources\.length > 0 && !hideProvidedResources &&/);
+    // V-A : le rail n'a PLUS d'agrégation locale — il appelle LA source unique du module.
+    expect(side).toMatch(
+      /import \{ aggregateRushResources \} from "@\/app\/overlay\/guide\/\[guildId\]\/\[slug\]\/components\/overlay-utils"/
+    );
+    expect(side).toMatch(/const totals = aggregateRushResources\(milestones\);/);
+    expect(side).toMatch(/aggregateRushResources\(milestones, completedSeqIds\)/);
+    // Aucune seconde clé possible : plus de regroupement « nom seul » dans le rail.
+    expect(side).not.toMatch(/tag\.name\.toLowerCase\(\)\.trim\(\)/);
     // Modale globale : mode forcé « restantes » + bascule non rendue.
     const modal = codeOf(RESOURCES_MODAL);
     expect(modal).toMatch(/const effectiveMode = hideProvidedResources \? "restantes" : mode;/);

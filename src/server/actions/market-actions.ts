@@ -50,6 +50,7 @@ import {
 import { completeMarketSaleCore } from "@/server/market/sales";
 import { normalizeMarketOfferDraft } from "@/lib/market/discord-interactions";
 import { sanitizeMarketText } from "@/lib/market/text";
+import { resolveServerStats } from "@/server/market/stats";
 import {
     MARKET_AUDIT_ACTIONS,
     MARKET_DELETE_REASONS,
@@ -82,7 +83,7 @@ export type MarketListingRecord = Prisma.MarketListingGetPayload<{
 
 export type MarketCatalogFilters = {
     search?: string;
-    type?: "EQUIPMENT" | "RESOURCE" | "SERVICE" | "WANTED" | "ALL";
+    type?: "EQUIPMENT" | "RESOURCE" | "SERVICE" | "WANTED" | "BUNDLE" | "ALL";
     status?: "DRAFT" | "ACTIVE" | "RESERVED" | "SOLD" | "EXPIRED" | "WITHDRAWN" | "ALL";
     mineOnly?: boolean;
     hideTerminal?: boolean;
@@ -277,7 +278,9 @@ async function resolveMarketContext(guildId: string) {
 
 const MARKET_INCLUDE = {
     stats: true,
-    components: { orderBy: { position: "asc" } },
+    // Correctif 10/10/2026 — jets **par objet** (lot multiple) : la fiche, le
+    // catalogue et l'édition lisent les stats de chaque équipement du lot.
+    components: { orderBy: { position: "asc" }, include: { componentStats: true } },
     profile: {
         select: {
             id: true,
@@ -416,112 +419,7 @@ async function buildReservationView(
     };
 }
 
-/**
- * S2.8/S2.9 — Recalcule les stats **côté serveur** : la plage native provient
- * **toujours** du catalogue (`GameItem.nativeEffects`) et jamais du client (§12.8).
- * Un effet non natif est étiqueté `EXO` (jamais refusé, D34/D35) ; le libellé est
- * tiré du référentiel data-driven (S2.5bis) avec repli sur le libellé déclaré.
- */
-async function resolveServerStats(
-    dofusDbItemId: number | null | undefined,
-    stats: z.infer<typeof marketStatSchema>[]
-): Promise<{
-    rows: Omit<Prisma.MarketListingStatCreateManyInput, "listingId">[];
-    hash: string | null;
-}> {
-    if (stats.length === 0) return { rows: [], hash: null };
-
-    const [item, referential] = await Promise.all([
-        dofusDbItemId
-            ? db.gameItem.findUnique({
-                  where: { ankamaId: dofusDbItemId },
-                  select: { nativeEffects: true, effects: true },
-              })
-            : Promise.resolve(null),
-        loadMarketReferential(),
-    ]);
-    // 🛡️ Filet de sécurité (S2.12) : `nativeEffects` est vide sur les lignes
-    // siphonnées AVANT l'ajout de la colonne (données périmées). On dérive alors
-    // les plages depuis `effects` (forme brute DofusDB tolérée, `diceNum`/
-    // `diceSide`). Lecture seule : la réparation définitive (backfill) se fait
-    // depuis le panneau God, et le prochain siphon complète les données.
-    const natives =
-        (item?.nativeEffects as MarketNativeEffect[] | null) ??
-        toNativeEffects({ effects: item?.effects as DofusItemEffectLike[] | null });
-
-    // Correction 13/09 — effets dont la ligne est un **malus** (référentiel
-    // `GameEffect.isNegativeValue`, avec repli curated mesuré) : les dés d'un
-    // objet étant toujours positifs, c'est ici que le signe est rétabli (source
-    // serveur, jamais le client).
-
-    const mapped = stats.map((stat) => {
-        const native = findNativeRange(natives, {
-            effectId: stat.effectId,
-            characteristic: stat.characteristic ?? null,
-        });
-        // Correction 13/09 — le SIGNE d'affichage est rétabli AVANT
-        // persistance : DofusDB stocke les dés d'un objet toujours positifs,
-        // le malus (« -6 à -8 Esquive PA ») vient du référentiel d'effets
-        // (`isNegativeValue`). Les bornes sont donc **signées en base**.
-        const signed = native
-            ? applyEffectSign(
-                  native,
-                  isNegativeNativeEffect(stat.effectId, {
-                      negativeEffectIds: referential.negativeEffectIds,
-                  })
-              )
-            : null;
-        // La plage native est une SOURCE SERVEUR : le client ne la fixe jamais.
-        const naturalMin = signed ? signed.from : null;
-        const naturalMax = signed ? signed.to : null;
-        const origin = signed ? stat.origin : "EXO";
-        // Correction 13/09 (2ᵉ passe) — libellé : **table d'infobulle**
-        // (`resolveStatLabel`, vérifiée contre les gabarits FR de DofusDB) →
-        // référentiel siphonné → libellé déclaré. L'ordre est porté **une seule
-        // fois** par `resolveStatLabel` (fin des cascades recopiées).
-        const label =
-            resolveStatLabel(
-                { effectId: stat.effectId, characteristic: stat.characteristic ?? null },
-                referential.effectLabels[stat.effectId] ??
-                    (stat.characteristic != null
-                        ? referential.labels[stat.characteristic]
-                        : null)
-            ) ??
-            (!isPlaceholderStatLabel(stat.label) ? stat.label : null) ??
-            stat.label;
-        return {
-            effectId: stat.effectId,
-            characteristic: stat.characteristic ?? null,
-            label,
-            naturalMin,
-            naturalMax,
-            actualValue: stat.actualValue,
-            origin,
-            quality: computeStatQuality({
-                naturalMin,
-                naturalMax,
-                actualValue: stat.actualValue,
-                origin,
-            }),
-        };
-    });
-
-    /**
-     * Constat beta — une ligne native `0 → 0` (« Échangeable : », « Compatible
-     * avec : »…) n'est **pas un jet** : elle n'est jamais persistée. Le filtre
-     * est aussi le **garde-fou** qui rend un cosmétique publiable : un brouillon
-     * ancien (ou un client périmé) qui transmet encore ces lignes ne déclenche
-     * plus « aucune statistique ne peut être déclarée » — la garde de famille
-     * ne compte que des lignes **porteuses d'une valeur**.
-     */
-    const rows = mapped.filter(isStatBearingStatRow);
-    if (rows.length === 0) return { rows: [], hash: null };
-
-    return { rows, hash: computeStatsHash(rows) };
-}
-
-
-// ---------------------------------------------------------------------------
+ // ---------------------------------------------------------------------------
 // LECTURE (S1.13)
 // ---------------------------------------------------------------------------
 
@@ -1655,6 +1553,8 @@ export async function createMarketListing(
                 title: data.title,
                 description: sanitizeMarketText(data.description),
                 items: data.items,
+                negotiable: data.negotiable,
+                acceptsTrade: data.acceptsTrade,
             });
             if (!created.success) return { success: false, error: created.error };
             return { success: true, data: { id: created.data.listingId } };
@@ -1755,7 +1655,7 @@ export async function updateMarketListing(
 
         const existing = await db.marketListing.findFirst({
             where: { id: listingId, guildId: guildConfig.id, deletedAt: null },
-            select: { id: true, profileId: true, status: true, title: true, priceKamas: true },
+            select: { id: true, profileId: true, status: true, title: true, priceKamas: true, type: true },
         });
         if (!existing) return { success: false, error: "Annonce introuvable" };
         if (existing.profileId !== user.profileId) {
@@ -1781,6 +1681,63 @@ export async function updateMarketListing(
         // BUG-11/T10 — même garde de famille qu'en création.
         const familyError = await guardItemFamilyPolicy(data, resolvedStats.rows.length);
         if (familyError) return { success: false, error: familyError };
+
+        // 🧺 Lot multiple — jets **par objet** (correctif 10/10/2026) : garde famille
+        // par objet + résolution serveur des jets (plages catalogue, qualité
+        // recalculée), comme l'unitaire. `data.stats` reste vide pour un lot.
+        const isBundleEdit = data.type === "BUNDLE";
+        const { guardBundleItemStats } = await import("@/server/market/bundle");
+        const { bundleComponentKey } = await import("@/lib/market/bundle");
+        let bundleResolved: { rows: Omit<Prisma.MarketListingStatCreateManyInput, "listingId">[]; hash: string | null }[] = [];
+        let bundleExisting: { id: string; name: string; status: string; discordChannelId: string | null; discordMessageId: string | null }[] = [];
+        if (isBundleEdit || existing.type === "BUNDLE") {
+            bundleExisting = await db.marketListingComponent.findMany({
+                where: { listingId: existing.id },
+                select: { id: true, name: true, status: true, discordChannelId: true, discordMessageId: true },
+            });
+        }
+        if (isBundleEdit) {
+            for (const item of data.items) {
+                const refusal = await guardBundleItemStats(item);
+                if (refusal) return { success: false, error: refusal };
+            }
+            bundleResolved = await Promise.all(
+                data.items.map((item) =>
+                    resolveServerStats(
+                        item.dofusDbItemId ?? null,
+                        (item.stats ?? []).map((stat) => ({
+                            effectId: stat.effectId,
+                            characteristic: stat.characteristic ?? null,
+                            label: stat.label,
+                            naturalMin: stat.naturalMin ?? null,
+                            naturalMax: stat.naturalMax ?? null,
+                            actualValue: stat.actualValue,
+                            origin: stat.origin ?? "NATIVE",
+                        }))
+                    )
+                )
+            );
+            // Refus de retirer un objet réservé/vendu (perte de réservation sinon).
+            const incomingKeys = new Set(data.items.map((item) => bundleComponentKey(item.name)));
+            const blocked = bundleExisting.find(
+                (row) => !incomingKeys.has(bundleComponentKey(row.name)) && row.status !== "AVAILABLE"
+            );
+            if (blocked) {
+                return {
+                    success: false,
+                    error: `« ${blocked.name} » est ${blocked.status === "SOLD" ? "vendu" : "réservé"} : impossible de le retirer du lot.`,
+                };
+            }
+        } else if (existing.type === "BUNDLE") {
+            // Sortie de nature BUNDLE → simple : on refuse si un objet est engagé.
+            const engaged = bundleExisting.find((row) => row.status !== "AVAILABLE");
+            if (engaged) {
+                return {
+                    success: false,
+                    error: `« ${engaged.name} » est ${engaged.status === "SOLD" ? "vendu" : "réservé"} : impossible de convertir ce lot.`,
+                };
+            }
+        }
 
         await db.$transaction(async (tx) => {
             await tx.marketListing.update({
@@ -1818,38 +1775,75 @@ export async function updateMarketListing(
                 });
             }
 
-            await tx.marketListingComponent.deleteMany({ where: { listingId: existing.id } });
             /**
-             * 🧺 Lot multiple — les objets viennent de `items[]` (le prix vit sur
-             * l'objet) et **non** de `components[]`, et ils portent leur
-             * `priceKamas`. Sans cette branche, éditer un lot changeait bien le
-             * titre/la description, mais **la liste d'objets et leurs prix
-             * n'étaient jamais enregistrés** (constat user du 15/09/2026).
+             * 🧺 Lot multiple — **l'édition conserve l'état** (correctif 10/10/2026) :
+             * un objet qui existe toujours (même nom) garde son statut, ses
+             * horodatages et ses traces Discord ; seuls les objets retirés
+             * (toujours `AVAILABLE`, vérifié avant la transaction) sont supprimés
+             * et les nouveaux sont créés. Sans cela, modifier le prix d'un objet
+             * effaçait les réservations des autres et orphelinait leurs messages.
              */
-            const componentRows =
-                data.type === "BUNDLE" && data.items.length > 0
-                    ? data.items.map((item, index) => ({
-                          position: index,
-                          dofusDbItemId: item.dofusDbItemId ?? null,
-                          name: item.name,
-                          iconUrl: normalizeItemIconUrl(item.iconUrl ?? null, item.dofusDbItemId ?? null),
-                          quantity: item.quantity,
-                          unitLabel: item.unitLabel ?? null,
-                          priceKamas: item.priceKamas,
-                      }))
-                    : data.components.map((component, index) => ({
-                          position: index,
-                          dofusDbItemId: component.dofusDbItemId ?? null,
-                          name: component.name,
-                          iconUrl: normalizeItemIconUrl(component.iconUrl ?? null, component.dofusDbItemId ?? null),
-                          quantity: component.quantity,
-                          unitLabel: component.unitLabel ?? null,
-                          priceKamas: null,
-                      }));
-            if (componentRows.length > 0) {
-                await tx.marketListingComponent.createMany({
-                    data: componentRows.map((row) => ({ ...row, listingId: existing.id })),
-                });
+            if (data.type === "BUNDLE") {
+                const byKey = new Map(bundleExisting.map((row) => [bundleComponentKey(row.name), row]));
+                const incomingKeys = new Set(data.items.map((item) => bundleComponentKey(item.name)));
+                for (const stale of bundleExisting) {
+                    if (!incomingKeys.has(bundleComponentKey(stale.name))) {
+                        await tx.marketListingComponent.delete({ where: { id: stale.id } });
+                    }
+                }
+                for (let index = 0; index < data.items.length; index++) {
+                    const item = data.items[index];
+                    const resolved = bundleResolved[index] ?? { rows: [], hash: null };
+                    const kept = byKey.get(bundleComponentKey(item.name));
+                    const rowData = {
+                        position: index,
+                        dofusDbItemId: item.dofusDbItemId ?? null,
+                        name: item.name,
+                        iconUrl: normalizeItemIconUrl(item.iconUrl ?? null, item.dofusDbItemId ?? null),
+                        quantity: item.quantity,
+                        unitLabel: item.unitLabel ?? null,
+                        priceKamas: item.priceKamas,
+                        statsHash: resolved.hash,
+                    };
+                    if (kept) {
+                        await tx.marketListingComponent.update({ where: { id: kept.id }, data: rowData });
+                        await tx.marketListingComponentStat.deleteMany({ where: { componentId: kept.id } });
+                        if (resolved.rows.length > 0) {
+                            await tx.marketListingComponentStat.createMany({
+                                data: resolved.rows.map((stat) => ({ ...stat, componentId: kept.id })),
+                            });
+                        }
+                    } else {
+                        const created = await tx.marketListingComponent.create({
+                            data: { ...rowData, listingId: existing.id, status: "AVAILABLE" },
+                            select: { id: true },
+                        });
+                        if (resolved.rows.length > 0) {
+                            await tx.marketListingComponentStat.createMany({
+                                data: resolved.rows.map((stat) => ({ ...stat, componentId: created.id })),
+                            });
+                        }
+                    }
+                }
+            } else {
+                await tx.marketListingComponent.deleteMany({ where: { listingId: existing.id } });
+                /**
+                 * Lots de ressources classiques — les objets viennent de `components[]`.
+                 */
+                const componentRows = data.components.map((component, index) => ({
+                    position: index,
+                    dofusDbItemId: component.dofusDbItemId ?? null,
+                    name: component.name,
+                    iconUrl: normalizeItemIconUrl(component.iconUrl ?? null, component.dofusDbItemId ?? null),
+                    quantity: component.quantity,
+                    unitLabel: component.unitLabel ?? null,
+                    priceKamas: null,
+                }));
+                if (componentRows.length > 0) {
+                    await tx.marketListingComponent.createMany({
+                        data: componentRows.map((row) => ({ ...row, listingId: existing.id })),
+                    });
+                }
             }
         });
 

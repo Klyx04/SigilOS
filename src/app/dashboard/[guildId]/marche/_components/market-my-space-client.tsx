@@ -29,7 +29,7 @@ type MyListing = {
     title: string;
     status: "DRAFT" | "ACTIVE" | "RESERVED" | "SOLD" | "EXPIRED" | "WITHDRAWN";
     /** Nature de l'annonce : un **lot** n'affiche pas de jet, mais un contenu. */
-    type: "EQUIPMENT" | "RESOURCE" | "SERVICE" | "WANTED";
+    type: "EQUIPMENT" | "RESOURCE" | "SERVICE" | "WANTED" | "BUNDLE";
     priceKamas: number | null;
     publishedAt: string | null;
     expiresAt: string | null;
@@ -52,6 +52,8 @@ type MyListing = {
         quantity: number;
         iconUrl: string | null;
         dofusDbItemId: number | null;
+        /** Correctif 10/10/2026 — prix **de cet objet** (total du lot = somme). */
+        priceKamas?: number | null;
     }[];
     /**
      * S8.15 — **jet déclaré** : déjà sérialisé par `getMyMarketData` (aucune
@@ -164,15 +166,22 @@ export function MarketMySpaceClient({ guildId, viewer, active, archived, receive
                                         >
                                             {MARKET_STATUS_LABELS[listing.status]}
                                         </Badge>
-                                        {listing.type === "RESOURCE" && (
+                                        {(listing.type === "RESOURCE" || listing.type === "BUNDLE") && (
                                             <Badge variant="outline" className="text-[10px] uppercase tracking-wider">
-                                                Lot
+                                                {listing.type === "BUNDLE" ? "Lot multiple" : "Lot"}
                                             </Badge>
                                         )}
                                     </div>
                                     <p className="text-xs text-muted-foreground mt-1">
                                         {listing.itemName ? `${listing.itemName} · ` : ""}
-                                        {formatKamas(listing.priceKamas)}
+                                        {formatKamas(
+                                            listing.type === "BUNDLE"
+                                                ? (listing.components ?? []).reduce(
+                                                      (sum, c) => sum + Math.max(0, Math.trunc(c.priceKamas ?? 0)),
+                                                      0
+                                                  )
+                                                : listing.priceKamas
+                                        )}
                                         {listing.quantity
                                             ? ` · ×${formatGroupedInteger(listing.quantity)}${listing.unitLabel ? ` ${listing.unitLabel}` : ""}`
                                             : ""}

@@ -350,6 +350,20 @@ export function buildMarketImageUrl(listingId: string, statsHash: string | null)
     return `${getAppBaseUrl()}/api/og/market/${listingId}?v=${version}`;
 }
 
+/**
+ * Correctif 10/10/2026 — carte PNG **d'un objet de lot** : chaque équipement
+ * d'un lot a sa miniature de stats (comme l'unitaire), invalidée par le
+ * `statsHash` de **cet objet** et régénérée à chaque édition de son jet.
+ */
+export function buildMarketComponentImageUrl(
+    listingId: string,
+    componentId: string,
+    statsHash: string | null
+): string {
+    const version = statsHash ?? "0";
+    return `${getAppBaseUrl()}/api/og/market/${listingId}?component=${componentId}&v=${version}`;
+}
+
 function errorMessage(error: unknown): string {
     return error instanceof Error ? error.message : String(error);
 }
@@ -549,13 +563,18 @@ export async function syncBundleComponentMessages(
                 unitLabel: true,
                 priceKamas: true,
                 status: true,
+                dofusDbItemId: true,
+                iconUrl: true,
+                statsHash: true,
                 discordChannelId: true,
                 discordMessageId: true,
+                componentStats: {
+                    select: { effectId: true, naturalMin: true, naturalMax: true, actualValue: true },
+                },
             },
         });
 
-        const imageUrl = resolveDiscordImageUrl(listing);
-        const builtBase = buildPayload(loaded, imageUrl);
+        const builtBase = buildPayload(loaded, null);
         const base = builtBase.payload;
         const { forumMode } = builtBase;
         let lastMessageId: string | null = null;
@@ -626,15 +645,36 @@ export async function syncBundleComponentMessages(
         }
 
         for (const component of components) {
+            /**
+             * Correctif 10/10/2026 — **vignette et image PAR OBJET** : chaque
+             * message porte l'icône de **son** objet (plus jamais celle du 1er),
+             * et un équipement avec jet déclaré porte sa **carte de stats**
+             * (comme l'unitaire), régénérée à chaque édition du jet.
+             */
+            const componentThumbnail =
+                absoluteItemIconUrl(normalizeItemIconUrl(component.iconUrl, component.dofusDbItemId)) ??
+                base.itemIconUrl ??
+                null;
+            const componentHasJet = (component.componentStats ?? []).some(isStatBearingStatRow);
+            const componentImageUrl = pickMarketEmbedImage({
+                cardImageUrl: componentHasJet
+                    ? buildMarketComponentImageUrl(listing.id, component.id, component.statsHash)
+                    : null,
+                itemImageUrl: componentThumbnail,
+                hasDeclaredJet: componentHasJet,
+            });
             const payload: MarketDiscordPayloadInput = {
                 ...base,
-                // L'embed de **cet** objet : son nom, son prix, sa quantité.
+                // L'embed de **cet** objet : son nom, son prix, sa quantité,
+                // **son** icône et **son** image (carte du jet ou objet en grand).
                 itemName: component.name,
                 itemLevel: null,
                 itemTypeName: null,
                 priceKamas: component.priceKamas ?? null,
                 unitLabel: component.unitLabel ?? null,
                 components: [{ name: component.name, quantity: component.quantity }],
+                itemIconUrl: componentThumbnail,
+                imageUrl: componentImageUrl,
                 // 🧺 Identifiant porté par les `custom_id` : bouton = cet objet.
                 componentId: component.id,
             };

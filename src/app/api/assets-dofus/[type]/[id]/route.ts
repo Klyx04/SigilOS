@@ -498,16 +498,24 @@ export async function GET(
             }
         }
 
-        // 3. Fallback SVG neutre pour éviter tout 404 rouge dans DevTools.
+        // 3. Fallback PNG neutre (1×1 transparent) pour éviter tout 404 rouge.
+        // Correctif 10/10/2026 — **jamais de SVG ici** : le précédent placeholder
+        // `image/svg+xml` s'affiche dans un navigateur mais **Discord ne sait pas
+        // le rendre dans un embed** (symptôme mesuré : l'image de l'embed « tente
+        // de se générer puis rien », ex. Muldo sans jet). Un PNG est affichable
+        // partout (navigateur + Discord + carte OG).
         // ⚠️ `no-store` OBLIGATOIRE : sinon un échec TRANSITOIRE de siphonnage est figé
         // 24 h dans le cache du navigateur → l'utilisateur voit des icônes manquantes
         // (placeholder « lien cassé ») alors que la source est de nouveau disponible.
-        const placeholderSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 17.5 3 6V3h3l11.5 11.5"/><path d="m13 19 6-6"/><path d="m16 16 3 3"/><path d="m19 21 2-2"/></svg>`;
+        const placeholderPng = Buffer.from(
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
+            "base64"
+        );
 
-        return new NextResponse(placeholderSvg, {
+        return new NextResponse(placeholderPng, {
             status: 200,
             headers: {
-                'Content-Type': 'image/svg+xml',
+                'Content-Type': 'image/png',
                 'Cache-Control': 'no-store',
                 'X-SigilOS-Placeholder': '1',
             },

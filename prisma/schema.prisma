@@ -4017,6 +4017,12 @@ model MarketListingComponent {
   reservedAt    DateTime?
   soldAt        DateTime?
 
+  // ── 🧺 Jet par objet (correctif 10/10/2026) ──────────────────────────────
+  // Un objet de type équipement porte son **propre jet déclaré** (comme une
+  // annonce unitaire) : sa miniature Discord est la carte des stats, régénérée
+  // à chaque édition du jet. `NULL` = vente brute (ressource, cosmétique…).
+  statsHash     String?
+
   // ── 🧺 Option A — un message Discord **par objet** ────────────────────────
   // Le message de l'**annonce** reste dans `MarketDiscordMessage`
   // (`componentId = NULL`) ; ces deux colonnes portent le message **dédié à cet
@@ -4031,9 +4037,37 @@ model MarketListingComponent {
   reservations  MarketReservation[]
   /// Messages Discord **de cet objet** (un message par objet, option A).
   discordMessages MarketDiscordMessage[]
+  /// Jet déclaré **de cet objet** (équipement d'un lot multiple, 10/10/2026).
+  componentStats MarketListingComponentStat[]
 
   @@index([listingId, position])
   @@index([listingId, status])   // « quels objets restent disponibles ? »
+}
+
+/// Le jet déclaré **d'un objet de lot** (miroir de `MarketListingStat`,
+/// scopé par `componentId` : deux objets peuvent porter le même `effectId`).
+model MarketListingComponentStat {
+  id             String            @id @default(cuid())
+  componentId    String
+
+  effectId       Int               // identifiant d'effet DofusDB (stabilité inter-versions)
+  characteristic Int?              // identifiant de caractéristique (icône/couleur)
+  label          String            // libellé FR figé au moment de la déclaration
+
+  naturalMin     Int?              // plage native (issue du CATALOGUE, jamais du client)
+  naturalMax     Int?
+  actualValue    Int               // valeur déclarée par le vendeur
+
+  origin         MarketStatOrigin  @default(NATIVE)   // NATIVE | EXO
+  quality        MarketStatQuality @default(NORMAL)   // RECALCULÉE côté serveur (D17)
+
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  component      MarketListingComponent @relation(fields: [componentId], references: [id], onDelete: Cascade)
+
+  @@unique([componentId, effectId, origin])   // une ligne par effet et par origine
+  @@index([componentId])
 }
 
 /// La négociation (offre / contre-offre).

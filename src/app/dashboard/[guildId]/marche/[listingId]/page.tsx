@@ -34,6 +34,28 @@ export default async function MarketListingPage({
 
     const listing = JSON.parse(JSON.stringify(listingRes.data));
     const isOwner = listing.profileId === user.profileId;
+    // Correctif 10/10/2026 — la fiche consomme le jet **par objet**
+    // (`component.stats`) : on projette `componentStats` (nom Prisma) vers le
+    // contrat d'affichage, sans toucher au reste de la fiche.
+    if (Array.isArray(listing.components)) {
+        listing.components = listing.components.map(
+            (component: {
+                componentStats?: {
+                    effectId: number;
+                    characteristic: number | null;
+                    label: string;
+                    actualValue: number;
+                    quality: string;
+                    origin: string;
+                    naturalMin: number | null;
+                    naturalMax: number | null;
+                }[];
+            }) => {
+                const { componentStats, ...rest } = component;
+                return { ...rest, stats: componentStats ?? [] };
+            }
+        );
+    }
 
     // S2.15/S2.18 — carte d'item (métadonnées catalogue + prix moyen guilde) et
     // S3.8 — état de synchronisation Discord (bandeau « à resynchroniser »).

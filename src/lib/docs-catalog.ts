@@ -420,6 +420,10 @@ Si le salon du marché est un <strong>forum</strong>, chaque annonce reçoit un 
 </table>
 <p>La <strong>quantité minimale</strong> (facultative) permet d'accepter un achat partiel tout en garantissant un volume plancher.</p>
 
+<h3>Le lot multiple (2 à 5 objets)</h3>
+<p>Le <strong>lot multiple</strong> vend ensemble 2 à 5 objets différents (familles mélangées, ex. une cape + de l'eau potable), chacun avec <strong>son propre prix</strong>. Chaque objet se réserve séparément à son prix et reçoit <strong>son propre message Discord</strong> (un par objet, chacun avec ses boutons Réserver / Faire une offre).</p>
+<p>Si un objet du lot est un <strong>équipement modifiable</strong>, un <strong>éditeur de jet</strong> s'ouvre sous sa ligne (les autres objets se vendent bruts, sans jet). Son message Discord affiche alors la <strong>carte des stats</strong> comme une annonce simple, et elle est <strong>régénérée à chaque modification du jet</strong>. La fiche du lot affiche le <strong>prix total</strong> (somme des objets) et le jet de chaque équipement ; modifier le lot <strong>conserve</strong> les réservations et les messages des objets qui restent.</p>
+
 <h2>3. Le cycle de vie d'une annonce</h2>
 <table>
     <thead><tr><th>Statut</th><th>Signification</th></tr></thead>

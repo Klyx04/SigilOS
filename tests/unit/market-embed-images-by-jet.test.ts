@@ -65,10 +65,13 @@ describe("embed — le serveur applique la règle (Discord)", () => {
         expect(source).toMatch(/const hasDeclaredJet = listing\.stats\.some\(isStatBearingStatRow\);/);
         expect(source).toMatch(/return pickMarketEmbedImage\(\{/);
         // La carte n'est plus construite en dur à la publication : les **points
-        // d'entrée** passent tous par la règle — publication, resynchro, et
-        // depuis le 15/09/2026 les **messages par objet** d'un lot (option A,
-        // `syncBundleComponentMessages`).
-        expect(source.match(/const imageUrl = resolveDiscordImageUrl\(listing\);/g)).toHaveLength(3);
+        // d'entrée** passent tous par la règle — publication et resynchro
+        // (l'annonce unitaire). Les **messages par objet** d'un lot (option A,
+        // `syncBundleComponentMessages`) appliquent la **même** règle **par objet**
+        // (correctif 10/10/2026) : fini la vignette du 1er objet partout.
+        expect(source.match(/const imageUrl = resolveDiscordImageUrl\(listing\);/g)).toHaveLength(2);
+        expect(source).toMatch(/const componentHasJet = \(component\.componentStats \?\? \[\]\)\.some\(isStatBearingStatRow\);/);
+        expect(source).toMatch(/buildMarketComponentImageUrl\(listing\.id, component\.id, component\.statsHash\)/);
         expect(source).not.toMatch(/const imageUrl = buildMarketImageUrl\(listingId/);
     });
 });
@@ -121,9 +124,11 @@ describe("carte OG — toutes les lignes, image du lot, hauteur dynamique", () =
         expect(og.match(/height: cardHeight/g)).toHaveLength(2);
     });
 
-    it("prend l'image du **1ᵉʳ composant** quand l'annonce n'a pas d'`ankamaId`", () => {
+    it("prend l'image de **cet objet** (carte par objet, correctif 10/10/2026)", () => {
+        // Carte d'objet (`?component=`) : l'image de CET objet ; carte
+        // d'annonce : `ankamaId` de l'annonce, sinon repli 1er composant.
         expect(og).toMatch(
-            /loadItemImageDataUrl\(\s*\n\s*listing\.dofusDbItemId \?\? listing\.components\[0\]\?\.dofusDbItemId \?\? null\s*\n\s*\);/
+            /component\?\.dofusDbItemId \?\? listing\.dofusDbItemId \?\? listing\.components\[0\]\?\.dofusDbItemId \?\? null/
         );
     });
 });

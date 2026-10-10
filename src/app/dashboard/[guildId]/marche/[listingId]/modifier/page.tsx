@@ -67,6 +67,19 @@ export default async function MarketListingEditPage({
         : null;
     const item = itemRes?.success ? itemRes.data ?? null : null;
 
+    // Correctif 10/10/2026 — lot multiple : on relit la fiche catalogue de
+    // **chaque** objet (famille + plages natives) pour rouvrir l'éditeur de jet
+    // des équipements, et on rejoue les jets déclarés (`componentStats`).
+    const componentCatalogs = await Promise.all(
+        listing.components.map((component: { dofusDbItemId: number | null }) =>
+            component.dofusDbItemId
+                ? getLocalGameItemDetails(component.dofusDbItemId).then((res) =>
+                      res.success ? (res.data ?? null) : null
+                  )
+                : Promise.resolve(null)
+        )
+    );
+
     const initial: MarketListingEditInitial = {
         id: listing.id,
         type: listing.type,
@@ -89,7 +102,24 @@ export default async function MarketListingEditPage({
             actualValue: stat.actualValue,
             origin: stat.origin as "NATIVE" | "EXO",
         })),
-        components: listing.components.map((component) => ({
+        components: listing.components.map((component: {
+            id: string;
+            dofusDbItemId: number | null;
+            name: string;
+            iconUrl: string | null;
+            quantity: number;
+            unitLabel: string | null;
+            priceKamas?: number | null;
+            componentStats?: {
+                effectId: number;
+                characteristic: number | null;
+                label: string;
+                naturalMin: number | null;
+                naturalMax: number | null;
+                actualValue: number;
+                origin: string;
+            }[];
+        }, position: number) => ({
             key: component.id,
             dofusDbItemId: component.dofusDbItemId,
             name: component.name,
@@ -99,6 +129,23 @@ export default async function MarketListingEditPage({
             // 🧺 Lot multiple — le prix de **cet** objet est rejoué tel quel à
             // l'édition (les lots antérieurs restent à `null`).
             priceKamas: component.priceKamas ?? null,
+            // Correctif 10/10/2026 — le jet déclaré de **cet** objet est rejoué
+            // tel quel : le vendeur retrouve l'éditeur de chaque équipement et
+            // la miniature Discord est régénérée à l'enregistrement.
+            stats: (component.componentStats ?? []).map((stat) => ({
+                effectId: stat.effectId,
+                characteristic: stat.characteristic,
+                label: stat.label,
+                naturalMin: stat.naturalMin,
+                naturalMax: stat.naturalMax,
+                actualValue: stat.actualValue,
+                origin: stat.origin as "NATIVE" | "EXO",
+            })),
+            typeId: componentCatalogs[position]?.typeId ?? null,
+            superTypeId: componentCatalogs[position]?.superTypeId ?? null,
+            typeName: componentCatalogs[position]?.typeName ?? null,
+            category: componentCatalogs[position]?.category ?? null,
+            nativeEffects: (componentCatalogs[position]?.nativeEffects as never) ?? null,
         })),
         // S8.9/S8.10 — forge réelle déclarée (rejouée telle quelle à l'édition).
         forge: {

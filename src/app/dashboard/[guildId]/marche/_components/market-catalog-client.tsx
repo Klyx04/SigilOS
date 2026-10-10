@@ -38,7 +38,7 @@ import {
 
 type SerializedListing = {
     id: string;
-    type: "EQUIPMENT" | "RESOURCE" | "SERVICE" | "WANTED";
+    type: "EQUIPMENT" | "RESOURCE" | "SERVICE" | "WANTED" | "BUNDLE";
     status: "DRAFT" | "ACTIVE" | "RESERVED" | "SOLD" | "EXPIRED" | "WITHDRAWN";
     title: string;
     itemName: string | null;
@@ -77,8 +77,22 @@ type SerializedListing = {
         unitLabel: string | null;
         iconUrl: string | null;
         dofusDbItemId: number | null;
+        /** Correctif 10/10/2026 — prix **de cet objet** (le total du lot en est la somme). */
+        priceKamas?: number | null;
     }[];
 };
+
+/**
+ * Correctif 10/10/2026 — un lot ne porte **aucun** prix global (`NULL`) : son
+ * prix effectif (tri + affichage) est le total recalculé depuis ses objets.
+ */
+function effectivePrice(listing: SerializedListing): number | null {
+    if (listing.type === "BUNDLE") {
+        if (listing.components.length === 0) return null;
+        return listing.components.reduce((sum, c) => sum + Math.max(0, Math.trunc(c.priceKamas ?? 0)), 0);
+    }
+    return listing.priceKamas;
+}
 
 interface MarketCatalogClientProps {
     guildId: string;
@@ -121,8 +135,8 @@ export function MarketCatalogClient({
         });
 
         const sorted = [...rows];
-        if (sort === "price_asc") sorted.sort((a, b) => (a.priceKamas ?? Infinity) - (b.priceKamas ?? Infinity));
-        if (sort === "price_desc") sorted.sort((a, b) => (b.priceKamas ?? -1) - (a.priceKamas ?? -1));
+        if (sort === "price_asc") sorted.sort((a, b) => (effectivePrice(a) ?? Infinity) - (effectivePrice(b) ?? Infinity));
+        if (sort === "price_desc") sorted.sort((a, b) => (effectivePrice(b) ?? -1) - (effectivePrice(a) ?? -1));
         if (sort === "level_desc") sorted.sort((a, b) => (b.itemLevel ?? 0) - (a.itemLevel ?? 0));
         if (sort === "recent") {
             sorted.sort(
@@ -220,6 +234,7 @@ export function MarketCatalogClient({
                                     <SelectItem value="ALL">Tous les types</SelectItem>
                                     <SelectItem value="EQUIPMENT">Équipement</SelectItem>
                                     <SelectItem value="RESOURCE">Ressources</SelectItem>
+                                    <SelectItem value="BUNDLE">Lot multiple</SelectItem>
                                 </SelectContent>
                             </Select>
                             <Select value={status} onValueChange={setStatus}>
@@ -364,7 +379,7 @@ function MarketListingCard({ guildId, listing }: { guildId: string; listing: Ser
                 </div>
 
                 <div className="flex items-center justify-between gap-2">
-                    <span className="text-sm font-black text-gold tabular-nums">{formatKamas(listing.priceKamas)}</span>
+                    <span className="text-sm font-black text-gold tabular-nums">{formatKamas(effectivePrice(listing))}</span>
                     <span className="text-[11px] text-muted-foreground truncate">
                         {listing.negotiable ? "Négociable" : "Prix ferme"}
                         {listing.acceptsTrade ? " · Troc accepté" : ""}
@@ -452,12 +467,14 @@ function MarketTable({ guildId, listings }: { guildId: string; listings: Seriali
                                             : listing.quantity
                                                 ? `${formatGroupedInteger(listing.quantity)} ${listing.unitLabel ?? "unités"}`
                                                 : "—"
-                                        : listing.stats.length > 0
+                                        : listing.type === "BUNDLE"
+                                            ? `${listing.components.length} objet(s)`
+                                            : listing.stats.length > 0
                                             ? `${listing.stats.length} stat(s) déclarée(s)`
                                             : "—"}
                                 </td>
                                 <td className="px-4 py-3 text-right font-black text-gold tabular-nums">
-                                    {formatKamas(listing.priceKamas)}
+                                    {formatKamas(effectivePrice(listing))}
                                 </td>
                                 <td className="px-4 py-3 text-muted-foreground truncate max-w-[140px]">
                                     {listing.profile?.pseudoDofus || listing.profile?.user?.name || "Membre"}

@@ -51,7 +51,39 @@ export interface BundleItemInput {
     quantity: number;
     unitLabel?: string | null;
     priceKamas: number;
+    /**
+     * Jet déclaré **de cet objet** (correctif 10/10/2026) : renseigné uniquement
+     * pour un objet de type équipement (l'éditeur n'est proposé que dans ce cas).
+     * `undefined` / `[]` = vente brute. Le serveur recalcule plages et qualité.
+     */
+    stats?: BundleItemStatInput[];
 }
+
+/** Ligne de jet d'un objet de lot (miroir de `marketStatSchema`, sans `quality`). */
+export interface BundleItemStatInput {
+    effectId: number;
+    characteristic?: number | null;
+    label: string;
+    naturalMin?: number | null;
+    naturalMax?: number | null;
+    actualValue: number;
+    origin?: "NATIVE" | "EXO";
+}
+
+/**
+ * Schéma Zod d'une ligne de jet d'objet (bornes alignées sur l'annonce unitaire :
+ * `MARKET_LIMITS` vit côté serveur, ici les bornes sont recopiées sans duplication
+ * de règle métier — le serveur reste seul juge).
+ */
+export const bundleItemStatSchema = z.object({
+    effectId: z.number().int(),
+    characteristic: z.number().int().nullable().optional(),
+    label: z.string().trim().min(1).max(80),
+    naturalMin: z.number().int().nullable().optional(),
+    naturalMax: z.number().int().nullable().optional(),
+    actualValue: z.number().int().min(-9_999).max(99_999),
+    origin: z.enum(["NATIVE", "EXO"]).default("NATIVE"),
+});
 
 /**
  * Schéma Zod d'**un** objet de lot.
@@ -79,6 +111,11 @@ export const bundleItemSchema = z.object({
         .int()
         .min(1, "Indique un prix en kamas pour chaque objet (au moins 1 kama).")
         .max(1_000_000_000, "Prix trop élevé : vérifie ta saisie."),
+    /**
+     * Jet de cet objet (30 lignes max, comme l'unitaire). Le serveur refuse les
+     * stats sur un objet non-équipement (garde famille par objet).
+     */
+    stats: z.array(bundleItemStatSchema).max(30).default([]),
 });
 
 /**
@@ -209,4 +246,45 @@ export function summarizeBundle(components: readonly BundleComponentLike[]): str
     ]
         .filter((part): part is string => part !== null)
         .join(" · ");
+}
+
+/** Clé d'appariement d'un objet de lot à l'édition (noms uniques, § bundleItemsSchema). */
+export function bundleComponentKey(name: string): string {
+    return name.trim().toLowerCase();
+}
+
+export type PreservedBundleComponent = {
+    id: string;
+    name: string;
+    status?: BundleItemStatus | null;
+    reservedAt?: Date | string | null;
+    soldAt?: Date | string | null;
+    discordChannelId?: string | null;
+    discordMessageId?: string | null;
+};
+
+/**
+ * Correctif 10/10/2026 — **l'édition d'un lot conserve l'état** : un objet qui
+ * existe toujours (même nom, insensible à la casse) garde son statut
+ * (`AVAILABLE`/`RESERVED`/`SOLD`), ses horodatages et ses traces Discord.
+ * Sans cela, modifier le prix d'un objet effaçait les réservations des autres
+ * et orphelinait leurs messages Discord.
+ *
+ * Pur (testé) : le serveur applique le résultat, jamais l'inverse.
+ */
+export function matchPreservedBundleComponents(
+    existing: readonly PreservedBundleComponent[],
+    incomingNames: readonly string[]
+): Map<string, PreservedBundleComponent> {
+    const byKey = new Map<string, PreservedBundleComponent>();
+    for (const row of existing) {
+        const key = bundleComponentKey(row.name);
+        if (!byKey.has(key)) byKey.set(key, row);
+    }
+    const preserved = new Map<string, PreservedBundleComponent>();
+    for (const name of incomingNames) {
+        const found = byKey.get(bundleComponentKey(name));
+        if (found) preserved.set(name, found);
+    }
+    return preserved;
 }

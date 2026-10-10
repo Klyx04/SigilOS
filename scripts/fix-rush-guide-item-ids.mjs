@@ -11,10 +11,14 @@
  * `deleteMany` ni de re-seed (qui écraserait les éditions faites dans le studio God).
  * DRY-RUN par défaut ; `--apply` pour écrire.
  *
- * Usage local  : `node scripts/fix-rush-guide-item-ids.mjs [--apply]`
- * Usage serveur : `docker exec sigilos-prod node /app/scripts/fix-rush-guide-item-ids.mjs --apply`
- *                 (l'image embarque `scripts/` ; l'environnement vient de Docker, `dotenv` est absent
- *                  ⇒ son import est volontairement tolérant)
+ * Usage (développement local) : `node scripts/fix-rush-guide-item-ids.mjs [--apply]`
+ *
+ * ⚠️ **Sur le VPS, ce script ne tourne PAS** : l'image *standalone* ne trace pas toutes les
+ * dépendances de `@prisma/adapter-pg` (`@prisma/driver-adapter-utils` manque ⇒
+ * `ERR_MODULE_NOT_FOUND`, mesuré le 10/10/2026 — les seeds échappent au problème parce
+ * qu'esbuild les **bundle**). Sur un serveur, appliquer le **même** correctif en SQL (jsonb)
+ * dans le conteneur de base de données : la requête exacte et la commande `psql` vivent dans
+ * `docs/plans/MODULE-RUSH-SYLVESTRE.md` § B (« Correctif de données sur le VPS »).
  */
 try {
   process.env.NODE_ENV ||= "development";

@@ -1,5 +1,8 @@
+import { randomUUID } from "node:crypto";
+import * as Sentry from "@sentry/nextjs";
 import { redis } from "@/lib/redis";
 import { logger } from "@/lib/logger";
+import { buildCronCheckIn, cronMonitorConfigFor } from "@/lib/cron-monitor";
 
 export interface CronExecutionRecord {
     id: string;
@@ -160,6 +163,37 @@ const REDIS_PREFIX = "cron:telemetry:";
 const TTL_SECONDS = 7 * 24 * 60 * 60; // 7 jours
 
 /**
+ * 🔔 Check-in Sentry du moniteur de cette tâche — « je viens de tourner » (ou « j'ai échoué »).
+ *
+ * **Un seul point de branchement pour les 25 crons** : toutes les routes `/api/cron/*`
+ * passent par `recordCronExecution` (vérifié le 11/10/2026 : 25/25) ⇒ aucune route à
+ * modifier, aucune oubliable, toute route future surveillée d'office.
+ *
+ * Jamais bloquant, jamais fatal : l'observabilité ne doit pas casser un cron (et en
+ * développement le SDK Sentry est désactivé). Cadence non reconnue (`Automatique`, tâche
+ * inconnue) ⇒ **aucun** envoi : on ne surveille pas au hasard.
+ */
+function notifySentryCronMonitor(
+    cronId: string,
+    payload: { success: boolean; durationMs?: number | null; scheduleLabel: string }
+): void {
+    try {
+        const config = cronMonitorConfigFor(payload.scheduleLabel);
+        if (!config) return;
+        Sentry.captureCheckIn(
+            {
+                ...buildCronCheckIn(cronId, payload),
+                // L'identifiant unique est généré à l'envoi (exigé par le protocole Sentry).
+                checkInId: randomUUID(),
+            },
+            config
+        );
+    } catch (err) {
+        logger.warn("[CronMonitor] check-in Sentry impossible (non-fatal)", { cronId, error: err });
+    }
+}
+
+/**
  * Enregistre le résultat de l'exécution d'un cron dans Redis.
  */
 export async function recordCronExecution(
@@ -176,6 +210,14 @@ export async function recordCronExecution(
             name: cronId,
             schedule: "Automatique",
         };
+
+        // 🔔 Surveillance Sentry **avant** l'écriture Redis : si Redis est en panne,
+        // l'alerte « cette tâche ne tourne plus » doit partir quand même.
+        notifySentryCronMonitor(cronId, {
+            success: result.success,
+            durationMs: result.durationMs ?? null,
+            scheduleLabel: meta.schedule,
+        });
 
         const record: CronExecutionRecord = {
             id: cronId,

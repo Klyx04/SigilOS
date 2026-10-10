@@ -16,7 +16,7 @@ import {
 // Correction 13/09 — le référentiel de marché est mis en cache 5 min : le siphon
 // God doit le purger pour que les libellés/signes fraîchement lus soient visibles.
 // (La purge vit désormais dans le cœur `@/lib/market/referential-siphon`.)
-import { normalizeItemIconUrl } from '@/lib/market/item-image';
+import { iconVersionOf, normalizeItemIconUrl, withItemImageVersion } from '@/lib/market/item-image';
 import {
     MARKET_COSMETIC_SUPERTYPE_IDS,
     MARKET_COSMETIC_TYPE_IDS,
@@ -65,6 +65,12 @@ export interface GameItemSearchResult {
     isLegendary?: boolean;
     /** Plages natives (source serveur) — `[{ effectId, characteristic, from, to, … }]`. */
     nativeEffects?: unknown;
+    /**
+     * Correctif long terme 10/10/2026 — horodatage du resiphon : `?v=` d'invalidation
+     * des icônes (chaque upsert bump `updatedAt` ⇒ nouvelle URL ⇒ navigateurs + Discord
+     * suivent sans purge).
+     */
+    updatedAt?: Date | string | null;
 }
 
 /**
@@ -137,6 +143,7 @@ export async function searchLocalGameItems(
                     isLegendary: true,
                     nativeEffects: true,
                     typeId: true,
+                    updatedAt: true,
                 },
             }),
             loadMarketReferential(),
@@ -147,8 +154,12 @@ export async function searchLocalGameItems(
             success: true,
             data: items.map((item) => ({
                 ...item,
-                // BUG-3 — une seule forme d'URL d'icône pour tout le module.
-                iconUrl: normalizeItemIconUrl(item.iconUrl, item.ankamaId),
+                // BUG-3 — une seule forme d'URL d'icône pour tout le module, versionnée
+                // (`?v=` : chaque resiphon change l'URL, fini le cache périmé).
+                iconUrl: withItemImageVersion(
+                    normalizeItemIconUrl(item.iconUrl, item.ankamaId),
+                    iconVersionOf(item.updatedAt)
+                ),
                 nativeEffects: enrichNativeEffects(
                     resolveNativeEffects(item),
                     statReferential
@@ -194,6 +205,7 @@ export async function getLocalGameItemDetails(ankamaId: number): Promise<ActionR
                     isLegendary: true,
                     nativeEffects: true,
                     typeId: true,
+                    updatedAt: true,
                 },
             }),
             // Correction 13/09 (2ᵉ passe) — mêmes lignes résolues serveur que la
@@ -207,8 +219,11 @@ export async function getLocalGameItemDetails(ankamaId: number): Promise<ActionR
             data: item
                 ? {
                       ...item,
-                      // BUG-3 — même normalisation que la recherche locale.
-                      iconUrl: normalizeItemIconUrl(item.iconUrl, item.ankamaId),
+                      // BUG-3 — même normalisation que la recherche locale, versionnée (`?v=`).
+                      iconUrl: withItemImageVersion(
+                          normalizeItemIconUrl(item.iconUrl, item.ankamaId),
+                          iconVersionOf(item.updatedAt)
+                      ),
                       nativeEffects: enrichNativeEffects(
                           resolveNativeEffects(item),
                           toMarketStatReferentialInput(referential)

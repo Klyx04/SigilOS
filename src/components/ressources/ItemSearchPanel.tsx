@@ -14,6 +14,7 @@ import {
     type StatIconName,
 } from "@/lib/market/effects";
 import { resolveDofusStatTheme, getDofusStatNumberColor } from "@/lib/dofus-stats-theme";
+import { iconVersionOf } from "@/lib/market/item-image";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -48,6 +49,8 @@ interface DofusItem {
     description?: { fr: string };
     imgset?: { sd?: string; icon?: string }[];
     img?: string;
+    /** 10/10/2026 — resiphon : `?v=` d'invalidation d'icône (DofusDB `updatedAt` ou local). */
+    updatedAt?: string | null;
     effects?: DofusItemEffect[];
     possibleEffects?: DofusItemEffect[];
     is_recipe_item?: boolean;
@@ -65,11 +68,16 @@ interface DofusItem {
  * 🛡️ Résolution locale-first des images d'items.
  * -> /api/assets-dofus/items/{id} : proxy auto-siphon WebP (0 404, 0 appel externe visible)
  * Fallback : si l'id est inconnu, on passe l'URL distante telle quelle via le proxy générique.
+ * 10/10/2026 — `version` (`?v=updatedAt`) : chaque resiphon change l'URL, fini le cache
+ * périmé (navigateurs + Discord) pour toutes les guildes.
  */
-function getItemImageUrl(id?: number | string | null, fallbackUrl?: string | null): string {
+function getItemImageUrl(id?: number | string | null, fallbackUrl?: string | null, version?: number | string | null): string {
     if (id) {
-        const query = fallbackUrl ? `?url=${encodeURIComponent(fallbackUrl)}` : '';
-        return `/api/assets-dofus/items/${id}${query}`;
+        const params = new URLSearchParams();
+        if (fallbackUrl) params.set("url", fallbackUrl);
+        if (version !== undefined && version !== null && String(version).trim() !== "") params.set("v", String(version));
+        const query = params.toString();
+        return `/api/assets-dofus/items/${id}${query ? `?${query}` : ""}`;
     }
     return fallbackUrl || '';
 }
@@ -319,7 +327,7 @@ export function ItemSearchPanel() {
                                     )}
                                 >
                                     <div className="w-11 h-11 rounded-xl bg-background flex items-center justify-center border border-border shrink-0 group-hover:scale-105 transition-transform">
-                                        <Image src={getItemImageUrl(item.id, item.imgset?.[0]?.icon || item.img)} alt={item.name.fr} width={32} height={32} className="object-contain" unoptimized />
+                                        <Image src={getItemImageUrl(item.id, item.imgset?.[0]?.icon || item.img, iconVersionOf(item.updatedAt))} alt={item.name.fr} width={32} height={32} className="object-contain" unoptimized />
                                     </div>
                                     <div className="min-w-0 text-left">
                                         <div className="text-body-sm font-bold text-foreground group-hover:text-foreground truncate">{item.name.fr}</div>
@@ -426,7 +434,7 @@ export function ItemSearchPanel() {
                                         )} />
                                         <div className="w-40 h-40 rounded-2xl bg-background border border-border flex items-center justify-center relative z-10 shadow-sm">
                                             <Image
-                                                src={getItemImageUrl(selectedItem.id, selectedItem.imgset?.[0]?.sd || selectedItem.img)}
+                                                src={getItemImageUrl(selectedItem.id, selectedItem.imgset?.[0]?.sd || selectedItem.img, iconVersionOf(selectedItem.updatedAt))}
                                                 alt={selectedItem.name.fr}
                                                 width={120}
                                                 height={120}

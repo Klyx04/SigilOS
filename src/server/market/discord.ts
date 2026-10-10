@@ -32,7 +32,7 @@ import {
     type MarketDiscordPayloadInput,
     type MarketDiscordStatus,
 } from "@/lib/market/discord-payload";
-import { normalizeItemIconUrl } from "@/lib/market/item-image";
+import { iconVersionOf, normalizeItemIconUrl, withItemImageVersion } from "@/lib/market/item-image";
 // Constat beta — une ligne de jet `0 → 0` (« Échangeable : ») n'est pas un jet :
 // elle ne fait pas basculer l'embed en « carte ». Même règle que le serveur.
 import { isStatBearingStatRow } from "@/lib/market/effects";
@@ -251,12 +251,17 @@ function absoluteItemIconUrl(url: string | null | undefined): string | null {
 function resolveDiscordThumbnail(
     listing: NonNullable<Awaited<ReturnType<typeof loadListingForDiscord>>>["listing"]
 ): string | null {
+    // 10/10/2026 — miniature versionnée (`?v=updatedAt` de l'annonce) : après un resiphon
+    // ou une édition, Discord refetch au lieu de garder son cache (toutes les guildes).
+    const version = iconVersionOf(listing.updatedAt);
     const fromItem = normalizeItemIconUrl(listing.itemIconUrl, listing.dofusDbItemId);
-    if (fromItem) return absoluteItemIconUrl(fromItem);
+    if (fromItem) return absoluteItemIconUrl(withItemImageVersion(fromItem, version));
 
     const first = listing.components[0];
     if (!first) return null;
-    return absoluteItemIconUrl(normalizeItemIconUrl(first.iconUrl, first.dofusDbItemId));
+    return absoluteItemIconUrl(
+        withItemImageVersion(normalizeItemIconUrl(first.iconUrl, first.dofusDbItemId), version)
+    );
 }
 
 /**
@@ -652,7 +657,12 @@ export async function syncBundleComponentMessages(
              * (comme l'unitaire), régénérée à chaque édition du jet.
              */
             const componentThumbnail =
-                absoluteItemIconUrl(normalizeItemIconUrl(component.iconUrl, component.dofusDbItemId)) ??
+                absoluteItemIconUrl(
+                    withItemImageVersion(
+                        normalizeItemIconUrl(component.iconUrl, component.dofusDbItemId),
+                        iconVersionOf(listing.updatedAt)
+                    )
+                ) ??
                 base.itemIconUrl ??
                 null;
             const componentHasJet = (component.componentStats ?? []).some(isStatBearingStatRow);

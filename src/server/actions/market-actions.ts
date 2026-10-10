@@ -33,7 +33,7 @@ import { publishListingToDiscord, syncListingMessage, deleteListingDiscordMessag
 import { listGuildMembers } from "@/server/discord";
 // BUG-1 — une seule forme d'URL d'icône d'objet (proxy auto-siphon, jamais 404) :
 // normalisée **à l'écriture** et **à la lecture** (annonces déjà en base).
-import { normalizeItemIconUrl } from "@/lib/market/item-image";
+import { iconVersionOf, normalizeItemIconUrl, withItemImageVersion } from "@/lib/market/item-image";
 import { writeMarketAuditLog } from "@/server/market/audit";
 import { reserveMarketListingCore, cancelMarketReservationCore } from "@/server/market/reservations";
 import { reserveBundleComponentCore } from "@/server/market/bundle";
@@ -319,15 +319,25 @@ function withDisplayReadyIcons<
     T extends {
         dofusDbItemId: number | null;
         itemIconUrl: string | null;
+        updatedAt: Date;
         components: { dofusDbItemId: number | null; iconUrl: string | null }[];
     }
 >(listing: T): T {
+    // 10/10/2026 — icônes versionnées (`?v=updatedAt` de l'annonce, bumpée à chaque
+    // écriture) : un resiphon change l'URL, fini le cache périmé (fiches + Discord).
+    const version = iconVersionOf(listing.updatedAt);
     return {
         ...listing,
-        itemIconUrl: normalizeItemIconUrl(listing.itemIconUrl, listing.dofusDbItemId),
+        itemIconUrl: withItemImageVersion(
+            normalizeItemIconUrl(listing.itemIconUrl, listing.dofusDbItemId),
+            version
+        ),
         components: listing.components.map((component) => ({
             ...component,
-            iconUrl: normalizeItemIconUrl(component.iconUrl, component.dofusDbItemId),
+            iconUrl: withItemImageVersion(
+                normalizeItemIconUrl(component.iconUrl, component.dofusDbItemId),
+                version
+            ),
         })),
     };
 }

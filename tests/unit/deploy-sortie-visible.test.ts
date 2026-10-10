@@ -109,6 +109,23 @@ describe("Sortie du déploiement — compréhensible sans explication", () => {
         expect(source).toContain("déplacé(s) de public/uploads vers private_uploads");
     });
 
+    it("⑦ la migration épargne les caches d'assets servis en statique", () => {
+        const source = migrateUploads();
+        // Sans cette garde, le déploiement vidait `public/uploads/assets-dofus` (les WebP
+        // siphonnés) vers `private_uploads` ⇒ 404 d'un coup puis re-siphonage à la demande :
+        // mesuré le 10/10/2026, et le volume `assets-*-data` existe pour les préserver.
+        expect(source).toMatch(/const KEEP_IN_PUBLIC = new Set\(\["assets-dofus", "proxy-cache"\]\)/);
+        // Le saut a lieu AVANT le déplacement, et seulement au premier niveau de public/uploads.
+        const guard = source.indexOf("KEEP_IN_PUBLIC.has(file)");
+        const move = source.indexOf("await safeRename(currentPath, targetPath)");
+        expect(guard).toBeGreaterThan(-1);
+        expect(move).toBeGreaterThan(-1);
+        expect(guard).toBeLessThan(move);
+        expect(source).toMatch(/dir === PUBLIC_UPLOADS && KEEP_IN_PUBLIC\.has\(file\)/);
+        // Et la sortie du déploiement le dit (le lecteur n'a pas à ouvrir le script).
+        expect(source).toContain("dossier(s) de cache conservé(s) en public");
+    });
+
     it("⑥ les migrations Prisma sont annoncées avec leur compte et leur sens", () => {
         const source = deployCd();
         // Le compte vient du DÉPÔT (mesuré le 30/09/2026 : la ligne « N migrations found »

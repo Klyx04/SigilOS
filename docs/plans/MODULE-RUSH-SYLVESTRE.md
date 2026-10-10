@@ -88,9 +88,37 @@ Règle d'or : **1 étape = 1 lot = 1 branche = 1 PR → `dev`**.
 ### B — Ids invalides / noms ≠ icônes
 - **État mesuré** : `GET /items/7809` et `/items/7807` → **item de repli `id 666`** ; `name.fr` « Dragodinde Rousse Sauvage » → `total: 0` (montures ≠ items). WebP `{id}.webp` gravé via le **chemin deviné** = icône d'un **autre** objet, servie `immutable` 1 an.
 - **Mesuré le 10/10/2026** (au passage du lot **V-A**) : `22058` « Reflet onirique » → **repli `666`** (le vrai objet est `32079`, type 219 « Ressource des Songes », `iconId` 164149) et `9687` porté par le nom « Moyenne pierre d'âme **parfaite** » (`9687` = « Moyenne pierre d'âme ») — ce sont **les 2 écarts de comptage** du rail (391 vs 392), à corriger **ici** (le +1 disparaîtra alors de lui-même).
-- **Changement** : sonde en lots (`items?id[$in][]=`, 50 / req) → détecter repli 666 + nom divergent ; corriger via **Tougli** (items par quête) et **Dofusyelle** (`dbId`), appariés par nom ; cas montures : mapping explicite ou retrait.
-- **Tests** : unité (id valide / fallback / mismatch) + non-régression « jamais de chemin deviné ».
-- **Dépendances** : — · **Statut** : **à faire**.
+- **Balayage complet du guide (10/10/2026)** : les **391** ids uniques passés aux fiches groupées (`items?id[$in][]=`, 50/req, **garde d'identité** : seuls les ids demandés sont retenus) puis **une requête par image réellement donnée par l'API** ⇒ **5 ids que DofusDB ne sert pas** (repli `666`), **0 image en échec**, **1 nom divergent** (`33380`) ; `10000000001` « Kamas » est un id **synthétique** porté par **38** tags ; les 3 dragodindes sauvages sont absentes **et** de `/items` **et** de `/mounts`.
+- **Livré le 10/10/2026 (lot V-B)** :
+  - `22058` → **`32079`** : corrigé dans la **source de seed** (`src/data/rush-sylvestre-guide.json`) **et** en base par un correctif **ciblé** (un tag, une séquence — **jamais** de re-seed, qui écraserait les éditions du studio God) : `scripts/fix-rush-guide-item-ids.mjs` (**dry-run par défaut**, `--apply` pour écrire) ;
+  - **Kamas** (id synthétique `10000000001`) : **aucune donnée touchée** — l'icône locale est posée au bon endroit du cache (`items/10000000001.webp`, WebP 44×44) ⇒ `resolveItemImage` la sert partout, y compris après un déploiement (volume `assets-*-data`) ;
+  - **3 montures sauvages** (`7807` / `7809` / `7864`) : icônes fournies par le propriétaire (Duffus) et installées en `items/{id}.webp` (128×128, WebP q85). ⚠️ Duffus est **hors allowlist** du siphon ⇒ **aucun auto-heal** : ces fichiers vivent **hors git**, à copier dans le volume du VPS — `docker cp ./items/. sigilos-prod:/app/public/uploads/assets-dofus/items/` puis `docker exec sigilos-prod chown -R nextjs:nodejs /app/public/uploads/assets-dofus/items` (idem `sigilos-beta`).
+  - **Pourquoi ces icônes disparaissaient à chaque déploiement** (trouvé en préparant le VPS) : `scripts/migrate-uploads.mjs`, joué **à chaque deploy** (étape 4/5), déplaçait **tout** `public/uploads/**` vers `private_uploads/**` — **y compris** `assets-dofus` (le cache siphonné, servi en statique via `getLocalAssetUrl`) et `proxy-cache`, alors que le volume `assets-*-data` existe **précisément** pour le préserver : le cache repartait de zéro et les icônes revenaient une par une. Corrigé par `KEEP_IN_PUBLIC = {assets-dofus, proxy-cache}` (ces dossiers ne sont **jamais** descendus), annoncé dans la sortie du déploiement (`🔒 N dossier(s) de cache conservé(s) en public`), **prouvé en bac à sable** (`proofs/` part bien en privé, les 2 caches restent) + garde `tests/unit/deploy-sortie-visible.test.ts` ⑦.
+- **Correctif de données sur le VPS** (le script Node **n'y tourne pas** : l'image *standalone* est amputée de `@prisma/driver-adapter-utils` ⇒ `ERR_MODULE_NOT_FOUND`, mesuré le 10/10/2026 — esbuild **bundle** les seeds, d'où leur immunité). Le **même** correctif, en **SQL**, dans le conteneur de base (`sigilos-db-beta`, puis `sigilos-db-prod`) :
+
+```sql
+-- contrôle : `reste_22058` doit finir à 0
+SELECT count(*) FILTER (WHERE "activityTags" @> '[{"id": 22058}]'::jsonb) AS reste_22058 FROM "GuideSequence";
+
+UPDATE "GuideSequence" s
+SET "activityTags" = (
+  SELECT jsonb_agg(CASE WHEN t->>'id' = '22058' THEN jsonb_set(t, '{id}', '32079'::jsonb) ELSE t END ORDER BY ord)
+  FROM jsonb_array_elements(s."activityTags") WITH ORDINALITY AS e(t, ord)
+)
+WHERE s."activityTags" @> '[{"id": 22058}]'::jsonb;
+```
+
+```bash
+docker exec -i sigilos-db-beta sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -v ON_ERROR_STOP=1 -f -' < fix-rush-22058.sql
+```
+
+- **Ops (humain) — état au 10/10/2026** :
+  - **Bêta : FAIT** — les 4 WebP sont en place (`items/{7807,7809,7864,10000000001}.webp`, propriété rendue à l'app par `docker exec -u root … chown nextjs:nodejs`) et la base est corrigée (`reste_22058` **1 → 0**, `avec_32079` = 2).
+  - **Reste bêta** : merger le lot puis **déployer** (c'est le deploy qui active le correctif `migrate-uploads`) → **ensuite** pré-chauffer les **319** icônes (bouton God) → contrôle visuel de la modale « Ressources à prévoir ».
+  - 🅿️ **Prod : RIEN À FAIRE aujourd'hui** (mesuré le 10/10) : le guide n'y est **pas seedé** (`22058` = 0, `32079` = 0) et le volume d'assets est **vide** (`/app/public/uploads/assets-dofus/items` n'existe pas ⇒ la copie échoue ; il faut `mkdir -p` d'abord). Au moment du déploiement prod : ① **aucun SQL** — le correctif est dans la **source de seed**, le futur seed prod naîtra bon ; ② `docker exec -u root sigilos-prod mkdir -p /app/public/uploads/assets-dofus/items`, copie des 4 WebP (hors git) puis `chown nextjs:nodejs` ; ③ pré-chauffage des 319.
+- **Reste (données)** : trancher le nom de `33380` · les **~21 000** objets hors guide relèvent du chantier **U**.
+- **Tests** : `tests/unit/rush-guide-item-ids.test.ts` (garde de **données**, sans réseau : l'id fautif ne revient pas, le bon est présent) + parité du rail (`rush-resource-checks`, `rush-public-parity`).
+- **Dépendances** : — · **Statut** : **livré le 10/10/2026** (les 5 cas mesurés traités ; le balayage du guide ne laisse qu'une décision de **nom**).
 
 ### C — Purge des WebP corrompus + siphon « jamais deviné » (rattaché U-3)
 - **État mesuré** : `siphonAndCompressImage` conserve `allowGuessedPath` par défaut `true` pour items / monstres (dette **U-3** déjà notée au `ROADMAP`).

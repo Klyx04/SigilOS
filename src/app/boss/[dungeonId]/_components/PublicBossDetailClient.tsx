@@ -49,6 +49,7 @@ import type { PublicLinkedQuestsData, PublicDungeonAchievement } from "@/server/
 import { BossMechanicsView } from "@/components/boss/BossMechanicsView";
 import { formatDofusEffectLine, SpellDamageSummaryChips, cleanDofusText } from "@/lib/dofus-effects-formatter";
 import { enrichPassiveIfNeeded, normalizeSpellEffectDetails } from "@/lib/dofus-spells";
+import { DocContent } from "@/components/doc/doc-content";
 
 interface PublicDungeon {
   id: string;
@@ -192,7 +193,7 @@ function SpellIcon({
   );
 }
 
-type DetailTab = "sorts" | "sim" | "grades" | "loot" | "family" | "quests" | "achievements";
+type DetailTab = "sorts" | "sim" | "strategy" | "grades" | "loot" | "family" | "quests" | "achievements";
 
 
 export function PublicBossDetailClient({
@@ -437,6 +438,7 @@ export function PublicBossDetailClient({
     [
       { id: "sorts", label: locale === "en" ? `${isTitan ? "Titan" : isBounty ? "Bounty Monster" : "Boss"} Spells` : `Sorts du ${isTitan ? "Titan" : isBounty ? "monstre recherché" : "Boss"}`, asset: "/assets/dofus/modules/spells.png" },
       { id: "sim", label: locale === "en" ? "Tactical Simulation" : "Simulation Tactique", asset: "/assets/dofus/modules/map.png" },
+      { id: "strategy", label: locale === "en" ? "Strategy" : "Stratégie", asset: "/assets/dofus/icons/quests.png", hidden: !bountyMeta?.mechanics },
       { id: "grades", label: locale === "en" ? `Ranks & Levels (${grades.length})` : `Rangs & Paliers (${grades.length})`, asset: "/assets/dofus/modules/character.png", hidden: grades.length <= 1 },
       { id: "loot", label: locale === "en" ? "Loot & Drops" : "Butin & Drops", asset: "/assets/dofus/modules/chest.png" },
       { id: "family", label: locale === "en" ? `Room Monsters (${roomMonsters.length})` : `Monstres de la salle (${roomMonsters.length})`, asset: "/assets/dofus/modules/party.png", hidden: !hasRoomMonsters },
@@ -1076,6 +1078,22 @@ export function PublicBossDetailClient({
               allowFreeCasterMove
             />
           )}
+        </div>
+      )}
+
+      {/* ── TAB: STRATÉGIE DE CAPTURE (Avis de recherche) ── */}
+      {detailTab === "strategy" && bountyMeta?.mechanics && (
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/assets/dofus/icons/quests.png" alt="" className="w-4 h-4 object-contain opacity-80" />
+            <h4 className="text-sm font-bold text-foreground">
+              {locale === "en" ? "Capture Strategy & Mechanics" : "Stratégie de capture & Mécaniques"}
+            </h4>
+          </div>
+          <div className="rounded-2xl border border-border bg-surface/50 p-6">
+            <DocContent content={bountyMeta.mechanics} />
+          </div>
         </div>
       )}
 

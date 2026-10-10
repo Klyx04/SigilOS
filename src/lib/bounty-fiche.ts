@@ -91,6 +91,8 @@ export interface BountyPublicMeta {
     dofensiveUrl: string | null;
     dpnlUrl: string | null;
     slug: string | null;
+    /** Stratégie de capture (saisie dans God / onglet mechanics). */
+    mechanics: string | null;
     /** Date de la dernière synchronisation de la fiche (ISO), `null` si jamais synchronisée. */
     syncedAt: string | null;
 }
@@ -178,6 +180,7 @@ export function buildBountyPublicMeta(bounty: BountyRowInput, stats?: unknown): 
         dofensiveUrl: bountyDofensiveUrl(bounty.dofusdbId),
         dpnlUrl: String(bounty.dpnlUrl ?? "").trim() || null,
         slug: String(bounty.slug ?? "").trim() || null,
+        mechanics: String(bounty.mechanics ?? "").trim() || null,
         syncedAt: syncedAtIso(bounty.dofusdbSyncedAt),
     };
 }

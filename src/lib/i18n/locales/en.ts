@@ -751,6 +751,7 @@ export const en: Translations = {
             room: "Room Monsters",
             maps: "Dofensive Maps",
             bounty: "Wanted Bounty",
+            strategy: "Strategy",
         },
         stats: {
             hp: "Health Points",

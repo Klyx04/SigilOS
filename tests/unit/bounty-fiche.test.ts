@@ -205,5 +205,18 @@ describe("prime d'un avis — encart et icônes locales (une seule source)", () 
         expect(zone).not.toContain("dofus des glaces");
         expect(zone).not.toMatch(/iconSrc = '\/assets\/avis/);
     });
+
+    it("la stratégie (mechanics) est transmise et montée dans l'onglet des deux fiches", () => {
+        const meta = buildBountyPublicMeta({ ...PREDAGOB, mechanics: "<p>Focus le boss T1</p>" }, PREDAGOB_STAT);
+        expect(meta.mechanics).toBe("<p>Focus le boss T1</p>");
+
+        const interne = sourceOf("src/components/succes/SuccesAvisTab.tsx");
+        const publique = sourceOf("src/app/boss/[dungeonId]/_components/PublicBossDetailClient.tsx");
+
+        expect(interne).toContain('detailTab === "strategy"');
+        expect(publique).toContain('detailTab === "strategy"');
+        expect(interne).toContain("<DocContent content=");
+        expect(publique).toContain("<DocContent content=");
+    });
 });
 

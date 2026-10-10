@@ -195,3 +195,23 @@ function getStepQuests(step: RushStep, alignment: AlignmentChoice, order: OrderC
 3. **Phase 3 (Intégration SigilOS)** :
    - Mettre à jour l'admin God (`src/app/god/rush-sylvestre/`).
    - Intégrer `RushAlignmentToggle` dans l'overlay PiP et la timeline de guilde.
+
+---
+
+## 6. Décisions VERROUILLÉES le 10/10/2026 (ne pas re-débattre)
+
+> Arbitrages tranchés avec le propriétaire. Le détail d'exécution vit dans
+> `docs/plans/MODULE-RUSH-SYLVESTRE.md` (§ F) ; l'ordre, dans `docs/plans/FILE-EXECUTION.md`.
+
+1. **Un seul guide** `rush-sylvestre`, branché par **données** : `alignReq` (cité), `alignOrderReq` (ordre),
+   `alignLevelReq` (seuil). **Jamais deux guides** (un « bontarien » et un « brâkmarien »).
+2. **Choix de l'Ordre** à la **1ʳᵉ quête d'Ordre (seuil 20)** ; rangs d'« Apprentissage » aux seuils
+   **20 / 40 / 60 / 80 / 100**.
+3. **Changement de cité = logique jeu** : **reset** de l'alignement du personnage (+ `alignmentBefore`) et
+   **retour à la 1ʳᵉ quête** de la nouvelle cité ; les quêtes communes sont conservées.
+4. **Résolution** : `resolveRushRoute` **filtre d'abord** ; `buildRushGuideView`, `isSequenceBlockedByPrereqs`
+   et `aggregateRushResources` **calculent sur le set filtré** (un prérequis masqué ne bloque pas).
+5. **God** : marquage par séquence + action de masse par bloc + vue « Branches » + « créer la jumelle »
+   (les deux camps sont **miroir par slot** — la source le donne déjà).
+6. **Le bord visible** : sélecteur de cité/ordre **commun** au guide interne, au guide public et à l'overlay
+   (une seule implémentation, jamais une copie par surface).

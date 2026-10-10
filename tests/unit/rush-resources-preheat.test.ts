@@ -137,27 +137,34 @@ describe("pré-chauffage — sélection des cibles (pur)", () => {
 });
 
 describe("pré-chauffage — on ne devine JAMAIS le chemin d'une icône d'objet", () => {
-    it("objet : la fiche /items/{id} est interrogée, jamais /img/items/{id}.png", async () => {
-        // DofusDB répond 200 avec un AUTRE item quand l'id demandé n'existe pas (item de repli).
-        const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ id: 666, iconId: 38677 }));
+    it("la fiche d'objet est demandée par id d'ENTITÉ, jamais le chemin /img/items/{entité}.png", async () => {
+        const fetchMock = vi.fn().mockResolvedValue(
+            jsonResponse({
+                data: [
+                    { id: 15190, iconId: 9289, img: "https://api.dofusdb.fr/img/items/9289.png" },
+                ],
+            }),
+        );
         vi.stubGlobal("fetch", fetchMock);
 
-        const res = await siphonItemIconsBatchCore([15190]);
+        await siphonItemIconsBatchCore([15190]);
         const urls = fetchMock.mock.calls.map((c) => String(c[0]));
 
-        // ⭐ L'invariant : le chemin deviné (id d'ENTITÉ) n'est jamais demandé.
-        expect(urls).not.toContain("https://api.dofusdb.fr/img/items/15190.png");
-        expect(urls).toContain("https://api.dofusdb.fr/items/15190");
-        // La garde d'identité refuse l'item de repli (id 666 ≠ 15190) ⇒ échec NOMMÉ, rien gravé.
-        expect(res.siphoned).toBe(0);
-        expect(res.errors).toBe(1);
-        expect(res.details[0]).toContain("#15190");
+        expect(urls[0]).toContain("https://api.dofusdb.fr/items?id[$in][]=15190");
+        // ⭐ L'invariant : le chemin deviné (id d'ENTITÉ) n'est jamais demandé, dans AUCUN appel.
+        expect(urls.join(" ")).not.toContain("/img/items/15190.png");
     });
 
-    it("objet : l'image vient de l'APPARENCE (iconId) renvoyée par l'API", async () => {
+    it("l'image vient de l'APPARENCE renvoyée par l'API, jamais de l'id d'entité", async () => {
         const fetchMock = vi
             .fn()
-            .mockResolvedValueOnce(jsonResponse({ id: 15190, iconId: 9289 }))
+            .mockResolvedValueOnce(
+                jsonResponse({
+                    data: [
+                        { id: 15190, iconId: 9289, img: "https://api.dofusdb.fr/img/items/9289.png" },
+                    ],
+                }),
+            )
             .mockResolvedValue(imageResponse());
         vi.stubGlobal("fetch", fetchMock);
 
@@ -166,9 +173,8 @@ describe("pré-chauffage — on ne devine JAMAIS le chemin d'une icône d'objet"
 
         expect(res.siphoned).toBe(1);
         expect(res.errors).toBe(0);
-        expect(urls).toContain("https://api.dofusdb.fr/items/15190");
         expect(urls).toContain("https://api.dofusdb.fr/img/items/9289.png");
-        expect(urls).not.toContain("https://api.dofusdb.fr/img/items/15190.png");
+        expect(urls.join(" ")).not.toContain("/img/items/15190.png");
     });
 
     it("contraste : sans l'option, le même appel DEVINE le chemin (d'où l'existence de la garde)", async () => {
@@ -178,6 +184,51 @@ describe("pré-chauffage — on ne devine JAMAIS le chemin d'une icône d'objet"
         await siphonAndCompressImage(null, "items", 15190);
 
         expect(String(fetchMock.mock.calls[0][0])).toBe("https://api.dofusdb.fr/img/items/15190.png");
+    });
+
+    it("une seule requête pour N fiches, puis une par image (≈1 requête/icône au lieu de 2)", async () => {
+        const fetchMock = vi
+            .fn()
+            // ① la fiche GROUPÉE : deux items, chacun avec son `img` définitif (id d'apparence)
+            .mockResolvedValueOnce(
+                jsonResponse({
+                    data: [
+                        { id: 464, iconId: 50097, img: "https://api.dofusdb.fr/img/items/50097.png" },
+                        { id: 466, iconId: 50100, img: "https://api.dofusdb.fr/img/items/50100.png" },
+                    ],
+                }),
+            )
+            // ② les images, une requête chacune
+            .mockResolvedValue(imageResponse());
+        vi.stubGlobal("fetch", fetchMock);
+
+        const res = await siphonItemIconsBatchCore([464, 466]);
+        const urls = fetchMock.mock.calls.map((c) => String(c[0]));
+
+        expect(res.siphoned).toBe(2);
+        expect(urls[0]).toContain("id[$in][]=464");
+        expect(urls[0]).toContain("id[$in][]=466");
+        // ⭐ 1 requête de fiches + 2 images = 3 requêtes pour 2 icônes (au lieu de 4)
+        expect(fetchMock).toHaveBeenCalledTimes(3);
+        expect(urls).toContain("https://api.dofusdb.fr/img/items/50097.png");
+        expect(urls).toContain("https://api.dofusdb.fr/img/items/50100.png");
+    });
+
+    it("fiche groupée sans l'id demandé (item de repli) → échec NOMMÉ, rien gravé", async () => {
+        const fetchMock = vi.fn().mockResolvedValueOnce(
+            jsonResponse({
+                data: [{ id: 666, iconId: 38677, img: "https://api.dofusdb.fr/img/items/38677.png" }],
+            }),
+        );
+        vi.stubGlobal("fetch", fetchMock);
+
+        const res = await siphonItemIconsBatchCore([15190]);
+
+        expect(res.siphoned).toBe(0);
+        expect(res.errors).toBe(1);
+        expect(res.details[0]).toContain("#15190");
+        expect(res.details[0]).toContain("absente de la fiche groupée");
+        expect(fetchMock).toHaveBeenCalledTimes(1); // aucune image rapatriée
     });
 });
 
@@ -224,7 +275,7 @@ describe("pré-chauffage — câblage (gardes de source)", () => {
         // Idempotence : la vérification disque précède l'appel réseau.
         const core = assets.slice(assets.indexOf("export async function siphonItemIconsBatchCore"));
         expect(core.indexOf("getLocalAssetUrl('items', id, null)")).toBeLessThan(
-            core.indexOf("siphonAndCompressImage(null, 'items', id"),
+            core.indexOf("await fetchItemImageUrlsBatch(todo)"),
         );
     });
 
@@ -304,11 +355,12 @@ describe("pré-chauffage — un budget partagé épuisé n'est PAS un asset manq
         const real429 = { ok: false, status: 429, headers: new Headers() } as any;
         vi.stubGlobal("fetch", vi.fn().mockResolvedValue(real429));
 
-        const res = await siphonItemIconsBatchCore([464]);
+        const res = await siphonItemIconsBatchCore([464, 466]);
 
         expect(res.deferred).toBeUndefined();
-        expect(res.errors).toBe(1);
-        expect(res.details[0]).toContain("#464");
+        // Les DEUX ids du lot : une fiche groupée ratée ne permet de conclure sur AUCUNE icône.
+        expect(res.errors).toBe(2);
+        expect(res.details[0]).toContain("fiches groupées");
         expect(res.details[0]).toContain("429"); // la cause réelle est NOMMÉE
     });
 
@@ -321,17 +373,38 @@ describe("pré-chauffage — un budget partagé épuisé n'est PAS un asset manq
         expect(runners).toContain("budgetStopped");
         // …et l'interruption est annoncée (avertissement), pas peinte en échec.
         expect(runners).toContain("deferred: budgetStopped || undefined");
+        // Le récapitulatif NOMME le budget partagé (30 req/min) et le passe en cours quand il est connu.
+        expect(runners).toContain("budget DofusDB partagé (30 req/min) saturé");
         expect(read(PANEL)).toContain("toast.warning(res.summary)");
     });
 
     it("le siphon d'assets distingue le refus local AVANT de conclure à un asset absent", () => {
         const assets = read(ASSETS);
         expect(assets).toContain("if (isLocalThrottle(providedRes))");
-        expect(assets).toContain("if (isLocalThrottle(itemRes))");
-        expect(assets).toContain("new LocalThrottleDeferredError(retryAfterMs).message");
         // La core s'arrête sur ce message (jamais compté en erreur).
         const core = assets.slice(assets.indexOf("export async function siphonItemIconsBatchCore"));
         expect(core).toContain("isLocalThrottleDeferredMessage(res.error)");
         expect(core).toContain("result.deferred = true;");
+    });
+
+    it("les fiches d'objets sont demandées GROUPÉES (1 requête / 50) et l'id est vérifié", () => {
+        const assets = read(ASSETS);
+        expect(assets).toContain("export const ITEM_ICON_FICHE_BATCH_MAX = 50;");
+        expect(assets).toContain("id[$in][]=${id}");
+        // 🛡️ Garde d'identité : on ne retient que ce que l'API associe à un id DEMANDÉ.
+        expect(assets).toContain("if (!asked.has(id)) continue;");
+        // L'URL vient de l'API (`imgset[0].sd` → `icon` → `img`), jamais d'un chemin fabriqué.
+        expect(assets).toContain("export function itemImageUrlFromApi(row: unknown): string | null {");
+    });
+
+    it("deux passes simultanées sont REFUSÉES (elles se partageraient le budget de 30 req/min)", () => {
+        const runners = read(RUNNERS);
+        expect(runners).toContain("async function findRunningDataset(");
+        expect(runners).toContain("state.status === \"RUNNING\"");
+        expect(runners).toContain("const busy = await findRunningDataset(dataset);");
+        expect(runners).toContain("est déjà en cours : deux passes en parallèle");
+        // Et l'arrêt d'une tranche d'icônes NOMME le coupable quand il est identifiable.
+        expect(runners).toContain("const thief = await findRunningDataset(\"ASSETS_WEBP\");");
+        expect(runners).toContain("export const ITEM_ICON_MAX_WAITS = 2;");
     });
 });

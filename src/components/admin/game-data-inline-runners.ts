@@ -43,6 +43,7 @@ import { checkDofusDbDeltas, syncDeltas } from "@/server/actions/game-quest-sync
 import {
     beginGameDataSync,
     finishGameDataSync,
+    getGameDataSyncStates,
     reportGameDataSync,
 } from "@/server/actions/game-data-sync-actions";
 import { BOUNTY_RACE_IDS, BOUNTY_RACE_NAMES } from "@/lib/bounty";
@@ -54,6 +55,7 @@ import { GAME_ITEMS_BATCH_PAUSE_MS, GAME_ITEMS_BATCH_SIZE } from "@/lib/game-ite
 // client ne doit jamais embarquer le cœur d'assets : leçon du 23/09/2026).
 import { GUIDE_ICON_CHUNK_SIZE, chunkItemIconIds } from "@/lib/rush-resources-preheat";
 import type { GameDataDataset } from "@/lib/game-data-sync-state";
+import { GAME_DATA_DATASET_LABEL } from "@/lib/game-data-sync-state";
 
 /** Les 19 classes : un appel serveur **par classe** (un appel unique de ~10 min casse). */
 export const GAME_DATA_CLASS_IDS = Array.from({ length: 19 }, (_, i) => i + 1);
@@ -75,6 +77,15 @@ export const INLINE_MAX_RETRIES = 3;
  */
 export const INLINE_THROTTLE_WAIT_MS = 65_000;
 export const INLINE_THROTTLE_MAX_WAITS = 5;
+
+/**
+ * Rejeux max d'une **tranche d'icônes** refusée par le budget partagé. Court volontairement :
+ * si le budget est monopolisé, attendre plus longtemps ne sert à rien — on préfère **rendre la
+ * main** et dire au god ce qui se passe. Mesure du 10/10/2026 : avec l'ancien plafond
+ * (`INLINE_THROTTLE_MAX_WAITS` = 5, soit jusqu'à 5 × 65 s) la pré-chauffe n'avançait plus **du
+ * tout** tant qu'une autre passe tournait en parallèle.
+ */
+export const ITEM_ICON_MAX_WAITS = 2;
 
 /** Datasets qui savent tourner **dans l'onglet** (les 4 `INLINE` + le repli des autres). */
 export const INLINE_RUNNABLE_DATASETS = [
@@ -189,6 +200,8 @@ async function siphonAssetTargets(
     const itemTargets = targets.filter((t) => t.kind === "items");
     /** 🚦 Le budget partagé a refusé la suite : on s'arrête en le DISANT (jamais un rouge de panne). */
     let budgetStopped = false;
+    /** Qui monopolisait le budget, quand c'est identifiable : nommé dans le récapitulatif affiché. */
+    let blockedBy: string | null = null;
     if (itemTargets.length > 0) {
         const itemIds = itemTargets
             .map((t) => Number(t.id))
@@ -202,11 +215,11 @@ async function siphonAssetTargets(
             let waits = 0;
             for (;;) {
                 const data = res.data;
-                if (!res.success || !data?.deferred || waits >= INLINE_THROTTLE_MAX_WAITS) break;
+                if (!res.success || !data?.deferred || waits >= ITEM_ICON_MAX_WAITS) break;
                 waits++;
                 const waitMs = data.retryAfterMs ?? INLINE_THROTTLE_WAIT_MS;
                 ctx.log(
-                    `⏳ Budget DofusDB partagé épuisé — reprise de la tranche dans ${Math.ceil(waitMs / 1000)} s (${waits}/${INLINE_THROTTLE_MAX_WAITS})…`,
+                    `⏳ Budget DofusDB partagé épuisé — reprise de la tranche dans ${Math.ceil(waitMs / 1000)} s (${waits}/${ITEM_ICON_MAX_WAITS})…`,
                 );
                 await sleep(waitMs);
                 res = await triggerBatchItemIconSiphonAction(chunk);
@@ -220,8 +233,12 @@ async function siphonAssetTargets(
                     // On ne rapporte que ce qui a RÉELLEMENT été traité dans cette tranche.
                     done += res.data.siphoned + res.data.skipped + res.data.errors;
                     budgetStopped = true;
+                    // On **nomme** ce qui mange le budget quand c'est identifiable (état des
+                    // passes) : sans ça, le god ne peut que constater le symptôme.
+                    const thief = await findRunningDataset("ASSETS_WEBP");
+                    blockedBy = thief;
                     ctx.log(
-                        "⛔ Budget DofusDB toujours saturé après les rejeux — passe interrompue PROPREMENT : les icônes déjà écrites sont gardées, relance quand l'autre siphon a fini.",
+                        `⛔ Budget DofusDB toujours saturé après ${ITEM_ICON_MAX_WAITS} attentes${thief ? ` (« ${thief} » tourne en parallèle)` : " (autre consommateur : cron, fiches ouvertes…)"} — passe interrompue PROPREMENT : les icônes déjà écrites sont gardées, relance quand le budget est libre.`,
                     );
                     break;
                 }
@@ -270,7 +287,7 @@ async function siphonAssetTargets(
     }
 
     const summary = budgetStopped
-        ? `Images WebP : ${siphoned} siphonnée(s), ${skipped} ignorée(s) — passe INTERROMPUE : budget DofusDB partagé saturé par un autre siphon (relance quand il a fini, rien n'est perdu).`
+        ? `Images WebP : ${siphoned} siphonnée(s), ${skipped} ignorée(s) — passe INTERROMPUE : budget DofusDB partagé (30 req/min) saturé ${blockedBy ? `par « ${blockedBy} »` : "par un autre consommateur"}. Relance quand il a fini : rien n'est perdu, les icônes déjà écrites sont gardées.`
         : `Images WebP : ${siphoned} siphonnée(s), ${skipped} ignorée(s), ${errors} erreur(s).`;
     ctx.log(`${budgetStopped ? "⏸️" : "🎉"} ${summary}`);
     return {
@@ -594,6 +611,31 @@ const INLINE_START_MESSAGE: Record<string, string> = {
 };
 
 /**
+ * 🚦 Y a-t-il **déjà** une passe de données en cours ? Deux passes simultanées se partagent le
+ * budget DofusDB (30 req/min) et **rament toutes les deux**.
+ *
+ * Vécu du 10/10/2026 : « Pré-chauffer les icônes du guide » lancé pendant « Siphonner les
+ * manquants affichés » ⇒ la pré-chauffe n'avançait **plus du tout** (chaque tranche consommait
+ * ses rejeux d'attente pour rien), alors que chaque passe, seule, finit en ~14 min.
+ *
+ * `getGameDataSyncStates()` **réconcilie** d'abord les passes périmées (onglet fermé) : un run
+ * mort ne bloque donc jamais. Renvoie le libellé de la passe gênante, ou `null`.
+ * **Fail-open** : si l'état est illisible, on n'empêche personne de travailler.
+ */
+async function findRunningDataset(dataset: GameDataDataset): Promise<string | null> {
+    try {
+        const states = await getGameDataSyncStates();
+        if (!states.success || !states.data) return null;
+        const busy = states.data.find(
+            (state) => state.dataset !== dataset && state.status === "RUNNING",
+        );
+        return busy ? GAME_DATA_DATASET_LABEL[busy.dataset] ?? busy.dataset : null;
+    } catch {
+        return null;
+    }
+}
+
+/**
  * Lance **dans l'onglet** un dataset sans cœur `src/lib` (ou le repli direct d'un dataset
  * d'arrière-plan quand aucun worker n'écoute). Écrit l'état serveur
  * (`begin` / `report` / `finish`) ⇒ le Tableau suit le run, quelle que soit la porte
@@ -604,6 +646,16 @@ export async function runInlineGameDataDataset(
     options: InlineRunOptions = {},
 ): Promise<InlineRunResult> {
     const ctx = makeContext(dataset, options);
+
+    // 🚦 Une seule passe à la fois : le budget DofusDB (30 req/min) est **partagé**, deux passes
+    // simultanées ne font que se ralentir mutuellement (cf. `findRunningDataset`).
+    const busy = await findRunningDataset(dataset);
+    if (busy) {
+        const error = `« ${busy} » est déjà en cours : deux passes en parallèle se partagent le budget DofusDB (30 req/min) et rament toutes les deux. Attends la fin de celle-ci, puis relance.`;
+        ctx.log(`⛔ ${error}`);
+        return { ok: false, summary: "", error };
+    }
+
     await beginGameDataSync(dataset, null, INLINE_START_MESSAGE[dataset] ?? "Siphon en cours");
 
     let result: InlineRunResult;

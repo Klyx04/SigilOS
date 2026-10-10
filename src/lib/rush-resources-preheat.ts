@@ -34,11 +34,13 @@
 export const RUSH_GUIDE_SLUG = 'rush-sylvestre';
 
 /**
- * Icônes par **appel serveur**. Borné volontairement : chaque icône coûte 1 à 2 requêtes sur un
- * budget partagé de 30 req/min, et une action serveur ne doit jamais durer plusieurs minutes
- * (le panneau boucle sur les tranches, comme pour les fiches boss).
+ * Icônes par **appel serveur**. Mesure du 10/10/2026 : les fiches d'objets sont demandées
+ * **groupées** (`items?id[$in][]=…` → 50 fiches en 1 requête) ⇒ une tranche coûte `1 + N`
+ * requêtes au lieu de `2 × N`. À 20, cela fait 21 requêtes ≈ 42 s sur le budget partagé de
+ * 30 req/min : borné pour qu'aucune action serveur ne dure plusieurs minutes (le lanceur boucle
+ * sur les tranches, comme pour les fiches boss).
  */
-export const GUIDE_ICON_CHUNK_SIZE = 10;
+export const GUIDE_ICON_CHUNK_SIZE = 20;
 
 // ─── Règles PURES (testables sans disque, ni réseau, ni base) ────────────────────────────────
 

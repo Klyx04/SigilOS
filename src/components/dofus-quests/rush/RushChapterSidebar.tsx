@@ -7,9 +7,13 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { resolveItemImage, getMetierIconPath, isInfoSequence, RUSH_RESOURCES_PICTO } from "@/lib/rush-guide-utils";
+import { getMetierIconPath, isInfoSequence, RUSH_RESOURCES_PICTO } from "@/lib/rush-guide-utils";
 import { copyToClipboard } from "@/lib/clipboard";
 import { ResourceImage } from "@/components/dofus-quests/ResourceImage";
+// UNE SEULE agrégation des ressources pour tout le module (V-A) : ce rail appelle la
+// MÊME source que l'overlay, la modale, les guides public/interne et le pré-chauffage.
+import { aggregateRushResources } from "@/app/overlay/guide/[guildId]/[slug]/components/overlay-utils";
+import type { RushMilestone } from "@/types/rush-guide-types";
 
 type Sequence = {
   id: string;
@@ -180,66 +184,52 @@ export function RushChapterSidebar({
     return Array.from(seen.values()).sort((a, b) => a.name.localeCompare(b.name, "fr"));
   }, [currentMilestones]);
 
-  // Calcul & Consolidation des objets nécessaires
-  const aggregatedItems = useMemo(() => {
-    const itemMap = new Map<
-      string,
-      {
-        id?: string;
-        name: string;
-        totalQuantity: number;
-        remainingQuantity: number;
-        imageUrl?: string;
-        level?: number;
-        isCompleted: boolean;
-      }
-    >();
+  // ─── « Objets requis » : UNE seule agrégation, celle de tout le module (V-A) ───
+  // Avant, ce rail recalculait sa propre liste (clé = nom seul, `quantity || count`) :
+  // deux objets distincts portant le même nom fusionnaient, l'icône suivait le premier
+  // id rencontré, et les phrases « instruction » étaient comptées comme des objets.
+  // On appelle donc la source unique `aggregateRushResources` (clé `rushResourceKey`
+  // = id + nom normalisé, `count ?? quantity`, exclusions partagées) — celle de la
+  // modale, de l'overlay, des guides public/interne et du pré-chauffage.
+  // ⚠️ Mesure du 10/10/2026 : les 2 écarts de comptage (« Reflet onirique » : ids
+  // 22058 invalide / 32079 — « Moyenne pierre d'âme » : id 9687, nom désapparié) sont
+  // des défauts de DONNÉES (lot V-B) ; la clé canonique, elle, ne les mélange plus.
+  const rushResources = useMemo(() => {
+    // Le rail reçoit une vue structurelle des jalons (contrat volontairement souple) ;
+    // l'agrégation canonique, elle, prend des `RushMilestone` — même conversion que
+    // les autres surfaces (dashboard, guide public, pré-chauffage).
+    const milestones = currentMilestones as unknown as RushMilestone[];
+    const totals = aggregateRushResources(milestones);
+    const remaining = new Map(
+      aggregateRushResources(milestones, completedSeqIds).map((r) => [r.key, r.count])
+    );
 
-    for (const ms of currentMilestones) {
-      for (const seq of ms.sequences) {
-        const isSeqDone = completedSeqIds.has(seq.id);
-        for (const tag of seq.activityTags || []) {
-          if (tag.type === "item" && tag.name) {
-            const key = tag.name.toLowerCase().trim();
-            const qty = Number(tag.quantity || tag.count || 1);
-            if (!itemMap.has(key)) {
-              itemMap.set(key, {
-                id: tag.id,
-                name: tag.name,
-                totalQuantity: 0,
-                remainingQuantity: 0,
-                imageUrl: resolveItemImage(tag.id, tag.imageUrl),
-                level: tag.level,
-                isCompleted: true,
-              });
-            }
-            const current = itemMap.get(key)!;
-            current.totalQuantity += qty;
-            if (!isSeqDone) {
-              current.remainingQuantity += qty;
-              current.isCompleted = false;
-            }
-            if (!current.imageUrl && tag.imageUrl) {
-              current.imageUrl = tag.imageUrl;
-            }
-          }
-        }
-      }
-    }
-
-    return Array.from(itemMap.values()).sort((a, b) => {
-      if (a.isCompleted !== b.isCompleted) return a.isCompleted ? 1 : -1;
-      return b.totalQuantity - a.totalQuantity;
-    });
+    return totals
+      .map((r) => ({
+        key: r.key,
+        id: r.id,
+        name: r.name,
+        imageUrl: r.imageUrl,
+        level: r.levels?.[0],
+        totalQuantity: r.count,
+        remainingQuantity: remaining.get(r.key) ?? 0,
+        isCompleted: !remaining.has(r.key),
+      }))
+      .sort((a, b) => {
+        // Tri d'affichage du rail (le reste à préparer d'abord, puis le volume) —
+        // la donnée, elle, vient entièrement de l'agrégation canonique.
+        if (a.isCompleted !== b.isCompleted) return a.isCompleted ? 1 : -1;
+        return b.totalQuantity - a.totalQuantity;
+      });
   }, [currentMilestones, completedSeqIds]);
 
   // Un SEUL état pour la liste « Objets requis » : le toggle du guide prime, sinon la
   // bascule locale du bloc (qui disparaît quand le guide impose l'état).
   const hideProvided = hideProvidedResources || hideCompletedItems;
   const visibleItems = useMemo(() => {
-    if (hideProvided) return aggregatedItems.filter((it) => !it.isCompleted);
-    return aggregatedItems;
-  }, [aggregatedItems, hideProvided]);
+    if (hideProvided) return rushResources.filter((it) => !it.isCompleted);
+    return rushResources;
+  }, [rushResources, hideProvided]);
 
   const currentChapterLabel = useMemo(() => {
     if (selectedChapter === "ALL") return "Tout le Guide";
@@ -384,10 +374,10 @@ export function RushChapterSidebar({
               Objets requis
             </h4>
             <span className="font-mono tabular-nums text-[11px] text-muted-foreground shrink-0 whitespace-nowrap">
-              ({aggregatedItems.length})
+              ({rushResources.length})
             </span>
           </div>
-          {aggregatedItems.length > 0 && !hideProvidedResources && (
+          {rushResources.length > 0 && !hideProvidedResources && (
             <div className="grid grid-cols-2 gap-0.5 p-0.5 rounded-[4px] bg-surface border border-border">
               <button
                 onClick={() => setHideCompletedItems(true)}
@@ -404,7 +394,7 @@ export function RushChapterSidebar({
             </div>
           )}
         </div>
-        {aggregatedItems.length > 0 && (
+        {rushResources.length > 0 && (
           <div className="flex items-center justify-between text-[11px] text-muted-foreground">
             <span>{hideProvided ? "Encore requis" : "Total"}</span>
             <span className="font-mono tabular-nums text-foreground">{visibleItems.length}</span>
@@ -413,9 +403,9 @@ export function RushChapterSidebar({
 
         {visibleItems.length > 0 ? (
           <div className="flex flex-col gap-1.5">
-            {visibleItems.map((item, idx) => (
+            {visibleItems.map((item) => (
               <div
-                key={idx}
+                key={item.key}
                 className={cn(
                   "flex items-center justify-between gap-2 p-1.5 rounded-[4px] border transition-colors text-xs",
                   item.isCompleted

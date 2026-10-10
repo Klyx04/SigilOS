@@ -76,13 +76,18 @@ Règle d'or : **1 étape = 1 lot = 1 branche = 1 PR → `dev`**.
 
 ### A — Une seule agrégation des ressources (toutes les surfaces)
 - **Besoin** : liste et compteurs de ressources **identiques** partout (overlay, dashboard, guide public, sidebar « Objets requis », modale, grilles de quête).
-- **État mesuré (10/10/2026)** : **deux** agrégations concurrentes — `RushChapterSidebar.aggregatedItems` (clé `nom` seul, `quantity||count` → **391 lignes**) vs `aggregateRushResources` (clé `rushResourceKey` = `id+nom`, `count??quantity` + exclusions → **392**). Cas connus : « Reflet onirique » (2 ids), id 9687 (2 noms).
-- **Changement** : supprimer l'agrégation locale de `RushChapterSidebar` → appeler `aggregateRushResources(currentMilestones, completedSeqIds)` ; vérifier les 6 surfaces ; trancher les 2 cas.
-- **Tests** : parité des comptes entre surfaces (étendre `rush-resource-checks` / `rush-public-parity`).
-- **Dépendances** : — · **Statut** : **à faire**.
+- **État mesuré (10/10/2026)** : **deux** agrégations concurrentes — `RushChapterSidebar` (clé `nom` seul, `quantity||count`, phrases `kind:"instruction"` comptées → **391 lignes**) vs `aggregateRushResources` (clé `rushResourceKey` = `id+nom`, `count??quantity` + exclusions → **392**).
+- **Les 2 cas, TRANCHÉS le 10/10/2026 (mesure à la source, DofusDB en lecture seule)** :
+  - « Reflet onirique » → `/items/22058` renvoie l'**item de repli `id 666`** (« Purée pique-fêle ») : id **invalide** ; le vrai objet est **`32079`** (type 219 « Ressource des Songes », `iconId` 164149). La fusion par nom **cachait** l'id fautif et affichait son icône ;
+  - id `9687` → = « **Moyenne pierre d'âme** » : le tag nommé « Moyenne pierre d'âme **parfaite** » est un **nom/id désapparié**.
+  - ⇒ **Décision** : c'est la clé **canonique** (`id+nom`) qui a raison — les 2 écarts sont des **défauts de DONNÉES**, à corriger en **V-B** ; le +1 (391 → 392) disparaîtra alors de lui-même (22058 → 32079 fusionne en une ligne).
+- **Livré le 10/10/2026** (branche `feat/rush-v-a-agregation-unique`) : l'agrégation locale du rail est **supprimée**, il appelle `aggregateRushResources(currentMilestones)` / `(…, completedSeqIds)` — l'icône suit l'id de **sa** ligne, la clé React est la clé canonique (les 6 surfaces partagent donc la même liste et les mêmes compteurs).
+- **Tests** : parité **de comportement** (rendu du rail = sortie de la source unique, 5 cas dans `rush-resource-checks`) + verrou de source (import + absence de clé « nom seul ») dans `rush-public-parity`. **Preuves** : 317 fichiers / 3 444 tests ✓ · `tsc` 0 · `lint` 0 erreur.
+- **Dépendances** : — · **Statut** : **livré le 10/10/2026**.
 
 ### B — Ids invalides / noms ≠ icônes
 - **État mesuré** : `GET /items/7809` et `/items/7807` → **item de repli `id 666`** ; `name.fr` « Dragodinde Rousse Sauvage » → `total: 0` (montures ≠ items). WebP `{id}.webp` gravé via le **chemin deviné** = icône d'un **autre** objet, servie `immutable` 1 an.
+- **Mesuré le 10/10/2026** (au passage du lot **V-A**) : `22058` « Reflet onirique » → **repli `666`** (le vrai objet est `32079`, type 219 « Ressource des Songes », `iconId` 164149) et `9687` porté par le nom « Moyenne pierre d'âme **parfaite** » (`9687` = « Moyenne pierre d'âme ») — ce sont **les 2 écarts de comptage** du rail (391 vs 392), à corriger **ici** (le +1 disparaîtra alors de lui-même).
 - **Changement** : sonde en lots (`items?id[$in][]=`, 50 / req) → détecter repli 666 + nom divergent ; corriger via **Tougli** (items par quête) et **Dofusyelle** (`dbId`), appariés par nom ; cas montures : mapping explicite ou retrait.
 - **Tests** : unité (id valide / fallback / mismatch) + non-régression « jamais de chemin deviné ».
 - **Dépendances** : — · **Statut** : **à faire**.

@@ -24,6 +24,8 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { readFileSync } from "node:fs";
 import { rushResourceKey } from "@/lib/rush-guide-utils";
 import { RushOverlayResourcesModal } from "@/app/overlay/guide/[guildId]/[slug]/components/RushOverlayResourcesModal";
+import { aggregateRushResources } from "@/app/overlay/guide/[guildId]/[slug]/components/overlay-utils";
+import { RushChapterSidebar } from "@/components/dofus-quests/rush/RushChapterSidebar";
 
 const DASHBOARD = "src/app/dashboard/[guildId]/quetes-dofus/guide/[slug]/RushTimelineClient.tsx";
 const PUBLIC = "src/app/guides/rush-sylvestre/_components/PublicRushGuideClient.tsx";
@@ -118,5 +120,128 @@ describe("Persistance — module (serveur, par personnage) ↔ page publique (na
     const actions = codeOf(ACTIONS);
     expect(actions).toMatch(/unvalidatedSeqIds/);
     expect(actions).toMatch(/playerGuideResourceCheck\.deleteMany/);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Rail « Objets requis » (`RushChapterSidebar`) — lot V-A : UNE seule agrégation.
+// 🎯 Demande user (10/10/2026) : la liste et les compteurs de ressources doivent être
+// IDENTIQUES partout (overlay, dashboard, guide public, rail, modale, grilles).
+//
+// Mesure du 10/10/2026 sur les données réelles : le rail recalculait sa propre liste
+// (clé = nom seul, `quantity || count`, phrases « instruction » comptées comme des
+// objets) ⇒ 391 lignes contre 392 pour `aggregateRushResources` (clé `rushResourceKey`
+// = id + nom normalisé, `count ?? quantity`, exclusions partagées).
+//
+// Les 2 écarts mesurés sont des défauts de DONNÉES (corrigés au lot V-B), pas
+// d'agrégation : « Reflet onirique » (id 22058 invalide — DofusDB renvoie le repli
+// `id 666` — contre 32079, la vraie « Ressource des Songes ») et l'id 9687
+// (« Moyenne pierre d'âme ») porté par un tag nommé « Moyenne pierre d'âme parfaite ».
+// Le rail doit donc AFFICHER ces écarts au lieu de les masquer en fusionnant.
+// ─────────────────────────────────────────────────────────────────────────────
+describe("Rail « Objets requis » — la MÊME agrégation que les autres surfaces (V-A)", () => {
+  const milestones = [
+    {
+      id: "ms1",
+      chapter: 1,
+      chapterLabel: "Chapitre 1",
+      title: "Préparation",
+      type: "ZONE",
+      isOptional: false,
+      order: 0,
+      sequences: [
+        {
+          id: "s1",
+          subGuideRef: "q1",
+          subGuideName: "Quête 1",
+          isOptional: false,
+          order: 0,
+          activityTags: [
+            // Même nom, ids DIFFÉRENTS : deux objets — jamais une fusion.
+            { type: "item", id: "22058", name: "Reflet onirique", count: 570 },
+            { type: "item", id: "32079", name: "Reflet onirique", count: 600 },
+            // `count` ET `quantity` : la règle partagée est `count ?? quantity` (5+3).
+            { type: "item", id: "7018", name: "Eau Potable", count: 5, quantity: 3 },
+            // Phrase d'action déguisée en objet : hors ressources, comme partout.
+            { type: "item", kind: "instruction", name: "Parler à X" },
+          ],
+        },
+        {
+          id: "s2",
+          subGuideRef: "q2",
+          subGuideName: "Quête 2",
+          isOptional: false,
+          order: 1,
+          activityTags: [
+            // `quantity` seul : compte quand même.
+            { type: "item", id: "7018", name: "Eau Potable", quantity: 3 },
+            { type: "item", id: "9687", name: "Moyenne pierre d'âme", count: 1 },
+            { type: "item", id: "9688", name: "Moyenne pierre d'âme parfaite", count: 4 },
+          ],
+        },
+      ],
+    },
+  ] as never;
+
+  const canonical = aggregateRushResources(milestones as never);
+
+  // `renderToStaticMarkup` échappe l'apostrophe (`&#x27;`) : on dé-échappe la sortie
+  // pour pouvoir comparer les noms tels qu'ils s'affichent à l'écran.
+  const rail = (completed: string[], props: Record<string, unknown> = {}) =>
+    renderToStaticMarkup(
+      React.createElement(RushChapterSidebar, {
+        milestones,
+        completedSeqIds: new Set(completed),
+        selectedChapter: "ALL",
+        ...props,
+      } as never)
+    ).replace(/&#x27;/g, "'");
+
+  it("affiche exactement les lignes de `aggregateRushResources` (compteur + quantités)", () => {
+    const out = rail([]);
+    // Le compteur du rail est le NOMBRE DE LIGNES de la source unique.
+    expect(out).toContain(`(${canonical.length})`);
+    for (const r of canonical) {
+      expect(out).toContain(r.name);
+      expect(out).toContain(`×${r.count}`);
+    }
+  });
+
+  it("deux ids distincts portant le même nom restent DEUX lignes, chacune avec son icône", () => {
+    const out = rail([]);
+    // L'ancienne clé « nom seul » fusionnait ces deux objets (×1170).
+    expect(out).not.toContain("×1170");
+    expect(out).toContain("×570");
+    expect(out).toContain("×600");
+    // L'icône suit l'id de SA ligne (jamais celle d'un autre objet).
+    expect(out).toContain("/uploads/assets-dofus/items/22058.webp");
+    expect(out).toContain("/uploads/assets-dofus/items/32079.webp");
+  });
+
+  it("applique la règle de quantité partagée et écarte les phrases « instruction »", () => {
+    const out = rail([]);
+    // `count ?? quantity` : 5 (s1) + 3 (s2) = 8. L'ancien rail (`quantity || count`)
+    // donnait 6 ; aucun autre objet du fixture ne vaut 8 ou 6, donc la balise `>×N<`
+    // désigne à coup sûr l'Eau Potable (et `>×6<` ne matche pas `×600`).
+    expect(out).toMatch(/>×8<\/span>/);
+    expect(out).not.toMatch(/>×6<\/span>/);
+    expect(out).not.toContain("Parler à X");
+  });
+
+  it("le décrément suit les quêtes validées (mêmes entrées que les autres surfaces)", () => {
+    // s1 validée : les DEUX « Reflet onirique » sortent (5 lignes → 3 restantes,
+    // celles de s2) ; les « restantes » du rail suivent donc les quêtes validées.
+    const out = rail(["s1"], { hideProvidedResources: true });
+    expect(out).toContain("Encore requis");
+    expect(out).toContain('<span class="font-mono tabular-nums text-foreground">3</span>');
+    expect(out).toContain("Eau Potable");
+    expect(out).toContain("Moyenne pierre d'âme");
+    expect(out).not.toContain("Reflet onirique");
+  });
+
+  it("toutes les quêtes validées ⇒ plus rien à prévoir", () => {
+    const out = rail(["s1", "s2"], { hideProvidedResources: true });
+    expect(out).toContain('<span class="font-mono tabular-nums text-foreground">0</span>');
+    expect(out).toContain("Aucune ressource répertoriée");
   });
 });

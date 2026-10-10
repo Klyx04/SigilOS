@@ -401,10 +401,23 @@ describe("pré-chauffage — un budget partagé épuisé n'est PAS un asset manq
         const runners = read(RUNNERS);
         expect(runners).toContain("async function findRunningDataset(");
         expect(runners).toContain("state.status === \"RUNNING\"");
-        expect(runners).toContain("const busy = await findRunningDataset(dataset);");
+        expect(runners).toContain("const busy = await findRunningDataset(dataset, { includeSameDataset: true });");
         expect(runners).toContain("est déjà en cours : deux passes en parallèle");
         // Et l'arrêt d'une tranche d'icônes NOMME le coupable quand il est identifiable.
         expect(runners).toContain("const thief = await findRunningDataset(\"ASSETS_WEBP\");");
         expect(runners).toContain("export const ITEM_ICON_MAX_WAITS = 2;");
+    });
+
+    it("la garde couvre la RÉ-ENTRÉE sur le même dataset (double-clic, deux onglets)", () => {
+        // Vécu : deux runs ASSETS_WEBP (double « Pré-chauffer », ou pré-chauffe + « manquants
+        // affichés ») passaient la garde qui excluait son propre dataset (`!== dataset`) et
+        // s'affamaient mutuellement — la passe restait à quelques % pour toujours.
+        const runners = codeOf(read(RUNNERS));
+        expect(runners).toContain("includeSameDataset");
+        // L'appel d'entrée inclut le même dataset…
+        expect(runners).toContain("findRunningDataset(dataset, { includeSameDataset: true })");
+        // …mais la nomination du voleur à l'arrêt EXCLUT le run courant (jamais d'auto-accusation).
+        expect(runners).toContain("findRunningDataset(\"ASSETS_WEBP\")");
+        expect(runners).not.toContain("findRunningDataset(\"ASSETS_WEBP\", { includeSameDataset: true })");
     });
 });

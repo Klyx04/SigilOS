@@ -618,16 +618,26 @@ const INLINE_START_MESSAGE: Record<string, string> = {
  * manquants affichés » ⇒ la pré-chauffe n'avançait **plus du tout** (chaque tranche consommait
  * ses rejeux d'attente pour rien), alors que chaque passe, seule, finit en ~14 min.
  *
+ * Correctif (même jour) : la garde couvre **aussi** la ré-entrée sur le **même** dataset
+ * (`includeSameDataset`) — un double-clic sur « Pré-chauffer » (ou pré-chauffe + « manquants
+ * affichés », qui partagent le dataset `ASSETS_WEBP`) ouvrait **deux** runs qui s'affamaient
+ * mutuellement, et l'ancien filtre (`dataset !== dataset`) les laissait passer. Le 2ᵉ run est
+ * désormais **refusé** avec la consigne d'attendre (cross-onglet : la garde lit le store
+ * serveur, pas l'état local du panneau).
+ *
  * `getGameDataSyncStates()` **réconcilie** d'abord les passes périmées (onglet fermé) : un run
  * mort ne bloque donc jamais. Renvoie le libellé de la passe gênante, ou `null`.
  * **Fail-open** : si l'état est illisible, on n'empêche personne de travailler.
  */
-async function findRunningDataset(dataset: GameDataDataset): Promise<string | null> {
+async function findRunningDataset(
+    dataset: GameDataDataset,
+    opts: { includeSameDataset?: boolean } = {}
+): Promise<string | null> {
     try {
         const states = await getGameDataSyncStates();
         if (!states.success || !states.data) return null;
         const busy = states.data.find(
-            (state) => state.dataset !== dataset && state.status === "RUNNING",
+            (state) => state.status === "RUNNING" && (opts.includeSameDataset || state.dataset !== dataset),
         );
         return busy ? GAME_DATA_DATASET_LABEL[busy.dataset] ?? busy.dataset : null;
     } catch {
@@ -648,8 +658,11 @@ export async function runInlineGameDataDataset(
     const ctx = makeContext(dataset, options);
 
     // 🚦 Une seule passe à la fois : le budget DofusDB (30 req/min) est **partagé**, deux passes
-    // simultanées ne font que se ralentir mutuellement (cf. `findRunningDataset`).
-    const busy = await findRunningDataset(dataset);
+    // simultanées ne font que se ralentir mutuellement (cf. `findRunningDataset`) — y compris
+    // deux runs du **même** dataset (double-clic, deux onglets) : la garde lit le store serveur,
+    // elle les voit. La garde passe AVANT `begin` : le run courant n'est pas encore RUNNING,
+    // il ne se bloque jamais lui-même ; un run terminé/périmé non plus (réconcilié).
+    const busy = await findRunningDataset(dataset, { includeSameDataset: true });
     if (busy) {
         const error = `« ${busy} » est déjà en cours : deux passes en parallèle se partagent le budget DofusDB (30 req/min) et rament toutes les deux. Attends la fin de celle-ci, puis relance.`;
         ctx.log(`⛔ ${error}`);

@@ -91,15 +91,42 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 const ASSET_FETCH_TIMEOUT_MS = 70_000;
 
 /**
+ * Options d'un siphon d'image. Ajouté le 10/10/2026 pour le **pré-chauffage des icônes d'objets**
+ * du guide : c'est la seule façon d'écrire une image d'objet **sans jamais deviner** son chemin.
+ */
+export interface SiphonAndCompressOptions {
+    /**
+     * Autoriser la **Tentative 1** — le chemin **deviné** `/img/{type}/{id}.png`.
+     *
+     * ⚠️ Pour un **objet**, l'id qu'on manipule est l'id d'**entité** (celui du guide, celui du nom
+     * de fichier local) alors que `/img/items/*` est indexé par id d'**apparence** (mesure du
+     * 09/10/2026 : l'objet 11107 a pour `iconId` 38677). Le chemin deviné peut donc répondre
+     * **200 avec l'image d'un AUTRE objet**, qui serait alors écrite en cache… pour un an.
+     *
+     * Les appelants qui ne peuvent pas garantir l'identité (pré-chauffage) passent `false` : la
+     * résolution se fait alors par la **Tentative 3** (fiche `/items/{id}` + **garde d'identité**
+     * `id === itemData.id` → `iconId`), correcte par construction.
+     *
+     * Défaut `true` = comportement historique **inchangé** (monstres, sorts, appels qui passent
+     * une URL autoritative).
+     */
+    allowGuessedPath?: boolean;
+}
+
+/**
  * Télécharge une image distante, la compresse en WebP (85% qualité, lossless optionnel)
  * et l'enregistre sur le disque local si elle n'existe pas encore.
  * Idempotent : si le fichier existe déjà, aucun appel réseau n'est effectué.
+ *
+ * Ordre des tentatives : URL fournie par l'appelant → chemin deviné (désactivable) → auto-healing
+ * par la fiche (monstres : `img` ; objets : `iconId` **avec garde d'identité**).
  */
 export async function siphonAndCompressImage(
     remoteUrl: string | null | undefined,
     targetType: 'monsters' | 'items' | 'spells',
     entityId: number | string,
-    force = false
+    force = false,
+    opts: SiphonAndCompressOptions = {}
 ): Promise<{ success: boolean; localUrl?: string; sizeBytes?: number; error?: string }> {
     ensureAssetDirsExist();
 
@@ -151,7 +178,11 @@ export async function siphonAndCompressImage(
 
         // Tentative 1 : Téléchargement direct depuis l'API officielle DofusDB avec URL statique
         // (seulement si la tentative 0 n'a rien donné — ne jamais écraser un succès).
-        if (!downloadedBuffer) {
+        // ⚠️ Désactivable (`opts.allowGuessedPath === false`) : pour un OBJET, cet id est l'id
+        // d'ENTITÉ alors que `/img/items/*` est indexé par id d'APPARENCE ⇒ le chemin deviné peut
+        // répondre 200 avec l'image d'un AUTRE objet (mesure du 09/10/2026). Le pré-chauffage du
+        // guide s'interdit ce raccourci : il passe par la fiche + garde d'identité (Tentative 3).
+        if (!downloadedBuffer && opts.allowGuessedPath !== false) {
             const targetUrl = new URL('https://api.dofusdb.fr');
             targetUrl.pathname = targetType === 'items'
                 ? `/img/items/${cleanId}.png`
@@ -243,7 +274,9 @@ export async function siphonAndCompressImage(
         // indiagnosticable (leçon du 24/09/2026, 21 échecs inexpliqués sur 143 images).
         const triedDetail =
             targetType === 'items'
-                ? `essayé : img/items/${cleanId}.png puis la fiche /items/${cleanId} → imgset`
+                ? opts.allowGuessedPath === false
+                    ? `essayé : la fiche /items/${cleanId} → iconId (résolution gardée ; chemin deviné volontairement désactivé)`
+                    : `essayé : img/items/${cleanId}.png puis la fiche /items/${cleanId} → imgset`
                 : targetType === 'spells'
                 ? `essayé : img/spells/${cleanId}.png`
                 : `essayé : img/monsters/${cleanId}.png puis la fiche /monsters/${cleanId} → img`;
@@ -292,6 +325,65 @@ export function getLocalAssetUrl(
     }
 
     return fallbackRemoteUrl || null;
+}
+
+/**
+ * 🔥 Bilan d'une tranche de pré-chauffage d'icônes — jamais un échec muet.
+ */
+export interface ItemIconSiphonResult {
+    /** Icônes **écrites** sur le disque pendant cette tranche. */
+    siphoned: number;
+    /** Déjà présentes (aucun appel réseau) ou ids illisibles. */
+    skipped: number;
+    errors: number;
+    /** Messages lisibles des échecs (bornés à la tranche) — le journal du panneau les affiche. */
+    details: string[];
+}
+
+/**
+ * 🔥 Pré-chauffe **une tranche** d'icônes d'objets : chaque id finit par avoir son fichier
+ * `/uploads/assets-dofus/items/{id}.webp`, celui que `ResourceImage` cherche en premier
+ * (modale « Ressources à prévoir » du guide Rush Sylvestre, entre autres).
+ *
+ * ⚠️ **Jamais de chemin deviné** : on passe `allowGuessedPath: false`. Pour un objet, l'id de
+ * fichier est l'id d'**entité** alors que `/img/items/*` est indexé par id d'**apparence** — la
+ * Tentative 1 pourrait donc graver l'icône d'un AUTRE objet pour un an (mesure du 09/10/2026,
+ * cf. `SiphonAndCompressOptions`). L'image vient donc de la fiche `/items/{id}` **avec garde
+ * d'identité**, ou bien la ligne est un échec **nommé**.
+ *
+ *   · **idempotent** : un id déjà présent sort sans aucun appel réseau ;
+ *   · **budget partagé** : tout passe par `dofusDbFetch` (30 req/min) — la boucle appelante
+ *     découpe en tranches courtes (`GUIDE_ICON_CHUNK_SIZE`, module pur `rush-resources-preheat`).
+ */
+export async function siphonItemIconsBatchCore(ids: readonly number[]): Promise<ItemIconSiphonResult> {
+    const result: ItemIconSiphonResult = { siphoned: 0, skipped: 0, errors: 0, details: [] };
+
+    for (const id of ids) {
+        if (!Number.isInteger(id) || id <= 0) {
+            result.skipped++;
+            result.details.push(`#${String(id)} : identifiant illisible, ignoré`);
+            continue;
+        }
+        // Déjà sur disque : rien à faire (et surtout, aucun appel réseau).
+        if (getLocalAssetUrl('items', id, null)) {
+            result.skipped++;
+            continue;
+        }
+        try {
+            const res = await siphonAndCompressImage(null, 'items', id, false, { allowGuessedPath: false });
+            if (res.success) {
+                result.siphoned++;
+                continue;
+            }
+            result.errors++;
+            result.details.push(`#${id} : ${res.error ?? 'échec inconnu'}`);
+        } catch (error) {
+            result.errors++;
+            result.details.push(`#${id} : ${error instanceof Error ? error.message : String(error)}`);
+        }
+    }
+
+    return result;
 }
 
 /**

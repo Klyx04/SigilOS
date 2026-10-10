@@ -16,7 +16,17 @@ const PUBLIC_UPLOADS = join(PROJECT_ROOT, "public", "uploads");
 const PRIVATE_UPLOADS = join(PROJECT_ROOT, "private_uploads");
 const VERBOSE = process.env.MIGRATE_UPLOADS_VERBOSE === "1";
 
+// 🔒 Dossiers qui RESTENT dans `public/uploads` : ce sont des **caches d'assets servis en
+// statique** (`/uploads/assets-dofus/items/{id}.webp`, le chemin que `getLocalAssetUrl` et
+// `resolveItemImage` renvoient au navigateur, et le cache d'images de `/api/proxy-image`).
+// Mesure du 10/10/2026 : les ranger côté privé les sort du chemin que le code interroge ⇒
+// **404**, puis re-siphonage à la demande — c'est ce qui vidait le cache d'icônes à CHAQUE
+// déploiement, alors que le volume `assets-*-data` existe précisément pour le préserver
+// (`docker-compose.prod.yml`). On ne descend même pas dans ces dossiers.
+const KEEP_IN_PUBLIC = new Set(["assets-dofus", "proxy-cache"]);
+
 let moved = 0;
+let kept = 0;
 const categories = {};
 
 // Catégorise un chemin relatif pour un résumé lisible : le **premier dossier réel**
@@ -49,6 +59,12 @@ async function migrate(dir) {
     try {
         const files = await readdir(dir);
         for (const file of files) {
+            // Caches d'assets servis en statique : jamais déplacés (cf. KEEP_IN_PUBLIC).
+            if (dir === PUBLIC_UPLOADS && KEEP_IN_PUBLIC.has(file)) {
+                kept++;
+                if (VERBOSE) console.log(`🔒 Conservé: ${file}/`);
+                continue;
+            }
             const currentPath = join(dir, file);
             const relativePath = currentPath.replace(PUBLIC_UPLOADS, "");
             const targetPath = join(PRIVATE_UPLOADS, relativePath);
@@ -92,6 +108,12 @@ async function start() {
             .map(([k, v]) => `${k}: ${v}`)
             .join(", ");
         console.log(`✅ ${moved} fichier(s) déplacé(s) de public/uploads vers private_uploads (${detail}).`);
+    }
+
+    // Dit ce qui est protégé : un lecteur de la sortie de déploiement doit pouvoir vérifier
+    // que le cache d'assets n'a pas été touché, sans ouvrir le script.
+    if (kept > 0) {
+        console.log(`🔒 ${kept} dossier(s) de cache conservé(s) en public (${Array.from(KEEP_IN_PUBLIC).join(", ")}).`);
     }
 }
 

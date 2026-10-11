@@ -1,10 +1,10 @@
 export const guide = {
     slug: "guide-elevage-enclos-guilde-dofus",
-    title: "Dofus Breeder Guide — 2026 Edition (Unity 3.7)",
+    title: "Raising mounts in Dofus Unity: Breeder guide for beginners (Update 3.7)",
     description:
-        "The ultimate 2026 Dofus Unity 3.7 breeding guide: capturing, serenity management without waste, 200k gauges, Animakina (sex selection), Optimakina (+20%), cloning with preserved serenity, XP curve and geneton table.",
+        "Where to start: catching a first mount, leveling the breeder profession, paddocks, serenity and mating, up to crosses, cloning and genetons. Up to date for Update 3.7.",
     publishedAt: "2026-08-17",
-    updatedAt: "2026-10-02",
+    updatedAt: "2026-10-11",
     draft: false,
     badgeColor: "amber",
     body: `
@@ -16,13 +16,42 @@ export const guide = {
             paddock gauges and catalyst efficiency doubled (6,000 pts / 200,000 max), and new <strong>Geneton rewards up to 500</strong>.</p>
         </div>
 
-        <div class="my-6 p-4 rounded-2xl bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-transparent border border-amber-500/30 flex flex-col sm:flex-row items-center justify-between gap-4">
+        <h2>0. Where to start: breeding in 7 steps</h2>
+        <p>New to mounts? Follow this order: each step sets up the next one. Details for each live further down this guide.</p>
+        <ol>
+            <li><strong>Equip a capture net</strong> in combat consumables: it grants the "Mount Taming" spell (1 AP, 7 range with no line of sight, once per fight).</li>
+            <li><strong>Catch wild mounts</strong> (Koalak mountain, Sufokia basin, Brakmar stud farm): cast the spell on the target, then finish the fight. In a group, one mount can be caught <strong>only once</strong>, by a single player.</li>
+            <li><strong>Store them in the stable</strong> (500 slots) from the breeding panel (D key), then sort by serenity.</li>
+            <li><strong>Move them to a paddock</strong>: stand on one of the 6 Breeder Village maps, otherwise a padlock blocks deposit.</li>
+            <li><strong>Raise endurance, maturity and love</strong> inside the matching serenity windows (negative, neutral, positive) until the <strong>Fertile</strong> state.</li>
+            <li><strong>Mate from the stable</strong> two fertile mounts of opposite sexes and same type: instant birth, parents turn sterile.</li>
+            <li><strong>Clone or extract sterile mounts</strong>: cloning rebuilds one breedable mount (2 sterile of same type and generation), extraction gives 1 resource per generation (Gen 2 minimum).</li>
+        </ol>
+
+        <h3>The 4 fertility states</h3>
+        <ul>
+            <li><strong>Breedable:</strong> can mate after raising the 3 gauges.</li>
+            <li><strong>Fertile:</strong> can mate right away (3 gauges maxed).</li>
+            <li><strong>Sterile:</strong> no more mating, but cloning and extraction work.</li>
+            <li><strong>Senile:</strong> pre-3.5 mounts: neither mating nor cloning, XP and equipment only.</li>
+        </ul>
+
+        <h3>Five rules that prevent most mistakes</h3>
+        <ul>
+            <li><strong>An extract never fills a gauge past 80,000</strong> (philtre 140,000, potion 180,000, elixir 200,000).</li>
+            <li><strong>Never mate from inventory or paddock</strong>: stable only.</li>
+            <li><strong>Never clone or extract a breedable or fertile mount.</strong></li>
+            <li><strong>Never leave a baffeur (serenity down) or caresseur (serenity up) running unwatched</strong>: serenity drifts to extremes.</li>
+            <li><strong>A makina must match at least the target generation</strong>, else mating refuses it.</li>
+        </ul>
+
+        <div class="my-6 p-4 rounded-2xl border border-border bg-surface/60 flex flex-col sm:flex-row items-center justify-between gap-4">
             <div>
-                <strong class="text-amber-300 text-sm block">🚀 Interactive Tool Available</strong>
-                <p class="text-xs text-zinc-300 mt-1">Simulate target generation chances, calculate paddock durations without serenity overshoot risk and forecast geneton rewards with our dedicated sandbox.</p>
+                <strong class="text-sm text-foreground block">Breeding Studio: interactive sandbox</strong>
+                <p class="text-xs text-muted-foreground mt-1">Target generation chances, paddock durations and geneton rewards, computed for your mounts.</p>
             </div>
-            <a href="/elevage" class="shrink-0 px-4 py-2 rounded-xl bg-amber-500 text-zinc-950 font-bold text-xs hover:bg-amber-400 transition-colors shadow-lg shadow-amber-500/20">
-                Open Breeding Studio 3.7 →
+            <a href="/elevage" class="shrink-0 px-4 py-2 rounded-xl bg-elevated border border-border-strong text-foreground font-semibold text-xs hover:bg-surface transition-colors">
+                Open Breeding Studio →
             </a>
         </div>
 
@@ -94,6 +123,18 @@ export const guide = {
                 <p class="text-[11px] text-zinc-400 mt-2"><em>Combat rule:</em> Cast <strong>Mount Taming</strong> on targeted mounts: the state lasts indefinitely until the end of the fight without any turn limit.</p>
             </div>
         </div>
+
+        <h3>Step-by-step capture (first time)</h3>
+        <ol>
+            <li><strong>Equip the matching net</strong> for the target type in consumables (universal fits all).</li>
+            <li><strong>Start a fight</strong> against a group holding some.</li>
+            <li><strong>Cast "Mount Taming"</strong> on each wanted mount (endless capture state until the end).</li>
+            <li><strong>Finish the fight</strong> by clearing opponents, at your own pace.</li>
+            <li><strong>Collect catches</strong>: generation 1 mounts, ready to equip.</li>
+            <li><strong>Reinforced net:</strong> aim to hit as many mounts as possible (3-cell radius).</li>
+            <li><strong>Duplicating net:</strong> duplication keeps color but not always sex.</li>
+        </ol>
+        <p>In a group, one mount can be caught only once: a state set by a player cannot be stolen, but everyone can mark other mounts in the fight.</p>
 
         <h2>III. Paddocks & the Stable (3.7 Rework)</h2>
         <p>
@@ -436,6 +477,15 @@ export const guide = {
                 <tr><td><strong>Dec 10</strong></td><td>Foya</td><td><strong>Slappers</strong> effect doubled (Love ×2).</td></tr>
             </tbody>
         </table>
+
+        <h2>XI. Leveling the breeder profession: XP, catalysts and sizes</h2>
+        <p>Paddocks, catalysts and nets unlock with the breeder profession. Three ways to level it:</p>
+        <ul>
+            <li><strong>Crafts:</strong> like other professions, craft near your level. Catalysts come in 4 tiers: extract (level 5), philtre (55), potion (105), elixir (155).</li>
+            <li><strong>Mating:</strong> 30 XP per generation per mount (two generation 5 = 300 XP).</li>
+            <li><strong>Captures:</strong> 30 XP per caught mount, even in a group.</li>
+        </ul>
+        <p>Each catalyst comes in 5 sizes (Tiny 2,000, Small 4,000, Normal 6,000, Large 8,000, Gigantic 10,000). A low catalyst never passes its tier (extract: 80,000 max), but a high one fills lower tiers. Without the profession, buy them at the auction house: they work the same.</p>
 
         <div class="mt-8 p-6 rounded-2xl border border-border bg-surface/60 text-center">
             <h3 class="text-base font-bold text-foreground mb-1.5">Ready to optimize your breeding?</h3>

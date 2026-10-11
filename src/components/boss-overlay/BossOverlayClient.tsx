@@ -35,6 +35,7 @@ import {
 import { mergeDofensiveSpells } from "@/lib/dofensive-spells";
 import { getBountyFiche } from "@/server/actions/bounty-actions";
 import { cn } from "@/lib/utils";
+import { resolveSpellIconUrl } from "@/lib/dofus-image-url";
 import { useI18n } from "@/lib/i18n/client";
 import { SpellData, SpellRangeGrid } from "@/components/succes/SpellRangeGrid";
 import { OverlayPinNotice } from "@/components/overlay-pin-notice";
@@ -216,6 +217,11 @@ function SpellCard({
   locale?: "fr" | "en";
 }) {
   const isEn = locale === "en";
+  // 🔑 Identité du sort : espace d'icône du proxy (`sort_<iconId>`). Le chemin disque
+  // `/uploads/assets-dofus/spells/sort_N.webp` 404 tant que le siphon Unity hors ligne n'est pas
+  // passé, et son repli `onError` est perdu si le 404 précède l'hydratation (mesure du
+  // 11/10/2026, fiche publique /boss/sam-sagaz : icônes KO) ⇒ jamais rendu.
+  const unityIconSrc = resolveSpellIconUrl(spell.unityIconId);
   return (
     <div
       className={cn(
@@ -231,9 +237,9 @@ function SpellCard({
         className="w-full p-2.5 flex items-center gap-2.5 text-left transition-colors"
       >
         <div className="w-8 h-8 rounded-lg bg-black/50 border border-white/10 flex items-center justify-center overflow-hidden shrink-0">
-          {spell.unityIconId && spell.unityIconId > 0 ? (
+          {unityIconSrc ? (
             <img
-              src={`/uploads/assets-dofus/spells/sort_${spell.unityIconId}.webp`}
+              src={unityIconSrc}
               alt={spell.name}
               className="w-full h-full object-contain"
               loading="lazy"

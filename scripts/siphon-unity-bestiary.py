@@ -273,49 +273,21 @@ def main():
                 if p_icon > 0:
                     icon_ids_to_extract.add(p_icon)
 
-                # Effets du passif de début de combat
-                sl_obj = parent_sl or {}
-                effects_list = []
-                for eff in sl_obj.get("effects", []):
-                    eid = eff.get("effectId")
-                    val = eff.get("value", 0)
-                    dnum = eff.get("diceNum", 0)
-                    dside = eff.get("diceSide", 0)
-                    dur = eff.get("duration", 0)
-
-                    # Interprétation des effets de passifs fréquents
-                    eff_label = ""
-                    eff_type = "unknown"
-                    is_locked = True
-
-                    if val == 56 or eid == 753:  # État Invulnérable
-                        eff_label = "État Invulnérable"
-                        eff_type = "invulnerable"
-                    elif dnum == 7868 or dnum == 7907 or eid == 792 or eid == 1:
-                        eff_label = "Échange de positions"
-                        eff_type = "swap"
-                    elif dnum > 0 and dside > 0 and val == 0:
-                        eff_label = f"Invoque le dernier allié mort avec {dnum} à {dside} % de sa vie"
-                        eff_type = "resurrect"
-                    elif eid == 401 or eid == 400:
-                        eff_label = "Pose un glyphe de début de tour (Sceau)"
-                        eff_type = "glyph"
-
-                    if eff_label:
-                        effects_list.append({
-                            "effectId": eid,
-                            "label": eff_label,
-                            "type": eff_type,
-                            "duration": "infini" if dur == -1 or dur == 0 else f"{dur} tour(s)",
-                            "isLocked": is_locked,
-                        })
-
+                # ⚠️ AUCUN effet de passif n'est deviné ici (Y-1, mesure du 11/10/2026).
+                # L'ancienne heuristique (« val == 56 », « diceNum > 0 and diceSide > 0 »…)
+                # FABRIQUAIT des libellés : sur le fichier produit, 6 494 lignes
+                # « Invoque le dernier allié mort avec 21720 à 2 % de sa vie » (les
+                # `diceNum`/`diceSide` bruts relus comme des pourcentages) réparties sur
+                # 1 807 des 2 125 passifs — du charabia présenté comme une mécanique.
+                # La mécanique affichée vient donc de la DESCRIPTION officielle du
+                # passif ; les effets réels du sort de début de combat sont extraits
+                # plus bas, ligne par ligne, par le moteur de template du jeu.
                 passive_data = {
                     "spellId": parent_spell.get("id"),
                     "name": p_name or "Passif de combat",
                     "description": p_desc,
                     "iconId": p_icon,
-                    "effects": effects_list,
+                    "effects": [],
                 }
 
         # Analyser les sorts actifs du monstre

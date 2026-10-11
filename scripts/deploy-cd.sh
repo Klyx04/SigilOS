@@ -317,9 +317,19 @@ git_fetch() {
     # l'écraser ferait perdre les exclusions configurées sur CE serveur — un monstre retiré
     # réapparaîtrait au siphon suivant, un avis supprimé serait recréé. Ils sont donc sauvegardés
     # hors de l'arbre le temps du pull, puis restaurés (voir plus bas).
+    #
+    # 🗺️ Mesure du 11/10/2026 : deux autres listes sont curées au runtime **et** suivies dans le
+    # dépôt, donc écrasées par le pull tant qu'elles ne figuraient pas ici —
+    # `ignored-dungeons.json` (suppressions de donjons) et `hidden-map-zones.json` (libellés de
+    # zone retirés de la carte du monde, God → Données de jeu → Zones : sans ça, chaque
+    # déploiement **ressuscitait** les libellés retirés).
+    # `ignored-zones|families|challenges.json` n'existent que sur le serveur (non suivis) :
+    # `git ls-files` les ignore, ils ne sont jamais touchés par ces classes.
     local PRESERVED=(
         "public/game-data/ignored-monsters.json"
         "public/game-data/ignored-bounties.json"
+        "public/game-data/ignored-dungeons.json"
+        "public/game-data/hidden-map-zones.json"
     )
 
     # ─── Fichiers SUIVIS que CE SERVEUR porte légitimement : jamais toucher, jamais alerter ───

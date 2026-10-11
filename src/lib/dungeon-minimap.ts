@@ -6,9 +6,9 @@
  * le repère coïncident avec la carte interactive :
  * - pixels échelle 1 : `px = origineX + gx*mapWidth + mapWidth/2`
  * - banque/échelle via `resolveTileBank`, grille TOUJOURS au `ceil` sur échelle
- *   snappée, `index = ty*cols + tx + 1`, tuile 256 px (monde 1) ou 250 px.
+ *   snappée, `index = ty*cols + tx + 1`, tuile `WORLDMAP_TILE_SIZE` (250 px).
  */
-import { resolveTileBank } from "./worldmap-tiles";
+import { resolveTileBank, WORLDMAP_TILE_SIZE } from "./worldmap-tiles";
 
 export interface MinimapWorld {
     id: number;
@@ -32,8 +32,12 @@ export interface MinimapTile {
 }
 
 export interface MinimapGridTile {
-    /** URL de la tuile, ou `null` hors grille (fond océan). */
-    tileUrl: string | null;
+    /**
+     * URL publique de la tuile. Jamais `null` : la fenêtre est **rognée dans la
+     * grille du monde** (une tuile hors grille n'existe pas — un 404 affichait
+     * un aplat « océan » en plein milieu de l'encart).
+     */
+    tileUrl: string;
     col: number;
     row: number;
 }
@@ -63,7 +67,7 @@ export const MINIMAP_GRID_RADIUS = 1;
 export function resolveMinimapTile(world: MinimapWorld, gx: number, gy: number, z: number = MINIMAP_ZOOM): MinimapTile | null {
     if (!Number.isFinite(gx) || !Number.isFinite(gy)) return null;
     const { scale, bank } = resolveTileBank(world.zoom?.length ? world.zoom : [1], z);
-    const tileSize = world.id === 1 ? 256 : 250;
+    const tileSize = WORLDMAP_TILE_SIZE;
     const gridScale = parseFloat(scale.toFixed(4));
     if (!(gridScale > 0)) return null;
 
@@ -85,9 +89,16 @@ export function resolveMinimapTile(world: MinimapWorld, gx: number, gy: number, 
 
 /**
  * Grille centrée sur le donjon (défaut 3×3, paysage 5×3 pour l'encart) : le
- * repère est TOUJOURS dans la tuile centrale (jamais coupé au bord). Les
- * tuiles hors grille deviennent un fond océan. `null` si la tuile centrale
- * est hors grille.
+ * repère est TOUJOURS dans la fenêtre, jamais coupé au bord.
+ *
+ * La fenêtre est **rognée dans la grille du monde** (elle glisse vers
+ * l'intérieur au lieu de déborder) et **rétrécit** si la grille est plus petite
+ * qu'elle (ex. monde 36 : 4×4 tuiles). Aucune tuile demandée n'est donc hors
+ * grille. C'était un défaut visible : mesuré le 11/10/2026, **21 donjons sur
+ * 109** (sur **12 mondes**) affichaient un bandeau océan — ex. « Sousouricière
+ * du Rat Noir » (monde 9, grille 6×5, centre en colonne 0) : 6 des 15 tuiles
+ * hors grille, soit tout le tiers droit en aplat vert. `null` si la tuile
+ * centrale du donjon est elle-même hors grille.
  */
 export function resolveMinimapGrid(
     world: MinimapWorld,
@@ -99,7 +110,7 @@ export function resolveMinimapGrid(
 ): MinimapGrid | null {
     if (!Number.isFinite(gx) || !Number.isFinite(gy)) return null;
     const { scale, bank } = resolveTileBank(world.zoom?.length ? world.zoom : [1], z);
-    const tileSize = world.id === 1 ? 256 : 250;
+    const tileSize = WORLDMAP_TILE_SIZE;
     const gridScale = parseFloat(scale.toFixed(4));
     if (!(gridScale > 0)) return null;
 
@@ -113,29 +124,33 @@ export function resolveMinimapGrid(
 
     const rx = Math.max(0, Math.floor(radiusX));
     const ry = Math.max(0, Math.floor(radiusY));
+    // Fenêtre réellement servie : bornée par la grille du monde, puis glissée
+    // vers l'intérieur (le donjon reste visible, simplement plus centré).
+    const windowCols = Math.min(rx * 2 + 1, cols);
+    const windowRows = Math.min(ry * 2 + 1, rows);
+    const startTx = Math.min(Math.max(centerTx - rx, 0), cols - windowCols);
+    const startTy = Math.min(Math.max(centerTy - ry, 0), rows - windowRows);
+
     const tiles: MinimapGridTile[] = [];
-    for (let row = 0; row < ry * 2 + 1; row++) {
-        for (let col = 0; col < rx * 2 + 1; col++) {
-            const tx = centerTx + col - rx;
-            const ty = centerTy + row - ry;
+    for (let row = 0; row < windowRows; row++) {
+        for (let col = 0; col < windowCols; col++) {
+            const tx = startTx + col;
+            const ty = startTy + row;
             tiles.push({
-                tileUrl:
-                    tx < 0 || tx >= cols || ty < 0 || ty >= rows
-                        ? null
-                        : `/game-data/tiles/w${world.id}/${bank}/${ty * cols + tx + 1}.webp`,
+                tileUrl: `/game-data/tiles/w${world.id}/${bank}/${ty * cols + tx + 1}.webp`,
                 col,
                 row,
             });
         }
     }
-    const markerXPx = px - (centerTx - rx) * tileSize;
-    const markerYPx = py - (centerTy - ry) * tileSize;
+    const markerXPx = px - startTx * tileSize;
+    const markerYPx = py - startTy * tileSize;
     return {
         tiles,
-        cols: rx * 2 + 1,
-        rows: ry * 2 + 1,
-        leftPct: (markerXPx / ((rx * 2 + 1) * tileSize)) * 100,
-        topPct: (markerYPx / ((ry * 2 + 1) * tileSize)) * 100,
+        cols: windowCols,
+        rows: windowRows,
+        leftPct: (markerXPx / (windowCols * tileSize)) * 100,
+        topPct: (markerYPx / (windowRows * tileSize)) * 100,
         mapHref: `/carte-du-monde?play=1&x=${gx}&y=${gy}&zoom=${z}&world=${world.id}`,
     };
 }

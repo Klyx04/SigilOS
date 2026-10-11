@@ -82,6 +82,11 @@ fi
 CURATED=(
     "public/game-data/ignored-monsters.json"
     "public/game-data/ignored-bounties.json"
+    # Suivies dans le dépôt ET écrites au runtime (suppressions de donjons ; libellés de zone
+    # retirés de la carte du monde) : sans ces deux lignes, un déploiement annulait la curation
+    # du serveur — même liste que `deploy-cd.sh` (`PRESERVED`), verrouillée par le test de parité.
+    "public/game-data/ignored-dungeons.json"
+    "public/game-data/hidden-map-zones.json"
 )
 # 🔁 Médias SUIVIS dont le DÉPÔT est la référence (aucun écrivain au runtime) — même règle
 # que `deploy-cd.sh` (classe `REPO_OWNED`, qui porte la mesure complète) : un fichier

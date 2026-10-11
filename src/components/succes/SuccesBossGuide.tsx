@@ -954,11 +954,13 @@ export function SuccesBossGuide({ guildId, anomalyOnly = false }: { guildId: str
                     {/* Onglet : Sorts (fusionné, iso fiche publique) */}
                     {detailTab === "sorts" && (
                         <div className="space-y-4">
-                            {/* Passif officiel Unity — mécanique de début de combat (repliable) */}
+                            {/* Passif officiel Unity — mécanique de début de combat (repliable).
+                                Rendu UNIQUEMENT s'il existe une vraie description : un
+                                passif sans texte n'est pas une mécanique. */}
                             {(() => {
                                 const spells = statsOf(selected)?.spells ?? [];
                                 const enrichedPassive = enrichPassiveIfNeeded(statsOf(selected)?.passive, spells);
-                                return enrichedPassive ? (
+                                return enrichedPassive?.description ? (
                                     <BossMechanicsView passive={enrichedPassive} collapsible defaultCollapsed={false} />
                                 ) : null;
                             })()}

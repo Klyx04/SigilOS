@@ -3,7 +3,6 @@
 import React, { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import {
-  Sparkles,
   Swords,
   Shield,
   Zap,
@@ -27,7 +26,7 @@ import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n/client";
 import { SpellRangeGrid } from "@/components/succes/SpellRangeGrid";
 import { BountyRewardCard } from "@/components/succes/BountyRewardCard";
-import { useBossOverlay } from "@/hooks/use-boss-overlay";
+import { BossOverlayButton } from "@/components/boss-overlay/boss-overlay-button";
 import { getMonsterStats, getDungeonMonsters } from "@/server/actions/game-data-actions";
 import {
   getBossDofensiveSpells,
@@ -220,7 +219,6 @@ export function PublicBossDetailClient({
   // 🌀 Boss d'anomalie : Dofensive n'expose pas ces donjons ⇒ carte + famille sont résolues
   // LOCALEMENT (lecteurs dédiés) au lieu du resolver Dofensive standard.
   const isAnomalyBoss = !!dungeon.isAnomalyBoss;
-  const { openBossOverlay } = useBossOverlay("public");
   const { t, locale } = useI18n();
 
   const [detailTab, setDetailTab] = useState<DetailTab>("sorts");
@@ -466,15 +464,10 @@ export function PublicBossDetailClient({
           résistances ; (2) où se trouve son donjon — carte statique 5×3 cliquable. */}
       <div className="space-y-4">
         <div className="flex flex-wrap items-center justify-end gap-x-4 gap-y-2">
-          <button
-            type="button"
-            onClick={() => openBossOverlay({ monsterName: activeMonsterName ?? bossName, dungeonName: dungeon.name })}
-            className="inline-flex items-center gap-2 rounded-lg bg-foreground/90 px-4 py-2 text-xs font-semibold text-background transition-colors hover:bg-foreground"
-            title={locale === "en" ? "Displays a detachable mini-window over your Dofus game" : "Affiche une mini-fenêtre par-dessus votre jeu Dofus"}
-          >
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>{t.bossPage.overlayButton}</span>
-          </button>
+          <BossOverlayButton
+            monsterName={activeMonsterName ?? bossName}
+            dungeonName={dungeon.name}
+          />
         </div>
 
         <div className={cn("grid gap-4", hasZoneLocation && "lg:grid-cols-[minmax(0,1fr)_minmax(0,0.85fr)] lg:items-start")}>
@@ -843,21 +836,11 @@ export function PublicBossDetailClient({
             </p>
           )}
 
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-muted-foreground sm:col-span-2">
-            {bountyMeta.dofensiveUrl && (
-              <a href={bountyMeta.dofensiveUrl} target="_blank" rel="noopener noreferrer" className="transition-colors hover:text-foreground">
-                Source Dofensive
-              </a>
-            )}
-            {bountyMeta.dpnlUrl && (
-              <a href={bountyMeta.dpnlUrl} target="_blank" rel="noopener noreferrer" className="transition-colors hover:text-foreground">
-                Dofus Pour Les Noobs
-              </a>
-            )}
-            {bountyMeta.syncedAt && (
-              <span>Données synchronisées le {new Date(bountyMeta.syncedAt).toLocaleDateString("fr-FR")}</span>
-            )}
-          </div>
+          {bountyMeta.syncedAt && (
+            <p className="text-[11px] text-muted-foreground sm:col-span-2">
+              Données synchronisées le {new Date(bountyMeta.syncedAt).toLocaleDateString("fr-FR")}
+            </p>
+          )}
         </div>
       )}
 
@@ -890,8 +873,10 @@ export function PublicBossDetailClient({
       {/* ── TAB: SORTS DU BOSS (liste complète) ── */}
       {detailTab === "sorts" && (
         <div className="space-y-4">
-          {/* Passif officiel Unity — mécanique de début de combat (repliable) */}
-          {enrichedPassive && (
+          {/* Passif officiel Unity — mécanique de début de combat (repliable).
+              Rendu UNIQUEMENT s'il existe une vraie description : un passif sans
+              texte n'est pas une mécanique, on n'affiche pas un encart vide. */}
+          {enrichedPassive?.description && (
             <BossMechanicsView passive={enrichedPassive} collapsible defaultCollapsed={false} />
           )}
           <div>

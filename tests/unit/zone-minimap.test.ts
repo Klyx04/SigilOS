@@ -13,8 +13,8 @@ import {
     parseZoneShape,
     resolveSubAreaCenter,
     resolveZoneMinimap,
-    zoneTileSize,
 } from "@/lib/zone-minimap";
+import { WORLDMAP_TILE_SIZE } from "@/lib/worldmap-tiles";
 import type { MinimapWorld } from "@/lib/dungeon-minimap";
 
 const WORLD_1: MinimapWorld = {
@@ -95,24 +95,24 @@ describe("resolveZoneMinimap — sous-zone 1 (Port de Madrestam)", () => {
         expect(minimap!.cols).toBe(3);
         expect(minimap!.rows).toBe(3);
         expect(minimap!.zoom).toBe(-2);
-        expect(minimap!.widthPx).toBe(768);
+        expect(minimap!.widthPx).toBe(750);
         expect(minimap!.tiles.map((t) => t.tileUrl)).toEqual([
-            "/game-data/tiles/w1/0.6/256.webp",
             "/game-data/tiles/w1/0.6/257.webp",
             "/game-data/tiles/w1/0.6/258.webp",
-            "/game-data/tiles/w1/0.6/280.webp",
+            "/game-data/tiles/w1/0.6/259.webp",
             "/game-data/tiles/w1/0.6/281.webp",
             "/game-data/tiles/w1/0.6/282.webp",
-            "/game-data/tiles/w1/0.6/304.webp",
+            "/game-data/tiles/w1/0.6/283.webp",
             "/game-data/tiles/w1/0.6/305.webp",
             "/game-data/tiles/w1/0.6/306.webp",
+            "/game-data/tiles/w1/0.6/307.webp",
         ]);
-        expect(minimap!.mapHref).toBe("/carte-du-monde?play=1&x=11&y=-4&zoom=-2&world=1");
+        expect(minimap!.mapHref).toBe("/carte-du-monde?play=1&x=10&y=-4&zoom=-2&world=1");
     });
 
-    it("projette le tracé dans la fenêtre (premier point mesuré 319.1,302)", () => {
+    it("projette le tracé dans la fenêtre (premier point mesuré 138.2,347.1)", () => {
         expect(minimap!.polygons).toHaveLength(3);
-        expect(minimap!.polygons[0].startsWith("319.1,302 ")).toBe(true);
+        expect(minimap!.polygons[0].startsWith("138.2,347.1 ")).toBe(true);
         const points = minimap!.polygons.join(" ").split(" ").map((p) => p.split(",").map(Number));
         for (const [x, y] of points) {
             expect(x).toBeGreaterThanOrEqual(0);
@@ -122,9 +122,9 @@ describe("resolveZoneMinimap — sous-zone 1 (Port de Madrestam)", () => {
         }
     });
 
-    it("place l'icône au centre de la zone (centroïde mesuré 66,4 % / 46,4 %)", () => {
-        expect(minimap!.focusLeftPct).toBeCloseTo(66.42, 1);
-        expect(minimap!.focusTopPct).toBeCloseTo(46.43, 1);
+    it("place l'icône au centre de la zone (centroïde mesuré 43,9 % / 53,6 %)", () => {
+        expect(minimap!.focusLeftPct).toBeCloseTo(43.9, 1);
+        expect(minimap!.focusTopPct).toBeCloseTo(53.56, 1);
     });
 
     it("retombe sur le centre fourni quand la zone n'a pas de tracé", () => {
@@ -150,9 +150,14 @@ describe("resolveZoneMinimap — sous-zone 1 (Port de Madrestam)", () => {
         expect(huge!.widthPx / huge!.heightPx).toBeCloseTo(5 / 3, 5);
     });
 
-    it("taille de tuile : 256 px (monde 1) / 250 px (autres mondes)", () => {
-        expect(zoneTileSize(1)).toBe(256);
-        expect(zoneTileSize(2)).toBe(250);
+    it("un seul pas de tuile (250 px) pour tous les mondes", () => {
+        expect(minimap!.widthPx).toBe(minimap!.cols * WORLDMAP_TILE_SIZE);
+        expect(minimap!.heightPx).toBe(minimap!.rows * WORLDMAP_TILE_SIZE);
+        // Banque 0,6 du monde 1 : grille 24×20 = les 480 tuiles servies (en 256 px
+        // elle serait 24×19 = 456) — la fenêtre 3×3 avance donc de 24 par rangée.
+        const indices = minimap!.tiles.map((t) => Number((t.tileUrl ?? "").match(/\/(\d+)\.webp$/)?.[1]));
+        expect(indices[3]! - indices[0]!).toBe(24);
+        expect(indices[6]! - indices[3]!).toBe(24);
         const incarnam = resolveZoneMinimap(WORLD_2, [0, 0, 1, 0, 1, 1, 0, 1]);
         expect(incarnam).not.toBeNull();
         expect(incarnam!.tiles.every((t) => t.tileUrl === null || t.tileUrl.startsWith("/game-data/tiles/w2/"))).toBe(true);

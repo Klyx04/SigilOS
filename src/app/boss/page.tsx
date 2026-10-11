@@ -1,7 +1,7 @@
 import { Metadata } from "next";
 import { headers } from "next/headers";
 import Link from "next/link";
-import { Swords, ArrowLeft } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { PublicHeader } from "@/components/layout/public-header";
 import { GalacticFooter } from "@/components/layout/galactic-footer";
 import { JsonLd } from "@/components/shared/json-ld";
@@ -9,6 +9,7 @@ import { auth } from "@/auth";
 import { getAppBaseUrl } from "@/lib/utils";
 import { getBestiaireCatalog } from "@/server/actions/game-data-actions";
 import { PublicBossCatalogClient } from "./_components/PublicBossCatalogClient";
+import { BossOverlayButton } from "@/components/boss-overlay/boss-overlay-button";
 import { getUserContext } from "@/server/actions/user-actions";
 import { getServerI18n } from "@/lib/i18n/server";
 
@@ -78,9 +79,7 @@ export default async function PublicBossCatalogPage() {
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-border text-muted-foreground text-xs font-medium">
               {t.bossPage.freeBadge}
             </span>
-            <span className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-border text-muted-foreground text-xs font-medium">
-              <Swords className="w-3.5 h-3.5" /> {t.bossPage.tacticalBadge}
-            </span>
+            <BossOverlayButton />
           </div>
         </div>
 

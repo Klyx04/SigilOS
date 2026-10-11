@@ -71,7 +71,10 @@ export function DungeonMinimapCard({ x, y, worldMapId, title, placeName, openLab
                 className="block"
                 title={openLabel}
             >
-                <div className="relative aspect-[5/3] w-full overflow-hidden">
+                <div
+                    className="relative w-full overflow-hidden"
+                    style={{ aspectRatio: `${state.grid.cols} / ${state.grid.rows}` }}
+                >
                     <div
                         className="grid h-full w-full"
                         style={{ gridTemplateColumns: `repeat(${state.grid.cols}, minmax(0, 1fr))` }}
@@ -82,7 +85,7 @@ export function DungeonMinimapCard({ x, y, worldMapId, title, placeName, openLab
                                 className="relative h-full w-full overflow-hidden"
                                 style={{ backgroundColor: MAP_OCEAN_TONE }}
                             >
-                                {tile.tileUrl && !failedTiles.has(index) && (
+                                {!failedTiles.has(index) && (
                                     // eslint-disable-next-line @next/next/no-img-element
                                     <img
                                         src={tile.tileUrl}

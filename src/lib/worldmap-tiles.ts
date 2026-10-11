@@ -7,6 +7,34 @@
 export const MAP_OCEAN_TONE = '#a9c6bb';
 
 /**
+ * Côté d'une tuile de monde : **250 px**, dans **tous** les mondes.
+ *
+ * Mesuré sur les fichiers réellement servis (`/game-data/tiles/w{id}/{banque}/{n}`,
+ * issus de `api.dofusdb.fr` et convertis **sans redimensionnement**) : 250×250 px,
+ * monde 1 compris. La grille d'une banque vaut `ceil(totalWidth*scale/250)` ×
+ * `ceil(totalHeight*scale/250)` — vérifié par le nombre de fichiers de chaque banque
+ * (échelle : largeur × hauteur = total) :
+ * - monde 1 (10 000×8 000) : 40×32 = **1 280** · 32×26 = **832** · 24×20 = **480** ·
+ *   16×13 = **208** · 8×7 = **56** ;
+ * - monde 2 (4 750×3 904) : 19×16 = **304** · 15×12 = 180 · 10×8 = 80 · 5×4 = 20 ;
+ * - monde 38 (4 085×2 861) : 17×12 = **204** · 13×9 = 117 · 9×6 = 54 · 5×3 = 15.
+ * En 256 px la même formule donne 32×25 = 800 pour le monde 1 à 0,8 (fichiers :
+ * 832) et 16×12 = 192 pour le monde 38 (fichiers : 204) : **le pas de 250 est le
+ * seul compatible avec les banques servies**.
+ *
+ * ⚠️ Deux bugs en découlaient, corrigés le 11/10/2026 (le monde 1 suivait une règle
+ * particulière) : la carte du Monde des Douze était **étirée de 2,4 %** (tuiles de
+ * 250 px posées tous les 256 px, compensées par un facteur ×1.024 sur
+ * `origineX`/`mapWidth`/`total*` côté renderer) — tout ce qui est placé par
+ * coordonnées dérivait donc proportionnellement à la distance à l'origine (repères,
+ * tracé de zone, encart, `mapWidth/2` déplacé d'une demi-tuile) ; et tant que ce
+ * facteur restait en place avec des tuiles lues à 250 px, la grille demandée devenait
+ * 41×33 au lieu de 40×32 (une colonne fantôme décalait chaque rangée d'une tuile).
+ * Une seule règle, désormais, pour les 36 mondes.
+ */
+export const WORLDMAP_TILE_SIZE = 250;
+
+/**
  * Résout l'échelle + la banque de tuiles pour un zoom Leaflet donné.
  * - Arrondit le zoom (zoomSnap fractionnaire : évite `scales[2.3] === undefined`
  *   qui faisait jeter `getTileUrl` → tuiles transparentes = carrés noirs).

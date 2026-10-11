@@ -19,6 +19,8 @@ interface Props {
   initialY?: number;
   initialZoom?: number;
   initialWorldId?: number;
+  /** Sous-zones à activer à l'arrivée (calque « Zones »). */
+  initialZoneIds?: number[];
 }
 
 export function WorldmapLandingPublicClient({
@@ -27,6 +29,7 @@ export function WorldmapLandingPublicClient({
   initialY,
   initialZoom,
   initialWorldId,
+  initialZoneIds,
 }: Props) {
   const { t, locale } = useI18n();
   const [showMap, setShowMap] = useState(isPlay);
@@ -92,6 +95,7 @@ export function WorldmapLandingPublicClient({
           initialY={initialY}
           initialZoom={initialZoom}
           initialWorldId={initialWorldId}
+          initialZoneIds={initialZoneIds}
           hideUI={false}
           startFullscreen={true}
           isOverlay={false}

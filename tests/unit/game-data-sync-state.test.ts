@@ -192,6 +192,11 @@ describe("game-data — siphons en arrière-plan (file + worker)", () => {
         expect(ignores).toContain("export function isIgnoredZone");
         expect(ignores).toContain("ignored-families.json");
         expect(ignores).toContain("ignored-zones.json");
+        // Libellés retirés de la carte du monde (éditeur God « Zones ») : même module et même
+        // clé que le renderer (`./zone-label`) — sans quoi un « masquer » resterait sans effet.
+        expect(ignores).toContain("export function isHiddenMapZone");
+        expect(ignores).toContain("hidden-map-zones.json");
+        expect(ignores).toContain('from "./zone-label"');
         const actions = read("src/server/actions/game-data-actions.ts");
         expect(actions).toContain('from "@/lib/game-data-ignores"');
         // Plus aucune copie locale (une suppression ne doit jamais être annulée par un siphon).

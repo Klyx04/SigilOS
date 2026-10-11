@@ -138,6 +138,20 @@ describe("passe de siphon — idempotente, et la simulation n'écrit rien", () =
     });
 });
 
+describe("le cron de nuit complète les succès tout seul (aucune intervention sur le VPS)", () => {
+    it("passe branchée dans `sync-monster-stats`, bornée, idempotente, coupée sous Vitest", () => {
+        // Pourquoi pas un script à lancer à la main sur le VPS : l'image de prod ne contient ni
+        // `src/` ni tsconfig ⇒ un script qui importe du TS n'y tourne pas, et les bases ne publient
+        // aucun port. Brancher la passe dans un cron **existant** = zéro ligne crontab, zéro accès
+        // shell (même choix que le siphon des boss d'anomalie).
+        const cron = read("src/app/api/cron/sync-monster-stats/route.ts");
+        expect(cron).toContain('const { siphonChallengeDetails } = await import("@/lib/achievement-details-siphon");');
+        expect(cron).toMatch(/siphonChallengeDetails\(\{ db: db as any, apply: true, limit: 25 \}\)/);
+        expect(cron).toMatch(/if \(process\.env\.VITEST !== "true"\) \{/);
+        expect(cron).toContain("achievementsSiphoned");
+    });
+});
+
 describe("icône de succès — proxy d'abord, plus de case noire", () => {
     it("une icône DofusDB connue passe par le proxy interne", () => {
         expect(getAchievementIconUrl("passer-eponge", DOFUSDB_CHALLENGE.img)).toBe("/api/assets-dofus/challenges/977");

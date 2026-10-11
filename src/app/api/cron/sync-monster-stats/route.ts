@@ -314,6 +314,32 @@ export async function GET(req: Request) {
             }
         }
 
+        // 5. SUCCÈS « SPÉCIAUX » — la VRAIE explication (DofusDB) + l'icône du challenge.
+        //    Passe **bornée** (25 challenges par run) et **idempotente** : un challenge déjà complet
+        //    est sauté **sans requête** ⇒ en régime établi le coût est nul. C'est ce qui rend le
+        //    contenu souverain **sans aucune intervention manuelle sur le VPS** (demande user du
+        //    11/10/2026 : « dofusdb affiche la vraie explication … c'est siphonnable ? »).
+        //    Fail-soft, et **coupé sous Vitest** (cette phase appelle le réseau).
+        let achievementsSiphoned = 0;
+        let achievementSiphonErrors = 0;
+        if (process.env.VITEST !== "true") {
+            try {
+                const { siphonChallengeDetails } = await import("@/lib/achievement-details-siphon");
+                const achv = await siphonChallengeDetails({ db: db as any, apply: true, limit: 25 });
+                achievementsSiphoned = achv.written;
+                achievementSiphonErrors = achv.errors;
+                if (achv.updated > 0 || achv.errors > 0) {
+                    logger.info(
+                        `[Cron:SyncMonsterStats] Succès : ${achv.written} challenge(s) complété(s), `
+                            + `${achv.alreadyOk} déjà complets, ${achv.missing} introuvable(s), ${achv.errors} erreur(s)`
+                    );
+                }
+            } catch (err) {
+                achievementSiphonErrors++;
+                logger.warn("[Cron:SyncMonsterStats] Erreur siphon des succès:", { error: String(err) });
+            }
+        }
+
         logger.info(`[Cron:SyncMonsterStats] Terminé: ${synced} monstres synchronisés, ${imagesSiphoned} images siphonnées, ${errors} erreurs, ${skippedFresh} frais ignorés · veille fiches: ${veilleFiches.persisted}/${veilleFiches.processed} (reste ~${veilleFiches.remaining ?? "?"} , filigrane ${veilleFiches.cursor ?? "début"})`);
 
         // Visibilité dans le Dashboard GOD (Audit Logs & Alertes) — sans session utilisateur.
@@ -344,9 +370,9 @@ export async function GET(req: Request) {
         // Télémétrie panel God « Tâches CRON »
         const { recordCronExecution } = await import("@/lib/cron-telemetry");
         await recordCronExecution("sync_monster_stats", {
-            success: errors === 0 && anomalyErrors === 0 && bountyErrors === 0,
+            success: errors === 0 && anomalyErrors === 0 && bountyErrors === 0 && achievementSiphonErrors === 0,
             durationMs: Date.now() - startedAt,
-            summary: `${synced} monstres synchronisés, ${errors} erreur(s) sur ${bosses.length} (${skippedFresh} frais ignorés) · ${anomalySynced} gardien(s) d'anomalie · ${anomalyCompanions} monstre(s) de l'anomalie · ${bountySynced} avis de recherche · veille fiches ${veilleFiches.persisted}/${veilleFiches.processed} (reste ~${veilleFiches.remaining ?? "?"})`,
+            summary: `${synced} monstres synchronisés, ${errors} erreur(s) sur ${bosses.length} (${skippedFresh} frais ignorés) · ${anomalySynced} gardien(s) d'anomalie · ${anomalyCompanions} monstre(s) de l'anomalie · ${bountySynced} avis de recherche · veille fiches ${veilleFiches.persisted}/${veilleFiches.processed} (reste ~${veilleFiches.remaining ?? "?"}) · ${achievementsSiphoned} succès complété(s)`,
             details: {
                 synced,
                 errors,
@@ -358,6 +384,8 @@ export async function GET(req: Request) {
                 anomalyDefaultMap,
                 anomalyCompanions,
                 bountySynced,
+                achievementsSiphoned,
+                achievementSiphonErrors,
                 bountyErrors,
                 bountyIcons,
                 bountyUnproven,

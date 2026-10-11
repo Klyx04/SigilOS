@@ -131,33 +131,10 @@ export function ValidationCard({ submission, onValidate, onReject, onZoom, isPro
             "flex flex-col relative overflow-hidden transition-all duration-300 group border-border bg-surface",
             "hover:border-border "
         )}>
-            {/* ----------------- HEADER BAR (Full Width) ----------------- */}
-            <div className={cn(
-                "relative z-20 flex flex-wrap items-center gap-3 sm:gap-4 px-4 py-2.5 border-b border-border",
-                "overflow-hidden transition-all duration-300"
-            )}>
-                {/* AI BACKGROUND BANNER */}
-                <div className="absolute inset-0 z-0">
-                    <Image
-                        src={config.bannerImage}
-                        alt="Banner"
-                        fill
-                        className="object-cover opacity-60 mix-blend-luminosity grayscale-[0.2]"
-                        unoptimized={true}
-                    />
-                    <div className={cn(
-                        "absolute inset-0 bg-gradient-to-r mix-blend-multiply opacity-90",
-                        config.headerGradient
-                    )} />
-                </div>
-
-                {/* Noise texture overlay */}
-                <div className="absolute inset-0 opacity-[0.12] mix-blend-overlay pointer-events-none bg-[url(/noise.svg)] bg-repeat z-10" />
-
-                <div className="relative shrink-0 z-10">
-                    <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-surface border border-border relative">
-                        <Icon className={cn("w-4 h-4 text-foreground")} />
-                    </div>
+            {/* ----------------- HEADER BAR ----------------- */}
+            <div className="relative z-20 flex flex-wrap items-center gap-2.5 sm:gap-3 px-3.5 sm:px-4 py-2.5 border-b border-border bg-elevated/40">
+                <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-surface border border-border shrink-0">
+                    <Icon className={cn("w-3.5 h-3.5", config.color)} />
                 </div>
 
                 <div className="min-w-0 flex-1 relative z-10 break-words pr-2">

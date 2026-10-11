@@ -1,7 +1,6 @@
 'use client'
 
-import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
     Swords,
@@ -11,12 +10,10 @@ import {
     MapPin,
     Sparkles,
     Infinity as InfinityIcon,
-    Star,
     Upload,
     Users,
     Search,
     ExternalLink,
-    AlertTriangle,
     CheckCircle2,
     Hourglass,
     XCircle,
@@ -25,7 +22,7 @@ import {
     Trophy,
     Calendar as CalendarIcon
 } from "lucide-react";
-import { Mission, MissionCategory, MissionInterest, UserProfile, User, Submission, SubmissionStatus } from "@prisma/client";
+import { Mission, MissionCategory, MissionInterest, UserProfile, User, Submission } from "@prisma/client";
 import { cn } from "@/lib/utils";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -48,11 +45,11 @@ interface MissionCardProps {
                 user: User | null
             }
         })[];
-        submissions?: Submission[]; // User's submissions for this mission
+        submissions?: Submission[];
     };
     currentUserId: string;
-    guildId: string; // Discord Guild ID for upload
-    onInterestClick?: (missionId: string) => void; // For modal trigger
+    guildId: string;
+    onInterestClick?: (missionId: string) => void;
     isRestricted?: boolean;
     linkedEvent?: { id: string, title: string, startDate: Date } | null;
     vitrineMode?: boolean;
@@ -67,90 +64,71 @@ const CATEGORY_CONFIG: Record<MissionCategory, {
     color: string;
     bgColor: string;
     borderColor: string;
-    headerGradient: string;
-    bannerImage: string;
     fallbackImage?: string;
-    glowColor: string;
     label: string;
-    ringColor: string; // CSS color for animated ring
 }> = {
     DONJON: {
         icon: Swords,
         color: "text-danger",
-        bgColor: "bg-danger/40",
-        borderColor: "border-danger/40",
-        headerGradient: "from-[#a11a21]/90 via-[#d32f2f]/80 to-[#6b0f14]/90",
-        bannerImage: "/banners/donjon.png",
+        bgColor: "bg-danger/10",
+        borderColor: "border-danger/20",
         fallbackImage: "/banners/donjon.png",
-        glowColor: "rgba(244, 63, 94, 0.4)",
-        ringColor: "#f43f5e",
         label: "Donjon"
     },
     REGULATION: {
         icon: Skull,
         color: "text-success",
-        bgColor: "bg-success/40",
-        borderColor: "border-success/40",
-        headerGradient: "from-[#4b6b1a]/90 via-[#7cb342]/80 to-[#2d4010]/90",
-        bannerImage: "/banners/regulation.png",
+        bgColor: "bg-success/10",
+        borderColor: "border-success/20",
         fallbackImage: "/banners/regulation.png",
-        glowColor: "rgba(52, 211, 153, 0.4)",
-        ringColor: "#10b981",
         label: "Régulation"
     },
     ANOMALIE: {
         icon: Zap,
         color: "text-fuchsia-400",
-        bgColor: "bg-fuchsia-950/40",
-        borderColor: "border-fuchsia-500/40",
-        headerGradient: "from-[#7d1a6b]/90 via-[#ab47bc]/80 to-[#4d1040]/90",
-        bannerImage: "/banners/anomalie.png",
+        bgColor: "bg-fuchsia-500/10",
+        borderColor: "border-fuchsia-500/20",
         fallbackImage: "/assets/missions/ano1.png",
-        glowColor: "rgba(217, 70, 239, 0.4)",
-        ringColor: "#d946ef",
         label: "Anomalie"
     },
     SONGES: {
         icon: InfinityIcon,
         color: "text-info",
-        bgColor: "bg-info/40",
-        borderColor: "border-info/40",
-        headerGradient: "from-[#1a6b7d]/90 via-[#26c6da]/80 to-[#10404d]/90",
-        bannerImage: "/banners/songes.png",
+        bgColor: "bg-info/10",
+        borderColor: "border-info/20",
         fallbackImage: "/assets/missions/songes.png",
-        glowColor: "rgba(34, 211, 238, 0.4)",
-        ringColor: "#22d3ee",
         label: "Songes"
     },
     EXPEDITION: {
         icon: Clock,
         color: "text-warning",
-        bgColor: "bg-warning/40",
-        borderColor: "border-warning/40",
-        headerGradient: "from-[#7d5b1a]/90 via-[#ffa000]/80 to-[#4d3810]/90",
-        bannerImage: "/banners/expedition.png",
+        bgColor: "bg-warning/10",
+        borderColor: "border-warning/20",
         fallbackImage: "/banners/expedition.png",
-        glowColor: "rgba(251, 191, 36, 0.4)",
-        ringColor: "#fbbf24",
         label: "Expédition"
     },
     EVENT: {
         icon: Sparkles,
-        color: "text-yellow-300",
-        bgColor: "bg-yellow-950/40",
-        borderColor: "border-yellow-500/40",
-        headerGradient: "from-[#7d6b1a]/90 via-[#fbc02d]/80 to-[#4d4010]/90",
-        bannerImage: "/banners/event.png",
+        color: "text-warning",
+        bgColor: "bg-warning/10",
+        borderColor: "border-warning/20",
         fallbackImage: "/assets/missions/event.png",
-        glowColor: "rgba(253, 224, 71, 0.4)",
-        ringColor: "#fde047",
         label: "Événement"
     },
 };
 
 // --- Component ---
 
-export function MissionCard({ mission, currentUserId, guildId, onInterestClick, isRestricted, linkedEvent, vitrineMode = false, hideUpload = false }: MissionCardProps) {
+export function MissionCard({
+    mission,
+    currentUserId,
+    guildId,
+    onInterestClick,
+    isRestricted,
+    linkedEvent,
+    vitrineMode = false,
+    hideUpload = false
+}: MissionCardProps) {
     const [isPending, startTransition] = useTransition();
     const [showUploadDialog, setShowUploadDialog] = useState(false);
     const [showValidators, setShowValidators] = useState(false);
@@ -165,7 +143,7 @@ export function MissionCard({ mission, currentUserId, guildId, onInterestClick, 
     const Icon = config.icon;
     const payload = mission.payload as any;
 
-    // Extract image URL from payload — SONGES gets per-difficulty/level image, épreuves get custom image
+    // Extract image URL from payload — Real colorful images, no grayscale or luminosity filters
     const getSongesImage = () => {
         if (mission.category !== 'SONGES') return null;
         if (payload.epreuve) {
@@ -180,10 +158,12 @@ export function MissionCard({ mission, currentUserId, guildId, onInterestClick, 
     const getAnomalieImage = () => {
         if (mission.category !== 'ANOMALIE') return null;
         switch (payload.type) {
-            case 'BOSS': return "/assets/missions/ano1.png";
             case 'FRAGMENTS': return "/assets/missions/fragment.png";
             case 'STABILISATION': return "/assets/missions/3-gardiens.png";
-            default: return "/assets/missions/anomalie.png";
+            case 'BOSS':
+            case 'ZONE':
+            default:
+                return "/assets/missions/ano1.png";
         }
     };
 
@@ -203,16 +183,16 @@ export function MissionCard({ mission, currentUserId, guildId, onInterestClick, 
         ? getEventImage()
         : (payload.imageUrl || payload.image || (config as any).fallbackImage || null);
 
-    // OBJECTIF MANUEL (#152) : icône exclamation mise en avant dans le rendu de l'image (comme les icônes de boss DJ/Songes).
+    // OBJECTIF MANUEL (#152)
     const isManualObjective = mission.category === 'EVENT' && payload.eventType === 'OBJECTIF';
 
-    // Check user's submission status for this mission
+    // Submission status
     const userSubmission = mission.submissions?.[0];
     const isValidated = userSubmission?.status === "VALIDATED";
     const isPendingValidation = userSubmission?.status === "PENDING";
     const isRejected = userSubmission?.status === "REJECTED";
 
-    // Get level from payload
+    // Display level
     const displayLevel = payload.level || getDefaultLevel((mission as any).rank || 1);
 
     // ------------------------------------------------------------------
@@ -230,13 +210,13 @@ export function MissionCard({ mission, currentUserId, guildId, onInterestClick, 
 
     if (isEmpty) {
         return (
-            <Card className="flex flex-col h-[180px] bg-background/50 border border-border/60 border-dashed items-center justify-center p-6 text-center space-y-4 hover:bg-surface/50 transition-colors group">
-                <div className="w-12 h-12 rounded-xl bg-surface/50 border border-border flex items-center justify-center group- transition-transform duration-300 shadow-inner">
-                    <Icon className="w-6 h-6 text-muted-foreground group-hover:text-muted-foreground transition-colors" />
+            <Card className="flex flex-col h-[180px] bg-surface/50 border border-border border-dashed items-center justify-center p-6 text-center space-y-3 rounded-xl">
+                <div className="w-10 h-10 rounded-xl bg-elevated border border-border flex items-center justify-center">
+                    <Icon className="w-5 h-5 text-muted-foreground" />
                 </div>
-                <div className="space-y-1 cursor-default">
-                    <h3 className="font-semibold text-muted-foreground text-sm tracking-wide">Mission Mystère</h3>
-                    <p className="text-caption text-muted-foreground font-medium">Dévoilée prochainement</p>
+                <div className="space-y-0.5">
+                    <h3 className="font-bold text-muted-foreground text-sm tracking-wide">Mission Mystère</h3>
+                    <p className="text-xs text-muted-foreground/80">Dévoilée prochainement</p>
                 </div>
             </Card>
         );
@@ -291,381 +271,331 @@ export function MissionCard({ mission, currentUserId, guildId, onInterestClick, 
     };
 
     return (
-        <div
-            className="mission-card-ring"
-            style={{ '--ring-color': config.ringColor } as React.CSSProperties}
-        >
-            <Card className={cn(
-                "flex flex-col relative overflow-hidden transition-all duration-300 group border-border bg-surface shadow-2xl",
-                "hover:border-border ",
-                !vitrineMode && isValidated && "ring-1 ring-success/40",
-                !vitrineMode && isRejected && "ring-1 ring-danger/40",
-                !vitrineMode && isPendingValidation && "ring-1 ring-yellow-500/40"
-            )}>
-                {/* ----------------- HEADER BAR (Full Width) ----------------- */}
-                <div className={cn(
-                    "relative z-20 flex items-center gap-4 px-4 py-2.5 shadow-inner border-b border-border",
-                    "overflow-hidden transition-all duration-300"
-                )}>
-                    {/* AI BACKGROUND BANNER */}
-                    <div className="absolute inset-0 z-0">
-                        <Image
-                            src={config.bannerImage}
-                            alt="Banner"
-                            fill
-                            className="object-cover opacity-60 mix-blend-luminosity grayscale-[0.2]"
-                            unoptimized={true}
-                        />
-                        <div className={cn(
-                            "absolute inset-0 bg-gradient-to-r mix-blend-multiply opacity-90",
-                            config.headerGradient
-                        )} />
-                    </div>
-
-                    {/* Noise texture overlay */}
-                    <div className="absolute inset-0 opacity-[0.12] mix-blend-overlay pointer-events-none bg-[url(/noise.svg)] bg-repeat z-10" />
-
-                    {/* Visual indicator (Lueur) */}
-                    <div className="absolute inset-x-0 bottom-0 h-[1px] bg-elevated blur-[1px] z-10" />
-
-                    <div className="relative shrink-0 z-10">
-                        <div className="absolute inset-0 bg-elevated blur-[8px] rounded-full scale-75 opacity-0 group-hover:opacity-100 transition-opacity" />
-                        <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-black/40 backdrop-blur-md border border-border shadow-lg relative transition-transform group-">
-                            <Icon className={cn("w-4 h-4", config.color.replace('text-', 'text-foreground'))} />
-                        </div>
-                    </div>
-
-                    <div className="flex-1 min-w-0 relative z-10">
-                        <h3 className="font-black text-sm sm:text-base text-foreground truncate drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] tracking-tight uppercase">
-                            {mission.title || getAutoTitle(mission.category, payload)}
-                        </h3>
-                    </div>
-
-                    {/* Status Badges Pin to Right */}
-                    <div className="ml-auto flex gap-2 relative z-10">
-                        {!vitrineMode && isValidated && (
-                            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-success/90 text-success-foreground font-black text-caption shadow-lg border border-border">
-                                <CheckCircle2 className="w-3 h-3" /> <span className="hidden sm:inline">VALIDÉ</span>
-                            </div>
-                        )}
-                        {!vitrineMode && isPendingValidation && (
-                            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-yellow-500/90 text-foreground font-black text-caption shadow-lg border border-border animate-pulse">
-                                <Hourglass className="w-3 h-3" /> <span className="hidden sm:inline">ATTENTE</span>
-                            </div>
-                        )}
-                        {!vitrineMode && isRejected && (
-                            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-danger/90 text-danger-foreground font-black text-caption shadow-lg border border-border">
-                                <XCircle className="w-3 h-3" /> <span className="hidden sm:inline">REFUSÉ</span>
-                            </div>
-                        )}
-                    </div>
+        <Card className={cn(
+            "flex flex-col relative overflow-hidden transition-all duration-200 rounded-xl border border-border bg-surface",
+            "hover:border-border-strong",
+            !vitrineMode && isValidated && "border-success/40 bg-success/[0.02]",
+            !vitrineMode && isPendingValidation && "border-warning/40 bg-warning/[0.02]",
+            !vitrineMode && isRejected && "border-danger/40 bg-danger/[0.02]"
+        )}>
+            {/* ----------------- HEADER BAR ----------------- */}
+            <div className="relative z-20 flex items-center gap-2.5 sm:gap-3 px-3.5 sm:px-4 py-2.5 border-b border-border bg-elevated/40">
+                <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-surface border border-border shrink-0">
+                    <Icon className={cn("w-3.5 h-3.5", config.color)} />
                 </div>
 
-                {/* ----------------- CONTENT BODY (Two Columns) ----------------- */}
-                <div className="relative z-10 flex min-h-[135px] overflow-hidden bg-gradient-to-b from-elevated to-surface">
+                <div className="flex-1 min-w-0">
+                    <h3 className="font-bold text-xs sm:text-sm text-foreground truncate uppercase tracking-tight">
+                        {mission.title || getAutoTitle(mission.category, payload)}
+                    </h3>
+                </div>
 
-                    {/* Sub-Atmosphere Glow */}
-                    <div className={cn(
-                        "absolute -bottom-10 -left-10 w-40 h-40 rounded-full opacity-10 blur-3xl pointer-events-none transition-all duration-300 group-hover:scale-150",
-                        config.bgColor
-                    )} />
+                {/* Status Badges */}
+                <div className="ml-auto flex items-center gap-1.5 shrink-0">
+                    {!vitrineMode && isValidated && (
+                        <div className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-success/15 text-success font-bold text-caption border border-success/30">
+                            <CheckCircle2 className="w-3 h-3" /> <span className="hidden sm:inline">VALIDÉ</span>
+                        </div>
+                    )}
+                    {!vitrineMode && isPendingValidation && (
+                        <div className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-warning/15 text-warning font-bold text-caption border border-warning/30">
+                            <Hourglass className="w-3 h-3" /> <span className="hidden sm:inline">ATTENTE</span>
+                        </div>
+                    )}
+                    {!vitrineMode && isRejected && (
+                        <div className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-danger/15 text-danger font-bold text-caption border border-danger/30">
+                            <XCircle className="w-3 h-3" /> <span className="hidden sm:inline">REFUSÉ</span>
+                        </div>
+                    )}
+                </div>
+            </div>
 
-                    {/* Left Column: Image Cutout */}
-                    <div className="w-[80px] sm:w-[128px] shrink-0 relative overflow-hidden flex items-center justify-center border-r border-border p-4 bg-black/20">
-                        {/* Background Light behind Creature */}
-                        <div className={cn(
-                            "absolute inset-0 opacity-20 blur-2xl rounded-full scale-110",
-                            config.bgColor
-                        )} />
+            {/* ----------------- CONTENT BODY ----------------- */}
+            <div className="relative z-10 flex min-h-[120px] sm:min-h-[130px] overflow-hidden bg-surface">
 
-                        {imageUrl ? (
-                            <div className="relative w-full h-full transform transition-transform duration-300 group-">
-                                <Image
-                                    src={imageUrl}
-                                    alt="Subject"
-                                    fill
-                                    className={cn(
-                                        "object-contain",
-                                        // Full-bleed blend for ANOMALIE & SONGES
-                                        (mission.category === 'ANOMALIE' || mission.category === 'SONGES') &&
-                                        "object-cover opacity-70 mix-blend-luminosity scale-110"
-                                    )}
-                                    unoptimized={true}
-                                />
-                                {/* Cinematic Overlay: Gradient Fade to Right */}
-                                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-transparent to-elevated/40 z-10" />
+                {/* Left Column: Real Colorful Illustration */}
+                <div className="w-24 sm:w-28 md:w-32 shrink-0 relative flex items-center justify-center border-r border-border p-2.5 sm:p-3 bg-elevated/20">
+                    {imageUrl ? (
+                        <div className="relative w-full aspect-square max-h-[100px] flex items-center justify-center">
+                            <Image
+                                src={imageUrl}
+                                alt={mission.title || "Illustration mission"}
+                                fill
+                                className="object-contain drop-shadow-sm"
+                                unoptimized={true}
+                            />
 
-                                {/* OBJECTIF MANUEL (#152) — icône exclamation GRANDE et centrée sur l'image */}
-                                {isManualObjective && (
-                                    <div className="absolute inset-0 z-20 flex items-center justify-center">
-                                        <div className="w-14 h-14 sm:w-20 sm:h-20 rounded-full bg-warning/95 border-2 border-border-strong flex items-center justify-center overflow-hidden">
-                                            <Image
-                                                src="/assets/icons/exclamation.png"
-                                                alt="Objectif manuel"
-                                                width={80}
-                                                height={80}
-                                                className="object-contain w-full h-full p-1.5"
-                                                unoptimized={true}
-                                            />
-                                        </div>
+                            {/* OBJECTIF MANUEL (#152) */}
+                            {isManualObjective && (
+                                <div className="absolute inset-0 z-20 flex items-center justify-center">
+                                    <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-warning/95 border-2 border-border-strong flex items-center justify-center overflow-hidden">
+                                        <Image
+                                            src="/assets/icons/exclamation.png"
+                                            alt="Objectif manuel"
+                                            width={60}
+                                            height={60}
+                                            className="object-contain w-full h-full p-1"
+                                            unoptimized={true}
+                                        />
                                     </div>
-                                )}
-                            </div>
-                        ) : isManualObjective ? (
-                            /* OBJECTIF MANUEL sans image — l'icône exclamation EST le visuel principal */
-                            <div className="w-full h-full flex items-center justify-center">
-                                <Image
-                                    src="/assets/icons/exclamation.png"
-                                    alt="Objectif manuel"
-                                    width={96}
-                                    height={96}
-                                    className="object-contain w-16 h-16 sm:w-24 sm:h-24 opacity-90"
-                                    unoptimized={true}
-                                />
-                            </div>
-                        ) : (
-                            <div className="w-12 h-12 rounded-2xl bg-elevated/50 border border-border flex items-center justify-center">
-                                <Search className="w-5 h-5 text-muted-foreground" />
-                            </div>
-                        )}
-                    </div>
-                    {/* Decorative Location Pin */}
-                    {payload.zoneName && (
-                        <div className="absolute bottom-1.5 right-1.5 p-1 bg-black/60 rounded border border-border backdrop-blur-md transition-opacity hover:opacity-100" title={payload.zoneName}>
-                            <MapPin className="w-2.5 h-2.5 text-success" />
+                                </div>
+                            )}
+                        </div>
+                    ) : isManualObjective ? (
+                        <div className="w-full h-full flex items-center justify-center p-2">
+                            <Image
+                                src="/assets/icons/exclamation.png"
+                                alt="Objectif manuel"
+                                width={60}
+                                height={60}
+                                className="object-contain w-12 h-12 sm:w-14 sm:h-14"
+                                unoptimized={true}
+                            />
+                        </div>
+                    ) : (
+                        <div className="w-10 h-10 rounded-xl bg-surface border border-border flex items-center justify-center text-muted-foreground">
+                            <Search className="w-4 h-4" />
                         </div>
                     )}
 
-                    {/* Right Column: Key Info */}
-                    <div className="flex-1 flex flex-col p-4 justify-between relative overflow-hidden">
-                        <div className="space-y-4">
-                            {/* Meta Data: Rank & Level UI */}
-                            <div className="flex items-center gap-3">
-                                <div className="flex items-center bg-black/60 rounded px-2.5 h-6 border border-border shadow-inner">
-                                    <span className="text-caption font-black text-muted-foreground uppercase tracking-widest mr-2">RANG</span>
-                                    <span className="text-sm font-black text-foreground">{(mission as any).rank || 1}</span>
-                                </div>
-                                <div className="h-4 w-[1px] bg-surface" />
-                                <span className="text-foreground font-bold italic text-sm tracking-tight truncate">
-                                    Niv. {displayLevel}
-                                </span>
-                            </div>
-
-                            {/* Description Text */}
-                            <div className="text-[15px] font-medium text-foreground leading-snug pr-4 text-shadow-sm line-clamp-3">
-                                {generateDescription(mission.category, payload)}
-                            </div>
-                            {/* Notes / Instructions libres (missions spéciales) */}
-                            {payload?.notes && (
-                                <div className="mt-1.5 text-caption italic text-info/70 leading-snug pr-4 border-l-2 border-info/40 pl-2 line-clamp-2">
-                                    📝 {payload.notes}
-                                </div>
-                            )}
+                    {/* Location Pin */}
+                    {payload.zoneName && (
+                        <div className="absolute bottom-1 right-1 p-1 bg-black/70 rounded border border-border" title={payload.zoneName}>
+                            <MapPin className="w-2.5 h-2.5 text-success" />
                         </div>
-
-                        {/* Rewards Row */}
-                        <div className="flex items-center justify-between mt-auto pt-4 shrink-0">
-                            <div className="flex flex-wrap gap-2.5">
-                                {mission.xpReward && (
-                                    <div className="flex items-center justify-center gap-2 px-2.5 py-1 bg-black/40 rounded-lg border border-border shadow-md min-w-[70px] sm:min-w-[85px]">
-                                        <span className="text-foreground font-mono text-xs sm:text-sm font-black">{mission.xpReward}</span>
-                                        <Image src="/assets/icons/pa.png" alt="PA" width={18} height={18} className="object-contain" loading="lazy" />
-                                    </div>
-                                )}
-                                {mission.guildatonsReward && (
-                                    <div className="flex items-center justify-center gap-2 px-2.5 py-1 bg-black/40 rounded-lg border border-border shadow-md min-w-[70px] sm:min-w-[85px]">
-                                        <span className="text-foreground font-mono text-xs sm:text-sm font-black">{mission.guildatonsReward}</span>
-                                        <Image src="/assets/icons/guildatons.png" alt="Guildatons" width={18} height={18} className="object-contain" loading="lazy" />
-                                    </div>
-                                )}
-                                {config.label && (
-                                    <span className="text-xs font-black text-muted-foreground uppercase tracking-widest ml-2 self-center">
-                                        {config.label}
-                                    </span>
-                                )}
-                            </div>
-
-                            {/* Linked Event Badge */}
-                            {linkedEvent && (
-                                <TooltipProvider delayDuration={0}>
-                                    <Tooltip>
-                                        <TooltipTrigger asChild>
-                                            <Link
-                                                href={`/dashboard/${guildId}/calendar?event=${linkedEvent.id}`}
-                                                className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-warning/10 border border-warning/30 hover:bg-warning/20 transition-all group/calendar"
-                                            >
-                                                <CalendarIcon className="w-3 h-3 text-warning group-hover/calendar:scale-110 transition-transform" />
-                                                <span className="text-caption font-black text-warning uppercase tracking-widest leading-none">
-                                                    Session Prévue
-                                                </span>
-                                                <ExternalLink className="w-2.5 h-2.5 text-warning/50 group-hover/calendar:text-warning transition-colors" />
-                                            </Link>
-                                        </TooltipTrigger>
-                                        <TooltipContent side="top" className="bg-surface border-border text-warning font-bold text-caption uppercase tracking-widest px-3 py-1.5">
-                                            Voir l'événement sur le calendrier ?
-                                        </TooltipContent>
-                                    </Tooltip>
-                                </TooltipProvider>
-                            )}
-                        </div>
-                    </div>
+                    )}
                 </div>
 
-                {/* ----------------- ACTION BAR (Bottom) ----------------- */}
-                <div className="relative z-20 flex flex-wrap gap-3 px-4 sm:px-5 py-3 bg-popover border-t border-border items-center justify-between">
-                    <div className="flex items-center gap-2">
+                {/* Right Column: Key Info */}
+                <div className="flex-1 flex flex-col p-3 sm:p-4 justify-between relative overflow-hidden min-w-0">
+                    <div className="space-y-2">
+                        {/* Meta: Rank & Level */}
+                        <div className="flex items-center gap-2">
+                            <div className="flex items-center bg-elevated/80 rounded px-2 h-5.5 border border-border">
+                                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mr-1.5">RANG</span>
+                                <span className="text-xs font-black text-foreground">{(mission as any).rank || 1}</span>
+                            </div>
+                            <span className="text-muted-foreground font-mono text-xs font-medium">
+                                Niv. {displayLevel}
+                            </span>
+                        </div>
+
+                        {/* Description */}
+                        <div className="text-xs sm:text-sm font-medium text-foreground leading-snug line-clamp-3">
+                            {generateDescription(mission.category, payload)}
+                        </div>
+
+                        {/* Notes */}
+                        {payload?.notes && (
+                            <div className="text-[11px] italic text-info/80 leading-snug border-l-2 border-info/40 pl-2 line-clamp-2">
+                                📝 {payload.notes}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Rewards Row */}
+                    <div className="flex items-center justify-between gap-2 mt-3 pt-2 shrink-0 flex-wrap">
+                        <div className="flex items-center gap-2 flex-wrap">
+                            {mission.xpReward && (
+                                <div className="flex items-center gap-1.5 px-2 py-0.5 bg-elevated/80 rounded-md border border-border min-w-[60px] justify-center">
+                                    <span className="text-foreground font-mono text-xs font-bold">{mission.xpReward}</span>
+                                    <Image src="/assets/icons/pa.png" alt="PA" width={14} height={14} className="object-contain" loading="lazy" />
+                                </div>
+                            )}
+                            {mission.guildatonsReward && (
+                                <div className="flex items-center gap-1.5 px-2 py-0.5 bg-elevated/80 rounded-md border border-border min-w-[60px] justify-center">
+                                    <span className="text-foreground font-mono text-xs font-bold">{mission.guildatonsReward}</span>
+                                    <Image src="/assets/icons/guildatons.png" alt="Guildatons" width={14} height={14} className="object-contain" loading="lazy" />
+                                </div>
+                            )}
+                            {config.label && (
+                                <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider self-center">
+                                    {config.label}
+                                </span>
+                            )}
+                        </div>
+
+                        {/* Linked Event Badge */}
+                        {linkedEvent && (
+                            <TooltipProvider delayDuration={0}>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <Link
+                                            href={`/dashboard/${guildId}/calendar?event=${linkedEvent.id}`}
+                                            className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-warning/10 border border-warning/30 hover:bg-warning/20 transition-all"
+                                        >
+                                            <CalendarIcon className="w-3 h-3 text-warning" />
+                                            <span className="text-[11px] font-bold text-warning uppercase tracking-wider">
+                                                Session
+                                            </span>
+                                            <ExternalLink className="w-2.5 h-2.5 text-warning/70" />
+                                        </Link>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top" className="bg-surface border-border text-warning font-bold text-caption uppercase tracking-wider px-2.5 py-1">
+                                        Voir l'événement sur le calendrier
+                                    </TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
+                        )}
+                    </div>
+                </div>
+            </div>
+
+            {/* ----------------- ACTION BAR ----------------- */}
+            <div className="relative z-20 flex flex-wrap items-center justify-between gap-2 px-3.5 sm:px-4 py-2.5 bg-elevated/40 border-t border-border">
+                <div className="flex items-center gap-2 flex-wrap">
+                    <Button
+                        size="sm"
+                        className={cn(
+                            "h-8 sm:h-8.5 px-3 sm:px-4 text-xs font-bold uppercase tracking-wider rounded-lg transition-all",
+                            isInterested
+                                ? "bg-success/15 text-success border border-success/30 hover:bg-success/25"
+                                : "bg-surface hover:bg-elevated text-foreground border border-border"
+                        )}
+                        onClick={handleToggleInterest}
+                        disabled={isPending || isRestricted}
+                    >
+                        {isInterested ? (
+                            <>
+                                <CheckCircle2 className="w-3.5 h-3.5 mr-1" />
+                                <span>Inscrit</span>
+                            </>
+                        ) : isRestricted ? (
+                            <span>Verrouillé</span>
+                        ) : (
+                            <span>S'inscrire</span>
+                        )}
+                    </Button>
+
+                    {!vitrineMode && (
                         <Button
                             size="sm"
-                            className={cn(
-                                "h-9 px-4 sm:px-6 text-caption sm:text-xs font-black uppercase tracking-widest rounded transition-all flex items-center gap-2 shadow-lg shrink-0",
-                                isInterested
-                                    ? "bg-success/20 text-success border border-success/50 hover:bg-success/30"
-                                    : "bg-background text-foreground hover:bg-success hover:text-success-foreground  active:scale-95 border-none"
-                            )}
-                            onClick={handleToggleInterest}
-                            disabled={isPending || isRestricted}
+                            variant="ghost"
+                            className="h-8 sm:h-8.5 px-2.5 sm:px-3 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-surface border border-border rounded-lg"
+                            onClick={handleShowValidators}
+                            title="Voir les membres ayant validé"
                         >
-                            {isInterested ? (
-                                <>
-                                    <CheckCircle2 className="w-3.5 h-3.5" />
-                                    <span>Inscrit</span>
-                                </>
-                            ) : isRestricted ? (
-                                <span>Verrouillé</span>
-                            ) : (
-                                <span>S'inscrire</span>
-                            )}
+                            <ShieldCheck className="w-3.5 h-3.5 mr-1 text-success" />
+                            Validés
                         </Button>
+                    )}
+                </div>
 
-                        {!vitrineMode && (
+                <div className="flex items-center gap-2 sm:gap-3 ml-auto">
+                    {/* Participant Avatars */}
+                    {interestCount > 0 && (
+                        <div
+                            className="flex items-center gap-1.5 cursor-pointer hover:opacity-80 transition-opacity"
+                            onClick={handleInterestBadgeClick}
+                            title="Voir les inscrits"
+                        >
+                            <div className="flex -space-x-1.5">
+                                {mission.interests.slice(0, 3).map((interest) => (
+                                    <div key={interest.id} className="w-6 h-6 rounded-full border border-border bg-surface flex items-center justify-center overflow-hidden">
+                                        {interest.profile.user?.image ? (
+                                            <Image src={interest.profile.user.image} alt="User" width={24} height={24} className="object-cover" loading="lazy" />
+                                        ) : (
+                                            <Users className="w-3 h-3 text-muted-foreground" />
+                                        )}
+                                    </div>
+                                ))}
+                                {interestCount > 3 && (
+                                    <div className="w-6 h-6 rounded-full border border-border bg-surface flex items-center justify-center text-[10px] font-mono font-bold text-muted-foreground">
+                                        +{interestCount - 3}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
+                    {!vitrineMode && !hideUpload && !isValidated && (
+                        isPendingValidation ? (
                             <Button
                                 size="sm"
                                 variant="outline"
-                                className="hidden sm:flex h-9 px-4 text-caption font-black uppercase tracking-widest bg-surface/50 text-muted-foreground hover:bg-success/10 hover:text-success hover:border-success/30 transition-all border-border shrink-0"
-                                onClick={handleShowValidators}
-                                title="Voir les membres ayant validé"
+                                className="h-8 sm:h-8.5 px-3 text-xs font-bold text-danger border-danger/30 hover:bg-danger/10 rounded-lg"
+                                onClick={handleCancel}
                             >
-                                <ShieldCheck className="w-3.5 h-3.5 mr-1.5 opacity-80" />
-                                Validés
+                                Annuler
                             </Button>
-                        )}
+                        ) : (
+                            <Button
+                                size="sm"
+                                className={cn(
+                                    "h-8 sm:h-8.5 px-3 sm:px-4 text-xs font-bold uppercase tracking-wider rounded-lg border",
+                                    isRejected
+                                        ? "bg-danger/20 text-danger border-danger/40 hover:bg-danger/30"
+                                        : "bg-primary text-primary-foreground hover:bg-primary/90 border-transparent shadow-sm"
+                                )}
+                                onClick={() => setShowUploadDialog(true)}
+                                disabled={isRestricted}
+                            >
+                                <Upload className="w-3.5 h-3.5 mr-1.5" />
+                                {isRejected ? "Réessayer" : "Preuve"}
+                            </Button>
+                        )
+                    )}
+                </div>
+            </div>
+
+            {/* Dialogs */}
+            <ProofUploadDialog
+                open={showUploadDialog}
+                onOpenChange={setShowUploadDialog}
+                missionId={mission.id}
+                missionTitle={mission.title || getAutoTitle(mission.category, payload)}
+                guildId={guildId}
+                category={mission.category}
+                payload={payload}
+            />
+
+            {/* Validators Dialog */}
+            <Dialog open={showValidators} onOpenChange={setShowValidators}>
+                <DialogContent className="sm:max-w-md bg-surface border-border shadow-xl p-0 overflow-hidden rounded-xl">
+                    <div className="p-4 sm:p-5 pb-3 border-b border-border bg-elevated/40">
+                        <DialogHeader>
+                            <DialogTitle className="flex items-center gap-2.5 text-base font-bold text-foreground">
+                                <div className="w-7 h-7 rounded-lg bg-success/10 border border-success/20 flex items-center justify-center">
+                                    <ShieldCheck className="w-4 h-4 text-success" />
+                                </div>
+                                <span className="uppercase tracking-wider text-xs">Validations Réussies</span>
+                            </DialogTitle>
+                        </DialogHeader>
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-2 sm:gap-4 ml-auto">
-                        {/* Participant List */}
-                        {interestCount > 0 && (
-                            <div
-                                className="flex items-center gap-2 cursor-pointer group/list"
-                                onClick={handleInterestBadgeClick}
-                            >
-                                <div className="flex -space-x-2 transition-all duration-300 group-hover/list:space-x-1">
-                                    {mission.interests.slice(0, 4).map((interest, i) => (
-                                        <div key={interest.id} className="w-8 h-8 rounded-full border-2 border-black bg-elevated flex items-center justify-center overflow-hidden shadow-sm relative group/avatar">
-                                            {interest.profile.user?.image ? (
-                                                <Image src={interest.profile.user.image} alt="User" width={32} height={32} className="object-cover" loading="lazy" />
-                                            ) : (
-                                                <Users className="w-4 h-4 text-muted-foreground" />
-                                            )}
+                    <ScrollArea className="max-h-[300px] w-full p-2">
+                        {isLoadingValidators ? (
+                            <div className="flex flex-col items-center justify-center p-8 text-muted-foreground">
+                                <Loader2 className="w-5 h-5 animate-spin mb-2 text-primary" />
+                                <span className="text-xs font-semibold">Chargement des validations...</span>
+                            </div>
+                        ) : validatorsList.length === 0 ? (
+                            <div className="flex flex-col items-center justify-center p-8 text-muted-foreground">
+                                <Trophy className="w-6 h-6 mb-2 opacity-30" />
+                                <p className="text-xs font-medium">Aucune validation pour l'instant</p>
+                            </div>
+                        ) : (
+                            <div className="space-y-1">
+                                {validatorsList.map((val) => (
+                                    <div key={val.id} className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-elevated/50 transition-colors border border-transparent hover:border-border">
+                                        <Avatar className="w-7 h-7 border border-border">
+                                            <AvatarImage src={val.image} />
+                                            <AvatarFallback className="bg-elevated text-caption font-bold">{val.pseudo.substring(0, 2).toUpperCase()}</AvatarFallback>
+                                        </Avatar>
+                                        <div className="flex flex-col flex-1 min-w-0">
+                                            <span className="text-xs font-bold text-foreground truncate">{val.pseudo}</span>
+                                            <span className="text-[10px] text-muted-foreground">
+                                                Validé le {new Date(val.date).toLocaleDateString('fr-FR')}
+                                            </span>
                                         </div>
-                                    ))}
-                                    {interestCount > 4 && (
-                                        <div className="w-8 h-8 rounded-full border-2 border-black bg-surface flex items-center justify-center text-caption font-black text-foreground shadow-sm z-10">
-                                            +{interestCount - 4}
-                                        </div>
-                                    )}
-                                </div>
+                                    </div>
+                                ))}
                             </div>
                         )}
-
-                        {!vitrineMode && !hideUpload && !isValidated && (
-                            isPendingValidation ? (
-                                <Button
-                                    size="sm"
-                                    variant="outline"
-                                    className="h-9 px-4 text-caption font-black bg-danger/5 text-danger border-danger/20 hover:bg-danger/10"
-                                    onClick={handleCancel}
-                                >
-                                    ANNULER
-                                </Button>
-                            ) : (
-                                <Button
-                                    size="sm"
-                                    className={cn(
-                                        "h-9 px-5 text-caption font-black uppercase tracking-[2px] transition-all border",
-                                        isRejected
-                                            ? "bg-danger/40 text-danger hover:bg-background hover:text-foreground border-danger/30"
-                                            : "bg-elevated text-foreground hover:bg-background hover:text-foreground border-border"
-                                    )}
-                                    onClick={() => setShowUploadDialog(true)}
-                                    disabled={isRestricted}
-                                >
-                                    <Upload className="w-3.5 h-3.5 mr-2" />
-                                    {isRejected ? "RÉESSAYER" : "PREUVE"}
-                                </Button>
-                            )
-                        )}
-                    </div>
-                </div>
-
-                {/* Dialogs */}
-                <ProofUploadDialog
-                    open={showUploadDialog}
-                    onOpenChange={setShowUploadDialog}
-                    missionId={mission.id}
-                    missionTitle={mission.title || getAutoTitle(mission.category, payload)}
-                    guildId={guildId}
-                    category={mission.category}
-                    payload={payload}
-                />
-
-                {/* Validators Dialog */}
-                <Dialog open={showValidators} onOpenChange={setShowValidators}>
-                    <DialogContent className="sm:max-w-md bg-background border-border shadow-2xl overflow-hidden p-0">
-                        <div className="p-6 pb-4 bg-surface/40 border-b border-border relative z-10">
-                            <DialogHeader>
-                                <DialogTitle className="flex items-center gap-3 text-lg font-black text-foreground">
-                                    <div className="w-8 h-8 rounded-lg bg-success/10 border border-success/20 flex items-center justify-center">
-                                        <ShieldCheck className="w-4 h-4 text-success" />
-                                    </div>
-                                    <span className="uppercase tracking-widest italic text-sm">Validations Réussies</span>
-                                </DialogTitle>
-                            </DialogHeader>
-                        </div>
-
-                        <ScrollArea className="max-h-[300px] w-full bg-surface">
-                            {isLoadingValidators ? (
-                                <div className="flex flex-col items-center justify-center p-12 text-muted-foreground">
-                                    <Loader2 className="w-6 h-6 animate-spin mb-3 text-success/50" />
-                                    <span className="text-caption uppercase font-bold tracking-widest">Recherche des archives...</span>
-                                </div>
-                            ) : validatorsList.length === 0 ? (
-                                <div className="flex flex-col items-center justify-center p-12 text-muted-foreground">
-                                    <Trophy className="w-8 h-8 mb-3 opacity-20 text-muted-foreground" />
-                                    <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Aucune validation pour l'instant</p>
-                                </div>
-                            ) : (
-                                <div className="p-2 space-y-1">
-                                    {validatorsList.map((val) => (
-                                        <div key={val.id} className="flex items-center gap-3 p-3 rounded-xl hover:bg-surface transition-colors border border-transparent hover:border-border">
-                                            <Avatar className="w-8 h-8 border border-border shadow-sm">
-                                                <AvatarImage src={val.image} />
-                                                <AvatarFallback className="bg-elevated text-caption font-black">{val.pseudo.substring(0, 2).toUpperCase()}</AvatarFallback>
-                                            </Avatar>
-                                            <div className="flex flex-col flex-1 min-w-0">
-                                                <span className="text-sm font-black text-foreground truncate">{val.pseudo}</span>
-                                                <span className="text-caption font-bold uppercase tracking-widest text-muted-foreground">
-                                                    Validé le {new Date(val.date).toLocaleDateString('fr-FR')}
-                                                </span>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </ScrollArea>
-                    </DialogContent>
-                </Dialog>
-            </Card>
-        </div>
+                    </ScrollArea>
+                </DialogContent>
+            </Dialog>
+        </Card>
     );
 }
 
@@ -797,35 +727,13 @@ function generateDescription(category: MissionCategory, payload: any): React.Rea
                 return <>{payload.description || "Participer à l'événement."}</>;
             }
             if (payload.eventType === 'MONSTRE_SPECIAL' && payload.monsterName) {
-                const zonePart = payload.zoneName ? (
-                    <>
-                        {' '}en <span className="text-success font-bold">{payload.zoneName}</span>
-                    </>
-                ) : null;
-                const levelPart = payload.level ? (
-                    <>
-                        {' '}(niv. <span className="text-info font-bold">{payload.level}</span>)
-                    </>
-                ) : null;
+                const zonePart = payload.zoneName ? ` en ${payload.zoneName}` : "";
                 return (
-                    <>
-                        Vaincre <span className="text-info font-bold">{payload.targetCount || 50} {payload.monsterName}</span>{levelPart}{zonePart}
-                    </>
+                    <>Vaincre <span className="text-warning font-medium">{payload.monsterName}</span>{zonePart}</>
                 );
             }
-            if (payload.eventType === 'DONJON' && payload.bossName) {
-                return (
-                    <>Vaincre <span className="text-danger font-medium">{payload.bossName}</span> dans son donjon</>
-                );
-            }
-            if (payload.eventType === 'REGULATION' && (payload.familyName || payload.zoneName)) {
-                const target = payload.familyName || "monstres";
-                return (
-                    <>Vaincre <span className="text-warning font-medium">50 {target}</span> sur leur territoire</>
-                );
-            }
-            return <>{payload.description || "Participer à l'événement."}</>;
+            return <>Participer à l'événement spécial.</>;
         default:
-            return "Compléter l'objectif demandé.";
+            return <>Objectif de mission hebdomadaire.</>;
     }
 }

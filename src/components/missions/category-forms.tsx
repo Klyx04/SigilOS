@@ -397,7 +397,7 @@ export function AnomalieForm({ payload, onPayloadChange, onTitleChange, onRankCh
             case 'BOSS': return "/assets/missions/ano1.png";
             case 'FRAGMENTS': return "/assets/missions/fragment.png";
             case 'STABILISATION': return "/assets/missions/3-gardiens.png";
-            default: return "/assets/missions/anomalie.png";
+            default: return "/assets/missions/ano1.png";
         }
     };
 

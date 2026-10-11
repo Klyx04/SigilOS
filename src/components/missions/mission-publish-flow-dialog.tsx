@@ -145,7 +145,7 @@ export function MissionPublishFlowDialog({
 
     return (
         <Dialog open={isOpen} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-md bg-background border-border shadow-2xl rounded-3xl p-0 overflow-hidden outline-none">
+            <DialogContent className="max-w-md bg-background border-border rounded-2xl p-0 overflow-hidden outline-none">
 
                 {/* STEP INDICATOR */}
                 <div className="flex h-1 bg-surface">
@@ -157,7 +157,7 @@ export function MissionPublishFlowDialog({
 
                     {/* ── STEP 1 : CONFIRM ─────────────────────────────── */}
                     {step === "CONFIRM" && (
-                        <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+                        <div className="space-y-6">
                             <DialogHeader>
                                 <DialogTitle className="text-xl font-black text-foreground flex items-center gap-3">
                                     <div className="p-2 bg-warning/20 rounded-xl text-warning">
@@ -230,7 +230,7 @@ export function MissionPublishFlowDialog({
 
                     {/* ── STEP 2 : REPUBLISH CHOICE ────────────────────── */}
                     {step === "REPUBLISH_CHOICE" && (
-                        <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+                        <div className="space-y-6">
                             <DialogHeader>
                                 <DialogTitle className="text-xl font-black text-foreground flex items-center gap-3">
                                     <div className="p-2 bg-warning/20 rounded-xl text-warning">
@@ -300,7 +300,7 @@ export function MissionPublishFlowDialog({
 
                     {/* ── STEP 3 : DISCORD PING ────────────────────────── */}
                     {step === "DISCORD_PING" && (
-                        <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+                        <div className="space-y-6">
                             <DialogHeader>
                                 <DialogTitle className="text-xl font-black text-foreground flex items-center gap-3">
                                     <div className="p-2 bg-info/20 rounded-xl text-info">

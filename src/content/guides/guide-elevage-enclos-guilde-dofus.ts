@@ -1,10 +1,10 @@
 export const guide = {
     slug: "guide-elevage-enclos-guilde-dofus",
-    title: "Guide de l'Éleveur Dofus Unity (MàJ 3.7) — Enclos, Croisements & Rentabilité",
+    title: "Élever des montures dans Dofus Unity : le guide pour débuter (MàJ 3.7)",
     description:
-        "Le guide ultime de l'élevage Dofus Unity 3.7 : capture, gestion de la sérénité sans gaspillage, jauges 200k, Animakina (choix du sexe), Optimakina (+20%), clonage à sérénité conservée, courbe d'XP et table des génétons.",
+        "Par où commencer : capturer sa première monture, monter le métier d'éleveur, comprendre enclos, sérénité et accouplements, jusqu'aux croisements, au clonage et aux génétons. À jour de la MàJ 3.7.",
     publishedAt: "2026-08-17",
-    updatedAt: "2026-10-02",
+    updatedAt: "2026-10-11",
     draft: false,
     badgeColor: "amber",
     body: `
@@ -16,13 +16,45 @@ export const guide = {
             jauges d'enclos et efficacité des carburants doublées (6 000 pts / 200 000 max), et nouveau barème des <strong>Génétons jusqu'à 500</strong>.</p>
         </div>
 
-        <div class="my-6 p-4 rounded-2xl bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-transparent border border-amber-500/30 flex flex-col sm:flex-row items-center justify-between gap-4">
+        <h2>0. Par où commencer : l'élevage en 7 étapes</h2>
+        <p>
+            Si vous n'avez jamais élevé de monture, suivez cet ordre : chaque étape prépare la suivante.
+            Le détail de chacune est expliqué plus bas dans ce guide.
+        </p>
+        <ol>
+            <li><strong>Équipez un filet de capture</strong> dans vos consommables de combat : vous obtenez le sort « Apprivoisement de monture » (1 PA, 7 PO sans ligne de vue, une fois par combat).</li>
+            <li><strong>Capturez des montures sauvages</strong> (montagne des Koalaks, bassin de Sufokia, haras de Brâkmar) : lancez le sort sur la cible, terminez le combat. En groupe, une monture ne peut être capturée qu'<strong>une seule fois</strong>, par un seul joueur.</li>
+            <li><strong>Déposez-les à l'étable</strong> (500 places) depuis l'interface d'élevage (touche D), puis triez par sérénité.</li>
+            <li><strong>Placez-les en enclos</strong> : il faut être sur l'une des 6 maps du Village des Éleveurs, sinon un cadenas bloque le dépôt.</li>
+            <li><strong>Montez endurance, maturité et amour</strong> en respectant les fenêtres de sérénité (négative, neutre, positive) jusqu'à l'état <strong>Féconde</strong>.</li>
+            <li><strong>Accouplez depuis l'étable</strong> deux montures fécondes de sexes opposés et de même type : naissance immédiate, parents stériles.</li>
+            <li><strong>Clonez ou extrayez les stériles</strong> : le clonage refait une fertile (2 stériles de même type et génération), l'extraction donne 1 ressource par génération (Gen 2 minimum).</li>
+        </ol>
+
+        <h3>Les 4 états de fertilité</h3>
+        <ul>
+            <li><strong>Fertile :</strong> accouplable après montée des 3 jauges.</li>
+            <li><strong>Féconde :</strong> accouplable immédiatement (3 jauges au maximum).</li>
+            <li><strong>Stérile :</strong> plus d'accouplement, mais clonage et extraction possibles.</li>
+            <li><strong>Sénile :</strong> montures d'avant la 3.5 : ni accouplement ni clonage, XP et équipement uniquement.</li>
+        </ul>
+
+        <h3>Cinq règles qui évitent la plupart des erreurs</h3>
+        <ul>
+            <li><strong>Un extrait ne remplit jamais une jauge au-delà de 80 000</strong> (philtre 140 000, potion 180 000, élixir 200 000).</li>
+            <li><strong>N'accouplez jamais depuis l'inventaire ou l'enclos</strong> : uniquement depuis l'étable.</li>
+            <li><strong>Ne clonez ni n'extrayez jamais une monture fertile ou féconde.</strong></li>
+            <li><strong>Ne laissez jamais un baffeur ou un caresseur actif sans surveillance</strong> : la sérénité dérive jusqu'aux extrêmes.</li>
+            <li><strong>Une Makina doit être d'une génération au moins égale à la génération cible</strong>, sinon l'accouplement la refuse.</li>
+        </ul>
+
+        <div class="my-6 p-4 rounded-2xl border border-border bg-surface/60 flex flex-col sm:flex-row items-center justify-between gap-4">
             <div>
-                <strong class="text-amber-300 text-sm block">🚀 Outil Interactif Disponible</strong>
-                <p class="text-xs text-zinc-300 mt-1">Simulez vos probabilités de génération cible, calculez vos durées d'enclos sans risque d'overshoot de sérénité et estimez vos gains en génétons avec notre outil dédié.</p>
+                <strong class="text-sm text-foreground block">Studio Élevage : simulateur interactif</strong>
+                <p class="text-xs text-muted-foreground mt-1">Probabilités de génération cible, durées d'enclos et gains en génétons, calculés pour vos montures.</p>
             </div>
-            <a href="/elevage" class="shrink-0 px-4 py-2 rounded-xl bg-amber-500 text-zinc-950 font-bold text-xs hover:bg-amber-400 transition-colors shadow-lg shadow-amber-500/20">
-                Ouvrir le Studio Élevage 3.7 →
+            <a href="/elevage" class="shrink-0 px-4 py-2 rounded-xl bg-elevated border border-border-strong text-foreground font-semibold text-xs hover:bg-surface transition-colors">
+                Ouvrir le Studio Élevage →
             </a>
         </div>
 
@@ -94,6 +126,18 @@ export const guide = {
                 <p class="text-[11px] text-zinc-400 mt-2"><em>Règle de combat :</em> Lancez le sort <strong>Apprivoisement de monture</strong> sur les montures souhaitées : l'état dure indéfiniment jusqu'à la fin du combat. Vous êtes libre d'éliminer les monstres sans contrainte de tour.</p>
             </div>
         </div>
+
+        <h3>Capture pas à pas (première fois)</h3>
+        <ol>
+            <li><strong>Équipez le filet adapté</strong> au type visé dans vos consommables (l'universel convient partout).</li>
+            <li><strong>Lancez un combat</strong> contre un groupe qui en contient.</li>
+            <li><strong>Lancez « Apprivoisement de monture »</strong> sur chaque monture voulue (état de capture infini jusqu'à la fin).</li>
+            <li><strong>Terminez le combat</strong> en éliminant les adversaires, à votre rythme.</li>
+            <li><strong>Récupérez vos captures</strong> : montures de génération 1, directement équipables.</li>
+            <li><strong>Filet renforcé :</strong> visez pour toucher un maximum de montures (cercle rayon 3).</li>
+            <li><strong>Filet multiplicateur :</strong> la duplication garde la couleur mais pas forcément le genre.</li>
+        </ol>
+        <p>En groupe, une monture ne peut être capturée qu'une seule fois : l'état posé par un joueur ne peut pas être volé, mais chacun peut marquer d'autres montures du combat.</p>
 
         <h2>III. Les Enclos & L'Étable (Refonte 3.7)</h2>
         <p>
@@ -436,6 +480,15 @@ export const guide = {
                 <tr><td><strong>10 Décembre</strong></td><td>Foya</td><td>Effet des <strong>Dragofesses</strong> doublé en enclos (Amour ×2).</td></tr>
             </tbody>
         </table>
+
+        <h2>XI. Monter le métier d'éleveur : XP, carburants et tailles</h2>
+        <p>Les enclos, les carburants et les filets se débloquent avec le métier d'éleveur. Trois façons de le monter :</p>
+        <ul>
+            <li><strong>Les crafts :</strong> comme les autres métiers, fabriquez près de votre niveau. Les carburants montent en 4 paliers : extrait (niveau 5), philtre (55), potion (105), élixir (155).</li>
+            <li><strong>Les accouplements :</strong> 30 XP par génération et par monture (2 génération 5 = 300 XP).</li>
+            <li><strong>Les captures :</strong> 30 XP par monture capturée, même en groupe.</li>
+        </ul>
+        <p>Chaque carburant existe en 5 tailles (Minuscule 2 000, Petit 4 000, Normal 6 000, Grand 8 000, Gigantesque 10 000). Un carburant bas ne dépasse jamais son palier (extrait : 80 000 maximum), mais un carburant haut remplit les paliers inférieurs. Sans le métier, achetez-les à l'hôtel de vente : ils fonctionnent pareil.</p>
 
         <div class="mt-8 p-6 rounded-2xl border border-border bg-surface/60 text-center">
             <h3 class="text-base font-bold text-foreground mb-1.5">Prêt à optimiser vos portées ?</h3>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
@@ -26,6 +26,7 @@ import {
 import { ImageDownloader } from "./ImageDownloader";
 import { DungeonMapPicker } from "./DungeonMapPicker";
 import { ZoneLocationCard } from "@/components/worldmap/ZoneLocationCard";
+import { ambiguousDungeonImageIds } from "@/lib/dungeon-image-ambiguity";
 import {
     Select,
     SelectContent,
@@ -278,6 +279,10 @@ export default function DungeonManager() {
 
 
 
+    // Images ambiguës : plusieurs entrées de même nom (boss différents) qui portent la
+    // MÊME image. Le modèle autorise ces homonymes ; l'image, elle, appartient au boss.
+    const ambiguousImages = useMemo(() => ambiguousDungeonImageIds(dungeons), [dungeons]);
+
     const filteredDungeons = dungeons.filter((d) => {
         const matchSearch =
             d.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -416,8 +421,13 @@ export default function DungeonManager() {
 
                             <div className="p-4 flex flex-col h-full gap-4">
                                 <div className="flex items-start gap-4">
-                                    <div className="relative w-16 h-16 rounded-lg overflow-hidden bg-elevated shrink-0 border border-border group-hover:border-info/50 transition-colors">
-                                        {dungeon.imageUrl ? (
+                                    <div
+                                        className="relative w-16 h-16 rounded-lg overflow-hidden bg-elevated shrink-0 border border-border group-hover:border-info/50 transition-colors"
+                                        title={ambiguousImages.has(dungeon.id)
+                                            ? "Image partagée avec d'autres boss de ce même donjon : cette image ne peut pas être celle des deux — choisis l'image du boss."
+                                            : undefined}
+                                    >
+                                        {dungeon.imageUrl && !ambiguousImages.has(dungeon.id) ? (
                                             <img
                                                 src={dungeon.imageUrl}
                                                 alt={dungeon.bossName}

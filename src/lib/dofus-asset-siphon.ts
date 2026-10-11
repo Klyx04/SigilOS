@@ -14,16 +14,23 @@ import {
 import { recordGameDataChanges } from '@/lib/game-data-changelog';
 
 // ─── Répertoires de stockage des assets siphonnés ───────────────────────────
+// `achievements` / `challenges` : icônes DofusDB (`img/achievements/{iconId}.png`,
+// `img/challenges/{iconId}.png`) — utilisées par les succès de donjon. Même espace d'icône que
+// `sort_<iconId>` pour les sorts : l'id demandé EST l'iconId (mesure du 11/10/2026).
 export const ASSET_DIRS = {
     monsters: path.join(process.cwd(), 'public', 'uploads', 'assets-dofus', 'monsters'),
     items: path.join(process.cwd(), 'public', 'uploads', 'assets-dofus', 'items'),
     spells: path.join(process.cwd(), 'public', 'uploads', 'assets-dofus', 'spells'),
+    achievements: path.join(process.cwd(), 'public', 'uploads', 'assets-dofus', 'achievements'),
+    challenges: path.join(process.cwd(), 'public', 'uploads', 'assets-dofus', 'challenges'),
 };
 
 export const PUBLIC_ASSET_PATHS = {
     monsters: '/uploads/assets-dofus/monsters',
     items: '/uploads/assets-dofus/items',
     spells: '/uploads/assets-dofus/spells',
+    achievements: '/uploads/assets-dofus/achievements',
+    challenges: '/uploads/assets-dofus/challenges',
 };
 
 // S'assure que les dossiers de stockage existent au démarrage
@@ -570,6 +577,8 @@ export function getAssetStorageStats() {
         monsters: { count: 0, sizeBytes: 0 },
         items: { count: 0, sizeBytes: 0 },
         spells: { count: 0, sizeBytes: 0 },
+        challenges: { count: 0, sizeBytes: 0 },
+        achievements: { count: 0, sizeBytes: 0 },
         totalCount: 0,
         totalSizeBytes: 0,
         totalSizeFormatted: '0 Mo',

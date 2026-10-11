@@ -116,4 +116,14 @@ describe("faux positifs Sentry — cas non fatal & bruit de process", () => {
         // La décision doit rester motivée par la mesure : volume + URL fantôme.
         expect(config).toMatch(/113 événements en/);
     });
+
+    it("⑥ le bruit de **décalage de build** (onglet ouvert pendant un déploiement) est filtré aussi", () => {
+        // Mesure du 11/10/2026 : 65 `UnrecognizedActionError` en 24 h, auto-réparés par le reload
+        // de Next — visible seulement depuis que le SDK navigateur est branché (lot W-1).
+        const client = readFileSync("src/instrumentation-client.ts", "utf8");
+        expect(client).toMatch(/ignoreErrors:\s*\[/);
+        expect(client).toMatch(/\/UnrecognizedActionError\//);
+        // La décision reste motivée par la mesure (volume + cause), jamais « pour faire taire ».
+        expect(client).toMatch(/65 événements en 24 h/);
+    });
 });

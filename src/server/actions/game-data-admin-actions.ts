@@ -17,7 +17,6 @@ import { bossSlugWithFallback } from "@/lib/boss-slug";
 import { questMapImageUrl, questStartMapId } from "@/lib/dungeon-finder-utils";
 import { buildGameQuestWhere, gameQuestPageWindow, type GameQuestFilters } from "@/lib/game-quests-filter";
 import type { Prisma } from "@prisma/client";
-import { NO_ACHIEVEMENT_CHALLENGE_SLUG, ensureNoAchievementChallengeId } from "@/lib/dungeon-no-achievement";
 import { addIgnoredBounty, getIgnoredBounties, removeIgnoredBounty, type IgnoredBountyEntry } from "@/lib/bounty-ignore";
 import {
     addIgnoredChallenge,
@@ -461,17 +460,7 @@ export async function createDungeon(
             }
         });
 
-        // Donjon sans succès : rattacher le pseudo-succès « Donjon validé » (créé au besoin).
-        if (isNoAchievement) {
-            const noAchId = await ensureNoAchievementChallengeId();
-            if (noAchId) {
-                await db.dungeonAchievement.upsert({
-                    where: { dungeonId_challengeId: { dungeonId: dungeon.id, challengeId: noAchId } },
-                    update: {},
-                    create: { dungeonId: dungeon.id, challengeId: noAchId, points: 10 },
-                });
-            }
-        }
+        // « Donjon validé » retiré (11/10/2026) — plus de pseudo-succès créé ni rattaché.
         await logGameDataWrite('create-dungeon', dungeon.id, { name: dungeon.name });
         // Créer à la main un donjon précédemment supprimé lève son exclusion (anti-résurrection).
         removeIgnoredDungeon({ name: dungeon.name, bossName: dungeon.bossName });
@@ -531,30 +520,17 @@ export async function updateDungeon(
                 }
             });
 
-            // Chantier « donjon sans succès » : synchroniser le pseudo-succès « Donjon validé ».
-            const noAchId = isNoAchievement ? await ensureNoAchievementChallengeId() : null;
-            if (noAchId) {
-                await tx.dungeonAchievement.upsert({
-                    where: { dungeonId_challengeId: { dungeonId: id, challengeId: noAchId } },
-                    update: {},
-                    create: { dungeonId: id, challengeId: noAchId, points: 10 },
-                });
-            } else {
-                const existingNoAch = await tx.challenge.findUnique({ where: { slug: NO_ACHIEVEMENT_CHALLENGE_SLUG } });
-                if (existingNoAch) {
-                    await tx.dungeonAchievement.deleteMany({
-                        where: { dungeonId: id, challengeId: existingNoAch.id },
-                    });
-                }
-            }
+            // « Donjon validé » retiré (11/10/2026) : plus de rattachement — et la synchronisation
+            // ci-dessous supprime son éventuelle ligne résiduelle (aucune résurrection possible).
 
             // Sync achievements if provided
             if (challengeIds) {
-                // Delete removed achievements (jamais le pseudo-succès « Donjon validé » quand isNoAchievement).
+                // Delete removed achievements (le pseudo-succès « Donjon validé » n'existe plus :
+                // rien à préserver, donc rien à ressusciter).
                 await tx.dungeonAchievement.deleteMany({
                     where: {
                         dungeonId: id,
-                        challengeId: { notIn: challengeIds, not: noAchId ?? "__none__" }
+                        challengeId: { notIn: challengeIds }
                     }
                 });
 

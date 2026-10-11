@@ -127,10 +127,19 @@ describe("câblage — seeds, import God, siphon et pseudo-succès respectent le
         expect(ui).toContain("restoreDungeonAction");
     });
 
-    it("le pseudo-succès « Donjon validé » n'est plus recréé après une suppression volontaire", () => {
-        expect(readSource("src/lib/dungeon-no-achievement.ts")).toContain(
-            "if (isIgnoredChallenge(NO_ACHIEVEMENT_CHALLENGE_SLUG)) return null;"
-        );
+    it("le pseudo-succès « Donjon validé » n'est plus recréé — parce qu'il n'est plus créé du tout", () => {
+        // 11/10/2026 (demande user : « supprime le succès "Donjon validé" il sert à rien ») : la
+        // garde d'anti-résurrection (`isIgnoredChallenge`) a disparu **avec la création** — ce qui
+        // rend la garantie plus forte qu'avant : le module ne peut plus réintroduire le pseudo-succès.
+        const src = readSource("src/lib/dungeon-no-achievement.ts");
+        // On compare le **code** : les commentaires d'explication citent ces noms à dessein.
+        const code = src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
+        expect(src).not.toMatch(/challenge\.create\(/);
+        expect(src).not.toMatch(/dungeonAchievement\.(create|upsert|deleteMany)\(/);
+        expect(code).not.toMatch(/ensureNoAchievementChallengeId|attachNoAchievementToDungeon/);
+        // Son identité reste exposée : la mémoire anti-résurrection et l'outil de purge en ont besoin.
+        expect(src).toContain('export const NO_ACHIEVEMENT_CHALLENGE_SLUG = "donjon-valide";');
+        expect(readSource("src/lib/anomaly-boss-siphon.ts")).not.toContain("attachNoAchievementToDungeon");
     });
 
     it("le siphon d'anomalie adopte puis complète — plus d'upsert aveugle de la paire (carte, gardien)", () => {

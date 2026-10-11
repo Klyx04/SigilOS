@@ -49,6 +49,14 @@ Sentry.init({
         "Failed to fetch",
         // User-caused
         "ResizeObserver loop",
+        // 🐛 Mesure du 11/10/2026 — **65 événements en 24 h** `UnrecognizedActionError: Server
+        // Action "…" was not found on the server` (dont 36 sur `/dashboard/:guildId/services`,
+        // dernier à l'instant du relevé) : ce n'est pas un bug de notre code mais le **décalage de
+        // build** d'un onglet resté ouvert pendant un déploiement (les ids d'actions changent à
+        // chaque build). Next recharge la page tout seul ⇒ l'erreur est **transitoire et
+        // auto-réparée**. Visible seulement depuis que le SDK navigateur est branché (W-1) : on
+        // l'ignore pour ne pas noyer les vraies erreurs, avec sa mesure.
+        /UnrecognizedActionError/,
     ],
 
     // Environment tag — distingue bêta et prod.

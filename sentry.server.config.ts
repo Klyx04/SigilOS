@@ -2,6 +2,7 @@
 // This file configures Sentry on the server side
 
 import * as Sentry from "@sentry/nextjs";
+import { COMMON_IGNORE_ERRORS, SERVER_IGNORE_ERRORS } from "./src/lib/sentry-ignores";
 
 Sentry.init({
     dsn: process.env.SENTRY_DSN,
@@ -22,27 +23,9 @@ Sentry.init({
         }),
     ],
 
-    // 🧹 Filtres d'entrée — mesurés le 07/10/2026, jamais supposés.
-    ignoreErrors: [
-        // ⚠️ Avertissement de PROCESS Node, pas une erreur du produit : **113 événements en
-        // 24 h**, tous sur `POST /<jeton aléatoire>/rush-sylvestre` — une URL qui n'existe
-        // **pas** (404 sur la bêta, aucun rewrite correspondant dans le `Caddyfile`) : un
-        // robot tape dans le vide et le runtime de streaming de Next s'avertit lui-même.
-        // Côté dépôt, ce n'est pas nous : aucun module n'écoute `close` (`git grep`),
-        // `redis` est un singleton et `src/proxy.ts` ne touche jamais au corps de la réponse.
-        // ⚠️ On ne le **perd** pas : Node l'écrit sur `stderr` (visible dans `docker logs`) —
-        // si notre propre code se mettait à fuir, le volume dans les logs exploserait.
-        /MaxListenersExceededWarning/,
-
-        // ⚠️ Mesure du 08/10/2026 : `PassThrough` du runtime Next
-        // (`next/dist/compiled/next-server/app-page-turbo.runtime.prod`), **2 événements
-        // en 24 h pour 4 utilisateurs**, en régression. C'est Next qui se plaint quand le
-        // **client coupe le flux HTML** qu'il reçoit : fermeture d'onglet, fermeture de la
-        // fenêtre PiP, navigation pendant un rendu en flux. Aucune de nos routes ne ferme
-        // ce flux nous-mêmes (aucun `PassThrough` dans `src/`) ⇒ ce n'est pas un défaut du
-        // produit. Filtré ici, conservé sur `stderr` dans `docker logs`.
-        /The destination stream closed early/,
-    ],
+    // 🧹 Filtres d'entrée — **source unique partagée** (`src/lib/sentry-ignores.ts`) : les
+    // mesures qui justifient chaque filtre y vivent, jamais dupliquées ici.
+    ignoreErrors: [...COMMON_IGNORE_ERRORS, ...SERVER_IGNORE_ERRORS],
 
     // Before sending, add extra context
     beforeSend(event) {

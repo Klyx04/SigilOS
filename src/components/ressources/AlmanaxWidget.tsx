@@ -79,21 +79,8 @@ function HeroCard({ item, dayOffset }: { item: AlmanaxItem; dayOffset: number })
 
     return (
         <div
-            className="relative overflow-hidden rounded-2xl p-6 transition-all duration-300"
-            style={{
-                background: "linear-gradient(135deg, #13100a 0%, #0d100d 100%)",
-                border: `1px solid ${color}22`,
-                boxShadow: `0 0 40px -12px ${color}20`,
-            }}
+            className="relative overflow-hidden rounded-2xl p-6 border border-border bg-surface/60"
         >
-            <div className="absolute top-0 right-0 w-64 h-64 rounded-full blur-3xl pointer-events-none opacity-10"
-                style={{ background: color, transform: "translate(30%, -30%)" }} />
-            <svg className="absolute inset-0 w-full h-full opacity-5 pointer-events-none" viewBox="0 0 600 260">
-                <circle cx="500" cy="130" r="120" fill="none" stroke={color} strokeWidth="0.8" />
-                <circle cx="500" cy="130" r="80" fill="none" stroke={color} strokeWidth="0.4" />
-                <path d="M0 130 L600 100" stroke={color} strokeWidth="0.4" />
-            </svg>
-
             <div className="relative flex items-start gap-6">
                 <div className="flex-shrink-0 space-y-1 pt-1">
                     <div className="text-caption font-black uppercase tracking-widest" style={{ color }}>
@@ -113,14 +100,12 @@ function HeroCard({ item, dayOffset }: { item: AlmanaxItem; dayOffset: number })
                             {emoji} {item.bonus.type.name}
                         </div>
                     )}
-                    <div className="p-4 rounded-xl"
-                        style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.05)" }}>
+                    <div className="p-4 rounded-xl bg-elevated border border-border">
                         <p className="text-foreground/90 text-sm leading-relaxed">{item.bonus.description}</p>
                     </div>
                     <div className="flex items-center gap-4 flex-wrap">
                         <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
-                                style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                            <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 bg-elevated border border-border">
                                 {iconSmall
                                     ? <Image src={iconSmall} alt={item.tribute.item.name} width={32} height={32} className="object-contain" unoptimized />
                                     : <span className="text-lg">🎁</span>}
@@ -143,11 +128,9 @@ function HeroCard({ item, dayOffset }: { item: AlmanaxItem; dayOffset: number })
 
                 {iconSd && (
                     <div className="relative flex-shrink-0 hidden sm:block">
-                        <div className="absolute inset-0 rounded-2xl blur-xl opacity-25" style={{ background: color }} />
-                        <div className="relative w-24 h-24 rounded-2xl flex items-center justify-center"
-                            style={{ background: "rgba(0,0,0,0.4)", border: `1px solid ${color}30` }}>
+                        <div className="relative w-24 h-24 rounded-2xl flex items-center justify-center bg-elevated border border-border">
                             <Image src={iconSd} alt={item.tribute.item.name} width={88} height={88}
-                                className="object-contain  transition-transform duration-300" unoptimized />
+                                className="object-contain" unoptimized />
                         </div>
                     </div>
                 )}
@@ -170,35 +153,27 @@ function DayStrip({ items, selectedIdx, activeFilter, onSelect }: {
                 const d = parseUTCDate(item.date);
                 const icon = item.tribute.item.image_urls?.icon;
                 const typeName = item.bonus.type?.name ?? "";
-                const { color } = getBonusStyle(typeName);
                 const selected = i === selectedIdx;
                 const isMuted = activeFilter !== "Tous" && typeName !== activeFilter;
 
                 return (
                     <button key={item.date} onClick={() => onSelect(i)}
                         className={cn(
-                            "shrink-0 w-24 snap-start group relative overflow-hidden rounded-xl p-3 flex flex-col items-center gap-1.5 text-center transition-all duration-200 cursor-pointer",
-                            isMuted && !selected ? "opacity-30 grayscale hover:opacity-100 hover:grayscale-0" : "hover:-translate-y-0.5",
-                            selected && "scale-[1.05]"
+                            "shrink-0 w-24 snap-start group relative overflow-hidden rounded-xl p-3 flex flex-col items-center gap-1.5 text-center transition-colors cursor-pointer border",
+                            isMuted && !selected ? "opacity-40" : "",
+                            selected ? "bg-elevated border-border-strong" : "bg-surface/60 border-border hover:border-border-strong"
                         )}
-                        title={`${item.tribute.quantity}× ${item.tribute.item.name} — ${typeName}`}
-                        style={{
-                            background: selected ? `linear-gradient(135deg, ${color}20, rgba(13,16,13,0.9))` : "rgba(255,255,255,0.02)",
-                            border: `1px solid ${selected ? color + "50" : isMuted ? "transparent" : "rgba(255,255,255,0.05)"}`,
-                            boxShadow: selected ? `0 0 20px -6px ${color}40` : "none",
-                        }}>
-                        {selected && <div className="absolute top-0 left-0 right-0 h-0.5" style={{ background: color }} />}
+                        title={`${item.tribute.quantity}× ${item.tribute.item.name} — ${typeName}`}>
+                        {selected && <div className="absolute top-0 left-0 right-0 h-0.5 bg-gold" />}
                         <div className="text-caption font-black uppercase tracking-widest text-muted-foreground">{DAYS_FR[d.getUTCDay()]}</div>
                         <div className="text-xl font-black text-foreground leading-none">{d.getUTCDate()}</div>
                         <div className="text-caption text-muted-foreground">{MONTHS_SHORT[d.getUTCMonth()]}</div>
                         <div className="w-9 h-9 flex items-center justify-center">
                             {icon
-                                ? <Image src={icon} alt={item.tribute.item.name} width={32} height={32} className="object-contain group- transition-transform" unoptimized />
+                                ? <Image src={icon} alt={item.tribute.item.name} width={32} height={32} className="object-contain" unoptimized />
                                 : <span className="text-base">🎁</span>}
                         </div>
                         <div className="text-caption text-muted-foreground leading-tight line-clamp-2 w-full h-6">{item.tribute.item.name}</div>
-                        <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity rounded-xl pointer-events-none"
-                            style={{ background: `radial-gradient(circle at center, ${color}10, transparent)` }} />
                     </button>
                 );
             })}
@@ -265,7 +240,7 @@ export function AlmanaxWidget({ items }: AlmanaxWidgetProps) {
                 <button
                     onClick={() => handleFilterClick("Tous")}
                     className={cn(
-                        "px-3 py-1 text-caption rounded-full transition-all border font-medium whitespace-nowrap",
+                        "px-3 py-1 text-caption rounded-full transition-colors border font-medium whitespace-nowrap",
                         activeFilter === "Tous"
                             ? "bg-surface text-foreground border-border-strong"
                             : "bg-transparent text-muted-foreground border-transparent hover:text-foreground hover:bg-surface"
@@ -275,17 +250,17 @@ export function AlmanaxWidget({ items }: AlmanaxWidgetProps) {
                 </button>
 
                 {filterTypes.map(([type]) => {
-                    const { color, emoji } = getBonusStyle(type);
+                    const { emoji } = getBonusStyle(type);
                     const isActive = activeFilter === type;
                     return (
                         <button key={type}
                             onClick={() => handleFilterClick(type)}
                             className={cn(
-                                "flex items-center gap-1.5 px-3 py-1 text-caption rounded-full transition-all border font-medium whitespace-nowrap opacity-90 hover:opacity-100"
+                                "flex items-center gap-1.5 px-3 py-1 text-caption rounded-full transition-colors border font-medium whitespace-nowrap",
+                                isActive
+                                    ? "bg-elevated border-border-strong text-foreground"
+                                    : "bg-transparent border-transparent text-muted-foreground hover:text-foreground hover:bg-surface"
                             )}
-                            style={isActive
-                                ? { background: `${color}20`, border: `1px solid ${color}40`, color }
-                                : { background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.08)", color: "#9ca3af" }}
                         >
                             <span>{emoji}</span> {type}
                         </button>

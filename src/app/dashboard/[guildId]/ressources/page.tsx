@@ -139,13 +139,13 @@ export default async function RessourcesPage({ params, searchParams }: Props) {
                 creatorsSection={
                     <section>
                         <SectionHeader icon={Tv} color="#ef4444" label="Elite Creators Hub — Live & Replay" />
-                        <CreatorsWidget guildId={guildId} isSuperAdmin={user.isSuperAdmin} canManage={user.isAdmin || user.isSuperAdmin} />
+                        <CreatorsWidget guildId={guildId} />
                     </section>
                 }
                 linksSection={
                     <section data-tour="ressources-links">
                         <SectionHeader icon={Link2} color="#10b981" label="Bibliothèque de Liens & Outils" />
-                        <UsefulLinksGrid guildId={guildId} isSuperAdmin={user.isSuperAdmin} />
+                        <UsefulLinksGrid guildId={guildId} />
                     </section>
                 }
                 guidesSection={

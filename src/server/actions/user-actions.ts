@@ -195,7 +195,6 @@ export type UserContext = {
     canViewAdminDocs: boolean;
     canViewResources: boolean;
     canViewCommands: boolean;
-    canManageResources: boolean;
     canViewProfile: boolean;
     canManageMembers: boolean;
     // Modules
@@ -517,7 +516,6 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         canViewAdminDocs: false,
         canViewResources: false,
         canViewCommands: false,
-        canManageResources: false,
         canViewProfile: false,
         canManageMembers: false,
         canViewMissions: false,
@@ -1054,7 +1052,6 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         "dashboard:access": PERMISSIONS.DASHBOARD_LOGIN,
         "bienvenue:view": PERMISSIONS.DASHBOARD_LOGIN,
         "resources:view": PERMISSIONS.DASHBOARD_LOGIN,
-        "resources:manage": PERMISSIONS.RESOURCES_MANAGE,
         "docs:view": PERMISSIONS.DASHBOARD_LOGIN,
         "profile:view_all": PERMISSIONS.COMMUNITY_ACCESS,
         "polls:view": PERMISSIONS.COMMUNITY_ACCESS,
@@ -1120,8 +1117,6 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
     // Le module toggle (`mod.availability`) reste le verrou principal (applyModule).
     const canViewAvailability = permissionSet.has(PERMISSIONS.COMMUNITY_ACCESS) || permissionSet.has(PERMISSIONS.AVAILABILITY_VIEW) || isAdminFinal;
     const canManageMembers = permissionSet.has(PERMISSIONS.STAFF_MEMBER_MGMT) || isAdminFinal;
-    // #127 — délégation God → officiers : gestion des liens/catégories/créateurs Ressources.
-    const canManageResources = permissionSet.has(PERMISSIONS.RESOURCES_MANAGE) || isAdminFinal;
     const canManagePoints = permissionSet.has(PERMISSIONS.POINTS_MANAGE) || isAdminFinal;
     const canViewMissions = permissionSet.has(PERMISSIONS.MISSIONS_PLAY) || isAdminFinal;
     const canManageMissions = permissionSet.has(PERMISSIONS.MISSIONS_OFFICER) || isAdminFinal;
@@ -1226,7 +1221,6 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         // Ressources : avant, perm `true` en dur → visible par TOUS dès le module
         // actif (fuite everyone). Désormais permission COMMUNITY_ACCESS requise.
         canViewResources: !!applyModule(!!mod?.resources, permissionSet.has(PERMISSIONS.COMMUNITY_ACCESS) || isAdminFinal),
-        canManageResources: !!canManageResources,
         canViewProfile: !!applyModule(!!mod?.profile, true),
         canManageMembers: !!canManageMembers,
         canViewMissions: !!applyModule(!!mod?.missions, !!canViewMissions),
@@ -1311,7 +1305,6 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         finalContext.canViewDocs = false;
         finalContext.canViewAdminDocs = false;
         finalContext.canViewResources = false;
-        finalContext.canManageResources = false;
         finalContext.canViewProfile = false;
         finalContext.canManageMembers = false;
         finalContext.canViewMissions = false;

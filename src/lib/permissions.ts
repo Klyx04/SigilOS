@@ -22,7 +22,6 @@ export const PERMISSIONS = {
     COMMUNITY_ACCESS: "community:access",
     COMMUNITY_MOD: "community:mod",
     AVAILABILITY_VIEW: "availability:view",
-    RESOURCES_MANAGE: "resources:manage",
 
     // Missions
     MISSIONS_PLAY: "missions:play",
@@ -153,12 +152,6 @@ export const PERMISSION_DETAILS: Record<PermissionId, { label: string; descripti
         module: "community",
         modules: ["Annuaire (Disponibilités)", "Profil (Planning)"]
     },
-    [PERMISSIONS.RESOURCES_MANAGE]: {
-        label: "Gérer les Ressources",
-        description: "#127 — Créer, modifier et supprimer les liens, catégories et créateurs de contenu de la page Ressources Dofus (délégation aux officiers, sans passer par le God).",
-        module: "community",
-        modules: ["Ressources Dofus (édition)"]
-    },
 
 
     // Missions
@@ -261,7 +254,6 @@ export const PERMISSION_GUILD_MODULES: Record<string, string[]> = {
     [PERMISSIONS.COMMUNITY_ACCESS]: ["roster", "profile", "calendar"],
     [PERMISSIONS.COMMUNITY_MOD]: ["calendar"],
     [PERMISSIONS.AVAILABILITY_VIEW]: ["availability", "calendar"],
-    [PERMISSIONS.RESOURCES_MANAGE]: ["resources"],
     [PERMISSIONS.MARKET_TRADE]: ["marche"],
     [PERMISSIONS.MARKET_MODERATE]: ["marche"],
     [PERMISSIONS.PRESENTATION_VIEW]: ["presentation"],

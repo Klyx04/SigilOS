@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { Flame, BookOpen, Library, Tv, Link2, BookMarked } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -42,67 +41,61 @@ export function ResourcesTabs({
         router.push(`?${params.toString()}`, { scroll: false });
     };
 
+    // Déslop 10/10/2026 — onglets plats sur tokens (fini le violet codé en dur, le
+    // `motion.layoutId` à ressort et les flous) : l'onglet actif se lit par le fond
+    // surélevé + la bordure, jamais par une couleur de famille.
     const TABS = [
-        { value: "almanax", label: "Almanax", icon: Flame, color: "text-warning", bg: "bg-warning/10", border: "border-warning/20", tourKey: "ressources-almanax-tab" },
-        { value: "news", label: "Actualités", icon: BookOpen, color: "text-info", bg: "bg-info/10", border: "border-info/20", tourKey: "ressources-news-tab" },
-        { value: "encyclopedia", label: "Encyclopédie", icon: Library, color: "text-info", bg: "bg-info/10", border: "border-info/20", tourKey: null },
-        { value: "creators", label: "Créateurs", icon: Tv, color: "text-danger", bg: "bg-danger/10", border: "border-danger/20", tourKey: null },
-        { value: "links", label: "Liens & Outils", icon: Link2, color: "text-success", bg: "bg-success/10", border: "border-success/20", tourKey: "ressources-links-tab" },
-        { value: "guides", label: "Guides", icon: BookMarked, color: "text-warning", bg: "bg-warning/10", border: "border-warning/20", tourKey: null }
+        { value: "almanax", label: "Almanax", icon: Flame, tourKey: "ressources-almanax-tab" },
+        { value: "news", label: "Actualités", icon: BookOpen, tourKey: null },
+        { value: "encyclopedia", label: "Encyclopédie", icon: Library, tourKey: null },
+        { value: "creators", label: "Créateurs", icon: Tv, tourKey: null },
+        { value: "links", label: "Liens & Outils", icon: Link2, tourKey: "ressources-links-tab" },
+        { value: "guides", label: "Guides", icon: BookMarked, tourKey: null }
     ];
 
     return (
         <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-            <div className="flex justify-center mb-10" data-tour="ressources-tabs">
-                <TabsList className="relative h-auto p-2 bg-surface/40 backdrop-blur-2xl border border-border rounded-3xl gap-2 shadow-2xl flex-wrap justify-center">
+            <div className="flex justify-center mb-8" data-tour="ressources-tabs">
+                <TabsList className="h-auto p-1.5 bg-surface/60 border border-border rounded-2xl gap-1 flex-wrap justify-center">
                     {TABS.map((t) => (
                         <TabsTrigger
                             key={t.value}
                             value={t.value}
                             {...(t.tourKey ? { "data-tour": t.tourKey } : {})}
-                            className="relative px-8 py-3.5 rounded-2xl text-xs font-black uppercase tracking-[0.15em] transition-all duration-300 
-                                     data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground data-[state=inactive]:hover:bg-surface
-                                     data-[state=active]:text-foreground z-10 border border-transparent data-[state=active]:border-border overflow-hidden"
+                            className="relative px-5 py-2.5 rounded-xl text-sm font-semibold transition-colors
+                                     data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground data-[state=inactive]:hover:bg-elevated
+                                     data-[state=active]:text-foreground data-[state=active]:bg-elevated data-[state=active]:border data-[state=active]:border-border-strong"
                         >
-                            <div className="flex items-center gap-3 relative z-20">
-                                <t.icon className={cn("w-4 h-4 transition-transform duration-300 group-data-[state=active]:scale-110", t.color)} />
+                            <span className="flex items-center gap-2">
+                                <t.icon className="w-4 h-4" />
                                 <span>{t.label}</span>
-                            </div>
-                            {activeTab === t.value && (
-                                <motion.div
-                                    layoutId="activeTab"
-                                    className={cn("absolute inset-0 z-0", t.bg, "opacity-100 shadow-[inset_0_0_20px_rgba(0,0,0,0.2)]")}
-                                    transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
-                                />
-                            )}
-                            {/* Active indicator dot */}
-                            <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-current opacity-0 data-[state=active]:opacity-100 transition-opacity" />
+                            </span>
                         </TabsTrigger>
                     ))}
                 </TabsList>
             </div>
 
-            <TabsContent value="almanax" className="mt-6 border-none p-0 outline-none animate-in fade-in zoom-in-95 duration-200">
+            <TabsContent value="almanax" className="mt-6 border-none p-0 outline-none">
                 {almanaxSection}
             </TabsContent>
 
-            <TabsContent value="news" className="mt-6 border-none p-0 outline-none animate-in fade-in zoom-in-95 duration-200">
+            <TabsContent value="news" className="mt-6 border-none p-0 outline-none">
                 {newsSection}
             </TabsContent>
 
-            <TabsContent value="encyclopedia" className="mt-6 border-none p-0 outline-none animate-in fade-in zoom-in-95 duration-200">
+            <TabsContent value="encyclopedia" className="mt-6 border-none p-0 outline-none">
                 {encyclopediaSection}
             </TabsContent>
 
-            <TabsContent value="creators" className="mt-6 border-none p-0 outline-none animate-in fade-in zoom-in-95 duration-200">
+            <TabsContent value="creators" className="mt-6 border-none p-0 outline-none">
                 {creatorsSection}
             </TabsContent>
 
-            <TabsContent value="links" className="mt-6 border-none p-0 outline-none animate-in fade-in zoom-in-95 duration-200">
+            <TabsContent value="links" className="mt-6 border-none p-0 outline-none">
                 {linksSection}
             </TabsContent>
 
-            <TabsContent value="guides" className="mt-6 border-none p-0 outline-none animate-in fade-in zoom-in-95 duration-200">
+            <TabsContent value="guides" className="mt-6 border-none p-0 outline-none">
                 {guidesSection}
             </TabsContent>
         </Tabs>

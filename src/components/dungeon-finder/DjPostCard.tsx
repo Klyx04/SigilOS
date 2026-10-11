@@ -21,6 +21,7 @@ import { fr } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { getClass } from "@/lib/dofus-assets";
 import { getMultiDungeons, getDjPostTitle, getDjPostSubtitle, formatDjDateLabel } from "@/lib/dungeon-finder-utils";
+import { dungeonFicheHref } from "@/lib/dungeon-fiche";
 import { DjMultiBossAvatars } from "./DjMultiBossAvatars";
 
 // -------------------------------------------------------
@@ -338,14 +339,21 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
                                 Guide DPLN
                             </a>
                         )}
-                        {post.dungeon?.dofensiveUrl && (
-                            <a href={post.dungeon.dofensiveUrl} target="_blank" rel="noopener noreferrer"
-                                onClick={(e) => e.stopPropagation()}
-                                className="inline-flex items-center gap-2 text-caption font-bold text-muted-foreground hover:text-foreground bg-background border border-border hover:bg-elevated rounded-xl px-3 py-2 w-max transition-colors duration-200">
-                                <span className="text-xs">🛡️</span>
-                                Dofensive
-                            </a>
-                        )}
+                        {/* Lien Dofensive remplacé par la fiche SigilOS (demande user, 11/10/2026) :
+                            la destination vient de la source unique `dungeonFicheHref` (public si
+                            `"public"`, sinon la fiche boss interne) — aucun lien Dofensive inventé. */}
+                        {(() => {
+                            const ficheHref = dungeonFicheHref(guildId, post.dungeon);
+                            if (!ficheHref) return null;
+                            return (
+                                <a href={ficheHref} target="_blank" rel="noopener noreferrer"
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="inline-flex items-center gap-2 text-caption font-bold text-muted-foreground hover:text-foreground bg-background border border-border hover:bg-elevated rounded-xl px-3 py-2 w-max transition-colors duration-200">
+                                    <span className="text-xs">🛡️</span>
+                                    Fiche SigilOS
+                                </a>
+                            );
+                        })()}
                         {(post.questId && post.questId > 0) || (post.mode === "QUETE" && post.questUrl) ? (
                             <>
                                 {post.questId && post.questId > 0 ? (

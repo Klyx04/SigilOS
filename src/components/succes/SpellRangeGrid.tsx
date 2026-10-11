@@ -1,5 +1,7 @@
 "use client";
 
+import { selectableRoomMonsters } from "@/lib/simulation-room-monsters";
+
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Check, ChevronDown, Eye, EyeOff, Grid, HelpCircle, Loader2, Map as MapIcon, Maximize2, Minimize2, Move, RotateCcw, SlidersHorizontal, Sparkles, Swords, Users, X, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -448,11 +450,12 @@ export function SpellRangeGrid({
     };
     const isObstacle = (x: number, y: number): boolean => cellState(x, y) === CellState.OBSTACLE;
 
-    // Monstres accompagnateurs de la famille (hors boss)
-    const roomMonsters = useMemo(() => {
-        const nonBoss = (monsters ?? []).filter((m) => !m.isBoss && m.name.toLowerCase() !== bossName.toLowerCase());
-        return nonBoss;
-    }, [monsters, bossName]);
+    // Monstres posables de la salle : TOUS, boss compris (double boss Frigost, 4 Cavaliers),
+    // moins celui qui occupe déjà la place 1 (le boss de l'en-tête). Règle pure partagée.
+    const roomMonsters = useMemo(
+        () => selectableRoomMonsters(monsters, bossName),
+        [monsters, bossName],
+    );
 
     // Calcul complet des positions de monstres pour le Butin et Placement sélectionnés.
     // Convention Dofus prouvée (Ankama_Fight.d2ui) : défenseurs = BLEU = `allyCells` dans Dofensive.
@@ -498,7 +501,9 @@ export function SpellRangeGrid({
                 cellId,
                 x: pos.x,
                 y: pos.y,
-                isBoss: false,
+                // Un boss posé en place 2+ (double boss Frigost, 4 Cavaliers) reste un boss :
+                // la grille et les cartes de départ doivent pouvoir le nommer comme tel.
+                isBoss: mob?.isBoss ?? false,
             });
         }
 

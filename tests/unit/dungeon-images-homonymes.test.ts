@@ -13,6 +13,7 @@
  * les images diffèrent, ni sur deux entrées de même nom **et** même boss.
  */
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
 
 import { ambiguousDungeonImageIds, type DungeonImageCandidate } from "@/lib/dungeon-image-ambiguity";
 
@@ -60,5 +61,16 @@ describe("images de donjons — homonymes et boss distincts", () => {
             dj("2", "Antre du Kralamoure", "Boss B", "/x.webp"),
         ];
         expect(ambiguousDungeonImageIds(liste).size).toBe(2);
+    });
+
+    it("⑤ le panneau God rend les lignes fautives trouvables (lentille de debug, pas de filtre caché)", () => {
+        // Debug demandé le 11/10/2026 : « comment on debug nos images qui bug pour les boss
+        // avec le même nom de donjon ? ». Réponse : le God isole ces lignes et affiche leur
+        // nombre ; la décision, elle, reste dans la règle pure ci-dessus (jamais dans l'écran).
+        const code = readFileSync("src/components/admin/DungeonManager.tsx", "utf8");
+        expect(code).toMatch(/ambiguousDungeonImageIds\(dungeons\)/);
+        expect(code).toMatch(/showAmbiguousOnly && !ambiguousImages\.has\(d\.id\)/);
+        // Le compteur est visible : on sait COMBIEN de lignes corriger avant de commencer.
+        expect(code).toMatch(/Images ambiguës \(\{ambiguousImages\.size\}\)/);
     });
 });

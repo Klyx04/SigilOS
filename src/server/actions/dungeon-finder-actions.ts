@@ -17,10 +17,29 @@ import { buildClassDispatchFields, buildClassSelectRow, type DispatchEntry } fro
 import { syncDjMirror } from "@/server/agenda-mirror-sync";
 import { loadEmojiResolver } from "@/server/discord-app-emojis";
 import { classEmojiName } from "@/lib/discord-emoji-catalog";
+import { dungeonFicheHref } from "@/lib/dungeon-fiche";
 
 // ---------------------------------------------------------------------------
 // UTILS
 // ---------------------------------------------------------------------------
+
+/**
+ * Bouton d'embed Discord « Fiche SigilOS » — remplace le bouton « Dofensive »
+ * (demande user du 11/10/2026).
+ *
+ * La destination vient de la **source unique** `dungeonFicheHref` (sentinelle
+ * `"public"` ⇒ `/boss/<slug>`) et est rendue **absolue** : un bouton Discord
+ * (`style: 5`) n'accepte qu'une URL complète. `null` = donjon sans `slug` ni `id`
+ * ⇒ aucun bouton (jamais d'URL inventée).
+ */
+function dungeonFicheButton(
+    appUrl: string,
+    dungeon: { id?: unknown; slug?: unknown } | null | undefined,
+): { type: number; style: number; label: string; emoji: { name: string }; url: string } | null {
+    const href = dungeonFicheHref("public", dungeon);
+    if (!href) return null;
+    return { type: 2, style: 5, label: "Fiche SigilOS", emoji: { name: "🛡️" }, url: `${appUrl}${href}` };
+}
 
 async function notifyDjUpdate(guildId: string) {
     try {
@@ -369,9 +388,8 @@ async function sendDiscordNotification(
         if (post.dungeon?.dofuspourlesnoobsUrl || (post.questUrl && post.questUrl.includes("dofuspourlesnoobs"))) {
             buttonComponents.push({ type: 2, style: 5, label: "DofusPourLesNoobs", emoji: { name: "📙" }, url: post.dungeon?.dofuspourlesnoobsUrl || post.questUrl });
         }
-        if (post.dungeon?.dofensiveUrl) {
-            buttonComponents.push({ type: 2, style: 5, label: "Dofensive", emoji: { name: "🛡️" }, url: post.dungeon.dofensiveUrl });
-        }
+        const ficheButton = dungeonFicheButton(appUrl, post.dungeon);
+        if (ficheButton) buttonComponents.push(ficheButton);
         if (post.questId && post.questId !== -1) {
             buttonComponents.push({ type: 2, style: 5, label: "DofusDB", emoji: { name: "🗺️" }, url: `https://dofusdb.fr/fr/database/quest/${post.questId}` });
         }
@@ -765,9 +783,8 @@ export async function updateDjDiscordEmbed(guildId: string, postId: string) {
             if (post.dungeon?.dofuspourlesnoobsUrl || (post.questUrl && post.questUrl.includes("dofuspourlesnoobs"))) {
                 buttonComponents.push({ type: 2, style: 5, label: "DofusPourLesNoobs", emoji: { name: "📙" }, url: post.dungeon?.dofuspourlesnoobsUrl || post.questUrl });
             }
-            if (post.dungeon?.dofensiveUrl) {
-                buttonComponents.push({ type: 2, style: 5, label: "Dofensive", emoji: { name: "🛡️" }, url: post.dungeon.dofensiveUrl });
-            }
+            const ficheButton = dungeonFicheButton(appUrl, post.dungeon);
+            if (ficheButton) buttonComponents.push(ficheButton);
             if (post.questId && post.questId !== -1) {
                 buttonComponents.push({ type: 2, style: 5, label: "DofusDB", emoji: { name: "🗺️" }, url: `https://dofusdb.fr/fr/database/quest/${post.questId}` });
             }

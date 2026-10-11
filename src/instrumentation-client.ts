@@ -17,6 +17,7 @@
  * Session Replay : texte masqué + médias bloqués ⇒ aucune donnée personnelle ne part.
  */
 import * as Sentry from "@sentry/nextjs";
+import { COMMON_IGNORE_ERRORS } from "@/lib/sentry-ignores";
 
 Sentry.init({
     dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
@@ -39,25 +40,10 @@ Sentry.init({
         }),
     ],
 
-    // Filter out noisy errors
-    ignoreErrors: [
-        // Browser extensions
-        /^chrome-extension:\/\//,
-        /^moz-extension:\/\//,
-        // Network errors
-        "NetworkError",
-        "Failed to fetch",
-        // User-caused
-        "ResizeObserver loop",
-        // 🐛 Mesure du 11/10/2026 — **65 événements en 24 h** `UnrecognizedActionError: Server
-        // Action "…" was not found on the server` (dont 36 sur `/dashboard/:guildId/services`,
-        // dernier à l'instant du relevé) : ce n'est pas un bug de notre code mais le **décalage de
-        // build** d'un onglet resté ouvert pendant un déploiement (les ids d'actions changent à
-        // chaque build). Next recharge la page tout seul ⇒ l'erreur est **transitoire et
-        // auto-réparée**. Visible seulement depuis que le SDK navigateur est branché (W-1) : on
-        // l'ignore pour ne pas noyer les vraies erreurs, avec sa mesure.
-        /UnrecognizedActionError/,
-    ],
+    // Filter out noisy errors — liste **partagée** avec le serveur et l'edge
+    // (`src/lib/sentry-ignores.ts`) : une Server Action inconnue remonte aussi par
+    // `onRequestError`, le filtre ne doit donc pas vivre ici seulement.
+    ignoreErrors: [...COMMON_IGNORE_ERRORS],
 
     // Environment tag — distingue bêta et prod.
     // ⚠️ Dans le NAVIGATEUR, seules les variables `NEXT_PUBLIC_*` sont inlinées au build :

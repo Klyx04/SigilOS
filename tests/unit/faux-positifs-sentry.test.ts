@@ -110,20 +110,37 @@ describe("faux positifs Sentry — cas non fatal & bruit de process", () => {
     });
 
     it("⑤ le bruit de process du runtime Next est filtré, explicitement et avec sa mesure", () => {
-        const config = readFileSync("sentry.server.config.ts", "utf8");
-        expect(config).toMatch(/ignoreErrors:\s*\[/);
-        expect(config).toMatch(/\/MaxListenersExceededWarning\//);
+        const source = readFileSync("src/lib/sentry-ignores.ts", "utf8");
+        expect(source).toMatch(/SERVER_IGNORE_ERRORS/);
+        expect(source).toMatch(/\/MaxListenersExceededWarning\//);
         // La décision doit rester motivée par la mesure : volume + URL fantôme.
-        expect(config).toMatch(/113 événements en/);
+        expect(source).toMatch(/113 événements en/);
+        // 🔒 Source unique : les trois runtimes la consomment, aucune liste locale.
+        for (const file of ["sentry.server.config.ts", "sentry.edge.config.ts", "src/instrumentation-client.ts"]) {
+            expect(readFileSync(file, "utf8"), file).toContain("sentry-ignores");
+        }
     });
 
     it("⑥ le bruit de **décalage de build** (onglet ouvert pendant un déploiement) est filtré aussi", () => {
-        // Mesure du 11/10/2026 : 65 `UnrecognizedActionError` en 24 h, auto-réparés par le reload
-        // de Next — visible seulement depuis que le SDK navigateur est branché (lot W-1).
-        const client = readFileSync("src/instrumentation-client.ts", "utf8");
-        expect(client).toMatch(/ignoreErrors:\s*\[/);
-        expect(client).toMatch(/\/UnrecognizedActionError\//);
+        // Mesure du 11/10/2026 : 65 `UnrecognizedActionError` en 24 h côté navigateur — puis
+        // **1 870 + 369** en 3 h une fois le problème regardé en face : le filtre ne vivait
+        // que dans la config **client**, or `onRequestError = captureRequestError` remonte
+        // l'erreur **côté serveur** ⇒ le filtre doit être partagé.
+        const source = readFileSync("src/lib/sentry-ignores.ts", "utf8");
+        expect(source).toMatch(/ignoreErrors|COMMON_IGNORE_ERRORS/);
+        expect(source).toMatch(/\/UnrecognizedActionError\//);
         // La décision reste motivée par la mesure (volume + cause), jamais « pour faire taire ».
-        expect(client).toMatch(/65 événements en 24 h/);
+        expect(source).toMatch(/65 événements en 24 h/);
+        expect(source).toMatch(/1 870/);
+    });
+
+    it("⑦ une image pas encore siphonnée ne devient plus une Issue serveur", () => {
+        // Mesure du 11/10/2026 (Sentry) : 12 issues `⨯ The requested resource isn't a valid
+        // image for /game-data/monsters/<slug>.webp received null`, ~64 événements chacune,
+        // culprit `GET /_next/image`. Les fichiers sont **absents du disque** (mesuré :
+        // `public/game-data/monsters` = 63 fichiers) ⇒ cas normal, pas une panne produit.
+        const source = readFileSync("src/lib/sentry-ignores.ts", "utf8");
+        expect(source).toMatch(/isn't a valid image/);
+        expect(source).toMatch(/fuji-givrefoux\.webp/);
     });
 });

@@ -183,6 +183,14 @@ describe("« Donjon validé » — plus créé, plus rendu", () => {
         expect(tab).not.toContain("pour l&apos;obtenir");
     });
 
+    it("le hub ET « Mes Succès » ne le reçoivent plus du tout (filtre à la source)", () => {
+        // `SuccesTracker` compte `achievements.length` (totaux + « tranches complètes ») : sans ce
+        // filtre, le pseudo-succès restait comptabilisé côté interne, même après le retrait du rendu.
+        const actions = read("src/server/actions/game-data-actions.ts");
+        expect(actions).toContain('import { NO_ACHIEVEMENT_CHALLENGE_SLUG } from "@/lib/dungeon-no-achievement"');
+        expect(actions).toMatch(/achievement\?\.challenge\?\.slug !== NO_ACHIEVEMENT_CHALLENGE_SLUG/);
+    });
+
     it("l'outil d'exploitation existe, en dry-run par défaut", () => {
         const script = read("scripts/succes-speciaux.ts");
         expect(script).toContain("siphonChallengeDetails");

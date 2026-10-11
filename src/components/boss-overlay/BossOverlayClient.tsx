@@ -1323,11 +1323,11 @@ export function BossOverlayClient({
                 <button
                   key={m.id}
                   onClick={() => {
-                    if (m.isBoss || m.name === selected?.bossName) {
-                      setActiveMonsterName(null);
-                    } else {
-                      setActiveMonsterName(m.name);
-                    }
+                    // Un boss de la salle **autre** que le boss du donjon est un choix
+                    // légitime (double boss Frigost, 4 Cavaliers de l'Apocalypse) : seul le
+                    // boss de l'en-tête ramène au monstre principal (`null`). Avant ce
+                    // correctif, cliquer sur Sylargh renvoyait sur la fiche du Comte.
+                    setActiveMonsterName(m.name === selected?.bossName ? null : m.name);
                     setShowFamilyModal(false);
                   }}
                   className={cn(

@@ -18,7 +18,7 @@ import {
     type SpellElementKey,
     type ZoneDamageDecrease,
 } from "@/lib/dofus-spells";
-import { normalizeDofusAssetStoredUrl } from "@/lib/dofus-image-url";
+import { normalizeDofusAssetStoredUrl, resolveSpellIconUrl } from "@/lib/dofus-image-url";
 import {
     zoneFalloffPercent,
     zoneLinesAtOffset,
@@ -1473,6 +1473,10 @@ export function SpellRangeGrid({
      * Source unique du plateau : la MÊME arborescence est rendue en ligne (fiche, landing, PiP) ou
      * dans la boîte `Dialog` du plein écran — l'état (sort, salle, entités, zoom) est conservé.
      */
+    // 🔑 Identité du sort simulé : espace d'icône du proxy (`sort_<iconId>`) — le chemin disque
+    // 404 tant que le siphon Unity hors ligne n'est pas passé, et son repli `onError` est perdu
+    // quand le 404 précède l'hydratation (mesure du 11/10/2026 : icônes KO sur la fiche publique).
+    const activeSpellIconSrc = resolveSpellIconUrl(currentSpell?.unityIconId);
     const simSurface = (
         <div className={cn(compact ? "flex flex-col h-full space-y-1.5 p-0 bg-transparent border-0 shadow-none min-h-0" : "space-y-3 rounded-2xl bg-surface border border-border p-4 sm:p-5 shadow-xs", fullscreen && "h-full min-h-0 flex flex-col space-y-0 rounded-none border-0 bg-transparent p-0 sm:p-0 shadow-none")}>
             {/* Toolbar Simulation Compacte : Choix du sort & Paramètres de portée */}
@@ -1480,14 +1484,14 @@ export function SpellRangeGrid({
                 <div className="flex flex-wrap items-center justify-between gap-3 p-2.5 bg-background border border-border/80 rounded-xl">
                     {/* Identité du sort simulé */}
                     <div className="flex min-w-0 shrink items-center gap-2.5 rounded-lg border border-border/70 bg-surface/50 px-3 py-1.5">
-                        {currentSpell?.unityIconId && currentSpell.unityIconId > 0 ? (
+                        {activeSpellIconSrc ? (
                             /* eslint-disable-next-line @next/next/no-img-element */
                             <img
-                                src={`/uploads/assets-dofus/spells/sort_${currentSpell.unityIconId}.webp`}
+                                src={activeSpellIconSrc}
                                 alt=""
                                 className="h-7 w-7 shrink-0 rounded-[4px] object-contain"
                                 onError={(e) => {
-                                    if (currentSpell.imageUrl) {
+                                    if (currentSpell?.imageUrl) {
                                         (e.target as HTMLImageElement).src = `/api/assets-dofus/spells/${currentSpell.id}?url=${encodeURIComponent(currentSpell.imageUrl)}`;
                                     } else {
                                         (e.target as HTMLImageElement).style.display = "none";

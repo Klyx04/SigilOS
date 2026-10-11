@@ -17,6 +17,7 @@ import {
 } from "@/server/actions/dofensive-actions";
 import { getAnomalyBossBattleMap, getAnomalyBossFamily } from "@/server/actions/anomaly-boss-actions";
 import { cn } from "@/lib/utils";
+import { resolveSpellIconUrl } from "@/lib/dofus-image-url";
 import { toast } from "sonner";
 import { getWorldName } from "@/lib/dofus-assets";
 import { SpellData, SpellRangeGrid } from "./SpellRangeGrid";
@@ -140,12 +141,17 @@ function SpellIcon({ spell, size = 8 }: { spell: SpellData; size?: number }) {
     const [useFallback, setUseFallback] = useState(false);
     const sizeClass = size === 8 ? "w-8 h-8" : size === 9 ? "w-9 h-9" : "w-10 h-10";
 
-    if (spell.unityIconId && spell.unityIconId > 0 && !useFallback) {
+    // 🔑 Espace d'icône du proxy (`sort_<iconId>`) : le chemin disque
+    // `/uploads/assets-dofus/spells/sort_N.webp` 404 tant que le siphon Unity hors ligne n'est pas
+    // passé, et son repli `onError` est perdu si le 404 précède l'hydratation (mesure du
+    // 11/10/2026, fiche publique /boss/sam-sagaz : icônes KO) ⇒ jamais rendu.
+    const unityIconSrc = resolveSpellIconUrl(spell.unityIconId);
+    if (unityIconSrc && !useFallback) {
         return (
             <div className={cn(sizeClass, "rounded-xl bg-background border border-border flex items-center justify-center p-0.5 shrink-0 overflow-hidden")}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                    src={`/uploads/assets-dofus/spells/sort_${spell.unityIconId}.webp`}
+                    src={unityIconSrc}
                     alt={spell.name}
                     className="w-full h-full object-contain"
                     loading="lazy"

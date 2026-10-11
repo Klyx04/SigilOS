@@ -36,6 +36,7 @@ import {
 import { mergeDofensiveSpells } from "@/lib/dofensive-spells";
 import { deriveDofensiveMonsterName } from "@/lib/dofensive-boss";
 import { getWorldName } from "@/lib/dofus-assets";
+import { resolveSpellIconUrl } from "@/lib/dofus-image-url";
 import { DungeonMinimapCard } from "./DungeonMinimapCard";
 import { ZoneLocationCard } from "@/components/worldmap/ZoneLocationCard";
 import { getAnomalyBossBattleMap, getAnomalyBossFamily } from "@/server/actions/anomaly-boss-actions";
@@ -149,7 +150,18 @@ function MonsterImage({
 
 /**
  * Icône d'un sort Dofus.
- * Priorité : icône Unity locale (sort_<iconId>.webp) → proxy DofusDB → asset officiel spells.png.
+ *
+ * 🔑 **Le chemin disque n'est JAMAIS rendu.** `/uploads/assets-dofus/spells/sort_<iconId>.webp`
+ * n'existe que si le siphon Unity hors ligne est passé (rien ne l'écrivait à la demande : le proxy
+ * ne connaissait que l'espace d'entité, `<idDeSort>.webp`) — et sur la fiche publique, mesuré le
+ * 11/10/2026 (« Sam Sagaz ») : le 404 des 3 icônes arrive **avant l'hydratation**, donc l'`onError`
+ * de repli n'est **jamais** appelé (aucune requête `/api/assets-dofus/spells/*` dans le journal
+ * réseau) et l'icône reste KO, alors que le proxy sert la même icône en **200**. L'`src` initial
+ * passe donc par le proxy, dans l'**espace d'icône** (`sort_<iconId>`, où le nom EST l'identité de
+ * l'icône).
+ *
+ * Priorité : proxy espace d'icône (`sort_<iconId>`) → proxy par id de sort (DofusDB fait alors
+ * autorité sur l'`iconId`) → asset officiel spells.png.
  */
 function SpellIcon({
   spell,
@@ -158,10 +170,11 @@ function SpellIcon({
   spell: { id?: number; name?: string; imageUrl?: string | null; unityIconId?: number };
   className?: string;
 }) {
-  if (spell.unityIconId && spell.unityIconId > 0) {
+  const unityIconSrc = resolveSpellIconUrl(spell.unityIconId);
+  if (unityIconSrc) {
     return (
       <img
-        src={`/uploads/assets-dofus/spells/sort_${spell.unityIconId}.webp`}
+        src={unityIconSrc}
         alt={spell.name ?? ""}
         className={className}
         loading="lazy"

@@ -35,10 +35,18 @@ describe("🖼️ Assets Dofus — l'id d'entité n'est jamais confondu avec l'a
         ).toBeNull();
     });
 
-    it("les sorts gardent la résolution par l'icône du CDN (comportement inchangé)", () => {
+    it("les sorts passent par l'ESPACE D'ICÔNE (`sort_<iconId>`) — le nombre n'est pas un id de sort", () => {
+        // 🔑 Mesure beta du 11/10/2026 (« Jardinage » = sort **6267**, iconId **15561**) : lire le
+        // nombre d'une URL `sort_N` comme un id de SORT servait l'icône d'un autre sort (mesuré :
+        // `/api/assets-dofus/spells/15561` → 200 avec une image étrangère) — exactement le piège que
+        // ce fichier verrouille pour les monstres et les objets. L'espace d'icône nomme l'asset.
         expect(
             resolveDofusAssetImageUrl("spells", null, "https://api.dofusdb.fr/img/spells/sort_12160.png")
-        ).toBe("/api/assets-dofus/spells/12160?url=https%3A%2F%2Fapi.dofusdb.fr%2Fimg%2Fspells%2Fsort_12160.png");
+        ).toBe("/api/assets-dofus/spells/sort_12160");
+        // L'id d'entité fourni par l'appelant reste prioritaire (c'est la clé du cache du proxy).
+        expect(
+            resolveDofusAssetImageUrl("spells", 6267, "https://api.dofusdb.fr/img/spells/sort_15561.png")
+        ).toBe("/api/assets-dofus/spells/6267?url=https%3A%2F%2Fapi.dofusdb.fr%2Fimg%2Fspells%2Fsort_15561.png");
     });
 
     it("Tal Kasha : un chemin local dérivé (écrit par monster-stats-core) passe par le proxy", () => {

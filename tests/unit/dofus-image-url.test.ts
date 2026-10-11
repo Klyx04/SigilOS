@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
     resolveDofusImageUrl,
     resolveDofusAssetImageUrl,
+    resolveSpellIconUrl,
     internalDofusDbImageUrl,
     normalizeDofusAssetStoredUrl,
     isSafeDofusImageSrc,
@@ -83,13 +84,14 @@ describe("resolveDofusAssetImageUrl / internalDofusDbImageUrl — zéro hotlink 
     });
 
     it("retombe sur l'id extrait de l'URL quand l'appelant n'en fournit aucun", () => {
-        expect(internalDofusDbImageUrl(SPELL_DB_URL)).toBe(
-            `/api/assets-dofus/spells/12160?url=${encodeURIComponent(SPELL_DB_URL)}`
-        );
+        // 🔑 SORTS : l'URL amont est une **icône** (`sort_<n>`) — `n` y est un iconId, jamais un id
+        // de sort. Mesure beta du 11/10/2026 (« Jardinage » = sort 6267, iconId 15561) : présenter
+        // cet id comme un id de sort servait l'icône d'un AUTRE sort (`/spells/15561` → 200 étranger).
+        expect(internalDofusDbImageUrl(SPELL_DB_URL)).toBe("/api/assets-dofus/spells/sort_12160");
         expect(internalDofusDbImageUrl("https://api.dofusdb.fr/img/monsters/1234.png")).toContain("/api/assets-dofus/monsters/1234?url=");
         expect(internalDofusDbImageUrl("https://api.dofusdb.fr/img/items/9143.png")).toContain("/api/assets-dofus/items/9143?url=");
         // Hôte `static.dofusdb.fr` : réécrit aussi, mais SANS `?url=` (non allowlisté par le proxy).
-        expect(internalDofusDbImageUrl("https://static.dofusdb.fr/img/spells/sort_7.png")).toBe("/api/assets-dofus/spells/7");
+        expect(internalDofusDbImageUrl("https://static.dofusdb.fr/img/spells/sort_7.png")).toBe("/api/assets-dofus/spells/sort_7");
     });
 
     it("n'envoie JAMAIS d'URL d'un hôte non allowlisté au proxy (SSRF fail-closed)", () => {
@@ -201,6 +203,48 @@ describe("normalizeDofusAssetStoredUrl — un chemin STOCKÉ n'est jamais rendu 
         expect(normalizeDofusAssetStoredUrl("monsters", "/autre/chemin.png")).toBeNull();
     });
 });
+describe("resolveSpellIconUrl — espace d'icône d'un sort (`sort_<iconId>`)", () => {
+    // 🐛 Mesure beta du 11/10/2026 (fiche publique `/boss/sam-sagaz`) : les composants rendaient le
+    // chemin DISQUE `/uploads/assets-dofus/spells/sort_15561.webp` → **404** (le fichier n'existe que
+    // si le siphon Unity hors ligne est passé) et le repli `onError` ne rattrapait rien : le 404
+    // arrive **avant** l'hydratation, React n'a pas encore attaché le handler (aucune requête
+    // `/api/assets-dofus/spells/*` au journal) ⇒ 3 icônes KO. Le proxy, lui, sert la même icône en
+    // **200** (mesuré : `/api/assets-dofus/spells/6267` = 2 154 o de WebP).
+    // ⚠️ L'iconId n'est pas l'id du sort : « Jardinage » = sort 6267, iconId 15561 ; et
+    // `/api/assets-dofus/spells/15561` (iconId lu comme id de sort) répond 200 avec une image
+    // **étrangère**.
+
+    it("construit l'URL du proxy dans l'espace d'ICÔNE", () => {
+        expect(resolveSpellIconUrl(15561)).toBe("/api/assets-dofus/spells/sort_15561");
+        expect(resolveSpellIconUrl("214")).toBe("/api/assets-dofus/spells/sort_214");
+        expect(resolveSpellIconUrl(15522)).toBe("/api/assets-dofus/spells/sort_15522");
+    });
+
+    it("refuse tout ce qui n'est pas un iconId positif (⇒ repli de l'appelant)", () => {
+        expect(resolveSpellIconUrl(0)).toBeNull();
+        expect(resolveSpellIconUrl(-1)).toBeNull();
+        expect(resolveSpellIconUrl(null)).toBeNull();
+        expect(resolveSpellIconUrl(undefined)).toBeNull();
+        expect(resolveSpellIconUrl("")).toBeNull();
+        expect(resolveSpellIconUrl("6267.webp")).toBeNull();
+    });
+
+    it("le chemin stocké `sort_<n>.webp` passe par l'espace d'icône, jamais par l'id du sort", () => {
+        expect(normalizeDofusAssetStoredUrl("spells", "/uploads/assets-dofus/spells/sort_15561.webp")).toBe(
+            "/api/assets-dofus/spells/sort_15561"
+        );
+        // Même avec un id d'entité en poche : c'est le NOM du fichier qui désigne l'icône.
+        expect(normalizeDofusAssetStoredUrl("spells", "/uploads/assets-dofus/spells/sort_15561.webp", 6267)).toBe(
+            "/api/assets-dofus/spells/sort_15561"
+        );
+        // Sans préfixe `sort_`, la clé du chemin est bien un id de SORT (espace d'entité).
+        expect(normalizeDofusAssetStoredUrl("spells", "/uploads/assets-dofus/spells/6267.webp")).toBe(
+            "/api/assets-dofus/spells/6267"
+        );
+    });
+});
+
+
 
 describe("isSafeDofusImageSrc — rien d'arbitraire ne part dans une URL du DOM", () => {
     it("accepte nos chemins internes et DofusDB", () => {

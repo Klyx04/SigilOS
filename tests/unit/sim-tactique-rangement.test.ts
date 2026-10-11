@@ -98,10 +98,14 @@ describe("sort actif — identifiable d'un coup d'œil", () => {
 
   it("le bandeau porte l'icône du sort, son nom et ses propriétés", () => {
     const block = spellBlock();
-    // Icône réelle du jeu (siphon Unity, repli image distante) puis nom et propriétés.
-    expect(block).toMatch(/currentSpell\?\.unityIconId/);
+    // 🔑 Icône réelle du jeu, servie par l'espace d'icône du proxy (`sort_<iconId>`) : le chemin
+    // disque `/uploads/assets-dofus/spells/sort_N.webp` rendait un 404 avant siphon, **sans repli
+    // possible** (le 404 précède l'hydratation — mesure du 11/10/2026, fiche publique /boss/sam-sagaz).
+    // Puis repli image distante, nom et propriétés.
+    expect(block).toMatch(/\{activeSpellIconSrc \?/);
     expect(block).toMatch(/currentSpell\?\.imageUrl \?/);
-    expect(block).toMatch(/\{simT\.simulatedSpell\}/);
+    expect(GRID).toMatch(/const activeSpellIconSrc = resolveSpellIconUrl\(currentSpell\?\.unityIconId\);/);
+    expect(GRID).toMatch(/\{simT\.simulatedSpell\}/);
     expect(block).toMatch(/aria-label=\{simT\.selectSpell\}/);
   });
 

@@ -72,6 +72,18 @@ export async function GET(
         // cf. Dofusbook `item.picture`) : la valeur est un iconId DofusDB, PAS un id d objet.
         const iconNamespace = assetType === 'items' && req.nextUrl.searchParams.get('icon') === '1';
 
+        // ESPACE D ICONE D UN SORT (`sort_<iconId>`) : ce NOM est l'identite de l'icone — c est lui
+        // qui nomme le fichier sur disque (`spells/sort_<iconId>.webp`, ecrit hors ligne par
+        // `scripts/siphon-unity-bestiary.py`) comme l asset DofusDB (`img/spells/sort_<iconId>.png`).
+        // Mesure beta du 11/10/2026 (fiche publique `/boss/sam-sagaz`) : les composants rendaient ce
+        // chemin DISQUE en `src` ⇒ 404 systematique (le fichier n existe que si le siphon hors ligne
+        // est passe) et l icone KO quand le repli `onError` ratait l hydratation (le 404 arrive avant
+        // que React attache le handler). Ici, ce meme nom passe par le proxy : il sert le fichier
+        // s il est la, le siphonne sinon, et l ecrit SOUS CE NOM ⇒ un seul chemin, auto-repare.
+        // (`iconId` n est JAMAIS l id du sort : « Jardinage » = sort 6267, iconId 15561.)
+        const spellIconMatch = assetType === 'spells' ? /^sort_(\d{1,12})$/i.exec(safeId) : null;
+        const spellIconId = spellIconMatch ? Number(spellIconMatch[1]) : 0;
+
         ensureAssetDirsExist();
         const localFileName = iconNamespace ? `${safeId}.icon.webp` : `${safeId}.webp`;
         const localFilePath = path.join(ASSET_DIRS[assetType], localFileName);
@@ -363,6 +375,48 @@ export async function GET(
         // Ici : pour les sorts, on IGNORE le `?url=`, on résout `iconId`, et sans icône réelle on
         // sert NOTRE placeholder neutre — jamais l'image d'un autre sort.
         let spellIconHandled = false;
+
+        // ① ESPACE D ICONE (`sort_<iconId>`) : la demande EST l icone (le nom est l identite), il n y
+        // a donc aucun id d entite a resoudre — DofusDB ne sert qu a fournir les octets. Le dump
+        // Game data est indexe par `iconId` LUI AUSSI : sa lecture est ici legitime (contrairement a
+        // l espace d entite, ou il servirait l image d une autre entite — cf. mesure du 09/10/2026).
+        if (spellIconId > 0) {
+            spellIconHandled = true;
+            const dumpFile = findGodFile(String(spellIconId));
+            if (dumpFile) {
+                try {
+                    inputBuffer = fs.readFileSync(dumpFile);
+                    downloaded = true;
+                } catch {
+                    // Dump illisible → resolution DofusDB ci-dessous.
+                }
+            }
+            if (!downloaded) {
+                for (const candidate of [
+                    `https://api.dofusdb.fr/img/spells/sort_${spellIconId}.png`,
+                    `https://api.dofusdb.fr/img/spells/${spellIconId}.png`,
+                ]) {
+                    try {
+                        const iconRes = await fetch(candidate, {
+                            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+                            signal: AbortSignal.timeout(6_000),
+                        });
+                        if (!iconRes.ok) continue;
+                        const contentType = iconRes.headers.get('content-type') || '';
+                        if (!contentType.startsWith('image/') && !contentType.startsWith('application/octet-stream')) continue;
+                        const arrayBuffer = await iconRes.arrayBuffer();
+                        if (arrayBuffer.byteLength === 0 || arrayBuffer.byteLength > MAX_IMAGE_BYTES) continue;
+                        inputBuffer = Buffer.from(arrayBuffer);
+                        downloaded = true;
+                        break;
+                    } catch {
+                        // Candidat suivant
+                    }
+                }
+            }
+        }
+
+        // ② ESPACE D ENTITE (`<id de sort>`) : DofusDB fait autorite sur l iconId.
         if (isNumericId && assetType === 'spells') {
             spellIconHandled = true;
             try {

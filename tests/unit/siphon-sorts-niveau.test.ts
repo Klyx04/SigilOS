@@ -80,7 +80,40 @@ describe("niveau de sort = celui du GRADE DE MONSTRE (`SpellGrades`)", () => {
     });
 });
 
+describe("icône de sort — le chemin DISQUE n'est jamais rendu (espace d'icône)", () => {
+    // 🐛 Mesure beta du 11/10/2026, fiche publique `/boss/sam-sagaz` (« Sam Sagaz », avis de
+    // recherche) : 3 des 4 sorts rendaient `/uploads/assets-dofus/spells/sort_{15561,15554,214}.webp`
+    // → **404** en 0,0 ko dans le journal réseau, **sans aucun repli** (`/api/assets-dofus/spells/*`
+    // n'apparaît pas : le 404 précède l'hydratation, donc l'`onError` n'est jamais appelé).
+    // Le proxy, lui, sert la même icône en **200** ⇒ l'`src` initial doit passer par le proxy.
+    const COMPOSANTS = [
+        "src/app/boss/[dungeonId]/_components/PublicBossDetailClient.tsx",
+        "src/components/boss-overlay/BossOverlayClient.tsx",
+        "src/components/succes/SuccesBossGuide.tsx",
+        "src/components/succes/SpellRangeGrid.tsx",
+        "src/components/boss/BossMechanicsView.tsx",
+    ];
+
+    it("le proxy sert l'espace d'icône `sort_<iconId>` (le nom du fichier disque) et l'auto-répare", () => {
+        expect(PROXY).toMatch(/const spellIconMatch = assetType === 'spells' \? \/\^sort_\(\\d\{1,12\}\)\$\/i\.exec\(safeId\) : null;/);
+        expect(PROXY).toMatch(/if \(spellIconId > 0\) \{/);
+        // Candidats DofusDB dans l'ordre réel : `sort_<iconId>.png` d'abord (l'id seul n'existe pas).
+        expect(PROXY).toContain("`https://api.dofusdb.fr/img/spells/sort_${spellIconId}.png`");
+        // Le dump Game data est indexé par iconId : légitime ici (contrairement à l'espace d'entité).
+        expect(PROXY).toContain("const dumpFile = findGodFile(String(spellIconId));");
+    });
+
+    it("les 5 surfaces de sorts passent par `resolveSpellIconUrl`, aucune ne rend le chemin disque", () => {
+        for (const path of COMPOSANTS) {
+            const code = codeOf(path);
+            expect(code, path).not.toMatch(/uploads\/assets-dofus\/spells\/sort_/);
+            expect(code, path).toContain("resolveSpellIconUrl");
+        }
+    });
+});
+
 describe("icône de sort — DofusDB est l'autorité, jamais une image d'un autre sort", () => {
+
     it("le `?url=` n'est plus une source pour les sorts (CDN par défaut = icône étrangère)", () => {
         expect(PROXY).toMatch(/let spellIconHandled = false;/);
         expect(PROXY).toMatch(/if \(isNumericId && assetType === 'spells'\) \{/);

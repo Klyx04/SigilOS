@@ -2,6 +2,7 @@ import React, { useMemo, useState } from "react";
 import { Shield, RefreshCw, Users, Lock, Clock, Sparkles, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { cleanDofusText } from "@/lib/dofus-spells";
+import { resolveSpellIconUrl } from "@/lib/dofus-image-url";
 
 export interface BossPassiveEffect {
   effectId?: number | null;
@@ -123,12 +124,9 @@ export function BossMechanicsView({
 }: BossMechanicsViewProps) {
   const [isCollapsed, setIsCollapsed] = useState(defaultCollapsed);
 
-  const iconSrc = useMemo(() => {
-    if (passive.iconId && passive.iconId > 0) {
-      return `/uploads/assets-dofus/spells/sort_${passive.iconId}.webp`;
-    }
-    return null;
-  }, [passive.iconId]);
+  // 🎯 Passif = sort du monstre : même espace d'icône que les sorts (`sort_<iconId>`) ⇒ proxy
+  // auto-réparateur, jamais le chemin disque (mesure du 11/10/2026, fiche publique KO).
+  const iconSrc = useMemo(() => resolveSpellIconUrl(passive.iconId), [passive.iconId]);
 
   return (
     <div

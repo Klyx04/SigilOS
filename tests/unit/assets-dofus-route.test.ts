@@ -274,3 +274,49 @@ describe("GET /api/assets-dofus/monsters/[id] — l'apparence suit le gfxId (aut
         expect(fetched(fetchMock).some((u) => u.includes("img/monsters"))).toBe(false);
     });
 });
+
+describe("GET /api/assets-dofus/spells/sort_<iconId> — espace d'ICÔNE (le nom fait l'identité)", () => {
+    /**
+     * 🐛 Mesure beta du 11/10/2026 (fiche publique `/boss/sam-sagaz`, avis de recherche) : 3 des
+     * 4 sorts rendaient le chemin **disque** `/uploads/assets-dofus/spells/sort_N.webp` → 404 en
+     * 0,0 ko, **sans aucune requête de repli** (`/api/assets-dofus/spells/*` absent du journal) :
+     * le 404 arrive **avant** l'hydratation, donc l'`onError` React n'est jamais attaché ⇒ icône KO.
+     * Mesures complémentaires : `/uploads/…/sort_15561.webp` → **404**, `/api/assets-dofus/spells/6267`
+     * → **200** (2 154 o de WebP), et `img/spells/sort_<iconId>.png` est la SEULE forme servie par
+     * DofusDB (`img/spells/15561.png` → 404).
+     */
+    it("sert `sort_<iconId>` depuis `img/spells/sort_<iconId>.png` et l'écrit sous CE nom", async () => {
+        const calls: string[] = [];
+        const fetchMock = vi.fn((url: any) => {
+            const u = String(url);
+            calls.push(u);
+            return Promise.resolve(u.includes("/img/spells/sort_15561.png") ? imageResponse() : { ok: false, status: 404, headers: new Headers(), arrayBuffer: async () => new ArrayBuffer(0) } as any);
+        });
+        vi.stubGlobal("fetch", fetchMock);
+        mockExistsSync.mockReturnValue(false);
+
+        const res = await GET(req("http://localhost/api/assets-dofus/spells/sort_15561"), ctx("spells", "sort_15561"));
+
+        expect(res.status).toBe(200);
+        expect(res.headers.get("content-type")).toBe("image/webp");
+        // ⚠️ `15561` est un **iconId** : la fiche du SORT 15561 ne doit JAMAIS être interrogée
+        // (elle existe et servirait l'icône d'un autre sort — c'est le piège mesuré).
+        expect(calls).toEqual(["https://api.dofusdb.fr/img/spells/sort_15561.png"]);
+        // Le fichier siphonné porte le nom attendu par les 5 surfaces ⇒ auto-réparation.
+        expect(String(mockWriteFile.mock.calls[0][0])).toMatch(/[\\/]sort_15561\.webp$/);
+    });
+
+    it("webp `sort_<iconId>` déjà siphonné → 200 sur disque, aucun appel réseau", async () => {
+        const fetchMock = vi.fn();
+        vi.stubGlobal("fetch", fetchMock);
+        mockExistsSync.mockReturnValue(true);
+        mockReadFileSync.mockReturnValue(Buffer.alloc(100));
+
+        const res = await GET(req("http://localhost/api/assets-dofus/spells/sort_15561"), ctx("spells", "sort_15561"));
+
+        expect(res.status).toBe(200);
+        expect(res.headers.get("content-type")).toBe("image/webp");
+        expect(fetchMock).not.toHaveBeenCalled();
+    });
+});
+

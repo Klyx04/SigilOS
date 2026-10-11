@@ -12,6 +12,7 @@ import { logger } from "@/lib/logger";
 import { buildBountyBestiaireEntry } from "@/lib/bounty-fiche";
 import { resolveSubAreaCenter } from "@/lib/zone-minimap";
 import { normalizeDofusAssetStoredUrl } from "@/lib/dofus-image-url";
+import { NO_ACHIEVEMENT_CHALLENGE_SLUG } from "@/lib/dungeon-no-achievement";
 import { sanitizeHtml } from "@/lib/security";
 import { dofusDbFetch } from "@/lib/dofusdb-limiter";
 import { diffFields, recordGameDataChanges } from "@/lib/game-data-changelog";
@@ -274,7 +275,17 @@ export async function getDungeonsWithAchievements(): Promise<ActionResponse<any[
             include: { achievements: { include: { challenge: true } } },
             orderBy: { level: 'asc' }
         });
-        return { success: true, data: dungeons };
+        // « Donjon validé » retiré (11/10/2026) : ce pseudo-succès n'est plus publié à AUCUN
+        // consommateur (hub Succès **et** « Mes Succès », qui compte `achievements.length` pour ses
+        // totaux et ses « tranches complètes ») — même si une ligne résiduelle traîne en base avant
+        // la purge (`scripts/succes-speciaux.ts retirer-donjon-valide`).
+        const data = dungeons.map((dungeon) => ({
+            ...dungeon,
+            achievements: (dungeon.achievements ?? []).filter(
+                (achievement: any) => achievement?.challenge?.slug !== NO_ACHIEVEMENT_CHALLENGE_SLUG
+            ),
+        }));
+        return { success: true, data };
     } catch (error) {
         logger.error('[getDungeonsWithAchievements] Error:', { error });
         return { success: false, error: 'Erreur lors du chargement' };

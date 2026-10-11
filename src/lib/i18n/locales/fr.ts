@@ -97,7 +97,7 @@ export const fr = {
     // Landing Page
     landing: {
         badge: "BÊTA OUVERTE · v2.2",
-        heroTitle: "Le tableau de bord de ta guilde Dofus.",
+        heroTitle: "Toute ta guilde Dofus, réunie au même endroit.",
         heroDesc: "Sorties, quêtes et progression au même endroit. Les membres passent par Discord ; SigilOS ne demande aucun accès au compte Ankama.",
         ctaConfigure: "Configurer ma guilde",
         ctaModules: "Voir les modules →",

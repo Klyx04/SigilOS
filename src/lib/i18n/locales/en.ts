@@ -100,7 +100,7 @@ export const en: Translations = {
     // Landing Page
     landing: {
         badge: "OPEN BETA · v2.2",
-        heroTitle: "Your Dofus guild dashboard.",
+        heroTitle: "Your whole Dofus guild, gathered in one place.",
         heroDesc: "Outings, quests, and member progression in one shared space. Members connect through Discord; SigilOS never requests access to your Ankama account.",
         ctaConfigure: "Set up my guild",
         ctaModules: "Explore modules →",

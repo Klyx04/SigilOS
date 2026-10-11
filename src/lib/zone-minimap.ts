@@ -4,15 +4,26 @@
  *
  * Source de vérité de la géométrie de zone : `subareas[].shape` de
  * `worldmap.json` — exactement le tracé utilisé par le bouton « Zones » de la
- * carte (`zoneHighlight`). Une case (gx, gy) a son centre au pixel
- * `(origineX + gx*mapWidth + mapWidth/2) * scale` : c'est la formule des
- * marqueurs (`resolveMinimapTile`), donc le tracé tombe sur les mêmes tuiles.
+ * carte (`zoneHighlight`).
+ *
+ * ⚠️ **Deux espaces de coordonnées**, à ne jamais confondre :
+ * - un **sommet de tracé** est un **coin de case** : il tombe au pixel
+ *   `(origineX + gx*mapWidth) * scale` — c'est la formule du renderer monde
+ *   (`toCP`, `ox + gx*mw`), donc le contour se superpose exactement au bouton
+ *   « Zones » ;
+ * - une **position de map** est un **indice de case** : son centre est au coin
+ *   plus une demi-case, `(origineX + gx*mapWidth + mapWidth/2) * scale`
+ *   (formule des marqueurs, `resolveMinimapTile`).
+ * Ajouter `mapWidth/2` à un sommet (bug corrigé le 11/10/2026) décalait tout
+ * l'encart d'une demi-tuile en X et en Y — mesuré : sous-zone 883 « Nimotopia »,
+ * tracé borné x [-68, -61] / y [28, 35] contre maps x [-68, -62] / y [28, 34]
+ * (un tracé vaut toujours la boîte des maps **plus une case**).
  *
  * Le cadrage choisit automatiquement l'échelle : la plus zoomée où la zone
  * tient dans `maxCols × maxRows` tuiles, sinon la moins zoomée (le tracé est
  * alors rogné par le conteneur — jamais déformé : la fenêtre reste carrée).
  */
-import { hasKnownGameCoords, resolveTileBank } from "./worldmap-tiles";
+import { hasKnownGameCoords, resolveTileBank, WORLDMAP_TILE_SIZE } from "./worldmap-tiles";
 import type { MinimapWorld } from "./dungeon-minimap";
 
 /** Un point en coordonnées de jeu (indice de case). */
@@ -33,6 +44,9 @@ export interface ZoneShapeFrame {
     polygons: ZonePoint[][];
     bounds: ZoneBounds;
     /** Centre de l'icône : centroïde du plus grand polygone. */
+    /** Le plus fourni des polygones (contour principal) — emprise du libellé de zone. */
+    main: ZonePoint[];
+
     focus: ZonePoint;
 }
 
@@ -68,6 +82,8 @@ export interface ZoneMinimapOptions {
     minScaleIndex?: number;
     /** Centre de repli quand la zone n'a pas de tracé exploitable. */
     fallbackCenter?: ZonePoint | null;
+    /** Sous-zones à activer à l'ouverture de la carte (calque « Zones » du lien profond). */
+    zoneIds?: number[] | null;
 }
 
 export const ZONE_MINIMAP_MAX_COLS = 5;
@@ -129,7 +145,7 @@ export function parseZoneShape(shape: unknown): ZoneShapeFrame | null {
         y: main.reduce((sum, p) => sum + p.y, 0) / main.length,
     };
 
-    return { polygons, bounds: { minX, maxX, minY, maxY }, focus };
+    return { polygons, bounds: { minX, maxX, minY, maxY }, focus, main };
 }
 
 /**
@@ -214,11 +230,6 @@ export function resolveSubAreaCenter(
     return null;
 }
 
-/** Taille d'une tuile : 256 px (monde 1) ou 250 px (autres mondes). */
-export function zoneTileSize(worldId: number): number {
-    return worldId === 1 ? 256 : 250;
-}
-
 /**
  * Calcule l'encart statique d'une zone : fenêtre de tuiles alignée sur la
  * grille, tracé et icône exprimés dans les coordonnées de cette fenêtre.
@@ -239,9 +250,10 @@ export function resolveZoneMinimap(
     const maxRows = Math.max(1, options.maxRows ?? ZONE_MINIMAP_MAX_ROWS);
     const marginTiles = Math.max(0, options.marginTiles ?? ZONE_MINIMAP_MARGIN_TILES);
     const minScaleIndex = Math.max(0, options.minScaleIndex ?? 1);
+    const zoneIds = (options.zoneIds ?? []).filter((id) => Number.isInteger(id) && id > 0);
 
     const scales = Array.isArray(world.zoom) && world.zoom.length > 0 ? world.zoom : [1];
-    const tileSize = zoneTileSize(world.id);
+    const tileSize = WORLDMAP_TILE_SIZE;
     const lastIndex = scales.length - 1;
 
     const bounds: ZoneBounds = frame
@@ -276,8 +288,15 @@ export function resolveZoneMinimap(
     const gridScale = parseFloat(scale.toFixed(4));
     if (!(gridScale > 0)) return null;
 
-    const toPixelX = (gx: number) => (world.origineX + gx * world.mapWidth + world.mapWidth / 2) * gridScale;
-    const toPixelY = (gy: number) => (world.origineY + gy * world.mapHeight + world.mapHeight / 2) * gridScale;
+    // Sommet de tracé = **coin** de case : même formule que le renderer monde.
+    const vertexToPixelX = (gx: number) => (world.origineX + gx * world.mapWidth) * gridScale;
+    const vertexToPixelY = (gy: number) => (world.origineY + gy * world.mapHeight) * gridScale;
+    // Position de **map** = indice de case : son centre est une demi-case plus loin.
+    const cellToPixelX = (gx: number) => (world.origineX + gx * world.mapWidth + world.mapWidth / 2) * gridScale;
+    const cellToPixelY = (gy: number) => (world.origineY + gy * world.mapHeight + world.mapHeight / 2) * gridScale;
+    // `centerGame`/`focus` vivent dans l'espace des sommets s'il y a un tracé, des cases sinon.
+    const centerToPixelX = frame ? vertexToPixelX : cellToPixelX;
+    const centerToPixelY = frame ? vertexToPixelY : cellToPixelY;
 
     const totalCols = Math.ceil((world.totalWidth * gridScale) / tileSize);
     const totalRows = Math.ceil((world.totalHeight * gridScale) / tileSize);
@@ -286,8 +305,8 @@ export function resolveZoneMinimap(
     const cols = clamp(Math.ceil((spanX * world.mapWidth * gridScale + marginPx) / tileSize), 1, maxCols);
     const rows = clamp(Math.ceil((spanY * world.mapHeight * gridScale + marginPx) / tileSize), 1, maxRows);
 
-    const tx0 = clamp(Math.round((toPixelX(centerGame.x) - (cols * tileSize) / 2) / tileSize), 0, Math.max(0, totalCols - cols));
-    const ty0 = clamp(Math.round((toPixelY(centerGame.y) - (rows * tileSize) / 2) / tileSize), 0, Math.max(0, totalRows - rows));
+    const tx0 = clamp(Math.round((centerToPixelX(centerGame.x) - (cols * tileSize) / 2) / tileSize), 0, Math.max(0, totalCols - cols));
+    const ty0 = clamp(Math.round((centerToPixelY(centerGame.y) - (rows * tileSize) / 2) / tileSize), 0, Math.max(0, totalRows - rows));
 
     const windowLeft = tx0 * tileSize;
     const windowTop = ty0 * tileSize;
@@ -313,7 +332,7 @@ export function resolveZoneMinimap(
     const round = (value: number) => Math.round(value * 10) / 10;
     const polygons = (frame?.polygons ?? []).map((polygon) =>
         polygon
-            .map((point) => `${round(toPixelX(point.x) - windowLeft)},${round(toPixelY(point.y) - windowTop)}`)
+            .map((point) => `${round(vertexToPixelX(point.x) - windowLeft)},${round(vertexToPixelY(point.y) - windowTop)}`)
             .join(" ")
     );
 
@@ -322,6 +341,12 @@ export function resolveZoneMinimap(
     // est ramenée dans les 3-97 % pour rester entièrement visible.
     const clampPct = (value: number) => Math.max(3, Math.min(97, value));
 
+    // Cellule visée par le lien profond : un **sommet** (coin) appartient à la
+    // cellule du coin (floor) ; une position de map est déjà un indice (round).
+    const centerCellX = frame ? Math.floor(centerGame.x) : Math.round(centerGame.x);
+    const centerCellY = frame ? Math.floor(centerGame.y) : Math.round(centerGame.y);
+    const zoneQuery = zoneIds.length > 0 ? `&zone=${zoneIds.join(",")}` : "";
+
     return {
         cols,
         rows,
@@ -329,10 +354,10 @@ export function resolveZoneMinimap(
         polygons,
         widthPx,
         heightPx,
-        focusLeftPct: clampPct(((toPixelX(focus.x) - windowLeft) / widthPx) * 100),
-        focusTopPct: clampPct(((toPixelY(focus.y) - windowTop) / heightPx) * 100),
+        focusLeftPct: clampPct(((centerToPixelX(focus.x) - windowLeft) / widthPx) * 100),
+        focusTopPct: clampPct(((centerToPixelY(focus.y) - windowTop) / heightPx) * 100),
         zoom: -scaleIndex,
         worldId: world.id,
-        mapHref: `/carte-du-monde?play=1&x=${Math.round(centerGame.x)}&y=${Math.round(centerGame.y)}&zoom=${-scaleIndex}&world=${world.id}`,
+        mapHref: `/carte-du-monde?play=1&x=${centerCellX}&y=${centerCellY}&zoom=${-scaleIndex}&world=${world.id}${zoneQuery}`,
     };
 }

@@ -11,11 +11,19 @@
  */
 import * as fs from "fs";
 import * as path from "path";
+import { zoneNameKey } from "./zone-label";
 
 export const IGNORED_FAMILIES_PATH = path.join(process.cwd(), "public", "game-data", "ignored-families.json");
 export const IGNORED_ZONES_PATH = path.join(process.cwd(), "public", "game-data", "ignored-zones.json");
 export const IGNORED_DUNGEONS_PATH = path.join(process.cwd(), "public", "game-data", "ignored-dungeons.json");
 export const IGNORED_CHALLENGES_PATH = path.join(process.cwd(), "public", "game-data", "ignored-challenges.json");
+/**
+ * Libellés **masqués de la carte du monde** (God → Données de jeu → Éditeurs → Zones).
+ * Fichier séparé volontairement : `ignored-zones.json` exclut une zone des **siphons**
+ * (elle disparaît de la table `Zone`), ce n'est pas la même intention que « je ne veux
+ * plus ce nom dessiné sur la carte » — la confondre ferait disparaître des données.
+ */
+export const HIDDEN_MAP_ZONES_PATH = path.join(process.cwd(), "public", "game-data", "hidden-map-zones.json");
 
 /** Familles jamais siphonnées (bruit structurel de DofusDB, pas des monstres jouables). */
 export const DEFAULT_IGNORED_FAMILY_PATTERNS = [
@@ -65,6 +73,33 @@ export function isIgnoredFamily(name?: string | null): boolean {
 export function isIgnoredZone(name?: string | null): boolean {
     if (!name) return false;
     return getIgnoredZones().includes(name.trim().toLowerCase());
+}
+
+// ─── Libellés masqués de la carte du monde (God → Données de jeu → Zones) ────
+//
+// 🐛 Mesure du 11/10/2026 : les libellés de zone de la carte du monde sont dessinés
+// depuis `worldmap.json` (`/game-data/…`, jamais depuis la table `Zone`) ⇒ la liste
+// d'exclusion ci-dessus n'avait **aucun** effet visible sur la carte, et aucun écran
+// God n'écrivait ce fichier (« je peux les supprimer depuis God ? » → non).
+//
+// Cette liste est lue par le **renderer navigateur** en statique
+// (`/game-data/hidden-map-zones.json`), donc sans importer ce module (il lit le
+// disque) : `isHiddenMapZone` sert au God/aux outils serveur, `zoneNameKey` garantit
+// que les deux étages comparent les noms de la même façon.
+//
+// ⚠️ `scripts/deploy-cd.sh` la déclare PRESERVED : la curation du serveur survit au
+// pull (sinon chaque déploiement ressusciterait des libellés retirés).
+
+/** Liste des noms masqués (`public/game-data/hidden-map-zones.json`). */
+export function getHiddenMapZones(): string[] {
+    return readNamesFile(HIDDEN_MAP_ZONES_PATH);
+}
+
+/** Un libellé est-il masqué ? (`hidden` évite une relecture disque dans une boucle.) */
+export function isHiddenMapZone(name?: string | null, hidden?: string[]): boolean {
+    const key = zoneNameKey(name);
+    if (!key) return false;
+    return (hidden ?? getHiddenMapZones()).some((entry) => zoneNameKey(entry) === key);
 }
 
 // ─── Donjons & succès : anti-résurrection (backlog ⑥, 27/09/2026) ────────────

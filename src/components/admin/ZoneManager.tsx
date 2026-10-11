@@ -22,7 +22,11 @@ import {
     getDungeons, 
     getIgnoredZonesAction,
     restoreIgnoredZoneAction,
-    clearAllIgnoredZonesAction
+    clearAllIgnoredZonesAction,
+    getHiddenMapZonesAction,
+    hideMapZoneLabelAction,
+    restoreHiddenMapZoneAction,
+    clearHiddenMapZonesAction
 } from "@/server/actions/game-data-actions";
 import { 
     MapPin, 
@@ -36,6 +40,8 @@ import {
     ChevronRight,
     RotateCcw,
     ShieldAlert,
+    EyeOff,
+    Eye,
 } from "lucide-react";
 import {
     DropdownMenu,
@@ -72,9 +78,13 @@ export default function ZoneManager() {
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
     const [selectedLevel, setSelectedLevel] = useState<string>("all");
-    const [viewMode, setViewMode] = useState<'active' | 'ignored'>('active');
+    const [viewMode, setViewMode] = useState<'active' | 'ignored' | 'hiddenMap'>('active');
     const [currentPage, setCurrentPage] = useState(1);
     const [restoringName, setRestoringName] = useState<string | null>(null);
+    /** Noms dont le libellé est masqué sur la carte du monde (fichier lu par la carte). */
+    const [hiddenMapZones, setHiddenMapZones] = useState<string[]>([]);
+    const [hiddenName, setHiddenName] = useState("");
+    const [hiddenBusy, setHiddenBusy] = useState<string | null>(null);
 
     const [formData, setFormData] = useState({
         name: "",
@@ -87,6 +97,13 @@ export default function ZoneManager() {
         const res = await getIgnoredZonesAction();
         if (res.success && res.data) {
             setIgnoredZones(res.data);
+        }
+    };
+
+    const loadHiddenMapZones = async () => {
+        const res = await getHiddenMapZonesAction();
+        if (res.success && res.data) {
+            setHiddenMapZones(res.data);
         }
     };
 
@@ -125,6 +142,7 @@ export default function ZoneManager() {
             setDungeons(dungeonsRes.data);
         }
         await loadIgnored();
+        await loadHiddenMapZones();
         setLoading(false);
         setCurrentPage(1);
     }
@@ -184,6 +202,74 @@ export default function ZoneManager() {
         }
     };
 
+    /**
+     * Masque un libellé de zone sur la carte du monde (God → Données de jeu → Zones).
+     * ⚠️ Ce n'est **pas** une suppression de zone : la table `Zone`, les siphons DofusDB et
+     * les avis ne sont pas touchés — seule la liste lue par la carte change.
+     */
+    const handleHideLabel = async (name: string) => {
+        const label = name.trim();
+        if (!label) {
+            toast.error("Indiquez le nom de la zone tel qu'il s'affiche sur la carte.");
+            return;
+        }
+        setHiddenBusy(label);
+        try {
+            const res = await hideMapZoneLabelAction(label);
+            if (res.success && res.data) {
+                setHiddenMapZones(res.data.names);
+                setHiddenName("");
+                if (res.data.matched) {
+                    toast.success(`« ${label} » ne sera plus affiché sur la carte du monde.`);
+                } else {
+                    // Honnête : le nom est enregistré, mais aucun libellé de la carte ne porte
+                    // ce nom → rien ne changera tant qu'il n'est pas corrigé.
+                    toast.warning(
+                        `« ${label} » enregistré, mais aucun libellé de la carte ne porte ce nom — vérifiez l'orthographe (la carte affiche les noms officiels).`
+                    );
+                }
+            } else {
+                toast.error(res.error || "Masquage impossible");
+            }
+        } catch {
+            toast.error("Erreur serveur");
+        } finally {
+            setHiddenBusy(null);
+        }
+    };
+
+    const handleRestoreHidden = async (name: string) => {
+        setHiddenBusy(name);
+        try {
+            const res = await restoreHiddenMapZoneAction(name);
+            if (res.success && res.data) {
+                setHiddenMapZones(res.data);
+                toast.success(`« ${name} » réaffiché sur la carte du monde.`);
+            } else {
+                toast.error(res.error || "Réaffichage impossible");
+            }
+        } catch {
+            toast.error("Erreur serveur");
+        } finally {
+            setHiddenBusy(null);
+        }
+    };
+
+    const handleClearHidden = async () => {
+        if (!confirm("Réafficher tous les libellés de zone masqués sur la carte du monde ?")) return;
+        try {
+            const res = await clearHiddenMapZonesAction();
+            if (res.success) {
+                setHiddenMapZones(res.data ?? []);
+                toast.success("Tous les libellés masqués sont réaffichés.");
+            } else {
+                toast.error(res.error || "Réinitialisation impossible");
+            }
+        } catch {
+            toast.error("Erreur serveur");
+        }
+    };
+
     function resetForm() {
         setFormData({ name: "", level: 200, familyIds: [], dungeonIds: [] });
         setEditing(null);
@@ -212,7 +298,17 @@ export default function ZoneManager() {
         );
     }, [ignoredZones, searchQuery]);
 
-    const totalItems = viewMode === 'ignored' ? filteredIgnored.length : filteredZones.length;
+    const filteredHidden = useMemo(() => {
+        return hiddenMapZones.filter(name =>
+            name.toLowerCase().includes(searchQuery.toLowerCase())
+        );
+    }, [hiddenMapZones, searchQuery]);
+
+    const totalItems = viewMode === 'ignored'
+        ? filteredIgnored.length
+        : viewMode === 'hiddenMap'
+            ? filteredHidden.length
+            : filteredZones.length;
     const totalPages = Math.max(1, Math.ceil(totalItems / PAGE_SIZE));
     const paginatedZones = useMemo(() => {
         const start = (currentPage - 1) * PAGE_SIZE;
@@ -223,6 +319,11 @@ export default function ZoneManager() {
         const start = (currentPage - 1) * PAGE_SIZE;
         return filteredIgnored.slice(start, start + PAGE_SIZE);
     }, [filteredIgnored, currentPage]);
+
+    const paginatedHidden = useMemo(() => {
+        const start = (currentPage - 1) * PAGE_SIZE;
+        return filteredHidden.slice(start, start + PAGE_SIZE);
+    }, [filteredHidden, currentPage]);
 
     return (
         <div className="space-y-4">
@@ -238,7 +339,7 @@ export default function ZoneManager() {
                     />
                 </div>
 
-                {/* View Switch: Active vs Ignored */}
+                {/* View Switch : Toutes · Exclues (siphons DofusDB) · Masquées (carte du monde) */}
                 <div className="flex items-center gap-1.5">
                     <button
                         onClick={() => { setViewMode('active'); setCurrentPage(1); }}
@@ -263,6 +364,23 @@ export default function ZoneManager() {
                         {ignoredZones.length > 0 && (
                             <span className="px-1.5 py-0.2 rounded-full bg-rose-500/20 text-rose-500 text-caption font-black">
                                 {ignoredZones.length}
+                            </span>
+                        )}
+                    </button>
+                    <button
+                        onClick={() => { setViewMode('hiddenMap'); setCurrentPage(1); }}
+                        className={`px-3 py-2 rounded-xl text-xs font-bold border transition-all flex items-center gap-1.5 ${
+                            viewMode === 'hiddenMap'
+                                ? 'bg-amber-500/20 border-amber-500/40 text-amber-500'
+                                : 'bg-elevated border-border text-muted-foreground hover:text-foreground'
+                        }`}
+                        title="Libellés (nom + niveau) retirés de la carte du monde"
+                    >
+                        <EyeOff size={13} />
+                        <span>Masquées carte</span>
+                        {hiddenMapZones.length > 0 && (
+                            <span className="px-1.5 py-0.2 rounded-full bg-amber-500/20 text-amber-500 text-caption font-black">
+                                {hiddenMapZones.length}
                             </span>
                         )}
                     </button>
@@ -358,6 +476,91 @@ export default function ZoneManager() {
                         </div>
                     )}
                 </div>
+            ) : viewMode === 'hiddenMap' ? (
+                /* View: libellés retirés de la carte du monde (fichier lu par la carte) */
+                <div className="space-y-4">
+                    <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-xs space-y-2">
+                        <div className="flex items-center gap-2 text-amber-500 font-bold">
+                            <EyeOff size={16} />
+                            <span>Ces noms ne sont plus dessinés sur la carte du monde (nom + niveau).</span>
+                        </div>
+                        <p className="text-muted-foreground">
+                            La zone n&apos;est <strong className="text-foreground">pas</strong> supprimée : le
+                            référentiel « Zones », les siphons DofusDB et les avis de recherche ne sont pas touchés —
+                            seul le libellé disparaît, immédiatement. La liste est propre à ce serveur et survit aux
+                            déploiements.
+                        </p>
+                        <div className="flex flex-col sm:flex-row gap-2 pt-1">
+                            <Input
+                                value={hiddenName}
+                                onChange={(e) => setHiddenName(e.target.value)}
+                                onKeyDown={(e) => { if (e.key === 'Enter') void handleHideLabel(hiddenName); }}
+                                placeholder="Nom exact affiché sur la carte (ex : Ephedrya)"
+                                className="bg-elevated border-border text-foreground placeholder:text-muted-foreground rounded-xl"
+                            />
+                            <Button
+                                onClick={() => void handleHideLabel(hiddenName)}
+                                disabled={hiddenBusy !== null || hiddenName.trim().length === 0}
+                                className="bg-amber-500 hover:bg-amber-500/90 text-black font-bold rounded-xl shrink-0"
+                            >
+                                <EyeOff size={14} className="mr-1.5" />
+                                Masquer sur la carte
+                            </Button>
+                        </div>
+                    </div>
+
+                    {filteredHidden.length === 0 ? (
+                        <div className="text-center py-16 text-muted-foreground border border-dashed border-border rounded-2xl bg-surface/50">
+                            <p className="font-bold">Aucun libellé masqué</p>
+                            <p className="text-xs mt-1">Tous les libellés de zone de la carte du monde sont affichés.</p>
+                        </div>
+                    ) : (
+                        <div className="rounded-2xl border border-border bg-surface overflow-hidden shadow-sm">
+                            <table className="w-full text-sm">
+                                <thead>
+                                    <tr className="bg-elevated/60 border-b border-border text-muted-foreground text-xs uppercase tracking-wider">
+                                        <th className="text-left px-5 py-3">Nom masqué</th>
+                                        <th className="text-left px-5 py-3">Effet</th>
+                                        <th className="text-right px-5 py-3">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-border/50">
+                                    {paginatedHidden.map((name) => (
+                                        <tr key={name} className="hover:bg-elevated/30 transition-colors">
+                                            <td className="px-5 py-3 font-bold text-foreground">{name}</td>
+                                            <td className="px-5 py-3">
+                                                <span className="px-2.5 py-0.5 rounded-full text-caption font-bold bg-amber-500/10 text-amber-500 border border-amber-500/20">
+                                                    Libellé retiré de la carte
+                                                </span>
+                                            </td>
+                                            <td className="px-5 py-3 text-right">
+                                                <button
+                                                    onClick={() => void handleRestoreHidden(name)}
+                                                    disabled={hiddenBusy === name}
+                                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-elevated hover:bg-surface border border-border text-foreground hover:text-emerald-500 text-xs font-bold transition-all"
+                                                >
+                                                    {hiddenBusy === name ? <Loader2 size={13} className="animate-spin" /> : <Eye size={13} />}
+                                                    Réafficher
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+
+                    {hiddenMapZones.length > 0 && (
+                        <div className="flex justify-end">
+                            <button
+                                onClick={() => void handleClearHidden()}
+                                className="px-3 py-1.5 rounded-lg bg-elevated hover:bg-surface border border-border text-foreground hover:text-emerald-500 text-xs font-bold transition-all inline-flex items-center gap-1.5"
+                            >
+                                <Eye size={13} /> Tout réafficher
+                            </button>
+                        </div>
+                    )}
+                </div>
             ) : (
                 /* Grid List */
                 <>
@@ -384,6 +587,9 @@ export default function ZoneManager() {
                                             <DropdownMenuContent align="end" className="bg-surface border-border">
                                                 <DropdownMenuItem onClick={() => startEdit(zone)} className="text-foreground focus:bg-elevated cursor-pointer">
                                                     <Edit2 className="w-4 h-4 mr-2 text-primary" /> Modifier
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem onClick={() => void handleHideLabel(zone.name)} className="text-amber-500 focus:bg-amber-500/10 cursor-pointer">
+                                                    <EyeOff className="w-4 h-4 mr-2" /> Masquer de la carte
                                                 </DropdownMenuItem>
                                                 <DropdownMenuItem onClick={() => handleDelete(zone.id, zone.name)} className="text-danger focus:bg-danger/20 cursor-pointer">
                                                     <Trash2 className="w-4 h-4 mr-2" /> Supprimer
@@ -417,7 +623,7 @@ export default function ZoneManager() {
             {totalPages > 1 && (
                 <div className="flex items-center justify-between pt-4 border-t border-border/50 text-xs">
                     <span className="text-muted-foreground font-medium">
-                        Page <span className="text-foreground font-bold">{currentPage}</span> sur <span className="text-foreground font-bold">{totalPages}</span> ({totalItems} zones au total)
+                        Page <span className="text-foreground font-bold">{currentPage}</span> sur <span className="text-foreground font-bold">{totalPages}</span> ({totalItems} {viewMode === 'hiddenMap' ? 'libellés masqués' : 'zones'} au total)
                     </span>
                     <div className="flex items-center gap-1">
                         <button

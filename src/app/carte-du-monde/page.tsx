@@ -42,11 +42,11 @@ export const metadata: Metadata = {
 };
 
 type Props = {
-  searchParams: Promise<{ play?: string; x?: string; y?: string; zoom?: string; world?: string }>;
+  searchParams: Promise<{ play?: string; x?: string; y?: string; zoom?: string; world?: string; zone?: string }>;
 };
 
 export default async function CarteduMondePage({ searchParams }: Props) {
-  const { play, x, y, zoom, world } = await searchParams;
+  const { play, x, y, zoom, world, zone } = await searchParams;
 
   const session = await auth();
   const user = session?.user ?? null;
@@ -60,6 +60,11 @@ export default async function CarteduMondePage({ searchParams }: Props) {
   const yNum = y ? parseFloat(y) : undefined;
   const zoomNum = zoom ? parseInt(zoom) : undefined;
   const worldIdNum = world ? parseInt(world) : undefined;
+  // Zone activée à l'arrivée (encart « Localisation » des fiches) : sous-zones par id.
+  const initialZoneIds = (zone ?? "")
+    .split(",")
+    .map((value) => parseInt(value, 10))
+    .filter((value) => Number.isInteger(value) && value > 0);
 
   const jsonLdData = [
     {
@@ -106,6 +111,7 @@ export default async function CarteduMondePage({ searchParams }: Props) {
             initialY={yNum}
             initialZoom={zoomNum}
             initialWorldId={worldIdNum}
+            initialZoneIds={initialZoneIds}
           />
         </main>
         {!isPlay && <GalacticFooter />}

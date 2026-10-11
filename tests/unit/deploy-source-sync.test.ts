@@ -134,4 +134,20 @@ describe("scripts de déploiement — synchronisation de l'arbre de travail", ()
         expect(source).toMatch(/SERVER_DIRTY=""/);
         expect(source).toMatch(/OTHER_DIRTY=""/);
     });
+
+    it("⑧ les listes curées par le God sont les mêmes dans les deux scripts (et préservées)", () => {
+        // Mesure du 11/10/2026 : `ignored-dungeons.json` (suppressions de donjons) et
+        // `hidden-map-zones.json` (libellés de zone retirés de la carte du monde) sont SUIVIS
+        // dans le dépôt **et** écrits au runtime ⇒ absents de ces listes, chaque déploiement
+        // annulait la curation du serveur (un libellé retiré ressuscitait).
+        const cd = bashArray(deployCd(), "PRESERVED");
+        const sh = bashArray(deploySh(), "CURATED");
+        expect(sh).toEqual(cd);
+        expect(cd).toContain("public/game-data/ignored-monsters.json");
+        expect(cd).toContain("public/game-data/ignored-bounties.json");
+        expect(cd).toContain("public/game-data/ignored-dungeons.json");
+        expect(cd).toContain("public/game-data/hidden-map-zones.json");
+        // Jamais dans la classe restaurée depuis le dépôt (elle écraserait la curation).
+        expect(bashArray(deployCd(), "REPO_OWNED")).not.toContain("public/game-data/hidden-map-zones.json");
+    });
 });

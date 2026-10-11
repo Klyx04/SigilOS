@@ -1,9 +1,34 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { hasKnownGameCoords, resolveTileBank, findNearestMap } from '@/lib/worldmap-tiles';
+import { hasKnownGameCoords, resolveTileBank, findNearestMap, WORLDMAP_TILE_SIZE } from '@/lib/worldmap-tiles';
 
 // Monde des Douze : 5 niveaux [1, 0.8, 0.6, 0.4, 0.2] mappés sur zooms 0..-4.
 const DOUZE = [1, 0.8, 0.6, 0.4, 0.2];
+
+describe('WORLDMAP_TILE_SIZE', () => {
+    // Une banque compte `ceil(totalWidth*scale/250) × ceil(totalHeight*scale/250)`
+    // fichiers. Mesure du 11/10/2026 sur les tuiles réellement servies : le compte
+    // par banque vaut exactement ce produit, dans **tous** les mondes — en 256 px la
+    // banque 0,8 du monde 1 vaudrait 32×25 = 800 (servi : 832) et la banque 1 du
+    // monde 38 vaudrait 16×12 = 192 (servi : 204).
+    const pyramid = (totalWidth: number, totalHeight: number, scales: number[]) =>
+        scales.map((scale) => {
+            const gridScale = parseFloat(scale.toFixed(4));
+            const cols = Math.ceil((totalWidth * gridScale) / WORLDMAP_TILE_SIZE);
+            const rows = Math.ceil((totalHeight * gridScale) / WORLDMAP_TILE_SIZE);
+            return cols * rows;
+        });
+
+    it('reproduit la pyramide servie du monde 1 (10 000×8 000)', () => {
+        expect(pyramid(10000, 8000, [1, 0.800000011920929, 0.6000000238418579, 0.4000000059604645, 0.20000000298023224]))
+            .toEqual([1280, 832, 480, 208, 56]);
+    });
+
+    it('reproduit la pyramide servie des mondes 2 et 38 (pas d\'exception)', () => {
+        expect(pyramid(4750, 3904, [1, 0.75, 0.5, 0.25])).toEqual([304, 180, 80, 20]);
+        expect(pyramid(4085, 2861, [1, 0.75, 0.5, 0.25])).toEqual([204, 117, 54, 15]);
+    });
+});
 
 describe('resolveTileBank', () => {
     it('mappe les zooms entiers vers la bonne banque', () => {

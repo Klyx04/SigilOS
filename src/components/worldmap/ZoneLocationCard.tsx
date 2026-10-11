@@ -141,7 +141,10 @@ export function ZoneLocationCard({
 
     const minimap: ZoneMinimap | null = useMemo(() => {
         if (state.status !== "ready") return null;
-        return resolveZoneMinimap(state.world, mergeShapes(state.zones));
+        return resolveZoneMinimap(state.world, mergeShapes(state.zones), {
+            // Le lien profond active le calque « Zones » sur la zone de la fiche.
+            zoneIds: state.zones.map((zone) => zone.id),
+        });
     }, [state]);
 
     if (state.status === "hidden" || (state.status === "ready" && !minimap)) {
@@ -189,7 +192,8 @@ export function ZoneLocationCard({
                                 </div>
                             ))}
                         </div>
-                        {/* Tracé officiel de la zone — même rendu que le bouton « Zones ». */}
+                        {/* Tracé officiel de la zone — MÊME rendu que le bouton « Zones »
+                            de la carte (voile sombre + contour franc), pas un aplat orange. */}
                         <svg
                             className="pointer-events-none absolute inset-0 h-full w-full"
                             viewBox={`0 0 ${grid.widthPx} ${grid.heightPx}`}
@@ -200,8 +204,8 @@ export function ZoneLocationCard({
                                 <polygon
                                     key={index}
                                     points={points}
-                                    fill="rgba(251, 146, 60, 0.30)"
-                                    stroke="rgba(251, 146, 60, 0.95)"
+                                    fill="rgba(15, 23, 42, 0.32)"
+                                    stroke="rgba(15, 23, 42, 0.95)"
                                     strokeWidth={2}
                                     strokeLinejoin="round"
                                 />

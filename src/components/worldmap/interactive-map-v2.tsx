@@ -79,6 +79,8 @@ interface InteractiveMapProps {
     isOverlay?: boolean;
     /** Mode public : désactive toutes les interactions de guilde (succès, dungeon finder, mini-jeux). */
     isPublic?: boolean;
+    /** Sous-zones à activer à l'arrivée (calque « Zones », lien profond des fiches). */
+    initialZoneIds?: number[];
 }
 
 // Retourne l'élément plein écran actif (worldmap, mini-jeux ou bomb)
@@ -139,7 +141,8 @@ export default function InteractiveMapV2({
     showGameEntry = false,
     startFullscreen = false,
     isOverlay = false,
-    isPublic = false
+    isPublic = false,
+    initialZoneIds
 }: InteractiveMapProps) {
     const { data: sessionData } = useSession();
     const router = useRouter();
@@ -153,7 +156,7 @@ export default function InteractiveMapV2({
     // UI States
     const [search, setSearch] = useState('');
     const [showDebugGrid, setShowDebugGrid] = useState(false);
-    const [zoneHighlight, setZoneHighlight] = useState(false);
+    const [zoneHighlight, setZoneHighlight] = useState((initialZoneIds?.length ?? 0) > 0);
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [selectedPosition, setSelectedPosition] = useState<any>(null);
     const [selectedDungeon, setSelectedDungeon] = useState<Dungeon[] | null>(null);
@@ -220,7 +223,7 @@ export default function InteractiveMapV2({
     const [bountyList, setBountyList] = useState<any[]>([]);
     const [isLoadingBounties, setIsLoadingBounties] = useState(false);
     const [activeBountyId, setActiveBountyId] = useState<string | null>(null);
-    const [pinnedSubareaId, setPinnedSubareaId] = useState<number | null>(null);
+    const [pinnedSubareaId, setPinnedSubareaId] = useState<number | null>(initialZoneIds?.[0] ?? null);
     const [highlightMarker, setHighlightMarker] = useState<{ gameX: number; gameY: number; iconUrl: string | null; worldId: number } | null>(null);
     const [selectedHarvestJobId, setSelectedHarvestJobId] = useState<number>(2); // Bûcheron
     const [selectedHarvestResourceIds, setSelectedHarvestResourceIds] = useState<Set<number>>(new Set());
@@ -2317,6 +2320,8 @@ export default function InteractiveMapV2({
                             selectedPosition={selectedPosition}
                             setSelectedPosition={handleMapClick}
                             setSelectedDungeon={isOverlay ? () => {} : setSelectedDungeon}
+                            // Libellés de zone retirés depuis God (fichier statique, cf. `map-viewer`).
+                            hiddenZoneLabels={worldMap?.hiddenZoneLabels ?? []}
                             triggerCenterPosition={triggerCenterPosition}
                             triggerWorldId={initialWorldId}
                             mapsBySubAreaId={mapsBySubAreaId}

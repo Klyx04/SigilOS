@@ -22,9 +22,12 @@ import {
     getIgnoredZones,
     isIgnoredFamily,
     isIgnoredZone,
+    getHiddenMapZones,
+    HIDDEN_MAP_ZONES_PATH,
     IGNORED_FAMILIES_PATH,
     IGNORED_ZONES_PATH,
 } from "@/lib/game-data-ignores";
+import { zoneNameKey } from "@/lib/zone-label";
 import { syncZonesFromDofusDbCore } from "@/lib/zones-siphon";
 import { syncMonsterFamiliesCore } from "@/lib/monster-families-siphon";
 import { dofusdbFicheInit, getMonsterStats as getMonsterStatsCore } from "@/lib/monster-stats-core";
@@ -2231,6 +2234,112 @@ export async function clearAllIgnoredZonesAction(): Promise<ActionResponse> {
         return { success: true };
     } catch (e: any) {
         logger.error('[clearAllIgnoredZonesAction] Error:', { error: e });
+        return { success: false, error: 'Erreur lors de la réinitialisation' };
+    }
+}
+
+// --- Libellés masqués de la carte du monde (God → Données de jeu → Éditeurs → Zones) ---
+//
+// 🐛 Mesure du 11/10/2026 : ces libellés sont dessinés depuis `worldmap.json` (fichier
+// statique lu par le navigateur), **jamais** depuis la table `Zone` — les exclusions
+// ci-dessus n'avaient donc aucun effet visible sur la carte (demande user : « je peux
+// les modifier / en supprimer depuis God ? »). Ici le God écrit la liste que le
+// renderer lit : le retrait est immédiat et **siphon-proof** (aucun script de siphon
+// n'écrit ce fichier, et `deploy-cd.sh` le préserve).
+
+/** Écrit la liste (crée le dossier au besoin). Un échec remonte à l'appelant, jamais muet. */
+function writeHiddenMapZones(names: string[]): void {
+    const dir = path.dirname(HIDDEN_MAP_ZONES_PATH);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(HIDDEN_MAP_ZONES_PATH, JSON.stringify({
+        names,
+        updatedAt: new Date().toISOString()
+    }, null, 2));
+}
+
+/**
+ * Le nom correspond-il à un libellé **réellement dessiné** (sous-zone de `worldmap.json`) ?
+ * Sans ce contrôle, un « masquer » sur un nom mal orthographié n'aurait aucun effet visible
+ * et le God croirait l'avoir fait : `worldmap.json` est la seule source des libellés.
+ */
+function isDrawnZoneLabel(name: string): boolean {
+    const key = zoneNameKey(name);
+    if (!key) return false;
+    return loadWorldmapIndex().subareas.some((subArea) => {
+        const label = typeof subArea?.name === 'string' ? subArea.name : subArea?.name?.fr;
+        return zoneNameKey(label) === key;
+    });
+}
+export async function getHiddenMapZonesAction(): Promise<ActionResponse<string[]>> {
+    if (!(await canAccessGameData())) return { success: false, error: 'Accès refusé' };
+    return { success: true, data: getHiddenMapZones() };
+}
+
+/**
+ * Masque un libellé de zone sur la carte du monde (le nom **tel qu'il s'affiche**).
+ * Idempotent : la même zone (accents/casse ignorés) remplace son entrée précédente.
+ * `matched` dit si le nom correspond à un libellé réellement dessiné (`worldmap.json`) —
+ * un nom mal orthographié est accepté mais signalé, jamais validé en silence.
+ */
+export async function hideMapZoneLabelAction(name: string): Promise<ActionResponse<{ names: string[]; matched: boolean }>> {
+    if (!(await canAccessGameData())) return { success: false, error: 'Accès refusé' };
+    const session = await auth();
+    const userId = session?.user?.id;
+    if (!userId) return { success: false, error: 'Accès refusé' };
+    const limiter = await rateLimit(`god:hide-map-zone:${userId}`, 30, 60_000);
+    if (!limiter.success) return { success: false, error: 'Trop de modifications — réessayez dans une minute' };
+
+    const label = String(name ?? '').trim();
+    if (!label) return { success: false, error: 'Nom de zone requis' };
+    try {
+        const key = zoneNameKey(label);
+        const names = [...getHiddenMapZones().filter(n => zoneNameKey(n) !== key), label]
+            .sort((a, b) => a.localeCompare(b));
+        const matched = isDrawnZoneLabel(label);
+        writeHiddenMapZones(names);
+        await logGameDataWrite('hide-map-zone-label', label, { total: names.length, matched });
+        return { success: true, data: { names, matched } };
+    } catch (e) {
+        logger.error('[hideMapZoneLabelAction] Error:', { error: e });
+        return { success: false, error: 'Erreur lors du masquage du libellé' };
+    }
+}
+
+/** Réaffiche un libellé masqué — retourne la liste restante. */
+export async function restoreHiddenMapZoneAction(name: string): Promise<ActionResponse<string[]>> {
+    if (!(await canAccessGameData())) return { success: false, error: 'Accès refusé' };
+    const session = await auth();
+    const userId = session?.user?.id;
+    if (!userId) return { success: false, error: 'Accès refusé' };
+    const limiter = await rateLimit(`god:hide-map-zone:${userId}`, 30, 60_000);
+    if (!limiter.success) return { success: false, error: 'Trop de modifications — réessayez dans une minute' };
+
+    try {
+        const key = zoneNameKey(name);
+        const names = getHiddenMapZones().filter(n => zoneNameKey(n) !== key);
+        writeHiddenMapZones(names);
+        await logGameDataWrite('restore-map-zone-label', String(name ?? '').trim(), { total: names.length });
+        return { success: true, data: names };
+    } catch (e) {
+        logger.error('[restoreHiddenMapZoneAction] Error:', { error: e });
+        return { success: false, error: 'Erreur lors du réaffichage du libellé' };
+    }
+}
+
+export async function clearHiddenMapZonesAction(): Promise<ActionResponse<string[]>> {
+    if (!(await canAccessGameData())) return { success: false, error: 'Accès refusé' };
+    const session = await auth();
+    const userId = session?.user?.id;
+    if (!userId) return { success: false, error: 'Accès refusé' };
+    const limiter = await rateLimit(`god:hide-map-zone:${userId}`, 30, 60_000);
+    if (!limiter.success) return { success: false, error: 'Trop de modifications — réessayez dans une minute' };
+
+    try {
+        writeHiddenMapZones([]);
+        await logGameDataWrite('clear-map-zone-labels');
+        return { success: true, data: [] };
+    } catch (e) {
+        logger.error('[clearHiddenMapZonesAction] Error:', { error: e });
         return { success: false, error: 'Erreur lors de la réinitialisation' };
     }
 }

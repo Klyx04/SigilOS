@@ -8,8 +8,9 @@ import 'leaflet/dist/leaflet.css';
 import { Plus, Minus, Copy, Flag, CornerUpRight, Rocket, Smartphone, Layers, Compass, Pin, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { mergeCellEdges } from '@/lib/map-utils';
-import { resolveTileBank, findNearestMap, MAP_OCEAN_TONE } from '@/lib/worldmap-tiles';
+import { resolveTileBank, findNearestMap, MAP_OCEAN_TONE, WORLDMAP_TILE_SIZE } from '@/lib/worldmap-tiles';
 import { findNearestZaap, type ZaapEntry } from '@/lib/nearest-zaap';
+import { resolveZoneLabelFrame, zoneNameKey } from '@/lib/zone-label';
 import { HarvestRouteOverlay } from './harvest-route-overlay';
 import { SecretPassagesOverlay } from './secret-passages-overlay';
 import { cn } from '@/lib/utils';
@@ -81,13 +82,13 @@ function SigilTilesLayer({ activeWorld, selectedWorldId }: any) {
                 // grille est appliqué plus bas (gridScale).
                 const { scale, bank } = resolveTileBank(activeWorld.zoom || [1], coords.z);
 
-                const tileSize = selectedWorldId === 1 ? 256 : 250;
+                const tileSize = WORLDMAP_TILE_SIZE;
                 // Grille TOUJOURS au ceil, sur échelle SNAPPÉE (4 décimales) : le
                 // générateur de tuiles émet la rangée/colonne partielle (ex: w1/0.2 =
                 // 8×7=56 tuiles, pas 8×6 — avec Math.round la dernière rangée était
                 // déclarée hors-limites → trou noir permanent au dézoom). Le snap est
                 // obligatoire car worlds.json stocke des floats bruités (0.8000000119…) :
-                // sans lui, 10240*0.8000000119/256 = 32.0000004… et ceil ajoute une
+                // sans lui, 10000*0.8000000119/250 = 32.0000004… et ceil ajoute une
                 // colonne fantôme (404 → trou noir au bord droit).
                 const gridScale = parseFloat(scale.toFixed(4));
                 const apiCols = Math.ceil((activeWorld.totalWidth * gridScale) / tileSize);
@@ -105,7 +106,7 @@ function SigilTilesLayer({ activeWorld, selectedWorldId }: any) {
         const scales = activeWorld.zoom || [1];
         const minZ = -(scales.length - 1);
 
-        const layerSize = selectedWorldId === 1 ? 256 : 250;
+        const layerSize = WORLDMAP_TILE_SIZE;
 
         // @ts-expect-error Leaflet extended classes don't inherit constructor typings
         const layer = new customTileLayer('', {
@@ -172,13 +173,60 @@ function getMapMarkerImage(url: string, onLoad: () => void): HTMLImageElement | 
     return null;
 }
 
-function MapGridOverlay({ activeWorld, mapsByCoords, mapsBySubAreaId, subAreasById, showDebugGrid, isMiniMap, guessResult, selectedPosition, participants, currentUserId, highlightSubareaIds, zoneHighlight, pinnedSubareaId, highlightMarker, zaaps, onOpenZoneDetails, setSelectedPosition, isOverHudRef, mouseoutTimerRef }: any) {
+function MapGridOverlay({ activeWorld, mapsByCoords, mapsBySubAreaId, subAreasById, showDebugGrid, isMiniMap, guessResult, selectedPosition, participants, currentUserId, highlightSubareaIds, zoneHighlight, pinnedSubareaId, highlightMarker, zaaps, onOpenZoneDetails, setSelectedPosition, isOverHudRef, mouseoutTimerRef, hiddenZoneLabels }: any) {
     const map = useMap();
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
     const hoveredCellRef = useRef<string | null>(null);
     const hoveredSubAreaIdRef = useRef<number | null>(null);
     const rafRef = useRef<number>(0);
     const highlightSubareaIdsRef = useRef<number[]>([]);
+
+    /**
+     * Libellés de zone (nom + niveau) : une boîte englobante **précalculée** par
+     * sous-zone (union des sommets du tracé officiel). Le rendu ne projette que
+     * 2 coins par zone et par frame — les tracés peuvent compter des milliers de
+     * points, on ne les reparcourt jamais pendant un pan/zoom.
+     *
+     * La portée est celle du **monde affiché** : `mapsBySubAreaId` ne contient que
+     * les sous-zones qui possèdent au moins une map dans ce monde (les `shape` d'un
+     * autre monde seraient posées dans un espace de coordonnées différent).
+     */
+    const zoneLabelBoxes = useMemo(() => {
+        const boxes: { minX: number; minY: number; maxX: number; maxY: number; anchorX: number; anchorY: number; name: string; level: number; area: number }[] = [];
+        if (!subAreasById || !mapsBySubAreaId) return boxes;
+        // Libellés retirés à la main depuis God (`/game-data/hidden-map-zones.json`) : on
+        // compare avec `zoneNameKey` (casse/accents/ponctuation ignorés), la MÊME clé que
+        // l'action God — sinon un retrait resterait silencieusement sans effet.
+        const hidden = new Set<string>((hiddenZoneLabels ?? []).map(zoneNameKey));
+        for (const subAreaId of mapsBySubAreaId.keys()) {
+            const subArea = subAreasById.get(subAreaId);
+            const name = typeof subArea?.name === 'string' ? subArea.name : subArea?.name?.fr;
+            if (!name) continue;
+            if (hidden.has(zoneNameKey(name))) continue;
+            // Emprise + ancre RÉELLES : le plus grand polygone du tracé officiel, jamais
+            // l'union des polygones (le centre d'une union d'archipel tombait en pleine
+            // mer — mesuré sur le monde 1 : 80 % des libellés dans leur tracé avec l'union,
+            // 91 % avec le centroïde du plus grand polygone ; Éphedrya 15/−43.5 → 27.8/−85.5,
+            // Rives iridescentes −5.5 → −54). `null` = rien à nommer : pas de tracé
+            // exploitable, ou tracé replié à l'origine du monde (`Destin du Monde`).
+            const frame = resolveZoneLabelFrame(subArea?.shape);
+            if (!frame) continue;
+            const { minX, minY, maxX, maxY } = frame.bounds;
+            const level = Number(subArea?.level);
+            boxes.push({
+                minX, minY, maxX, maxY,
+                anchorX: frame.anchor.x,
+                anchorY: frame.anchor.y,
+                name,
+                level: Number.isFinite(level) ? level : 0,
+                area: (maxX - minX) * (maxY - minY),
+            });
+        }
+        // Les plus grandes zones posent leur libellé en premier : en cas de
+        // chevauchement, c'est la plus lisible (et la plus structurante) qui gagne.
+        boxes.sort((a, b) => b.area - a.area);
+        return boxes;
+    }, [subAreasById, mapsBySubAreaId, hiddenZoneLabels]);
 
     // ────────────────────────────────────────────────────────────────
     // Attache le canvas DIRECTEMENT sur le container du map (position fixe)
@@ -333,6 +381,7 @@ function MapGridOverlay({ activeWorld, mapsByCoords, mapsBySubAreaId, subAreasBy
                     ctx.strokeRect(Math.round(ctl.x), Math.round(ctl.y), Math.round(cbr.x - ctl.x), Math.round(cbr.y - ctl.y));
                 }
             }
+
             ctx.restore();
         }
 
@@ -387,6 +436,56 @@ function MapGridOverlay({ activeWorld, mapsByCoords, mapsBySubAreaId, subAreasBy
                     }
                 }
             });
+            ctx.restore();
+        }
+
+        // ── 1b-bis. Libellés de zone (nom + niveau) ──
+        // Toujours visibles (comme la carte de référence), mais fortement écrémés :
+        // on ne pose un libellé que si la zone occupe une surface lisible à l'écran
+        // et que le texte tient dans sa boîte. À dézoom fort presque aucune zone ne
+        // passe le filtre (aucun amas de texte) ; en zoom rapproché, les zones
+        // affichées s'espacent naturellement. Jamais sur la mini-carte.
+        if (!isMiniMap && zoneLabelBoxes.length > 0) {
+            ctx.save();
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.lineJoin = 'round';
+            const taken: { x1: number; y1: number; x2: number; y2: number }[] = [];
+            for (const zone of zoneLabelBoxes) {
+                const tl = toCP(zone.minX, zone.minY);
+                const br = toCP(zone.maxX, zone.maxY);
+                const boxW = Math.abs(br.x - tl.x);
+                const boxH = Math.abs(br.y - tl.y);
+                if (boxW < 52 || boxH < 34) continue;              // zone trop petite à l'écran
+                // Ancre = centroïde du plus grand polygone (dans le tracé), pas le centre de
+                // l'emprise : sur une zone en L ou en archipel, ce dernier tombait hors zone.
+                const anchor = toCP(zone.anchorX, zone.anchorY);
+                const cx = anchor.x;
+                const cy = anchor.y;
+                if (cx < -80 || cy < -40 || cx > size.x + 80 || cy > size.y + 40) continue;
+
+                const levelLabel = `niv. ${zone.level}`;
+                ctx.font = 'bold 11px Inter, sans-serif';
+                const labelW = Math.max(ctx.measureText(zone.name).width, ctx.measureText(levelLabel).width) + 12;
+                if (labelW > boxW) continue;                      // le libellé ne tient pas dans la zone
+
+                const rect = { x1: cx - labelW / 2, y1: cy - 15, x2: cx + labelW / 2, y2: cy + 15 };
+                if (taken.some((r) => !(rect.x2 < r.x1 || rect.x1 > r.x2 || rect.y2 < r.y1 || rect.y1 > r.y2))) continue;
+                taken.push(rect);
+
+                // Halo clair sous un texte sombre : lisible sur les tuiles vertes
+                // comme sur les zones d'océan (aucune pastille opaque pour masquer la carte).
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+                ctx.lineWidth = 3;
+                ctx.strokeText(zone.name, cx, cy - 6);
+                ctx.fillStyle = 'rgba(15, 23, 42, 0.95)';
+                ctx.fillText(zone.name, cx, cy - 6);
+
+                ctx.font = 'bold 10px Inter, sans-serif';
+                ctx.strokeText(levelLabel, cx, cy + 8);
+                ctx.fillStyle = 'rgba(71, 85, 105, 0.98)';
+                ctx.fillText(levelLabel, cx, cy + 8);
+            }
             ctx.restore();
         }
 
@@ -672,7 +771,7 @@ function MapGridOverlay({ activeWorld, mapsByCoords, mapsBySubAreaId, subAreasBy
         // Labels de coordonnées sur la grille debug
         ctx.font = 'bold 9px Inter, sans-serif';
         // L'affichage du texte des coordonnées en mode debug a été supprimé à la demande de l'utilisateur.
-    }, [map, activeWorld, mapsByCoords, mapsBySubAreaId, subAreasById, showDebugGrid, isMiniMap, guessResult, selectedPosition, participants, currentUserId, highlightSubareaIds, zoneHighlight, pinnedSubareaId, highlightMarker]);
+    }, [map, activeWorld, mapsByCoords, mapsBySubAreaId, subAreasById, showDebugGrid, isMiniMap, guessResult, selectedPosition, participants, currentUserId, highlightSubareaIds, zoneHighlight, pinnedSubareaId, highlightMarker, zoneLabelBoxes]);
 
     // ── Sync highlight ref : pulsation à 4 Hz (avant : RAF à 60 fps en continu
     // dès qu'une recherche surlignait des zones → main thread saturé en permanence).
@@ -1407,6 +1506,11 @@ interface LeafletMapCoreProps {
     showPassages?: boolean;
     onOpenZoneDetails?: (pos?: { x: number; y: number; mapId?: number; subAreaId?: number }) => void;
     isOverlay?: boolean;
+    /**
+     * Noms de zones dont le libellé (nom + niveau) ne doit PAS être dessiné —
+     * liste tenue à la main depuis God (`/game-data/hidden-map-zones.json`).
+     */
+    hiddenZoneLabels?: string[];
 }
 export default function LeafletMapCore(props: LeafletMapCoreProps) {
     // Note : le survol met à jour le HUD via DOM direct (pas de setState ici —
@@ -1421,48 +1525,37 @@ export default function LeafletMapCore(props: LeafletMapCoreProps) {
         autoCopyTravel = false, highlightSubareaIds, initialZoom: initialZoomProp, zoneHighlight,
         pinnedSubareaId = null, highlightMarker = null,
         zaaps, showZaaps, selectedHarvestResources, activeCircuit, completedHarvestSteps, onToggleHarvestStep,
-        showPassages = false, onOpenZoneDetails, isOverlay = false
+        showPassages = false, onOpenZoneDetails, isOverlay = false, hiddenZoneLabels = []
     } = props;
 
-    const correctedActiveWorld = useMemo(() => {
-        if (!activeWorld) return null;
-        // Calibration précise du Monde des Douze (id=1) :
-        // Le dataset DofusDB calcule mapWidth/mapHeight sur base d'un canevas 10000x8000
-        // Mais comme nous affichons des tuiles à 256px (40x32 tiles),
-        // Le canevas final est étiré par un facteur de (256/250) = 1.024
-        // Il FAUT appliquer ce facteur multiplicatif brut sur TOUTES les constantes de base :
-        if (activeWorld.id === 1) {
-            return {
-                ...activeWorld,
-                origineX: activeWorld.origineX * 1.024,
-                origineY: activeWorld.origineY * 1.024,
-                mapWidth: activeWorld.mapWidth * 1.024,
-                mapHeight: activeWorld.mapHeight * 1.024,
-                totalWidth: activeWorld.totalWidth * 1.024,
-                totalHeight: Math.ceil(activeWorld.totalHeight * 1.024)
-            };
-        }
-        return activeWorld;
-    }, [activeWorld]);
+    if (!activeWorld) return null;
 
-    if (!correctedActiveWorld) return null;
-
+    // Coordonnées du monde **telles quelles** : le fond de carte est pavé de tuiles
+    // de `WORLDMAP_TILE_SIZE` (250 px) et une banque couvre exactement
+    // `totalWidth x totalHeight` (mesuré sur les fichiers servis : monde 1 = 40x32,
+    // 32x26, 24x20, 16x13, 8x7 en 1 / 0,8 / 0,6 / 0,4 / 0,2). Le facteur x1.024
+    // appliqué autrefois au Monde des Douze (« tuiles affichées en 256 px ») étirait
+    // la carte de 2,4 % par rapport à l'espace des coordonnées, donc TOUT ce qui est
+    // placé par coordonnées dérivait (marqueurs, tracés de zone, encarts) — et depuis
+    // que les tuiles sont lues à leur taille réelle, la grille de demandes devenait
+    // 41x33 : une colonne fantôme décalait chaque rangée d'une tuile. Le monde 1 suit
+    // désormais la même règle que les 35 autres (cf. `WORLDMAP_TILE_SIZE`).
     if (typeof window !== 'undefined') {
-        (window as any)._activeWorld_for_crs = correctedActiveWorld;
+        (window as any)._activeWorld_for_crs = activeWorld;
     }
 
     // Dimension des tuiles du monde en cours pour combler parfaitement les trous
-    const tileSize = selectedWorldId === 1 ? 256 : 250;
+    const tileSize = WORLDMAP_TILE_SIZE;
 
     // Calculate initial center: quest target if exists, else world center
     const initialCenter = useMemo(() => {
-        if (triggerCenterPosition && correctedActiveWorld) {
-            const lat = -(correctedActiveWorld.origineY + triggerCenterPosition.y * correctedActiveWorld.mapHeight + correctedActiveWorld.mapHeight / 2);
-            const lng = correctedActiveWorld.origineX + triggerCenterPosition.x * correctedActiveWorld.mapWidth + correctedActiveWorld.mapWidth / 2;
+        if (triggerCenterPosition && activeWorld) {
+            const lat = -(activeWorld.origineY + triggerCenterPosition.y * activeWorld.mapHeight + activeWorld.mapHeight / 2);
+            const lng = activeWorld.origineX + triggerCenterPosition.x * activeWorld.mapWidth + activeWorld.mapWidth / 2;
             return [lat, lng] as [number, number];
         }
-        return [-correctedActiveWorld.totalHeight / 2, correctedActiveWorld.totalWidth / 2] as [number, number];
-    }, [triggerCenterPosition, correctedActiveWorld]);
+        return [-activeWorld.totalHeight / 2, activeWorld.totalWidth / 2] as [number, number];
+    }, [triggerCenterPosition, activeWorld]);
 
     const initialZoom = useMemo(() => {
         if (initialZoomProp !== undefined) return initialZoomProp;
@@ -1716,7 +1809,7 @@ export default function LeafletMapCore(props: LeafletMapCoreProps) {
                 style={{ height: '100%', width: '100%', outline: 'none' }}
                 zoomControl={false}
                 attributionControl={false}
-                minZoom={isMiniMap ? -6 : Math.max(selectedWorldId !== 1 ? -3 : -4, -(correctedActiveWorld.zoom?.length || 1) - 1)}
+                minZoom={isMiniMap ? -6 : Math.max(selectedWorldId !== 1 ? -3 : -4, -(activeWorld.zoom?.length || 1) - 1)}
                 maxZoom={3}
                 maxBoundsViscosity={1.0}
                 // Zoom discret (1) : les tuiles n'existent qu'aux échelles natives
@@ -1738,18 +1831,18 @@ export default function LeafletMapCore(props: LeafletMapCoreProps) {
                 <MapViewHandler
                     isMiniMap={isMiniMap}
                     guessResult={guessResult}
-                    activeWorld={correctedActiveWorld}
+                    activeWorld={activeWorld}
                     minimapZoomLevel={minimapZoomLevel}
                     minimapRecenterTrigger={minimapRecenterTrigger}
                     participants={participants}
                     triggerCenterPosition={triggerCenterPosition}
                 />
                 {/* 1. Tuiles officielles continues & multi-résolution */}
-                <SigilTilesLayer activeWorld={correctedActiveWorld} selectedWorldId={selectedWorldId} />
+                <SigilTilesLayer activeWorld={activeWorld} selectedWorldId={selectedWorldId} />
 
                 {/* 2. Grille DofusDB canvas (contour par position), contrôlée par showDebugGrid */}
                 <MapGridOverlay
-                    activeWorld={correctedActiveWorld}
+                    activeWorld={activeWorld}
                     mapsByCoords={mapsByCoords}
                     mapsBySubAreaId={mapsBySubAreaId}
                     subAreasById={subAreasById}
@@ -1764,6 +1857,7 @@ export default function LeafletMapCore(props: LeafletMapCoreProps) {
                     participants={participants}
                     currentUserId={currentUserId}
                     highlightSubareaIds={highlightSubareaIds}
+                    hiddenZoneLabels={hiddenZoneLabels}
                     zaaps={zaaps}
                     onOpenZoneDetails={onOpenZoneDetails}
                     isOverHudRef={isOverHudRef}
@@ -1772,7 +1866,7 @@ export default function LeafletMapCore(props: LeafletMapCoreProps) {
 
                 {/* 4. Interactions */}
                 <MapInteractionHandler
-                    activeWorld={correctedActiveWorld}
+                    activeWorld={activeWorld}
                     selectedWorldId={selectedWorldId}
                     mapsByCoords={mapsByCoords}
                     subAreasById={subAreasById}
@@ -1790,7 +1884,7 @@ export default function LeafletMapCore(props: LeafletMapCoreProps) {
 
                 {/* 5. GPS Narrative Pulse (Highlight for quests) */}
                 <MapNarrativeGPS 
-                    activeWorld={correctedActiveWorld} 
+                    activeWorld={activeWorld} 
                     triggerCoords={triggerCenterPosition} 
                     triggerWorldId={triggerWorldId}
                     currentWorldId={selectedWorldId}
@@ -1799,7 +1893,7 @@ export default function LeafletMapCore(props: LeafletMapCoreProps) {
                 {/* 5bis. Zaaps & GPS Récolte Opti-Farm */}
                 {!isMiniMap && (
                     <HarvestRouteOverlay
-                        activeWorld={correctedActiveWorld}
+                        activeWorld={activeWorld}
                         zaaps={zaaps}
                         showZaaps={showZaaps}
                         selectedResources={selectedHarvestResources}
@@ -1814,7 +1908,7 @@ export default function LeafletMapCore(props: LeafletMapCoreProps) {
                 {/* 5ter. Passages Secrets, Souterrains & Raccourcis */}
                 {!isMiniMap && (
                     <SecretPassagesOverlay
-                        activeWorld={correctedActiveWorld}
+                        activeWorld={activeWorld}
                         showPassages={showPassages}
                         zaaps={zaaps}
                         showZaaps={showZaaps}
@@ -1826,8 +1920,8 @@ export default function LeafletMapCore(props: LeafletMapCoreProps) {
 
                 {/* 6. Dungeon markers (Uniquement si pas mini-map) */}
                 {!isMiniMap && groupedDungeons && groupedDungeons.map((group: any) => {
-                    const px = correctedActiveWorld.origineX + group.mapNode.x * correctedActiveWorld.mapWidth + correctedActiveWorld.mapWidth / 2;
-                    const py = correctedActiveWorld.origineY + group.mapNode.y * correctedActiveWorld.mapHeight + correctedActiveWorld.mapHeight / 2;
+                    const px = activeWorld.origineX + group.mapNode.x * activeWorld.mapWidth + activeWorld.mapWidth / 2;
+                    const py = activeWorld.origineY + group.mapNode.y * activeWorld.mapHeight + activeWorld.mapHeight / 2;
                     const dCount = group.dungeons.length;
 
                     const isOcre = !!(group as any).isOcreQuest;
@@ -1857,7 +1951,7 @@ export default function LeafletMapCore(props: LeafletMapCoreProps) {
 
                 <ExternalController 
                     triggerCenterPosition={triggerCenterPosition} 
-                    activeWorld={correctedActiveWorld} 
+                    activeWorld={activeWorld} 
                     minimapRecenterTrigger={minimapRecenterTrigger} 
                     interactive={interactive}
                     initialZoom={initialZoom}

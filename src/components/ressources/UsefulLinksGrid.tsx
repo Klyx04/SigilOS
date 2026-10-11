@@ -151,22 +151,11 @@ export function UsefulLinksGrid({ guildId, isSuperAdmin }: { guildId: string, is
                                         href={link.url}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="group/link flex items-center gap-3 p-2.5 rounded-xl transition-all duration-200"
-                                        style={{
-                                            border: "1px solid transparent",
-                                        }}
-                                        onMouseEnter={(e) => {
-                                            (e.currentTarget as HTMLElement).style.background = `${cat.color}08`;
-                                            (e.currentTarget as HTMLElement).style.borderColor = `${cat.color}18`;
-                                        }}
-                                        onMouseLeave={(e) => {
-                                            (e.currentTarget as HTMLElement).style.background = "transparent";
-                                            (e.currentTarget as HTMLElement).style.borderColor = "transparent";
-                                        }}
+                                        className="group/link flex items-center gap-3 p-2.5 rounded-xl border border-transparent hover:border-border-strong hover:bg-elevated transition-colors"
+                                        title={link.title}
                                     >
                                         <div
-                                            className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 text-lg transition-transform duration-200 group-hover/link:scale-110 overflow-hidden relative"
-                                            style={{ background: `${cat.color}10`, border: `1px solid ${cat.color}20` }}
+                                            className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 text-lg bg-elevated border border-border overflow-hidden relative"
                                         >
                                             {(() => {
                                                 try {
@@ -187,17 +176,12 @@ export function UsefulLinksGrid({ guildId, isSuperAdmin }: { guildId: string, is
 
                                         <div className="flex-1 min-w-0">
                                             <div className="flex items-center gap-2">
-                                                <span className="text-sm font-semibold text-foreground group-hover/link:text-foreground/90 transition-colors truncate">
+                                                <span className="text-sm font-semibold text-foreground truncate">
                                                     {link.title}
                                                 </span>
                                                 {link.isOfficial && (
                                                     <span
-                                                        className="text-caption font-black uppercase tracking-widest px-1.5 py-0.5 rounded-full flex-shrink-0"
-                                                        style={{
-                                                            background: "rgba(239,68,68,0.12)",
-                                                            color: "#ef4444",
-                                                            border: "1px solid rgba(239,68,68,0.2)",
-                                                        }}
+                                                        className="text-caption font-bold uppercase tracking-widest px-1.5 py-0.5 rounded-full flex-shrink-0 bg-danger/10 text-danger border border-danger/20"
                                                     >
                                                         Officiel
                                                     </span>
@@ -207,8 +191,7 @@ export function UsefulLinksGrid({ guildId, isSuperAdmin }: { guildId: string, is
                                         </div>
 
                                         <ExternalLink
-                                            className="h-3.5 w-3.5 flex-shrink-0 opacity-0 group-hover/link:opacity-100 transition-opacity duration-200"
-                                            style={{ color: cat.color }}
+                                            className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground"
                                         />
                                     </a>
 

@@ -721,7 +721,6 @@ export const fr = {
         breadcrumbBoss: "Fiches Boss & Donjons",
         backHome: "Accueil",
         freeBadge: "Accès libre · sans inscription",
-        tacticalBadge: "Bestiaire tactique",
         eyebrow: "Encyclopédie des combats",
         title: "Fiches Boss & Donjons Dofus Unity",
         subtitle: "Caractéristiques exactes, grilles de portée des sorts, lignes de vue, placements de départ et détachement d'une mini-fenêtre par-dessus votre jeu — de quoi préparer chaque tour.",

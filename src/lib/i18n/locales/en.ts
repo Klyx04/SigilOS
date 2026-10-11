@@ -724,7 +724,6 @@ export const en: Translations = {
         breadcrumbBoss: "Boss & Dungeon Guides",
         backHome: "Home",
         freeBadge: "Free access · No sign-up required",
-        tacticalBadge: "Tactical Bestiary",
         eyebrow: "Combat Encyclopedia",
         title: "Dofus Unity Boss & Dungeon Guides",
         subtitle: "Accurate statistics, spell range grids, lines of sight, starting placements, and detachable in-game mini-window — prepare every turn.",

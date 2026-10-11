@@ -120,7 +120,7 @@ export function resolveDofusImageUrl(
 }
 
 /** Types d'assets servis par le proxy interne (`/api/assets-dofus/[type]/[id]`). */
-export type DofusAssetType = "spells" | "items" | "monsters";
+export type DofusAssetType = "spells" | "items" | "monsters" | "challenges" | "achievements";
 
 /**
  * Hôtes acceptés pour le paramètre `?url=` du proxy (allowlist SSRF du route handler).
@@ -170,7 +170,7 @@ function parseDofusDbImageUrl(rawUrl: string): { type: DofusAssetType; id: strin
     const host = url.hostname.toLowerCase();
     if (host !== "dofusdb.fr" && !host.endsWith(".dofusdb.fr")) return null;
 
-    const match = url.pathname.match(/^\/img\/(spells|items|monsters)\/(sort_)?(\d+)\.(?:png|webp|jpg)$/i);
+    const match = url.pathname.match(/^\/img\/(spells|items|monsters|challenges|achievements)\/(sort_)?(\d+)\.(?:png|webp|jpg)$/i);
     if (!match) return null;
     return { type: match[1].toLowerCase() as DofusAssetType, id: match[3], sortPrefixed: Boolean(match[2]) };
 }
@@ -220,7 +220,10 @@ export function resolveDofusAssetImageUrl(
     // `?url=` inutile (le proxy ne l'utilise pas pour les sorts).
     if (!explicitId && fromUrl?.sortPrefixed) return resolveSpellIconUrl(rawId);
 
-    return `/api/assets-dofus/${type}/${encodeURIComponent(rawId)}${upstreamQuery(upstreamUrl)}`;
+    // `challenges` / `achievements` : un seul espace d'id, et c'est l'**icône** (`img/challenges/977.png`
+    // == l'icône 977). Le `?url=` n'y est pas une source (le proxy résout lui-même) : on ne l'ajoute pas.
+    const query = type === "challenges" || type === "achievements" ? "" : upstreamQuery(upstreamUrl);
+    return `/api/assets-dofus/${type}/${encodeURIComponent(rawId)}${query}`;
 }
 
 /**

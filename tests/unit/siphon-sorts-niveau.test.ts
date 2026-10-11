@@ -122,7 +122,9 @@ describe("icône de sort — DofusDB est l'autorité, jamais une image d'un autr
         // non plus, de source prioritaire — même garde d'ordre, étendue.
         // 09/10/2026 : les OBJETS aussi sont résolus par l'API (apparence = iconId) : la meme
         // garde d'ordre les exclut du chemin direct (comme les monstres et les sorts).
-        expect(PROXY).toMatch(/if \(remoteUrl && !spellIconHandled && !monsterImageHandled && !itemIconHandled\) \{/);
+        // 11/10/2026 : les ICÔNES DE SUCCÈS (`challenges` / `achievements`) entrent dans la même
+        // garde — l'id demandé y est un iconId, DofusDB en est la seule autorité.
+        expect(PROXY).toMatch(/if \(remoteUrl && !spellIconHandled && !monsterImageHandled && !itemIconHandled && !dbIconHandled\) \{/);
     });
 
     it("un `iconId` négatif ne devient jamais une icône (`-1` → aucun candidat)", () => {

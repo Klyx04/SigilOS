@@ -1,5 +1,13 @@
 # PLAN — Succès « Spéciaux » : **vraie description + icône**, et **retrait du pseudo-succès « Donjon validé »**
 
+> ✅ **LIVRÉ le 11/10/2026** (branche `feat/succes-speciaux-donnees`) : espace d'icône
+> `challenges`/`achievements` dans le proxy · `getAchievementIconUrl` proxy-first · siphon
+> `src/lib/achievement-details-siphon.ts` · outil `scripts/succes-speciaux.ts` (`siphon` |
+> `retirer-donjon-valide`, dry-run par défaut) · pseudo-succès plus créé ni rendu.
+> **Reste (ops humain)** : jouer `siphon` puis `retirer-donjon-valide` (dry-run → `--apply`),
+> déployer, contrôler un succès spécial (fiche publique **et** interne).
+
+
 > Branche `feat/succes-speciaux-donnees` · ouvert le **11/10/2026** (plan avant code — demande user :
 > « tout dans une branche `feat/succes-speciaux-donnees` : siphon DofusDB `achievements`+`challenges`
 > (description réelle + icône via le proxy) **ET** suppression complète de “Donjon validé” »).

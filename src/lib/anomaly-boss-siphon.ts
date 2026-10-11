@@ -29,7 +29,7 @@ import { dofensiveFetch } from "@/lib/dofensive-fetch";
 import { DB_READABLE, persistMonsterStat, siphonDofensiveMapById } from "@/lib/dofensive-sync";
 import { mergeDofensiveSpells, type DofensiveSpellCombat } from "@/lib/dofensive-spells";
 import { siphonAndCompressImage } from "@/lib/dofus-asset-siphon";
-import { attachNoAchievementToDungeon } from "@/lib/dungeon-no-achievement";
+
 import { resolveUniqueDungeonSlug } from "@/server/game/dungeon-slug";
 import {
     ANOMALY_COMPANION_FAMILY_ID,
@@ -703,16 +703,16 @@ async function upsertAnomalyDungeonRow(
         if (adopted.dofusdbId == null) data.dofusdbId = input.dofusdbId;
         if (!adopted.dofensiveMonsterName) data.dofensiveMonsterName = input.bossName;
         if (!adopted.imageUrl) data.imageUrl = input.imageUrl;
-        if (!adopted.isNoAchievement) {
-            // « boss d'anomalie » = aucun succès propre : on pose le pseudo-succès seulement si la
-            // ligne n'en porte AUCUN (une curation explicite du God est respectée).
+        // « Donjon validé » retiré (11/10/2026) : le drapeau `isNoAchievement` est conservé (il dit
+        // « ce donjon n'a pas de succès »), mais plus aucun pseudo-succès n'est rattaché.
+        if (adopted && !adopted.isNoAchievement) {
+            // « boss d'anomalie » = aucun succès propre : on le note honnêtement, rien d'autre.
             const achievements = await db.dungeonAchievement.count({ where: { dungeonId: adopted.id } });
             if (achievements === 0) data.isNoAchievement = true;
         }
         if (Object.keys(data).length > 0) {
             await db.dungeon.update({ where: { id: adopted.id }, data });
         }
-        await attachNoAchievementToDungeon(adopted.id);
         return { created: false, changed: Object.keys(data).length > 0, skipped: false, id: adopted.id };
     }
 
@@ -732,12 +732,11 @@ async function upsertAnomalyDungeonRow(
             isAnomalyBoss: true,
             anomalyMapId: input.mapId,
             anomalyFamily: input.family,
-            /* « succès » = avoir vaincu le gardien (même règle qu'un donjon sans succès). */
+            /* Aucun succès propre : on le dit (le pseudo-succès « Donjon validé » est retiré). */
             isNoAchievement: true,
         },
         select: { id: true },
     });
-    await attachNoAchievementToDungeon(dungeon.id);
     return { created: true, changed: true, skipped: false, id: dungeon.id };
 }
 

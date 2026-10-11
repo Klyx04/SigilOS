@@ -53,7 +53,7 @@ export async function GET(
 ) {
     try {
         const { type, id: rawId } = await context.params;
-        const validTypes = ['monsters', 'items', 'spells'] as const;
+        const validTypes = ['monsters', 'items', 'spells', 'challenges', 'achievements'] as const;
         type AssetType = (typeof validTypes)[number];
 
         if (!validTypes.includes(type as AssetType)) {
@@ -119,10 +119,13 @@ export async function GET(
                 .filter(Boolean),
             path.join(os.homedir(), 'Desktop', 'dofus_assets'), // héritage dev (ignoré si absent)
         ];
-        const godSubDir = assetType === 'items' ? 'items_2x' : assetType === 'monsters' ? 'monsters_2x' : 'spells_2x';
+        const godSubDir = assetType === 'items' ? 'items_2x' : assetType === 'monsters' ? 'monsters_2x' : assetType === 'spells' ? 'spells_2x' : '';
 
         /** Fichier 2x local correspondant à un id, dans les racines configurées. */
         const findGodFile = (id: string): string | null => {
+            // Un type sans dump Game data (succès/challenges) n'a rien à y chercher : « aucun dump »
+            // et « dump absent » se ressemblent, mais le premier est un fait, pas un échec.
+            if (!godSubDir) return null;
             for (const root of godRoots) {
                 for (const candidate of [
                     path.join(root, godSubDir, `${id}.png`),
@@ -416,7 +419,36 @@ export async function GET(
             }
         }
 
-        // ② ESPACE D ENTITE (`<id de sort>`) : DofusDB fait autorite sur l iconId.
+        // ② ESPACE D'ICÔNE DES SUCCÈS (`challenges` / `achievements`) : DofusDB sert
+        // `img/challenges/{iconId}.png` et `img/achievements/{iconId}.png` — l'id demandé EST
+        // l'iconId (mesure du 11/10/2026 : `challenges?name.fr=Passer l'éponge` → id 979,
+        // iconId 977, `img/challenges/977.png` → 200). Même doctrine que `sort_<iconId>` : ce
+        // chemin remplace le local `/game-data/achievements/{slug}.png` qui rendait une **case
+        // noire** (404, `<img>` masqué) pour tout succès hors des 28 assets du dépôt.
+        let dbIconHandled = false;
+        if (isNumericId && (assetType === 'challenges' || assetType === 'achievements')) {
+            dbIconHandled = true;
+            try {
+                const iconRes = await fetch(`https://api.dofusdb.fr/img/${assetType}/${safeId}.png`, {
+                    headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+                    signal: AbortSignal.timeout(6_000),
+                });
+                if (iconRes.ok) {
+                    const contentType = iconRes.headers.get('content-type') || '';
+                    if (contentType.startsWith('image/') || contentType.startsWith('application/octet-stream')) {
+                        const arrayBuffer = await iconRes.arrayBuffer();
+                        if (arrayBuffer.byteLength > 0 && arrayBuffer.byteLength <= MAX_IMAGE_BYTES) {
+                            inputBuffer = Buffer.from(arrayBuffer);
+                            downloaded = true;
+                        }
+                    }
+                }
+            } catch {
+                // Icône indisponible → placeholder neutre plus bas (jamais de 404 rouge).
+            }
+        }
+
+        // ③ ESPACE D ENTITE (`<id de sort>`) : DofusDB fait autorite sur l iconId.
         if (isNumericId && assetType === 'spells') {
             spellIconHandled = true;
             try {
@@ -464,7 +496,7 @@ export async function GET(
         // Tentative 1 : Téléchargement direct depuis remoteUrl (si disponible)
         // (jamais pour les sorts : leur icône est résolue ci-dessus, cf. § SORTS ;
         //  jamais pour les monstres : apparence résolue par l'API, cf. § MONSTRES.)
-        if (remoteUrl && !spellIconHandled && !monsterImageHandled && !itemIconHandled) {
+        if (remoteUrl && !spellIconHandled && !monsterImageHandled && !itemIconHandled && !dbIconHandled) {
             try {
                 // 🔒 SSRF : re-valide DNS/IP juste avant fetch (anti-rebinding), fail-closed.
                 await assertSafeUrl(remoteUrl);

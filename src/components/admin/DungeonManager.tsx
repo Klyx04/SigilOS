@@ -87,6 +87,9 @@ const EXPEDITION_MODES = [
 
 export default function DungeonManager() {
     const [dungeons, setDungeons] = useState<Dungeon[]>([]);
+    // 🔍 Debug images ambiguës (11/10/2026) : isole les donjons homonymes qui portent la
+    // MÊME image alors que leurs boss diffèrent — là où une image de boss en masque une autre.
+    const [showAmbiguousOnly, setShowAmbiguousOnly] = useState(false);
     const [challenges, setChallenges] = useState<Challenge[]>([]);
     /* 🗑️ Donjons supprimés (exclus du seed et du siphon) — section « Restaurer » de l'éditeur. */
     const [ignoredEntries, setIgnoredEntries] = useState<
@@ -284,6 +287,8 @@ export default function DungeonManager() {
     const ambiguousImages = useMemo(() => ambiguousDungeonImageIds(dungeons), [dungeons]);
 
     const filteredDungeons = dungeons.filter((d) => {
+        // 🔍 Filtre de debug : ne garder QUE les images ambiguës (celles à corriger).
+        if (showAmbiguousOnly && !ambiguousImages.has(d.id)) return false;
         const matchSearch =
             d.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
             d.bossName.toLowerCase().includes(searchQuery.toLowerCase());
@@ -346,6 +351,25 @@ export default function DungeonManager() {
                         </SelectContent>
                     </Select>
                 </div>
+
+                {/* 🔍 Debug « images ambiguës » (11/10/2026) : même nom de donjon + boss
+                    différents + MÊME image ⇒ l'illustration d'un boss s'affiche pour un autre.
+                    La règle vit dans `src/lib/dungeon-image-ambiguity.ts` (une image = un boss) ;
+                    ce bouton n'est qu'une LENTILLE : il isole les lignes à corriger. Le bouton
+                    disparaît quand il n'y a rien à corriger (aucun bruit permanent). */}
+                {ambiguousImages.size > 0 && (
+                    <Button
+                        variant="outline"
+                        onClick={() => setShowAmbiguousOnly((v) => !v)}
+                        className={`w-full md:w-auto gap-2 border transition-colors ${showAmbiguousOnly
+                            ? "bg-danger/15 text-danger border-danger/40 hover:bg-danger/20"
+                            : "bg-surface border-border text-muted-foreground hover:text-foreground"}`}
+                        title="Donjons de même nom dont plusieurs boss partagent la même image : ouvre-les un par un et choisis l'image de CHAQUE boss (la grille les marque déjà d'un état neutre)."
+                    >
+                        <ImageIcon className="w-4 h-4" />
+                        Images ambiguës ({ambiguousImages.size})
+                    </Button>
+                )}
 
                 {/* ⚠️ 23/09/2026 — le bouton « Siphonner les boss d'anomalie » a été RETIRÉ :
                     c'est exactement le dataset **ANOMALY_BOSSES** du 📊 Tableau (même opération,

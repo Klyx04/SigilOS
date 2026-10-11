@@ -25,6 +25,7 @@ import {
   getBestiaireCatalog,
   getDungeonMonsters,
   getMonsterStats,
+  searchNormalMonsters,
   type BestiaireEntry,
 } from "@/server/actions/game-data-actions";
 import {
@@ -419,6 +420,15 @@ export function BossOverlayClient({
   const { t, locale } = useI18n();
   const isEn = locale === "en";
   const [catalog, setCatalog] = useState<BestiaireEntry[]>([]);
+  /**
+   * Onglet « Monstres » : résultats du **bestiaire local complet** (5 129 monstres, hors
+   * boss de donjon / avis / titans), cherchés **côté serveur**. Le catalogue unifié ne
+   * contient que les monstres référencés par les familles de donjons (800) : chercher
+   * « piou » n'y rendait rien (mesure user du 11/10/2026).
+   */
+  const [monsterResults, setMonsterResults] = useState<BestiaireEntry[]>([]);
+  /** Chargement de la recherche de monstres (évite un « Aucun résultat » qui clignote). */
+  const [loadingMonsters, setLoadingMonsters] = useState(false);
   const [catalogFilter, setCatalogFilter] = useState<CatalogFilter>("boss");
   const [loadingList, setLoadingList] = useState(true);
   const [search, setSearch] = useState(initialMonsterName ?? "");
@@ -454,6 +464,30 @@ export function BossOverlayClient({
       })
       .finally(() => setLoadingList(false));
   }, []);
+
+  // 1bis. Onglet « Monstres » — recherche **serveur** dans le bestiaire local complet
+  //       (`searchNormalMonsters`, anti-rebond 250 ms) : le catalogue unifié ne couvre que
+  //       les monstres des familles de donjons, donc pas les monstres sauvages (Piou, Tofu…).
+  //       Rien n'est appelé tant que la liste n'est pas affichée (`selected` vide).
+  useEffect(() => {
+    if (selected || catalogFilter !== "monstre") return;
+    let cancelled = false;
+    setLoadingMonsters(true);
+    const timer = setTimeout(() => {
+      searchNormalMonsters(search, 40)
+        .then((res) => {
+          if (!cancelled && res.success && Array.isArray(res.data)) setMonsterResults(res.data);
+        })
+        .catch(() => {})
+        .finally(() => {
+          if (!cancelled) setLoadingMonsters(false);
+        });
+    }, 250);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [selected, catalogFilter, search]);
 
   // 2. Deep-link initial par nom de monstre/donjon (auto-sélectionne UNE SEULE FOIS).
   useEffect(() => {
@@ -544,7 +578,11 @@ export function BossOverlayClient({
     } else if (catalogFilter === "raid") {
       pool = pool.filter((e) => e.type === "raid");
     } else if (catalogFilter === "monstre") {
-      pool = pool.filter((e) => e.type === "monstre");
+      /* 🎯 Monstres : pool = bestiaire local complet, **déjà filtré côté serveur**
+         (`searchNormalMonsters`, effet « 1bis »). Le filtre texte local ne s'applique pas :
+         il ne connaît ni les accents ni les libellés de famille, et re-filtrer ici
+         contredirait la recherche serveur (ex. « piou rouge »). */
+      pool = monsterResults;
     } else if (catalogFilter === "titan") {
       pool = pool.filter((e) => e.type === "titan");
     } else if (catalogFilter === "bounty") {
@@ -553,13 +591,15 @@ export function BossOverlayClient({
     }
 
     const q = search.trim().toLowerCase();
+    // Monstres : la recherche a déjà été faite côté serveur (accents, familles, 5 129 entrées).
+    if (catalogFilter === "monstre") return pool.slice(0, 40);
     if (!q) return pool.slice(0, 40);
     return pool.filter(
       (d) =>
         d.bossName.toLowerCase().includes(q) ||
         d.name.toLowerCase().includes(q)
     ).slice(0, 40);
-  }, [catalog, catalogFilter, search]);
+  }, [catalog, catalogFilter, search, monsterResults]);
 
   const currentGrade = stats?.grades?.[activeGradeIndex] ?? stats?.grades?.[0] ?? null;
   const resists = currentGrade?.resists;
@@ -865,7 +905,7 @@ export function BossOverlayClient({
         {/* Liste du catalogue (1ère page) */}
         {!selected && (
           <>
-            {loadingList ? (
+            {loadingList || (catalogFilter === "monstre" && loadingMonsters) ? (
               <div className="flex flex-col items-center justify-center h-40 gap-2 text-white/30">
                 <Loader2 className="w-5 h-5 animate-spin" />
                 <span className="text-[11px]">{isEn ? "Loading…" : "Chargement…"}</span>

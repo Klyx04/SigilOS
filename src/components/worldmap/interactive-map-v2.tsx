@@ -5,7 +5,7 @@ import React, { useEffect, useState, useMemo, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom';
 import dynamic from 'next/dynamic';
 import {
-    Search, Map as MapIcon, Loader2, Target, Eye, EyeOff, Trophy,
+    Map as MapIcon, Loader2, Target, Eye, EyeOff, Trophy,
     Clock, ZoomIn, Compass, ChevronDown, ChevronLeft, ChevronRight, Plus, Minus, Users, Trash2, X, CheckCircle2, Copy,
     Crown, Play, Palette, Smartphone, HelpCircle, LogOut, RotateCcw, Flag, Rocket, Bomb, Lock, Shield, Mic, Zap, MapPin, FileText
 } from 'lucide-react';
@@ -14,7 +14,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { WorldData, MapNode, SubArea, Dungeon } from '@/types/worldmap';
 import { submitGeoguesserScore, getGeoguesserLadder } from '@/server/actions/geoguesser-actions';
 import { getBombLadder } from '@/server/actions/bomb-actions';
-import { searchArchimonstresForMap, getArchimonstresByFilter, getBountiesForMap, type MapSearchFilter } from '@/server/actions/game-data-actions';
+import { getBountiesForMap } from '@/server/actions/game-data-actions';
 import { getOcreDungeonMapIds } from '@/server/actions/ocre-map-actions';
 import {
     createGeoguesserSession,
@@ -56,6 +56,7 @@ const HarvestOptiFarmPanel = dynamic<any>(() => import('./harvest-opti-farm-pane
 const HarvestGpsController = dynamic<any>(() => import('./harvest-gps-controller').then(mod => mod.HarvestGpsController), { ssr: false });
 const RaidStratDrawer = dynamic<any>(() => import('./RaidStratDrawer').then(mod => mod.RaidStratDrawer), { ssr: false });
 const BountyMapPanel = dynamic<any>(() => import('./bounty-map-panel').then(mod => mod.BountyMapPanel), { ssr: false });
+const ArchimonsterMapModal = dynamic<any>(() => import('./archimonster-map-modal').then(mod => mod.ArchimonsterMapModal), { ssr: false });
 
 interface InteractiveMapProps {
     worldMap: WorldData;
@@ -154,7 +155,6 @@ export default function InteractiveMapV2({
     const autoJoinAttempted = useRef(false);
 
     // UI States
-    const [search, setSearch] = useState('');
     const [showDebugGrid, setShowDebugGrid] = useState(false);
     const [zoneHighlight, setZoneHighlight] = useState((initialZoneIds?.length ?? 0) > 0);
     const [isFullscreen, setIsFullscreen] = useState(false);
@@ -182,30 +182,6 @@ export default function InteractiveMapV2({
     // Monde actif est un monde de raid (affiche le bouton Strat)
     const isRaidWorld = selectedWorldId === 37 || selectedWorldId === 40;
 
-    // Archimonstre search state
-    const [archiResults, setArchiResults] = useState<any[]>([]);
-    const [isSearchingArchi, setIsSearchingArchi] = useState(false);
-    const [highlightSubareaIds, setHighlightSubareaIds] = useState<number[]>([]);
-    const [searchFilter, setSearchFilter] = useState<MapSearchFilter>('all');
-    // Pré-chargement : résultats affichés quand on clique un filtre sans texte (ex: 🟡 Ocre)
-    const [preloadedFilterResults, setPreloadedFilterResults] = useState<any[]>([]);
-    const [pendingFilter, setPendingFilter] = useState<MapSearchFilter | null>(null);
-    const [isLoadingFilter, setIsLoadingFilter] = useState(false);
-
-    // Charger les résultats du filtre quand on clique une chip SANS texte de recherche
-    const loadFilterResults = useCallback(async (f: MapSearchFilter) => {
-        if (!search || search.trim().length < 2) {
-            setIsLoadingFilter(true);
-            try {
-                const res = await getArchimonstresByFilter(f);
-                setPreloadedFilterResults(res.success ? (res.data || []) : []);
-            } catch {
-                setPreloadedFilterResults([]);
-            } finally {
-                setIsLoadingFilter(false);
-            }
-        }
-    }, [search]);
 
     // Ocre quest dungeons (donjons marqués "Quête Ocre" → icône Dofus Ocre sur la carte)
     const [ocreMapIds, setOcreMapIds] = useState<Set<number>>(new Set());
@@ -219,6 +195,8 @@ export default function InteractiveMapV2({
     const [showDungeons, setShowDungeons] = useState(false);
     // Avis de recherche : panneau latéral, zone encadrée et icône clignotante.
     const [showBountyPanel, setShowBountyPanel] = useState(false);
+    // Modale « Archimonstres » : recherche + filtres, un clic ouvre la zone.
+    const [showArchiPanel, setShowArchiPanel] = useState(false);
     const [bountyPanelQuery, setBountyPanelQuery] = useState('');
     const [bountyList, setBountyList] = useState<any[]>([]);
     const [isLoadingBounties, setIsLoadingBounties] = useState(false);
@@ -399,31 +377,6 @@ export default function InteractiveMapV2({
         };
     }, [worldDropdownOpen]);
 
-    // ── Debounced archimonstre search (transmet le filtre actif au serveur) ──
-    useEffect(() => {
-        if (!search || search.trim().length < 2) {
-            setArchiResults([]);
-            // Note: highlightSubareaIds has its own 8s timer — don't clear it here
-            return;
-        }
-        const timer = setTimeout(async () => {
-            setIsSearchingArchi(true);
-            try {
-                const res = await searchArchimonstresForMap(search.trim(), searchFilter);
-                if (res.success && res.data) {
-                    setArchiResults(res.data);
-                } else {
-                    setArchiResults([]);
-                }
-            } catch {
-                setArchiResults([]);
-            } finally {
-                setIsSearchingArchi(false);
-            }
-        }, 300);
-        return () => clearTimeout(timer);
-    }, [search, searchFilter]);
-
     // ── Avis de recherche du panneau latéral : liste locale, filtrée par nom ──
     useEffect(() => {
         if (!showBountyPanel) return;
@@ -485,92 +438,75 @@ export default function InteractiveMapV2({
         return withMaps.length > 0 ? withMaps : (worldMap.worlds || []);
     }, [worldMap.worlds, worldMap.maps]);
 
-    const searchResults = useMemo(() => {
-        if (!search) return [];
-        const t = search.toLowerCase();
+    /**
+     * Focus d'une cible sur la carte (avis de recherche **ou** archimonstre) :
+     * recentre, encadre la zone et y fait clignoter l'icône de la cible.
+     *
+     * 🎯 Un seul comportement partagé par les deux panneaux, et volontairement
+     * **sans minuterie** : l'encadrement reste tant que la cible est sélectionnée
+     * (avant, tout s'effaçait au bout de 8 s — ressenti « ça disparaît tout seul »).
+     * L'aplat orange « pulsé » qui recouvrait la zone est supprimé : l'encadrement
+     * est celui du calque « Zones » (voile + contour), identique au survol. Le
+     * bouton « Zones » reste donc maître de l'affichage — on l'active à la
+     * sélection pour que la cible soit lisible, jamais pour le bloquer.
+     */
+    const focusZone = useCallback((target: {
+        worldMapId?: number | null;
+        centerX?: number | null;
+        centerY?: number | null;
+        subAreaIds?: number[] | null;
+        iconUrl?: string | null;
+    }) => {
+        const subAreaIds = Array.isArray(target.subAreaIds)
+            ? target.subAreaIds.filter((id) => Number.isFinite(id))
+            : [];
+        const targetWorld = Number(target.worldMapId) > 0 ? Number(target.worldMapId) : (selectedWorldId || 1);
+        const pinned = subAreaIds.length > 0 ? subAreaIds[0] : null;
 
-        // Handle coordinate search (e.g. "0,0" or "0 -5")
-        const coordMatch = search.match(/^(-?\d+)[, ]+(-?\d+)$/);
-        if (coordMatch) {
-            const x = parseInt(coordMatch[1]);
-            const y = parseInt(coordMatch[2]);
-            // Search in ALL maps, not just current world
-            const map = worldMap.maps?.find(m => m.x === x && m.y === y);
-            if (map) {
-                return [{
-                    id: -999,
-                    name: `Position [${x}, ${y}]`,
-                    x, y,
-                    worldMap: map.worldMap,
-                    level: 0,
-                    isCoord: true
-                } as any];
+        setPinnedSubareaId(pinned);
+        setZoneHighlight(true);
+
+        // Icône clignotante : centre officiel de la cible quand il est connu, sinon
+        // centroïde du tracé de la zone encadrée (jamais deux zones différentes).
+        let gameX = target.centerX ?? null;
+        let gameY = target.centerY ?? null;
+        if ((gameX === null || gameY === null) && pinned !== null) {
+            const zone = worldMap.subareas?.find((subArea) => subArea.id === pinned);
+            const frame = zone ? parseZoneShape((zone as any).shape) : null;
+            if (frame) {
+                gameX = frame.focus.x;
+                gameY = frame.focus.y;
             }
         }
+        if (gameX !== null && gameY !== null) {
+            setTriggerCenterPosition({ x: gameX, y: gameY });
+            setHighlightMarker({ gameX, gameY, iconUrl: target.iconUrl ?? null, worldId: targetWorld });
+        } else {
+            setHighlightMarker(null);
+        }
 
-        const isNumeric = /^\d+$/.test(t);
-        const searchId = isNumeric ? parseInt(t) : -1;
-
-        // Function for accent normalization
-        const normalize = (str: string) =>
-            str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-
-        const normalizedSearch = normalize(t);
-
-        return worldMap.subareas?.filter(s => {
-            if (s.id === searchId) return true;
-            const name = typeof s.name === 'string' ? s.name : s.name?.fr;
-            if (!name) return false;
-            return normalize(name).includes(normalizedSearch);
-        }).slice(0, 10) || [];
-    }, [search, worldMap.subareas, worldMap.maps, selectedWorldId]);
-
-    /**
-     * Avis choisi dans le panneau latéral : recentre la carte sur sa zone de
-     * traque, l'encadre (rendu du bouton « Zones ») et y fait clignoter l'icône
-     * de l'avis pendant 8 s.
-     */
-    const handleBountySelect = useCallback((bounty: any) => {
-        if (!bounty) return;
-        setActiveBountyId(bounty.id);
-
-        const subAreaIds: number[] = Array.isArray(bounty.subAreaIds) ? bounty.subAreaIds : [];
-        const targetWorld = Number(bounty.worldMapId) > 0 ? Number(bounty.worldMapId) : (selectedWorldId || 1);
-        const needsWorldChange = targetWorld > 0 && targetWorld !== selectedWorldId;
-
-        const applyHighlight = () => {
-            if (bounty.centerX !== null && bounty.centerX !== undefined && bounty.centerY !== null && bounty.centerY !== undefined) {
-                setTriggerCenterPosition({ x: bounty.centerX, y: bounty.centerY });
-            }
-            if (subAreaIds.length === 0) return;
-
-            setPinnedSubareaId(subAreaIds[0]);
-            setHighlightSubareaIds(subAreaIds);
-
-            // Icône clignotante : centroïde du tracé officiel de la zone.
-            const zone = worldMap.subareas?.find((subArea) => subArea.id === subAreaIds[0]);
-            const frame = zone ? parseZoneShape((zone as any).shape) : null;
-            setHighlightMarker(frame ? { gameX: frame.focus.x, gameY: frame.focus.y, iconUrl: bounty.imageUrl ?? null, worldId: targetWorld } : null);
-
-            setTimeout(() => {
-                setHighlightSubareaIds([]);
-                setPinnedSubareaId(null);
-                setHighlightMarker(null);
-            }, 8000);
-        };
-
-        if (needsWorldChange) {
+        if (targetWorld > 0 && targetWorld !== selectedWorldId) {
             // Un SEUL commit React : la nouvelle carte monte déjà centrée sur la
             // zone, au bon zoom et avec l'encadrement. Avant, elle montait au
             // centre du monde, chargeait un écran entier de tuiles, puis sautait
             // sur la cible 650 ms plus tard (double chargement = transition qui
             // rame, ressenti « lag » de bascule de monde).
-            applyHighlight();
             setSelectedWorldId(targetWorld);
-        } else {
-            applyHighlight();
         }
     }, [selectedWorldId, worldMap.subareas]);
+
+    /** Avis choisi dans le panneau latéral → focus sur sa zone de traque. */
+    const handleBountySelect = useCallback((bounty: any) => {
+        if (!bounty) return;
+        setActiveBountyId(bounty.id);
+        focusZone({
+            worldMapId: bounty.worldMapId,
+            centerX: bounty.centerX,
+            centerY: bounty.centerY,
+            subAreaIds: bounty.subAreaIds,
+            iconUrl: bounty.imageUrl ?? null,
+        });
+    }, [focusZone]);
 
     /**
      * Bascule de monde MANUELLE (dropdown « Changer de monde ») : la cible
@@ -581,71 +517,8 @@ export default function InteractiveMapV2({
         setSelectedWorldId(worldId);
         setTriggerCenterPosition(null);
         setPinnedSubareaId(null);
-        setHighlightSubareaIds([]);
         setHighlightMarker(null);
     }, []);
-
-    const handleSearchResultClick = useCallback((item: any) => {
-        if (!item) return;
-
-        if (item.isCoord) {
-            if (item.worldMap !== undefined && item.worldMap !== selectedWorldId) {
-                setSelectedWorldId(item.worldMap);
-            }
-            setTriggerCenterPosition({ x: item.x, y: item.y });
-            setSearch('');
-            return;
-        }
-
-        // Archimonstre result
-        if (item.isArchi) {
-            // Résout le monde cible : refuse les mondes invalides (<=0) pour éviter `w-1` (map vide).
-            let targetWorld = Number(item.worldMapId);
-            if (!targetWorld || targetWorld <= 0) {
-                const m = item.centerX !== null && item.centerY !== null
-                    ? worldMap.maps?.find(mm => mm.x === item.centerX && mm.y === item.centerY)
-                    : undefined;
-                targetWorld = m && m.worldMap > 0 ? m.worldMap : (selectedWorldId || 1);
-            }
-            const needsWorldChange = targetWorld > 0 && targetWorld !== selectedWorldId;
-
-            const applyHighlight = () => {
-                if (item.centerX !== null && item.centerY !== null) {
-                    setTriggerCenterPosition({ x: item.centerX, y: item.centerY });
-                }
-                if (item.subAreaIds?.length > 0) {
-                    setHighlightSubareaIds(item.subAreaIds);
-                    setTimeout(() => setHighlightSubareaIds([]), 8000);
-                }
-            };
-
-            if (needsWorldChange) {
-                setSelectedWorldId(targetWorld);
-                // Wait for Leaflet canvas to remount before applying highlight
-                setTimeout(applyHighlight, 650);
-            } else {
-                applyHighlight();
-            }
-
-            setSearch('');
-            setArchiResults([]);
-            return;
-        }
-
-        // Search the maps to find one belonging to this subarea
-        const map = worldMap.maps?.find(m => m.subAreaId === item.id);
-        if (map) {
-            setSelectedWorldId(map.worldMap);
-            setTriggerCenterPosition({ x: map.x, y: map.y });
-        } else if (item.mapIds?.length > 0) {
-            const m = worldMap.maps?.find(m => m.id === item.mapIds[0]);
-            if (m) {
-                setSelectedWorldId(m.worldMap);
-                setTriggerCenterPosition({ x: m.x, y: m.y });
-            }
-        }
-        setSearch('');
-    }, [worldMap.maps, selectedWorldId]);
 
     const mapsByCoords = useMemo(() => {
         const index = new Map<string, any>();
@@ -1593,191 +1466,6 @@ export default function InteractiveMapV2({
                                     })()}
                                 </AnimatePresence>
 
-                                {/* Zone Search + Filter */}
-                                <div className="relative hidden md:block">
-                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" size={13} />
-                                    {isSearchingArchi && (
-                                        <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 text-warning/60 animate-spin" size={10} />
-                                    )}
-                                    <input
-                                        type="text"
-                                        value={search}
-                                        onChange={e => { setSearch(e.target.value); setSearchFilter('all'); setPendingFilter(null); setPreloadedFilterResults([]); }}
-                                        placeholder="Zone, monstre, boss, archimonstre..."
-                                        className="w-48 lg:w-64 xl:w-72 rounded-xl bg-surface/90 hover:bg-elevated py-1.5 pl-8 pr-3 text-foreground text-caption font-medium border border-border focus:border-success/50 outline-none transition-all focus:bg-elevated placeholder:text-muted-foreground backdrop-blur-md"
-                                    />
-
-                                    {/* Dropdown with filter chips + results (TOUJOURS visible, pré-chargement possible) */}
-                                    {(searchResults.length > 0 || archiResults.length > 0 || preloadedFilterResults.length > 0 || isSearchingArchi || isLoadingFilter) && (
-                                        <div className="absolute top-full right-0 mt-2 w-80 bg-elevated border border-border rounded-2xl shadow-2xl overflow-hidden z-[700]">
-
-                                            {/* Filter chips (permanents) */}
-                                            <div className="flex items-center flex-wrap gap-1.5 px-3 py-2 border-b border-border bg-elevated/50">
-                                                {(['all', 'zones', 'archis', 'boss', 'mobs', 'ocre'] as MapSearchFilter[]).map(f => (
-                                                    <button
-                                                        key={f}
-                                                        onClick={() => {
-                                                            setSearchFilter(f);
-                                                            setPendingFilter(f);
-                                                            if (!search || search.trim().length < 2) loadFilterResults(f);
-                                                        }}
-                                                        className={cn(
-                                                            "px-2.5 py-1 rounded-lg text-caption font-black uppercase tracking-widest transition-all inline-flex items-center gap-1",
-                                                            searchFilter === f
-                                                                ? f === 'ocre'
-                                                                    ? 'bg-warning/20 text-warning border border-warning/30'
-                                                                    : f === 'archis'
-                                                                        ? 'bg-warning/20 text-warning border border-warning/30'
-                                                                        : 'bg-surface text-foreground border border-border-strong'
-                                                                : 'text-muted-foreground hover:text-foreground border border-transparent'
-                                                        )}
-                                                    >
-                                                        {f === 'all' ? 'Tout' :
-                                                         f === 'zones' ? (<><img src="/assets/dofus/game-icons/pin.png" alt="" className="w-3 h-3 object-contain" /> Zones</>) :
-                                                         f === 'archis' ? (<><img src="/assets/nav/archimonster.png" alt="" className="w-3 h-3 object-contain" /> Archis</>) :
-                                                         f === 'boss' ? (<><img src="/assets/dofus/game-icons/crown.png" alt="" className="w-3 h-3 object-contain" /> Boss</>) :
-                                                         f === 'mobs' ? (<><img src="/assets/dofus/game-icons/crossed-swords.png" alt="" className="w-3 h-3 object-contain" /> Mobs</>) : (<><img src="/assets/icons/ocre.png" alt="" className="w-3 h-3 object-contain" /> Ocre</>)}
-                                                    </button>
-                                                ))}
-                                            </div>
-
-                                            {/* Subarea / Zone results */}
-                                            {(searchFilter === 'all' || searchFilter === 'zones') && searchResults.length > 0 && (
-                                                <>
-                                                    {searchFilter === 'all' && archiResults.length > 0 && (
-                                                            <div className="px-3 py-1.5 bg-elevated/50 border-b border-border">
-                                                                <span className="text-muted-foreground text-caption font-black uppercase tracking-widest inline-flex items-center gap-1.5"><img src="/assets/dofus/game-icons/pin.png" alt="" className="w-3 h-3 object-contain" /> Zones</span>
-                                                            </div>
-                                                    )}
-                                                    {searchResults.slice(0, searchFilter === 'zones' ? 10 : 4).map((s: any) => (
-                                                        <button key={s.id === -999 ? `coord-${s.x}-${s.y}` : s.id} onClick={() => handleSearchResultClick(s)} className="w-full text-left px-4 py-2.5 hover:bg-surface border-b border-border last:border-0 transition-colors">
-                                                            <div className="flex justify-between items-center">
-                                                                <span className="text-foreground text-caption font-black uppercase italic">{typeof s.name === 'string' ? s.name : s.name?.fr || 'Inconnu'}</span>
-                                                                {!s.isCoord && (
-                                                                    <span className="text-success/50 text-caption uppercase font-black px-1.5 py-0.5 rounded-md bg-success/5">Lvl {s.level || '?'}</span>
-                                                                )}
-                                                            </div>
-                                                        </button>
-                                                    ))}
-                                                </>
-                                            )}
-
-                                            {/* Pré-chargement du filtre (clic sans texte, ex: 🟡 Ocre) */}
-                                            {pendingFilter && pendingFilter !== 'all' && pendingFilter !== 'zones' && preloadedFilterResults.length > 0 && (
-                                                <>
-                                                    <div className="px-3 py-1.5 bg-warning/5 border-b border-warning/10">
-                                                            <span className="text-warning/70 text-caption font-black uppercase tracking-widest">
-                                                                {pendingFilter === 'ocre' ? 'Quête Ocre' : pendingFilter === 'archis' ? 'Archimonstres' : pendingFilter === 'boss' ? 'Boss' : 'Monstres'}
-                                                            </span>
-                                                    </div>
-                                                    {preloadedFilterResults.map((a: any) => (
-                                                        <button
-                                                            key={a.id}
-                                                            onClick={() => handleSearchResultClick({ ...a, isArchi: true })}
-                                                            className={cn(
-                                                                "w-full text-left px-4 py-2.5 border-b border-border last:border-0 transition-colors group",
-                                                                a.subAreaIds?.length > 0 ? "hover:bg-warning/5" : "hover:bg-elevated opacity-70"
-                                                            )}
-                                                        >
-                                                            <div className="flex items-center justify-between gap-2">
-                                                                <div className="flex items-center gap-2 min-w-0">
-                                                                    {a.imageUrl ? (
-                                                                        <img src={a.imageUrl} alt={a.name} className="w-7 h-7 rounded object-contain flex-shrink-0 opacity-80 group-hover:opacity-100" />
-                                                                    ) : (
-                                                                        <div className="w-7 h-7 rounded bg-warning/10 flex items-center justify-center flex-shrink-0">
-                                                                            <img src={a.type === 'monstre' ? "/assets/dofus/game-icons/crossed-swords.png" : a.type === 'boss' ? "/assets/dofus/game-icons/crown.png" : "/assets/nav/archimonster.png"} alt="" className="w-4 h-4 object-contain" />
-                                                                        </div>
-                                                                    )}
-                                                                    <div className="min-w-0">
-                                                                        <div className="text-warning text-caption font-black uppercase italic truncate">{a.name}</div>
-                                                                        <div className="text-muted-foreground text-caption uppercase truncate">{a.zoneName || 'Zone inconnue'}</div>
-                                                                    </div>
-                                                                </div>
-                                                                <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                                                                    {a.level > 0 && (
-                                                                        <span className="text-warning/60 text-caption uppercase font-black px-1.5 py-0.5 rounded-md bg-warning/5">Lvl {a.level}</span>
-                                                                    )}
-                                                                    {a.worldMapId > 1 && (
-                                                                        <span className="text-info/70 text-caption font-black px-1.5 py-0.5 rounded-md bg-info/10">Monde {a.worldMapId}</span>
-                                                                    )}
-                                                                </div>
-                                                            </div>
-                                                        </button>
-                                                    ))}
-                                                </>
-                                            )}
-
-                                            {/* Bounty / Archimonstre / Monstre results */}
-                                            {searchFilter !== 'zones' && archiResults.length > 0 && (
-                                                <>
-                                                    {searchFilter === 'all' && searchResults.length > 0 && (
-                                                            <div className="px-3 py-1.5 bg-warning/5 border-b border-warning/10">
-                                                                <span className="text-warning/70 text-caption font-black uppercase tracking-widest inline-flex items-center gap-1.5"><img src="/assets/nav/archimonster.png" alt="" className="w-3 h-3 object-contain" /> Avis & Archimonstres</span>
-                                                            </div>
-                                                    )}
-                                                    {archiResults.slice(0, searchFilter !== 'all' ? 10 : 5).map((a: any) => (
-                                                        <button
-                                                            key={a.id}
-                                                            onClick={() => handleSearchResultClick({ ...a, isArchi: true })}
-                                                            className={cn(
-                                                                "w-full text-left px-4 py-2.5 border-b border-border last:border-0 transition-colors group",
-                                                                a.subAreaIds?.length > 0 ? "hover:bg-warning/5" : "hover:bg-elevated opacity-70"
-                                                            )}
-                                                        >
-                                                            <div className="flex items-center justify-between gap-2">
-                                                                <div className="flex items-center gap-2 min-w-0">
-                                                                    {a.imageUrl ? (
-                                                                        <img src={a.imageUrl} alt={a.name} className="w-7 h-7 rounded object-contain flex-shrink-0 opacity-80 group-hover:opacity-100" />
-                                                                    ) : (
-                                                                        <div className="w-7 h-7 rounded bg-warning/10 flex items-center justify-center flex-shrink-0">
-                                                                            <img src={a.type === 'monstre' ? "/assets/dofus/game-icons/crossed-swords.png" : a.type === 'boss' ? "/assets/dofus/game-icons/crown.png" : "/assets/nav/archimonster.png"} alt="" className="w-4 h-4 object-contain" />
-                                                                        </div>
-                                                                    )}
-                                                                    <div className="min-w-0">
-                                                                        <div className="flex items-center gap-1.5">
-                                                                            <span className={cn(
-                                                                                "text-caption font-black uppercase italic truncate",
-                                                                                a.isOcre ? "text-warning" : a.type === 'monstre' ? "text-foreground/70" : "text-warning"
-                                                                            )}>{a.name}</span>
-                                                                            {a.isOcre && (
-                                                                                <img src="/module-dofus/Dofus_Ocre.png" alt="Ocre" className="w-3.5 h-3.5 shrink-0" title="Quête Ocre" />
-                                                                            )}
-                                                                            {a.type === 'boss' && <span className="text-caption text-warning/70 font-black uppercase px-1 py-0.5 rounded bg-warning/10 border border-warning/10">Boss</span>}
-                                                                        </div>
-                                                                        <div className="text-muted-foreground text-caption uppercase truncate">
-                                                                            {a.zoneName
-                                                                                ? a.subAreaIds?.length > 0
-                                                                                    ? a.zoneName
-                                                                                    : `⚠ ${a.zoneName} (zone introuvable)`
-                                                                                : '⚠ Zone inconnue'
-                                                                            }
-                                                                        </div>
-                                                                    </div>
-                                                                </div>
-                                                                <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                                                                    {a.level > 0 && (
-                                                                        <span className="text-warning/70 text-caption uppercase font-black px-1.5 py-0.5 rounded-md bg-warning/10">Lvl {a.level}</span>
-                                                                    )}
-                                                                    {a.worldMapId > 1 && (
-                                                                        <span className="text-info/70 text-caption font-black px-1.5 py-0.5 rounded-md bg-info/10">Monde {a.worldMapId}</span>
-                                                                    )}
-                                                                </div>
-                                                            </div>
-                                                        </button>
-                                                    ))}
-                                                </>
-                                            )}
-
-                                            {isSearchingArchi && archiResults.length === 0 && searchResults.length === 0 && (
-                                                <div className="px-4 py-3 text-muted-foreground text-caption italic text-center flex items-center justify-center gap-2">
-                                                    <Loader2 size={10} className="animate-spin" />
-                                                    Recherche...
-                                                </div>
-                                            )}
-                                        </div>
-                                    )}
-                                </div>
-
 
                                 {/* Mobile Tools Overflow */}
                                 <div className="lg:hidden relative group">
@@ -1794,18 +1482,6 @@ export default function InteractiveMapV2({
                                                 <Zap size={14} className={autoCopyTravel ? "text-warning fill-warning" : ""} />
                                                 Copie Auto
                                             </button>
-                                            <div className="md:hidden pt-2 border-t border-border">
-                                                <div className="relative">
-                                                    <Search className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground" size={10} />
-                                                    <input
-                                                        type="text"
-                                                        value={search}
-                                                        onChange={e => setSearch(e.target.value)}
-                                                        placeholder="Zone..."
-                                                        className="w-full rounded-lg bg-black/40 py-1.5 pl-7 pr-3 text-foreground text-caption uppercase font-bold border border-border outline-none"
-                                                    />
-                                                </div>
-                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -2061,6 +1737,7 @@ export default function InteractiveMapV2({
                                     dungeonsByMapId={dungeonsByMapId}
                                     groupedDungeons={groupedDungeons}
                                     showDebugGrid={showDebugGrid}
+                                    showGameOverlays={true}
                                     selectedPosition={selectedPosition}
                                     setSelectedPosition={handleMapClick}
                                     setSelectedDungeon={setSelectedDungeon}
@@ -2288,7 +1965,8 @@ export default function InteractiveMapV2({
                                         <span className="absolute right-full mr-2.5 top-1/2 -translate-y-1/2 px-2 py-1 rounded-lg bg-black/95 text-white text-[10px] font-black uppercase tracking-widest whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none border border-white/10 shadow-xl">Récolte</span>
                                     </button>
 
-                                    {/* Avis de recherche (liste + zones de traque) */}
+                                    {/* Avis de recherche (liste + zones de traque) — picto « avis », jamais
+                                        celui des archimonstres : les deux entrées sont distinctes. */}
                                     <button
                                         onClick={() => setShowBountyPanel(!showBountyPanel)}
                                         title={showBountyPanel ? "Fermer le panneau Avis" : "Avis de recherche — liste et zones de traque"}
@@ -2299,8 +1977,23 @@ export default function InteractiveMapV2({
                                                 : "bg-rose-500/10 border-rose-500/30 hover:bg-rose-500/20 hover:border-rose-500/60 shadow-sm"
                                         )}
                                     >
-                                        <img src="/assets/nav/archimonster.png" alt="Avis" className="w-5 h-5 object-contain drop-shadow-[0_0_6px_rgba(244,63,94,0.6)]" />
+                                        <img src="/assets/avis/avitons.png" alt="Avis" className="w-5 h-5 object-contain drop-shadow-[0_0_6px_rgba(244,63,94,0.6)]" />
                                         <span className="absolute right-full mr-2.5 top-1/2 -translate-y-1/2 px-2 py-1 rounded-lg bg-black/95 text-white text-[10px] font-black uppercase tracking-widest whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none border border-white/10 shadow-xl">Avis de recherche</span>
+                                    </button>
+
+                                    {/* Archimonstres — recherche + filtres, un clic ouvre la zone de la cible. */}
+                                    <button
+                                        onClick={() => setShowArchiPanel(true)}
+                                        title="Archimonstres — recherche et zones"
+                                        className={cn(
+                                            "w-10 h-10 rounded-xl flex items-center justify-center transition-all border relative group",
+                                            showArchiPanel
+                                                ? "bg-amber-500/30 border-amber-400/80 shadow-[0_0_16px_rgba(245,158,11,0.5)] scale-105"
+                                                : "bg-amber-500/10 border-amber-500/30 hover:bg-amber-500/20 hover:border-amber-500/60 shadow-sm"
+                                        )}
+                                    >
+                                        <img src="/assets/nav/archimonster.png" alt="Archimonstres" className="w-5 h-5 object-contain drop-shadow-[0_0_6px_rgba(245,158,11,0.6)]" />
+                                        <span className="absolute right-full mr-2.5 top-1/2 -translate-y-1/2 px-2 py-1 rounded-lg bg-black/95 text-white text-[10px] font-black uppercase tracking-widest whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none border border-white/10 shadow-xl">Archimonstres</span>
                                     </button>
                                 </div>
                             </div>
@@ -2314,6 +2007,7 @@ export default function InteractiveMapV2({
                             dungeonsByMapId={dungeonsByMapId}
                             groupedDungeons={showDungeons ? groupedDungeons : []}
                             showDebugGrid={showDebugGrid}
+                            showGameOverlays={false}
                             zoneHighlight={zoneHighlight}
                             pinnedSubareaId={pinnedSubareaId}
                             highlightMarker={highlightMarker}
@@ -2334,7 +2028,6 @@ export default function InteractiveMapV2({
                             isSpectator={isCurrentUserSpectator}
                             hideUI={hideUI}
                             minZoom={Math.max(selectedWorldId !== 1 ? -3 : -4, -(activeWorld.zoom?.length || 1) - 1)}
-                            highlightSubareaIds={highlightSubareaIds}
                             interactive={interactive}
                             isOverlay={isOverlay}
                             autoCopyTravel={isOverlay || autoCopyTravel}
@@ -2586,13 +2279,28 @@ export default function InteractiveMapV2({
                         {/* 🎯 Panneau Avis de recherche (public + interne) */}
                         <BountyMapPanel
                             isOpen={showBountyPanel}
-                            onClose={() => setShowBountyPanel(false)}
+                            onClose={() => { setShowBountyPanel(false); setActiveBountyId(null); }}
                             bounties={bountyList}
                             loading={isLoadingBounties}
                             query={bountyPanelQuery}
                             onQueryChange={setBountyPanelQuery}
                             activeBountyId={activeBountyId}
                             onSelect={handleBountySelect}
+                        />
+
+                        {/* 🎯 Modale Archimonstres (public + interne) : recherche + filtres,
+                            un clic ouvre la zone de la cible — même focus que le panneau Avis. */}
+                        <ArchimonsterMapModal
+                            isOpen={showArchiPanel}
+                            onClose={() => setShowArchiPanel(false)}
+                            currentWorldId={selectedWorldId}
+                            onSelect={(entry: any) => focusZone({
+                                worldMapId: entry.worldMapId,
+                                centerX: entry.centerX,
+                                centerY: entry.centerY,
+                                subAreaIds: entry.subAreaIds,
+                                iconUrl: entry.imageUrl ?? null,
+                            })}
                         />
 
                         {/* 🏷️ DofusDB Attribution Badge — déplacé dans le bandeau du haut */}
@@ -2937,6 +2645,7 @@ export default function InteractiveMapV2({
                                                             dungeonsByMapId={dungeonsByMapId}
                                                             groupedDungeons={[]}
                                                             showDebugGrid={false}
+                                                            showGameOverlays={true}
                                                             selectedPosition={null}
                                                             setSelectedPosition={() => {}}
                                                             setSelectedDungeon={() => {}}

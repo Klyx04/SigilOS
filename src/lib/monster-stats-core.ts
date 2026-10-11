@@ -25,10 +25,10 @@ import fs from "fs";
 import path from "path";
 import { logger } from "@/lib/logger";
 import { dofusDbFetch } from "@/lib/dofusdb-limiter";
-import { getLocalMonsterStatAny, persistMonsterStat } from "@/lib/dofensive-sync";
+import { getLocalMonsterStatAny, getLocalMonsterStatByIdAny, persistMonsterStat } from "@/lib/dofensive-sync";
 import { encycloGrade, encycloIdentity, resolveEncycloNames } from "@/lib/dofus-encyclo";
 import { getDofensiveDungeonForBoss } from "@/lib/dofensive-api";
-import { getUnityMonster, type UnityMonsterData } from "@/lib/unity-bestiary";
+import { getUnityMonster, findUnityMonsterBySlug, type UnityMonsterData } from "@/lib/unity-bestiary";
 
 type ActionResponse<T = void> = {
     success: boolean;
@@ -239,6 +239,77 @@ function buildMonsterDataFromUnity(unity: UnityMonsterData): any {
         passive: unity.passive || undefined,
         unity,
     };
+}
+
+/** Origine d'une fiche monstre : `siphon` = ligne `MonsterStat`, `unity` = bestiaire du client. */
+export type MonsterFicheSource = "siphon" | "unity";
+
+export interface LocalMonsterFiche {
+    monsterId: number;
+    name: string;
+    source: MonsterFicheSource;
+    /** Payload de fiche (grades, sorts, butin, encyclopédie) — même forme que `getMonsterStats`. */
+    data: any;
+}
+
+/**
+ * Fiche monstre **100 % locale** : aucune requête réseau, aucun tiers joint au rendu.
+ *
+ * 1. la ligne `MonsterStat` du siphon (par **ID** quand il est connu — les homonymes
+ *    existent —, sinon par nom) : c'est la fiche la plus riche (encyclopédie, butin,
+ *    sorts détaillés), enrichie du bestiaire Unity (tacle/fuite, icônes) ;
+ * 2. sinon le **bestiaire local du client** (`public/game-data/unity-bestiary.json`,
+ *    5 129 monstres, versionné au dépôt) : identité, paliers complets, sorts, passif.
+ *
+ * 🎯 Demande user (11/10/2026) : `/bestiaire/<slug>` rendait **404** pour tout monstre
+ * normal (mesure : `/bestiaire/piou-rouge` → 404 alors que la racine rend 200) parce que
+ * la page ne résolvait que dans `MonsterStat`, table que le cron ne remplit que pour les
+ * boss de donjon, titans, gardiens d'anomalie et avis de recherche — **283 lignes** en
+ * base, **0** « Piou » (mesuré sur la base de dev). Ce n'est donc PAS un siphon manquant :
+ * le bestiaire COMPLET est déjà versionné, il suffisait de le lire.
+ */
+export async function getLocalMonsterFiche(identifier: string | number): Promise<LocalMonsterFiche | null> {
+    const raw = typeof identifier === "number" ? String(identifier) : String(identifier ?? "").trim();
+    if (!raw) return null;
+    const numeric = /^\d+$/.test(raw) ? Math.floor(Number(raw)) : 0;
+
+    // 1. Siphon local — la fiche la plus complète (lecture base ; `DB_READABLE` coupe les
+    //    tests et les environnements sans base, exactement comme `getMonsterStats`).
+    try {
+        if (numeric > 0) {
+            const byId = await getLocalMonsterStatByIdAny(numeric);
+            if (byId?.data) {
+                const name = String(byId.data.name ?? "").trim() || raw;
+                return {
+                    monsterId: numeric,
+                    name,
+                    source: "siphon",
+                    data: enrichWithUnityData(byId.data, name, numeric),
+                };
+            }
+        }
+        const unityEntry = numeric > 0 ? getUnityMonster(numeric) : findUnityMonsterBySlug(raw);
+        const name = unityEntry?.name ?? raw;
+        const byName = await getLocalMonsterStatAny(name);
+        if (byName?.data) {
+            return {
+                monsterId: Number(byName.data.id) || unityEntry?.id || numeric,
+                name: String(byName.data.name ?? "").trim() || name,
+                source: "siphon",
+                data: enrichWithUnityData(byName.data, name, unityEntry?.id),
+            };
+        }
+    } catch (err) {
+        logger.warn("[getLocalMonsterFiche] Lecture locale MonsterStat échouée:", { error: String(err) });
+    }
+
+    // 2. Bestiaire local du client (Unity) : couvre TOUS les monstres, y compris ceux
+    //    qu'aucune passe de siphon n'a encore visités.
+    const unity = numeric > 0
+        ? getUnityMonster(numeric)
+        : (findUnityMonsterBySlug(raw) ?? getUnityMonster(raw));
+    if (!unity) return null;
+    return { monsterId: unity.id, name: unity.name, source: "unity", data: buildMonsterDataFromUnity(unity) };
 }
 
 

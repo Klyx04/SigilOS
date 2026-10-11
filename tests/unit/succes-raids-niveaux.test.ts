@@ -74,7 +74,7 @@ describe("tranches de niveau — une seule échelle pour tout le projet", () => 
 
 describe("onglet « Raids » — filtre sur la DONNÉE, jamais sur une liste de noms", () => {
     it("l'onglet est déclaré, routé, et les fiches passent par `scope`", () => {
-        expect(CLIENT).toMatch(/type FicheTab = "boss" \| "anomalies" \| "bounties" \| "titans" \| "raids";/);
+        expect(CLIENT).toMatch(/type FicheTab = "boss" \| "anomalies" \| "bounties" \| "titans" \| "raids" \| "monstres";/);
         expect(CLIENT).toMatch(/\{ id: "raids", label: "Raids"/);
         expect(CLIENT).toMatch(/value === "raids"/);
         expect(CLIENT).toMatch(
@@ -83,6 +83,13 @@ describe("onglet « Raids » — filtre sur la DONNÉE, jamais sur une liste de 
         expect(CLIENT).toMatch(/scope="anomalie"/);
         // Le booléen `anomalyOnly` est remplacé par le périmètre typé (une seule façon de filtrer).
         expect(CLIENT).not.toContain("anomalyOnly");
+    });
+
+    it("l'onglet « Monstres » du hub route vers la fiche de monstre partagée", () => {
+        // 🎯 Demande user (11/10/2026) : « pas de fiche monstres normaux ni interne/ni publique ».
+        expect(CLIENT).toMatch(/\{ id: "monstres", label: "Monstres"/);
+        expect(CLIENT).toMatch(/value === "monstres"/);
+        expect(CLIENT).toMatch(/activeFiche === "monstres" \? \(\s*<SuccesMonstresTab \/>/);
     });
 
     it("le périmètre raid lit `isRaidBoss` — un raid publié demain entre sans code", () => {

@@ -1,0 +1,1467 @@
+{
+ "updatedAt": "2026-10-11T22:14:01.034Z",
+ "races": [
+  {
+   "id": 2,
+   "name": "Bandits d'Amakna",
+   "superRaceId": 3
+  },
+  {
+   "id": 3,
+   "name": "Wabbits",
+   "superRaceId": 8
+  },
+  {
+   "id": 4,
+   "name": "Dragoeufs Immatures",
+   "superRaceId": 3
+  },
+  {
+   "id": 5,
+   "name": "Bworks d'Amakna",
+   "superRaceId": 3
+  },
+  {
+   "id": 6,
+   "name": "Gobelins d'Amakna",
+   "superRaceId": 3
+  },
+  {
+   "id": 7,
+   "name": "Gelées",
+   "superRaceId": 29
+  },
+  {
+   "id": 8,
+   "name": "Bêtes de la nuit",
+   "superRaceId": 11
+  },
+  {
+   "id": 9,
+   "name": "Bouftous",
+   "superRaceId": 2
+  },
+  {
+   "id": 10,
+   "name": "Plantes des champs",
+   "superRaceId": 2
+  },
+  {
+   "id": 11,
+   "name": "Larves",
+   "superRaceId": 2
+  },
+  {
+   "id": 12,
+   "name": "Kwaks",
+   "superRaceId": 3
+  },
+  {
+   "id": 13,
+   "name": "Craqueleurs",
+   "superRaceId": 3
+  },
+  {
+   "id": 16,
+   "name": "Porcos",
+   "superRaceId": 3
+  },
+  {
+   "id": 17,
+   "name": "Chafers",
+   "superRaceId": 11
+  },
+  {
+   "id": 18,
+   "name": "Dopeuls de Temple",
+   "superRaceId": 27
+  },
+  {
+   "id": 20,
+   "name": "Kannibouls de Moon",
+   "superRaceId": 7
+  },
+  {
+   "id": 21,
+   "name": "Dragodindes sauvages",
+   "superRaceId": 14
+  },
+  {
+   "id": 22,
+   "name": "Abraknydiens",
+   "superRaceId": 3
+  },
+  {
+   "id": 23,
+   "name": "Blops",
+   "superRaceId": 5
+  },
+  {
+   "id": 24,
+   "name": "Animaux des Champs",
+   "superRaceId": 5
+  },
+  {
+   "id": 25,
+   "name": "Sidimonstres",
+   "superRaceId": 6
+  },
+  {
+   "id": 26,
+   "name": "Gardes des cités",
+   "superRaceId": 1
+  },
+  {
+   "id": 28,
+   "name": "Dopeuls",
+   "superRaceId": 5
+  },
+  {
+   "id": 31,
+   "name": "Gang de Sphincter Cell",
+   "superRaceId": 3
+  },
+  {
+   "id": 32,
+   "name": "Avis de recherche",
+   "superRaceId": 27
+  },
+  {
+   "id": 33,
+   "name": "Pious",
+   "superRaceId": 1
+  },
+  {
+   "id": 37,
+   "name": "Scarafeuilles",
+   "superRaceId": 3
+  },
+  {
+   "id": 38,
+   "name": "Araknes",
+   "superRaceId": 1
+  },
+  {
+   "id": 39,
+   "name": "Mulous",
+   "superRaceId": 6
+  },
+  {
+   "id": 40,
+   "name": "Tortues de Moon",
+   "superRaceId": 7
+  },
+  {
+   "id": 41,
+   "name": "Pirates de Moon",
+   "superRaceId": 7
+  },
+  {
+   "id": 43,
+   "name": "Monstres de la Jungle Interdite",
+   "superRaceId": 7
+  },
+  {
+   "id": 44,
+   "name": "Gadouilleux",
+   "superRaceId": 14
+  },
+  {
+   "id": 45,
+   "name": "Champas",
+   "superRaceId": 4
+  },
+  {
+   "id": 46,
+   "name": "Tofus",
+   "superRaceId": 3
+  },
+  {
+   "id": 47,
+   "name": "Vermines des champs",
+   "superRaceId": 3
+  },
+  {
+   "id": 49,
+   "name": "Animaux de la forêt",
+   "superRaceId": 2
+  },
+  {
+   "id": 50,
+   "name": "Monstres de quête",
+   "superRaceId": 27
+  },
+  {
+   "id": 51,
+   "name": "Corbacs",
+   "superRaceId": 5
+  },
+  {
+   "id": 53,
+   "name": "Fantômes de Brâkmar",
+   "superRaceId": 13
+  },
+  {
+   "id": 60,
+   "name": "Koalaks",
+   "superRaceId": 14
+  },
+  {
+   "id": 61,
+   "name": "Monstres des cavernes",
+   "superRaceId": 14
+  },
+  {
+   "id": 62,
+   "name": "Protecteurs des Céréales",
+   "superRaceId": 15
+  },
+  {
+   "id": 63,
+   "name": "Protecteurs des Minerais",
+   "superRaceId": 15
+  },
+  {
+   "id": 64,
+   "name": "Protecteurs des Arbres",
+   "superRaceId": 15
+  },
+  {
+   "id": 65,
+   "name": "Protecteurs des Poissons",
+   "superRaceId": 15
+  },
+  {
+   "id": 66,
+   "name": "Protecteurs des Plantes",
+   "superRaceId": 15
+  },
+  {
+   "id": 67,
+   "name": "Minos",
+   "superRaceId": 25
+  },
+  {
+   "id": 68,
+   "name": "Monstres de Nowel",
+   "superRaceId": 24
+  },
+  {
+   "id": 69,
+   "name": "Pichons",
+   "superRaceId": 2
+  },
+  {
+   "id": 71,
+   "name": "Herboricoles",
+   "superRaceId": 19
+  },
+  {
+   "id": 72,
+   "name": "Colonie du Magistral",
+   "superRaceId": 19
+  },
+  {
+   "id": 73,
+   "name": "Monstres des Tourbières",
+   "superRaceId": 19
+  },
+  {
+   "id": 74,
+   "name": "Florifaune obscure",
+   "superRaceId": 19
+  },
+  {
+   "id": 75,
+   "name": "Peuple de l'Arbre",
+   "superRaceId": 19
+  },
+  {
+   "id": 76,
+   "name": "Pirates de l'Arche d'Otomaï",
+   "superRaceId": 19
+  },
+  {
+   "id": 77,
+   "name": "Zoths",
+   "superRaceId": 19
+  },
+  {
+   "id": 78,
+   "name": "Archimonstres",
+   "superRaceId": 20
+  },
+  {
+   "id": 79,
+   "name": "Boufmouths",
+   "superRaceId": 21
+  },
+  {
+   "id": 81,
+   "name": "Bestioles de la Bourgade",
+   "superRaceId": 21
+  },
+  {
+   "id": 82,
+   "name": "Faune des Pins Perdus",
+   "superRaceId": 21
+  },
+  {
+   "id": 83,
+   "name": "Mansots",
+   "superRaceId": 21
+  },
+  {
+   "id": 84,
+   "name": "Gloursons",
+   "superRaceId": 21
+  },
+  {
+   "id": 85,
+   "name": "Sulfurieux",
+   "superRaceId": 21
+  },
+  {
+   "id": 86,
+   "name": "Équipage du Grolandais",
+   "superRaceId": 21
+  },
+  {
+   "id": 87,
+   "name": "Bléros",
+   "superRaceId": 21
+  },
+  {
+   "id": 88,
+   "name": "Givrefoux",
+   "superRaceId": 21
+  },
+  {
+   "id": 89,
+   "name": "Sylvesprits",
+   "superRaceId": 21
+  },
+  {
+   "id": 90,
+   "name": "Avis de recherche de Frigost",
+   "superRaceId": 27
+  },
+  {
+   "id": 93,
+   "name": "Gobelins de Sakaï",
+   "superRaceId": 21
+  },
+  {
+   "id": 95,
+   "name": "Bombes",
+   "superRaceId": 28
+  },
+  {
+   "id": 96,
+   "name": "Monstres de Vulkania",
+   "superRaceId": 22
+  },
+  {
+   "id": 99,
+   "name": "Épouvantises",
+   "superRaceId": 4
+  },
+  {
+   "id": 100,
+   "name": "Invocations de Dopeuls",
+   "superRaceId": 28
+  },
+  {
+   "id": 102,
+   "name": "Fungus",
+   "superRaceId": 6
+  },
+  {
+   "id": 103,
+   "name": "Cuirassés",
+   "superRaceId": 21
+  },
+  {
+   "id": 104,
+   "name": "Monstres de quête de Vulkania",
+   "superRaceId": 27
+  },
+  {
+   "id": 105,
+   "name": "Monstres de quête de Nowel",
+   "superRaceId": 27
+  },
+  {
+   "id": 106,
+   "name": "Armutins",
+   "superRaceId": 21
+  },
+  {
+   "id": 107,
+   "name": "Alchillusions",
+   "superRaceId": 21
+  },
+  {
+   "id": 108,
+   "name": "Brikoléreux",
+   "superRaceId": 21
+  },
+  {
+   "id": 109,
+   "name": "Sinistros",
+   "superRaceId": 21
+  },
+  {
+   "id": 110,
+   "name": "Invocations de monstre",
+   "superRaceId": 28
+  },
+  {
+   "id": 112,
+   "name": "Prismes d'alliance",
+   "superRaceId": 1
+  },
+  {
+   "id": 113,
+   "name": "Monstres de l'île de Kartonpath",
+   "superRaceId": 25
+  },
+  {
+   "id": 114,
+   "name": "Monstres de l'archevêché",
+   "superRaceId": 27
+  },
+  {
+   "id": 116,
+   "name": "Monstres de quête d'alignement",
+   "superRaceId": 27
+  },
+  {
+   "id": 117,
+   "name": "Mercemers",
+   "superRaceId": 26
+  },
+  {
+   "id": 118,
+   "name": "Monstres événementiels",
+   "superRaceId": 1
+  },
+  {
+   "id": 120,
+   "name": "Kanigs des Dents de Pierre",
+   "superRaceId": 5
+  },
+  {
+   "id": 121,
+   "name": "Obscuranti",
+   "superRaceId": 29
+  },
+  {
+   "id": 122,
+   "name": "Truches",
+   "superRaceId": 5
+  },
+  {
+   "id": 123,
+   "name": "Porkass",
+   "superRaceId": 5
+  },
+  {
+   "id": 124,
+   "name": "Phorreurs",
+   "superRaceId": 29
+  },
+  {
+   "id": 125,
+   "name": "Enutrofors",
+   "superRaceId": 29
+  },
+  {
+   "id": 126,
+   "name": "Koffrefors",
+   "superRaceId": 29
+  },
+  {
+   "id": 127,
+   "name": "Avis de recherche des Dimensions",
+   "superRaceId": 27
+  },
+  {
+   "id": 128,
+   "name": "Cour Sombre",
+   "superRaceId": 29
+  },
+  {
+   "id": 129,
+   "name": "Malveilleurs",
+   "superRaceId": 29
+  },
+  {
+   "id": 130,
+   "name": "Nécrotiques",
+   "superRaceId": 29
+  },
+  {
+   "id": 131,
+   "name": "Krobes",
+   "superRaceId": 21
+  },
+  {
+   "id": 132,
+   "name": "Égarés",
+   "superRaceId": 29
+  },
+  {
+   "id": 133,
+   "name": "Hordémons",
+   "superRaceId": 29
+  },
+  {
+   "id": 134,
+   "name": "Xélomorphes",
+   "superRaceId": 29
+  },
+  {
+   "id": 135,
+   "name": "Vilinsekts",
+   "superRaceId": 2
+  },
+  {
+   "id": 136,
+   "name": "Arak-haï",
+   "superRaceId": 3
+  },
+  {
+   "id": 137,
+   "name": "Chafers d'Incarnam",
+   "superRaceId": 18
+  },
+  {
+   "id": 138,
+   "name": "Monstres du Temple Céleste",
+   "superRaceId": 18
+  },
+  {
+   "id": 139,
+   "name": "Monstres de quête d'Incarnam",
+   "superRaceId": 27
+  },
+  {
+   "id": 140,
+   "name": "Feux spirituels",
+   "superRaceId": 18
+  },
+  {
+   "id": 141,
+   "name": "Bouftous d'Incarnam",
+   "superRaceId": 18
+  },
+  {
+   "id": 142,
+   "name": "Monstres des champs d'Incarnam",
+   "superRaceId": 18
+  },
+  {
+   "id": 143,
+   "name": "Chapardams",
+   "superRaceId": 18
+  },
+  {
+   "id": 144,
+   "name": "Gloots",
+   "superRaceId": 18
+  },
+  {
+   "id": 145,
+   "name": "Champignons d'Incarnam",
+   "superRaceId": 18
+  },
+  {
+   "id": 147,
+   "name": "Avis de recherche alignés",
+   "superRaceId": 27
+  },
+  {
+   "id": 148,
+   "name": "Grand Jeu",
+   "superRaceId": 29
+  },
+  {
+   "id": 149,
+   "name": "Ecaflipuces",
+   "superRaceId": 29
+  },
+  {
+   "id": 150,
+   "name": "Matougarous",
+   "superRaceId": 29
+  },
+  {
+   "id": 152,
+   "name": "Monstres des ruines sous-marines",
+   "superRaceId": 26
+  },
+  {
+   "id": 153,
+   "name": "Trithons",
+   "superRaceId": 26
+  },
+  {
+   "id": 154,
+   "name": "Serviteurs de l'indicible",
+   "superRaceId": 26
+  },
+  {
+   "id": 155,
+   "name": "Muldos sauvages",
+   "superRaceId": 26
+  },
+  {
+   "id": 156,
+   "name": "Avis de recherche de Sufokia",
+   "superRaceId": 27
+  },
+  {
+   "id": 158,
+   "name": "Gliglis",
+   "superRaceId": 5
+  },
+  {
+   "id": 159,
+   "name": "Automates des Brigandins",
+   "superRaceId": 5
+  },
+  {
+   "id": 160,
+   "name": "Troolls de Litneg",
+   "superRaceId": 5
+  },
+  {
+   "id": 162,
+   "name": "Ruffians de Cania",
+   "superRaceId": 5
+  },
+  {
+   "id": 163,
+   "name": "Bworks de Cania",
+   "superRaceId": 5
+  },
+  {
+   "id": 166,
+   "name": "Animaux du désert",
+   "superRaceId": 30
+  },
+  {
+   "id": 167,
+   "name": "Cacterres",
+   "superRaceId": 30
+  },
+  {
+   "id": 168,
+   "name": "Vers des sables",
+   "superRaceId": 30
+  },
+  {
+   "id": 169,
+   "name": "Maudits",
+   "superRaceId": 30
+  },
+  {
+   "id": 171,
+   "name": "Chassouilleurs",
+   "superRaceId": 25
+  },
+  {
+   "id": 172,
+   "name": "Magik Riktus",
+   "superRaceId": 6
+  },
+  {
+   "id": 173,
+   "name": "Goules",
+   "superRaceId": 6
+  },
+  {
+   "id": 174,
+   "name": "Animalades",
+   "superRaceId": 2
+  },
+  {
+   "id": 175,
+   "name": "Brûlâmes",
+   "superRaceId": 21
+  },
+  {
+   "id": 176,
+   "name": "Calcinés",
+   "superRaceId": 6
+  },
+  {
+   "id": 177,
+   "name": "Submergés",
+   "superRaceId": 21
+  },
+  {
+   "id": 181,
+   "name": "Monstres des plages",
+   "superRaceId": 26
+  },
+  {
+   "id": 182,
+   "name": "Sidoas",
+   "superRaceId": 2
+  },
+  {
+   "id": 183,
+   "name": "Volkornes sauvages",
+   "superRaceId": 13
+  },
+  {
+   "id": 184,
+   "name": "Clan Martegel",
+   "superRaceId": 21
+  },
+  {
+   "id": 189,
+   "name": "Croquants",
+   "superRaceId": 34
+  },
+  {
+   "id": 190,
+   "name": "Waddicts",
+   "superRaceId": 34
+  },
+  {
+   "id": 191,
+   "name": "Gardiens des anomalies",
+   "superRaceId": 35
+  },
+  {
+   "id": 192,
+   "name": "Gromorphes",
+   "superRaceId": 35
+  },
+  {
+   "id": 193,
+   "name": "Chocomanciens",
+   "superRaceId": 34
+  },
+  {
+   "id": 194,
+   "name": "Brutomorphes",
+   "superRaceId": 35
+  },
+  {
+   "id": 195,
+   "name": "Brikomorphes",
+   "superRaceId": 35
+  },
+  {
+   "id": 196,
+   "name": "Monstres de quête de Pwâk",
+   "superRaceId": 27
+  },
+  {
+   "id": 199,
+   "name": "Invocations de classe Osamodas",
+   "superRaceId": 28
+  },
+  {
+   "id": 201,
+   "name": "Dragoss",
+   "superRaceId": 3
+  },
+  {
+   "id": 202,
+   "name": "Dragoeufs Protecteurs",
+   "superRaceId": 3
+  },
+  {
+   "id": 203,
+   "name": "Crocodailles de Crocuzko",
+   "superRaceId": 37
+  },
+  {
+   "id": 204,
+   "name": "Invocations de classe Enutrof",
+   "superRaceId": 28
+  },
+  {
+   "id": 206,
+   "name": "Invocations de classe Pandawa",
+   "superRaceId": 28
+  },
+  {
+   "id": 207,
+   "name": "Invocations de classe Ecaflip",
+   "superRaceId": 28
+  },
+  {
+   "id": 209,
+   "name": "Invocations de classe Ouginak",
+   "superRaceId": 28
+  },
+  {
+   "id": 210,
+   "name": "Invocations de classe Sadida",
+   "superRaceId": 28
+  },
+  {
+   "id": 211,
+   "name": "Invocations de classe Féca",
+   "superRaceId": 28
+  },
+  {
+   "id": 212,
+   "name": "Invocations de classe Eniripsa",
+   "superRaceId": 28
+  },
+  {
+   "id": 213,
+   "name": "Invocations de classe Crâ",
+   "superRaceId": 28
+  },
+  {
+   "id": 215,
+   "name": "Asservis",
+   "superRaceId": 38
+  },
+  {
+   "id": 216,
+   "name": "Miséreux",
+   "superRaceId": 38
+  },
+  {
+   "id": 217,
+   "name": "Sanguinaires",
+   "superRaceId": 38
+  },
+  {
+   "id": 218,
+   "name": "Corrompus",
+   "superRaceId": 38
+  },
+  {
+   "id": 220,
+   "name": "Invocations de classe Roublard",
+   "superRaceId": 28
+  },
+  {
+   "id": 221,
+   "name": "Invocations de classe Steamer",
+   "superRaceId": 28
+  },
+  {
+   "id": 222,
+   "name": "Invocations Temporis",
+   "superRaceId": 28
+  },
+  {
+   "id": 224,
+   "name": "Kwapa",
+   "superRaceId": 9
+  },
+  {
+   "id": 225,
+   "name": "Kozaru",
+   "superRaceId": 9
+  },
+  {
+   "id": 226,
+   "name": "Tanuki",
+   "superRaceId": 9
+  },
+  {
+   "id": 228,
+   "name": "Plantalas",
+   "superRaceId": 9
+  },
+  {
+   "id": 229,
+   "name": "Firefoux",
+   "superRaceId": 9
+  },
+  {
+   "id": 230,
+   "name": "Armée de brume",
+   "superRaceId": 9
+  },
+  {
+   "id": 231,
+   "name": "Yokai des Tombeaux",
+   "superRaceId": 9
+  },
+  {
+   "id": 232,
+   "name": "Yokianzhi de Papier",
+   "superRaceId": 9
+  },
+  {
+   "id": 233,
+   "name": "Yokianzhi d'Encre",
+   "superRaceId": 9
+  },
+  {
+   "id": 236,
+   "name": "Possédés",
+   "superRaceId": 41
+  },
+  {
+   "id": 240,
+   "name": "Rats Brâkmariens",
+   "superRaceId": 13
+  },
+  {
+   "id": 241,
+   "name": "Rats Bontariens",
+   "superRaceId": 13
+  },
+  {
+   "id": 242,
+   "name": "Ravageurs",
+   "superRaceId": 41
+  },
+  {
+   "id": 243,
+   "name": "Invocations Boufbowl",
+   "superRaceId": 28
+  },
+  {
+   "id": 245,
+   "name": "Malters",
+   "superRaceId": 4
+  },
+  {
+   "id": 250,
+   "name": "Poutchs",
+   "superRaceId": 1
+  },
+  {
+   "id": 255,
+   "name": "Rebelles de la futaie",
+   "superRaceId": 44
+  },
+  {
+   "id": 256,
+   "name": "Rats Strubiens",
+   "superRaceId": 2
+  },
+  {
+   "id": 257,
+   "name": "Rats Maknéens",
+   "superRaceId": 3
+  },
+  {
+   "id": 258,
+   "name": "Bworks de Gisgoul",
+   "superRaceId": 6
+  },
+  {
+   "id": 259,
+   "name": "Grosses Larves",
+   "superRaceId": 3
+  },
+  {
+   "id": 260,
+   "name": "Monstres du repos",
+   "superRaceId": 11
+  },
+  {
+   "id": 261,
+   "name": "Koalaks mortels",
+   "superRaceId": 14
+  },
+  {
+   "id": 262,
+   "name": "Koalaks primitifs",
+   "superRaceId": 14
+  },
+  {
+   "id": 263,
+   "name": "Gawde du Wa",
+   "superRaceId": 8
+  },
+  {
+   "id": 264,
+   "name": "Wabbits mutants",
+   "superRaceId": 8
+  },
+  {
+   "id": 265,
+   "name": "Abraknydiens Sombres",
+   "superRaceId": 3
+  },
+  {
+   "id": 266,
+   "name": "Abraknydiens Irascibles",
+   "superRaceId": 3
+  },
+  {
+   "id": 267,
+   "name": "Gros Tofus",
+   "superRaceId": 3
+  },
+  {
+   "id": 268,
+   "name": "Mélomaniaques",
+   "superRaceId": 14
+  },
+  {
+   "id": 269,
+   "name": "Koalaks sauvages",
+   "superRaceId": 14
+  },
+  {
+   "id": 270,
+   "name": "Protecteurs d'Ephedrya",
+   "superRaceId": 44
+  },
+  {
+   "id": 271,
+   "name": "Minos (Expéditions)",
+   "superRaceId": 45
+  },
+  {
+   "id": 272,
+   "name": "Gobelins de Sakaï (Expéditions)",
+   "superRaceId": 45
+  },
+  {
+   "id": 273,
+   "name": "Palmikos",
+   "superRaceId": 7
+  },
+  {
+   "id": 274,
+   "name": "Marteaux-Aigris",
+   "superRaceId": 44
+  },
+  {
+   "id": 275,
+   "name": "Invocations de compagnon",
+   "superRaceId": 28
+  },
+  {
+   "id": 277,
+   "name": "Gardiens solitaires",
+   "superRaceId": 1
+  },
+  {
+   "id": 278,
+   "name": "Invocations de classe Forgelance",
+   "superRaceId": 28
+  },
+  {
+   "id": 279,
+   "name": "Invocations de classe Sacrieur",
+   "superRaceId": 28
+  },
+  {
+   "id": 280,
+   "name": "Invocations de classe Iop",
+   "superRaceId": 28
+  },
+  {
+   "id": 281,
+   "name": "Invocations de classe Huppermage",
+   "superRaceId": 28
+  },
+  {
+   "id": 282,
+   "name": "Invocations de classe Xélor",
+   "superRaceId": 28
+  },
+  {
+   "id": 283,
+   "name": "Invocations de classe Zobal",
+   "superRaceId": 28
+  },
+  {
+   "id": 284,
+   "name": "Invocations de classe Eliotrope",
+   "superRaceId": 28
+  },
+  {
+   "id": 285,
+   "name": "Invocations communes",
+   "superRaceId": 28
+  },
+  {
+   "id": 287,
+   "name": "Pirates naufragés",
+   "superRaceId": 19
+  },
+  {
+   "id": 291,
+   "name": "Blops (Expéditions)",
+   "superRaceId": 45
+  },
+  {
+   "id": 292,
+   "name": "Mulous (Expéditions)",
+   "superRaceId": 45
+  },
+  {
+   "id": 293,
+   "name": "Bandits d'Amakna (Expéditions)",
+   "superRaceId": 45
+  },
+  {
+   "id": 294,
+   "name": "Plantes des champs (Expéditions)",
+   "superRaceId": 45
+  },
+  {
+   "id": 295,
+   "name": "Monstres de la Jungle Interdite (Expéditions)",
+   "superRaceId": 45
+  },
+  {
+   "id": 296,
+   "name": "Scarafeuilles (Expéditions)",
+   "superRaceId": 45
+  },
+  {
+   "id": 297,
+   "name": "Corbacs (Expéditions)",
+   "superRaceId": 45
+  },
+  {
+   "id": 298,
+   "name": "Bouftous (Expéditions)",
+   "superRaceId": 45
+  },
+  {
+   "id": 299,
+   "name": "Craqueleurs (Expéditions)",
+   "superRaceId": 45
+  },
+  {
+   "id": 300,
+   "name": "Bworks d'Amakna (Expéditions)",
+   "superRaceId": 45
+  },
+  {
+   "id": 301,
+   "name": "Gros Tofus (Expéditions)",
+   "superRaceId": 45
+  },
+  {
+   "id": 302,
+   "name": "Porcos (Expéditions)",
+   "superRaceId": 45
+  },
+  {
+   "id": 303,
+   "name": "Pichons (Expéditions)",
+   "superRaceId": 45
+  },
+  {
+   "id": 304,
+   "name": "Chafers (Expéditions)",
+   "superRaceId": 45
+  },
+  {
+   "id": 305,
+   "name": "Monstres des cavernes (Expéditions)",
+   "superRaceId": 45
+  },
+  {
+   "id": 306,
+   "name": "Leprechauns",
+   "superRaceId": 1
+  },
+  {
+   "id": 307,
+   "name": "Rats Brâkmariens (Expéditions)",
+   "superRaceId": 45
+  },
+  {
+   "id": 308,
+   "name": "Dragoeufs Protecteurs (Expéditions)",
+   "superRaceId": 45
+  },
+  {
+   "id": 309,
+   "name": "Rats Bontariens (Expéditions)",
+   "superRaceId": 45
+  },
+  {
+   "id": 310,
+   "name": "Abraknydiens Irascibles (Expéditions)",
+   "superRaceId": 45
+  },
+  {
+   "id": 312,
+   "name": "Lancer de dagues",
+   "superRaceId": 46
+  },
+  {
+   "id": 313,
+   "name": "Gladiatrool",
+   "superRaceId": 46
+  },
+  {
+   "id": 314,
+   "name": "Mémoire de blop",
+   "superRaceId": 46
+  },
+  {
+   "id": 315,
+   "name": "Course de larves",
+   "superRaceId": 46
+  },
+  {
+   "id": 316,
+   "name": "Paf le tofu",
+   "superRaceId": 46
+  },
+  {
+   "id": 318,
+   "name": "Mailloche",
+   "superRaceId": 46
+  },
+  {
+   "id": 320,
+   "name": "Maison Fantôme",
+   "superRaceId": 46
+  },
+  {
+   "id": 321,
+   "name": "Rhoarims",
+   "superRaceId": 29
+  },
+  {
+   "id": 322,
+   "name": "Zarbivores",
+   "superRaceId": 29
+  },
+  {
+   "id": 323,
+   "name": "Kabombz",
+   "superRaceId": 29
+  },
+  {
+   "id": 324,
+   "name": "Titans",
+   "superRaceId": 1
+  },
+  {
+   "id": 325,
+   "name": "Invocations de Titans",
+   "superRaceId": 28
+  },
+  {
+   "id": 327,
+   "name": "Bribes d'aventurier",
+   "superRaceId": 49
+  },
+  {
+   "id": 328,
+   "name": "Créatures d'antan",
+   "superRaceId": 49
+  },
+  {
+   "id": 329,
+   "name": "Protecteurs du Sanctuaire des Jardins éternels",
+   "superRaceId": 48
+  },
+  {
+   "id": 330,
+   "name": "Abyssaux du Gouffre du Gigalodon",
+   "superRaceId": 48
+  },
+  {
+   "id": 332,
+   "name": "Épreuve du Dofus Pourpre",
+   "superRaceId": 49
+  },
+  {
+   "id": 333,
+   "name": "Japan Expo Marseille 2026",
+   "superRaceId": 49
+  },
+  {
+   "id": 334,
+   "name": "Invocations des Songes Infinis",
+   "superRaceId": 49
+  },
+  {
+   "id": 339,
+   "name": "Krokilles Juvéniles",
+   "superRaceId": 22
+  },
+  {
+   "id": 340,
+   "name": "Krokilles Novices",
+   "superRaceId": 22
+  },
+  {
+   "id": 341,
+   "name": "Krokilles Matures",
+   "superRaceId": 22
+  },
+  {
+   "id": 342,
+   "name": "Krokilles Vénérables",
+   "superRaceId": 22
+  },
+  {
+   "id": 343,
+   "name": "Monstres du Havre de Nowel",
+   "superRaceId": 24
+  },
+  {
+   "id": 344,
+   "name": "Monstres de la Terre de Nowel",
+   "superRaceId": 24
+  },
+  {
+   "id": 345,
+   "name": "Monstres de la Taïga de Nowel",
+   "superRaceId": 24
+  }
+ ],
+ "superRaces": [
+  {
+   "id": 1,
+   "name": "Créatures diverses"
+  },
+  {
+   "id": 2,
+   "name": "Créatures d'Astrub"
+  },
+  {
+   "id": 3,
+   "name": "Créatures d'Amakna"
+  },
+  {
+   "id": 4,
+   "name": "Créatures de la Forêt Maléfique"
+  },
+  {
+   "id": 5,
+   "name": "Créatures de Cania"
+  },
+  {
+   "id": 6,
+   "name": "Créatures de Sidimote"
+  },
+  {
+   "id": 7,
+   "name": "Créatures de l'île de Moon"
+  },
+  {
+   "id": 8,
+   "name": "Créatures de l'île des Wabbits"
+  },
+  {
+   "id": 9,
+   "name": "Créatures de Pandala"
+  },
+  {
+   "id": 11,
+   "name": "Créatures des cimetières"
+  },
+  {
+   "id": 13,
+   "name": "Créatures de Bonta et Brâkmar"
+  },
+  {
+   "id": 14,
+   "name": "Créatures de la Montagne des Koalaks"
+  },
+  {
+   "id": 15,
+   "name": "Protecteurs des ressources"
+  },
+  {
+   "id": 18,
+   "name": "Créatures d'Incarnam"
+  },
+  {
+   "id": 19,
+   "name": "Créatures de l'île d'Otomaï"
+  },
+  {
+   "id": 20,
+   "name": "Créatures Archimonstres"
+  },
+  {
+   "id": 21,
+   "name": "Créatures de Frigost"
+  },
+  {
+   "id": 22,
+   "name": "Créatures de Vulkania"
+  },
+  {
+   "id": 24,
+   "name": "Créatures de Nowel"
+  },
+  {
+   "id": 25,
+   "name": "Créatures insulaires"
+  },
+  {
+   "id": 26,
+   "name": "Créatures de Sufokia"
+  },
+  {
+   "id": 27,
+   "name": "Créatures de quête"
+  },
+  {
+   "id": 28,
+   "name": "Créatures invoquées"
+  },
+  {
+   "id": 29,
+   "name": "Créatures des Dimensions"
+  },
+  {
+   "id": 30,
+   "name": "Créatures de Saharach"
+  },
+  {
+   "id": 34,
+   "name": "Créatures de Pwâk"
+  },
+  {
+   "id": 35,
+   "name": "Créatures des Anomalies Temporelles"
+  },
+  {
+   "id": 37,
+   "name": "Créatures de l'Archipel des Écailles"
+  },
+  {
+   "id": 38,
+   "name": "Créatures de l'Eliocalypse"
+  },
+  {
+   "id": 41,
+   "name": "Créatures de la Shukrute"
+  },
+  {
+   "id": 44,
+   "name": "Créatures de Valonia"
+  },
+  {
+   "id": 45,
+   "name": "Créatures des Expéditions"
+  },
+  {
+   "id": 46,
+   "name": "Créatures de la Foire du Trool"
+  },
+  {
+   "id": 48,
+   "name": "Créatures des raids"
+  },
+  {
+   "id": 49,
+   "name": "Créatures des Songes Infinis"
+  }
+ ]
+}

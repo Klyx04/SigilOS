@@ -10,6 +10,7 @@ import { SuccesBossGuide } from "./SuccesBossGuide";
 import { SuccesDefiTab } from "./SuccesDefiTab";
 import { SuccesTitanTab } from "./SuccesTitanTab";
 import { SuccesAvisTab } from "./SuccesAvisTab";
+import { SuccesMonstresTab } from "./SuccesMonstresTab";
 
 interface SuccesClientProps {
     guildId: string;
@@ -18,8 +19,8 @@ interface SuccesClientProps {
     canViewGuildSucces: boolean;
 }
 
-/** Les 5 types de fiches sont regroupés derrière un seul bloc « Fiches » (sous-sélecteur). */
-type FicheTab = "boss" | "anomalies" | "bounties" | "titans" | "raids";
+/** Les 6 types de fiches sont regroupés derrière un seul bloc « Fiches » (sous-sélecteur). */
+type FicheTab = "boss" | "anomalies" | "bounties" | "titans" | "raids" | "monstres";
 type View = "menu" | "moi" | "guilde" | "fiches" | "defi";
 
 /**
@@ -34,16 +35,18 @@ const FICHE_TABS: { id: FicheTab; label: string; sub: string; icon: string }[] =
     { id: "bounties", label: "Avis de recherche", sub: "Chasse & primes", icon: "/assets/avis/avitons.png" },
     { id: "titans", label: "Titans", sub: "Événements Krosmiques", icon: "/assets/dofus/icons/titan.png" },
     { id: "raids", label: "Raids", sub: "Boss & monstres de raid", icon: "/assets/dofus/icons/crown.png" },
+    { id: "monstres", label: "Monstres", sub: "Bestiaire — monstres normaux (hors boss, avis, titans)", icon: "/assets/dofus/icons/archimonster.png" },
 ];
 
-/** `?view=boss|anomalies|bounties|titans|raids` reste valide (liens profonds et tutoriel). */
+/** `?view=boss|anomalies|bounties|titans|raids|monstres` reste valide (liens profonds et tutoriel). */
 function isFicheTab(value: string | null): value is FicheTab {
     return (
         value === "boss" ||
         value === "anomalies" ||
         value === "bounties" ||
         value === "titans" ||
-        value === "raids"
+        value === "raids" ||
+        value === "monstres"
     );
 }
 
@@ -101,7 +104,7 @@ export function SuccesClient({
         () => [
             { id: "moi" as const, label: "Mes Succès", eyebrow: "Progression", desc: "Ta progression, donjon par donjon — là où tu coches.", cta: "Ouvrir mes succès", icon: "/assets/dofus/icons/success.png", tour: "succes-menu-moi", disabled: !canEditOwnSucces },
             { id: "guilde" as const, label: "Succès Commun", eyebrow: "Guilde", desc: "Qui dans la guilde a validé quoi — pour monter ton groupe.", cta: "Voir la guilde", icon: "/assets/dofus/icons/guild.png", tour: "succes-view-commun", disabled: !canViewGuildSucces },
-            { id: "fiches" as const, label: "Fiches", eyebrow: "Encyclopédie", desc: "Boss, anomalies, avis de recherche, titans, raids — sorts, quêtes et simulation.", cta: "Ouvrir les fiches", icon: "/assets/dofus/icons/boss.png", tour: "succes-view-fiches", disabled: false },
+            { id: "fiches" as const, label: "Fiches", eyebrow: "Encyclopédie", desc: "Boss, anomalies, avis de recherche, titans, raids et monstres — sorts, quêtes et simulation.", cta: "Ouvrir les fiches", icon: "/assets/dofus/icons/boss.png", tour: "succes-view-fiches", disabled: false },
             { id: "defi" as const, label: "Défi", eyebrow: "Communauté", desc: "Événements & one-shot communautaires.", cta: "Voir les défis", icon: "/assets/dofus/icons/challenges.png", tour: "succes-view-defi", disabled: false },
         ],
         [canEditOwnSucces, canViewGuildSucces]
@@ -210,6 +213,8 @@ export function SuccesClient({
                 <SuccesAvisTab guildId={guildId} />
             ) : view === "fiches" && activeFiche === "titans" ? (
                 <SuccesTitanTab guildId={guildId} canEdit={canEditOwnSucces} />
+            ) : view === "fiches" && activeFiche === "monstres" ? (
+                <SuccesMonstresTab />
             ) : view === "defi" ? (
                 <SuccesDefiTab guildId={guildId} canEdit={canEditOwnSucces} />
             ) : view === "guilde" ? (

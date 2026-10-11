@@ -58,12 +58,15 @@ describe("succes hub — 4 blocs + retour", () => {
 });
 
 describe("onglet Quêtes des fiches boss / titans", () => {
-    it("fiche boss : onglet Quêtes après Monstres de la salle, boss classiques uniquement", () => {
+    it("fiche boss : onglet Quêtes via la source unique, boss classiques uniquement", () => {
         const src = readSource("src/components/succes/SuccesBossGuide.tsx");
         expect(src).toContain("SuccesBossQuests");
-        expect(src).toContain("Quêtes (");
-        expect(src).toContain("!selected?.isAnomalyBoss");
-        expect(src).toContain('detailTab === "quetes"');
+        // Libellé + ordre des onglets : source unique partagée avec la fiche publique.
+        expect(src).toContain("buildBossFicheTabs");
+        expect(src).toContain("!selected.isAnomalyBoss");
+        expect(src).toContain('detailTab === "quests"');
+        // Un boss d'anomalie n'a jamais de quête liée (compteur forcé à 0 ⇒ onglet masqué).
+        expect(src).toContain("quests: selected?.isAnomalyBoss ? 0 : questCount");
     });
 
     it("fiche boss : réutilise les quêtes déjà chargées (zéro requête en plus)", () => {
@@ -86,11 +89,15 @@ describe("onglet Quêtes des fiches boss / titans", () => {
         expect(src).toContain('detailTab === "quetes"');
     });
 
-    it("affichage partagé : pas de bloc Succès du donjon (déjà dans Mes Succès)", () => {
+    it("affichage partagé : le bloc Quêtes ne duplique pas les succès du donjon", () => {
         const src = readSource("src/components/succes/SuccesBossQuests.tsx");
         expect(src).toContain("Quêtes liées");
         expect(src).not.toContain("Succès du Donjon");
         expect(src).not.toContain("SUCCÈS DU DONJON");
+        // Les succès vivent dans l'onglet dédié de la fiche, rendu par le composant
+        // PARTAGÉ de la fiche publique (source unique, aucun recodage).
+        const fiche = readSource("src/components/succes/SuccesBossGuide.tsx");
+        expect(fiche).toContain("PublicBossAchievementsTab");
     });
 });
 
@@ -236,14 +243,18 @@ describe("succès commun — listes denses + pagination, jamais d'empilement", (
 
 describe("avis de recherche — homogène aux fiches boss", () => {
     it("ouvre un avis à l'arrivée (jamais d'écran vide), via la section encyclo partagée", () => {
-        const src = readSource("src/components/succes/SuccesAvisTab.tsx");
-        expect(src).toContain("autoSelectedRef");
+        // Le rendu d'une fiche d'avis vit dans `BountyFicheView` (partagé avec la carte).
+        const src = readSource("src/components/succes/BountyFicheView.tsx");
         expect(src).toContain("SuccesBossEncyclo");
         expect(src).not.toContain("Choisissez un avis de recherche");
+        // L'hôte (module Succès) ouvre le premier avis d'office — jamais d'écran vide.
+        const host = readSource("src/components/succes/SuccesAvisTab.tsx");
+        expect(host).toContain("autoSelectedRef");
+        expect(host).toContain("<BountyFicheView");
     });
 
     it("onglets soulignés comme les fiches boss, sans rose ni pastilles", () => {
-        const src = readSource("src/components/succes/SuccesAvisTab.tsx");
+        const src = readSource("src/components/succes/BountyFicheView.tsx");
         expect(src).toContain("border-foreground/60 text-foreground");
         expect(src).not.toContain("rose-500");
         expect(src).not.toContain("rose-400");

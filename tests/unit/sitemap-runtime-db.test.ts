@@ -35,6 +35,8 @@ describe("sitemap — généré au runtime (jamais dans un build sans base)", ()
         // 3 `catch` tracés : un échec (API, base) ne doit jamais priver le sitemap du reste.
         // +1 le 29/09/2026 : l'état du guide Sylvestre (`OptimizedGuide.isUnderConstruction`)
         // conditionne sa publication — même contrat « un échec n'ampute pas le reste ».
-        expect((src.match(/logger\.error\("\[Sitemap\]/g) ?? []).length).toBe(4);
+        // +1 le 11/10/2026 : les fiches de monstres **siphonnées** (`listSiphonedNormalMonsterSlugs`)
+        // — les seules indexables de `/bestiaire/*` (les autres sont en `noindex`).
+        expect((src.match(/logger\.error\("\[Sitemap\]/g) ?? []).length).toBe(5);
     });
 });

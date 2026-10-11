@@ -173,13 +173,12 @@ function getMapMarkerImage(url: string, onLoad: () => void): HTMLImageElement | 
     return null;
 }
 
-function MapGridOverlay({ activeWorld, mapsByCoords, mapsBySubAreaId, subAreasById, showDebugGrid, isMiniMap, guessResult, selectedPosition, participants, currentUserId, highlightSubareaIds, zoneHighlight, pinnedSubareaId, highlightMarker, zaaps, onOpenZoneDetails, setSelectedPosition, isOverHudRef, mouseoutTimerRef, hiddenZoneLabels }: any) {
+function MapGridOverlay({ activeWorld, mapsByCoords, mapsBySubAreaId, subAreasById, showDebugGrid, isMiniMap, guessResult, selectedPosition, participants, currentUserId, zoneHighlight, pinnedSubareaId, highlightMarker, showGameOverlays = false, zaaps, onOpenZoneDetails, setSelectedPosition, isOverHudRef, mouseoutTimerRef, hiddenZoneLabels }: any) {
     const map = useMap();
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
     const hoveredCellRef = useRef<string | null>(null);
     const hoveredSubAreaIdRef = useRef<number | null>(null);
     const rafRef = useRef<number>(0);
-    const highlightSubareaIdsRef = useRef<number[]>([]);
 
     /**
      * Libellés de zone (nom + niveau) : une boîte englobante **précalculée** par
@@ -296,13 +295,16 @@ function MapGridOverlay({ activeWorld, mapsByCoords, mapsBySubAreaId, subAreasBy
             map.latLngToContainerPoint(L.latLng(-(oy + gy * mh), ox + gx * mw));
 
         // ── 1. Hover SubArea (surbrillance de zone au survol) ──
-        // Zone encadrée : survol (bouton « Zones ») ou zone ÉPINGLÉE (avis de
-        // recherche sélectionné dans le panneau latéral).
+        // Zone encadrée : uniquement quand le calque « Zones » est actif. La zone
+        // épinglée (avis de recherche / archimonstre sélectionné) NE passe pas
+        // outre ce calque : le bouton « Zones » reste maître de l'affichage (on
+        // l'active à la sélection si besoin, côté carte), sinon la bascule devenait
+        // sans effet dès qu'une cible était posée.
         const subAreaId = pinnedSubareaId ?? hoveredSubAreaIdRef.current;
         const cellKey = hoveredCellRef.current;
         const activeSubArea = subAreaId ? subAreasById?.get(subAreaId) : null;
 
-        if ((zoneHighlight || pinnedSubareaId != null) && subAreaId !== null && mapsBySubAreaId && subAreasById) {
+        if (zoneHighlight && subAreaId !== null && mapsBySubAreaId && subAreasById) {
             const subArea = subAreasById.get(subAreaId);
             const mapsInZone = mapsBySubAreaId.get(subAreaId);
             
@@ -385,59 +387,11 @@ function MapGridOverlay({ activeWorld, mapsByCoords, mapsBySubAreaId, subAreasBy
             ctx.restore();
         }
 
-        // ── 1b. Archimonstre Highlight (pulsing orange for searched monsters) ──
-        const activeHighlights = highlightSubareaIdsRef.current;
-        if (activeHighlights.length > 0 && mapsBySubAreaId && subAreasById) {
-            const pulse = (Math.sin(Date.now() / 400) + 1) / 2; // 0..1, ~1.25Hz
-            const alpha = 0.25 + pulse * 0.35; // 0.25..0.60
-            ctx.save();
-            ctx.fillStyle = `rgba(251, 146, 60, ${alpha})`;
-            ctx.strokeStyle = `rgba(251, 146, 60, ${0.7 + pulse * 0.3})`;
-            ctx.lineWidth = 2;
-            ctx.lineJoin = 'round';
-            ctx.shadowBlur = 12 + pulse * 8;
-            ctx.shadowColor = 'rgba(251, 146, 60, 0.8)';
-
-            activeHighlights.forEach((highlightId: number) => {
-                const subArea = subAreasById.get(highlightId);
-                if (!forceCellFallback && subArea && subArea.shape && subArea.shape.length > 2) {
-                    const shape = subArea.shape;
-                    let isFirstPoint = true;
-                    ctx.beginPath();
-                    for (let i = 0; i < shape.length; i += 2) {
-                        const gx = shape[i];
-                        const gy = shape[i + 1];
-                        if (Math.abs(gx) > 1000 || Math.abs(gy) > 1000) {
-                            if (!isFirstPoint) { ctx.closePath(); ctx.fill(); ctx.stroke(); }
-                            ctx.beginPath();
-                            isFirstPoint = true;
-                            continue;
-                        }
-                        const pt = toCP(gx, gy);
-                        if (isFirstPoint) { ctx.moveTo(pt.x, pt.y); isFirstPoint = false; }
-                        else ctx.lineTo(pt.x, pt.y);
-                    }
-                    if (!isFirstPoint) { ctx.closePath(); ctx.fill(); ctx.stroke(); }
-                } else {
-                    const mapsInZone = mapsBySubAreaId.get(highlightId);
-                    if (mapsInZone) {
-                        const polygons = mergeCellEdges(mapsInZone);
-                        polygons.forEach((poly: any) => {
-                            if (poly.length < 3) return;
-                            ctx.beginPath();
-                            const first = toCP(poly[0].x, poly[0].y);
-                            ctx.moveTo(first.x, first.y);
-                            for (let i = 1; i < poly.length; i++) {
-                                const pt = toCP(poly[i].x, poly[i].y);
-                                ctx.lineTo(pt.x, pt.y);
-                            }
-                            ctx.closePath(); ctx.fill(); ctx.stroke();
-                        });
-                    }
-                }
-            });
-            ctx.restore();
-        }
+        // ── 1b. Sélection d'une cible (avis / archimonstre) ──
+        // L'ancien « aplat orange pulsé » a été retiré : il recouvrait la zone d'un
+        // bloc orangé (tracé en escalier) au lieu de l'encadrer. La cible est
+        // désormais rendue par la surbrillance 1 (voile + contour, identique au
+        // survol) et par l'icône clignotante 1c ci-dessous.
 
         // ── 1b-bis. Libellés de zone (nom + niveau) ──
         // Toujours visibles (comme la carte de référence), mais fortement écrémés :
@@ -489,32 +443,24 @@ function MapGridOverlay({ activeWorld, mapsByCoords, mapsBySubAreaId, subAreasBy
             ctx.restore();
         }
 
-        // ── 1c. Icône de l'avis épinglé — clignotante, au centre de la zone ──
-        if (highlightMarker && (pinnedSubareaId != null || highlightSubareaIdsRef.current.length > 0)) {
+        // ── 1c. Cible épinglée (avis / archimonstre) — son icône, au centre de la zone ──
+        // Aucun « point » inventé : si l'icône de la cible n'est pas encore chargée, on
+        // ne dessine RIEN (l'encadrement de la zone en 1 la situe déjà). L'ancien halo
+        // orangé + la pastille orange de repli brouillaient la carte sans rien
+        // apprendre : la cible se lit par sa zone, dans son monde.
+        if (highlightMarker) {
             const markerWorldId = highlightMarker.worldId;
             if (markerWorldId === undefined || markerWorldId === null || markerWorldId === world?.id) {
-                const markerPulse = (Math.sin(Date.now() / 200) + 1) / 2; // 0..1, ~0,8 Hz
                 const point = toCP(highlightMarker.gameX, highlightMarker.gameY);
-                const size = 42 + markerPulse * 8;
-                ctx.save();
-                ctx.globalAlpha = 0.5 + markerPulse * 0.5;
-                // Halo orangé : même teinte que la surbrillance de zone
-                ctx.beginPath();
-                ctx.arc(point.x, point.y, 20 + markerPulse * 10, 0, Math.PI * 2);
-                ctx.fillStyle = 'rgba(251, 146, 60, 0.22)';
-                ctx.fill();
+                const size = 44;
                 const markerIcon = highlightMarker.iconUrl
                     ? getMapMarkerImage(highlightMarker.iconUrl, drawGrid)
                     : null;
                 if (markerIcon) {
+                    ctx.save();
                     ctx.drawImage(markerIcon, point.x - size / 2, point.y - size / 2, size, size);
-                } else {
-                    ctx.beginPath();
-                    ctx.arc(point.x, point.y, 7, 0, Math.PI * 2);
-                    ctx.fillStyle = 'rgba(251, 146, 60, 0.95)';
-                    ctx.fill();
+                    ctx.restore();
                 }
-                ctx.restore();
             }
         }
 
@@ -595,8 +541,12 @@ function MapGridOverlay({ activeWorld, mapsByCoords, mapsBySubAreaId, subAreasBy
             ctx.fillRect(Math.round(tl.x), Math.round(tl.y), Math.round(br.x - tl.x), Math.round(br.y - tl.y));
         }
 
-        // ── 3. Guess Results ──
-        if (guessResult?.target && guessResult.target.worldMap === world.id) {
+        // ── 3. Guess Results — UNIQUEMENT pendant le mini-jeu ──
+        // La cible rouge, la ligne dorée et la pastille verte du devin n'ont aucun sens
+        // quand on explore la carte ou qu'on cible un avis : hors onglet « Mini-jeux »,
+        // ces calques ne sont plus dessinés (y compris si un résultat traîne encore en
+        // mémoire après une partie).
+        if (showGameOverlays && guessResult?.target && guessResult.target.worldMap === world.id) {
             const t = guessResult.target;
             const targetTL = toCP(t.x, t.y);
             const targetBR = toCP(t.x + 1, t.y + 1);
@@ -771,21 +721,7 @@ function MapGridOverlay({ activeWorld, mapsByCoords, mapsBySubAreaId, subAreasBy
         // Labels de coordonnées sur la grille debug
         ctx.font = 'bold 9px Inter, sans-serif';
         // L'affichage du texte des coordonnées en mode debug a été supprimé à la demande de l'utilisateur.
-    }, [map, activeWorld, mapsByCoords, mapsBySubAreaId, subAreasById, showDebugGrid, isMiniMap, guessResult, selectedPosition, participants, currentUserId, highlightSubareaIds, zoneHighlight, pinnedSubareaId, highlightMarker, zoneLabelBoxes]);
-
-    // ── Sync highlight ref : pulsation à 4 Hz (avant : RAF à 60 fps en continu
-    // dès qu'une recherche surlignait des zones → main thread saturé en permanence).
-    useEffect(() => {
-        const ids: number[] = highlightSubareaIds || [];
-        highlightSubareaIdsRef.current = ids;
-
-        if (ids.length > 0) {
-            drawGrid();
-            const timer = setInterval(drawGrid, 250);
-            return () => clearInterval(timer);
-        }
-        drawGrid(); // Clear the highlight
-    }, [highlightSubareaIds, drawGrid]);
+    }, [map, activeWorld, mapsByCoords, mapsBySubAreaId, subAreasById, showDebugGrid, isMiniMap, guessResult, selectedPosition, participants, currentUserId, zoneHighlight, pinnedSubareaId, highlightMarker, zoneLabelBoxes]);
 
 
 
@@ -1490,8 +1426,9 @@ interface LeafletMapCoreProps {
     initialZoom?: number;
     autoCopyTravel?: boolean;
     onHoverMap?: (pos: { x: number, y: number, found: boolean } | null) => void;
-    highlightSubareaIds?: number[];
     zoneHighlight?: boolean;
+    /** Cible + tracés du devin (mini-jeu) : dessinés uniquement dans l'onglet des jeux. */
+    showGameOverlays?: boolean;
     /** Zone encadrée même sans survol (avis sélectionné dans le panneau latéral). */
     pinnedSubareaId?: number | null;
     /** Cible (avis) dessinée au centre de sa zone, clignotante. */
@@ -1522,7 +1459,7 @@ export default function LeafletMapCore(props: LeafletMapCoreProps) {
         mapsBySubAreaId, setSelectedPosition, setSelectedDungeon, triggerCenterPosition,
         triggerWorldId, isMiniMap, guessResult, minimapZoomLevel, minimapRecenterTrigger,
          participants, currentUserId, isSpectator, hideUI, interactive = true, 
-        autoCopyTravel = false, highlightSubareaIds, initialZoom: initialZoomProp, zoneHighlight,
+        autoCopyTravel = false, initialZoom: initialZoomProp, zoneHighlight, showGameOverlays = false,
         pinnedSubareaId = null, highlightMarker = null,
         zaaps, showZaaps, selectedHarvestResources, activeCircuit, completedHarvestSteps, onToggleHarvestStep,
         showPassages = false, onOpenZoneDetails, isOverlay = false, hiddenZoneLabels = []
@@ -1848,6 +1785,7 @@ export default function LeafletMapCore(props: LeafletMapCoreProps) {
                     subAreasById={subAreasById}
                     showDebugGrid={showDebugGrid}
                     zoneHighlight={zoneHighlight}
+                    showGameOverlays={showGameOverlays}
                     pinnedSubareaId={pinnedSubareaId}
                     highlightMarker={highlightMarker}
                     isMiniMap={isMiniMap}
@@ -1856,7 +1794,6 @@ export default function LeafletMapCore(props: LeafletMapCoreProps) {
                     setSelectedPosition={setSelectedPosition}
                     participants={participants}
                     currentUserId={currentUserId}
-                    highlightSubareaIds={highlightSubareaIds}
                     hiddenZoneLabels={hiddenZoneLabels}
                     zaaps={zaaps}
                     onOpenZoneDetails={onOpenZoneDetails}

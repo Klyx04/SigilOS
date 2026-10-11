@@ -8,6 +8,7 @@ import { JsonLd } from "@/components/shared/json-ld";
 import { auth } from "@/auth";
 import { getAppBaseUrl } from "@/lib/utils";
 import { getBestiaireCatalog } from "@/server/actions/game-data-actions";
+import { listSiphonedNormalMonsterSlugs } from "@/server/game/normal-monster-scope";
 import { PublicBossCatalogClient } from "./_components/PublicBossCatalogClient";
 import { BossOverlayButton } from "@/components/boss-overlay/boss-overlay-button";
 import { getUserContext } from "@/server/actions/user-actions";
@@ -43,6 +44,11 @@ export default async function PublicBossCatalogPage() {
 
   const catalogRes = await getBestiaireCatalog();
   const bosses = (catalogRes.success && catalogRes.data) ? catalogRes.data : [];
+
+  // Combien de fiches de monstres sont **documentées** (butin réel) : c'est le lien vers le
+  // sommaire `/bestiaire`, rendu ici en **HTML** — les fiches de monstres n'ont, sinon, aucun
+  // lien entrant (la liste du filtre « Monstres » est chargée côté client).
+  const documentedMonsters = (await listSiphonedNormalMonsterSlugs().catch(() => [])).length;
 
   const headersList = await headers();
   const nonce = headersList.get("x-nonce") ?? "";
@@ -95,6 +101,15 @@ export default async function PublicBossCatalogPage() {
             <p className="text-sm text-muted-foreground leading-relaxed">
               {t.bossPage.subtitle}
             </p>
+            {documentedMonsters > 0 ? (
+              <Link
+                href="/bestiaire"
+                className="inline-flex items-center gap-2 text-xs font-bold text-foreground underline decoration-border underline-offset-4 hover:decoration-foreground transition-colors"
+              >
+                {t.bossPage.bestiaryHub.linkFromBoss}
+                <span className="font-mono text-[11px] text-muted-foreground">({documentedMonsters})</span>
+              </Link>
+            ) : null}
           </div>
         </div>
 

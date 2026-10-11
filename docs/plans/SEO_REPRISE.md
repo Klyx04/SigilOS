@@ -27,6 +27,39 @@
 - **OpenGraph Dynamique HD** : Cartes réseaux sociaux `/api/og` générées à la volée par guide.
 - **Enrichissement Annuaire & Liens Utiles** : Dofocus, DofusElevage, Doflinks intégrés par défaut.
 
+### 3. Indexation bornée du bestiaire (11/10/2026) — ni trou, ni explosion
+
+- **Constat mesuré** : `/bestiaire/<slug>` répondait **404 pour tout monstre normal** (`/bestiaire/piou-rouge`
+  → 404 alors que `/` → 200 ; `MonsterStat` = 283 lignes, **0** « Piou »). La fiche est désormais servie
+  depuis le bestiaire local du client (`public/game-data/unity-bestiary.json`, **5 129** créatures) :
+  soit **~5 070 pages auto-générées** possibles en plus des **145** fiches boss. Question posée :
+  « on va indexer des milliers de pages ? » → **non**.
+- **Règle, une seule source** (`src/server/game/normal-monster-scope.ts`, partagée par les actions **et**
+  le sitemap) :
+  · `noindex, follow` sur toute fiche servie par le **seul** bestiaire local (paliers + sorts, sans butin
+    ni encyclopédie → contenu auto-généré, aucune valeur ajoutée) ;
+  · **indexables** (donc **au sitemap**) uniquement les fiches **siphonnées** (butin réel, encyclopédie,
+    zone) via `listSiphonedNormalMonsterSlugs()`.
+- **Anti-duplicate** : une créature qui a déjà sa page (boss de donjon, avis de recherche, titan)
+  **redirige** (307) vers `/boss/<slug>` — jamais deux URL pour la même bête ; `canonical` calculé sur le
+  slug du nom (`slugifyBossName`) → une seule URL canonique malgré les variantes d'orthographe.
+- **Robots** : `/bestiaire` est **crawlable** (`Allow: /bestiaire` dans `robots.ts`, comme `/boss`) —
+  un `Disallow` empêcherait Google de **lire** le `noindex` et figerait les URL dans l'index.
+- **Maillage interne (11/10/2026)** : les fiches n'avaient **aucun lien entrant** (la liste des monstres de
+  `/boss` est chargée côté client : **0** lien `/bestiaire/` dans le HTML servi) et `/bestiaire` répondait
+  **404**. Le **sommaire `/bestiaire`** est désormais la page d'entrée de la section : indexable
+  (`index, follow` + canonical), `CollectionPage` + `ItemList`, **un lien réel par fiche documentée**
+  (familles officielles + sprite + niveau), lié depuis `/boss` et depuis chaque fiche. Il ne lie **que**
+  les fiches du sitemap (même source `getBestiaryHub` → `listSiphonedNormalMonsterSlugs`) : aucune page
+  `noindex` ne gaspille du budget de crawl, aucun lien ne mène à un 404.
+- **Volume mesuré (11/10)** : `sitemap.xml` → **145** `/boss/` + **58** `/bestiaire/` + **1** sommaire
+  `/bestiaire` (aucun boss / avis / titan dupliqué) ; les URLs du bestiaire du sitemap **répondent 200**
+  et sont **exactement** celles listées par le sommaire. La règle grandit avec le **siphon**, jamais avec
+  le nombre de créatures du bestiaire.
+- **Bug corrigé le 11/10** : `MonsterStat` contenait un nom parasite (`monsterName = "[object Object]"`)
+  ⇒ `/bestiaire/object-object` était **au sitemap** et répondait **404**. La source du périmètre valide
+  chaque slug contre le bestiaire local : une URL du sitemap répond 200 par construction.
+
 DÉJÀ FAIT le 02/08 SOIR (session en cours — à committer via PR vers dev) :
 - GUIDE PUBLIÉ : creer-gerer-guilde-dofus-2026 passe draft:true → false
   → désormais indexable, alimente le sitemap automatiquement, visible sur /guides
@@ -175,6 +208,10 @@ QUESTION : quel est le plan précis pour cette session ? (attente retour IA → 
 > **5. Vérifs SEO finales**
 > - [ ] Le guide `/guides/creer-gerer-guilde-dofus-2026` indexé sur sigilos.fr (pas seulement beta)
 > - [ ] L'indexation Google de la beta se désindexe progressivement (noindex + suppression éventuelle en GSC)
+> - [ ] Bestiaire : `/bestiaire` **crawlable** (`Allow: /bestiaire` dans `robots.ts`) et `noindex, follow`
+>   **par page** hors fiches siphonnées ; `curl -sS https://sigilos.fr/robots.txt | grep bestiaire`
+>   puis `curl -s https://sigilos.fr/sitemap.xml | grep -c "/bestiaire/"` → doit rester **borné**
+>   (seules les fiches siphonnées, jamais les ~5 000 pages auto-générées).
 
 ---
 

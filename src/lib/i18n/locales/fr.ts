@@ -734,6 +734,26 @@ export const fr = {
         anomalieType: "Fiches Anomalies",
         titanType: "Titans",
         bountyType: "Avis de recherche",
+        monsterType: "Monstres",
+        /**
+         * Sommaire public `/bestiaire` — la page qui **lie** les fiches de monstres (maillage
+         * interne : sans elle, ces fiches n'avaient aucun lien entrant hors sitemap).
+         */
+        bestiaryHub: {
+            metaTitle: "Bestiaire Dofus Unity — fiches des monstres — SigilOS",
+            metaDesc: "Les monstres Dofus Unity documentés : paliers, sorts, résistances, taux de butin et simulation de portée, groupés par famille. Gratuit et sans compte.",
+            eyebrow: "Bestiaire",
+            title: "Les monstres de Dofus Unity, un par un",
+            subtitle: "Chaque fiche d'un monstre normal donne ses caractéristiques par palier, ses sorts, ses résistances et ses taux de butin réels, avec la simulation de portée des sorts.",
+            documented: "{count} fiches documentées sur {total} créatures du bestiaire",
+            familyFiches: "{count} fiches",
+            otherFamily: "Autres créatures",
+            truncated: "Seules les premières fiches sont listées ici — utilisez la recherche du catalogue pour les autres.",
+            empty: "Aucune fiche de monstre documentée pour le moment : ce sommaire se remplit à mesure que le butin des créatures est siphonné.",
+            cta: "Chercher un monstre (boss, avis, titans, monstres)",
+            linkFromBoss: "Parcourir le bestiaire des monstres",
+            linkFromFiche: "Sommaire du bestiaire",
+        },
         noResults: "Aucun boss ou monstre ne correspond à vos critères de recherche.",
         levelShort: "Niv.",
         tacticalSheet: "Fiche tactique",

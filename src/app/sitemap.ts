@@ -5,6 +5,7 @@ import { getAppBaseUrl } from "@/lib/utils";
 import { getIndexableGuildSegment } from "@/lib/presentation-constants";
 import { clampLastModified } from "@/lib/seo";
 import { logger } from "@/lib/logger";
+import { listSiphonedNormalMonsterSlugs } from "@/server/game/normal-monster-scope";
 
 /**
  * ⚠️ `force-dynamic` — ce sitemap interroge la BASE (guildes publiques, fiches boss/donjons).
@@ -153,6 +154,36 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         }
     } catch (error) {
         logger.error("[Sitemap] Error fetching boss pages", { error });
+    }
+
+    // Monstres : **uniquement les fiches siphonnées** (butin, encyclopédie, zone — contenu réel).
+    // Les fiches servies par le seul bestiaire local du client sont en `noindex` (contenu
+    // auto-généré répétitif) : on n'injecte pas 5 129 pages minces dans l'index.
+    // Les boss / avis / titans sont écartés par la **source unique** du périmètre
+    // (`@/server/game/normal-monster-scope`) : ils ont déjà leur URL `/boss/<slug>`.
+    try {
+        const monsters = await listSiphonedNormalMonsterSlugs();
+        // Le **sommaire** `/bestiaire` (1 URL) : c'est lui qui porte les liens vers les fiches
+        // (elles n'en avaient aucun côté HTML). Il n'est déclaré qu'une fois qu'il a du contenu —
+        // un sommaire vide est une page mince, on ne la pousse pas aux moteurs.
+        if (monsters.length > 0) {
+            routes.push({
+                url: `${baseUrl}/bestiaire`,
+                lastModified: now,
+                changeFrequency: "weekly",
+                priority: 0.7,
+            });
+        }
+        for (const monster of monsters) {
+            routes.push({
+                url: `${baseUrl}/bestiaire/${monster.slug}`,
+                lastModified: clampLastModified(monster.lastSyncedAt ?? now, now),
+                changeFrequency: "monthly",
+                priority: 0.5,
+            });
+        }
+    } catch (error) {
+        logger.error("[Sitemap] Error fetching monster pages", { error });
     }
 
     return routes;

@@ -333,6 +333,14 @@ export async function siphonGameItemsBatchCore(
                 },
             });
             updated++;
+            // Correctif long terme 10/10/2026 — un item MODIFIÉ (nom, stats, **icône** :
+            // `imageSrc` entre dans le hash) re-siphonne son image comme à la création.
+            // Sans cela, un changement d'icône DofusDB mettait la DB à jour mais laissait le
+            // WebP périmé (et, l'URL n'étant pas versionnée avant ce lot, invisible à jamais).
+            // Fire-and-forget, comme en création : jamais bloquant. Le `?v=updatedAt` exposé
+            // par la recherche propage ensuite le changement (navigateurs + Discord, finis les
+            // purges manuelles).
+            siphonAndCompressImage(imageSrc, 'items', ankamaId).catch(() => {});
             // 🔍 Détail du changement : « nom : avant → après », « level : … », etc.
             const changedFields = diffFields(existing, {
                 name, level, description, typeId, typeName, category, hasRecipe,

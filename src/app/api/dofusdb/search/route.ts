@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { logger } from "@/lib/logger";
-import { normalizeItemIconUrl } from "@/lib/market/item-image";
+import { iconVersionOf, normalizeItemIconUrl, withItemImageVersion } from "@/lib/market/item-image";
 
 /**
  * GET /api/dofusdb/search?q=...&limit=8
@@ -78,7 +78,13 @@ function normalizeItem(item: any) {
         possibleEffects: fx,
         // BUG-3 — toute icône repart sur le proxy auto-siphon : plus jamais de nom
         // nu (`25757.webp`) ni de chemin statique non siphonné (`/uploads/...`) ⇒ 404.
-        img: normalizeItemIconUrl(item.img, Number.isInteger(ankamaId) ? ankamaId : null) ?? item.img,
+        // 10/10/2026 — versionnée (`?v=updatedAt`) : un resiphon change l'URL, fini le
+        // cache périmé. L'URL venant de la recherche locale est déjà versionnée :
+        // `normalize` la préserve, `withItemImageVersion` la pose sinon.
+        img: withItemImageVersion(
+            normalizeItemIconUrl(item.img, Number.isInteger(ankamaId) ? ankamaId : null) ?? item.img,
+            iconVersionOf((item as { updatedAt?: unknown }).updatedAt)
+        ),
     };
 }
 

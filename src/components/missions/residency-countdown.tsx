@@ -41,13 +41,11 @@ export function ResidencyCountdown({ availableAt, className }: ResidencyCountdow
 
     return (
         <div className={cn(
-            "relative group overflow-hidden bg-warning/5 border border-warning/20 rounded-3xl p-6 md:p-8 flex flex-col md:flex-row items-center gap-6 text-center md:text-left transition-all hover:bg-warning/10",
+            "relative overflow-hidden bg-warning/5 border border-warning/20 rounded-2xl p-6 md:p-8 flex flex-col md:flex-row items-center gap-6 text-center md:text-left",
             className
         )}>
-            {/* Background Glow */}
-            <div className="absolute top-0 right-0 w-64 h-64 bg-warning/10 blur-[80px] rounded-full -mr-20 -mt-20 pointer-events-none" />
             
-            <div className="relative shrink-0 p-4 rounded-2xl bg-warning/10 border border-warning/20 group- transition-transform duration-300">
+            <div className="relative shrink-0 p-4 rounded-2xl bg-warning/10 border border-warning/20">
                 <Timer className="w-8 h-8 text-warning animate-pulse" />
             </div>
 

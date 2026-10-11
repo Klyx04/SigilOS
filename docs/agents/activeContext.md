@@ -53,19 +53,13 @@
 > **Fait** : garde d'entrée `findRunningDataset(dataset, { includeSameDataset: true })` (cross-onglet, avant `begin`, réconcilié) ; la nomination `⛔` exclut toujours le run courant.
 > **Preuves** : **317 fichiers / 3 439 tests ✓** (+1 cas « ré-entrée même dataset ») · `tsc` **0** · `lint` **0 erreur** · `security:audit` ✓.
 > **Reste / ops (humain)** : lire la ligne `⛔` de la passe en cours (nomme le voleur) → finir/attendre l'autre passe → relancer « Pré-chauffer » **SEUL** (~14 min) ; si « autre consommateur » persiste : logs du worker + me dire.
-> **Rotation** : bloc 09/10 « Parité dégâts sorts & passifs boss » sorti (6 blocs conservés).
-## 🎯 Session 10/10/2026 (Marché — **lot multiple : jet par objet, images par objet, total au résumé** + image Discord PNG) — branche `fix/marche-lot-equipement-images`
-> **Demande user (verbatim)** : lot multiple avec équipement ⇒ miniature de stats attendue comme l'unitaire (MAJ à l'édition du jet) · « cape + eau potable → 2× la cape » · « le résumé n'affiche que un des 2 » · Muldo sans jet : image qui « tente de se générer puis rien » · familiers/montiliers/montures couverts ?
-> **Mesures (jamais supposées)** : ① `BUNDLE` sans stockage de jet (`MarketListingStat` scopé listing, `stats: []` forcé) + aucun éditeur par ligne ; ② `syncBundleComponentMessages` : thumb/image calculés **1×** (1er objet) puis hérités par tous ; ③ fiche/catalogue/OG : `components[0]` + prix global `NULL` ⇒ « — » ; ④ édition : `deleteMany`/`createMany` **sans** statut ni traces (cascade : réservations supprimées) ; ⑤ proxy : repli **SVG**, que Discord ne rend pas ; ⑥ familiers & co déjà `statEditorAllowed` (jet manuel OK), calcul auto refusé (formules non vérifiées, `temp/calcul-xp.md`).
-> **Fait** : migration `20261010000000_add_component_stats` (`MarketListingComponentStat` + `statsHash`/objet) · `resolveServerStats` → `src/server/market/stats.ts` (source unique) · garde famille + résolution **par objet** en création/édition · Discord **par objet** (vignette + carte `?component=&v=`) · édition **conservatrice** (`matchPreservedBundleComponents`, retrait d'un objet engagé refusé) · résumé/catalogue : **total + toutes icônes** + filtre « Lot multiple » · proxy repli **PNG** · doc `marche` + 2 tests neufs.
-> **Preuves** : **317 fichiers / 3 437 tests ✓** · `tsc` **0** · `lint` **0 erreur** · `security:audit` ✓.
-> **Reste / ops (humain)** : `./scripts/deploy-cd.sh beta` (**1 migration**) + contrôle visuel lot cape+eau (icônes, carte cape, total, édition jet/prix) · pas de calcul auto montures (jet manuel).
-> **Rotation** : bloc 09/10 « Agenda miroir DJ/Songes » sorti (6 blocs conservés).
-
-
-
-
-
+## 🎯 Session 10-11/10/2026 (Passe unique : wizard marché QoL + versioning images + déslop ressources + missions + audit 3.7) — branche `feat/marche-qol-images-ressources` (1 PR)
+> **Demandes user (verbatim)** : « enchaine les 3 » en une passe/une PR · plan avant code · reprendre la branche + finir déslop ressources · suppressions news-broadcast/gestion créateurs+liens/RBAC + filtre guides · chantier 5 missions (upload PREUVE, slop, hall zoomé) · chantier 6 audit 3.7 (5 liens).
+> **Mesures (jamais supposées)** : ① wizard : étapes 4/5 jamais bloquées + toast Zod EN ; ② siphon image en création seule + URLs non versionnées + immutable ; ③ slop ressources intact ; ④ PREUVE masqué au God par #204 (design), hall `initialZoom={6}` > max 3 ; ⑤ `SMITHMAGIC_POTION_TIERS=[50,65,80]` vs DPLN (85→100, 50→10), DofusDB-3.6, éclats 335 + gemme 34548 + 5 trophées déjà en base (vérifié SQL local).
+> **Fait** : schémas partagés FR + gating + brouillon précoce · `?v=updatedAt` partout + re-siphon au MODIFIED · ressources plats + lecture seule God-only (+filtre type) · missions : base parquée reprise, zoom `-3`, upload = #204 expliqué · audit 3.7 avec backlog ⑦-⑪ (détail : bloc ROADMAP).
+> **Preuves** : `tsc` 0 · `lint` 0 erreur · suite verte (5 fichiers de tests neufs) · `security:audit` ✓.
+> **Reste / ops (humain)** : `gh pr checks` → merge → deploy beta (0 migration) + purge disque une dernière fois + contrôles visuels · prévenir l'autre session (stash repris, à dropper).
+> **Rotation** : bloc 10/10 « Marché lot multiple » sorti (mergé #881, reste tracé dans ROADMAP + git log) — 6 blocs conservés.
 ## PR / Branche
 - **Session « Démo publique » (02/10/2026)** → branche **`feat/demo-publique`**, **PR #830 mergée sur `dev`** : `src/lib/demo/**` (source statique) + route `/demo` + bandeau « Démonstration » + `readOnly` sur l'annuaire réel. Dossier : `docs/plans/PLAN-DEMO-PUBLIQUE.md`.
 - **Session « deslop annuaire » (05/10/2026, volet `membres` de M-1)** → branche **`feat/deslop-annuaire`**, **PR #834 mergée sur `dev`** : une source unique de classes pour les 6 filtres, neutre/accent, assets Dofus réels (`GameIcon`), garde `tests/unit/deslop-annuaire.test.ts`. Dossier : `docs/plans/PLAN-DESLOP-ANNUAIRE.md`.

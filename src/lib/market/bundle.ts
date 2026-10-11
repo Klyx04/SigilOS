@@ -76,12 +76,26 @@ export interface BundleItemStatInput {
  * de règle métier — le serveur reste seul juge).
  */
 export const bundleItemStatSchema = z.object({
-    effectId: z.number().int(),
-    characteristic: z.number().int().nullable().optional(),
-    label: z.string().trim().min(1).max(80),
-    naturalMin: z.number().int().nullable().optional(),
-    naturalMax: z.number().int().nullable().optional(),
-    actualValue: z.number().int().min(-9_999).max(99_999),
+    effectId: z
+        .number({ message: "Ligne de jet incomplète : effet non reconnu." })
+        .int("Ligne de jet incomplète : effet non reconnu."),
+    characteristic: z
+        .number({ message: "Ligne de jet incomplète : caractéristique non reconnue." })
+        .int("Ligne de jet incomplète : caractéristique non reconnue.")
+        .nullable()
+        .optional(),
+    label: z
+        .string({ message: "Ligne de jet sans nom." })
+        .trim()
+        .min(1, "Ligne de jet sans nom : supprime-la ou choisis un effet dans la liste.")
+        .max(80, "Nom d'effet trop long."),
+    naturalMin: z.number().int("Plage native invalide.").nullable().optional(),
+    naturalMax: z.number().int("Plage native invalide.").nullable().optional(),
+    actualValue: z
+        .number({ message: "Valeur de jet invalide : un nombre entier est attendu." })
+        .int("Valeur de jet invalide : un nombre entier est attendu.")
+        .min(-9_999, "Valeur invraisemblable, vérifie ta saisie.")
+        .max(99_999, "Valeur invraisemblable, vérifie ta saisie."),
     origin: z.enum(["NATIVE", "EXO"]).default("NATIVE"),
 });
 
@@ -93,19 +107,24 @@ export const bundleItemStatSchema = z.object({
  * volontaire (1 000 000 000) : garde-fou anti-saisie.
  */
 export const bundleItemSchema = z.object({
-    dofusDbItemId: z.number().int().positive().nullable().optional(),
+    dofusDbItemId: z
+        .number({ message: "Objet du catalogue invalide." })
+        .int("Objet du catalogue invalide.")
+        .positive("Objet du catalogue invalide.")
+        .nullable()
+        .optional(),
     name: z
         .string()
         .trim()
         .min(1, "Choisis un objet du catalogue pour chaque ligne.")
         .max(120, "Nom d'objet trop long."),
-    iconUrl: z.string().trim().max(500).nullable().optional(),
+    iconUrl: z.string().trim().max(500, "Adresse d'icône trop longue.").nullable().optional(),
     quantity: z
         .number()
         .int()
         .min(1, "Indique une quantité d'au moins 1.")
         .max(100_000, "Quantité trop élevée pour un lot."),
-    unitLabel: z.string().trim().max(24).nullable().optional(),
+    unitLabel: z.string().trim().max(24, "Libellé d'unité trop long.").nullable().optional(),
     priceKamas: z
         .number()
         .int()

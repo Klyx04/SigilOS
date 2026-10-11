@@ -102,12 +102,11 @@ describe("getPermissionsHiddenByModules", () => {
         expect(hidden).not.toContain(PERMISSIONS.SUCCESS_VIEW);
     });
 
-    it("masque succès + ressources + dispos quand leurs modules sont coupés", () => {
+    it("masque succès + dispos quand leurs modules sont coupés (ressources : plus de perm dédiée)", () => {
         const hidden = getPermissionsHiddenByModules({
             ...allOn(), succes: false, resources: false, availability: false, calendar: false,
         });
         expect(hidden).toContain(PERMISSIONS.SUCCESS_VIEW);
-        expect(hidden).toContain(PERMISSIONS.RESOURCES_MANAGE);
         expect(hidden).toContain(PERMISSIONS.AVAILABILITY_VIEW);
     });
 

@@ -7,9 +7,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { Prisma, type MarketOfferStatus, type MarketReservationStatus } from "@prisma/client";
 import { getUserContext, type ActionResponse } from "./user-actions";
-import { KAMAS_MAX } from "@/lib/market/kamas";
-import { computeStatQuality, computeStatsHash } from "@/lib/market/stat-quality";
-import { applyEffectSign, findNativeRange, isNegativeNativeEffect, isPlaceholderStatLabel, isStatBearingStatRow, normalizeNativeRange, resolveStatLabel, resolveStoredStatLabel, toNativeEffects, type DofusItemEffectLike, type MarketNativeEffect } from "@/lib/market/effects";
+import { applyEffectSign, isNegativeNativeEffect, isStatBearingStatRow, normalizeNativeRange, resolveStatLabel, resolveStoredStatLabel } from "@/lib/market/effects";
 import { loadMarketReferential, type MarketReferential } from "@/lib/market/referential";
 import {
     SMITHMAGIC_ELEMENT_POTION_TYPE_ID,
@@ -23,7 +21,7 @@ import {
 } from "@/lib/market/smithmagic";
 // S8.10/S8.11 — gardes **pures** de forge réelle : les mêmes règles servent
 // l'UI (S8.7/S8.9) et ce serveur, qui reste **seul juge** (D40/D41).
-import { marketForgeFieldsSchema, validateForgeDeclaration } from "@/lib/market/forge-guards";
+import { validateForgeDeclaration } from "@/lib/market/forge-guards";
 // BUG-11/T10 — familles d'objets : la **famille** est relue au catalogue et
 // décide de la nature d'annonce, de la forge et du jet (règle partagée avec l'UI).
 import {
@@ -35,7 +33,7 @@ import { publishListingToDiscord, syncListingMessage, deleteListingDiscordMessag
 import { listGuildMembers } from "@/server/discord";
 // BUG-1 — une seule forme d'URL d'icône d'objet (proxy auto-siphon, jamais 404) :
 // normalisée **à l'écriture** et **à la lecture** (annonces déjà en base).
-import { normalizeItemIconUrl } from "@/lib/market/item-image";
+import { iconVersionOf, normalizeItemIconUrl, withItemImageVersion } from "@/lib/market/item-image";
 import { writeMarketAuditLog } from "@/server/market/audit";
 import { reserveMarketListingCore, cancelMarketReservationCore } from "@/server/market/reservations";
 import { reserveBundleComponentCore } from "@/server/market/bundle";
@@ -184,63 +182,13 @@ export type MyMarketData = {
 // ---------------------------------------------------------------------------
 // ZOD — validation systématique (§0.1 exigences)
 // ---------------------------------------------------------------------------
-
-const marketComponentSchema = z.object({
-    dofusDbItemId: z.number().int().positive().nullable().optional(),
-    name: z.string().trim().min(1).max(120),
-    iconUrl: z.string().trim().max(500).nullable().optional(),
-    quantity: z.number().int().positive().max(1_000_000_000),
-    unitLabel: z.string().trim().max(40).nullable().optional(),
-});
-
-const marketStatSchema = z.object({
-    effectId: z.number().int(),
-    characteristic: z.number().int().nullable().optional(),
-    label: z.string().trim().min(1).max(80),
-    naturalMin: z.number().int().nullable().optional(),
-    naturalMax: z.number().int().nullable().optional(),
-    actualValue: z
-        .number()
-        .int()
-        .min(MARKET_LIMITS.STAT_VALUE_MIN, "Valeur invraisemblable, vérifie ta saisie")
-        .max(MARKET_LIMITS.STAT_VALUE_MAX, "Valeur invraisemblable, vérifie ta saisie"),
-    origin: z.enum(["NATIVE", "EXO"]).default("NATIVE"),
-});
-
-/** 🧺 Lot multiple — bornes & règles d'objets **partagées** avec le moteur. */
-import { bundleItemSchema, MARKET_BUNDLE_MAX_ITEMS } from "@/lib/market/bundle";
-
-const marketListingBaseSchema = z.object({
-    // 🧺 Décision user du 14/09/2026 — `BUNDLE` = lot de 2 à 5 objets, **prix par objet**.
-    type: z.enum(["EQUIPMENT", "RESOURCE", "SERVICE", "WANTED", "BUNDLE"]),
-    title: z.string().trim().min(3, "Titre trop court").max(MARKET_LIMITS.TITLE_MAX),
-    description: z.string().trim().max(MARKET_LIMITS.DESCRIPTION_MAX).nullable().optional(),
-    forgedBy: z.string().trim().max(80).nullable().optional(),
-    priceKamas: z.number().int().min(0).max(KAMAS_MAX).nullable().optional(),
-    negotiable: z.boolean().default(true),
-    acceptsTrade: z.boolean().default(false),
-    dofusDbItemId: z.number().int().positive().nullable().optional(),
-    itemName: z.string().trim().max(160).nullable().optional(),
-    itemIconUrl: z.string().trim().max(500).nullable().optional(),
-    itemLevel: z.number().int().min(0).max(300).nullable().optional(),
-    itemTypeName: z.string().trim().max(80).nullable().optional(),
-    quantity: z.number().int().positive().max(1_000_000_000).nullable().optional(),
-    unitLabel: z.string().trim().max(40).nullable().optional(),
-    minQuantity: z.number().int().positive().max(1_000_000_000).nullable().optional(),
-    components: z.array(marketComponentSchema).max(MARKET_LIMITS.MAX_COMPONENTS).default([]),
-    /**
-     * 🧺 Lot multiple — objets **avec leur prix** (transport). ⚠️ Le schéma porte
-     * uniquement le **type d'un objet** et la borne haute : `.default([])` est
-     * **validé** par Zod, donc y mettre la règle « au moins 2 objets » rejetterait
-     * toutes les annonces non-lot. La règle métier (2 → 5, noms uniques) vit dans
-     * `bundleItemsSchema`, appliquée par le moteur `createBundleListingCore`
-     * (§13.4 : une seule source de vérité, jamais dupliquée).
-     */
-    items: z.array(bundleItemSchema).max(MARKET_BUNDLE_MAX_ITEMS).default([]),
-    stats: z.array(marketStatSchema).max(MARKET_LIMITS.MAX_STATS).default([]),
-    // S8.10 — forge réelle déclarée (source unique : `forge-guards.ts`).
-    ...marketForgeFieldsSchema.shape,
-});
+// Schémas **partagés** avec l'assistant (`src/lib/market/listing-schemas.ts`, pur) :
+// le client pré-valide le même payload avant l'appel — fini les refus découverts
+// au clic « Publier » avec un message brut. Chaque contrainte y porte un message FR.
+import {
+    firstFrenchError,
+    marketListingBaseSchema,
+} from "@/lib/market/listing-schemas";
 
 export type MarketListingInput = z.input<typeof marketListingBaseSchema>;
 
@@ -371,15 +319,25 @@ function withDisplayReadyIcons<
     T extends {
         dofusDbItemId: number | null;
         itemIconUrl: string | null;
+        updatedAt: Date;
         components: { dofusDbItemId: number | null; iconUrl: string | null }[];
     }
 >(listing: T): T {
+    // 10/10/2026 — icônes versionnées (`?v=updatedAt` de l'annonce, bumpée à chaque
+    // écriture) : un resiphon change l'URL, fini le cache périmé (fiches + Discord).
+    const version = iconVersionOf(listing.updatedAt);
     return {
         ...listing,
-        itemIconUrl: normalizeItemIconUrl(listing.itemIconUrl, listing.dofusDbItemId),
+        itemIconUrl: withItemImageVersion(
+            normalizeItemIconUrl(listing.itemIconUrl, listing.dofusDbItemId),
+            version
+        ),
         components: listing.components.map((component) => ({
             ...component,
-            iconUrl: normalizeItemIconUrl(component.iconUrl, component.dofusDbItemId),
+            iconUrl: withItemImageVersion(
+                normalizeItemIconUrl(component.iconUrl, component.dofusDbItemId),
+                version
+            ),
         })),
     };
 }
@@ -1516,7 +1474,8 @@ export async function createMarketListing(
 
         const parsed = marketListingBaseSchema.safeParse(input);
         if (!parsed.success) {
-            return { success: false, error: parsed.error.errors[0]?.message || "Données invalides" };
+            // Jamais de brut Zod (anglais) vers l'écran : message FR ciblé (10/10/2026).
+            return { success: false, error: firstFrenchError(parsed.error).message };
         }
         const data = parsed.data;
 
@@ -1667,7 +1626,8 @@ export async function updateMarketListing(
 
         const parsed = marketListingBaseSchema.safeParse(input);
         if (!parsed.success) {
-            return { success: false, error: parsed.error.errors[0]?.message || "Données invalides" };
+            // Jamais de brut Zod (anglais) vers l'écran : message FR ciblé (10/10/2026).
+            return { success: false, error: firstFrenchError(parsed.error).message };
         }
         const data = parsed.data;
 

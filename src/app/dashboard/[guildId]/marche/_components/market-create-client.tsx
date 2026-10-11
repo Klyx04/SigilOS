@@ -55,11 +55,20 @@ import { MarketItemCard } from "@/components/market/market-item-card";
 import { MarketJetEditor } from "./market-jet-editor";
 import { MarketBundleItemsEditor } from "./market-bundle-items-editor";
 import {
-    MARKET_BUNDLE_MAX_ITEMS,
     MARKET_BUNDLE_MIN_ITEMS,
+    bundleItemsSchema,
     computeBundleTotal,
     type BundleItemInput,
 } from "@/lib/market/bundle";
+// QoL 10/10/2026 — pré-validation **partagée** (mêmes schémas, mêmes messages FR que le
+// serveur) : l'assistant bloque tôt avec la raison, au lieu de découvrir le refus au clic
+// « Publier » avec un message brut.
+import {
+    describeMarketIssue,
+    marketComponentSchema,
+    marketListingBaseSchema,
+    marketStatSchema,
+} from "@/lib/market/listing-schemas";
 import { KamasAmount } from "@/components/market/kamas-amount";
 import { MarketPublishStep, type MarketPublishContext } from "./market-publish-step";
 import { MarketNotifyStep } from "./market-notify-step";
@@ -564,25 +573,95 @@ export function MarketCreateClient({ guildId, initial = null, natureIcons }: Mar
         [components]
     );
 
-    /** Tous les objets du lot sont nommés et prixés (borne 2→5, cf. moteur pur). */
-    const bundleItemsValid =
-        components.length >= MARKET_BUNDLE_MIN_ITEMS &&
-        components.length <= MARKET_BUNDLE_MAX_ITEMS &&
-        components.every(
-            (component) => component.name.trim().length > 0 && (component.priceKamas ?? 0) > 0
-        );
+    /**
+     * QoL 10/10/2026 — **bloqueurs par étape** (mêmes schémas, mêmes messages FR que le
+     * serveur) : l'assistant dit **pourquoi** on ne peut pas continuer, au lieu de laisser
+     * découvrir le refus au clic « Publier » avec un message brut.
+     */
+    function stepBlockers(target: 1 | 2 | 3 | 4 | 5): string[] {
+        if (target === 1) return [];
+        if (target === 2) {
+            if (kind === "BUNDLE") {
+                const parsed = bundleItemsSchema.safeParse(bundleItems);
+                if (!parsed.success) {
+                    return [parsed.error.issues.map((issue) => describeMarketIssue(issue).message)[0]];
+                }
+                return [];
+            }
+            if (kind !== "RESOURCE") {
+                if (!item) return ["Choisis un objet du catalogue pour continuer."];
+                const statsParsed = marketStatSchema.array().safeParse(declarableStats);
+                if (!statsParsed.success) {
+                    return [describeMarketIssue(statsParsed.error.issues[0]).message];
+                }
+                if (transcendenceConflicts.length > 0) return ["Règle le conflit de Transcendance pour continuer."];
+                return [];
+            }
+            if (components.length === 0) return ["Ajoute au moins une ressource au lot pour continuer."];
+            const componentsParsed = marketComponentSchema.array().safeParse(components);
+            if (!componentsParsed.success) {
+                return [describeMarketIssue(componentsParsed.error.issues[0]).message];
+            }
+            return [];
+        }
+        if (target === 3) {
+            const previous = stepBlockers(2);
+            if (previous.length > 0) return previous;
+            if (title.trim().length < 3) return ["Renseigne un titre (3 caractères minimum) pour continuer."];
+            if (priceInvalid) return ["Prix invalide (entier de kamas attendu)."];
+            return [];
+        }
+        // Étapes 4 (publication) et 5 (notification) : tout doit déjà être valide.
+        return [...stepBlockers(2), ...stepBlockers(3)];
+    }
 
-    const canGoNext = step === 1
-        ? true
-        : step === 2
-            ? kind === "BUNDLE"
-                ? bundleItemsValid
-                : kind !== "RESOURCE"
-                    ? !!item && transcendenceConflicts.length === 0
-                    : components.length > 0
-            : step === 3
-                ? title.trim().length >= 3 && (kind === "BUNDLE" ? bundleItemsValid : !priceInvalid)
-                : true; // étapes 4 (publication Discord) et 5 (notification)
+    /** Étape ciblée par un chemin d'anomalie (bannière étape 4/5 + saut direct). */
+    function issueStep(path: (string | number)[]): 1 | 2 | 3 {
+        const head = path[0];
+        if (head === "type") return 1;
+        if (
+            head === "items" ||
+            head === "components" ||
+            head === "stats" ||
+            head === "dofusDbItemId" ||
+            head === "itemName" ||
+            head === "itemIconUrl" ||
+            head === "itemLevel" ||
+            head === "itemTypeName" ||
+            head === "transcendenceRuneId" ||
+            head === "transcendenceLabel" ||
+            head === "strikeElement" ||
+            head === "elementPotionId" ||
+            head === "elementPotionTier" ||
+            head === "huntingWeapon"
+        ) {
+            return 2;
+        }
+        return 3;
+    }
+
+    /**
+     * Pré-validation **complète** avant tout appel serveur (création comme édition) :
+     * mêmes schémas, mêmes messages. Renvoie les bloqueurs ordonnés avec leur étape —
+     * l'étape 4/5 les affiche en bannière avec liens directs.
+     */
+    function submitBlockers(titleOverride?: string): { step: 1 | 2 | 3; message: string }[] {
+        const parsed = marketListingBaseSchema.safeParse(
+            buildPayload(titleOverride ? { title: titleOverride } : undefined)
+        );
+        if (parsed.success) return [];
+        return parsed.error.issues.map((issue) => ({
+            step: issueStep([...issue.path]),
+            message: describeMarketIssue(issue).message,
+        }));
+    }
+
+    const canGoNext = stepBlockers(step).length === 0;
+    /** Raison affichée sous la navigation quand « Continuer » est bloqué. */
+    const continuationReason = step === 1 || canGoNext ? null : stepBlockers(step)[0] ?? null;
+    /** Bloqueurs de publication (bannière étapes 4/5) : calculés seulement là-bas. */
+    const publishBlockersList =
+        !isEdit && (step === 4 || step === 5) ? submitBlockers() : [];
 
     function togglePing(roleId: string) {
         setPingRoleIds((prev) =>
@@ -619,14 +698,15 @@ export function MarketCreateClient({ guildId, initial = null, natureIcons }: Mar
         };
     }
 
-    function buildPayload() {
+    function buildPayload(opts?: { title?: string }) {
+        const effectiveTitle = (opts?.title ?? title).trim();
         // 🧺 Lot multiple (décision user du 14/09/2026) — le prix vit sur **chaque
         // objet** : on envoie `items[]` (le serveur revalide 2→5 via
         // `bundleItemsSchema` et **recalcule le total**), et **aucun** prix global.
         if (kind === "BUNDLE") {
             return {
                 type: "BUNDLE" as const,
-                title: title.trim(),
+                title: effectiveTitle,
                 description: description.trim() || null,
                 priceKamas: null,
                 negotiable,
@@ -659,7 +739,7 @@ export function MarketCreateClient({ guildId, initial = null, natureIcons }: Mar
         const isObjectListing = kind !== "RESOURCE";
         return {
             type: isObjectListing ? ("EQUIPMENT" as const) : ("RESOURCE" as const),
-            title: title.trim(),
+            title: effectiveTitle,
             description: description.trim() || null,
             forgedBy: forgedBy.trim() || null,
             priceKamas: parsedPrice,
@@ -695,17 +775,17 @@ export function MarketCreateClient({ guildId, initial = null, natureIcons }: Mar
         };
     }
 
-    /** Champs communs aux deux modes. `true` si le formulaire est inutilisable. */
-    function hasFormError(): boolean {
-        if (!title.trim()) {
-            toast.error("Renseigne un titre pour ton annonce.");
-            return true;
-        }
-        if (priceInvalid) {
-            toast.error("Prix invalide (entier de kamas attendu).");
-            return true;
-        }
-        return false;
+    /**
+     * QoL 10/10/2026 — **barrage commun** avant tout appel serveur (création comme
+     * édition) : pré-validation complète (mêmes schémas FR), saut direct sur l'étape
+     * fautive. `true` = bloqué (toast déjà affiché), `false` = on peut appeler.
+     */
+    function blockOnInvalid(titleOverride?: string): boolean {
+        const blockers = submitBlockers(titleOverride);
+        if (blockers.length === 0) return false;
+        toast.error(blockers[0].message);
+        setStep(blockers[0].step as 1 | 2 | 3 | 4 | 5);
+        return true;
     }
 
     /**
@@ -715,7 +795,7 @@ export function MarketCreateClient({ guildId, initial = null, natureIcons }: Mar
      * natives du catalogue), `statsHash` rejoué et journal `LISTING_UPDATED`.
      */
     function handleUpdate() {
-        if (!initial || hasFormError()) return;
+        if (!initial || blockOnInvalid()) return;
 
         startTransition(async () => {
             const updated = await updateMarketListing(guildId, initial.id, buildPayload());
@@ -730,11 +810,11 @@ export function MarketCreateClient({ guildId, initial = null, natureIcons }: Mar
         });
     }
 
-    function handleSubmit(publishNow: boolean) {
-        if (hasFormError()) return;
+    function handleSubmit(publishNow: boolean, titleOverride?: string) {
+        if (blockOnInvalid(titleOverride)) return;
 
         startTransition(async () => {
-            const created = await createMarketListing(guildId, buildPayload());
+            const created = await createMarketListing(guildId, buildPayload(titleOverride ? { title: titleOverride } : undefined));
 
             if (!created.success || !created.data) {
                 toast.error(created.error || "Impossible de créer l'annonce.");
@@ -759,9 +839,56 @@ export function MarketCreateClient({ guildId, initial = null, natureIcons }: Mar
         });
     }
 
+    /** QoL 10/10/2026 — saut direct : en arrière toujours, en avant si tout est valide jusque-là. */
+    function goToStep(target: 1 | 2 | 3 | 4 | 5) {
+        if (target <= step) {
+            setStep(target);
+            return;
+        }
+        const clamped = Math.min(target, isEdit ? 3 : 5) as 1 | 2 | 3 | 4 | 5;
+        const blockers = stepBlockers(clamped);
+        if (blockers.length === 0) {
+            setStep(clamped);
+            return;
+        }
+        toast.error(blockers[0]);
+        setStep(stepBlockers(2).length > 0 ? 2 : 3);
+    }
+
+    /**
+     * QoL 10/10/2026 — **brouillon précoce** : plus besoin d'aller jusqu'à l'étape 5
+     * pour sauvegarder (un abandon à l'étape 3 perdait tout). Exige l'étape 2 valide
+     * (objet/lot choisi) ; le titre est pré-rempli depuis l'objet si vide.
+     */
+    function handleDraft() {
+        if (stepBlockers(2).length > 0) {
+            toast.error(stepBlockers(2)[0]);
+            setStep(2);
+            return;
+        }
+        let draftTitle = title.trim();
+        if (draftTitle.length < 3) {
+            const fallback =
+                kind === "BUNDLE"
+                    ? components.map((c) => c.name.trim()).filter(Boolean).slice(0, 3).join(", ")
+                    : kind === "RESOURCE"
+                      ? (components[0]?.name.trim() || "")
+                      : (item?.name || "");
+            const candidate = (kind === "BUNDLE" && fallback ? `Lot : ${fallback}` : fallback).trim();
+            if (candidate.length < 3) {
+                toast.error("Renseigne un titre (3 caractères minimum) pour enregistrer le brouillon.");
+                setStep(3);
+                return;
+            }
+            draftTitle = candidate;
+            setTitle(candidate);
+        }
+        handleSubmit(false, draftTitle);
+    }
+
     return (
         <div className="space-y-6 max-w-4xl mx-auto">
-            <StepIndicator step={step} stepCount={isEdit ? 3 : 5} />
+            <StepIndicator step={step} stepCount={isEdit ? 3 : 5} onGo={goToStep} />
 
             {step === 1 && (
                 <StepNature
@@ -1124,6 +1251,34 @@ export function MarketCreateClient({ guildId, initial = null, natureIcons }: Mar
                 />
             )}
 
+            {/* QoL 10/10/2026 — bannière de blocage (étapes 4/5) : ce qui empêche de
+                publier, avec saut direct sur l'étape fautive. Fini le refus découvert
+                au clic « Publier » avec un message brut. */}
+            {!isEdit && (step === 4 || step === 5) && publishBlockersList.length > 0 && (
+                <div className="space-y-2 rounded-xl border border-warning/30 bg-warning/10 p-4">
+                    <p className="text-sm font-bold text-warning">
+                        Encore {publishBlockersList.length} point(s) à corriger avant de publier :
+                    </p>
+                    <ul className="space-y-1.5">
+                        {publishBlockersList.map((blocker, index) => (
+                            <li key={index} className="flex flex-wrap items-center gap-2 text-sm">
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-7 gap-1 text-xs"
+                                    onClick={() => setStep(blocker.step)}
+                                >
+                                    Étape {blocker.step}
+                                    <ChevronRight className="w-3 h-3" />
+                                </Button>
+                                <span className="text-foreground/90">{blocker.message}</span>
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            )}
+
             {/* Navigation */}
             <div className="flex items-center justify-between gap-3 border-t border-border pt-4">
                 <Button
@@ -1139,15 +1294,20 @@ export function MarketCreateClient({ guildId, initial = null, natureIcons }: Mar
 
                 {/* S7.12 — en édition, la dernière étape enregistre les modifications. */}
                 {isEdit && step === 3 ? (
-                    <Button
-                        type="button"
-                        className="gap-2"
-                        disabled={isPending || !canGoNext}
-                        onClick={handleUpdate}
-                    >
-                        {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                        Enregistrer les modifications
-                    </Button>
+                    <div className="flex flex-col items-end gap-2">
+                        <Button
+                            type="button"
+                            className="gap-2"
+                            disabled={isPending || !canGoNext}
+                            onClick={handleUpdate}
+                        >
+                            {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                            Enregistrer les modifications
+                        </Button>
+                        {!canGoNext && continuationReason && (
+                            <p className="text-xs text-muted-foreground">{continuationReason}</p>
+                        )}
+                    </div>
                 ) : !isEdit && step === 5 ? (
                     /* Dernière étape (Notification) : c'est ICI qu'on publie — la
                        notification est choisie juste avant, donc plus de doute sur ce
@@ -1162,15 +1322,38 @@ export function MarketCreateClient({ guildId, initial = null, natureIcons }: Mar
                         </Button>
                     </div>
                 ) : (
-                    <Button
-                        type="button"
-                        className="gap-2"
-                        disabled={!canGoNext}
-                        onClick={() => setStep((prev) => ((prev + 1) as 2 | 3 | 4 | 5))}
-                    >
-                        Continuer
-                        <ChevronRight className="w-4 h-4" />
-                    </Button>
+                    <div className="flex flex-col items-end gap-2">
+                        <div className="flex items-center gap-2">
+                            {/* QoL 10/10/2026 — brouillon précoce (étapes 2 à 4) : plus besoin
+                                d'aller jusqu'à l'étape 5 pour sauvegarder. */}
+                            {!isEdit && (step === 2 || step === 3 || step === 4) && (
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    className="gap-2"
+                                    disabled={isPending}
+                                    onClick={handleDraft}
+                                >
+                                    {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                                    Brouillon
+                                </Button>
+                            )}
+                            <Button
+                                type="button"
+                                className="gap-2"
+                                disabled={!canGoNext}
+                                onClick={() => setStep((prev) => ((prev + 1) as 2 | 3 | 4 | 5))}
+                            >
+                                Continuer
+                                <ChevronRight className="w-4 h-4" />
+                            </Button>
+                        </div>
+                        {/* QoL 10/10/2026 — la raison du blocage, sous le bouton (fini le
+                            bouton mort sans explication). */}
+                        {!canGoNext && continuationReason && (
+                            <p className="text-xs text-muted-foreground">{continuationReason}</p>
+                        )}
+                    </div>
                 )}
             </div>
         </div>
@@ -1183,7 +1366,16 @@ export function MarketCreateClient({ guildId, initial = null, natureIcons }: Mar
  * **3** en édition (S7.12 : l'annonce existe déjà, on ne rejoue pas les étapes
  * Discord). La notification a sa **propre** étape depuis le 18/09/2026.
  */
-function StepIndicator({ step, stepCount = 5 }: { step: 1 | 2 | 3 | 4 | 5; stepCount?: 3 | 5 }) {
+function StepIndicator({
+    step,
+    stepCount = 5,
+    onGo,
+}: {
+    step: 1 | 2 | 3 | 4 | 5;
+    stepCount?: 3 | 5;
+    /** QoL 10/10/2026 — saut direct (en avant : seulement si tout est valide jusque-là). */
+    onGo?: (step: 1 | 2 | 3 | 4 | 5) => void;
+}) {
     const labels =
         stepCount === 3
             ? ["Nature", "Objet / Jet", "Prix"]
@@ -1191,17 +1383,22 @@ function StepIndicator({ step, stepCount = 5 }: { step: 1 | 2 | 3 | 4 | 5; stepC
     return (
         <div className="flex items-center gap-2 text-[11px] uppercase tracking-wider font-black">
             {labels.map((label, index) => {
-                const value = index + 1;
+                const value = (index + 1) as 1 | 2 | 3 | 4 | 5;
                 return (
                     <div key={label} className="flex items-center gap-2">
-                        <span
+                        <button
+                            type="button"
+                            onClick={() => onGo?.(value)}
+                            disabled={!onGo}
+                            title={onGo ? `Aller à l'étape ${value} — ${label}` : undefined}
                             className={cn(
                                 "h-7 w-7 rounded-full border flex items-center justify-center",
-                                step >= value ? "border-gold/40 bg-gold/10 text-gold" : "border-border text-muted-foreground"
+                                step >= value ? "border-gold/40 bg-gold/10 text-gold" : "border-border text-muted-foreground",
+                                onGo && "cursor-pointer hover:border-gold/70"
                             )}
                         >
                             {value}
-                        </span>
+                        </button>
                         <span className={step >= value ? "text-foreground" : "text-muted-foreground"}>
                             {label}
                         </span>

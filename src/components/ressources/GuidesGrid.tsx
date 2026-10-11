@@ -5,6 +5,7 @@ import Link from "next/link";
 import { FileText, Clock, Search, Tv2 } from "lucide-react";
 import { useRaidOverlay } from "@/hooks/use-raid-overlay";
 import { cn } from "@/lib/utils";
+import { filterGuides, guideTypeCounts, type GuideTypeFilter } from "@/lib/guides-filter";
 import type { Guide } from "@/content/guides";
 
 interface GuidesGridProps {
@@ -38,7 +39,7 @@ function RaidGuideActions({ slug }: { slug: string }) {
             <button
                 type="button"
                 onClick={() => openRaidOverlay({ raidSlug: config.raidSlug })}
-                className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-black uppercase tracking-wider text-black transition-all hover:brightness-110 active:scale-[0.98]"
+                className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-bold uppercase tracking-wider text-black transition-colors hover:brightness-110"
                 style={{ backgroundColor: config.themeColor }}
             >
                 <Tv2 className="h-3.5 w-3.5" aria-hidden="true" />
@@ -54,9 +55,16 @@ function RaidGuideActions({ slug }: { slug: string }) {
     );
 }
 
+/**
+ * Bonus 10/10/2026 — filtre par **type** : réexporté depuis la lib pure
+ * (`@/lib/guides-filter`) pour les écrans qui en auraient besoin.
+ */
+export type { GuideTypeFilter } from "@/lib/guides-filter";
+
 export function GuidesGrid({ guides }: GuidesGridProps) {
     const [query, setQuery] = useState("");
     const [category, setCategory] = useState<string>("all");
+    const [guideType, setGuideType] = useState<GuideTypeFilter>("all");
 
     const categories = useMemo(() => {
         const set = new Set<string>();
@@ -66,17 +74,12 @@ export function GuidesGrid({ guides }: GuidesGridProps) {
         return [...set].sort((a, b) => a.localeCompare(b, "fr"));
     }, [guides]);
 
-    const filtered = useMemo(() => {
-        const q = query.trim().toLowerCase();
-        return guides.filter((guide) => {
-            if (category !== "all" && guide.category !== category) return false;
-            if (!q) return true;
-            return (
-                guide.title.toLowerCase().includes(q) ||
-                guide.description.toLowerCase().includes(q)
-            );
-        });
-    }, [guides, query, category]);
+    const types = useMemo(() => guideTypeCounts(guides), [guides]);
+
+    const filtered = useMemo(
+        () => filterGuides(guides, { query, category, type: guideType }),
+        [guides, query, category, guideType]
+    );
 
     if (guides.length === 0) {
         return (
@@ -88,7 +91,7 @@ export function GuidesGrid({ guides }: GuidesGridProps) {
 
     return (
         <div>
-            {/* Filtres : recherche + catégories (parité avec l'index public /guides) */}
+            {/* Filtres : recherche + type + catégories (options et compteurs issus des données) */}
             <div className="mb-4 flex flex-col gap-3">
                 <div className="relative">
                     <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
@@ -101,6 +104,39 @@ export function GuidesGrid({ guides }: GuidesGridProps) {
                         className="w-full rounded-xl border border-border bg-background py-2.5 pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-border focus:outline-none"
                     />
                 </div>
+                {types.length > 1 && (
+                    <div className="flex flex-wrap gap-2" role="group" aria-label="Filtrer par type">
+                        <button
+                            type="button"
+                            onClick={() => setGuideType("all")}
+                            aria-pressed={guideType === "all"}
+                            className={cn(
+                                "rounded-lg border px-3 py-1.5 text-xs font-bold uppercase tracking-wider transition-colors",
+                                guideType === "all"
+                                    ? "border-border bg-elevated text-foreground"
+                                    : "border-border bg-background text-muted-foreground hover:text-foreground",
+                            )}
+                        >
+                            Tous ({guides.length})
+                        </button>
+                        {types.map(({ type, count }) => (
+                            <button
+                                key={type}
+                                type="button"
+                                onClick={() => setGuideType(type)}
+                                aria-pressed={guideType === type}
+                                className={cn(
+                                    "rounded-lg border px-3 py-1.5 text-xs font-bold uppercase tracking-wider transition-colors",
+                                    guideType === type
+                                        ? "border-border bg-elevated text-foreground"
+                                        : "border-border bg-background text-muted-foreground hover:text-foreground",
+                                )}
+                            >
+                                {type === "Raid" ? "Raids" : "Guides"} ({count})
+                            </button>
+                        ))}
+                    </div>
+                )}
                 {categories.length > 1 && (
                     <div className="flex flex-wrap gap-2" role="group" aria-label="Filtrer par catégorie">
                         <button
@@ -189,7 +225,7 @@ export function GuidesGrid({ guides }: GuidesGridProps) {
                                         )}
                                     </p>
                                     <Link href={guideHref}>
-                                        <h3 className="mt-1.5 text-base font-bold leading-snug text-foreground transition-colors group-hover:text-emerald-500">
+                                        <h3 className="mt-1.5 text-base font-bold leading-snug text-foreground">
                                             {guide.title}
                                         </h3>
                                     </Link>

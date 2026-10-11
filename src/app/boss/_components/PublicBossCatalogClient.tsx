@@ -5,19 +5,18 @@ import Link from "next/link";
 import { Search, Swords, ChevronDown, ArrowRight } from "lucide-react";
 import type { BestiaireEntry } from "@/server/actions/game-data-actions";
 import { useI18n } from "@/lib/i18n/client";
+import { BOSS_LEVEL_BRACKETS } from "@/lib/level-brackets";
 
 interface PublicBossCatalogClientProps {
   bosses: BestiaireEntry[];
 }
 
-const RAW_LEVEL_RANGES = [
-  { min: 1, max: 200 },
-  { min: 1, max: 50 },
-  { min: 51, max: 100 },
-  { min: 101, max: 150 },
-  { min: 151, max: 190 },
-  { min: 191, max: 200 },
-];
+/**
+ * Tranches de niveau : **source unique** `@/lib/level-brackets` (mêmes bornes, même ordre — la
+ * tranche 0 reste « tous les niveaux »). On ne garde ici que les bornes : les valeurs d'UI
+ * (`?niveau=`) restent des **index**, donc le contrat d'URL public ne bouge pas.
+ */
+const RAW_LEVEL_RANGES = BOSS_LEVEL_BRACKETS.map(({ min, max }) => ({ min, max }));
 
 const RAW_TYPE_FILTERS = [
   "all",

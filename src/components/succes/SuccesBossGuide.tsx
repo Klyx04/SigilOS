@@ -26,6 +26,13 @@ import { formatDofusEffectLine, SpellDamageSummaryChips, cleanDofusText } from "
 import { enrichPassiveIfNeeded, normalizeSpellEffectDetails } from "@/lib/dofus-spells";
 import { ZoneLocationCard } from "@/components/worldmap/ZoneLocationCard";
 import { DungeonMinimapCard } from "@/app/boss/[dungeonId]/_components/DungeonMinimapCard";
+import {
+    ALL_LEVELS_ID,
+    BOSS_LEVEL_BRACKETS,
+    findLevelBracket,
+    levelBracketLabel,
+    matchesLevelBracket,
+} from "@/lib/level-brackets";
 
 /**
  * Image de monstre avec fallback stylisé (icône Swords) si l'illustration DofusDB
@@ -111,6 +118,9 @@ interface BossDungeon {
     anomalyMapId?: number | null;
     anomalyFamily?: string | null;
     mapId?: number | null;
+    /* 🐉 Boss de raid (`isRaidBoss`) — onglet « Raids » : on filtre sur la DONNÉE, jamais sur une
+       liste de noms de raids en dur, donc un raid publié demain entre dans l'onglet tout seul. */
+    isRaidBoss?: boolean | null;
     achievements?: { id: string; points: number; challenge?: { name: string } }[];
 }
 
@@ -206,9 +216,49 @@ interface DungeonFamily {
 /** Données de quêtes liées — forme d'affichage partagée (`SuccesBossQuests`). */
 type LinkedQuestsData = BossLinkedQuestsData;
 
-export function SuccesBossGuide({ guildId, anomalyOnly = false }: { guildId: string; anomalyOnly?: boolean }) {
+/** Périmètre de la liste : donjon classique, gardien d'anomalie, boss/monstre de raid. */
+export type BossGuideScope = "boss" | "anomalie" | "raid";
+
+/**
+ * Un seul point de vérité par périmètre : **la donnée** (`isAnomalyBoss` / `isRaidBoss`), jamais
+ * une liste de noms. Un raid publié demain apparaît donc dans l'onglet « Raids » sans toucher au
+ * code — c'est la condition demandée pour que ce soit « propre dans le futur ».
+ * Le périmètre « boss » garde exactement la règle d'avant : tout ce qui n'est **pas** un gardien
+ * d'anomalie (les boss de raid y sont donc toujours, l'onglet « Raids » en est le sous-ensemble).
+ */
+const SCOPE_RULES: Record<
+    BossGuideScope,
+    { match: (d: any) => boolean; noun: string; listed: string; search: string; empty: string }
+> = {
+    boss: {
+        match: (d) => !d.isAnomalyBoss,
+        noun: "boss",
+        listed: "boss répertoriés",
+        search: "Rechercher un boss ou un donjon…",
+        empty: "Aucun boss trouvé.",
+    },
+    anomalie: {
+        match: (d) => !!d.isAnomalyBoss,
+        noun: "gardien(s)",
+        listed: "gardiens d'anomalie répertoriés",
+        search: "Rechercher un gardien d'anomalie…",
+        empty: "Aucun gardien d'anomalie trouvé.",
+    },
+    raid: {
+        match: (d) => !!d.isRaidBoss,
+        noun: "monstre(s) de raid",
+        listed: "monstres de raid répertoriés",
+        search: "Rechercher un monstre de raid…",
+        empty: "Aucun monstre de raid trouvé.",
+    },
+};
+
+export function SuccesBossGuide({ guildId, scope = "boss" }: { guildId: string; scope?: BossGuideScope }) {
     const { openBossOverlay, isOpen: isOverlayOpen } = useBossOverlay(guildId);
+    const scopeRule = SCOPE_RULES[scope];
     const [dungeons, setDungeons] = useState<BossDungeon[]>([]);
+    /** Tranche de niveau active — même échelle que le catalogue public (`@/lib/level-brackets`). */
+    const [levelBracketId, setLevelBracketId] = useState<string>(ALL_LEVELS_ID);
     const [statsByBoss, setStatsByBoss] = useState<Record<string, MonsterStats>>({});
     const [loadingStatsByBoss, setLoadingStatsByBoss] = useState<Record<string, boolean>>({});
     const [loading, setLoading] = useState(true);
@@ -250,8 +300,8 @@ export function SuccesBossGuide({ guildId, anomalyOnly = false }: { guildId: str
                         .filter((d) => d && (d.bossName || d.name))
                         // Onglet « Boss Anomalie » : uniquement le contenu siphonné marqué
                         // `isAnomalyBoss` (onglet « Fiches Boss » : les donjons classiques).
-                        .filter((d) => !anomalyOnly || !!d.isAnomalyBoss)
-                        .filter((d) => anomalyOnly || !d.isAnomalyBoss)
+                        // Onglet « Raids » : `isRaidBoss` — filtre sur la donnée, aucun nom en dur.
+                        .filter((d) => SCOPE_RULES[scope].match(d))
                         .map((d) => ({
                             id: d.id,
                             name: d.name,
@@ -265,6 +315,7 @@ export function SuccesBossGuide({ guildId, anomalyOnly = false }: { guildId: str
                             dofensiveMonsterName: d.dofensiveMonsterName ?? null,
                             dofensiveDungeonName: d.dofensiveDungeonName ?? null,
                             isAnomalyBoss: !!d.isAnomalyBoss,
+                            isRaidBoss: !!d.isRaidBoss,
                             anomalyMapId: d.anomalyMapId ?? null,
                             anomalyFamily: d.anomalyFamily ?? null,
                             mapId: d.mapId ?? null,
@@ -279,7 +330,7 @@ export function SuccesBossGuide({ guildId, anomalyOnly = false }: { guildId: str
         return () => {
             cancelled = true;
         };
-    }, [anomalyOnly]);
+    }, [scope]);
 
     // 2. Deep-link `?dungeon={id}` : dès que la liste des donjons est chargée, on ouvre
     //    directement la fiche du boss ciblé (au lieu de laisser l'onglet sur la liste).
@@ -417,15 +468,16 @@ export function SuccesBossGuide({ guildId, anomalyOnly = false }: { guildId: str
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [selected?.id, activeMonsterName, activeGradeIndex]);
 
+    const levelBracket = findLevelBracket(levelBracketId);
     const filtered = useMemo(() => {
         const q = search.trim().toLowerCase();
-        if (!q) return dungeons;
-        return dungeons.filter(
-            (d) =>
-                d.bossName.toLowerCase().includes(q) ||
-                d.name.toLowerCase().includes(q)
-        );
-    }, [dungeons, search]);
+        return dungeons.filter((d) => {
+            // 🎚️ Tranche de niveau d'abord (le filtre le plus large), puis la recherche texte.
+            if (!matchesLevelBracket(d.level, levelBracket)) return false;
+            if (!q) return true;
+            return d.bossName.toLowerCase().includes(q) || d.name.toLowerCase().includes(q);
+        });
+    }, [dungeons, search, levelBracket]);
 
     const statsOf = (d: BossDungeon): MonsterStats | undefined =>
         statsByBoss[activeMonsterName && d.id === selected?.id ? `${d.id}::${activeMonsterName}` : d.id];
@@ -467,7 +519,7 @@ export function SuccesBossGuide({ guildId, anomalyOnly = false }: { guildId: str
                                 setSelectedSpellId(undefined);
                             }
                         }}
-                        placeholder={anomalyOnly ? "Rechercher un gardien d'anomalie…" : "Rechercher un boss ou un donjon…"}
+                        placeholder={scopeRule.search}
                         className="w-full h-11 pl-9 pr-8 rounded-xl bg-surface border border-border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     />
                     {search && (
@@ -482,16 +534,47 @@ export function SuccesBossGuide({ guildId, anomalyOnly = false }: { guildId: str
                 </div>
                 <p className="text-xs text-muted-foreground font-semibold">
                     {search
-                        ? `${filtered.length} ${anomalyOnly ? "gardien(s)" : "boss"} trouvé(s) sur ${dungeons.length}`
-                        : `${dungeons.length} ${anomalyOnly ? "gardiens d'anomalie répertoriés" : "boss répertoriés"}`}
+                        ? `${filtered.length} ${scopeRule.noun} trouvé(s) sur ${dungeons.length}`
+                        : `${dungeons.length} ${scopeRule.listed}`}
                 </p>
             </div>
 
+            {/* 🎚️ Tranches de niveau — MÊME échelle que le catalogue public (`@/lib/level-brackets`),
+                jamais une seconde liste locale. Changer de tranche referme la fiche ouverte : la
+                fiche affichée pourrait sortir du filtre. */}
+            <div className="flex flex-wrap items-center gap-2" data-tour="succes-levels">
+                <span className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">Niveau</span>
+                {BOSS_LEVEL_BRACKETS.map((bracket) => {
+                    const active = levelBracketId === bracket.id;
+                    return (
+                        <button
+                            key={bracket.id}
+                            type="button"
+                            onClick={() => {
+                                setLevelBracketId(bracket.id);
+                                if (selected) {
+                                    setSelected(null);
+                                    setSelectedSpellId(undefined);
+                                }
+                            }}
+                            aria-pressed={active}
+                            className={cn(
+                                "rounded-lg border px-2.5 py-1 text-[11px] font-semibold transition-colors cursor-pointer",
+                                active
+                                    ? "border-border-strong bg-elevated text-foreground"
+                                    : "border-border text-muted-foreground hover:text-foreground hover:border-border-strong"
+                            )}
+                        >
+                            {levelBracketLabel(bracket)}
+                        </button>
+                    );
+                })}
+            </div>
 
             {!selected && (filtered.length === 0 ? (
                 <div className="py-16 text-center text-muted-foreground border border-dashed border-border rounded-2xl bg-background/40">
                     <Swords className="w-10 h-10 mx-auto mb-3 opacity-20" />
-                    <p className="font-medium">{anomalyOnly ? "Aucun gardien d'anomalie trouvé." : "Aucun boss trouvé."}</p>
+                    <p className="font-medium">{scopeRule.empty}</p>
                 </div>
             ) : (
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4" data-tour="succes-tracker-list">
@@ -533,6 +616,13 @@ export function SuccesBossGuide({ guildId, anomalyOnly = false }: { guildId: str
                                         <div className="absolute top-1.5 right-1.5 flex items-center gap-1 rounded-md bg-info/20 backdrop-blur px-1.5 py-0.5 text-[10px] font-black uppercase tracking-wide text-info border border-info/30">
                                             <img src="/assets/missions/ano1.png" alt="" aria-hidden className="w-3.5 h-3.5 object-contain" />
                                             Anomalie
+                                        </div>
+                                    )}
+                                    {/* Onglet « Raids » : même donnée (`isRaidBoss`), marqueur honnête
+                                        (aucun raid nommé en dur — un nouveau raid hérite du badge). */}
+                                    {!d.isAnomalyBoss && d.isRaidBoss && (
+                                        <div className="absolute top-1.5 right-1.5 rounded-md bg-warning/20 backdrop-blur px-1.5 py-0.5 text-[10px] font-black uppercase tracking-wide text-warning border border-warning/30">
+                                            Raid
                                         </div>
                                     )}
                                 </div>

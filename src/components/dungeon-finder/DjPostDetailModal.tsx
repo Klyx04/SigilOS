@@ -26,6 +26,7 @@ import { DOFUS_CLASSES, getClass } from "@/lib/dofus-assets";
 import { DofusUiIcon } from "@/components/shared/dofus-ui-icon";
 import { PseudoChip } from "@/components/shared/pseudo-chip";
 import { getMultiDungeons, getDjPostTitle, getDjPostSubtitle, formatDjDateLabel } from "@/lib/dungeon-finder-utils";
+import { dungeonFicheHref } from "@/lib/dungeon-fiche";
 import { DjMultiBossAvatars } from "./DjMultiBossAvatars";
 
 const MODE_LABELS: Record<string, string> = {
@@ -221,12 +222,18 @@ export function DjPostDetailModal({
                                         <img src="https://www.google.com/s2/favicons?domain=dofuspourlesnoobs.com&sz=32" alt="DPLN" className="w-3.5 h-3.5 rounded-sm" /> DofusPourLesNoobs
                                     </a>
                                 )}
-                                {post.dungeon?.dofensiveUrl && (
-                                    <a href={post.dungeon.dofensiveUrl} target="_blank" rel="noopener noreferrer"
-                                        className="text-caption font-bold text-muted-foreground hover:text-foreground border border-border hover:bg-elevated rounded-md px-3 py-1.5 transition-colors flex items-center gap-1.5 shadow-sm">
-                                        <span>🛡️</span> Dofensive
-                                    </a>
-                                )}
+                                {/* Lien Dofensive → fiche SigilOS (demande user, 11/10/2026), via la
+                                    source unique `dungeonFicheHref` : aucune URL inventée. */}
+                                {(() => {
+                                    const ficheHref = dungeonFicheHref(guildId, post.dungeon);
+                                    if (!ficheHref) return null;
+                                    return (
+                                        <a href={ficheHref} target="_blank" rel="noopener noreferrer"
+                                            className="text-caption font-bold text-muted-foreground hover:text-foreground border border-border hover:bg-elevated rounded-md px-3 py-1.5 transition-colors flex items-center gap-1.5 shadow-sm">
+                                            <span>🛡️</span> Fiche SigilOS
+                                        </a>
+                                    );
+                                })()}
                                 {post.questUrl && post.questUrl.includes("dofuspourlesnoobs") && !post.dungeon?.dofuspourlesnoobsUrl && (
                                     <a href={post.questUrl} target="_blank" rel="noopener noreferrer"
                                         className="text-caption font-bold text-muted-foreground hover:text-foreground border border-border hover:bg-elevated rounded-md px-3 py-1.5 transition-colors flex items-center gap-1.5">

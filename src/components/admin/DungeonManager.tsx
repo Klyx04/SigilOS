@@ -630,26 +630,18 @@ export default function DungeonManager() {
                                             </p>
                                         </div>
 
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                            <div className="space-y-2">
-                                                <label className="text-xs font-medium text-muted-foreground pl-1">Lien DofusPourLesNoobs</label>
-                                                <Input
-                                                    value={formData.dofuspourlesnoobsUrl}
-                                                    onChange={(e) => setFormData({ ...formData, dofuspourlesnoobsUrl: e.target.value })}
-                                                    placeholder="https://www.dofuspourlesnoobs.com/..."
-                                                    className="h-11 bg-elevated border-border text-xs rounded-lg focus-visible:ring-0 focus-visible:border-border-strong"
-                                                />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <label className="text-xs font-medium text-muted-foreground pl-1">Lien Dofensive</label>
-                                                <Input
-                                                    value={formData.dofensiveUrl}
-                                                    onChange={(e) => setFormData({ ...formData, dofensiveUrl: e.target.value })}
-                                                    placeholder="https://dofensive.com/fr/monster/..."
-                                                    className="h-11 bg-elevated border-border text-xs rounded-lg focus-visible:ring-0 focus-visible:border-border-strong"
-                                                />
-                                            </div>
+                                        <div className="space-y-2">
+                                            <label className="text-xs font-medium text-muted-foreground pl-1">Lien DofusPourLesNoobs</label>
+                                            <Input
+                                                value={formData.dofuspourlesnoobsUrl}
+                                                onChange={(e) => setFormData({ ...formData, dofuspourlesnoobsUrl: e.target.value })}
+                                                placeholder="https://www.dofuspourlesnoobs.com/..."
+                                                className="h-11 bg-elevated border-border text-xs rounded-lg focus-visible:ring-0 focus-visible:border-border-strong"
+                                            />
                                         </div>
+                                        {/* « Lien Dofensive » retiré (11/10/2026, demande user) : le lien Dofensive
+                                            n'a plus à être saisi (les fiches publiques ne l'affichent plus) et
+                                            l'URL de la carte est résolue par le siphon (`anomalyDofensiveUrl`). */}
 
                                         {/* Chantier double boss — dissociation affichage / résolution Dofensive.
                                             Permet de pointer la « Balcon de … » du bon monstre même quand le nom affiché

@@ -32,16 +32,6 @@ const RAID_OVERLAY_CONFIG: Record<string, { raidSlug: "gigalodon" | "jardin-eter
   },
 };
 
-/** Couleur de badge par badgeColor */
-const BADGE_COLOR_MAP: Record<string, { text: string; bg: string; border: string }> = {
-  cyan:    { text: "#67e8f9", bg: "rgba(6,182,212,0.12)",  border: "rgba(6,182,212,0.3)" },
-  emerald: { text: "#6ee7b7", bg: "rgba(16,185,129,0.12)", border: "rgba(16,185,129,0.3)" },
-  amber:   { text: "#fcd34d", bg: "rgba(245,158,11,0.12)", border: "rgba(245,158,11,0.3)" },
-  rose:    { text: "#fda4af", bg: "rgba(244,63,94,0.12)",  border: "rgba(244,63,94,0.3)" },
-  purple:  { text: "#c4b5fd", bg: "rgba(139,92,246,0.12)", border: "rgba(139,92,246,0.3)" },
-  teal:    { text: "#5eead4", bg: "rgba(20,184,166,0.12)", border: "rgba(20,184,166,0.3)" },
-};
-
 export const dynamic = "force-dynamic";
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
@@ -109,8 +99,6 @@ export default async function GuidePage({ params }: { params: Promise<{ slug: st
     const nonce = headersList.get("x-nonce") ?? "";
 
     const raidConfig = RAID_OVERLAY_CONFIG[slug];
-    const badge = BADGE_COLOR_MAP[meta.badgeColor ?? "teal"] ?? BADGE_COLOR_MAP.teal;
-    const themeColor = raidConfig?.themeColor ?? badge.text;
 
     return (
         <div className="registre min-h-screen w-full flex flex-col bg-background text-foreground">
@@ -145,39 +133,10 @@ export default async function GuidePage({ params }: { params: Promise<{ slug: st
             />
 
             <main className="flex-1">
-                {/* ── HERO ARTICLE ──────────────────────────────────────────── */}
-                <div
-                    className="relative border-b border-border overflow-hidden"
-                    style={{
-                        background: `linear-gradient(135deg, color-mix(in oklch, ${themeColor} 7%, var(--background)) 0%, var(--background) 55%)`,
-                    }}
-                >
-                    {/* Glow décoratif */}
-                    <div
-                        className="absolute -top-32 -left-32 w-96 h-96 rounded-full blur-3xl opacity-[0.07] pointer-events-none"
-                        style={{ backgroundColor: themeColor }}
-                        aria-hidden="true"
-                    />
-                    {/* Couverture en fond à droite */}
-                    {meta.coverImage && (
-                        <div
-                            className="absolute inset-y-0 right-0 w-1/2 pointer-events-none hidden lg:block"
-                            aria-hidden="true"
-                        >
-                            <div
-                                className="absolute inset-0"
-                                style={{
-                                    backgroundImage: `url(${meta.coverImage})`,
-                                    backgroundSize: "cover",
-                                    backgroundPosition: "center",
-                                    maskImage: "linear-gradient(to right, transparent 0%, black 35%, black 100%)",
-                                    WebkitMaskImage: "linear-gradient(to right, transparent 0%, black 35%, black 100%)",
-                                    opacity: 0.12,
-                                }}
-                            />
-                        </div>
-                    )}
-
+                {/* ── HERO ARTICLE : plat, sans image de fond (déslop 10/10/2026 — la
+                    couverture floue + le glow + le dégradé ont été retirés : la couverture
+                    reste visible en vignette, en OG et en JSON-LD, jamais en fond). */}
+                <div className="border-b border-border">
                     <div className="reg-shell !max-w-6xl relative py-10 lg:py-14">
                         {/* Breadcrumb */}
                         <nav aria-label={locale === "en" ? "Breadcrumb" : "Fil d'Ariane"} className="mb-5 flex items-center gap-2 text-sm text-muted-foreground">
@@ -189,10 +148,7 @@ export default async function GuidePage({ params }: { params: Promise<{ slug: st
                         </nav>
 
                         {/* Badge catégorie */}
-                        <span
-                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-black uppercase tracking-widest border mb-4"
-                            style={{ color: badge.text, backgroundColor: badge.bg, borderColor: badge.border }}
-                        >
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold uppercase tracking-widest border mb-4 bg-elevated text-foreground border-border">
                             {meta.category ?? "Guide"}
                         </span>
 

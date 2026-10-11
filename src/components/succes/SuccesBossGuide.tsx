@@ -2,12 +2,13 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { Brain, ChevronDown, ChevronUp, Compass, Crown, ExternalLink, Flame, Loader2, MapPin, PictureInPicture2, ScrollText, Search, Shield, Swords, Target, Users, X, Zap, Gem, Check, ArrowRight } from "lucide-react";
 import { useBossOverlay } from "@/hooks/use-boss-overlay";
 import { getDungeonsWithAchievements, getDungeonMonsters, getMonsterStats } from "@/server/actions/game-data-actions";
 import { getLinkedQuests } from "@/server/actions/dofus-quest-actions";
 import { SuccesBossQuests, type BossLinkedQuestsData } from "./SuccesBossQuests";
-import { SuccesBossEncyclo } from "./SuccesBossEncyclo";
+import { SuccesBossEncyclo, type EncycloGradeView, type EncycloView } from "./SuccesBossEncyclo";
 import { mergeDofensiveSpells } from "@/lib/dofensive-spells";
 import { deriveDofensiveMonsterName } from "@/lib/dofensive-boss";
 import {
@@ -26,6 +27,8 @@ import { formatDofusEffectLine, SpellDamageSummaryChips, cleanDofusText } from "
 import { enrichPassiveIfNeeded, normalizeSpellEffectDetails } from "@/lib/dofus-spells";
 import { ZoneLocationCard } from "@/components/worldmap/ZoneLocationCard";
 import { DungeonMinimapCard } from "@/app/boss/[dungeonId]/_components/DungeonMinimapCard";
+import { PublicBossAchievementsTab } from "@/app/boss/[dungeonId]/_components/PublicBossAchievementsTab";
+import type { PublicDungeonAchievement } from "@/server/actions/public-boss-tabs-actions";
 import {
     ALL_LEVELS_ID,
     BOSS_LEVEL_BRACKETS,
@@ -33,6 +36,8 @@ import {
     levelBracketLabel,
     matchesLevelBracket,
 } from "@/lib/level-brackets";
+import { buildBossFicheTabs } from "@/lib/boss-fiche-tabs";
+import { listNormalMonsters, monsterFicheHref } from "@/lib/monster-fiche";
 
 /**
  * Image de monstre avec fallback stylisé (icône Swords) si l'illustration DofusDB
@@ -121,7 +126,12 @@ interface BossDungeon {
     /* 🐉 Boss de raid (`isRaidBoss`) — onglet « Raids » : on filtre sur la DONNÉE, jamais sur une
        liste de noms de raids en dur, donc un raid publié demain entre dans l'onglet tout seul. */
     isRaidBoss?: boolean | null;
-    achievements?: { id: string; points: number; challenge?: { name: string } }[];
+    achievements?: {
+        id: string;
+        points: number;
+        /** Succès lié (challenge) — `name` est le libellé publié, le reste sert l'icône/la description. */
+        challenge?: { name: string; slug?: string | null; iconUrl?: string | null; description?: string | null };
+    }[];
 }
 
 interface MonsterStats {
@@ -145,6 +155,8 @@ interface MonsterStats {
     drops?: { objectId: number; name: string; imageUrl: string; percent: number; percentByGrade?: number[] }[];
     spells?: SpellData[];
     passive?: BossPassiveData;
+    /** Fiche encyclopédique (identité, propriétés) — fournie par `getMonsterStats`. */
+    encyclo?: EncycloView | null;
 }
 
 function SpellIcon({ spell, size = 8 }: { spell: SpellData; size?: number }) {
@@ -273,9 +285,18 @@ export function SuccesBossGuide({ guildId, scope = "boss" }: { guildId: string; 
     const [selectedDrop, setSelectedDrop] = useState<any>(null);
     const [selectedSpellId, setSelectedSpellId] = useState<number | undefined>(undefined);
     const [familyByDungeon, setFamilyByDungeon] = useState<Record<string, DungeonFamily>>({});
+    /**
+     * Monstres **normaux** de la salle du donjon ouvert (hors boss / avis de recherche /
+     * anomalie / titan / boss de raid) : la règle pure vit dans `@/lib/monster-fiche` —
+     * eux seuls ont droit à leur propre fiche `/bestiaire/<slug>`.
+     */
+    const normalMonsterList = useMemo(
+        () => listNormalMonsters<any>(selected ? (familyByDungeon[selected.id]?.monsters ?? []) : []),
+        [selected, familyByDungeon]
+    );
     const [activeMonsterName, setActiveMonsterName] = useState<string | null>(null);
     const [activeGradeIndex, setActiveGradeIndex] = useState<number | null>(null);
-    const [detailTab, setDetailTab] = useState<"sorts" | "sim" | "loot" | "family" | "quetes">("sorts");
+    const [detailTab, setDetailTab] = useState<"sorts" | "sim" | "strategy" | "grades" | "loot" | "family" | "monsters" | "quests" | "achievements">("sorts");
     // Détail des sorts : chaque sort est replié par défaut (les mécaniques clés — le passif —
     // suffisent d'un coup d'œil). L'état est remis à zéro à chaque changement de fiche.
     // Deep-link `?onglet=quetes` (redirect de l'ancienne vue globale `?view=quetes`).
@@ -382,7 +403,9 @@ export function SuccesBossGuide({ guildId, scope = "boss" }: { guildId: string; 
         setActiveMonsterName(null);
         setActiveGradeIndex(null);
         // `?onglet=quetes` (redirect `?view=quetes`) ouvre directement les quêtes — boss classiques uniquement.
-        setDetailTab(!d.isAnomalyBoss && questTabRequested ? "quetes" : "sorts");
+        // L'id d'onglet interne est `quests` (source unique `buildBossFicheTabs`) ; le paramètre
+        // d'URL reste `quetes` (contrat externe conservé).
+        setDetailTab(!d.isAnomalyBoss && questTabRequested ? "quests" : "sorts");
         // Reset de l'accordéon des sorts : aucun dépliage ne survit au changement de fiche.
         setExpandedSpells({});
         setSelectedSpellId(undefined);
@@ -917,24 +940,30 @@ export function SuccesBossGuide({ guildId, scope = "boss" }: { guildId: string; 
                         );
                     })()}
 
-                    {/* 3. Onglets secondaires : sorts, simulation, butin, salle, quêtes.
-                        Les rangs (grades) vivent dans la section encyclopédie ci-dessus. */}
+                    {/* 3. Onglets secondaires : la liste vient de `buildBossFicheTabs`
+                        (source unique partagée avec la fiche publique `/boss/<slug>`). */}
                     {(() => {
                         const roomMonsters = selected && familyByDungeon[selected.id]?.monsters ? familyByDungeon[selected.id].monsters : [];
-                        const hasRoomMonsters = roomMonsters.length > 1;
                         const currentStats = statsOf(selected);
                         // Quêtes liées (boss classiques uniquement — déjà chargées, zéro requête en plus).
                         const questCount = selected && !selected.isAnomalyBoss ? (linkedQuestsByDungeon[selected.id]?.quests.length ?? 0) : 0;
 
                         // Un seul onglet Sorts : mécaniques clés + détail complet.
-                        const spellCount = currentStats?.spells?.length ?? 0;
-                        const tabs = [
-                            { id: "sorts", label: `Sorts (${spellCount})`, asset: "/assets/dofus/modules/spells.png" },
-                            { id: "sim", label: "Simulation Tactique", asset: "/assets/dofus/modules/map.png" },
-                            { id: "loot", label: "Butin & Drops", asset: "/assets/dofus/modules/chest.png" },
-                            ...(hasRoomMonsters ? [{ id: "family", label: `Monstres de la salle (${roomMonsters.length})`, asset: "/assets/dofus/modules/party.png" }] : []),
-                            ...(!selected?.isAnomalyBoss ? [{ id: "quetes", label: `Quêtes (${questCount})`, asset: "/assets/dofus/icons/quests.png" }] : []),
-                        ];
+                        // La LISTE des onglets vient de la **source unique** partagée avec la fiche
+                        // publique (`@/lib/boss-fiche-tabs`) : même jeu d'onglets, mêmes règles de
+                        // masquage — une surface ne peut plus en proposer un que l'autre ignore.
+                        const tabs = buildBossFicheTabs({
+                            entity: selected?.isAnomalyBoss ? "anomaly" : selected?.isRaidBoss ? "raid" : "dungeon",
+                            counts: {
+                                grades: currentStats?.grades?.length ?? 0,
+                                roomMonsters: roomMonsters.length,
+                                monsters: normalMonsterList.length,
+                                quests: selected?.isAnomalyBoss ? 0 : questCount,
+                                achievements: selected?.achievements?.length ?? 0,
+                            },
+                            // Une mécanique n'existe que si un vrai texte de passif est renseigné.
+                            hasMechanics: !!enrichPassiveIfNeeded(currentStats?.passive, currentStats?.spells ?? [])?.description,
+                        });
 
                         return (
                             <div className="flex items-center gap-1 overflow-x-auto border-b border-border no-scrollbar">
@@ -944,7 +973,7 @@ export function SuccesBossGuide({ guildId, scope = "boss" }: { guildId: string; 
                                         <button
                                             key={tab.id}
                                             type="button"
-                                            onClick={() => setDetailTab(tab.id as any)}
+                                            onClick={() => setDetailTab(tab.id)}
                                             className={cn(
                                                 "flex items-center gap-2 border-b-2 -mb-px px-3 py-2 text-xs transition-colors whitespace-nowrap cursor-pointer",
                                                 isActive
@@ -953,7 +982,7 @@ export function SuccesBossGuide({ guildId, scope = "boss" }: { guildId: string; 
                                             )}
                                         >
                                             {/* eslint-disable-next-line @next/next/no-img-element */}
-                                            <img src={tab.asset} alt="" className={cn("w-4 h-4 object-contain", !isActive && "opacity-60")} />
+                                            <img src={tab.icon} alt="" className={cn("w-4 h-4 object-contain", !isActive && "opacity-60")} />
                                             <span>{tab.label}</span>
                                         </button>
                                     );
@@ -961,6 +990,56 @@ export function SuccesBossGuide({ guildId, scope = "boss" }: { guildId: string; 
                             </div>
                         );
                     })()}
+
+                    {/* Onglet : Tous les monstres normaux — chacun ouvre SA fiche
+                        (`/bestiaire/<slug>`, même règle et même slug que la fiche publique). */}
+                    {detailTab === "monsters" && (
+                        <div className="space-y-3">
+                            <div className="flex flex-wrap items-center gap-2">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img src="/assets/dofus/icons/archimonster.png" alt="" className="w-4 h-4 object-contain opacity-80" />
+                                <h4 className="text-sm font-bold text-foreground">Tous les monstres</h4>
+                                <span className="text-[11px] font-bold px-2 py-0.5 rounded-full border border-border text-muted-foreground">
+                                    {normalMonsterList.length} monstres
+                                </span>
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                                Monstres normaux uniquement — les boss de donjon, avis de recherche, gardiens
+                                d&apos;anomalie, titans et boss de raid ont leur propre fiche.
+                            </p>
+                            {normalMonsterList.length === 0 ? (
+                                <p className="py-8 text-center text-xs text-muted-foreground">
+                                    Aucun monstre normal rattaché à cette salle pour le moment.
+                                </p>
+                            ) : (
+                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
+                                    {normalMonsterList.map((m: any) => {
+                                        const href = monsterFicheHref(m.name);
+                                        const card = (
+                                            <>
+                                                <div className="w-10 h-10 rounded-lg bg-background border border-border p-1 flex items-center justify-center shrink-0 overflow-hidden">
+                                                    <MonsterImage src={m.imageUrl} alt={m.name} monsterId={m.id} className="w-full h-full object-contain" />
+                                                </div>
+                                                <span className="min-w-0 flex-1">
+                                                    <span className="block truncate text-xs font-medium text-foreground">{m.name}</span>
+                                                    {m.level ? <span className="block text-[11px] text-muted-foreground">niv. {m.level}</span> : null}
+                                                </span>
+                                            </>
+                                        );
+                                        const className = "flex items-center gap-2.5 rounded-xl border border-border bg-surface/50 p-2 text-left transition-colors hover:border-border-strong";
+                                        return href ? (
+                                            <Link key={m.id} href={href} target="_blank" title={`Ouvrir la fiche de ${m.name}`} className={className}>
+                                                {card}
+                                            </Link>
+                                        ) : (
+                                            <div key={m.id} className={className}>{card}</div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
+                    )}
+
 
                     {/* Onglet dédié : Monstres de la salle + monstres de l'anomalie */}
                     {detailTab === "family" && (() => {
@@ -1047,19 +1126,56 @@ export function SuccesBossGuide({ guildId, scope = "boss" }: { guildId: string; 
                         );
                     })()}
 
+                    {/* Onglet : Stratégie — la mécanique de combat réelle (passif officiel Unity).
+                        L'onglet n'est proposé que si un vrai texte de passif existe
+                        (`buildBossFicheTabs({ hasMechanics })`), donc le garde-fou est ici
+                        redondant mais volontaire : jamais de bloc vide. */}
+                    {detailTab === "strategy" && (() => {
+                        const currentStats = statsOf(selected);
+                        const enrichedPassive = enrichPassiveIfNeeded(currentStats?.passive, currentStats?.spells ?? []);
+                        if (!enrichedPassive?.description) return null;
+                        return (
+                            <div className="space-y-3">
+                                <h4 className="text-sm font-bold text-foreground flex items-center gap-1.5">
+                                    <Shield className="w-4 h-4 opacity-70" /> Stratégie &amp; mécaniques de combat
+                                </h4>
+                                <BossMechanicsView passive={enrichedPassive} collapsible defaultCollapsed={false} />
+                            </div>
+                        );
+                    })()}
+
+                    {/* Onglet : Rangs & Paliers — composant encyclopédie partagé (aucun recodage). */}
+                    {detailTab === "grades" && (
+                        <SuccesBossEncyclo
+                            level={selected.level}
+                            grades={(statsOf(selected)?.grades ?? []) as EncycloGradeView[]}
+                            encyclo={statsOf(selected)?.encyclo ?? null}
+                            activeGradeIndex={activeGradeIndex}
+                            onGradeChange={(idx) => setActiveGradeIndex(idx)}
+                            dungeonName={selected.name}
+                        />
+                    )}
+
+                    {/* Onglet : Succès du donjon — composant de la fiche publique réutilisé tel quel.
+                        Les succès (`achievements` + challenge) sont déjà chargés avec la liste des
+                        donjons : zéro requête supplémentaire. */}
+                    {detailTab === "achievements" && (
+                        <PublicBossAchievementsTab
+                            achievements={(selected.achievements ?? []).map((a): PublicDungeonAchievement => ({
+                                id: a.id,
+                                name: a.challenge?.name ?? "Succès",
+                                slug: a.challenge?.slug ?? null,
+                                iconUrl: a.challenge?.iconUrl ?? null,
+                                points: a.points ?? 0,
+                                description: a.challenge?.description ?? null,
+                            }))}
+                            bossName={selected.bossName}
+                        />
+                    )}
+
                     {/* Onglet : Sorts (fusionné, iso fiche publique) */}
                     {detailTab === "sorts" && (
                         <div className="space-y-4">
-                            {/* Passif officiel Unity — mécanique de début de combat (repliable).
-                                Rendu UNIQUEMENT s'il existe une vraie description : un
-                                passif sans texte n'est pas une mécanique. */}
-                            {(() => {
-                                const spells = statsOf(selected)?.spells ?? [];
-                                const enrichedPassive = enrichPassiveIfNeeded(statsOf(selected)?.passive, spells);
-                                return enrichedPassive?.description ? (
-                                    <BossMechanicsView passive={enrichedPassive} collapsible defaultCollapsed={false} />
-                                ) : null;
-                            })()}
 
                             {(() => {
                                 const spells = statsOf(selected)?.spells ?? [];
@@ -1280,7 +1396,7 @@ export function SuccesBossGuide({ guildId, scope = "boss" }: { guildId: string; 
                     )}
 
                     {/* Onglet : Quêtes liées (boss classiques — les succès vivent dans « Mes Succès »). */}
-                    {detailTab === "quetes" && !selected.isAnomalyBoss && (
+                    {detailTab === "quests" && !selected.isAnomalyBoss && (
                         <div className="space-y-3">
                             <h4 className="text-sm font-bold text-foreground flex items-center gap-1.5">
                                 <ScrollText className="w-4 h-4 opacity-70" /> Quêtes liées au donjon

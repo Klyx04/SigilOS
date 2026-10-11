@@ -1,7 +1,8 @@
 'use client';
 // dark-locked — module volontairement sombre (V2 Dual-Theme Phase 2C) : ne PAS utiliser les tokens thème-aware ici (voir memo 21/08 + prompt 22/08).
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Swords, ShieldAlert, ChevronDown, Loader2, MapPin, Ghost, Sparkles, Info, ChevronUp, Coins, ExternalLink, Map, Layers, Search, Users } from 'lucide-react';
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -9,9 +10,12 @@ import { DocContent } from '../doc/doc-content';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 import { Dialog, DialogContent } from '@/components/ui/dialog';
-import { bountyRewardIcon } from '@/lib/bounty-fiche';
 import { getZoneMonsters, getBountiesForZone, searchDungeonsAdvanced } from '@/server/actions/game-data-actions';
 import { getZoneArchmonsters, getGuildOcreTrades } from '@/server/actions/ocre-actions';
+import { getBountyFiche, type BountyFichePayload } from '@/server/actions/bounty-actions';
+import { BountyFicheView } from '@/components/succes/BountyFicheView';
+import { groupZoneFamilies } from '@/lib/zone-families';
+import { monsterFicheHref } from '@/lib/bestiaire-fiche';
 
 interface ZoneDetailModalProps {
     isOpen: boolean;
@@ -26,17 +30,6 @@ interface ZoneDetailModalProps {
     isPublic?: boolean;
 }
 
-/**
- * Icône d'une **récompense d'avis** (encart « Prime » de la fiche de zone) — la résolution du
- * chemin est **centralisée** dans `bountyRewardIcon` (assets locaux + proxy interne, jamais de
- * hotlink CDN). Aucune icône quand le type n'est pas reconnu : on n'invente pas un asset.
- */
-function RewardIcon({ type, className = 'w-7 h-7' }: { type?: string | null; className?: string }) {
-    const src = bountyRewardIcon(type);
-    if (!src) return null;
-    return <img src={src} className={`${className} object-contain`} alt={type || ''} />;
-}
-
 export function ZoneDetailModal({ isOpen, onClose, zoneName, position, guildId, worldId, subAreaId, mapId: mapIdProp, isPublic = false }: ZoneDetailModalProps) {
     const isGuildMode = !isPublic && !!guildId;
     const resolvedMapId = mapIdProp ?? position?.mapId;
@@ -45,12 +38,28 @@ export function ZoneDetailModal({ isOpen, onClose, zoneName, position, guildId, 
     const [monsters, setMonsters] = useState<any>(null);
     const [archis, setArchis] = useState<any[]>([]);
     const [bounties, setBounties] = useState<any[]>([]);
+    // Avis sélectionné dans l'onglet « Avis de recherche » : sa fiche est chargée par
+    // `getBountyFiche` (lecture locale du siphon) puis rendue par `BountyFicheView` —
+    // le MÊME rendu que le module Succès, donc la même fiche partout.
+    const [activeBountyId, setActiveBountyId] = useState<string | null>(null);
+    const [bountyFiche, setBountyFiche] = useState<BountyFichePayload | null>(null);
+    const [loadingBountyFiche, setLoadingBountyFiche] = useState(false);
     const [expandedBounties, setExpandedBounties] = useState<Record<string, boolean>>({});
     const [dungeons, setDungeons] = useState<any[]>([]);
     const [trades, setTrades] = useState<any[]>([]);
     const [tradesLoading, setTradesLoading] = useState(false);
 
     const [error, setError] = useState<string | null>(null);
+
+    /**
+     * Familles réellement peuplées dans la zone : règle **pure** partagée
+     * (`@/lib/zone-families`) — une famille sans monstre n'est jamais affichée, et
+     * chaque monstre est rattaché par clé normalisée (casse/accents/ponctuation).
+     */
+    const familyGroups = useMemo(
+        () => groupZoneFamilies<any, any>(monsters?.families ?? [], monsters?.normalMonsters ?? []),
+        [monsters]
+    );
 
     useEffect(() => {
         if (isOpen && zoneName) {
@@ -72,8 +81,11 @@ export function ZoneDetailModal({ isOpen, onClose, zoneName, position, guildId, 
                 const localAvis = (mRes.success && mRes.data) ? mRes.data.avisDeRecherche : [];
                 const dbAvis = bRes.success ? bRes.data || [] : [];
                 
-                // Merge and deduplicate by name
-                const mergedAvis = [...dbAvis];
+                // Merge and deduplicate by name. Seules les lignes issues de la table
+                // `Bounty` (bRes) portent un identifiant de fiche : les avis remontés par
+                // les familles locales sont marqués `ficheAvailable: false` pour ne jamais
+                // demander une fiche qui n'existe pas.
+                const mergedAvis = dbAvis.map((b: any) => ({ ...b, ficheAvailable: Boolean(b?.id) }));
                 (localAvis || []).forEach((la: any) => {
                     if (!mergedAvis.some(dba => dba.name.toLowerCase() === la.name.toLowerCase())) {
                         mergedAvis.push({
@@ -81,7 +93,8 @@ export function ZoneDetailModal({ isOpen, onClose, zoneName, position, guildId, 
                             name: la.name,
                             imageUrl: la.imageUrl || `https://static.ankama.com/dofus/www/game/monsters/${la.id}.png`,
                             level: la.level || 0,
-                            subarea: zoneName
+                            subarea: zoneName,
+                            ficheAvailable: false
                         });
                     }
                 });
@@ -98,6 +111,10 @@ export function ZoneDetailModal({ isOpen, onClose, zoneName, position, guildId, 
                     ...b,
                     guideUrl: `https://duffus.fr/avis-de-recherche/${b.name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/['\s]/g, '-')}`
                 })));
+                // Fiche ouverte d'office : le premier avis **qui a une fiche** (sinon le premier).
+                setBountyFiche(null);
+                const firstWithFiche = mergedAvis.find((b: any) => b.ficheAvailable) ?? mergedAvis[0];
+                setActiveBountyId(firstWithFiche ? firstWithFiche.id : null);
                 if (dRes.success) setDungeons(dRes.data || []);
                 if (tRes.success && tRes.data) setTrades(tRes.data);
                 else setTrades([]);
@@ -112,83 +129,100 @@ export function ZoneDetailModal({ isOpen, onClose, zoneName, position, guildId, 
         }
     }, [isOpen, zoneName, guildId, isGuildMode]);
 
+    // Fiche de l'avis sélectionné dans l'onglet « Avis de recherche » (lecture locale
+    // du siphon, aucun appel sortant) — rendue ensuite par `BountyFicheView`.
+    useEffect(() => {
+        if (!isOpen || !activeBountyId) {
+            setBountyFiche(null);
+            return;
+        }
+        const row = bounties.find((b: any) => b.id === activeBountyId);
+        if (!row?.ficheAvailable) {
+            setBountyFiche(null);
+            return;
+        }
+        let cancelled = false;
+        setLoadingBountyFiche(true);
+        getBountyFiche(activeBountyId)
+            .then((res) => {
+                if (!cancelled) setBountyFiche(res.success && res.data ? res.data : null);
+            })
+            .catch(() => {
+                if (!cancelled) setBountyFiche(null);
+            })
+            .finally(() => {
+                if (!cancelled) setLoadingBountyFiche(false);
+            });
+        return () => { cancelled = true; };
+    }, [isOpen, activeBountyId, bounties]);
+
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
             <DialogContent 
                 showCloseButton={false} 
-                className="w-[95vw] max-w-6xl bg-[#080a10] border border-border shadow-[0_50px_100px_rgba(0,0,0,0.9)] rounded-[2.5rem] md:rounded-[3rem] text-foreground p-0 overflow-hidden flex flex-col h-[min(850px,90vh)]"
+                className="w-[95vw] max-w-6xl bg-[#080a10] border border-emerald-500/20 ring-1 ring-inset ring-white/[0.04] shadow-[0_50px_100px_rgba(0,0,0,0.9)] rounded-2xl md:rounded-[2rem] text-foreground p-0 overflow-hidden flex flex-col h-[min(850px,90vh)]"
             >
-                {/* Header */}
-                <div className="relative h-32 md:h-44 bg-surface border-b border-border shrink-0 overflow-hidden">
-                    <div className="absolute inset-0 bg-gradient-to-tr from-emerald-500/10 via-transparent to-amber-500/10" />
-                    <button 
-                        onClick={onClose}
-                        className="absolute top-6 right-6 md:top-8 md:right-8 p-3 rounded-2xl bg-surface hover:bg-surface border border-border text-foreground/50 hover:text-foreground transition-all z-20"
-                    >
-                        <X size={24} />
-                    </button>
-
-                    <div className="absolute bottom-6 left-6 md:bottom-8 md:left-10 flex items-end gap-6 md:gap-8 z-10">
-                        <div className="hidden md:flex w-16 h-16 rounded-2xl bg-emerald-500/20 items-center justify-center border border-emerald-500/20 shadow-inner">
-                            <MapPin size={28} className="text-emerald-500" />
-                        </div>
-                        <div>
-                            <div className="flex items-center gap-3 mb-2">
-                                <span className="px-3 py-1 rounded-xl bg-emerald-500/20 border border-emerald-500/30 text-emerald-500 text-caption font-black uppercase tracking-widest italic shadow-lg shadow-emerald-500/10">
-                                    GPS [{position.displayX}, {position.displayY}]
-                                </span>
-                            </div>
-                            <h2 className="text-2xl md:text-3xl font-black text-foreground uppercase italic tracking-tighter leading-none drop-shadow-2xl">
-                                {zoneName}
-                            </h2>
-                        </div>
+                {/* En-tête — grammaire « landing » : eyebrow + titre + fermeture. */}
+                <div className="flex items-start gap-3 border-b border-border px-5 py-4 shrink-0">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-border bg-surface">
+                        <MapPin size={18} className="text-muted-foreground" />
                     </div>
+                    <div className="min-w-0 flex-1">
+                        <p className="flex flex-wrap items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                            Zone analysée
+                            <span className="rounded-md border border-border bg-surface px-1.5 py-0.5 font-mono text-[11px] font-medium normal-case">
+                                [{position.displayX}, {position.displayY}]
+                            </span>
+                        </p>
+                        <h2 className="mt-0.5 truncate text-xl font-bold tracking-tight text-foreground">{zoneName}</h2>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        title="Fermer"
+                        className="shrink-0 rounded-lg border border-border p-2 text-muted-foreground transition-colors hover:bg-surface hover:text-foreground"
+                    >
+                        <X size={18} />
+                    </button>
                 </div>
 
                 {/* Content */}
                 <div className="flex-1 overflow-hidden flex flex-col">
                     {loading ? (
-                        <div className="flex-1 flex flex-col items-center justify-center gap-6 opacity-40">
-                             <div className="relative">
-                                 <Swords size={64} className="text-foreground animate-pulse" />
-                                 <div className="absolute -inset-8 bg-emerald-500/20 blur-3xl rounded-full animate-pulse" />
-                             </div>
-                             <p className="text-body font-black uppercase tracking-widest text-foreground italic">Analyse de la faune locale...</p>
+                        <div className="flex flex-1 flex-col items-center justify-center gap-3 text-muted-foreground">
+                            <Loader2 size={26} className="animate-spin" />
+                            <p className="text-xs">Analyse de la zone…</p>
                         </div>
                     ) : (
-                        <div className="flex-1 overflow-y-auto custom-scrollbar p-6 md:p-10 pt-6">
-                            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex flex-col gap-8">
-                                <div className="flex items-center justify-between border-b border-border pb-4 sticky top-0 bg-[#080a10] z-20 pt-4">
-                                    <TabsList className="bg-surface p-1.5 rounded-2xl gap-1">
-                                        <TabsTrigger value="tuile" className="rounded-xl px-5 py-2.5 font-black uppercase italic text-label tracking-widest data-[state=active]:bg-[#1a2744] data-[state=active]:text-sky-300 data-[state=active]:border data-[state=active]:border-sky-500/40 transition-all flex items-center gap-2">
+                        <div className="flex-1 overflow-y-auto custom-scrollbar px-5 py-5 md:px-6">
+                            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex flex-col gap-5">
+                                {/* Barre d'onglets : un seul segment (verre dépoli), aucune couleur pleine. */}
+                                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-3">
+                                    <TabsList className="h-auto bg-surface border border-border p-1 gap-0.5">
+                                        <TabsTrigger value="tuile" className="rounded-md px-3 py-1.5 text-xs font-semibold text-muted-foreground transition-colors data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm flex items-center gap-2">
                                             <img src="/assets/dofus/map-layers/icon-zones-on.png" alt="" className="w-3.5 h-3.5 object-contain" /> Tuile HD
                                         </TabsTrigger>
-                                        <TabsTrigger value="archis" className="rounded-xl px-5 py-2.5 font-black uppercase italic text-label tracking-widest data-[state=active]:bg-amber-500 data-[state=active]:text-black transition-all flex items-center gap-2">
+                                        <TabsTrigger value="archis" className="rounded-md px-3 py-1.5 text-xs font-semibold text-muted-foreground transition-colors data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm flex items-center gap-2">
                                             <img src="/assets/icons/ocre.png" alt="" className="w-3.5 h-3.5 object-contain" /> Archimonstres
                                         </TabsTrigger>
-                                        <TabsTrigger value="bounties" className="rounded-xl px-5 py-2.5 font-black uppercase italic text-label tracking-widest data-[state=active]:bg-rose-500 data-[state=active]:text-foreground transition-all flex items-center gap-2">
-                                            <img src="/assets/avis/avitons.png" alt="" className="w-3.5 h-3.5 object-contain" /> Avis de Recherche
+                                        <TabsTrigger value="bounties" className="rounded-md px-3 py-1.5 text-xs font-semibold text-muted-foreground transition-colors data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm flex items-center gap-2">
+                                            <img src="/assets/avis/avitons.png" alt="" className="w-3.5 h-3.5 object-contain" /> Avis de recherche
                                         </TabsTrigger>
-                                        <TabsTrigger value="families" className="rounded-xl px-5 py-2.5 font-black uppercase italic text-label tracking-widest data-[state=active]:bg-purple-500 data-[state=active]:text-foreground transition-all flex items-center gap-2">
+                                        <TabsTrigger value="families" className="rounded-md px-3 py-1.5 text-xs font-semibold text-muted-foreground transition-colors data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm flex items-center gap-2">
                                             <img src="/assets/dofus/game-icons/crossed-swords.png" alt="" className="w-3.5 h-3.5 object-contain" /> Familles
                                         </TabsTrigger>
                                     </TabsList>
-
-                                    {/* Capture Stats */}
-                                    <div className="flex items-center gap-3">
-                                        <span className="text-caption font-black text-foreground/20 uppercase tracking-[0.2em]">Archis :</span>
-                                        {isGuildMode ? (
-                                            <span className="text-caption font-black text-amber-500/80 uppercase tracking-widest bg-amber-500/5 px-3 py-1 rounded-full border border-amber-500/10 italic">
-                                                {archis.filter(a => a.state !== 'MANQUANT').length} / {archis.length}
-                                            </span>
-                                        ) : (
-                                            <span className="text-caption font-black text-amber-400 uppercase tracking-widest bg-amber-500/10 px-3 py-1 rounded-full border border-amber-500/20 italic">
-                                                {archis.length} {archis.length > 1 ? "Archis" : "Archi"}
-                                            </span>
-                                        )}
-                                    </div>
+                                    <span className="text-xs text-muted-foreground">
+                                        Archimonstres :{" "}
+                                        <strong className="font-semibold tabular-nums text-foreground">
+                                            {isGuildMode
+                                                ? `${archis.filter(a => a.state !== 'MANQUANT').length} / ${archis.length}`
+                                                : archis.length}
+                                        </strong>
+                                    </span>
                                 </div>
+
 
                                 {/* TAB: TUILE HD */}
                                 <TabsContent value="tuile" className="m-0">
@@ -219,7 +253,7 @@ export function ZoneDetailModal({ isOpen, onClose, zoneName, position, guildId, 
                                             ) : (
                                                 <div className="flex flex-col items-center justify-center h-full gap-4 text-foreground/20 p-8" style={{ minHeight: '280px' }}>
                                                     <Map size={48} />
-                                                    <p className="text-caption font-bold uppercase tracking-widest">Aucune tuile disponible</p>
+                                                    <p className="text-xs text-muted-foreground">Aucune tuile disponible</p>
                                                 </div>
                                             )}
                                         </div>
@@ -227,32 +261,32 @@ export function ZoneDetailModal({ isOpen, onClose, zoneName, position, guildId, 
                                         {/* Infos rapides */}
                                         <div className="lg:col-span-2 flex flex-col gap-4">
                                             {/* Stats Zone */}
-                                            <div className="p-5 rounded-2xl bg-surface/60 border border-border/80 space-y-4">
-                                                <p className="text-caption font-black text-foreground/40 uppercase tracking-widest">Infos de la zone</p>
+                                            <div className="space-y-3 rounded-2xl border border-border bg-surface/60 p-4">
+                                                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Infos de la zone</p>
                                                 <div className="space-y-3">
                                                     <div className="flex items-center justify-between">
-                                                        <span className="text-caption text-foreground/70 flex items-center gap-2">
+                                                        <span className="text-xs text-muted-foreground flex items-center gap-2">
                                                             <img src="/assets/icons/ocre.png" alt="" className="w-4 h-4 object-contain" /> Archimonstres
                                                         </span>
-                                                        <span className="text-sm font-black text-amber-400">{archis.length}</span>
+                                                        <span className="text-sm font-semibold tabular-nums text-foreground">{archis.length}</span>
                                                     </div>
                                                     <div className="flex items-center justify-between">
-                                                        <span className="text-caption text-foreground/70 flex items-center gap-2">
+                                                        <span className="text-xs text-muted-foreground flex items-center gap-2">
                                                             <img src="/assets/avis/avitons.png" alt="" className="w-4 h-4 object-contain" /> Avis de Recherche
                                                         </span>
-                                                        <span className="text-sm font-black text-rose-400">{bounties.length}</span>
+                                                        <span className="text-sm font-semibold tabular-nums text-foreground">{bounties.length}</span>
                                                     </div>
                                                     <div className="flex items-center justify-between">
-                                                        <span className="text-caption text-foreground/70 flex items-center gap-2">
+                                                        <span className="text-xs text-muted-foreground flex items-center gap-2">
                                                             <img src="/assets/dofus/game-icons/crossed-swords.png" alt="" className="w-4 h-4 object-contain" /> Familles
                                                         </span>
-                                                        <span className="text-sm font-black text-purple-400">{monsters?.families?.length ?? 0}</span>
+                                                        <span className="text-sm font-semibold tabular-nums text-foreground">{monsters?.families?.length ?? 0}</span>
                                                     </div>
                                                     <div className="flex items-center justify-between">
-                                                        <span className="text-caption text-foreground/70 flex items-center gap-2">
+                                                        <span className="text-xs text-muted-foreground flex items-center gap-2">
                                                             <img src="/assets/dofus/map-layers/icon-dungeon-color.png" alt="" className="w-4 h-4 object-contain" /> Donjons
                                                         </span>
-                                                        <span className="text-sm font-black text-foreground/80">{dungeons.length}</span>
+                                                        <span className="text-sm font-semibold tabular-nums text-foreground">{dungeons.length}</span>
                                                     </div>
                                                 </div>
                                             </div>
@@ -260,7 +294,7 @@ export function ZoneDetailModal({ isOpen, onClose, zoneName, position, guildId, 
                                             {/* Donjons de la zone */}
                                             {dungeons.length > 0 && (
                                                 <div className="p-4 rounded-2xl bg-surface/60 border border-border/80 space-y-3">
-                                                    <p className="text-caption font-black text-amber-500/80 uppercase tracking-widest flex items-center gap-1.5">
+                                                    <p className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
                                                         <img src="/assets/dofus/map-layers/icon-dungeon-color.png" alt="" className="w-3.5 h-3.5 object-contain" /> Donjons
                                                     </p>
                                                     <div className="space-y-2">
@@ -275,7 +309,7 @@ export function ZoneDetailModal({ isOpen, onClose, zoneName, position, guildId, 
                                                                 </div>
                                                                 <div className="flex-1 min-w-0">
                                                                     <p className="text-xs font-bold text-foreground truncate leading-none">{dj.name}</p>
-                                                                    <p className="text-[11px] text-amber-400/60">Niv. {dj.level}</p>
+                                                                    <p className="text-[11px] text-muted-foreground">Niv. {dj.level}</p>
                                                                 </div>
                                                             </div>
                                                         ))}
@@ -283,29 +317,24 @@ export function ZoneDetailModal({ isOpen, onClose, zoneName, position, guildId, 
                                                 </div>
                                             )}
 
-                                            {/* Accès rapide autres onglets */}
+                                            {/* Accès rapide aux autres onglets — même grammaire sobre partout. */}
                                             <div className="grid grid-cols-3 gap-2">
-                                                <button
-                                                    onClick={() => setActiveTab("archis")}
-                                                    className="flex flex-col items-center gap-1.5 p-3 rounded-xl bg-surface/50 border border-amber-500/20 hover:border-amber-500/50 hover:bg-amber-500/10 transition-all text-amber-400 cursor-pointer group"
-                                                >
-                                                    <img src="/assets/icons/ocre.png" alt="" className="w-5 h-5 object-contain group-hover:scale-110 transition-transform" />
-                                                    <span className="text-[10px] font-black uppercase tracking-widest">Archis</span>
-                                                </button>
-                                                <button
-                                                    onClick={() => setActiveTab("bounties")}
-                                                    className="flex flex-col items-center gap-1.5 p-3 rounded-xl bg-surface/50 border border-rose-500/20 hover:border-rose-500/50 hover:bg-rose-500/10 transition-all text-rose-400 cursor-pointer group"
-                                                >
-                                                    <img src="/assets/avis/avitons.png" alt="" className="w-5 h-5 object-contain group-hover:scale-110 transition-transform" />
-                                                    <span className="text-[10px] font-black uppercase tracking-widest">Avis</span>
-                                                </button>
-                                                <button
-                                                    onClick={() => setActiveTab("families")}
-                                                    className="flex flex-col items-center gap-1.5 p-3 rounded-xl bg-surface/50 border border-purple-500/20 hover:border-purple-500/50 hover:bg-purple-500/10 transition-all text-purple-400 cursor-pointer group"
-                                                >
-                                                    <img src="/assets/dofus/game-icons/crossed-swords.png" alt="" className="w-5 h-5 object-contain group-hover:scale-110 transition-transform" />
-                                                    <span className="text-[10px] font-black uppercase tracking-widest">Familles</span>
-                                                </button>
+                                                {([
+                                                    { tab: "archis", label: "Archis", icon: "/assets/icons/ocre.png" },
+                                                    { tab: "bounties", label: "Avis", icon: "/assets/avis/avitons.png" },
+                                                    { tab: "families", label: "Familles", icon: "/assets/dofus/game-icons/crossed-swords.png" },
+                                                ] as const).map((shortcut) => (
+                                                    <button
+                                                        key={shortcut.tab}
+                                                        type="button"
+                                                        onClick={() => setActiveTab(shortcut.tab)}
+                                                        className="flex flex-col items-center gap-1.5 rounded-xl border border-border bg-surface/60 p-3 text-muted-foreground transition-colors hover:border-border-strong hover:text-foreground"
+                                                    >
+                                                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                        <img src={shortcut.icon} alt="" className="h-5 w-5 object-contain" />
+                                                        <span className="text-[11px] font-semibold">{shortcut.label}</span>
+                                                    </button>
+                                                ))}
                                             </div>
                                         </div>
                                     </div>
@@ -317,7 +346,7 @@ export function ZoneDetailModal({ isOpen, onClose, zoneName, position, guildId, 
                                         {/* Colonne Gauche : Liste des Archimonstres de la zone */}
                                         <div className={`${(!isGuildMode && dungeons.length === 0) ? 'lg:col-span-1' : 'lg:col-span-2'} space-y-3`}>
                                             <div className="flex items-center justify-between pb-2 border-b border-border/40">
-                                                <span className="text-caption font-bold text-foreground/60 uppercase tracking-wider flex items-center gap-2">
+                                                <span className="text-xs font-semibold text-muted-foreground flex items-center gap-2">
                                                     <img src="/assets/icons/ocre.png" alt="" className="w-4 h-4 object-contain" />
                                                     Archimonstres du secteur ({archis.length})
                                                 </span>
@@ -470,128 +499,62 @@ export function ZoneDetailModal({ isOpen, onClose, zoneName, position, guildId, 
                                     </div>
                                 </TabsContent>
 
-                                {/* TAB: AVIS DE RECHERCHE */}
+                                {/* TAB: AVIS DE RECHERCHE — la vraie fiche de l'avis (rendu partagé) */}
                                 <TabsContent value="bounties" className="m-0">
-                                    <div className="space-y-6">
-                                        {bounties.length > 0 ? (
-                                            <div className="grid grid-cols-1 gap-8">
-                                                {bounties.map((bounty) => (
-                                                    <div key={bounty.id} className="group relative overflow-hidden flex flex-col rounded-[2.5rem] bg-gradient-to-br from-[#0a0a0f] to-[#12121a] border border-border hover:border-rose-500/30 transition-all shadow-2xl">
-
-                                                        {/* 1. NOM + BADGES */}
-                                                        <div className="px-8 pt-8 pb-5">
-                                                            <h4 className="text-4xl font-black text-rose-500 uppercase italic tracking-tighter leading-none mb-3">
-                                                                {bounty.name}
-                                                            </h4>
-                                                            <div className="flex flex-wrap items-center gap-2">
-                                                                <span className="px-3 py-1 rounded-xl bg-surface border border-border text-caption font-black text-foreground uppercase tracking-widest italic">
-                                                                    Niv. {bounty.level}
-                                                                </span>
-                                                                {bounty.milice && bounty.milice !== 'Inconnu' && (
-                                                                    <span className="px-3 py-1 rounded-xl bg-amber-500/10 border border-amber-500/20 text-caption font-black text-amber-500 uppercase tracking-widest italic">
-                                                                        {bounty.milice}
-                                                                    </span>
-                                                                )}
-                                                                {bounty.subarea && (
-                                                                    <span className="px-3 py-1 rounded-xl bg-surface border border-border text-caption font-black text-foreground/40 uppercase tracking-widest italic">
-                                                                        {bounty.subarea}
-                                                                    </span>
-                                                                )}
-                                                                {bounty.position && (
-                                                                    <button 
-                                                                        onClick={(e) => {
-                                                                            e.stopPropagation();
-                                                                            navigator.clipboard.writeText(`/travel ${bounty.position}`);
-                                                                        }}
-                                                                        className="px-3 py-1 rounded-xl bg-amber-500 text-warning-foreground text-caption font-black uppercase tracking-widest italic  active:scale-95 transition-all flex items-center gap-1.5"
-                                                                    >
-                                                                        <MapPin size={10} /> {bounty.position}
-                                                                    </button>
-                                                                )}
-                                                            </div>
-                                                        </div>
-
-                                                        {/* 2. PORTRAIT DE LA CIBLE (la « Zone de Spawn » a été retirée — la
-                                                            localisation réelle se lit désormais sur la carte, encart « Localisation »). */}
-                                                        <div className="px-8">
-                                                            <div className="relative h-56 rounded-2xl overflow-hidden bg-black/60 border border-border flex items-center justify-center">
-                                                                <div className="absolute inset-0 bg-gradient-to-br from-rose-500/5 to-transparent" />
-                                                                <img src={bounty.imageUrl} alt={bounty.name} className="h-48 w-auto object-contain drop-shadow-[0_0_24px_rgba(244,63,94,0.5)] group- transition-transform duration-300" />
-                                                            </div>
-                                                        </div>
-
-                                                        <div className="flex flex-col gap-4 px-8 pb-8 pt-5">
-                                                            <div className="flex flex-wrap gap-2">
-                                                                {Array.isArray(bounty.rewards) && bounty.rewards.length > 0 ? (
-                                                                    bounty.rewards.map((reward: any, ridx: number) => {
-                                                                        return (
-                                                                            <div key={ridx} className="flex items-center gap-2.5 px-4 py-2.5 rounded-2xl bg-surface border border-border hover:bg-surface transition-all">
-                                                                                <RewardIcon type={reward?.type} />
-                                                                                <span className="text-base font-black text-foreground">{reward.amount}</span>
-                                                                                <span className="text-caption text-foreground/40 uppercase italic">{reward.type}</span>
-                                                                            </div>
-                                                                        );
-                                                                    })
-                                                                ) : bounty.doplons > 0 ? (
-                                                                    <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-2xl bg-surface border border-border">
-                                                                        <RewardIcon type={bounty.rewardType} />
-                                                                        <span className="text-base font-black text-foreground">{bounty.doplons}</span>
-                                                                        <span className="text-caption text-foreground/40 uppercase italic">{bounty.rewardType || 'Prime'}</span>
-                                                                    </div>
-                                                                ) : null}
-                                                            </div>
-
-                                                            {/* 4. STRAT */}
-                                                            <div className="relative p-6 rounded-[1.5rem] bg-rose-500/5 border border-rose-500/15">
-                                                                 <div className="absolute top-0 left-8 -translate-y-1/2 px-3 py-0.5 bg-[#0a0a0f] border border-rose-500/30 rounded-full flex items-center gap-2">
-                                                                     <span className="text-caption font-black text-rose-500 uppercase tracking-widest">⚔ Stratégie</span>
-                                                                     {bounty.dpnlUrl && (
-                                                                         <>
-                                                                             <div className="w-[1px] h-2 bg-rose-500/30" />
-                                                                             <a 
-                                                                                 href={bounty.dpnlUrl} 
-                                                                                 target="_blank" 
-                                                                                 rel="noopener noreferrer"
-                                                                                 className="text-caption font-black text-amber-500 hover:text-amber-400 uppercase tracking-widest flex items-center gap-1 transition-colors"
-                                                                             >
-                                                                                 Guide DPNL <ExternalLink size={8} />
-                                                                             </a>
-                                                                         </>
-                                                                     )}
-                                                                 </div>
-                                                                 <div className="prose prose-invert prose-sm max-w-none text-body-sm text-foreground/80 leading-relaxed prose-p:my-2 prose-ul:my-2 prose-li:my-0.5">
-                                                                     <DocContent content={bounty.mechanics || "Aucun résumé tactique disponible pour le moment."} />
-                                                                 </div>
-                                                            </div>
-                                                        </div>
-
-                                                        <div className="absolute -bottom-12 -right-12 w-48 h-48 bg-rose-500/5 blur-[80px] rounded-full pointer-events-none" />
-                                                    </div>
-                                                ))}
+                                    {bounties.length === 0 ? (
+                                        <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-border py-14 text-center">
+                                            <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-border bg-surface">
+                                                <ShieldAlert className="text-muted-foreground" size={22} />
                                             </div>
-                                        ) : (
-                                            <div className="py-24 rounded-[3rem] bg-surface border border-dashed border-border flex flex-col items-center justify-center gap-6">
-                                                <div className="w-20 h-20 rounded-full bg-rose-500/10 flex items-center justify-center border border-rose-500/20 shadow-inner">
-                                                    <ShieldAlert className="text-rose-500" size={32} />
+                                            <p className="text-sm font-semibold text-foreground">Zone sécurisée</p>
+                                            <p className="max-w-md text-xs text-muted-foreground">
+                                                Aucun avis de recherche signalé dans cette zone.
+                                            </p>
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-4">
+                                            {bounties.length > 1 && (
+                                                <div className="flex flex-wrap items-center gap-1.5">
+                                                    {bounties.map((bounty: any) => (
+                                                        <button
+                                                            key={bounty.id}
+                                                            type="button"
+                                                            onClick={() => setActiveBountyId(bounty.id)}
+                                                            className={
+                                                                "inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs transition-colors " +
+                                                                (activeBountyId === bounty.id
+                                                                    ? "border-border-strong bg-surface text-foreground"
+                                                                    : "border-border text-muted-foreground hover:text-foreground")
+                                                            }
+                                                        >
+                                                            {bounty.name}
+                                                            {!bounty.ficheAvailable && (
+                                                                <span className="text-[10px] text-muted-foreground/70">(sans fiche)</span>
+                                                            )}
+                                                        </button>
+                                                    ))}
                                                 </div>
-                                                <div className="text-center space-y-2">
-                                                    <h3 className="text-xl font-black text-foreground uppercase italic tracking-widest">Zone Sécurisée</h3>
-                                                    <p className="text-caption font-black text-foreground/30 uppercase tracking-widest italic max-w-md mx-auto">
-                                                        Pas d'avis de recherche signalé dans cette zone.
-                                                    </p>
-                                                </div>
-                                            </div>
-                                        )}
-                                    </div>
+                                            )}
+                                            <BountyFicheView
+                                                fiche={bountyFiche}
+                                                guildId={isGuildMode ? (guildId as string) : ""}
+                                                loading={loadingBountyFiche}
+                                                showOverlayAction={isGuildMode}
+                                                fallbackImageUrl={bounties.find((b: any) => b.id === activeBountyId)?.imageUrl ?? null}
+                                                emptyTitle="Fiche non disponible"
+                                                emptyHint="Cet avis n'a pas encore de fiche siphonnée (God → Données de jeu → Avis de recherche)."
+                                            />
+                                        </div>
+                                    )}
                                 </TabsContent>
-
-                                {/* TAB: FAMILLES DE MONSTRES */}
                                 <TabsContent value="families" className="m-0">
                                     <div className="space-y-6">
-                                        {monsters?.families?.length > 0 ? (
+                                        {familyGroups.length > 0 ? (
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                                {monsters.families.map((family: any) => {
-                                                    const familyMonsters = monsters.normalMonsters.filter((m: any) => m.familyName === family.name);
+                                                {/* Familles RÉELLEMENT peuplées de la zone (règle pure
+                                                    `@/lib/zone-families`) : aucune famille vide, aucun monstre
+                                                    rattaché à la mauvaise famille. */}
+                                                {familyGroups.map(({ family, monsters: familyMonsters }) => {
                                                     const familyImg = family.imageUrl
                                                         ? (family.imageUrl.startsWith('/') || family.imageUrl.startsWith('http')
                                                             ? family.imageUrl
@@ -599,7 +562,7 @@ export function ZoneDetailModal({ isOpen, onClose, zoneName, position, guildId, 
                                                         : (familyMonsters[0]?.imageUrl || null);
 
                                                     return (
-                                                        <div key={family.id} className="flex flex-col rounded-2xl bg-surface/60 border border-border/80 hover:border-purple-500/40 transition-all p-5 shadow-sm space-y-4">
+                                                        <div key={family.id} className="flex flex-col rounded-2xl border border-white/10 bg-black/25 p-5 space-y-4">
                                                             {/* Header Famille */}
                                                             <div className="flex items-center gap-4">
                                                                 <div className="w-14 h-14 rounded-xl bg-black/40 border border-border/60 flex items-center justify-center p-1.5 shrink-0 overflow-hidden">
@@ -638,21 +601,22 @@ export function ZoneDetailModal({ isOpen, onClose, zoneName, position, guildId, 
                                                                 </div>
                                                             </div>
 
-                                                            {/* Liste des monstres membres */}
+                                                            {/* Liste des monstres membres — cliquables vers LEUR fiche
+                                                                quand une fiche est publiée (slug lu en base). */}
                                                             {familyMonsters.length > 0 && (
-                                                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-2 border-t border-border/40">
+                                                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-3 border-t border-white/10">
                                                                     {familyMonsters.map((m: any) => {
                                                                         const monsterImg = m.imageUrl
                                                                             ? (m.imageUrl.startsWith('/') || m.imageUrl.startsWith('http')
                                                                                 ? m.imageUrl
                                                                                 : `/api/assets-dofus/monsters/${m.imageUrl}`)
                                                                             : null;
-
-                                                                        return (
-                                                                            <div
-                                                                                key={m.id}
-                                                                                className="flex items-center gap-2 p-2 rounded-xl bg-background/50 border border-border/40 hover:border-purple-500/30 transition-colors"
-                                                                            >
+                                                                        // Lien vers la fiche : `null` quand aucune fiche n'est publiée
+                                                                        // (jamais d'URL fabriquée à partir du nom ⇒ aucun 404).
+                                                                        const ficheHref = monsterFicheHref(isGuildMode ? guildId : null, m);
+                                                                        const rowClass = `flex items-center gap-2 p-2 rounded-xl bg-black/30 border border-white/10 transition-colors ${ficheHref ? "hover:border-purple-400/50" : "cursor-default"}`;
+                                                                        const rowContent = (
+                                                                            <>
                                                                                 <div className="w-7 h-7 rounded-lg bg-black/30 flex items-center justify-center shrink-0 overflow-hidden">
                                                                                     {monsterImg ? (
                                                                                         <img
@@ -670,6 +634,25 @@ export function ZoneDetailModal({ isOpen, onClose, zoneName, position, guildId, 
                                                                                 <span className="text-caption font-medium text-foreground/80 truncate">
                                                                                     {m.name}
                                                                                 </span>
+                                                                            </>
+                                                                        );
+
+                                                                        return ficheHref ? (
+                                                                            <Link
+                                                                                key={m.id}
+                                                                                href={ficheHref}
+                                                                                title={`Ouvrir la fiche de ${m.name}`}
+                                                                                className={rowClass}
+                                                                            >
+                                                                                {rowContent}
+                                                                            </Link>
+                                                                        ) : (
+                                                                            <div
+                                                                                key={m.id}
+                                                                                title={`${m.name} — aucune fiche publiée`}
+                                                                                className={rowClass}
+                                                                            >
+                                                                                {rowContent}
                                                                             </div>
                                                                         );
                                                                     })}
@@ -701,20 +684,14 @@ export function ZoneDetailModal({ isOpen, onClose, zoneName, position, guildId, 
                     )}
                 </div>
 
-                {/* Footer */}
-                <div className="p-4 md:p-5 bg-black/40 border-t border-border flex items-center justify-between shrink-0 px-6 md:px-10 gap-6">
-                    <div className="flex items-center gap-3">
-                        <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-                        <span className="text-caption font-bold text-foreground/50 uppercase tracking-wider">
-                            {zoneName} · [{position.displayX}, {position.displayY}]
-                        </span>
-                    </div>
-
-                    <div className="flex items-center gap-4 shrink-0">
-                        <span className="text-caption font-black text-foreground/30 uppercase tracking-widest italic">
-                            Carte du Monde — SigilOS
-                        </span>
-                    </div>
+                {/* Pied de fenêtre — sobre, sans pastille clignotante ni emphase. */}
+                <div className="flex items-center justify-between gap-6 border-t border-border px-5 py-3 shrink-0">
+                    <span className="truncate text-xs text-muted-foreground">
+                        {zoneName} · [{position.displayX}, {position.displayY}]
+                    </span>
+                    <span className="shrink-0 text-xs text-muted-foreground/70">
+                        Carte du Monde — SigilOS
+                    </span>
                 </div>
             </DialogContent>
         </Dialog>

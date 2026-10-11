@@ -50,6 +50,8 @@ import { BossMechanicsView } from "@/components/boss/BossMechanicsView";
 import { formatDofusEffectLine, SpellDamageSummaryChips, cleanDofusText } from "@/lib/dofus-effects-formatter";
 import { enrichPassiveIfNeeded, normalizeSpellEffectDetails } from "@/lib/dofus-spells";
 import { DocContent } from "@/components/doc/doc-content";
+import { buildBossFicheTabs } from "@/lib/boss-fiche-tabs";
+import { listNormalMonsters, monsterFicheHref } from "@/lib/monster-fiche";
 
 interface PublicDungeon {
   id: string;
@@ -205,7 +207,7 @@ function SpellIcon({
   );
 }
 
-type DetailTab = "sorts" | "sim" | "strategy" | "grades" | "loot" | "family" | "quests" | "achievements";
+type DetailTab = "sorts" | "sim" | "strategy" | "grades" | "loot" | "family" | "monsters" | "quests" | "achievements";
 
 
 export function PublicBossDetailClient({
@@ -445,18 +447,24 @@ export function PublicBossDetailClient({
     setSelectedSpellId(undefined);
   };
 
-  const tabs = (
-    [
-      { id: "sorts", label: locale === "en" ? `${isTitan ? "Titan" : isBounty ? "Bounty Monster" : "Boss"} Spells` : `Sorts du ${isTitan ? "Titan" : isBounty ? "monstre recherché" : "Boss"}`, asset: "/assets/dofus/modules/spells.png" },
-      { id: "sim", label: locale === "en" ? "Tactical Simulation" : "Simulation Tactique", asset: "/assets/dofus/modules/map.png" },
-      { id: "strategy", label: locale === "en" ? "Strategy" : "Stratégie", asset: "/assets/dofus/icons/quests.png", hidden: !bountyMeta?.mechanics },
-      { id: "grades", label: locale === "en" ? `Ranks & Levels (${grades.length})` : `Rangs & Paliers (${grades.length})`, asset: "/assets/dofus/modules/character.png", hidden: grades.length <= 1 },
-      { id: "loot", label: locale === "en" ? "Loot & Drops" : "Butin & Drops", asset: "/assets/dofus/modules/chest.png" },
-      { id: "family", label: locale === "en" ? `Room Monsters (${roomMonsters.length})` : `Monstres de la salle (${roomMonsters.length})`, asset: "/assets/dofus/modules/party.png", hidden: !hasRoomMonsters },
-      { id: "quests", label: locale === "en" ? `Linked Quests (${questCount})` : `Quêtes liées (${questCount})`, asset: "/assets/dofus/icons/quests.png", hidden: questCount === 0 },
-      { id: "achievements", label: locale === "en" ? `Dungeon Achievements (${achievementCount})` : `Succès du donjon (${achievementCount})`, asset: "/assets/dofus/icons/success.png", hidden: achievementCount === 0 },
-    ] as { id: DetailTab; label: string; asset: string; hidden?: boolean }[]
-  ).filter((t) => !t.hidden);
+  // Liste d'onglets : **source unique** partagée avec les fiches internes du module Succès
+  // (`@/lib/boss-fiche-tabs`) — plus aucune définition locale, donc plus aucune divergence
+  // possible entre la fiche publique et les fiches internes.
+  // Monstres normaux de la salle (hors boss / avis / anomalie / titan / raid) : ce sont eux
+  // qui ont droit à leur propre fiche `/bestiaire/<slug>` (onglet « Monstres »).
+  const normalMonsterList = listNormalMonsters(roomMonsters as any);
+  const tabs = buildBossFicheTabs({
+    entity: isRaid ? "raid" : isTitan ? "titan" : isBounty ? "bounty" : isAnomalyBoss ? "anomaly" : "dungeon",
+    counts: {
+      grades: grades.length,
+      roomMonsters: hasRoomMonsters ? roomMonsters.length : 0,
+      monsters: normalMonsterList.length,
+      quests: questCount,
+      achievements: achievementCount,
+    },
+    hasMechanics: !!bountyMeta?.mechanics,
+    locale: locale === "en" ? "en" : "fr",
+  });
 
   const resists = activeGrade?.resists || {};
   const coords = currentStats?.coordinates as { x: number; y: number; worldMapId?: number } | null | undefined;
@@ -874,7 +882,7 @@ export function PublicBossDetailClient({
               )}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={tab.asset} alt="" className={cn("w-4 h-4 object-contain", !isActive && "opacity-60")} />
+              <img src={tab.icon} alt="" className={cn("w-4 h-4 object-contain", !isActive && "opacity-60")} />
               <span>{tab.label}</span>
             </button>
           );
@@ -1191,6 +1199,53 @@ export function PublicBossDetailClient({
           )}
         </div>
       )}
+
+      {/* — TAB: TOUS LES MONSTRES NORMALUX (hors boss / avis / anomalie / titan / raid).
+          Chacun ouvre SA fiche (`/bestiaire/<slug>`, source unique `monsterFicheHref`). */}
+      {detailTab === "monsters" && (
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-center gap-2">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/assets/dofus/icons/archimonster.png" alt="" className="w-4 h-4 object-contain opacity-80" />
+            <h4 className="text-sm font-bold text-foreground">
+              {locale === "en" ? "All monsters" : "Tous les monstres"}
+            </h4>
+            <span className="text-[11px] font-bold px-2 py-0.5 rounded-full border border-border text-muted-foreground">
+              {normalMonsterList.length} {locale === "en" ? "monsters" : "monstres"}
+            </span>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            {locale === "en"
+              ? "Normal monsters only — dungeon bosses, bounty monsters, anomaly guardians, titans and raid bosses have their own page."
+              : "Monstres normaux uniquement — les boss de donjon, avis de recherche, gardiens d'anomalie, titans et boss de raid ont leur propre fiche."}
+          </p>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
+            {normalMonsterList.map((m: any) => {
+              const href = monsterFicheHref(m.name);
+              const card = (
+                <>
+                  <div className="w-10 h-10 rounded-lg bg-background border border-border p-1 flex items-center justify-center shrink-0 overflow-hidden">
+                    <MonsterImage src={m.imageUrl} alt={m.name} monsterId={m.id} className="w-full h-full object-contain" />
+                  </div>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-xs font-medium text-foreground">{m.name}</span>
+                    {m.level ? <span className="block text-[11px] text-muted-foreground">{t.bossPage.levelShort} {m.level}</span> : null}
+                  </span>
+                </>
+              );
+              const className = "flex items-center gap-2.5 rounded-xl border border-border/70 bg-surface/50 p-2 text-left transition-colors hover:border-border-strong";
+              return href ? (
+                <Link key={m.id} href={href} title={`${locale === "en" ? "Open the page of" : "Ouvrir la fiche de"} ${m.name}`} className={className}>
+                  {card}
+                </Link>
+              ) : (
+                <div key={m.id} className={className}>{card}</div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
 
       {/* ── TAB: MONSTRES DE LA SALLE ── */}
       {/* ── TAB: QUÊTES LIÉES (vrais donjons uniquement) ── */}

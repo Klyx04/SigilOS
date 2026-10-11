@@ -41,11 +41,14 @@ describe("clampLastModified — jamais de `lastmod` dans le futur", () => {
         expect(clampLastModified(new Date("pas-une-date"), now).toISOString()).toBe(now.toISOString());
     });
 
-    it("le sitemap plafonne ses 3 blocs datés (guildes, guides, boss)", () => {
-        expect((SITEMAP.match(/clampLastModified\(/g) ?? []).length).toBe(3);
+    it("le sitemap plafonne ses 4 blocs datés (guildes, guides, boss, monstres siphonnés)", () => {
+        // +1 le 11/10/2026 : `/bestiaire/<slug>` des monstres **siphonnés** (`lastSyncedAt`
+        // de `MonsterStat`) — même contrat : jamais de `<lastmod>` futur, jamais d'Invalid Date.
+        expect((SITEMAP.match(/clampLastModified\(/g) ?? []).length).toBe(4);
         expect(SITEMAP).not.toMatch(/lastModified: new Date\(guide\.updatedAt\)/);
         expect(SITEMAP).not.toMatch(/lastModified: guild\.updatedAt \?\? new Date\(\)/);
         expect(SITEMAP).not.toMatch(/lastModified: d\.updatedAt \?\? now/);
+        expect(SITEMAP).not.toMatch(/lastModified: monster\.lastSyncedAt \?\? now/);
     });
 });
 

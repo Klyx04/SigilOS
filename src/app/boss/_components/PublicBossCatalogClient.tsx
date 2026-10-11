@@ -1,11 +1,14 @@
 "use client";
 
-import React, { useState, useMemo, useRef, useEffect } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
-import { Search, Swords, ChevronDown, ArrowRight } from "lucide-react";
-import type { BestiaireEntry } from "@/server/actions/game-data-actions";
+import { Search, Swords, ArrowRight, Loader2 } from "lucide-react";
+import { FilterDropdown } from "@/components/ui/filter-dropdown";
+import { searchNormalMonsters, type BestiaireEntry } from "@/server/actions/game-data-actions";
+import { monsterFicheHref } from "@/lib/monster-fiche";
+import { MonsterFamilyFilter } from "@/components/succes/MonsterFamilyFilter";
 import { useI18n } from "@/lib/i18n/client";
-import { BOSS_LEVEL_BRACKETS } from "@/lib/level-brackets";
+import { BOSS_LEVEL_BRACKETS, matchesLevelBracket } from "@/lib/level-brackets";
 
 interface PublicBossCatalogClientProps {
   bosses: BestiaireEntry[];
@@ -25,87 +28,22 @@ const RAW_TYPE_FILTERS = [
   "titan",
   "bounty",
   "raid",
+  /**
+   * 🎯 Monstres NORMAUX (hors boss de donjon, avis de recherche, anomalies, titans et boss de
+   * raid) : lus dans le **bestiaire local complet** (`searchNormalMonsters`, 5 129 monstres),
+   * pas dans le catalogue passé au composant — celui-ci ne référence que les monstres des
+   * familles de donjons. Chaque carte mène à `/bestiaire/<slug>`.
+   */
+  "monstre",
 ] as const;
 
+/**
+ * Nombre de monstres chargés d'un coup : le bestiaire en compte 5 129 — le champ de recherche
+ * (filtré **côté serveur**, accents et familles inclus) sert à affiner, comme dans l'overlay.
+ */
+const MONSTER_LIST_LIMIT = 300;
+
 type TypeFilter = (typeof RAW_TYPE_FILTERS)[number];
-
-function FilterDropdown({
-  value,
-  onChange,
-  options,
-  ariaLabel,
-  align = "left",
-}: {
-  value: string;
-  onChange: (value: string) => void;
-  options: { value: string; label: string }[];
-  ariaLabel: string;
-  align?: "left" | "right";
-}) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const onDown = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
-    };
-    document.addEventListener("mousedown", onDown);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onDown);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [open]);
-
-  const current = options.find((o) => o.value === value);
-
-  return (
-    <div ref={ref} className="relative shrink-0">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        aria-haspopup="listbox"
-        aria-expanded={open}
-        aria-label={ariaLabel}
-        className="w-full sm:w-auto h-10 inline-flex items-center justify-between gap-2.5 pl-3.5 pr-3 rounded-xl bg-background/60 border border-white/10 text-xs font-bold text-foreground hover:border-white/25 focus:outline-none focus:border-amber-500/50 transition-colors cursor-pointer"
-      >
-        <span className="whitespace-nowrap">{current?.label}</span>
-        <ChevronDown className={`w-4 h-4 text-muted-foreground shrink-0 transition-transform ${open ? "rotate-180" : ""}`} />
-      </button>
-      {open && (
-        <div
-          role="listbox"
-          aria-label={ariaLabel}
-          className={`absolute z-50 mt-2 min-w-full w-max max-w-[260px] rounded-lg border border-border-strong bg-elevated shadow-2xl p-1 ${align === "right" ? "right-0" : "left-0"}`}
-        >
-          {options.map((o) => (
-            <button
-              key={o.value}
-              type="button"
-              role="option"
-              aria-selected={o.value === value}
-              onClick={() => {
-                onChange(o.value);
-                setOpen(false);
-              }}
-              className={`w-full text-left px-3 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition-colors cursor-pointer ${
-                o.value === value
-                  ? "bg-amber-500/15 text-amber-300"
-                  : "text-muted-foreground hover:bg-surface hover:text-foreground"
-              }`}
-            >
-              {o.label}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
 
 export function PublicBossCatalogClient({ bosses }: PublicBossCatalogClientProps) {
   const { t, locale } = useI18n();
@@ -113,13 +51,43 @@ export function PublicBossCatalogClient({ bosses }: PublicBossCatalogClientProps
   const [selectedRange, setSelectedRange] = useState(0);
   const [selectedType, setSelectedType] = useState<TypeFilter>("all");
 
+  /**
+   * Bestiaire local complet (5 129 monstres) — chargé **à la demande**, uniquement quand le
+   * filtre « Monstres » est actif : la page publique ne transporte pas 5 129 entrées pour rien.
+   */
+  const [monsterCatalog, setMonsterCatalog] = useState<BestiaireEntry[]>([]);
+  const [loadingMonsters, setLoadingMonsters] = useState(false);
+  /** 2ᵉ niveau de filtre : famille (`raceId`) — « Monstres de quête », « Blops »… */
+  const [monsterFamilyId, setMonsterFamilyId] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (selectedType !== "monstre") return;
+    let cancelled = false;
+    setLoadingMonsters(true);
+    const timer = setTimeout(() => {
+      searchNormalMonsters(search, MONSTER_LIST_LIMIT, monsterFamilyId)
+        .then((res) => {
+          if (!cancelled && res.success && Array.isArray(res.data)) setMonsterCatalog(res.data);
+        })
+        .catch(() => {})
+        .finally(() => {
+          if (!cancelled) setLoadingMonsters(false);
+        });
+    }, 250);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [selectedType, search, monsterFamilyId]);
+
   const typeOptions = [
-    { value: "all", label: t.bossPage.allTypes },
-    { value: "boss", label: t.bossPage.bossType },
-    { value: "anomalie", label: t.bossPage.anomalieType },
-    { value: "titan", label: t.bossPage.titanType },
-    { value: "bounty", label: t.bossPage.bountyType },
-    { value: "raid", label: locale === "en" ? "Raid Boss" : "Boss de raid" },
+    { value: "all", label: t.bossPage.allTypes, icon: null },
+    { value: "boss", label: t.bossPage.bossType, icon: "/assets/dofus/icons/boss.png" },
+    { value: "anomalie", label: t.bossPage.anomalieType, icon: "/assets/missions/ano1.png" },
+    { value: "titan", label: t.bossPage.titanType, icon: "/assets/dofus/icons/titan.png" },
+    { value: "bounty", label: t.bossPage.bountyType, icon: "/assets/avis/avitons.png" },
+    { value: "raid", label: locale === "en" ? "Raid Boss" : "Boss de raid", icon: "/assets/dofus/icons/crown.png" },
+    { value: "monstre", label: t.bossPage.monsterType, icon: "/assets/dofus/icons/archimonster.png" },
   ];
 
   const levelOptions = RAW_LEVEL_RANGES.map((r, i) => {
@@ -134,6 +102,16 @@ export function PublicBossCatalogClient({ bosses }: PublicBossCatalogClientProps
     const range = RAW_LEVEL_RANGES[selectedRange];
     const q = search.trim().toLowerCase();
 
+    // Filtre « Monstres » : la liste vient du bestiaire local complet et la recherche a déjà
+    // été faite **côté serveur** (`searchNormalMonsters` — accents, familles, 5 129 entrées).
+    // On n'applique ici que la tranche de niveau — via la règle pure `matchesLevelBracket`
+    // (un niveau absent matche « tous les niveaux », il n'est jamais inventé) : re-filtrer le
+    // texte contredirait le serveur (« piou rouge » : le filtre local ignore espaces et accents).
+    if (selectedType === "monstre") {
+      const bracket = BOSS_LEVEL_BRACKETS[selectedRange] ?? BOSS_LEVEL_BRACKETS[0];
+      return monsterCatalog.filter((m) => matchesLevelBracket(m.level, bracket));
+    }
+
     return bosses.filter((b) => {
       if (b.type !== "boss" && b.type !== "titan" && b.type !== "anomalie" && b.type !== "bounty" && b.type !== "raid") return false;
       if (selectedType !== "all" && b.type !== selectedType) return false;
@@ -145,7 +123,7 @@ export function PublicBossCatalogClient({ bosses }: PublicBossCatalogClientProps
         b.bossName?.toLowerCase().includes(q)
       );
     });
-  }, [bosses, search, selectedRange, selectedType]);
+  }, [bosses, monsterCatalog, search, selectedRange, selectedType]);
 
   return (
     <div className="space-y-5">
@@ -182,16 +160,37 @@ export function PublicBossCatalogClient({ bosses }: PublicBossCatalogClientProps
         />
       </div>
 
+      {/* ── FILTRE 2ᵉ NIVEAU (monstres uniquement) : familles réelles + sprites officiels ── */}
+      {selectedType === "monstre" && (
+        <MonsterFamilyFilter value={monsterFamilyId} onChange={setMonsterFamilyId} locale={locale} />
+      )}
+
       {/* ── COMPTEUR ── */}
       <div className="px-1 text-xs text-muted-foreground">
         <span className="font-mono">{filteredBosses.length}</span>{" "}
-        {locale === "en"
-          ? `entry${filteredBosses.length > 1 ? "ies" : ""} — dungeon bosses, titans, and playable monsters`
-          : `entrée${filteredBosses.length > 1 ? "s" : ""} — boss de donjon, titans et monstres jouables`}
+        {selectedType === "monstre"
+          ? locale === "en"
+            ? `monster${filteredBosses.length > 1 ? "s" : ""} — normal monsters (no dungeon boss, bounty or titan)`
+            : `monstre${filteredBosses.length > 1 ? "s" : ""} — monstres normaux (hors boss de donjon, avis et titans)`
+          : locale === "en"
+            ? `entry${filteredBosses.length > 1 ? "ies" : ""} — dungeon bosses, bounties, titans, anomalies and raids`
+            : `entrée${filteredBosses.length > 1 ? "s" : ""} — boss de donjon, avis de recherche, titans, anomalies et raids`}
+        {selectedType === "monstre" && !loadingMonsters && monsterCatalog.length >= MONSTER_LIST_LIMIT && (
+          <span className="ml-2 opacity-80">
+            {locale === "en"
+              ? `(first ${MONSTER_LIST_LIMIT} shown — refine your search)`
+              : `(${MONSTER_LIST_LIMIT} premiers affichés — précisez la recherche)`}
+          </span>
+        )}
       </div>
 
       {/* ── CARTES ── */}
-      {filteredBosses.length === 0 ? (
+      {selectedType === "monstre" && loadingMonsters && filteredBosses.length === 0 ? (
+        <div className="p-8 text-center rounded-xl border border-border bg-surface/30 text-muted-foreground text-xs">
+          <Loader2 className="mx-auto mb-2 h-5 w-5 animate-spin" />
+          {locale === "en" ? "Loading monsters…" : "Chargement des monstres…"}
+        </div>
+      ) : filteredBosses.length === 0 ? (
         <div className="p-8 text-center rounded-xl border border-border bg-surface/30 text-muted-foreground text-xs">
           {t.bossPage.noResults}
         </div>
@@ -200,11 +199,16 @@ export function PublicBossCatalogClient({ bosses }: PublicBossCatalogClientProps
           {filteredBosses.map((boss) => {
             const bossName = boss.bossName || boss.name;
             const dungeonName = boss.name;
+            // Un monstre normal a SA fiche (`/bestiaire/<slug>`, source unique `monsterFicheHref`) ;
+            // une créature déjà publiée y redirige (307) — jamais deux pages pour la même bête.
+            const href = boss.type === "monstre"
+              ? (monsterFicheHref(boss.bossName || boss.name) ?? `/bestiaire/${boss.slug ?? boss.id}`)
+              : `/boss/${boss.slug ?? boss.id}`;
 
             return (
               <Link
                 key={boss.id}
-                href={`/boss/${boss.slug ?? boss.id}`}
+                href={href}
                 className="group rounded-lg border border-border bg-surface/30 hover:bg-surface/60 hover:border-warning/40 transition-colors p-3.5 flex flex-col gap-3"
               >
                 <div className="flex items-start gap-3">
@@ -260,7 +264,9 @@ export function PublicBossCatalogClient({ bosses }: PublicBossCatalogClientProps
                     )}
                   </span>
                   <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-muted-foreground group-hover:text-warning transition-colors">
-                    {t.bossPage.tacticalSheet}
+                    {boss.type === "monstre"
+                      ? (locale === "en" ? "Monster sheet" : "Fiche monstre")
+                      : t.bossPage.tacticalSheet}
                     <ArrowRight className="w-3 h-3" />
                   </span>
                 </div>

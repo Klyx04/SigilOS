@@ -181,7 +181,7 @@ describe("prime d'un avis — encart et icônes locales (une seule source)", () 
     });
 
     it("les deux fiches (interne + publique) montent le MÊME encart, sans URL inventée", () => {
-        const interne = sourceOf("src/components/succes/SuccesAvisTab.tsx");
+        const interne = sourceOf("src/components/succes/BountyFicheView.tsx");
         const publique = sourceOf("src/app/boss/[dungeonId]/_components/PublicBossDetailClient.tsx");
         for (const src of [interne, publique]) {
             expect(src).toContain("<BountyRewardCard rewards=");
@@ -197,8 +197,10 @@ describe("prime d'un avis — encart et icônes locales (une seule source)", () 
 
     it("la fiche de zone worldmap réutilise cette résolution (fin du doublon et du hotlink)", () => {
         const zone = sourceOf("src/components/worldmap/ZoneDetailModal.tsx");
-        expect(zone).toMatch(/import \{ bountyRewardIcon \} from '@\/lib\/bounty-fiche';/);
-        expect(zone).toMatch(/<RewardIcon type=/);
+        // La fiche de zone ne recopie plus ni les icônes ni la mise en page : elle MONTE
+        // la fiche d'avis partagée (`BountyFicheView`), seule consommatrice de `BountyRewardCard`.
+        expect(zone).toMatch(/<BountyFicheView/);
+        expect(zone).not.toMatch(/bountyRewardIcon/);
         // Les deux défauts mesurés : table d'icônes recopiée en clair, et icône servie par le CDN
         // DofusDB (`https://static.dofusdb.fr/items/11756.png`) — désormais centralisés.
         expect(zone).not.toContain("static.dofusdb.fr");
@@ -210,7 +212,7 @@ describe("prime d'un avis — encart et icônes locales (une seule source)", () 
         const meta = buildBountyPublicMeta({ ...PREDAGOB, mechanics: "<p>Focus le boss T1</p>" }, PREDAGOB_STAT);
         expect(meta.mechanics).toBe("<p>Focus le boss T1</p>");
 
-        const interne = sourceOf("src/components/succes/SuccesAvisTab.tsx");
+        const interne = sourceOf("src/components/succes/BountyFicheView.tsx");
         const publique = sourceOf("src/app/boss/[dungeonId]/_components/PublicBossDetailClient.tsx");
 
         expect(interne).toContain('detailTab === "strategy"');

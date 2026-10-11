@@ -104,7 +104,7 @@ describe("fiches boss — URL en slug, anciens liens conservés", () => {
 
     it("pointe les liens internes vers le slug (catalogue, avis, overlay, guide)", () => {
         expect(readSource("src/app/boss/_components/PublicBossCatalogClient.tsx")).toContain("/boss/${boss.slug ?? boss.id}");
-        expect(readSource("src/components/succes/SuccesAvisTab.tsx")).toContain("/boss/${fiche.dungeon.slug ?? fiche.dungeon.id}");
+        expect(readSource("src/components/succes/BountyFicheView.tsx")).toContain("/boss/${(fiche as any).dungeon.slug ?? (fiche as any).dungeon.id}");
         expect(readSource("src/components/boss-overlay/BossOverlayClient.tsx")).toContain("selected.slug ?? selected.id");
         // L'overlay passe par la source unique `dungeonFicheHref` (lot 2a) :
         // la préférence slug > id y est verrouillée, pas dupliquée.

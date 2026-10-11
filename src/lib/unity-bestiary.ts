@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { logger } from "@/lib/logger";
+import { slugifyBossName } from "@/lib/boss-slug";
 
 export interface UnityPassiveEffect {
     effectId?: number | null;
@@ -76,6 +77,10 @@ export interface UnityMonsterData {
 // Cache mémoire serveur (singleton pour toute la durée de vie du process)
 let cachedBestiary: Record<string, UnityMonsterData> | null = null;
 let nameIndex: Map<string, UnityMonsterData> | null = null;
+/** Index par **slug de nom** (`slugifyBossName`) : l'URL publique d'une fiche monstre. */
+let slugIndex: Map<string, UnityMonsterData> | null = null;
+/** Le même dictionnaire, en tableau trié par nom (listes / recherches). */
+let sortedMonsters: UnityMonsterData[] = [];
 
 function norm(s: string): string {
     return (s || "")
@@ -97,13 +102,21 @@ export function getUnityBestiary(): Record<string, UnityMonsterData> {
             const raw = fs.readFileSync(filePath, "utf-8");
             cachedBestiary = JSON.parse(raw);
             nameIndex = new Map();
+            slugIndex = new Map();
+            const all: UnityMonsterData[] = [];
             if (cachedBestiary) {
                 for (const m of Object.values(cachedBestiary)) {
                     if (m && m.name) {
                         nameIndex.set(norm(m.name), m);
+                        all.push(m);
+                        // Deux homonymes partagent le même slug : le premier du dictionnaire
+                        // reste servi, exactement comme les fiches boss (slug unique en base).
+                        const slug = slugifyBossName(m.name);
+                        if (slug && !slugIndex.has(slug)) slugIndex.set(slug, m);
                     }
                 }
             }
+            sortedMonsters = all.sort((a, b) => a.name.localeCompare(b.name, "fr"));
             return cachedBestiary || {};
         }
     } catch (err) {
@@ -133,4 +146,27 @@ export function getUnityMonster(identifier: string | number): UnityMonsterData |
     }
 
     return null;
+}
+
+/**
+ * Résout une entrée du bestiaire local par le **slug de nom** des URL publiques
+ * (`slugifyBossName` — le MÊME algorithme que les fiches boss et `/bestiaire/<slug>`).
+ * L'index est construit au chargement du dictionnaire (un seul passage) : aucune
+ * requête, aucun fichier relu par appel.
+ */
+export function findUnityMonsterBySlug(slug: string): UnityMonsterData | null {
+    getUnityBestiary();
+    const key = String(slug ?? "").trim().toLowerCase();
+    if (!key || !slugIndex) return null;
+    return slugIndex.get(key) ?? null;
+}
+
+/**
+ * Tous les monstres du bestiaire local, triés par nom (« Pious » avant « Porks »).
+ * Référence **stable** : le tableau est construit une fois au chargement, les appels
+ * suivants ne coûtent rien (listes, recherches, comptages des fiches monstres).
+ */
+export function listUnityMonsters(): UnityMonsterData[] {
+    getUnityBestiary();
+    return sortedMonsters;
 }

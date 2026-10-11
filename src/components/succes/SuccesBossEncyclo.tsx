@@ -15,7 +15,7 @@ function statThemeIcon(label: string): string | undefined {
     return theme ? dofusStatAssetUrl(theme.asset) : undefined;
 }
 
-interface EncycloGradeView {
+export interface EncycloGradeView {
     level?: number | null;
     lifePoints?: number | null;
     actionPoints?: number | null;
@@ -39,7 +39,7 @@ interface EncycloGradeView {
     } | null;
 }
 
-interface EncycloView {
+export interface EncycloView {
     raceId?: number | null;
     subareaIds?: number[] | null;
     aggressiveZoneSize?: number | null;

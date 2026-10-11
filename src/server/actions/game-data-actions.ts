@@ -31,7 +31,17 @@ import {
 import { zoneNameKey } from "@/lib/zone-label";
 import { syncZonesFromDofusDbCore } from "@/lib/zones-siphon";
 import { syncMonsterFamiliesCore } from "@/lib/monster-families-siphon";
-import { dofusdbFicheInit, getMonsterStats as getMonsterStatsCore } from "@/lib/monster-stats-core";
+import { dofusdbFicheInit, getMonsterStats as getMonsterStatsCore, getLocalMonsterFiche, type MonsterFicheSource } from "@/lib/monster-stats-core";
+import { listUnityMonsters } from "@/lib/unity-bestiary";
+import {
+    searchNormalMonsters as searchNormalMonstersRule,
+    listNormalMonsters,
+    groupMonsterFamilies,
+    type MonsterFamilyFacet,
+} from "@/lib/monster-fiche";
+import { slugifyBossName } from "@/lib/boss-slug";
+import { excludedNormalMonsterKeys, listSiphonedNormalMonsterSlugs } from "@/server/game/normal-monster-scope";
+import { monsterRaces, monsterSuperRaces } from "@/lib/monster-races";
 
 const normStr = (s: string | null | undefined): string =>
     (s ?? "")
@@ -308,6 +318,10 @@ export interface BestiaireEntry {
     isOcreQuest: boolean;
     /* 🎯 `bounty` = avis de recherche (chantier 16/09/2026) : ni donjon, ni titan, ni monstre de salle. */
     type: 'boss' | 'monstre' | 'titan' | 'anomalie' | 'bounty' | 'raid';
+    /** 🎯 Filtre « Monstres » : famille officielle du monstre (« Monstres de quête », « Blops »…). */
+    familyName?: string | null;
+    /** 🎯 Filtre « Monstres » : `raceId` Ankama de la famille (2ᵉ niveau de filtre). */
+    raceId?: number | null;
 }
 
 /**
@@ -456,6 +470,291 @@ export async function getBestiaireCatalog(): Promise<ActionResponse<BestiaireEnt
     } catch (error) {
         logger.error('[getBestiaireCatalog] Error:', { error });
         return { success: false, error: 'Erreur lors du chargement du bestiaire' };
+    }
+}
+
+/**
+ * Familles des monstres du bestiaire local : **référentiel complet** (`monster-races.json`,
+ * 264 races + 35 super-races) complété, en repli, par les libellés portés par
+ * `dungeon-monsters.json`. Sert de libellé d'appoint dans les listes **et** de 2ᵉ niveau de
+ * filtre (une race sans libellé connu n'est jamais proposée — aucun nom inventé).
+ */
+let monsterRaceLabelsCache: Map<number, LocalMonsterRace> | null = null;
+
+interface LocalMonsterRace {
+    name: string;
+    superRaceId: number | null;
+    superRaceName: string | null;
+}
+
+function localMonsterRaces(): Map<number, LocalMonsterRace> {
+    if (monsterRaceLabelsCache) return monsterRaceLabelsCache;
+    const races = new Map<number, LocalMonsterRace>();
+    const superRaces = monsterSuperRaces();
+
+    // 1. Référentiel officiel (races + super-races).
+    for (const [id, race] of monsterRaces()) {
+        races.set(id, {
+            name: race.name,
+            superRaceId: race.superRaceId,
+            superRaceName: race.superRaceId ? (superRaces.get(race.superRaceId) ?? null) : null,
+        });
+    }
+
+    // 2. Repli : les libellés déjà siphonnés dans `dungeon-monsters.json` (si le référentiel
+    //    manque sur un environnement, on garde les 132 familles des donjons).
+    try {
+        for (const m of getLocalDungeonMonstersData()?.monsters ?? []) {
+            const id = Math.floor(Number(m?.raceId) || 0);
+            const label = String(m?.raceName ?? '').trim();
+            if (id > 0 && label && !races.has(id)) {
+                races.set(id, { name: label, superRaceId: null, superRaceName: null });
+            }
+        }
+    } catch (e) {
+        logger.warn('[localMonsterRaces] Familles locales de repli indisponibles:', { error: String(e) });
+    }
+
+    monsterRaceLabelsCache = races;
+    return races;
+}
+
+/**
+ * Construit les lignes du bestiaire local avec leur famille connue (`raceId` → libellé) et
+ * leur drapeau « a déjà sa fiche » (exclusions lues en base, **source unique**
+ * `@/server/game/normal-monster-scope`). Une seule préparation pour la liste, la recherche
+ * et les facettes de familles.
+ */
+async function normalMonsterRows() {
+    const [excluded, races] = await Promise.all([
+        excludedNormalMonsterKeys(),
+        Promise.resolve(localMonsterRaces()),
+    ]);
+    return listUnityMonsters()
+        .filter((m) => m && m.id > 0 && m.name)
+        .map((m) => {
+            const raceId = Math.floor(Number(m.raceId) || 0);
+            const race = races.get(raceId) ?? null;
+            return {
+                monsterId: m.id,
+                name: m.name,
+                raceId,
+                raceName: race?.name ?? null,
+                superRaceId: race?.superRaceId ?? null,
+                superRaceName: race?.superRaceName ?? null,
+                level: Math.floor(Number(m.grades?.[0]?.level) || 0),
+                isBoss: excluded.has(slugifyBossName(m.name)),
+            };
+        });
+}
+
+/**
+ * Liste / recherche des **monstres normaux** — hors boss de donjon (dont raid et anomalie),
+ * avis de recherche et titans. Source : le **bestiaire local du client**
+ * (`public/game-data/unity-bestiary.json`, 5 129 monstres, versionné), zéro réseau et zéro
+ * appel tiers ; seules les exclusions viennent de la base.
+ *
+ * 🎯 Demande user (11/10/2026) : l'onglet « Monstres » du Bestiaire ne trouvait que les
+ * 800 monstres référencés par les familles de donjons (`dungeon-monsters.json`) ⇒
+ * « piou » ne rendait rien. Ici, TOUT le bestiaire est couvert, avec un **2ᵉ niveau de
+ * filtre** par famille (`familyId`) — dont « Monstres de quête » et « Monstres de quête
+ * d'alignement », les deux familles réelles les plus peuplées (2 274 et 341 monstres).
+ */
+export async function searchNormalMonsters(
+    query = '',
+    limit = 60,
+    familyId: number | null = null
+): Promise<ActionResponse<BestiaireEntry[]>> {
+    try {
+        const rows = await normalMonsterRows();
+        return {
+            success: true,
+            data: searchNormalMonstersRule(rows, query, limit, familyId).map((m) => ({
+                id: `mob-${m.monsterId}`,
+                slug: slugifyBossName(m.name),
+                name: m.raceName || 'Monstre',
+                bossName: m.name,
+                level: m.level,
+                imageUrl: `/api/assets-dofus/monsters/${m.monsterId}`,
+                dofensiveUrl: null,
+                dpnlUrl: null,
+                dofusdbId: m.monsterId,
+                dofensiveMonsterName: m.name,
+                dofensiveDungeonName: null,
+                isOcreQuest: false,
+                type: 'monstre' as const,
+                familyName: m.raceName,
+                raceId: m.raceId,
+            })),
+        };
+    } catch (error) {
+        logger.error('[searchNormalMonsters] Error:', { error });
+        return { success: false, error: 'Erreur lors du chargement des monstres' };
+    }
+}
+
+/**
+ * Facettes du **2ᵉ niveau de filtre** : les familles réelles des monstres normaux, avec leur
+ * poids (`count`) et un monstre représentatif dont le sprite officiel sert d'icône (proxy
+ * d'assets, jamais un asset inventé). Aucune catégorie n'est fabriquée : les noms de famille
+ * sont ceux de DofusDB (`raceId` → libellé).
+ */
+export async function getNormalMonsterFamilies(): Promise<ActionResponse<MonsterFamilyFacet[]>> {
+    try {
+        const rows = await normalMonsterRows();
+        const normal = listNormalMonsters(rows);
+        return { success: true, data: groupMonsterFamilies(normal) };
+    } catch (error) {
+        logger.error('[getNormalMonsterFamilies] Error:', { error });
+        return { success: false, error: 'Erreur lors du chargement des familles' };
+    }
+}
+
+/** Une fiche de monstre **documentée** (siphonnée) listée par le sommaire `/bestiaire`. */
+export interface BestiaryHubMonster {
+    slug: string;
+    name: string;
+    /** Niveau du premier palier (`0` = non renseigné par le bestiaire local). */
+    level: number;
+    monsterId: number;
+}
+
+/** Famille du sommaire : ses fiches documentées, sous leur libellé officiel DofusDB. */
+export interface BestiaryHubFamily {
+    raceId: number;
+    /** Libellé officiel de la race (« Blops », « Monstres de quête »…) ; `null` = famille inconnue. */
+    name: string | null;
+    superRaceName: string | null;
+    monsters: BestiaryHubMonster[];
+}
+
+export interface BestiaryHubResponse {
+    /** Nombre de fiches **documentées** (celles du sitemap) réellement listées ici. */
+    documented: number;
+    /** Taille du bestiaire local du client (5 129) — pour dire « N sur M » sans mentir. */
+    bestiarySize: number;
+    families: BestiaryHubFamily[];
+    /** Vrai si le sommaire est tronqué (garde-fou : jamais des milliers de liens d'un coup). */
+    truncated: boolean;
+}
+
+/** Garde-fou du sommaire : au-delà, la page ne serait plus un sommaire mais le bestiaire entier. */
+const BESTIARY_HUB_MAX_LINKS = 300;
+
+/**
+ * Sommaire du **bestiaire** (page publique `/bestiaire`) : les fiches de monstres dont le
+ * contenu est réellement siphonné, groupées par famille officielle.
+ *
+ * 🎯 Demande user (11/10/2026) : « un hub `/bestiaire` (serveur) : familles + fiches siphonnées
+ * listées en HTML → 1 page qui pousse 59 fiches ». Mesure du même jour : les fiches de monstres
+ * n'avaient **aucun lien entrant** (la liste de `/boss` est chargée côté client ⇒ 0 lien
+ * `/bestiaire/` dans le HTML servi) — Google ne les découvrait que par le sitemap.
+ *
+ * Source du périmètre : `listSiphonedNormalMonsterSlugs` **la même** que le sitemap, donc le
+ * sommaire ne lie que des pages réellement indexables (contenu réel, jamais les ~5 000 fiches
+ * en `noindex`) ; les bosses / avis / titans en sont écartés (ils ont leur URL `/boss/<slug>`).
+ */
+export async function getBestiaryHub(): Promise<ActionResponse<BestiaryHubResponse>> {
+    try {
+        const [documentedSlugs, rows] = await Promise.all([
+            listSiphonedNormalMonsterSlugs(),
+            normalMonsterRows(),
+        ]);
+        const documented = new Set(documentedSlugs.map((row) => row.slug));
+        const all = listNormalMonsters(rows);
+        const byFamily = new Map<number, BestiaryHubFamily>();
+        let listed = 0;
+        for (const monster of all) {
+            const slug = slugifyBossName(monster.name);
+            if (!documented.has(slug)) continue;
+            const raceId = Math.floor(Number(monster.raceId) || 0);
+            let family = byFamily.get(raceId);
+            if (!family) {
+                family = {
+                    raceId,
+                    name: monster.raceName ?? null,
+                    superRaceName: monster.superRaceName ?? null,
+                    monsters: [],
+                };
+                byFamily.set(raceId, family);
+            }
+            family.monsters.push({
+                slug,
+                name: monster.name,
+                level: monster.level,
+                monsterId: monster.monsterId,
+            });
+            listed += 1;
+        }
+
+        // Familles les plus fournies d'abord (une famille sans fiche documentée ne s'affiche pas).
+        const families = [...byFamily.values()].sort(
+            (a, b) =>
+                b.monsters.length - a.monsters.length ||
+                (a.name ?? "").localeCompare(b.name ?? "", "fr")
+        );
+        let budget = BESTIARY_HUB_MAX_LINKS;
+        let truncated = false;
+        for (const family of families) {
+            family.monsters.sort((a, b) => a.name.localeCompare(b.name, "fr"));
+            if (family.monsters.length > budget) {
+                family.monsters = family.monsters.slice(0, budget);
+                truncated = true;
+            }
+            budget -= family.monsters.length;
+        }
+
+        return {
+            success: true,
+            data: { documented: listed, bestiarySize: all.length, families, truncated },
+        };
+    } catch (error) {
+        logger.error('[getBestiaryHub] Error:', { error });
+        return { success: false, error: 'Erreur lors du chargement du bestiaire' };
+    }
+}
+
+/** Segment d'URL de la fiche OFFICIELLE d'une créature (donjon → avis → titan), sinon `null`. */
+async function officialFicheSegmentForName(name: string): Promise<string | null> {
+    const insensitive = { equals: name, mode: 'insensitive' as const };
+    const [dungeon, bounty, titan] = await Promise.all([
+        db.dungeon.findFirst({ where: { OR: [{ name: insensitive }, { bossName: insensitive }] }, select: { slug: true, id: true } }),
+        db.bounty.findFirst({ where: { name: insensitive }, select: { slug: true, id: true } }),
+        db.titan.findFirst({ where: { name: insensitive }, select: { slug: true, id: true } }),
+    ]);
+    const found = dungeon ?? bounty ?? titan;
+    return found ? (found.slug || found.id) : null;
+}
+
+export interface MonsterFicheResponse {
+    monsterId: number;
+    name: string;
+    source: MonsterFicheSource;
+    /** Payload de fiche (grades, sorts, butin, encyclopédie, passif). */
+    data: any;
+    /** Fiche officielle DÉJÀ publiée (boss / avis / titan) ⇒ l'appelant y renvoie. */
+    officialSegment: string | null;
+}
+
+/**
+ * Fiche d'un monstre par **segment d'URL** (`/bestiaire/<slug>` ou son id Ankama).
+ * Lecture **locale** uniquement (siphon puis bestiaire du client) : aucune source tiers
+ * n'est appelée au rendu d'une page publique. `officialSegment` non nul ⇒ on redirige vers
+ * la fiche officielle (jamais deux pages pour la même bête).
+ */
+export async function getMonsterFicheBySegment(segment: string): Promise<ActionResponse<MonsterFicheResponse>> {
+    try {
+        const key = decodeURIComponent(String(segment ?? '')).trim();
+        if (!key) return { success: false, error: 'Monstre introuvable' };
+        const fiche = await getLocalMonsterFiche(key);
+        if (!fiche) return { success: false, error: 'Monstre introuvable' };
+        return {
+            success: true,
+            data: { ...fiche, officialSegment: await officialFicheSegmentForName(fiche.name) },
+        };
+    } catch (error) {
+        logger.error('[getMonsterFicheBySegment] Error:', { error });
+        return { success: false, error: 'Erreur lors du chargement de la fiche' };
     }
 }
 
@@ -960,6 +1259,30 @@ export async function getZoneMonsters(zoneName: string, subAreaId?: number): Pro
                         });
                     }
                 }
+            }
+        }
+
+        // Fiche publiée de chaque monstre : on ne DEVINE jamais d'URL — un monstre n'a
+        // de fiche que s'il est un **avis de recherche** (`Bounty`) ou le **boss d'un
+        // donjon** (`Dungeon`). Les slugs sont lus en base et rapprochés par nom
+        // normalisé (même clé que les familles) ⇒ « pas de fail » : un monstre sans
+        // fiche publiée reste sans lien (aucun 404 fabriqué depuis son nom).
+        if (normalMonsters.length > 0) {
+            const [bountyRows, dungeonRows] = await Promise.all([
+                db.bounty.findMany({ select: { name: true, slug: true } }),
+                db.dungeon.findMany({ select: { bossName: true, slug: true } }),
+            ]);
+            const ficheByName = new Map<string, { slug: string; kind: 'boss' | 'bounty' }>();
+            for (const d of dungeonRows) {
+                if (d.slug && d.bossName) ficheByName.set(norm(d.bossName), { slug: d.slug, kind: 'boss' });
+            }
+            for (const b of bountyRows) {
+                if (b.slug && b.name) ficheByName.set(norm(b.name), { slug: b.slug, kind: 'bounty' });
+            }
+            for (const monster of normalMonsters) {
+                const fiche = ficheByName.get(norm(monster.name));
+                monster.ficheSlug = fiche?.slug ?? null;
+                monster.ficheKind = fiche?.kind ?? null;
             }
         }
 

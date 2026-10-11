@@ -399,21 +399,21 @@ export const guide = {
 
         <h2>IX. Economics, 3.7 Geneton Table & Extraction</h2>
         <p>
-            Every mating grants <strong>Genetons</strong>, traded at the Breeders' Village at <strong>[-18, 1]</strong> with NPC <strong>Eugène Éton</strong> for stat scrolls and tourmalines.
-            The scale was heavily increased for higher generations:
+            A mating pays <strong>Genetons</strong> only if the baby beats <strong>every</strong> mount in both family trees — otherwise nothing.
+            The total <strong>adds up both parents</strong> on the scale below. Traded at the Breeders' Village at <strong>[-18, 1]</strong> with NPC <strong>Eugène Éton</strong> for stat scrolls and tourmalines.
+            Example: a Gen 10 baby from a Gen 9 and a Gen 1 parent pays 500 + 2 = <strong>502 genetons</strong>.
         </p>
 
         <div class="grid grid-cols-2 sm:grid-cols-5 gap-2 my-4 text-center">
-            <div class="p-2 rounded-lg bg-zinc-900 border border-white/10 text-xs">Gen 1: <strong class="text-zinc-300">1</strong></div>
-            <div class="p-2 rounded-lg bg-zinc-900 border border-white/10 text-xs">Gen 2: <strong class="text-zinc-300">2</strong></div>
-            <div class="p-2 rounded-lg bg-zinc-900 border border-white/10 text-xs">Gen 3: <strong class="text-zinc-300">4</strong></div>
-            <div class="p-2 rounded-lg bg-zinc-900 border border-white/10 text-xs">Gen 4: <strong class="text-zinc-300">8</strong></div>
-            <div class="p-2 rounded-lg bg-zinc-900 border border-white/10 text-xs">Gen 5: <strong class="text-zinc-300">15</strong></div>
-            <div class="p-2 rounded-lg bg-zinc-900 border border-white/10 text-xs">Gen 6: <strong class="text-zinc-300">30</strong></div>
-            <div class="p-2 rounded-lg bg-zinc-900 border border-white/10 text-xs">Gen 7: <strong class="text-zinc-300">60</strong></div>
-            <div class="p-2 rounded-lg bg-zinc-900 border border-white/10 text-xs">Gen 8: <strong class="text-zinc-300">120</strong></div>
-            <div class="p-2 rounded-lg bg-zinc-900 border border-amber-500/30 text-xs text-amber-300">Gen 9: <strong>250</strong></div>
-            <div class="p-2 rounded-lg bg-amber-500/10 border border-amber-500/50 text-xs text-amber-300 font-bold">Gen 10: <strong>500</strong></div>
+            <div class="p-2 rounded-lg bg-zinc-900 border border-white/10 text-xs">Gen 1: <strong class="text-zinc-300">2</strong></div>
+            <div class="p-2 rounded-lg bg-zinc-900 border border-white/10 text-xs">Gen 2: <strong class="text-zinc-300">4</strong></div>
+            <div class="p-2 rounded-lg bg-zinc-900 border border-white/10 text-xs">Gen 3: <strong class="text-zinc-300">8</strong></div>
+            <div class="p-2 rounded-lg bg-zinc-900 border border-white/10 text-xs">Gen 4: <strong class="text-zinc-300">16</strong></div>
+            <div class="p-2 rounded-lg bg-zinc-900 border border-white/10 text-xs">Gen 5: <strong class="text-zinc-300">30</strong></div>
+            <div class="p-2 rounded-lg bg-zinc-900 border border-white/10 text-xs">Gen 6: <strong class="text-zinc-300">60</strong></div>
+            <div class="p-2 rounded-lg bg-zinc-900 border border-white/10 text-xs">Gen 7: <strong class="text-zinc-300">120</strong></div>
+            <div class="p-2 rounded-lg bg-zinc-900 border border-white/10 text-xs">Gen 8: <strong class="text-zinc-300">240</strong></div>
+            <div class="p-2 rounded-lg bg-zinc-900 border border-amber-500/30 text-xs text-amber-300">Gen 9: <strong>500</strong></div>
         </div>
 
         <p class="text-xs text-zinc-400">

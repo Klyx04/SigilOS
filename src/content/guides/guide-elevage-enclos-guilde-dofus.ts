@@ -402,21 +402,21 @@ export const guide = {
 
         <h2>IX. Économie, Barème des Génétons 3.7 & Extraction</h2>
         <p>
-            Chaque accouplement génère des <strong>Génétons</strong>, échangeables au Village des Éleveurs en <strong>[-18, 1]</strong> auprès du PNJ <strong>Eugène Éton</strong> contre des parchemins de caractéristiques et des tourmalines.
-            Le barème a été très nettement rehaussé pour récompenser les hautes générations :
+            Un accouplement rapporte des <strong>Génétons</strong> seulement si le bébé dépasse <strong>toutes</strong> les montures des deux arbres généalogiques, sinon rien.
+            Sinon, le total <strong>s'additionne des deux parents</strong> selon le barème ci-dessous. Échangeables au Village des Éleveurs en <strong>[-18, 1]</strong> auprès du PNJ <strong>Eugène Éton</strong> contre des parchemins de caractéristiques et des tourmalines.
+            Exemple : un bébé Gen 10 issu d'un parent Gen 9 et d'un parent Gen 1 rapporte 500 + 2 = <strong>502 génétons</strong>.
         </p>
 
         <div class="grid grid-cols-2 sm:grid-cols-5 gap-2 my-4 text-center">
-            <div class="p-2 rounded-lg bg-zinc-900 border border-white/10 text-xs">Gen 1 : <strong class="text-zinc-300">1</strong></div>
-            <div class="p-2 rounded-lg bg-zinc-900 border border-white/10 text-xs">Gen 2 : <strong class="text-zinc-300">2</strong></div>
-            <div class="p-2 rounded-lg bg-zinc-900 border border-white/10 text-xs">Gen 3 : <strong class="text-zinc-300">4</strong></div>
-            <div class="p-2 rounded-lg bg-zinc-900 border border-white/10 text-xs">Gen 4 : <strong class="text-zinc-300">8</strong></div>
-            <div class="p-2 rounded-lg bg-zinc-900 border border-white/10 text-xs">Gen 5 : <strong class="text-zinc-300">15</strong></div>
-            <div class="p-2 rounded-lg bg-zinc-900 border border-white/10 text-xs">Gen 6 : <strong class="text-zinc-300">30</strong></div>
-            <div class="p-2 rounded-lg bg-zinc-900 border border-white/10 text-xs">Gen 7 : <strong class="text-zinc-300">60</strong></div>
-            <div class="p-2 rounded-lg bg-zinc-900 border border-white/10 text-xs">Gen 8 : <strong class="text-zinc-300">120</strong></div>
-            <div class="p-2 rounded-lg bg-zinc-900 border border-amber-500/30 text-xs text-amber-300">Gen 9 : <strong>250</strong></div>
-            <div class="p-2 rounded-lg bg-amber-500/10 border border-amber-500/50 text-xs text-amber-300 font-bold">Gen 10 : <strong>500</strong></div>
+            <div class="p-2 rounded-lg bg-zinc-900 border border-white/10 text-xs">Gen 1 : <strong class="text-zinc-300">2</strong></div>
+            <div class="p-2 rounded-lg bg-zinc-900 border border-white/10 text-xs">Gen 2 : <strong class="text-zinc-300">4</strong></div>
+            <div class="p-2 rounded-lg bg-zinc-900 border border-white/10 text-xs">Gen 3 : <strong class="text-zinc-300">8</strong></div>
+            <div class="p-2 rounded-lg bg-zinc-900 border border-white/10 text-xs">Gen 4 : <strong class="text-zinc-300">16</strong></div>
+            <div class="p-2 rounded-lg bg-zinc-900 border border-white/10 text-xs">Gen 5 : <strong class="text-zinc-300">30</strong></div>
+            <div class="p-2 rounded-lg bg-zinc-900 border border-white/10 text-xs">Gen 6 : <strong class="text-zinc-300">60</strong></div>
+            <div class="p-2 rounded-lg bg-zinc-900 border border-white/10 text-xs">Gen 7 : <strong class="text-zinc-300">120</strong></div>
+            <div class="p-2 rounded-lg bg-zinc-900 border border-white/10 text-xs">Gen 8 : <strong class="text-zinc-300">240</strong></div>
+            <div class="p-2 rounded-lg bg-zinc-900 border border-amber-500/30 text-xs text-amber-300">Gen 9 : <strong>500</strong></div>
         </div>
 
         <p class="text-xs text-zinc-400">

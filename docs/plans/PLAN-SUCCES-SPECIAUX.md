@@ -7,6 +7,15 @@
 > **Reste (ops humain)** : jouer `siphon` puis `retirer-donjon-valide` (dry-run → `--apply`),
 > déployer, contrôler un succès spécial (fiche publique **et** interne).
 >
+> ✅ **Mise à jour du 10/12/2026 — le NOM ne change plus** : la demande était « on garde le nom du
+> succès (“Spécial”), on ne corrige que la description, donjon par donjon ». Le re-pointage vers le
+> challenge réel (qui affichait `Meulou y es-tu ?`) est donc **remplacé** : la mécanique est écrite
+> **sur la ligne du succès** (`DungeonAchievement.description`, nouvelle colonne) et la ligne reste
+> rattachée au challenge **partagé** « Spécial » (`Challenge.name`/`.slug` sont `@unique` : une ligne
+> « Spécial » par donjon est impossible). Le siphon traite aussi les lignes re-pointées par l'ancienne
+> passe (`isSpecialAchievementRow`) et ne confond plus un **429 local** (notre budget de 30 req/min)
+> avec un « introuvable chez DofusDB » (`report.deferred`). Cf. `docs/MAINTENANCE.md` § procédure.
+>
 > ⚠️ **Mise à jour du 12/10/2026** — l'outil `scripts/succes-speciaux.ts` **fait maintenant les deux
 > passes** (détails **+** succès spéciaux par donjon, ce dernier étant borné à **25**/passage dans le
 > cron) et il est **bundlé dans l'image** : la commande fiable est

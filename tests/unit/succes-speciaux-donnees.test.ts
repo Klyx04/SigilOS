@@ -20,6 +20,7 @@ import {
     challengeIdFromCriterion,
     isChallengeDetailComplete,
     isPlaceholderChallengeDescription,
+    isSpecialAchievementRow,
     specialAchievementName,
     buildSpecialChallengePatch,
     fetchSpecialChallengeForBoss,
@@ -255,7 +256,7 @@ describe("icône d'un succès de donjon — interne et public résolvent PAREIL 
     });
 });
 
-describe("succès « spéciaux » par donjon — le vrai intitulé remplace le placeholder « Spécial »", () => {
+describe("succès « spéciaux » par donjon — titre « Spécial », mécanique réelle PAR donjon", () => {
     /** Payloads DofusDB réels (mesurés le 12/10/2026). */
     const ACHIEVEMENT = { id: 6150, name: { fr: "Mob l'Éponge (Spécial)" }, iconId: 10, objectives: [{ criterion: "(EH>979,0)" }] };
     const CHALLENGE = {
@@ -273,12 +274,10 @@ describe("succès « spéciaux » par donjon — le vrai intitulé remplace le p
         expect(specialAchievementName("Mob l'Eponge")).toBe("Mob l'Eponge (Spécial)");
     });
 
-    it("construit le patch : nom + description + icônes RÉELS (proxy)", () => {
+    it("construit le patch : la mécanique réelle + l'icône du succès (proxy)", () => {
         const patch = buildSpecialChallengePatch(ACHIEVEMENT, CHALLENGE);
-        expect(patch?.challengeName).toBe("Passer l'éponge");
-        expect(patch?.iconUrl).toBe("/api/assets-dofus/challenges/977");
-        expect(patch?.achievementImageUrl).toBe("/api/assets-dofus/achievements/10");
         expect(patch?.description).toBe(CHALLENGE.description.fr);
+        expect(patch?.achievementImageUrl).toBe("/api/assets-dofus/achievements/10");
     });
 
     it("ne fabrique rien sans identité complète", () => {
@@ -292,7 +291,7 @@ describe("succès « spéciaux » par donjon — le vrai intitulé remplace le p
                 url.includes("/achievements?") ? { data: [ACHIEVEMENT] } : CHALLENGE,
             )) as never;
         const patch = await fetchSpecialChallengeForBoss("Mob l'Eponge", fetchImpl);
-        expect(patch?.challengeName).toBe("Passer l'éponge");
+        expect(patch?.description).toBe(CHALLENGE.description.fr);
     });
 
     it("un succès introuvable ⇒ null (jamais le premier résultat)", async () => {
@@ -301,27 +300,24 @@ describe("succès « spéciaux » par donjon — le vrai intitulé remplace le p
         expect(await fetchSpecialChallengeForBoss("Mob l'Eponge", fetchImpl)).toBeNull();
     });
 
-    it("dry-run : compte les updates mais n'écrit rien ; apply : re-pointe vers le challenge réel", async () => {
-        const row = {
-            id: "da1",
-            imageUrl: null,
-            dungeon: { bossName: "Mob l'Eponge", name: "Donjon" },
-            challenge: { id: "c-generic", name: "Spécial", slug: "sp-cial" },
-        };
+    /** Ligne « Spécial » nominale : jamais touchée par une passe antérieure (seed `imageUrl: null`). */
+    const rowSpeciale = {
+        id: "da1",
+        description: null as string | null,
+        imageUrl: null as string | null,
+        dungeon: { bossName: "Mob l'Eponge", name: "Donjon" },
+        challenge: { id: "c-generic", name: "Spécial", slug: "sp-cial" },
+    };
+    const genericChallenge = { id: "c-generic", name: "Spécial", slug: "sp-cial" };
+
+    it("dry-run : compte les updates mais n'écrit rien ; apply : « Spécial » + texte du donjon", async () => {
         const written: Array<{ op: string; args: any }> = [];
         const makeDb = () => ({
             dungeonAchievement: {
-                findMany: async () => [row],
+                findMany: async () => [rowSpeciale],
                 update: async (args: any) => written.push({ op: "update", args }),
             },
-            challenge: {
-                findFirst: async () => null,
-                create: async (args: any) => {
-                    written.push({ op: "create", args });
-                    return { id: "c-real" };
-                },
-                update: async (args: any) => written.push({ op: "challengeUpdate", args }),
-            },
+            challenge: { findFirst: async () => genericChallenge },
         });
         const fetchImpl = (async (url: string) =>
             jsonResponse(url.includes("/achievements?") ? { data: [ACHIEVEMENT] } : CHALLENGE)) as never;
@@ -333,10 +329,76 @@ describe("succès « spéciaux » par donjon — le vrai intitulé remplace le p
 
         const applied = await siphonSpecialAchievements({ db: makeDb() as any, apply: true, fetchImpl });
         expect(applied.written).toBe(1);
-        expect(written.some((w) => w.op === "create" && w.args.data.name === "Passer l'éponge")).toBe(true);
         const rePoint = written.find((w) => w.op === "update");
-        expect(rePoint?.args.data.challengeId).toBe("c-real");
+        // Le titre affiché reste « Spécial » : la ligne RESTE sur le challenge **partagé**…
+        expect(rePoint?.args.data.challengeId).toBe("c-generic");
+        // …et c'est la **mécanique du donjon** qui est écrite sur le succès.
+        expect(rePoint?.args.data.description).toBe(CHALLENGE.description.fr);
         expect(rePoint?.args.data.imageUrl).toBe("/api/assets-dofus/achievements/10");
+    });
+
+    it("une ligne re-pointée par une passe ANTÉRIEURE (imageUrl posée) est récupérée", () => {
+        // « Meulou y es-tu ? » avait remplacé le titre « Spécial » : on la ramène (marqueur = `imageUrl`).
+        expect(
+            isSpecialAchievementRow({
+                imageUrl: "/api/assets-dofus/achievements/20",
+                challenge: { id: "c-real", name: "Meulou y es-tu ?", slug: "meulou-y-es-tu" },
+            })
+        ).toBe(true);
+        expect(isSpecialAchievementRow(rowSpeciale)).toBe(true);
+        // Un succès ordinaire (« Duo ») n'a jamais d'`imageUrl` posée par cette passe : jamais touché.
+        expect(
+            isSpecialAchievementRow({ imageUrl: null, challenge: { id: "c2", name: "Duo", slug: "duo" } })
+        ).toBe(false);
+    });
+
+    it("ligne déjà complète : aucune requête réseau, aucun budget consommé", async () => {
+        const jamais = async () => {
+            throw new Error("aucun appel réseau attendu");
+        };
+        const db = {
+            dungeonAchievement: {
+                findMany: async () => [
+                    { ...rowSpeciale, description: CHALLENGE.description.fr, imageUrl: "/api/assets-dofus/achievements/10" },
+                ],
+                update: async () => {},
+            },
+            challenge: { findFirst: async () => genericChallenge },
+        };
+        const report = await siphonSpecialAchievements({ db: db as any, apply: true, fetchImpl: jamais as never });
+        expect(report.alreadyOk).toBe(1);
+        expect(report.updated).toBe(0);
+        expect(report.written).toBe(0);
+    });
+
+    it("notre budget partagé fermé (429 local) ⇒ « différé », JAMAIS « introuvable »", async () => {
+        // Mesure du 10/12/2026 : 82 succès déclarés « introuvables » alors que `Batofu (Spécial)`
+        // répondait `total: 1` — c'était ce 429 **local** (30 req/min) maquillé en absence.
+        const throttle = () =>
+            ({
+                ok: false,
+                status: 429,
+                headers: {
+                    get: (name: string) => (name.toLowerCase() === "x-sigilos-throttle" ? "local" : "1"),
+                },
+                json: async () => ({}),
+            }) as unknown as Response;
+        const db = {
+            dungeonAchievement: {
+                findMany: async () => [{ ...rowSpeciale, dungeon: { bossName: "Batofu", name: "Donjon du Batofu" } }],
+                update: async () => {},
+            },
+            challenge: { findFirst: async () => genericChallenge },
+        };
+        const report = await siphonSpecialAchievements({
+            db: db as any,
+            apply: true,
+            fetchImpl: (async () => throttle()) as never,
+        });
+        expect(report.deferred).toBe(true);
+        expect(report.missing).toBe(0);
+        expect(report.errors).toBe(0);
+        expect(report.written).toBe(0);
     });
 });
 
@@ -411,14 +473,14 @@ describe("la mécanique réelle du succès s'affiche aussi côté INTERNE (guild
     const modal = read("src/components/worldmap/DungeonDetailModal.tsx");
     const directory = read("src/components/succes/SuccesDirectory.tsx");
 
-    it("l'annuaire transmet la description du challenge (pas seulement nom + icône)", () => {
+    it("l'annuaire transmet la mécanique PAR DONJON (sur le succès, puis le challenge)", () => {
         expect(finder).toContain("challenge: { select: { name: true, iconUrl: true, slug: true, description: true } }");
-        expect(finder).toContain("description: a.challenge?.description ?? null");
+        expect(finder).toContain("description: a.description ?? a.challenge?.description ?? null");
     });
 
     it("la modale donjon l'affiche (parcours interne ET public)", () => {
         expect(modal).toContain("description?: string | null;");
-        expect(modal).toContain("description: a.challenge?.description ?? null");
+        expect(modal).toContain("description: a.description ?? a.challenge?.description ?? null");
         expect(modal).toContain("{achv.description && (");
     });
 

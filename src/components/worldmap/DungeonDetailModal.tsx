@@ -224,7 +224,10 @@ export function DungeonDetailModal({ isOpen, onClose, dungeons, guildId, isPubli
                         setDirectoryData(first.achievements.map((a: any) => ({
                             achievementId: a.id,
                             achievementName: a.challenge?.name || a.name || "Succès",
-                            description: a.challenge?.description ?? null,
+                            // La mécanique du succès « Spécial » vit **sur la ligne du succès**
+                            // (`DungeonAchievement.description`, 10/12/2026) ; le challenge visé est
+                            // la ligne partagée « Spécial », dont le texte ne dépend pas du boss.
+                            description: a.description ?? a.challenge?.description ?? null,
                             // Même résolution d'icône que la fiche publique (source unique
                             // `@/lib/achievement-icon`) — sans quoi la case restait noire ici.
                             iconUrl: getDungeonAchievementIconUrl(a),

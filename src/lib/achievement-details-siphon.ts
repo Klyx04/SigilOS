@@ -20,7 +20,45 @@
  */
 import { dofusDbFetch } from "@/lib/dofusdb-limiter";
 import { resolveDofusAssetImageUrl } from "@/lib/dofus-image-url";
-import { slugifyBossName } from "@/lib/boss-slug";
+// 🚦 Le refus **local** du budget partagé n'est pas une panne : on attend la fenêtre, on rejoue, et
+// seulement si le budget reste fermé on le **dit** (jamais « introuvable chez DofusDB » — mesure du
+// 10/12/2026 : 82 succès sur 123 déclarés « introuvables » alors que `Batofu (Spécial)`,
+// `Tournesol Affamé (Spécial)`, `Minotot (Spécial)`, `Kardorim (Spécial)`… répondent `total: 1`).
+import {
+    DOFUSDB_THROTTLE_MAX_REPLAYS,
+    LocalThrottleDeferredError,
+    isLocalThrottle,
+    isLocalThrottleDeferred,
+    throttleWaitMs,
+} from "@/lib/dofusdb-throttle";
+
+/** Pause (bornée) avant de rejouer une requête refusée par notre budget partagé. */
+function sleep(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Appel JSON vers DofusDB, **honnête sur l'origine d'un échec** :
+ *  - notre budget partagé refuse → on attend la fenêtre et on rejoue (`DOFUSDB_THROTTLE_MAX_REPLAYS`),
+ *    puis on **lève** `LocalThrottleDeferredError` (la passe s'arrête proprement, rien n'est maquillé
+ *    en « introuvable ») ;
+ *  - DofusDB répond vraiment (`404`/`500`) → `null` (« rien trouvé pour ce nom ») ;
+ *  - succès → le JSON.
+ */
+async function dofusDbJson<T>(
+    input: string,
+    fetchImpl: (input: string, init?: RequestInit) => Promise<Response>
+): Promise<T | null> {
+    let res = await fetchImpl(input);
+    for (let replay = 0; replay < DOFUSDB_THROTTLE_MAX_REPLAYS && isLocalThrottle(res); replay++) {
+        await sleep(throttleWaitMs(res));
+        res = await fetchImpl(input);
+    }
+    if (isLocalThrottle(res)) throw new LocalThrottleDeferredError(throttleWaitMs(res));
+    if (!res.ok) return null;
+    return (await res.json()) as T;
+}
+
 
 /** Charge utile écrite en base pour un challenge (aucune phrase fabriquée). */
 export interface ChallengeDetailPatch {
@@ -54,6 +92,9 @@ export interface ChallengeSiphonReport {
     missing: number;
     errors: number;
     written: number;
+    /** Le budget DofusDB **partagé** a fermé la fenêtre : passe arrêtée, à rejouer (jamais « introuvable »). */
+    deferred: boolean;
+    retryAfterMs: number;
     details: string[];
 }
 
@@ -117,11 +158,10 @@ export async function fetchChallengeDetail(
 ): Promise<ChallengeDetailPatch | null> {
     const key = challengeNameKey(name);
     if (!key) return null;
-    const res = await fetchImpl(
-        `https://api.dofusdb.fr/challenges?name.fr=${encodeURIComponent(name)}&lang=fr&$limit=5`
+    const payload = await dofusDbJson<any>(
+        `https://api.dofusdb.fr/challenges?name.fr=${encodeURIComponent(name)}&lang=fr&$limit=5`,
+        fetchImpl
     );
-    if (!res.ok) return null;
-    const payload: any = await res.json();
     const rows: any[] = Array.isArray(payload?.data) ? payload.data : [];
     const match = rows.find((row) => challengeNameKey(row?.name?.fr) === key);
     return match ? buildChallengePatch(match) : null;
@@ -147,6 +187,8 @@ export async function siphonChallengeDetails(options: {
         missing: 0,
         errors: 0,
         written: 0,
+        deferred: false,
+        retryAfterMs: 0,
         details: [],
     };
 
@@ -178,6 +220,12 @@ export async function siphonChallengeDetails(options: {
             }
             onProgress?.(`${apply ? "écrit" : "à écrire"} « ${row.name} » → ${patch.iconUrl}`);
         } catch (error) {
+            if (isLocalThrottleDeferred(error)) {
+                report.deferred = true;
+                report.retryAfterMs = error.retryAfterMs;
+                report.details.push(`budget DofusDB partagé épuisé — passe arrêtée à « ${row.name} », à rejouer.`);
+                break;
+            }
             report.errors++;
             report.details.push(`#${row.id} : ${error instanceof Error ? error.message : String(error)}`);
         }
@@ -189,17 +237,22 @@ export async function siphonChallengeDetails(options: {
 // ─────────────────────────────────────────────────────────────────────────────
 // Succès « Spéciaux » **par donjon** (Lot E, 12/10/2026).
 //
-// 🐛 Le succès « Spécial » d'un boss est un challenge **générique seedé** (nom « Spécial »,
-// slug `sp-cial`, icône `spécial.png`) **partagé par tous les donjons** ⇒ il ne peut pas porter
-// le vrai intitulé par boss. Mesure DofusDB (12/10/2026, `curl`, jamais supposée) :
+// 🐛 Le succès « Spécial » d'un donjon est **un seul succès partagé** : le seed crée une ligne
+// `DungeonAchievement` par donjon, toutes rattachées au MÊME `Challenge` (« Spécial », slug
+// `sp-cial`) — `Challenge.name`/`.slug` sont `@unique`, donc « Spécial » ne peut pas être dupliqué.
+// Or c'est **la mécanique** qui dépend du boss. Mesure DofusDB (11-12/10/2026, `curl`) :
 //   `achievements?name.fr=Mob l'Éponge (Spécial)` → `id 6150`, `iconId 10`,
 //   `objectives[].criterion = (EH>979,0)` (**id du challenge réel**) ;
-//   `challenges/979?lang=fr` → nom « Passer l'éponge », description réelle, `iconId 977`.
+//   `challenges/979?lang=fr` → description réelle (« À partir du tour 2, Mob l'éponge… »).
+// ⚠️ La recherche `name.fr=` de DofusDB est un **match exact** : `Meulou (Spécial)` répond,
+//   `Meulou y es-tu` non (et `Batofu (Spécial)` répond ⇒ un `missing` massif trahit un refus de
+//   NOTRE budget partagé, pas une absence — cf. `dofusDbJson`).
 //
-// La passe **re-pointe** chaque `DungeonAchievement` « Spécial » vers un challenge **réel**
-// (créé/réutilisé par slug) et renseigne `imageUrl` (icône du succès). **Aucune migration** :
-// `Challenge` porte déjà `name`/`description`/`iconUrl`/`conditions` ; `DungeonAchievement.imageUrl`
-// existe. Injectable (`db`, `fetchImpl`), **dry-run par défaut**.
+// La passe écrit donc, **sur la ligne du succès** : `description` (la mécanique du boss, colonne
+// dédiée) + `imageUrl` (l'icône du succès), et **ramène** la ligne sur le challenge partagé
+// « Spécial » ⇒ le nom affiché reste « Spécial », partout, sans toucher une seule vue. Les lignes
+// qu'une passe antérieure avait re-pointées vers le challenge réel (détectées par `imageUrl`) sont
+// récupérées au passage. Injectable (`db`, `fetchImpl`), **dry-run par défaut**.
 // ─────────────────────────────────────────────────────────────────────────────
 
 /** Slugs du challenge placeholder « Spécial » (seed : `sp-cial` ; normalisé : `special`). */
@@ -216,42 +269,28 @@ export function specialAchievementName(bossName: string): string {
     return `${String(bossName ?? "").trim()} (Spécial)`;
 }
 
-/** Charge utile d'un succès « spécial » résolu (challenge réel + icône du succès). */
+/** Charge utile d'un succès « spécial » résolu : la **mécanique** du boss + l'icône du succès. */
 export interface SpecialChallengePatch {
-    /** Nom réel du challenge (« Passer l'éponge ») — devient l'intitulé affiché. */
-    challengeName: string;
-    /** Icône du challenge (proxy interne `challenges`, jamais un hotlink). */
-    iconUrl: string;
+    /** La mécanique réelle (« À partir du tour 2, Mob l'éponge doit être poussé… »). */
     description: string;
-    conditions: Record<string, string | null>;
     /** Icône du SUCCÈS lui-même (`img/achievements/{iconId}.png`) servie par le proxy. */
     achievementImageUrl: string | null;
 }
 
 /**
- * Construit le patch d'un succès « spécial » (pure : aucune IO). `null` si l'identité n'est pas
- * complète (nom + description + icône du challenge réels) — jamais d'invention.
+ * Construit le patch d'un succès « spécial » (pure : aucune IO). `null` si l'identité du challenge
+ * n'est pas complète (nom + explication + icône réels) — jamais d'invention. Le **nom** sert de
+ * garde d'identité (il vient d'être résolu par critère d'objectif) ; l'affichage reste « Spécial ».
  */
 export function buildSpecialChallengePatch(achievementRaw: any, challengeRaw: any): SpecialChallengePatch | null {
     const challengeName = String(challengeRaw?.name?.fr ?? "").trim();
     const description = String(challengeRaw?.description?.fr ?? "").trim();
     const challengeIconId = Math.floor(Number(challengeRaw?.iconId) || 0);
     if (!challengeName || !description || challengeIconId <= 0) return null;
-    const iconUrl = resolveDofusAssetImageUrl("challenges", challengeIconId);
-    if (!iconUrl) return null;
     const achievementIconId = Math.floor(Number(achievementRaw?.iconId) || 0);
     const achievementImageUrl =
         achievementIconId > 0 ? resolveDofusAssetImageUrl("achievements", achievementIconId) : null;
-    return {
-        challengeName,
-        iconUrl,
-        description,
-        conditions: {
-            activationCriterion: challengeRaw?.activationCriterion ?? null,
-            completionCriterion: challengeRaw?.completionCriterion ?? null,
-        },
-        achievementImageUrl,
-    };
+    return { description, achievementImageUrl };
 }
 
 /**
@@ -268,11 +307,10 @@ export async function fetchSpecialChallengeForBoss(
     // Un nom vide donnerait « (Spécial) » : rien à chercher.
     if (!key || key === challengeNameKey("(Spécial)")) return null;
 
-    const searchRes = await fetchImpl(
-        `https://api.dofusdb.fr/achievements?name.fr=${encodeURIComponent(wanted)}&lang=fr&$limit=5`
+    const searchPayload = await dofusDbJson<any>(
+        `https://api.dofusdb.fr/achievements?name.fr=${encodeURIComponent(wanted)}&lang=fr&$limit=5`,
+        fetchImpl
     );
-    if (!searchRes.ok) return null;
-    const searchPayload: any = await searchRes.json();
     const rows: any[] = Array.isArray(searchPayload?.data) ? searchPayload.data : [];
     const achievement = rows.find((row) => challengeNameKey(row?.name?.fr) === key);
     if (!achievement) return null;
@@ -282,29 +320,31 @@ export async function fetchSpecialChallengeForBoss(
     const challengeId = challengeIdFromCriterion(criterion);
     if (!challengeId) return null;
 
-    const challengeRes = await fetchImpl(`https://api.dofusdb.fr/challenges/${challengeId}?lang=fr`);
-    if (!challengeRes.ok) return null;
-    const challengeRaw: any = await challengeRes.json();
+    const challengeRaw = await dofusDbJson<any>(`https://api.dofusdb.fr/challenges/${challengeId}?lang=fr`, fetchImpl);
+    if (!challengeRaw) return null;
     return buildSpecialChallengePatch(achievement, challengeRaw);
+}
+
+/** Ligne de `DungeonAchievement` vue par la passe « succès spéciaux » (le strict nécessaire). */
+export interface SpecialAchievementRow {
+    id: string;
+    description: string | null;
+    imageUrl: string | null;
+    dungeon: { bossName: string | null; name: string };
+    challenge: { id: string; name: string; slug: string | null };
 }
 
 /** Client minimal attendu par la passe (Prisma, ou faux client de test). */
 export interface SpecialSiphonDb {
     dungeonAchievement: {
-        findMany(args?: unknown): Promise<
-            Array<{
-                id: string;
-                imageUrl: string | null;
-                dungeon: { bossName: string | null; name: string };
-                challenge: { id: string; name: string; slug: string | null };
-            }>
-        >;
-        update(args: { where: { id: string }; data: { challengeId: string; imageUrl: string | null } }): Promise<unknown>;
+        findMany(args?: unknown): Promise<SpecialAchievementRow[]>;
+        update(args: {
+            where: { id: string };
+            data: { challengeId: string; description: string; imageUrl: string | null };
+        }): Promise<unknown>;
     };
     challenge: {
-        findFirst(args?: unknown): Promise<{ id: string } | null>;
-        create(args: { data: Record<string, unknown> }): Promise<{ id: string }>;
-        update(args: { where: { id: string }; data: Record<string, unknown> }): Promise<unknown>;
+        findFirst(args?: unknown): Promise<{ id: string; name: string; slug: string | null } | null>;
     };
 }
 
@@ -315,12 +355,30 @@ export interface SpecialSiphonReport {
     missing: number;
     errors: number;
     written: number;
+    /** Le budget DofusDB **partagé** a fermé la fenêtre : passe arrêtée, à rejouer (jamais « introuvable »). */
+    deferred: boolean;
+    retryAfterMs: number;
     details: string[];
 }
 
 /**
- * Passe des succès « spéciaux » : re-pointe chaque `DungeonAchievement` du challenge placeholder
- * vers le **challenge réel** du donjon (nom/description/icône réels) + renseigne l'icône du succès.
+ * Cette ligne `DungeonAchievement` porte-t-elle le succès **« Spécial »** du donjon ?
+ *  - `sp-cial`/`special` : jamais touchée (cas nominal du seed) ;
+ *  - `imageUrl` renseignée : la ligne a été écrite par une passe **antérieure** (le seed la laisse
+ *    `null`), qui la re-pointait vers le challenge réel du boss ⇒ on la récupère pour la ramener
+ *    sur le challenge partagé « Spécial » et lui écrire la mécanique du donjon.
+ * ⚠️ L'`imageUrl` d'un succès n'est écrite **que** par cette passe (cf. `DungeonAchievement`, seed
+ * `imageUrl: null`) : c'est le seul marqueur disponible, `Challenge.name` étant `@unique`.
+ */
+export function isSpecialAchievementRow(row: Pick<SpecialAchievementRow, "imageUrl" | "challenge">): boolean {
+    return GENERIC_SPECIAL_CHALLENGE_SLUGS.includes(row.challenge?.slug ?? "") || row.imageUrl != null;
+}
+
+/**
+ * Passe des succès « spéciaux » : écrit **le texte du donjon** sur la ligne du succès
+ * (`DungeonAchievement.description`, lue chez DofusDB) + son icône (`imageUrl`), et **ramène** la
+ * ligne sur le challenge partagé « Spécial » (nom affiché unique, inchangé partout).
+ * Idempotente : une ligne déjà complète (`Spécial` + texte + icône) ne consomme ni budget ni requête.
  * `apply = false` ⇒ **aucune écriture** (simulation).
  */
 export async function siphonSpecialAchievements(options: {
@@ -337,11 +395,24 @@ export async function siphonSpecialAchievements(options: {
         missing: 0,
         errors: 0,
         written: 0,
+        deferred: false,
+        retryAfterMs: 0,
         details: [],
     };
 
+    // Le challenge **partagé** « Spécial » : c'est lui qui porte le nom affiché partout (unique en
+    // base). Sans lui, rien à faire (le seed le crée ; on n'en invente jamais un).
+    const generic = await db.challenge.findFirst({
+        where: { slug: { in: GENERIC_SPECIAL_CHALLENGE_SLUGS } },
+    });
+    if (!generic) {
+        report.details.push(
+            `challenge « Spécial » absent (${GENERIC_SPECIAL_CHALLENGE_SLUGS.join(" / ")}) : rien à faire.`
+        );
+        return report;
+    }
+
     const rows = await db.dungeonAchievement.findMany({
-        where: { challenge: { slug: { in: GENERIC_SPECIAL_CHALLENGE_SLUGS } } },
         include: {
             dungeon: { select: { bossName: true, name: true } },
             challenge: { select: { id: true, name: true, slug: true } },
@@ -349,6 +420,12 @@ export async function siphonSpecialAchievements(options: {
     });
 
     for (const row of rows) {
+        if (!isSpecialAchievementRow(row)) continue;
+        // Déjà complet (nom « Spécial » + texte du donjon + icône) : ni requête ni budget consommés.
+        if (row.challenge?.id === generic.id && row.description != null && row.imageUrl != null) {
+            report.alreadyOk++;
+            continue;
+        }
         if (limit != null && report.scanned >= limit) break;
         report.scanned++;
         const bossName = String(row.dungeon?.bossName || row.dungeon?.name || "").trim();
@@ -365,39 +442,24 @@ export async function siphonSpecialAchievements(options: {
             }
             report.updated++;
             if (apply) {
-                const slug = slugifyBossName(patch.challengeName);
-                let challengeId: string | null = null;
-                const existing = await db.challenge.findFirst({ where: { slug } });
-                if (existing) {
-                    challengeId = existing.id;
-                    await db.challenge.update({
-                        where: { id: challengeId },
-                        data: {
-                            description: patch.description,
-                            iconUrl: patch.iconUrl,
-                            conditions: patch.conditions,
-                        },
-                    });
-                } else {
-                    const created = await db.challenge.create({
-                        data: {
-                            name: patch.challengeName,
-                            slug,
-                            description: patch.description,
-                            iconUrl: patch.iconUrl,
-                            conditions: patch.conditions,
-                        },
-                    });
-                    challengeId = created.id;
-                }
                 await db.dungeonAchievement.update({
                     where: { id: row.id },
-                    data: { challengeId, imageUrl: patch.achievementImageUrl },
+                    data: {
+                        challengeId: generic.id,
+                        description: patch.description,
+                        imageUrl: patch.achievementImageUrl,
+                    },
                 });
                 report.written++;
             }
-            report.details.push(`« ${bossName} » → ${patch.challengeName} (${patch.iconUrl})`);
+            report.details.push(`« ${bossName} » : « Spécial » ← ${patch.description.slice(0, 70)}…`);
         } catch (error) {
+            if (isLocalThrottleDeferred(error)) {
+                report.deferred = true;
+                report.retryAfterMs = error.retryAfterMs;
+                report.details.push(`budget DofusDB partagé épuisé — passe arrêtée à « ${bossName} », à rejouer.`);
+                break;
+            }
             report.errors++;
             report.details.push(`« ${bossName} » : ${error instanceof Error ? error.message : String(error)}`);
         }

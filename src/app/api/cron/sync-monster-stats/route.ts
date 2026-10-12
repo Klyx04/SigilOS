@@ -343,9 +343,11 @@ export async function GET(req: Request) {
             }
         }
 
-        // 5 bis. Succès « SPÉCIAUX » **par donjon** (Lot E) : re-pointe le challenge placeholder
-        //        « Spécial » (générique, partagé) vers le **challenge réel** du boss (nom/description/
-        //        icône réels lus chez DofusDB) + l'icône du succès. Borné et idempotent.
+        // 5 bis. Succès « SPÉCIAUX » **par donjon** (Lot E, corrigé le 10/12/2026) : écrit **sur la
+        //        ligne du succès** la mécanique réelle du boss (`DungeonAchievement.description`) +
+        //        l'icône du succès, et la ramène sur le challenge **partagé** « Spécial » (titre
+        //        affiché inchangé partout). Borné et idempotent : une ligne déjà complète ne coûte
+        //        aucune requête. Un budget DofusDB partagé épuisé ⇒ `deferred` (jamais « introuvable »).
         let specialAchievementsSiphoned = 0;
         if (process.env.VITEST !== "true") {
             try {
@@ -356,10 +358,11 @@ export async function GET(req: Request) {
                 // finir d'un coup (aucune borne) : `node scripts/succes-speciaux.js siphon --apply`.
                 const special = await siphonSpecialAchievements({ db: db as any, apply: true, limit: 25 });
                 specialAchievementsSiphoned = special.written;
-                if (special.updated > 0 || special.errors > 0) {
+                if (special.updated > 0 || special.errors > 0 || special.deferred) {
                     logger.info(
-                        `[Cron:SyncMonsterStats] Succès spéciaux : ${special.written} re-pointé(s), `
-                            + `${special.missing} introuvable(s), ${special.errors} erreur(s)`
+                        `[Cron:SyncMonsterStats] Succès spéciaux : ${special.written} complété(s), `
+                            + `${special.missing} sans succès spécial chez DofusDB, ${special.errors} erreur(s)`
+                            + (special.deferred ? " · budget DofusDB partagé épuisé (reprise au prochain passage)" : "")
                     );
                 }
             } catch (err) {

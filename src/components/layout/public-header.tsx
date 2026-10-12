@@ -99,13 +99,6 @@ const TOOLS = [
         icon: "/assets/nav/map.png",
     },
     {
-        id: "raids",
-        label: "Raid Studio 3.6",
-        hint: "Compos, Luminarium & Énigmes",
-        href: "/raids",
-        icon: "/assets/raids/sanctuaire.webp",
-    },
-    {
         id: "elevage",
         label: "Élevage Studio 3.7",
         hint: "Calculateur, Croisements & Sérénité",
@@ -188,13 +181,6 @@ export function PublicHeader({
             hint: t.tools.worldmapHint,
             href: "/carte-du-monde",
             icon: "/assets/nav/map.png",
-        },
-        {
-            id: "raids",
-            label: t.tools.raidTitle,
-            hint: t.tools.raidHint,
-            href: "/raids",
-            icon: "/assets/raids/sanctuaire.webp",
         },
         {
             id: "elevage",

@@ -16,15 +16,13 @@ interface GuidesGridProps {
  * Carte d'un guide raid : overlay PiP + lien Raid Studio.
  * Slugs du registre (`src/content/guides/index.ts`).
  */
-const RAID_GUIDE_CONFIG: Record<string, { raidSlug: "gigalodon" | "jardin-eternel"; studioHref: string; themeColor: string }> = {
+const RAID_GUIDE_CONFIG: Record<string, { raidSlug: "gigalodon" | "jardin-eternel"; themeColor: string }> = {
     "raid-gigalodon-dofus-guide": {
         raidSlug: "gigalodon",
-        studioHref: "/raids?raid=gigalodon",
         themeColor: "#06b6d4",
     },
     "raid-sanctuaire-jardins-eternels-dofus-guide": {
         raidSlug: "jardin-eternel",
-        studioHref: "/raids?raid=sanctuaire",
         themeColor: "#10b981",
     },
 };
@@ -45,12 +43,6 @@ function RaidGuideActions({ slug }: { slug: string }) {
                 <Tv2 className="h-3.5 w-3.5" aria-hidden="true" />
                 Lancer l'Overlay
             </button>
-            <Link
-                href={config.studioHref}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-2 text-xs font-semibold text-muted-foreground transition-colors hover:text-foreground"
-            >
-                Raid Studio
-            </Link>
         </div>
     );
 }

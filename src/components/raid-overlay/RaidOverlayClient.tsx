@@ -51,7 +51,7 @@ import {
 } from "@/lib/raid-live";
 import { useRaidLive } from "@/hooks/use-raid-live";
 import { OverlayPinNotice } from "@/components/overlay-pin-notice";
-import { JardinsEnigmaTracker } from "@/app/raids/_components/JardinsEnigmaTracker";
+import { JardinsEnigmaTracker } from "@/components/raid-overlay/JardinsEnigmaTracker";
 
 interface RaidOverlayClientProps {
   initialRaidSlug?: RaidSlug;
@@ -589,16 +589,6 @@ export function RaidOverlayClient({
             <Languages size={10} className="text-white/40" />
             <span>{isEn ? "EN" : "FR"}</span>
           </button>
-          <a
-            href={`/raids?raid=${currentRaidSlug === "jardin-eternel" ? "sanctuaire" : "gigalodon"}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            title={isEn ? "Open Raid Studio 3.6 (Planner & Tools)" : "Ouvrir Raid Studio 3.6 (Planificateur & Outils)"}
-            className="px-1.5 py-0.5 rounded text-[10px] text-white/50 hover:text-cyan-300 hover:bg-white/5 transition-colors flex items-center gap-1"
-          >
-            <Compass size={11} />
-            <span>Studio 3.6</span>
-          </a>
           <a
             href={raid.guideUrl}
             target="_blank"

@@ -344,7 +344,7 @@ describe("le cron complète aussi les succès spéciaux (borné, coupé sous Vit
     it("passe branchée dans `sync-monster-stats`", () => {
         const cron = read("src/app/api/cron/sync-monster-stats/route.ts");
         expect(cron).toContain('const { siphonSpecialAchievements } = await import("@/lib/achievement-details-siphon");');
-        expect(cron).toMatch(/siphonSpecialAchievements\(\{ db: db as any, apply: true, limit: 10 \}\)/);
+        expect(cron).toMatch(/siphonSpecialAchievements\(\{ db: db as any, apply: true, limit: 25 \}\)/);
     });
 });
 
@@ -425,6 +425,46 @@ describe("la mécanique réelle du succès s'affiche aussi côté INTERNE (guild
     it("l'annuaire Succès de guilde l'affiche aussi", () => {
         expect(directory).toContain("description?: string | null;");
         expect(directory).toContain("{achv.description && (");
+    });
+});
+
+/**
+ * Outil d'exploitation `scripts/succes-speciaux.ts` — il doit faire **les deux passes** et être
+ * **lançable sur le VPS** (bundle dans l'image).
+ *
+ * 🐛 Mesures du 12/10/2026 : le fichier était **cassé** (le `return` de `connectionString()`
+ * avait migré **après** `void main()` ⇒ `SyntaxError` à l'exécution, invisible en CI car
+ * `tsconfig.json` **exclut** `scripts/`), et il ne lançait **que** la passe « détails » — donc le
+ * placeholder « Vaincre tel boss… » resté sur des donjons ne pouvait être réparé que par le cron
+ * (10 donjons par passage, une fois par jour). Constat user : « j'ai toujours “Vaincre tel boss…”,
+ * je dois forcer un cron ou autre action ? ».
+ */
+describe("outil d'exploitation des succès spéciaux — complet et lançable en production", () => {
+    const script = read("scripts/succes-speciaux.ts");
+    const pkg = read("package.json");
+    const docker = read("Dockerfile");
+
+    it("fait les DEUX passes (détails + succès spéciaux par donjon)", () => {
+        expect(script).toContain("siphonChallengeDetails");
+        expect(script).toContain("siphonSpecialAchievements");
+        // Dry-run par défaut : aucune écriture sans `--apply`.
+        expect(script).toContain('args.includes("--apply")');
+    });
+
+    it("le `return` de la connexion est DANS sa fonction (plus de SyntaxError)", () => {
+        const connexion = script.slice(
+            script.indexOf("function connectionString"),
+            script.indexOf("async function runSiphon")
+        );
+        expect(connexion).toContain("return `${scheme}");
+    });
+
+    it("est bundlé et lançable dans le conteneur (`succes:prod`)", () => {
+        expect(pkg).toContain('"succes:prod": "node scripts/succes-speciaux.js"');
+        expect(pkg).toContain("outfile=scripts/succes-speciaux.js");
+        expect(docker).toContain("npm run build:succes");
+        // Le stage `runner` copie déjà tout `scripts/` ⇒ le bundle voyage avec l'image.
+        expect(docker).toContain("COPY --from=builder --chown=nextjs:nodejs /app/scripts ./scripts");
     });
 });
 

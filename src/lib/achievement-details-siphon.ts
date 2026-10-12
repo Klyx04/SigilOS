@@ -35,6 +35,8 @@ export interface ChallengeRow {
     name: string;
     description: string | null;
     iconUrl: string | null;
+    /** Connu de la ligne Prisma complète (le siphon s'en sert pour écarter le placeholder). */
+    slug?: string | null;
 }
 
 /** Client minimal attendu (Prisma, ou faux client de test). */
@@ -65,9 +67,26 @@ export function challengeNameKey(value: unknown): string {
         .replace(/[^a-z0-9]+/g, "");
 }
 
-/** Déjà conforme ? (texte réel présent **et** icône déjà servie par le proxy) : idempotent. */
+/**
+ * Gabarit **de seed** (« Vaincre tel boss dans son donjon … ») : ce n'est **pas** une
+ * description réelle — DofusDB la remplacera par la vraie mécanique.
+ *
+ * 🐛 Mesure du 12/10/2026 (les 6 gabarits de `prisma/seed-data/game-data.json`) : `chrono`,
+ * `compagnon`, `mystique`, `quatuor`, `sp-cial` et `trio` commencent **tous** par
+ * « Vaincre tel boss » (casse comprise : « Vaincre Tel Boss » pour `compagnon`). La règle
+ * précédente ne testait que « le texte est non vide » : dès que l'icône passait par le proxy,
+ * la ligne était déclarée **complète** et n'était **plus jamais** re-siphonnée ⇒ 4 challenges
+ * gardaient l'explication générique **pour toujours** (constat user : « le succès spécial garde
+ * le texte générique »).
+ */
+export function isPlaceholderChallengeDescription(value: unknown): boolean {
+    return /^vaincre tel boss\b/i.test(String(value ?? "").trim());
+}
+
+/** Déjà conforme ? (vraie description **et** icône déjà servie par le proxy) : idempotent. */
 export function isChallengeDetailComplete(row: ChallengeRow): boolean {
-    const hasRealDescription = !!row.description && row.description.trim().length > 0;
+    const text = (row.description ?? "").trim();
+    const hasRealDescription = text.length > 0 && !isPlaceholderChallengeDescription(text);
     return hasRealDescription && !!row.iconUrl?.startsWith("/api/assets-dofus/");
 }
 
@@ -134,6 +153,13 @@ export async function siphonChallengeDetails(options: {
     for (const row of rows) {
         if (limit != null && report.scanned >= limit) break;
         report.scanned++;
+        // Le challenge **placeholder** « Spécial » n'existe pas chez DofusDB (aucun challenge de
+        // ce nom ⇒ une requête perdue à chaque passe) : c'est la passe « succès spéciaux » qui le
+        // remplace, par achievement et id extrait du critère.
+        if (GENERIC_SPECIAL_CHALLENGE_SLUGS.includes(row.slug ?? "")) {
+            report.alreadyOk++;
+            continue;
+        }
         if (isChallengeDetailComplete(row)) {
             report.alreadyOk++;
             continue;

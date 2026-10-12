@@ -42,6 +42,8 @@ interface DirectoryMember {
 interface DirectoryAchievement {
     achievementId: string;
     achievementName: string;
+    /** 🐛 Mécanique réelle du succès (DofusDB) — même contenu que la fiche publique. */
+    description?: string | null;
     iconUrl: string | null;
     points: number;
     hasCompleted: DirectoryMember[];
@@ -548,6 +550,13 @@ export function SuccesDirectory({ guildId }: SuccesDirectoryProps) {
                                                                     </span>
                                                                 )}
                                                             </div>
+                                                            {/* 🐛 Demande user du 12/10/2026 : « le vrai dialogue
+                                                                de la mécanique pour chaque succès […] interne/public ». */}
+                                                            {achv.description && (
+                                                                <p className="text-caption text-muted-foreground mt-1 leading-relaxed line-clamp-2">
+                                                                    {achv.description}
+                                                                </p>
+                                                            )}
                                                             <div className="flex items-center gap-2 mt-1">
                                                                 <div className="w-16 h-1.5 rounded-full bg-background border border-border overflow-hidden shrink-0">
                                                                     <div className="h-full rounded-full bg-warning transition-all" style={{ width: `${pct}%` }} />

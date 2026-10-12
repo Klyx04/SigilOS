@@ -519,6 +519,34 @@ par environnement**.
 synchro : `src/lib/discord-app-emoji-plan.ts` (**pur**, testé) ; script : `scripts/sync-discord-app-emojis.ts`
 (idempotent : ne crée que les manquants, ne supprime ni ne renomme jamais).
 
+### Succès « spéciaux » — finir le siphon **à la demande** (12/10/2026)
+
+Le cron `sync-monster-stats` répare **25 donjons par passage** (`siphonSpecialAchievements`) : la
+propagation complète prend donc **plusieurs nuits**. Pour tout finir d'un coup, l'outil est
+**embarqué dans l'image** (bundlé au build : `npm run build:succes`) :
+
+```bash
+cd /home/sigiladmin/SigilOS
+# 1) simulation — AUCUNE écriture
+sudo docker compose -f docker-compose.prod.yml --env-file .env.beta exec -T app-beta \
+  node scripts/succes-speciaux.js siphon
+# 2) écriture
+sudo docker compose -f docker-compose.prod.yml --env-file .env.beta exec -T app-beta \
+  node scripts/succes-speciaux.js siphon --apply
+```
+
+Il fait **les deux passes** : la vraie description de chaque challenge (`Challenge.description`,
+icône du **proxy interne**, conditions **lues** chez DofusDB) **et** le re-pointage des succès
+« spéciaux » par donjon — c'est ce qui fait disparaître « Vaincre tel boss dans son donjon en
+validant le challenge dédié. ». Vérification (Postgres) :
+
+```sql
+SELECT count(*) FROM "DungeonAchievement" da JOIN "Challenge" c ON c.id = da."challengeId"
+WHERE c.slug IN ('sp-cial','special');
+```
+
+Un `0` = plus aucun donjon générique. L'outil est **idempotent** : relancer ne coûte rien.
+
 ### Pourquoi pas `docker compose exec … tsx`
 L'image de prod ne contient **ni `src/` ni `tsconfig`** (elle ne copie que `public/`, `prisma/`,
 `scripts/` et les JS compilés) alors que le script importe le catalogue TypeScript ⇒

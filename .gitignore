@@ -191,6 +191,7 @@ services/discord-bot/node_modules/
 /services/discord-bot/dist/
 /scripts/database-janitor.js
 /scripts/siphon-guide-images.js
+/scripts/succes-speciaux.js
 /scripts/seed-v3-compiled.js
 **/.wrangler/
 

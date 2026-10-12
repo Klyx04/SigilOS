@@ -231,7 +231,10 @@ export async function saveDoc(data: CreateDocInput & { id?: string }): Promise<A
                     category: data.category,
                     order: data.order ?? 0,
                     isPublished: data.isPublished ?? true,
-                    accessLevel: data.accessLevel || "PUBLIC",
+                    // 🔒 Défaut **MEMBER**, pas PUBLIC (10/12/2026) : la doc est réservée aux
+                    // membres de guildes — `/docs` exige une session *et* une guilde. Une fiche
+                    // créée sans niveau explicite ne doit pas atterrir sur le niveau le plus large.
+                    accessLevel: data.accessLevel || "MEMBER",
                     guildId: data.guildId
                 }
             });
@@ -256,7 +259,7 @@ export async function saveDoc(data: CreateDocInput & { id?: string }): Promise<A
                     category: data.category,
                     order: data.order ?? 0,
                     isPublished: data.isPublished ?? true,
-                    accessLevel: data.accessLevel || "PUBLIC",
+                    accessLevel: data.accessLevel || "MEMBER",
                     guildId: data.guildId
                 }
             });

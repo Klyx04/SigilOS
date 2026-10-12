@@ -519,10 +519,13 @@ par environnement**.
 synchro : `src/lib/discord-app-emoji-plan.ts` (**pur**, testé) ; script : `scripts/sync-discord-app-emojis.ts`
 (idempotent : ne crée que les manquants, ne supprime ni ne renomme jamais).
 
-### Succès « spéciaux » — finir le siphon **à la demande** (12/10/2026)
+### Succès « spéciaux » — finir le siphon **à la demande** (12/10/2026, corrigé le 10/12/2026)
 
-Le cron `sync-monster-stats` répare **25 donjons par passage** (`siphonSpecialAchievements`) : la
-propagation complète prend donc **plusieurs nuits**. Pour tout finir d'un coup, l'outil est
+> ⚠️ **Une fois** : ce lot ajoute la colonne `DungeonAchievement.description` ⇒ jouer la migration
+> (`npx prisma migrate deploy`) avant de relancer le siphon.
+
+Le cron `sync-monster-stats` complète **25 succès « spéciaux » par passage** (`siphonSpecialAchievements`) :
+la propagation complète prend donc **plusieurs nuits**. Pour tout finir d'un coup, l'outil est
 **embarqué dans l'image** (bundlé au build : `npm run build:succes`) :
 
 ```bash
@@ -536,16 +539,24 @@ sudo docker compose -f docker-compose.prod.yml --env-file .env.beta exec -T app-
 ```
 
 Il fait **les deux passes** : la vraie description de chaque challenge (`Challenge.description`,
-icône du **proxy interne**, conditions **lues** chez DofusDB) **et** le re-pointage des succès
-« spéciaux » par donjon — c'est ce qui fait disparaître « Vaincre tel boss dans son donjon en
-validant le challenge dédié. ». Vérification (Postgres) :
+icône du **proxy interne**, conditions **lues** chez DofusDB) **et** l'écriture, **sur la ligne du
+succès**, de la mécanique propre au donjon (`DungeonAchievement.description`) + de son icône
+(`imageUrl`). Le titre affiché reste **« Spécial »** (c'est le nom du challenge partagé, unique en
+base) — c'est ce qui fait disparaître « Vaincre tel boss dans son donjon en validant le challenge
+dédié. » **sans** renommer la carte.
+
+⏳ Si la sortie affiche `⏳ Budget DofusDB **partagé** épuisé` : ce n'est **pas** une panne, c'est
+**notre** limiteur (30 req/min, partagé avec tous les siphons). Relancer la commande plus tard ; rien
+n'est perdu (l'outil est **idempotent** : un succès déjà complet est sauté **sans requête**).
+
+Vérification (Postgres) — il ne doit **plus rester de succès « Spécial » sans texte** :
 
 ```sql
 SELECT count(*) FROM "DungeonAchievement" da JOIN "Challenge" c ON c.id = da."challengeId"
-WHERE c.slug IN ('sp-cial','special');
+WHERE c.slug IN ('sp-cial','special') AND da.description IS NULL;
 ```
 
-Un `0` = plus aucun donjon générique. L'outil est **idempotent** : relancer ne coûte rien.
+Un `0` = tout est passé. Le libellé de ces lignes est celui du challenge partagé : **« Spécial »**.
 
 ### Pourquoi pas `docker compose exec … tsx`
 L'image de prod ne contient **ni `src/` ni `tsconfig`** (elle ne copie que `public/`, `prisma/`,

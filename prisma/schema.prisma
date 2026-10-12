@@ -1163,6 +1163,11 @@ model DungeonAchievement {
   challengeId  String
   points       Int                      @default(10)
   imageUrl     String?
+  /// Mécanique **propre au donjon** du succès « Spécial » (lue chez DofusDB, cf.
+  /// `src/lib/achievement-details-siphon.ts`). Le `Challenge` visé (« Spécial ») est une ligne
+  /// **partagée** (`slug` unique) : c'est ici que vit le texte qui dépend du boss.
+  /// `null` ⇒ l'affichage retombe sur `challenge.description` (les autres succès).
+  description  String?
   createdAt    DateTime                 @default(now())
   challenge    Challenge                @relation(fields: [challengeId], references: [id], onDelete: Cascade)
   dungeon      Dungeon                  @relation(fields: [dungeonId], references: [id], onDelete: Cascade)

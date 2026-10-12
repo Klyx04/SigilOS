@@ -1,5 +1,5 @@
 /**
- * Succès « spéciaux » — outil d'exploitation (demande user du 11/10/2026).
+ * Succès « spéciaux » — outil d'exploitation (demande user du 11/10/2026, corrigé le 10/12/2026).
  *
  * Deux commandes, **dry-run par défaut** (aucune écriture sans `--apply`) :
  *
@@ -8,12 +8,15 @@
  *   npx -y tsx scripts/succes-speciaux.ts retirer-donjon-valide      # simulation
  *   npx -y tsx scripts/succes-speciaux.ts retirer-donjon-valide --apply
  *
- * ① `siphon` : complète `Challenge.description` (la **vraie** explication, lue chez DofusDB),
- *    `Challenge.iconUrl` (servie par le proxy interne) et `Challenge.conditions` (critères **lus**
- *    tels quels). Idempotent : un challenge déjà complet n'est pas retouché.
- * ② `retirer-donjon-valide` : supprime les rattachements du pseudo-succès « Donjon validé » puis le
- *    challenge système s'il est là. **Aucune recréation** possible : le code ne le crée plus
- *    (cf. `dungeon-no-achievement.ts` — seule la mémoire anti-résurrection subsiste).
+ * ① `siphon` — passe « challenges » : complète `Challenge.description` / `.iconUrl` / `.conditions`
+ *    (la **vraie** explication, lue chez DofusDB). Idempotent.
+ * ② `siphon` — passe « succès spéciaux » : écrit **sur la ligne du succès** la mécanique propre au
+ *    donjon (`DungeonAchievement.description`, colonne dédiée) + son icône (`imageUrl`), et ramène
+ *    la ligne sur le challenge **partagé** « Spécial » ⇒ le titre affiché reste **« Spécial »**.
+ * ③ `retirer-donjon-valide` — purge le pseudo-succès « Donjon validé » (jamais recréé par le code).
+ *
+ * ⚠️ Le budget DofusDB partagé (`30 req/min`) peut fermer la fenêtre en cours de route : la passe
+ *    s'arrête alors **proprement** (`⏳ …`) au lieu de compter des dizaines de faux « introuvables ».
  */
 import "dotenv/config";
 import { PrismaClient } from "@prisma/client";
@@ -36,6 +39,13 @@ function connectionString(): string {
     return `${scheme}${encodeURIComponent(user)}:${password}@${host}:${port}/${database}?schema=public`;
 }
 
+/** Ligne honnête quand c'est **notre** budget partagé (et non DofusDB) qui a coupé la passe. */
+function deferredNote(report: { deferred: boolean; retryAfterMs: number }): string {
+    if (!report.deferred) return "";
+    return `\n⏳ Budget DofusDB **partagé** épuisé (ce n'est pas une panne) — passe arrêtée, à rejouer dans `
+        + `${Math.max(1, Math.ceil(report.retryAfterMs / 1000))} s. Rien n'a été compté « introuvable ».`;
+}
+
 async function runSiphon(db: PrismaClient, apply: boolean) {
     const report = await siphonChallengeDetails({
         db: db as unknown as Parameters<typeof siphonChallengeDetails>[0]["db"],
@@ -44,27 +54,28 @@ async function runSiphon(db: PrismaClient, apply: boolean) {
     });
     console.log(
         `\n${report.scanned} challenge(s) analysé(s) · ${report.updated} à compléter · `
-            + `${report.alreadyOk} déjà complets · ${report.missing} introuvables · ${report.errors} erreur(s)`
+            + `${report.alreadyOk} déjà complets · ${report.missing} sans explication chez DofusDB · ${report.errors} erreur(s)`
             + (apply ? ` · ${report.written} écrit(s)` : report.updated > 0 ? "\n👉 relancer avec --apply pour écrire" : "")
+            + deferredNote(report)
     );
     for (const line of report.details.slice(0, 20)) console.log(`  · ${line}`);
 
-    // ② La passe « succès **spéciaux** par donjon » — celle qui remplace le placeholder
-    //    (« Vaincre tel boss… ») par le **vrai** nom + la **vraie** mécanique du challenge.
-    //    C'est le seul chemin possible : le challenge « Spécial » n'existe pas chez DofusDB,
-    //    l'id réel se lit dans le critère de l'achievement (`(EH>979,0)`).
+    // ② La passe « succès **spéciaux** par donjon » — celle qui écrit, **sur la ligne du succès**,
+    //    la mécanique réelle du boss + l'icône du succès. Le challenge visé reste le **partagé**
+    //    « Spécial » : c'est ce qui garde le titre « Spécial » partout (demande user du 10/12/2026).
     const special = await siphonSpecialAchievements({
         db: db as unknown as Parameters<typeof siphonSpecialAchievements>[0]["db"],
         apply,
     });
     console.log(
-        `\n${special.scanned} succès spécial(aux) analysé(s) · ${special.updated} à re-pointer · `
-            + `${special.alreadyOk} déjà OK · ${special.missing} introuvable(s) · ${special.errors} erreur(s)`
+        `\n${special.scanned} succès spécial(aux) analysé(s) · ${special.updated} à compléter · `
+            + `${special.alreadyOk} déjà OK · ${special.missing} sans succès spécial chez DofusDB · ${special.errors} erreur(s)`
             + (apply
                 ? ` · ${special.written} écrit(s)`
                 : special.updated > 0
                     ? "\n👉 relancer avec --apply pour écrire"
                     : "")
+            + deferredNote(special)
     );
     for (const line of special.details.slice(0, 20)) console.log(`  · ${line}`);
 }

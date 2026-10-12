@@ -3273,7 +3273,9 @@ export async function getDungeonDirectory(
                 achievementName: a.challenge.name,
                 // 🐛 Demande user du 12/10/2026 : « je veux le vrai dialogue de la mécanique
                 // pour chaque succès […] interne/public » — l'interne n'affichait que le nom.
-                description: a.challenge?.description ?? null,
+                // 10/12/2026 : la mécanique du succès « Spécial » vit **sur la ligne du succès**
+                // (`DungeonAchievement.description`) ; son challenge est la ligne partagée « Spécial ».
+                description: a.description ?? a.challenge?.description ?? null,
                 // Icône résolue par la **source unique** (`@/lib/achievement-icon`) : proxy
                 // interne d'abord, asset local en repli — sinon la modale de la carte du monde
                 // affichait un chemin brut (case noire), là où la fiche publique affichait l'icône.

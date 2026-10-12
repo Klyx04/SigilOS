@@ -150,7 +150,10 @@ export async function getPublicDungeonAchievements(
             iconUrl: r.challenge?.iconUrl ?? null,
             imageUrl: r.imageUrl ?? null,
             points: r.points ?? 0,
-            description: r.challenge?.description ?? null,
+            // Le texte **propre au donjon** (mécanique du succès « Spécial ») prime : le challenge
+            // visé est la ligne **partagée** « Spécial », dont la description ne peut pas dépendre du
+            // boss (cf. `achievement-details-siphon.ts` et la colonne `DungeonAchievement.description`).
+            description: r.description ?? r.challenge?.description ?? null,
         }));
 
         return { success: true, data };

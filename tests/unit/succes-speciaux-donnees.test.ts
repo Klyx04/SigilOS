@@ -174,6 +174,22 @@ describe("icône de succès — proxy d'abord, plus de case noire", () => {
         );
     });
 
+    it("un chemin local STOCKÉ prime sur le slug — bug « Spécial » (l'accent est perdu par le slug)", () => {
+        // Mesure du 12/10/2026 (`select slug, \"iconUrl\" from \"Challenge\"`) : le challenge est
+        // seedé `slug: "sp-cial"` (le slugifier transforme « é » en « - ») avec
+        // `iconUrl: "/game-data/achievements/spécial.png"` — et ce fichier **existe** au dépôt.
+        // Reconstruire le chemin depuis le slug demandait `sp-cial.png` ⇒ 404 + case noire.
+        expect(getAchievementIconUrl("sp-cial", "/game-data/achievements/spécial.png")).toBe(
+            "/game-data/achievements/sp%C3%A9cial.png"
+        );
+        // Le repli par slug reste en vigueur quand la base ne porte AUCUN chemin.
+        expect(getAchievementIconUrl("sp-cial", null)).toBe("/game-data/achievements/sp-cial.png");
+        // Un hôte tiers reste ignoré même en présence d'un chemin local stocké.
+        expect(getAchievementIconUrl("sp-cial", "/game-data/achievements/special.png")).toBe(
+            "/game-data/achievements/special.png"
+        );
+    });
+
     it("le proxy connaît les deux nouveaux espaces d'icône", () => {
         expect(PROXY).toMatch(/const validTypes = \['monsters', 'items', 'spells', 'challenges', 'achievements'\] as const;/);
         expect(PROXY).toContain("`https://api.dofusdb.fr/img/${assetType}/${safeId}.png`");

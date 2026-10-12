@@ -17,7 +17,15 @@ export function getAchievementIconUrl(slug: string | null | undefined, apiIconUr
     // ① Icône DofusDB réelle (URL absolue ou déjà interne) → proxy interne, jamais un hotlink.
     const proxied = internalDofusDbImageUrl(apiIconUrl);
     if (proxied) return proxied;
-    // ② Repli : asset local nommé d'après le slug (les 28 challenges historiques du dépôt).
+    // ② Chemin d'asset LOCAL **déjà stocké** (`/game-data/...`) : c'est la valeur d'AUTORITÉ,
+    // écrite par le seed ou le siphon — elle connaît le vrai nom de fichier. 🐛 Mesure du
+    // 12/10/2026 : le challenge « Spécial » est seedé `slug: "sp-cial"` (le slugifier a
+    // transformé le « é » en « - ») avec `iconUrl: "/game-data/achievements/spécial.png"`
+    // (fichier **présent** au dépôt) ⇒ reconstruire le chemin depuis le slug demandait
+    // `sp-cial.png` = **404** et une case noire (constat user : « le bug succès spécial
+    // persiste »). `encodeURI` : certains noms portent un accent.
+    if (apiIconUrl && apiIconUrl.startsWith("/game-data/")) return encodeURI(apiIconUrl);
+    // ③ Dernier repli : asset local nommé d'après le slug (les 28 challenges historiques).
     if (slug) return `/game-data/achievements/${slug}.png`;
     return null;
 }

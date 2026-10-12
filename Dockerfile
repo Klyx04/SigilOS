@@ -79,6 +79,10 @@ RUN npm run build:maintenance
 # Build siphon script (guide image downloader)
 RUN npm run build:siphon
 
+# Build succès script (siphon des succès « spéciaux » — outil d'exploitation :
+# `node scripts/succes-speciaux.js siphon [--apply]`, dry-run par défaut)
+RUN npm run build:succes
+
 # Build worker script
 RUN npm run build:worker
 

@@ -6,6 +6,15 @@
 > `retirer-donjon-valide`, dry-run par défaut) · pseudo-succès plus créé ni rendu.
 > **Reste (ops humain)** : jouer `siphon` puis `retirer-donjon-valide` (dry-run → `--apply`),
 > déployer, contrôler un succès spécial (fiche publique **et** interne).
+>
+> ⚠️ **Mise à jour du 12/10/2026** — l'outil `scripts/succes-speciaux.ts` **fait maintenant les deux
+> passes** (détails **+** succès spéciaux par donjon, ce dernier étant borné à **25**/passage dans le
+> cron) et il est **bundlé dans l'image** : la commande fiable est
+> `node scripts/succes-speciaux.js siphon [--apply]` **dans le conteneur** (procédure et vérification
+> SQL : `docs/MAINTENANCE.md` § « Succès “spéciaux” — finir le siphon à la demande »). L'ancien
+> `npx -y tsx scripts/succes-speciaux.ts` **ne fonctionnait pas** : le script était cassé (`return`
+> hors de sa fonction, invisible car `tsconfig` **exclut** `scripts/`) et l'image ne contient ni
+> `src/` ni `tsconfig`.
 
 
 > Branche `feat/succes-speciaux-donnees` · ouvert le **11/10/2026** (plan avant code — demande user :

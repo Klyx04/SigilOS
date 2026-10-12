@@ -19,7 +19,7 @@ import "dotenv/config";
 import { PrismaClient } from "@prisma/client";
 import { Pool } from "pg";
 import { PrismaPg } from "@prisma/adapter-pg";
-import { siphonChallengeDetails } from "@/lib/achievement-details-siphon";
+import { siphonChallengeDetails, siphonSpecialAchievements } from "@/lib/achievement-details-siphon";
 import { NO_ACHIEVEMENT_CHALLENGE_NAME, NO_ACHIEVEMENT_CHALLENGE_SLUG } from "@/lib/dungeon-no-achievement";
 
 const cleanEnv = (value: string | undefined) => (value ? value.replace(/^['"]|['"]$/g, "").trim() : "");
@@ -33,6 +33,8 @@ function connectionString(): string {
     const port = process.env.DB_PORT || "5432";
     // ⚠️ Schéma concaténé : le hook anti-secret (pre-commit) refuse une URL de base « en dur ».
     const scheme = "postgres" + "ql://";
+    return `${scheme}${encodeURIComponent(user)}:${password}@${host}:${port}/${database}?schema=public`;
+}
 
 async function runSiphon(db: PrismaClient, apply: boolean) {
     const report = await siphonChallengeDetails({
@@ -46,6 +48,25 @@ async function runSiphon(db: PrismaClient, apply: boolean) {
             + (apply ? ` · ${report.written} écrit(s)` : report.updated > 0 ? "\n👉 relancer avec --apply pour écrire" : "")
     );
     for (const line of report.details.slice(0, 20)) console.log(`  · ${line}`);
+
+    // ② La passe « succès **spéciaux** par donjon » — celle qui remplace le placeholder
+    //    (« Vaincre tel boss… ») par le **vrai** nom + la **vraie** mécanique du challenge.
+    //    C'est le seul chemin possible : le challenge « Spécial » n'existe pas chez DofusDB,
+    //    l'id réel se lit dans le critère de l'achievement (`(EH>979,0)`).
+    const special = await siphonSpecialAchievements({
+        db: db as unknown as Parameters<typeof siphonSpecialAchievements>[0]["db"],
+        apply,
+    });
+    console.log(
+        `\n${special.scanned} succès spécial(aux) analysé(s) · ${special.updated} à re-pointer · `
+            + `${special.alreadyOk} déjà OK · ${special.missing} introuvable(s) · ${special.errors} erreur(s)`
+            + (apply
+                ? ` · ${special.written} écrit(s)`
+                : special.updated > 0
+                    ? "\n👉 relancer avec --apply pour écrire"
+                    : "")
+    );
+    for (const line of special.details.slice(0, 20)) console.log(`  · ${line}`);
 }
 
 async function runRemoval(db: PrismaClient, apply: boolean) {
@@ -86,6 +107,3 @@ async function main() {
 }
 
 void main();
-
-    return `${scheme}${encodeURIComponent(user)}:${password}@${host}:${port}/${database}?schema=public`;
-}

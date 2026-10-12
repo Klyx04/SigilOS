@@ -350,7 +350,11 @@ export async function GET(req: Request) {
         if (process.env.VITEST !== "true") {
             try {
                 const { siphonSpecialAchievements } = await import("@/lib/achievement-details-siphon");
-                const special = await siphonSpecialAchievements({ db: db as any, apply: true, limit: 10 });
+                // Borné : 25 par passage (le même ordre de grandeur que la passe « détails »
+                // ci-dessus, donc même budget DofusDB) — 32 donjons sont réparés en **2 nuits**
+                // au lieu de 4. L'outil `scripts/succes-speciaux.ts` reste le chemin pour tout
+                // finir d'un coup (aucune borne) : `node scripts/succes-speciaux.js siphon --apply`.
+                const special = await siphonSpecialAchievements({ db: db as any, apply: true, limit: 25 });
                 specialAchievementsSiphoned = special.written;
                 if (special.updated > 0 || special.errors > 0) {
                     logger.info(

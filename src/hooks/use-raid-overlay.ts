@@ -18,17 +18,21 @@ export function useRaidOverlay() {
   const close = useRaidOverlayStore((s) => s.close);
   const setRaid = useRaidOverlayStore((s) => s.setRaid);
   const setActiveStep = useRaidOverlayStore((s) => s.setActiveStep);
+  const setLive = useRaidOverlayStore((s) => s.setLive);
   const onWindowGone = useRaidOverlayStore((s) => s.onWindowGone);
 
   const isOpen = win !== null && !win.closed;
 
   const openRaidOverlay = useCallback(
-    async (opts?: { raidSlug?: RaidSlug; stepIndex?: number }) => {
+    async (opts?: { raidSlug?: RaidSlug; stepIndex?: number; eventId?: string; guildId?: string }) => {
       const targetSlug = opts?.raidSlug ?? "gigalodon";
 
       // Si la fenêtre est déjà ouverte, on met juste à jour la cible
       if (win && !win.closed) {
         setRaid(targetSlug);
+        if (opts?.eventId || opts?.guildId) {
+          setLive(opts?.eventId, opts?.guildId);
+        }
         if (opts?.stepIndex !== undefined) {
           setActiveStep(opts.stepIndex);
         }
@@ -68,9 +72,11 @@ export function useRaidOverlay() {
         raidSlug: targetSlug,
         activeStepIndex: opts?.stepIndex ?? 0,
         pinned,
+        ...(opts?.eventId ? { eventId: opts.eventId } : {}),
+        ...(opts?.guildId ? { guildId: opts.guildId } : {}),
       });
     },
-    [win, open, setRaid, setActiveStep, onWindowGone]
+    [win, open, setRaid, setActiveStep, setLive, onWindowGone]
   );
 
   return {

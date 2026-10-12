@@ -79,7 +79,7 @@ export const guide = {
             <li><strong>Automatisations client :</strong> Activez l'auto-suivi de groupe, l'auto-join des combats et l'auto-prêt pour économiser de précieuses minutes sur le chrono global.</li>
             <li><strong>Consommables en amont :</strong> Prévoyez vos stocks de pain, potions d'énergie et potions de rappel avant d'entrer. Aucun échange entre joueurs n'est possible dans le Gouffre.</li>
             <li><strong>Répartition en 3 escouades de 4 :</strong> Divisez vos 12 joueurs en 3 groupes autonomes de 4 combattants. Cette configuration est indispensable pour raser en parallèle les 18 packs de l'étage -1 et farmer rapidement l'étage -5.</li>
-            <li><strong>Arbitrage des succès :</strong> Validez les challenges classiques sur les monstres et les boss. En revanche, <em>ignorez le succès « Sel » (100 sels en stock)</em> lors d'un run de score, car stocker 100 sels plonge le raid dans le noir complet et transforme les monstres en sacs à PV mortels.</li>
+            <li><strong>Arbitrage des succès :</strong> Validez les challenges classiques sur les monstres et les boss. En revanche, <em>ignorez le succès « Sel » (100 sels affichés)</em> lors d'un run de score, car 100 sels affichés = autant de sel non dépensé en lumière : thésauriser et éclairer sont incompatibles sur un run chronométré.</li>
         </ul>
 
         <hr />
@@ -134,6 +134,7 @@ export const guide = {
         <div class="callout callout-tip">
             <strong>Règle d'or de gestion du Sel</strong>
             <p>Maintenez la lumière au <strong>Niveau 3</strong> sur les étages de nettoyage des monstres : le bonus accordé aux monstres (+20% PV / +100 Puissance) reste négligeable et cela économise vos sels communs. En revanche, montez impérativement à <strong>Niveau 4</strong> juste avant d'engager la Mureine (-2) et l'Exécrabe (-4) afin d'annuler leurs 200% de PV bonus. Notez bien que Willorque (-6) et le Gigalodon ignorent totalement la mécanique d'Idées Noires.</p>
+            <p><strong>Coûts cumulatifs :</strong> 0→1 = 1 sel, →2 = +3 (4), →3 = +6 (10), →4 = +10 (20 sels au total depuis 0). À l'entrée du raid la lumière est déjà au Niveau 4 ; chaque nouvel étage débloqué démarre au Niveau 1 — et le compteur de baisse tourne même si personne ne s'y est rendu (0 au bout de 2 minutes).</p>
         </div>
 
         <hr />
@@ -190,6 +191,60 @@ export const guide = {
             </tbody>
         </table>
 
+        <div class="callout callout-tip">
+            <strong>Altérations du Gigalodon (bonus d'équipe, taux faible et inconnu)</strong>
+            <p>En drop aléatoire pendant le raid, toute l'équipe gagne jusqu'à la fin : <em>Hâte du Gigalodon</em> (+2 PA), <em>Insolence du Gigalodon</em> (+2 PM), <em>Rage du Gigalodon</em> (+50 % Critique). Attention aux prérequis de vos équipements (limites PA/PM).</p>
+        </div>
+
+        <hr />
+
+        <h2>III-bis. Bestiaire du Gouffre (6 monstres)</h2>
+        <p>
+            Les monstres apparaissent au fil de la descente et accompagnent les boss. Tous subissent les Idées Noires (voir §II).
+        </p>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Monstre</th>
+                    <th>Apparition</th>
+                    <th>Sorts clés</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>Madrépire</strong></td>
+                    <td>Étage -1</td>
+                    <td>« KO'rail » 450 air (carré T3, 7 PO) · « Récidif » 550 feu + attire 4 cases (croix T4, 7 PO)</td>
+                </tr>
+                <tr>
+                    <td><strong>Kokayou</strong></td>
+                    <td>Étage -1</td>
+                    <td>« Épinade » 450 terre sur lui-même (étoile T3) · « Hydrage » 400 eau en vol de vie (mêlée)</td>
+                </tr>
+                <tr>
+                    <td><strong>Léviatank</strong></td>
+                    <td>Étage -2</td>
+                    <td>« Absolutte » avance de 5 cases + 325 air (cône T2, ligne 5 PO) · « Branchiche » 450 feu en ligne + glyphe 250 feu (mêlée)</td>
+                </tr>
+                <tr>
+                    <td><strong>Calarmure</strong></td>
+                    <td>Étage -3</td>
+                    <td>« Armucus » bouclier 600 % du niveau (2 tours, 6 PO) · « Encornéant » 550 air (cercle T3, 6 PO)</td>
+                </tr>
+                <tr>
+                    <td><strong>Écaillon</strong></td>
+                    <td>Étage -4</td>
+                    <td>« Enfourchage » repousse 3 cases + 450 feu (ligne T4, ligne 6 PO) · « Tridémence » 550 terre (cône T1, mêlée)</td>
+                </tr>
+                <tr>
+                    <td><strong>Krak'Haine</strong></td>
+                    <td>Étage -5</td>
+                    <td>« Abjection » 150 × 4 éléments (ligne infinie, mêlée) · « Férosignal » -1 PM inesquivable à tous (1 tour) + 1 PM au monstre le plus proche par personnage touché</td>
+                </tr>
+            </tbody>
+        </table>
+
         <hr />
 
         <h2>IV. Progression Étage par Étage (Stratégie & Macros /travel)</h2>
@@ -216,9 +271,11 @@ export const guide = {
 
         <ul>
             <li><strong>Fiche technique du Boss :</strong> 51 000 PV, 6 PM, 264 Esquive PM (accompagnée de 3 monstres : Madrépire, Kokayou, Léviatank).</li>
-            <li><strong>Sort clé « Disperssssion » :</strong> Inflige 700 dégâts eau et invoque jusqu'à 2 <em>Murares</em> au contact des joueurs situés à moins de 10 PO (maximum 10 Murares sur le terrain).</li>
-            <li><strong>Passif « Impératrice » :</strong> La Mureine gagne +100 Puissance par Murare présente sur la carte.</li>
-            <li><strong>Poison « Corroside » :</strong> Les Murares appliquent un poison cumulatif infligeant 250 dégâts feu supplémentaires pour chaque ligne de dégâts subie par la cible.</li>
+            <li><strong>Sort clé « Disperssssion » (4 PA, 1-10 PO sans ligne de vue, 2 fois/tour) :</strong> Inflige ~700 dégâts eau et invoque une <em>Murare</em> au contact de la cible (maximum 10 Murares sur le terrain).</li>
+            <li><strong>« Cuirage » (5 PA, 1-7 PO sans ligne de vue) :</strong> Inflige ~800 dégâts air et applique 2 000 de bouclier (2 tours) aux Murares alignées avec la cible.</li>
+            <li><strong>« Triplicité » (6 PA, mêlée uniquement) :</strong> Inflige ~1 150 dégâts terre en zone fourche de taille 4.</li>
+            <li><strong>Passif « Impératrice » :</strong> La Mureine gagne +100 Puissance (1 tour, débuffable) par Murare présente au début de son tour.</li>
+            <li><strong>Poison « Corroside » (Murares, jusqu'à 5 PO, 2 fois/tour) :</strong> 400 dégâts feu + état cumulable : chaque ligne de dégâts subie ajoute 250 dégâts feu en vol de vie par la Mureine (10 fois max par tour). Tuer une Murare purge l'état à 2 cases.</li>
         </ul>
 
         <div class="callout callout-tip">
@@ -278,39 +335,43 @@ export const guide = {
             <span class="guide-caption">L'Exécrabe change d'élément et de morphologie à chaque seuil de PV</span>
         </div>
 
+        <p>
+            L'Exécrabe (100 000 PV, Indéplaçable, 64 Esquive PM : le retrait PM le neutralise) change d'apparence à chaque seuil de PV (80 000 / 60 000 / 40 000 / 20 000) dans un <strong>ordre aléatoire à chaque raid</strong> — d'où la mémorisation obligatoire. Chaque forme ajoute un effet et change l'élément/zone de « Bisque » (950 dégâts, 7 PO). Autres sorts : « Canopince » (600 eau ou air, mêlée, 2 fois/tour), « Encornage » (850 terre + repousse 7 cases, ligne 2 PO).
+        </p>
+
         <table>
             <thead>
                 <tr>
-                    <th>Numéro</th>
                     <th>Forme Élémentaire</th>
                     <th>Élément de frappe</th>
                     <th>Symbole au sol</th>
+                    <th>Effet au seuil</th>
                 </tr>
             </thead>
             <tbody>
                 <tr>
-                    <td><strong>1</strong></td>
-                    <td>Coquillage</td>
+                    <td><strong>Coquillage</strong></td>
                     <td>Terre</td>
                     <td>Cercle</td>
+                    <td>+5 000 Bouclier (infini)</td>
                 </tr>
                 <tr>
-                    <td><strong>2</strong></td>
-                    <td>Oursin</td>
+                    <td><strong>Oursin</strong></td>
                     <td>Air</td>
                     <td>Étoile</td>
+                    <td>Renvoie 20 % des dommages (jusqu'au changement de forme)</td>
                 </tr>
                 <tr>
-                    <td><strong>3</strong></td>
-                    <td>Perle</td>
+                    <td><strong>Perle</strong></td>
                     <td>Feu</td>
                     <td>Carré</td>
+                    <td>Retire 63 PO à tous pendant 2 tours (non débuffable)</td>
                 </tr>
                 <tr>
-                    <td><strong>4</strong></td>
-                    <td>Poulpe</td>
+                    <td><strong>Poulpe</strong></td>
                     <td>Eau</td>
                     <td>Cône</td>
+                    <td>Attire de 10 cases (ligne et diagonale)</td>
                 </tr>
             </tbody>
         </table>
@@ -339,11 +400,11 @@ export const guide = {
 
         <h3>La Séquence de Remontée & Dépôt Express</h3>
         <ol>
-            <li>Depuis [6,10], empruntez le poisson-lanterne pour réapparaître à l'étage -2 en [4,8].</li>
+            <li>Depuis [6,10], empruntez le poisson-lanterne pour réapparaître à l'étage -2 en [4,7].</li>
             <li>Exécutez <pre><code>/travel 2,7</code></pre> puis <pre><code>/travel 3,2</code></pre></li>
             <li>Montez à l'échelle pour regagner l'Avant-poste (-1).</li>
             <li><strong>Tous les joueurs déposent l'intégralité de leurs trésors dans le Coffre du Raid</strong> pour sécuriser plus de 10 000 points.</li>
-            <li>Redescendez l'échelle, puis faites <pre><code>/travel 4,3</code></pre> suivi de <pre><code>/travel 4,8</code></pre></li>
+            <li>Redescendez l'échelle, puis faites <pre><code>/travel 4,3</code></pre> suivi de <pre><code>/travel 4,7</code></pre></li>
             <li>Empruntez la grotte en bas à droite pour revenir instantanément à l'étage -4.</li>
             <li>Faites <pre><code>/travel 9,11</code></pre>, cliquez sur le petit lac, puis prenez la grotte en bas à droite pour basculer à l'étage -5.</li>
         </ol>
@@ -378,7 +439,8 @@ export const guide = {
 
         <ul>
             <li><strong>Fiche technique :</strong> 62 000 PV, Enraciné (indéplaçable par les sorts classiques, mais portable par un Pandawa !), insensible aux Idées Noires.</li>
-            <li><strong>Mécanique des lanternes :</strong> 10 poissons-lanternes entourent le boss et déclenchent des malus de PM, d'invisibilité et des hausses de dégâts sur son sort <em>Sombre Chant</em>.</li>
+            <li><strong>Mécanique des lanternes (Light Count) :</strong> 10 poissons-lanternes intuables (4 allumés au début, 200 % résistances, 550 000 PV) : +10 % de Light Count par poisson allumé. À 100 % : Willorque perd 20 % de résistances (1 tour). À 0 % : « Sombre Chant » tape ~1 400 feu (cercle T10) et « C'est assez » donne 10 PM + invisibilité (1 tour).</li>
+            <li><strong>Seuil 43 400 PV (Random Fish) :</strong> tous les poissons s'éteignent, Light Count à 0 %. Chaque sort (« C'est assez » sur lui-même, « Écholok » 950 feu jusqu'à 5 PO) bascule le poisson le plus proche de la cible : allumage ≤3 PO = soin de 20 % PV max, extinction ≤3 PO = dégâts neutres de 20 % PV actuels aux joueurs.</li>
         </ul>
 
         <div class="callout callout-tip">
@@ -405,11 +467,13 @@ export const guide = {
             <span class="guide-caption">Le Gigalodon émergeant des profondeurs (hitbox large)</span>
         </div>
 
-        <h3>Les 3 Règles de Survie Absolues</h3>
+        <h3>Les 3 Règles de Survie Absolues (+ sort à connaître)</h3>
         <ul>
             <li><strong>Zone mortelle « Les Dents de l'Amer » :</strong> Ne commencez JAMAIS votre tour sur les 3 cases en mêlée directe devant la gueule du Gigalodon. Si vous y terminez un tour, il vous avale (tour passé) et pose un glyphe noir. Si un allié marche dessus, le personnage avalé meurt sur le coup !</li>
-            <li><strong>Diagonales obligatoires :</strong> Positionnez vos personnages en diagonale du monstre pour esquiver les cônes d'eau latéraux (<em>Ultrasplash</em>) et éloignez-vous des berges pour ne pas être repoussé de 7 cases par <em>Tournageoire</em>.</li>
+            <li><strong>Diagonales obligatoires :</strong> Positionnez vos personnages en diagonale du monstre pour esquiver les cônes d'eau latéraux (<em>Ultrasplash</em>, 700 eau) et éloignez-vous des berges pour ne pas être repoussé de 7 cases par <em>Tournageoire</em> (700 terre, cercle T6).</li>
             <li><strong>Dispersion de 3 cases minimum :</strong> Le Gigalodon lance <em>Gigarâle</em> : 700 dégâts terre à toute cible située à 2 PO ou moins d'un allié ou d'une invocation, avec propagation en chaîne. Respectez scrupuleusement 3 cases de distance entre chaque joueur.</li>
+            <li><strong><em>Maxquale</em> :</strong> 500 dégâts air, portée infinie sans ligne de vue, jusqu'à 5 fois par tour (1 fois par cible) — intankable à ignorer, prévoyez des résistances air.</li>
+            <li><strong>Double jeu :</strong> Le Gigalodon joue 2 fois par tour (début de tour + milieu, après la moitié des personnages) et ne peut pas être déplacé. Phase de préparation : 3 minutes.</li>
         </ul>
 
         <div class="guide-image-container">
@@ -417,7 +481,7 @@ export const guide = {
             <span class="guide-caption">Dispersion obligatoire : respectez 3 cases d'écart minimum entre alliés pour neutraliser Gigarâle</span>
         </div>
 
-        <h3>Barème de Conversion Dégâts &gt; Score Bonus</h3>
+        <h3>Barème de Conversion Dégâts &gt; Score Bonus (échelle complète)</h3>
         <table>
             <thead>
                 <tr>
@@ -428,9 +492,44 @@ export const guide = {
             </thead>
             <tbody>
                 <tr>
+                    <td>10 000 dégâts</td>
+                    <td>+1 000 points</td>
+                    <td>Filet minimal</td>
+                </tr>
+                <tr>
+                    <td>20 000 dégâts</td>
+                    <td>+2 000 points</td>
+                    <td>Filet</td>
+                </tr>
+                <tr>
+                    <td>40 000 dégâts</td>
+                    <td>+3 000 points</td>
+                    <td>Filet</td>
+                </tr>
+                <tr>
+                    <td>70 000 dégâts</td>
+                    <td>+4 000 points</td>
+                    <td>Filet</td>
+                </tr>
+                <tr>
                     <td>100 000 dégâts</td>
                     <td>+5 000 points</td>
                     <td>Raid découverte / équipement standard</td>
+                </tr>
+                <tr>
+                    <td>130 000 dégâts</td>
+                    <td>+6 000 points</td>
+                    <td>Progression</td>
+                </tr>
+                <tr>
+                    <td>160 000 dégâts</td>
+                    <td>+7 000 points</td>
+                    <td>Progression</td>
+                </tr>
+                <tr>
+                    <td>200 000 dégâts</td>
+                    <td>+8 000 points</td>
+                    <td>Progression</td>
                 </tr>
                 <tr>
                     <td>250 000 dégâts</td>
@@ -438,9 +537,29 @@ export const guide = {
                     <td>Bonne coordination de boosts (PA / Puissance)</td>
                 </tr>
                 <tr>
+                    <td>300 000 dégâts</td>
+                    <td>+10 000 points</td>
+                    <td>Palier</td>
+                </tr>
+                <tr>
+                    <td>400 000 dégâts</td>
+                    <td>+11 000 points</td>
+                    <td>Palier</td>
+                </tr>
+                <tr>
                     <td>500 000 dégâts</td>
                     <td>+12 000 points</td>
                     <td>Compo optimisée (Portails Eliotrope + Vulnérabilité)</td>
+                </tr>
+                <tr>
+                    <td>600 000 dégâts</td>
+                    <td>+13 000 points</td>
+                    <td>Palier</td>
+                </tr>
+                <tr>
+                    <td>800 000 dégâts</td>
+                    <td>+14 000 points</td>
+                    <td>Palier</td>
                 </tr>
                 <tr>
                     <td><strong>1 000 000 dégâts</strong></td>
@@ -585,9 +704,11 @@ export const guide = {
         </div>
 
         <ul>
-            <li><strong>Paliers 1 à 5 (1 000 à 13 000 pts) :</strong> Guildatons, XP de guilde et <em>Coffres du Gouffre</em> (contient des ressources abyssales et 1% de drop du familier <strong>Minilodon</strong>).</li>
-            <li><strong>Paliers 6 à 10 (19 000 à 60 000 pts) :</strong> <em>Coffres Majestueux du Gouffre</em>, ressources rares de boss, 1% Minilodon, et 0,5% de drop direct des pièces de la <strong>Panoplie du Gouffre</strong> (Dorsale de Willorque, Lancepince d'Exécrabe, Visage de Mureine).</li>
-            <li><strong>Classement de Guilde (Mardi 6h) :</strong> Ornements Or, Argent et Bronze exclusifs pour les membres du Top 3 interserveur.</li>
+            <li><strong>Paliers (meilleur score hebdomadaire) :</strong> 1 000 · 2 000 · 5 000 · 8 000 · 13 000 · 19 000 · 27 000 · 36 000 · 45 000 · 60 000. Paliers 1-5 : <em>Coffres du Gouffre</em> (+ guildatons et XP) ; paliers 6-10 : <em>Coffres Majestueux du Gouffre</em>.</li>
+            <li><strong>Coffre du Gouffre :</strong> Lueur abyssale (69 %), Aileron de Willorque / Carapace d'Exécrabe / Venin de Mureine (10 % chacun), 1 % <strong>Minilodon</strong> (familier d'apparat).</li>
+            <li><strong>Coffre Majestueux :</strong> les 3 ressources boss (32,5 % chacune), 1 % Minilodon, 0,5 % par pièce de la <strong>Panoplie du Gouffre</strong> (Dorsale de Willorque, Lancepince d'Exécrabe, Visage de Mureine).</li>
+            <li><strong>Guilde :</strong> 250 points d'activité par personnage participant. <strong>Une seule frise par semaine</strong> (Jardins ou Gigalodon, à choisir).</li>
+            <li><strong>Classement (reset mardi 6h) :</strong> Top 1 Ornement Or + titre « Terreur des Profondeurs », Top 2 Argent, Top 3 Bronze (+ Reconnaissances et XP de guilde dégressives jusqu'au Top 100 %). Les récompenses ladder profitent à toute la guilde.</li>
         </ul>
 
         <div class="guide-image-container">

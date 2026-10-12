@@ -150,6 +150,19 @@ export function raidReminderLeadLabel(leadMinutes: number): string {
     return `${hours} h ${rest}`;
 }
 
+/**
+ * Lot 4a — lien overlay du rappel H-1 : la page `/raids` porte le bouton de
+ * lancement de l'overlay (RaidPlannerClient). `null` hors raids à overlay
+ * (jamais de lien inventé). Base publique requise (l'URL absolue se construit
+ * côté service, qui connaît déjà `getAppBaseUrl`).
+ */
+export function raidOverlayDeeplink(raidType: unknown): { param: string; label: string } | null {
+    const kind = typeof raidType === "string" ? raidType : "";
+    if (kind === "gigalodon") return { param: "gigalodon", label: "Gigalodon" };
+    if (kind === "jardin") return { param: "sanctuaire", label: "Sanctuaire" };
+    return null;
+}
+
 // ---------------------------------------------------------------------------
 // RAPPEL DE CLÔTURE (post-raid) — 24 h après la fin, UNE seule fois
 // ---------------------------------------------------------------------------

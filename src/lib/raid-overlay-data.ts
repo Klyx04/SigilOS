@@ -30,6 +30,12 @@ export interface RaidStep {
   title: string;
   bossName?: string;
   bossHp?: string;
+  /**
+   * Fiche bestiaire liée (lot 5) : le nom du boss devient cliquable dans
+   * l'étape et ouvre la modale d'encyclopédie (`RAID_BESTIARY`). Slug
+   * `slugifyBossName` (ex. `krak-haine`) — hérité par la locale EN via spread.
+   */
+  monsterSlug?: string;
   coords: string;
   travelCommand: string;
   primaryImage: string;
@@ -51,6 +57,7 @@ export interface RaidStep {
 }
 
 export interface BurstOptiData {
+
   rules: string[];
   scale: { dmg: string; pts: string; note?: string }[];
   classes: {
@@ -137,7 +144,7 @@ export const RAIDS_DATA: Record<string, RaidData> = {
         ],
         proTips: [
           "Marchande PNJ : vend des potions de soin (aucun échange entre joueurs possible).",
-          "Ne tentez pas le succès '100 Sels' lors d'un run de score (nuit noire permanente)."
+          "Ne tentez pas le succès '100 Sels' lors d'un run de score (100 sels affichés = autant de sel non dépensé en lumière)."
         ]
       },
       {
@@ -145,6 +152,7 @@ export const RAIDS_DATA: Record<string, RaidData> = {
         floor: "Étage -2",
         title: "Boss 1 : Mureine des Abysses",
         bossName: "Mureine",
+        monsterSlug: "mureine",
         bossHp: "51 000 PV",
         coords: "[4, 7]",
         travelCommand: "/travel 4,7",
@@ -157,7 +165,8 @@ export const RAIDS_DATA: Record<string, RaidData> = {
         bullets: [
           "Lumière Niveau 4 impérative avant d'engager (sinon 153k PV / +1 000 Pui)",
           "Tuer en priorité les 3 monstres normaux (Madrépire, Kokayou, Léviatank)",
-          "Invoque 2 Murares/tour à <10 PO (+100 Pui/invo) · Tuer une Murare purge le poison",
+          "Disperssssion 700 eau 10 PO sans LdV 2×/tour → Murares (+100 Pui/unité) · Tuer une Murare purge le poison",
+          "Corroside 400 feu + état : +250/vol de vie par ligne subie (max 10×/tour) · Cuirage 800 air + 2 000 bouclier aux Murares alignées · Triplicité 1 150 terre, mêlée uniquement",
           "Panda blocage : coincer la Mureine en coin derrière ses propres Murares",
           "Victoire = 2e fragment de clé + Unité de Mureine (1 000 pts coffre)"
         ],
@@ -244,7 +253,8 @@ export const RAIDS_DATA: Record<string, RaidData> = {
         floor: "Étage -4",
         title: "Boss 2 : Terrier d'Exécrabe",
         bossName: "Exécrabe",
-        bossHp: "4 Formes",
+        monsterSlug: "execrabe",
+        bossHp: "100 000 PV",
         coords: "[9, 11]",
         travelCommand: "/travel 9,11",
         primaryImage: "/images/guides/gigalodon/71-boss-execrabe.jpg",
@@ -254,6 +264,9 @@ export const RAIDS_DATA: Record<string, RaidData> = {
         ],
         summary: "Crustacé massif aux 4 apparences. Mémorisation obligatoire des 4 formes pour activer les statues sous le lac.",
         bullets: [
+          "100 000 PV, Indéplaçable · Seuils 80/60/40/20k, ordre des 4 formes ALÉATOIRE à chaque raid",
+          "Effets par seuil : Coquillage +5 000 bouclier · Oursin renvoi 20 % · Perle -63 PO 2 tours · Poulpe attire 10 cases",
+          "Bisque 950 (élément/zone selon la forme) · Canopince 600 eau/air mêlée · Encornage 850 terre + repousse 7",
           "Noter l'ordre des 4 formes élémentaires aux seuils de PV (Coquillage, Oursin, Perle, Poulpe)",
           "Statues sous le lac en [9, 11] : -1 000 pts par erreur (le score peut devenir négatif !)",
           "Lumière Niveau 4 en [8, 11] conseillée (5 monstres accompagnateurs)",
@@ -267,8 +280,8 @@ export const RAIDS_DATA: Record<string, RaidData> = {
         },
         keyMechanics: [
           {
-            label: "Noter l'ordre des 4 formes",
-            desc: "Seuils PV : Coquillage (Terre), Oursin (Air), Perle (Feu), Poulpe (Eau). Noter l'ordre avec le pad.",
+            label: "Noter l'ordre des 4 formes (aléatoire)",
+            desc: "Seuils 80/60/40/20k : Coquillage (Terre), Oursin (Air), Perle (Feu), Poulpe (Eau) — l'ordre change à chaque raid. Noter l'ordre réel avec le pad.",
             danger: true
           },
           {
@@ -344,6 +357,7 @@ export const RAIDS_DATA: Record<string, RaidData> = {
         floor: "Étage -5",
         title: "Ossuaire Abyssal : Krak'Haine",
         bossName: "Collecte Fragment 4",
+        monsterSlug: "krak-haine",
         coords: "[10, 14]",
         travelCommand: "/travel 10,14",
         primaryImage: "/images/guides/gigalodon/95-ouverture-raccourci.jpg",
@@ -387,6 +401,7 @@ export const RAIDS_DATA: Record<string, RaidData> = {
         floor: "Étage -6",
         title: "Boss 3 : Sombrefond de Willorque",
         bossName: "Willorque",
+        monsterSlug: "willorque",
         bossHp: "62 000 PV",
         coords: "[11, 16]",
         travelCommand: "/travel 11,16",
@@ -399,7 +414,9 @@ export const RAIDS_DATA: Record<string, RaidData> = {
         summary: "Boss enraciné (62 000 PV), SEUL sur la carte [11, 16]. Obscurité totale permanente. Zéro monstre, zéro orque spectre.",
         bullets: [
           "Aggro immédiate à 10 PO en 5 secondes dans le noir (entrer groupés et prêts)",
-          "Boss seul sur la map : 0 monstre, 0 orque spectre, 10 lanternes invulnérables",
+          "Boss seul sur la map : 0 monstre, 10 poissons-lanternes intuables (4 allumés au début)",
+          "Seuil 43 400 PV = Random Fish : tout s'éteint, Light Count 0 % → Sombre Chant ~1 400 + 10 PM + invisible",
+          "Light Count 100 % = -20 % résis 1 tour · Poisson allumé ≤3 PO = soin 20 % PV max · Éteint ≤3 PO = neutre 20 % PV actuels",
           "Panda Cheese : porter Willorque T1 et l'isoler à > 3 PO de toute lanterne/statue",
           "Isolé en coin, Willorque ne déclenche aucun Switch et le raid reste hors de Sombre Chant",
           "Focus 100% DPS sur le boss (ignorer les lanternes) ➔ Relique +10 000 pts"
@@ -441,6 +458,7 @@ export const RAIDS_DATA: Record<string, RaidData> = {
         floor: "Hub -1",
         title: "Combat Ultime : Le Gigalodon",
         bossName: "Gigalodon (Burst 3 Tours)",
+        monsterSlug: "gigalodon",
         coords: "[3, 2]",
         travelCommand: "/travel 3,2",
         primaryImage: "/images/guides/gigalodon/118-boss-gigalodon.jpg",
@@ -453,7 +471,8 @@ export const RAIDS_DATA: Record<string, RaidData> = {
         ],
         summary: "Phase de burst chronométrée en 3 tours depuis le coffre (-1). Victoire automatique au T4 via Gigalodoom. But : burst max pour saturer le score (+15 000 pts) !",
         bullets: [
-          "3 tours de jeu seulement : fin automatique et victoire au T4 via Gigalodoom",
+          "3 tours de jeu seulement (+ 3 min de prépa) : fin automatique et victoire au T4 via Gigalodoom",
+          "Le boss joue 2×/tour (début + milieu) · Maxquale 500 air PO infinie sans LdV 5×/tour",
           "Jamais sur les 3 cases devant la gueule : avalé + glyphe noir = OS si un allié marche dessus",
           "Placement en diagonales strict : esquive les cônes d'Ultrasplash et la poussée de Tournageoire",
           "3 cases d'écart minimum entre chaque allié : Gigarâle ricoche à 2 PO (700 dmg terre)",
@@ -674,8 +693,10 @@ export const RAIDS_DATA: Record<string, RaidData> = {
       },
       {
         floor: "Étage -3",
-        zoneName: "Falaise Noyée & Luminarium",
+        zoneName: "Falaise Noyée",
         luminomachines: [
+          { coords: "[2, 9]", command: "/travel 2,9" },
+          { coords: "[3, 12]", command: "/travel 3,12" },
           { coords: "[4, 12]", command: "/travel 4,12" }
         ],
         salts: [
@@ -721,9 +742,20 @@ export const RAIDS_DATA: Record<string, RaidData> = {
         "Monocible pur : les sorts de zone ne tapent qu'une seule fois sur la hitbox"
       ],
       scale: [
+        { dmg: "10 000 dmg", pts: "+1 000 pts", note: "Plancher" },
+        { dmg: "20 000 dmg", pts: "+2 000 pts", note: "Filet" },
+        { dmg: "40 000 dmg", pts: "+3 000 pts", note: "Filet" },
+        { dmg: "70 000 dmg", pts: "+4 000 pts", note: "Filet" },
         { dmg: "100 000 dmg", pts: "+5 000 pts", note: "Découverte" },
+        { dmg: "130 000 dmg", pts: "+6 000 pts", note: "Progression" },
+        { dmg: "160 000 dmg", pts: "+7 000 pts", note: "Progression" },
+        { dmg: "200 000 dmg", pts: "+8 000 pts", note: "Progression" },
         { dmg: "250 000 dmg", pts: "+9 000 pts", note: "Bonne coordination" },
+        { dmg: "300 000 dmg", pts: "+10 000 pts", note: "Palier" },
+        { dmg: "400 000 dmg", pts: "+11 000 pts", note: "Palier" },
         { dmg: "500 000 dmg", pts: "+12 000 pts", note: "Compo optimisée" },
+        { dmg: "600 000 dmg", pts: "+13 000 pts", note: "Palier" },
+        { dmg: "800 000 dmg", pts: "+14 000 pts", note: "Palier" },
         { dmg: "1 000 000 dmg", pts: "+15 000 pts", note: "Cap Max atteint" }
       ],
       classes: [
@@ -1358,6 +1390,8 @@ export const RAIDS_DATA_EN: Record<string, RaidData> = {
           ? "Floor -1"
           : loc.floor === "Étage -2"
           ? "Floor -2"
+          : loc.floor === "Étage -3"
+          ? "Floor -3"
           : loc.floor === "Étage -4"
           ? "Floor -4"
           : "Floor -5",
@@ -1393,7 +1427,7 @@ export const RAIDS_DATA_EN: Record<string, RaidData> = {
         ],
         proTips: [
           "NPC merchant sells healing potions (no trading between players).",
-          "Do not attempt the '100 Salts' achievement during a score run (permanent darkness).",
+          "Do not attempt the '100 Salts' achievement during a score run (100 salts shown = that much salt not spent on light).",
         ],
       },
       {
@@ -1409,7 +1443,8 @@ export const RAIDS_DATA_EN: Record<string, RaidData> = {
         bullets: [
           "Level 4 Light mandatory before engaging (or 153k HP / +1,000 Power)",
           "Kill the 3 normal monsters first (Madrepore, Kokayou, Leviatank)",
-          "Summons 2 Morays/turn at <10 Range (+100 Power/summon) · Killing a summon purges poison",
+          "Disperssssion 700 water 10 Range no LoS 2×/turn → Morays (+100 Power each) · Killing a summon purges poison",
+          "Corroside 400 fire + state: +250 lifesteal per instance taken (10× max/turn) · Cuirage 800 air + 2,000 shield to aligned Morays · Triplicité 1,150 earth, melee only",
           "Panda lock: pin the Moray into a corner behind its own summons",
           "Victory = 2nd key fragment + Moray Unit (1,000 chest points)",
         ],
@@ -1466,13 +1501,16 @@ export const RAIDS_DATA_EN: Record<string, RaidData> = {
         ...RAIDS_DATA.gigalodon.steps[3],
         floor: "Floor -4",
         title: "Boss 2: Execrabe's Burrow",
-        bossName: "Execrabe (4 Forms)",
+        bossName: "Execrabe (100,000 HP)",
         secondaryImages: [
           { label: "Under-lake puzzle statues", src: "/images/guides/gigalodon/89-statues-enigme-execrabe.jpg" },
           { label: "Shortcut opening at [6, 10]", src: "/images/guides/gigalodon/95-ouverture-raccourci.jpg" },
         ],
         summary: "Massive crustacean with 4 appearances. Memorization of the 4 forms required to activate the statues under the lake.",
         bullets: [
+          "100,000 HP, Unmovable · Thresholds 80/60/40/20k, 4-form order RANDOM every raid",
+          "Per-threshold effects: Shell +5,000 shield · Urchin 20% reflect · Pearl -63 Range 2 turns · Squid 10-cell pull",
+          "Bisque 950 (element/zone per form) · Canopince 600 water/air melee · Encornage 850 earth + 7 push",
           "Record the order of the 4 elemental forms at HP thresholds (Shell, Urchin, Pearl, Squid)",
           "Statues under the lake at [9, 11]: -1,000 pts per mistake (score can become negative!)",
           "Level 4 Light at [8, 11] recommended (5 companion mobs)",
@@ -1566,7 +1604,9 @@ export const RAIDS_DATA_EN: Record<string, RaidData> = {
         summary: "Rooted boss (62,000 HP), ALONE on map [11, 16]. Permanent complete darkness. Zero mobs, zero phantom orcas.",
         bullets: [
           "Immediate aggro at 10 Range within 5 seconds in the dark (enter grouped and ready)",
-          "Boss alone on map: 0 mobs, 0 phantom orcas, 10 invulnerable lanterns",
+          "Boss alone on map: 0 mobs, 10 unkillable lanternfish (4 lit at start)",
+          "43,400 HP threshold = Random Fish: all out, 0% Light Count → Dark Chant ~1,400 + 10 MP + stealth",
+          "100% Light Count = -20% resists 1 turn · Lit fish ≤3 Range = 20% max-HP heal · Dark fish ≤3 Range = neutral 20% current HP",
           "Panda Cheese: carry Willorc T1 and lock him >3 Range away from any lantern/statue",
           "Isolated in a corner, Willorc triggers no Switches and raid stays out of Dark Chant",
           "Focus 100% DPS on boss (ignore lanterns) ➔ Relic +10,000 pts",
@@ -1601,7 +1641,8 @@ export const RAIDS_DATA_EN: Record<string, RaidData> = {
         ],
         summary: "Timed 3-turn burst phase launched from the chest (-1). Automatic victory on Turn 4 via Gigalodoom. Goal: max burst damage to cap the score (+15,000 pts)!",
         bullets: [
-          "3 turns only: automatic victory on Turn 4 via Gigalodoom",
+          "3 turns only (+ 3-min prep): automatic victory on Turn 4 via Gigalodoom",
+          "Boss plays 2×/turn (start + mid-turn) · Maxquale 500 air infinite Range no LoS 5×/turn",
           "Keep at least 3 cells away: melee players take lethal backlash",
           "Apply Vulnerability, place portal networks and bomb walls for Turn 3 burst",
           "Nebulous Dofus Turn 3 sync: align all major cooldowns",
@@ -1627,13 +1668,24 @@ export const RAIDS_DATA_EN: Record<string, RaidData> = {
       rules: [
         "Turn 3 Burst with Nebulous: coordinate all damage cooldowns on Turn 3 for maximum bonus score",
         "Melee Exclusion Zone: keep all players at least 3 cells away from Gigalodon to prevent lethal backlash",
-        "Luminarium Salt Levels: charge pillars to level 4+ to prevent dark room wipe mechanics",
+        "Strict diagonals + 3-cell spacing: dodges Ultrasplash cones and Gigarumble chains (700 earth at ≤2 Range)",
       ],
       scale: [
-        { dmg: "Floors 1-3 Cleared", pts: "+5,000 pts", note: "Abyss descent" },
-        { dmg: "Execrabe & Willorc", pts: "+15,000 pts", note: "Sub-bosses down" },
-        { dmg: "Gigalodon 500k-1M Dmg", pts: "+30,000 pts", note: "High score tier" },
-        { dmg: "Gigalodon >1.5M Dmg", pts: "+50,000 pts", note: "Max bonus score" },
+        { dmg: "10,000 dmg", pts: "+1,000 pts", note: "Safety net" },
+        { dmg: "20,000 dmg", pts: "+2,000 pts", note: "Safety net" },
+        { dmg: "40,000 dmg", pts: "+3,000 pts", note: "Safety net" },
+        { dmg: "70,000 dmg", pts: "+4,000 pts", note: "Safety net" },
+        { dmg: "100,000 dmg", pts: "+5,000 pts", note: "Discovery" },
+        { dmg: "130,000 dmg", pts: "+6,000 pts", note: "Progression" },
+        { dmg: "160,000 dmg", pts: "+7,000 pts", note: "Progression" },
+        { dmg: "200,000 dmg", pts: "+8,000 pts", note: "Progression" },
+        { dmg: "250,000 dmg", pts: "+9,000 pts", note: "Coordination" },
+        { dmg: "300,000 dmg", pts: "+10,000 pts", note: "Milestone" },
+        { dmg: "400,000 dmg", pts: "+11,000 pts", note: "Milestone" },
+        { dmg: "500,000 dmg", pts: "+12,000 pts", note: "Optimized" },
+        { dmg: "600,000 dmg", pts: "+13,000 pts", note: "Milestone" },
+        { dmg: "800,000 dmg", pts: "+14,000 pts", note: "Milestone" },
+        { dmg: "1,000,000 dmg", pts: "+15,000 pts", note: "Max bonus score" },
       ],
       classes: [
         { classId: "pandawa", category: "Core Staple", keySpells: "Brewing, Vulnerability, carry out of the 3 melee cells" },
@@ -2033,4 +2085,36 @@ export function getLocalizedRaidData(slug: string, locale?: string): RaidData {
   }
   return RAIDS_DATA[slug] || RAIDS_DATA.gigalodon;
 }
+
+export interface RaidBestiaryEntry {
+  /** Slug `slugifyBossName` — résout via `findUnityMonsterBySlug` + `/bestiaire/<slug>`. */
+  slug: string;
+  name: string;
+  role: "boss" | "monstre" | "invocation";
+  /** Étages d'apparition (affichage). */
+  floors: string;
+  /** Valeur coffre de la relique (boss uniquement). */
+  scorePts?: number;
+}
+
+/**
+ * Lot 5 — encyclopédie du raid (Gigalodon) : les 11 entités du bestiaire
+ * local Unity (4 boss + 6 monstres + Murare). Structure par raid pour le
+ * Jardin plus tard. Source unique : l'overlay ET la modale boss y lisent.
+ */
+export const RAID_BESTIARY: Record<string, RaidBestiaryEntry[]> = {
+  gigalodon: [
+    { slug: "mureine", name: "Mureine", role: "boss", floors: "-2", scorePts: 1000 },
+    { slug: "execrabe", name: "Exécrabe", role: "boss", floors: "-4", scorePts: 5000 },
+    { slug: "willorque", name: "Willorque", role: "boss", floors: "-6", scorePts: 10000 },
+    { slug: "gigalodon", name: "Gigalodon", role: "boss", floors: "Hub -1" },
+    { slug: "madrepire", name: "Madrépire", role: "monstre", floors: "-1, -2" },
+    { slug: "kokayou", name: "Kokayou", role: "monstre", floors: "-1, -2, -4" },
+    { slug: "leviatank", name: "Léviatank", role: "monstre", floors: "-2, -4" },
+    { slug: "calarmure", name: "Calarmure", role: "monstre", floors: "-3, -4" },
+    { slug: "ecaillon", name: "Écaillon", role: "monstre", floors: "-4" },
+    { slug: "krak-haine", name: "Krak'Haine", role: "monstre", floors: "-5" },
+    { slug: "murare", name: "Murare", role: "invocation", floors: "-2 (Mureine)" },
+  ],
+};
 

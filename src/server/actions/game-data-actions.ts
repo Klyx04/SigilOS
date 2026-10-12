@@ -663,6 +663,19 @@ export interface BestiaryHubResponse {
 const BESTIARY_HUB_MAX_LINKS = 6000;
 
 /**
+ * 🚦 Cache du sommaire (Redis, `withCache`) — **mesure du 12/10/2026**.
+ *
+ * `/bestiaire` est une page **dynamique** (`auth()` + nonce CSP par requête ⇒ `Cache-Control:
+ * private, no-store`, donc aucun cache HTTP ; `src/lib/csp.ts` : `script-src` nonce-based, une page
+ * 100 % statique bloquerait les JSON-LD). Or elle relisait **5 129** monstres à **chaque** visite
+ * pour reconstruire ~9 000 objets : 6,4 Mo de HTML, 4 399 `<img>`, 1,9 s de TTFB mesurés en bêta
+ * (« ça fait lagger notre site »). La donnée ne change qu'au siphon ⇒ 1 h de cache est sûre, et
+ * `withCache` retombe sur la source si Redis est indisponible (jamais d'écran vide, jamais d'erreur).
+ */
+const BESTIARY_HUB_CACHE_KEY = "bestiary:hub:v1";
+const BESTIARY_HUB_TTL_SECONDS = 3600;
+
+/**
  * Sommaire du **bestiaire** (page publique `/bestiaire`) : **toutes** les espèces de monstres
  * normales, groupées par famille officielle.
  *
@@ -680,66 +693,82 @@ const BESTIARY_HUB_MAX_LINKS = 6000;
  */
 export async function getBestiaryHub(): Promise<ActionResponse<BestiaryHubResponse>> {
     try {
-        const [documentedSlugs, rows] = await Promise.all([
-            listSiphonedNormalMonsterSlugs(),
-            normalMonsterRows(),
-        ]);
-        const documented = new Set(documentedSlugs.map((row) => row.slug));
-        const all = listNormalMonsters(rows);
-        const byFamily = new Map<number, BestiaryHubFamily>();
-        let listed = 0;
-        let documentedCount = 0;
-        for (const monster of all) {
-            const slug = slugifyBossName(monster.name);
-            if (!slug) continue;
-            // Toutes les espèces sont listées ; `documented` ne sert qu'au compteur « documentées ».
-            if (documented.has(slug)) documentedCount += 1;
-            const raceId = Math.floor(Number(monster.raceId) || 0);
-            let family = byFamily.get(raceId);
-            if (!family) {
-                family = {
-                    raceId,
-                    name: monster.raceName ?? null,
-                    superRaceName: monster.superRaceName ?? null,
-                    monsters: [],
-                };
-                byFamily.set(raceId, family);
-            }
-            family.monsters.push({
-                slug,
-                name: monster.name,
-                level: monster.level,
-                monsterId: monster.monsterId,
-            });
-            listed += 1;
-        }
-
-        // Familles les plus fournies d'abord (jamais de famille vide : `byFamily` ne se remplit
-        // qu'avec des monstres réels).
-        const families = [...byFamily.values()].sort(
-            (a, b) =>
-                b.monsters.length - a.monsters.length ||
-                (a.name ?? "").localeCompare(b.name ?? "", "fr")
-        );
-        let budget = BESTIARY_HUB_MAX_LINKS;
-        let truncated = false;
-        for (const family of families) {
-            family.monsters.sort((a, b) => a.name.localeCompare(b.name, "fr"));
-            if (family.monsters.length > budget) {
-                family.monsters = family.monsters.slice(0, budget);
-                truncated = true;
-            }
-            budget -= family.monsters.length;
-        }
-
-        return {
-            success: true,
-            data: { documented: documentedCount, listed, bestiarySize: all.length, families, truncated },
-        };
+        // 🚦 Voir `BESTIARY_HUB_CACHE_KEY` : la donnée (5 129 monstres) est calculée 1×/h au lieu
+        // d'à chaque visite — c'est le coût par visite qui faisait ramper la page et le site.
+        const data = await withCache(BESTIARY_HUB_CACHE_KEY, BESTIARY_HUB_TTL_SECONDS, async () => {
+            const [documentedSlugs, rows] = await Promise.all([
+                listSiphonedNormalMonsterSlugs(),
+                normalMonsterRows(),
+            ]);
+            return buildBestiaryHubPayload(documentedSlugs, rows);
+        });
+        return { success: true, data };
     } catch (error) {
         logger.error('[getBestiaryHub] Error:', { error });
         return { success: false, error: 'Erreur lors du chargement du bestiaire' };
     }
+}
+
+type BestiaryHubSlugs = Awaited<ReturnType<typeof listSiphonedNormalMonsterSlugs>>;
+type BestiaryHubRows = Awaited<ReturnType<typeof normalMonsterRows>>;
+
+/**
+ * Construit le sommaire — **pur** (aucune IO, donc cachable tel quel) : groupement par famille
+ * officielle, familles les plus fournies d'abord, budget global de liens (`BESTIARY_HUB_MAX_LINKS`).
+ */
+function buildBestiaryHubPayload(
+    documentedSlugs: BestiaryHubSlugs,
+    rows: BestiaryHubRows
+): BestiaryHubResponse {
+    const documented = new Set(documentedSlugs.map((row) => row.slug));
+    const all = listNormalMonsters(rows);
+    const byFamily = new Map<number, BestiaryHubFamily>();
+    let listed = 0;
+    let documentedCount = 0;
+    for (const monster of all) {
+        const slug = slugifyBossName(monster.name);
+        if (!slug) continue;
+        // Toutes les espèces sont listées ; `documented` ne sert qu'au compteur « documentées ».
+        if (documented.has(slug)) documentedCount += 1;
+        const raceId = Math.floor(Number(monster.raceId) || 0);
+        let family = byFamily.get(raceId);
+        if (!family) {
+            family = {
+                raceId,
+                name: monster.raceName ?? null,
+                superRaceName: monster.superRaceName ?? null,
+                monsters: [],
+            };
+            byFamily.set(raceId, family);
+        }
+        family.monsters.push({
+            slug,
+            name: monster.name,
+            level: monster.level,
+            monsterId: monster.monsterId,
+        });
+        listed += 1;
+    }
+
+    // Familles les plus fournies d'abord (jamais de famille vide : `byFamily` ne se remplit
+    // qu'avec des monstres réels).
+    const families = [...byFamily.values()].sort(
+        (a, b) =>
+            b.monsters.length - a.monsters.length ||
+            (a.name ?? "").localeCompare(b.name ?? "", "fr")
+    );
+    let budget = BESTIARY_HUB_MAX_LINKS;
+    let truncated = false;
+    for (const family of families) {
+        family.monsters.sort((a, b) => a.name.localeCompare(b.name, "fr"));
+        if (family.monsters.length > budget) {
+            family.monsters = family.monsters.slice(0, budget);
+            truncated = true;
+        }
+        budget -= family.monsters.length;
+    }
+
+    return { documented: documentedCount, listed, bestiarySize: all.length, families, truncated };
 }
 
 /** Segment d'URL de la fiche OFFICIELLE d'une créature (donjon → avis → titan), sinon `null`. */

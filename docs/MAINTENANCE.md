@@ -558,6 +558,24 @@ WHERE c.slug IN ('sp-cial','special') AND da.description IS NULL;
 
 Un `0` = tout est passé. Le libellé de ces lignes est celui du challenge partagé : **« Spécial »**.
 
+#### Ménage : purger les challenges orphelins (10/12/2026)
+
+L'ANCIENNE passe créait **un challenge par boss** (`Meulou y es-tu ?`, `Econome`, …). Depuis, chaque
+succès « Spécial » est rattaché au challenge **partagé** (`sp-cial`) : ces lignes ne sont plus
+référencées par personne, mais l'onglet **God → Succès** liste toute la table (`getChallenges`) — d'où
+un catalogue qui semble « peuplé de succès qui n'existent pas ». **Après** un siphon complet :
+
+```bash
+sudo docker compose -f docker-compose.prod.yml --env-file .env.beta exec -T app-beta \
+  node scripts/succes-speciaux.js purger-challenges-speciaux          # simulation
+sudo docker compose -f docker-compose.prod.yml --env-file .env.beta exec -T app-beta \
+  node scripts/succes-speciaux.js purger-challenges-speciaux --apply  # supprime
+```
+
+Critère **strict** : aucun `DungeonAchievement` rattaché **et** `conditions` non nulles (les 28
+challenges du seed ont `conditions: null`) ⇒ un challenge créé à la main dans God est rattaché à un
+donjon, donc jamais visé. Le code ne **recrée** jamais ces lignes (la passe ne crée plus de challenge).
+
 ### Pourquoi pas `docker compose exec … tsx`
 L'image de prod ne contient **ni `src/` ni `tsconfig`** (elle ne copie que `public/`, `prisma/`,
 `scripts/` et les JS compilés) alors que le script importe le catalogue TypeScript ⇒

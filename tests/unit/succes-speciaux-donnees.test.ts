@@ -513,6 +513,15 @@ describe("outil d'exploitation des succès spéciaux — complet et lançable en
         expect(script).toContain('args.includes("--apply")');
     });
 
+    it("sait purger les challenges orphelins (God les listait encore)", () => {
+        // ⚠️ Le critère est **strict** : aucun rattachement ET `conditions` non nulles (les 28
+        // challenges du seed ont `conditions: null`) — un challenge créé à la main dans God est
+        // rattaché à un donjon, donc jamais visé.
+        expect(script).toContain('"purger-challenges-speciaux"');
+        expect(script).toContain("dungeonAchievements: { none: {} }");
+        expect(script).toContain("conditions: { not: Prisma.AnyNull }");
+    });
+
     it("le `return` de la connexion est DANS sa fonction (plus de SyntaxError)", () => {
         const connexion = script.slice(
             script.indexOf("function connectionString"),

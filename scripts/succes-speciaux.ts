@@ -14,12 +14,15 @@
  *    donjon (`DungeonAchievement.description`, colonne dédiée) + son icône (`imageUrl`), et ramène
  *    la ligne sur le challenge **partagé** « Spécial » ⇒ le titre affiché reste **« Spécial »**.
  * ③ `retirer-donjon-valide` — purge le pseudo-succès « Donjon validé » (jamais recréé par le code).
+ * ④ `purger-challenges-speciaux` — supprime les challenges **orphelins** laissés par l'ancienne
+ *    passe (elle créait un challenge par boss) : sans effet sur l'affichage, mais ils polluaient
+ *    l'onglet God « Succès ». À lancer **après** un siphon complet.
  *
  * ⚠️ Le budget DofusDB partagé (`30 req/min`) peut fermer la fenêtre en cours de route : la passe
  *    s'arrête alors **proprement** (`⏳ …`) au lieu de compter des dizaines de faux « introuvables ».
  */
 import "dotenv/config";
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, Prisma } from "@prisma/client";
 import { Pool } from "pg";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { siphonChallengeDetails, siphonSpecialAchievements } from "@/lib/achievement-details-siphon";
@@ -101,6 +104,34 @@ async function runRemoval(db: PrismaClient, apply: boolean) {
     console.log(`\n${deleted.count} rattachement(s) supprimé(s) + le challenge système. Jamais recréé par le code.`);
 }
 
+/**
+ * ③ Purge des challenges **orphelins** créés par l'ancienne passe « succès spéciaux ».
+ *
+ * Avant le 10/12/2026, cette passe **créait un `Challenge` par boss** (nom du challenge réel) et y
+ * re-pointait le succès. Depuis, chaque succès « Spécial » est rattaché au challenge **partagé**
+ * (`sp-cial`) : ces lignes ne sont **plus référencées par personne** — mais elles restent visibles
+ * dans l'onglet God « Succès », qui liste toute la table (`getChallenges`).
+ * Critère **strict** : aucun rattachement **ET** `conditions` non nulles (les 28 challenges du seed
+ * ont `conditions: null`) — un challenge créé à la main dans God est rattaché à un donjon, donc
+ * jamais visé. Dry-run par défaut.
+ */
+async function runPurgeSpecialChallenges(db: PrismaClient, apply: boolean) {
+    const orphans = await db.challenge.findMany({
+        where: { conditions: { not: Prisma.AnyNull }, dungeonAchievements: { none: {} } },
+        select: { id: true, name: true, slug: true },
+        orderBy: { name: "asc" },
+    });
+    console.log(`${orphans.length} challenge(s) orphelin(s) (créés par l'ancienne passe, plus rattachés).`);
+    for (const row of orphans.slice(0, 40)) console.log(`  · « ${row.name} » (${row.slug})`);
+    if (orphans.length > 40) console.log(`  · … et ${orphans.length - 40} autre(s).`);
+    if (!apply) {
+        console.log("\n👉 relancer avec --apply pour supprimer. À faire **après** un siphon complet.");
+        return;
+    }
+    const deleted = await db.challenge.deleteMany({ where: { id: { in: orphans.map((o) => o.id) } } });
+    console.log(`\n${deleted.count} challenge(s) supprimé(s). Jamais recréés (le code ne crée plus de challenge).`);
+}
+
 async function main() {
     const args = process.argv.slice(2);
     const command = args[0];
@@ -110,7 +141,8 @@ async function main() {
     try {
         if (command === "siphon") return await runSiphon(db, apply);
         if (command === "retirer-donjon-valide") return await runRemoval(db, apply);
-        console.log("Commande requise : siphon | retirer-donjon-valide (option : --apply)");
+        if (command === "purger-challenges-speciaux") return await runPurgeSpecialChallenges(db, apply);
+        console.log("Commande requise : siphon | retirer-donjon-valide | purger-challenges-speciaux (option : --apply)");
         process.exitCode = 2;
     } finally {
         await db.$disconnect();

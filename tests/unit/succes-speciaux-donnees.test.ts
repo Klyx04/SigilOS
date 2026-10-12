@@ -21,9 +21,10 @@ import {
     isChallengeDetailComplete,
     isPlaceholderChallengeDescription,
     isSpecialAchievementRow,
-    specialAchievementName,
+    findSpecialAchievement,
+    nestedChallengeOf,
+    specialAchievementKey,
     buildSpecialChallengePatch,
-    fetchSpecialChallengeForBoss,
     siphonSpecialAchievements,
     type ChallengeRow,
 } from "@/lib/achievement-details-siphon";
@@ -257,21 +258,27 @@ describe("icône d'un succès de donjon — interne et public résolvent PAREIL 
 });
 
 describe("succès « spéciaux » par donjon — titre « Spécial », mécanique réelle PAR donjon", () => {
-    /** Payloads DofusDB réels (mesurés le 12/10/2026). */
-    const ACHIEVEMENT = { id: 6150, name: { fr: "Mob l'Éponge (Spécial)" }, iconId: 10, objectives: [{ criterion: "(EH>979,0)" }] };
+    /** Payloads DofusDB réels (mesurés le 12/10/2026 + le 10/12/2026). */
     const CHALLENGE = {
         id: 979,
+        className: "ChallengeData",
         name: { fr: "Passer l'éponge" },
         description: { fr: "À partir du tour 2, Mob l'éponge doit être poussé ou attiré au moins une fois à chaque tour global." },
         iconId: 977,
-        activationCriterion: "GM>0,928,1&Gm=d",
-        completionCriterion: "Ma=1",
+    };
+    /** 🔑 Le challenge voyage **imbriqué** dans le critère d'objectif (`readableCriterion`). */
+    const ACHIEVEMENT = {
+        id: 6150,
+        name: { fr: "Mob l'Éponge (Spécial)" },
+        iconId: 10,
+        objectives: [{ criterion: "(EH>979,0)", readableCriterion: [["Avoir réussi le challenge ", CHALLENGE]] }],
     };
 
     it("extrait l'id du challenge réel depuis le critère d'objectif", () => {
         expect(challengeIdFromCriterion("(EH>979,0)")).toBe(979);
         expect(challengeIdFromCriterion("PL>19")).toBeNull();
-        expect(specialAchievementName("Mob l'Eponge")).toBe("Mob l'Eponge (Spécial)");
+        expect(specialAchievementKey("Mob l'Éponge (Spécial)")).toBe("mobleponge");
+        expect(specialAchievementKey("Tynrils (Spécial)")).toBe("tynrils");
     });
 
     it("construit le patch : la mécanique réelle + l'icône du succès (proxy)", () => {
@@ -285,19 +292,26 @@ describe("succès « spéciaux » par donjon — titre « Spécial », mécaniqu
         expect(buildSpecialChallengePatch(ACHIEVEMENT, { ...CHALLENGE, description: { fr: "" } })).toBeNull();
     });
 
-    it("résout le succès par NOM (garde d'identité) puis le challenge", async () => {
-        const fetchImpl = (async (url: string) =>
-            jsonResponse(
-                url.includes("/achievements?") ? { data: [ACHIEVEMENT] } : CHALLENGE,
-            )) as never;
-        const patch = await fetchSpecialChallengeForBoss("Mob l'Eponge", fetchImpl);
-        expect(patch?.description).toBe(CHALLENGE.description.fr);
+    it("le challenge est lu **imbriqué** (aucune requête par boss)", () => {
+        expect(nestedChallengeOf(ACHIEVEMENT)?.id).toBe(979);
+        expect(nestedChallengeOf({ objectives: [{ criterion: "PL>19" }] })).toBeNull();
+        expect(nestedChallengeOf({ objectives: [{ criterion: "(EH>979,0)" }] })).toBeNull();
     });
 
-    it("un succès introuvable ⇒ null (jamais le premier résultat)", async () => {
-        const fetchImpl = (async () =>
-            jsonResponse({ data: [{ ...ACHIEVEMENT, name: { fr: "Autre (Spécial)" } }] })) as never;
-        expect(await fetchSpecialChallengeForBoss("Mob l'Eponge", fetchImpl)).toBeNull();
+    it("apparie le boss par libellé : exact, puis le SEUL candidat qui le prolonge (`Tynril` → `Tynrils`)", () => {
+        const index = new Map<string, any>([
+            ["mobleponge", ACHIEVEMENT],
+            ["tynrils", { id: 6204, name: { fr: "Tynrils (Spécial)" } }],
+            ["blopindigo", { id: 3, name: { fr: "Blop Indigo (Spécial)" } }],
+            ["blopcoco", { id: 4, name: { fr: "Blop Coco (Spécial)" } }],
+        ]);
+        expect(findSpecialAchievement(index, "Mob l'Éponge")?.id).toBe(6150);
+        // 🐛 Mesure du 10/12/2026 (constat user « ton scraping est forcément mauvais ») : le lookup
+        // par nom exact ratait `Tynril` → **`Tynrils (Spécial)`** (id 6204).
+        expect(findSpecialAchievement(index, "Tynril")?.id).toBe(6204);
+        // Deux candidats ⇒ AUCUN (jamais « le premier venu »), ni pour un nom vide.
+        expect(findSpecialAchievement(index, "Blop")).toBeNull();
+        expect(findSpecialAchievement(index, "")).toBeNull();
     });
 
     /** Ligne « Spécial » nominale : jamais touchée par une passe antérieure (seed `imageUrl: null`). */
@@ -319,8 +333,9 @@ describe("succès « spéciaux » par donjon — titre « Spécial », mécaniqu
             },
             challenge: { findFirst: async () => genericChallenge },
         });
+        // La passe charge **l'index** des « (Spécial) » (`name.fr[$regex]`) — une seule fois.
         const fetchImpl = (async (url: string) =>
-            jsonResponse(url.includes("/achievements?") ? { data: [ACHIEVEMENT] } : CHALLENGE)) as never;
+            jsonResponse(url.includes("%24regex") ? { data: [ACHIEVEMENT] } : { data: [] })) as never;
 
         const dryRun = await siphonSpecialAchievements({ db: makeDb() as any, apply: false, fetchImpl });
         expect(dryRun.updated).toBe(1);

@@ -18,7 +18,7 @@
  * traduites en phrases inventées), icône servie par le **proxy interne**.
  * Module **injectable** (`db`, `fetchImpl`) : testable sans réseau ni base.
  */
-import { dofusDbFetch } from "@/lib/dofusdb-limiter";
+import { DOFUSDB_PAGE_MAX, dofusDbFetch } from "@/lib/dofusdb-limiter";
 import { resolveDofusAssetImageUrl } from "@/lib/dofus-image-url";
 // 🚦 Le refus **local** du budget partagé n'est pas une panne : on attend la fenêtre, on rejoue, et
 // seulement si le budget reste fermé on le **dit** (jamais « introuvable chez DofusDB » — mesure du
@@ -264,11 +264,6 @@ export function challengeIdFromCriterion(criterion: unknown): number | null {
     return match ? Number(match[1]) : null;
 }
 
-/** Nom DofusDB attendu du succès « spécial » d'un boss : « Mob l'Éponge (Spécial) ». */
-export function specialAchievementName(bossName: string): string {
-    return `${String(bossName ?? "").trim()} (Spécial)`;
-}
-
 /** Charge utile d'un succès « spécial » résolu : la **mécanique** du boss + l'icône du succès. */
 export interface SpecialChallengePatch {
     /** La mécanique réelle (« À partir du tour 2, Mob l'éponge doit être poussé… »). */
@@ -293,36 +288,87 @@ export function buildSpecialChallengePatch(achievementRaw: any, challengeRaw: an
     return { description, achievementImageUrl };
 }
 
+/** Suffixe DofusDB d'un succès « spécial » (« Tynrils (Spécial) », « Mob l'Éponge (Spécial) »). */
+export const SPECIAL_ACHIEVEMENT_SUFFIX = "(Spécial)";
+
+/** Bornes du chargement groupé (141 succès « (Spécial) » au 10/12/2026 → 3 pages de 50). */
+const SPECIAL_ACHIEVEMENT_MAX_PAGES = 6;
+
 /**
- * Résout le succès « spécial » d'un boss chez DofusDB : recherche l'achievement par son nom
- * (garde d'identité), lit l'id du challenge réel dans le critère d'objectif, puis le challenge.
- * @returns le patch, ou `null` si rien ne correspond (jamais « le premier résultat »).
+ * Libellé d'un succès « spécial » **sans son suffixe**, normalisé (accents / casse / ponctuation).
+ * `« Tynrils (Spécial) »` → `tynrils` · `« Mob l'Éponge (Spécial) »` → `mobleponge`.
  */
-export async function fetchSpecialChallengeForBoss(
-    bossName: string,
+export function specialAchievementKey(name: unknown): string {
+    return challengeNameKey(String(name ?? "").replace(/\(\s*sp[ée]cial\s*\)/i, " "));
+}
+
+/**
+ * Charge **tous** les succès « … (Spécial) » de DofusDB et les indexe par libellé normalisé.
+ *
+ * 🐛 Mesure du 10/12/2026 (constat user : « ton scraping est forcément mauvais pour les boss succès
+ * spéciaux ») : chercher par **nom exact** (`« {boss} (Spécial) »`) rate tous les libellés qui
+ * diffèrent du nom du boss — `Tynril` → **« Tynrils (Spécial) »** (id 6204, critère `(EH>1039,0)`
+ * → challenge « Prendre racine »). **141** succès « (Spécial) » existent, `name.fr[$regex]` les
+ * rend ; on les prend **en entier** ⇒ ~3 requêtes pour **toute** la passe, au lieu de 2 par donjon
+ * (le budget partagé de 30 req/min n'est plus jamais épuisé, donc plus de faux « introuvable »).
+ * Le challenge visé — **avec sa description** — voyage **imbriqué** dans
+ * `objectives[].readableCriterion` (mesuré sur 6204) ⇒ aucune requête par boss.
+ */
+export async function fetchSpecialAchievementIndex(
     fetchImpl: (input: string, init?: RequestInit) => Promise<Response> = dofusDbFetch
-): Promise<SpecialChallengePatch | null> {
-    const wanted = specialAchievementName(bossName);
-    const key = challengeNameKey(wanted);
-    // Un nom vide donnerait « (Spécial) » : rien à chercher.
-    if (!key || key === challengeNameKey("(Spécial)")) return null;
+): Promise<Map<string, any>> {
+    const index = new Map<string, any>();
+    for (let skip = 0; skip < SPECIAL_ACHIEVEMENT_MAX_PAGES * DOFUSDB_PAGE_MAX; skip += DOFUSDB_PAGE_MAX) {
+        const payload = await dofusDbJson<any>(
+            `https://api.dofusdb.fr/achievements?name.fr%5B%24regex%5D=${encodeURIComponent(SPECIAL_ACHIEVEMENT_SUFFIX)}`
+                + `&lang=fr&$limit=${DOFUSDB_PAGE_MAX}&$skip=${skip}`,
+            fetchImpl
+        );
+        const rows: any[] = Array.isArray(payload?.data) ? payload.data : [];
+        for (const row of rows) {
+            const key = specialAchievementKey(row?.name?.fr);
+            if (key) index.set(key, row);
+        }
+        // Une page courte ne signifie pas la fin (cf. `hasMorePages`) : on s'arrête sur page vide.
+        if (rows.length === 0) break;
+    }
+    return index;
+}
 
-    const searchPayload = await dofusDbJson<any>(
-        `https://api.dofusdb.fr/achievements?name.fr=${encodeURIComponent(wanted)}&lang=fr&$limit=5`,
-        fetchImpl
-    );
-    const rows: any[] = Array.isArray(searchPayload?.data) ? searchPayload.data : [];
-    const achievement = rows.find((row) => challengeNameKey(row?.name?.fr) === key);
-    if (!achievement) return null;
+/**
+ * Associe un nom de boss au succès « (Spécial) » de l'index : correspondance **exacte** d'abord,
+ * puis le **seul** candidat dont le libellé prolonge le nom du boss (ou l'inverse) — `Tynril` →
+ * `Tynrils`. Plusieurs candidats ⇒ **aucun** (on ne devine jamais « le premier venu »).
+ */
+export function findSpecialAchievement(index: Map<string, any>, bossName: string): any | null {
+    const boss = challengeNameKey(bossName);
+    if (!boss) return null;
+    const exact = index.get(boss);
+    if (exact) return exact;
+    const candidates: any[] = [];
+    for (const [key, value] of index) {
+        if (key.startsWith(boss) || boss.startsWith(key)) candidates.push(value);
+    }
+    return candidates.length === 1 ? candidates[0] : null;
+}
 
+/**
+ * Le challenge **imbriqué** dans le critère d'objectif (`readableCriterion`) du succès : il porte
+ * la vraie description ⇒ aucune requête `challenges/{id}` n'est nécessaire (mesuré sur 6204).
+ */
+export function nestedChallengeOf(achievement: any): any | null {
     const objectives: any[] = Array.isArray(achievement?.objectives) ? achievement.objectives : [];
-    const criterion = objectives.map((o) => o?.criterion).find((c) => challengeIdFromCriterion(c) !== null);
-    const challengeId = challengeIdFromCriterion(criterion);
-    if (!challengeId) return null;
-
-    const challengeRaw = await dofusDbJson<any>(`https://api.dofusdb.fr/challenges/${challengeId}?lang=fr`, fetchImpl);
-    if (!challengeRaw) return null;
-    return buildSpecialChallengePatch(achievement, challengeRaw);
+    for (const objective of objectives) {
+        if (challengeIdFromCriterion(objective?.criterion) === null) continue;
+        const flat: any[] = Array.isArray(objective?.readableCriterion)
+            ? objective.readableCriterion.flat(2)
+            : [];
+        const challenge = flat.find(
+            (entry) => entry && typeof entry === "object" && entry.className === "ChallengeData" && entry?.description?.fr
+        );
+        if (challenge) return challenge;
+    }
+    return null;
 }
 
 /** Ligne de `DungeonAchievement` vue par la passe « succès spéciaux » (le strict nécessaire). */
@@ -419,6 +465,9 @@ export async function siphonSpecialAchievements(options: {
         },
     });
 
+    // Chargé **paresseusement**, une seule fois pour toute la passe (0 requête si tout est déjà OK).
+    let index: Map<string, any> | null = null;
+
     for (const row of rows) {
         if (!isSpecialAchievementRow(row)) continue;
         // Déjà complet (nom « Spécial » + texte du donjon + icône) : ni requête ni budget consommés.
@@ -434,10 +483,21 @@ export async function siphonSpecialAchievements(options: {
             continue;
         }
         try {
-            const patch = await fetchSpecialChallengeForBoss(bossName, fetchImpl as never);
+            // Un seul chargement pour TOUTE la passe (141 succès « (Spécial) » = 3 requêtes) : plus de
+            // 2 requêtes par donjon ⇒ plus de budget épuisé, donc plus de faux « introuvable ».
+            index ??= await fetchSpecialAchievementIndex(fetchImpl as never);
+            const achievement = findSpecialAchievement(index, bossName);
+            if (!achievement) {
+                report.missing++;
+                report.details.push(`« ${bossName} » : aucun succès « (Spécial) » chez DofusDB (aucune écriture)`);
+                continue;
+            }
+            // Le challenge (et sa description) voyage **imbriqué** dans le critère d'objectif.
+            const challengeRaw = nestedChallengeOf(achievement);
+            const patch = challengeRaw ? buildSpecialChallengePatch(achievement, challengeRaw) : null;
             if (!patch) {
                 report.missing++;
-                report.details.push(`« ${bossName} » : succès spécial introuvable chez DofusDB (aucune écriture)`);
+                report.details.push(`« ${bossName} » : succès « (Spécial) » sans mécanique lisible (aucune écriture)`);
                 continue;
             }
             report.updated++;

@@ -24,14 +24,13 @@ function iconCount(): number {
     return code.slice(start, end).split(",").map((s) => s.trim()).filter(Boolean).length;
 }
 
-/** Nombre de phrases dans `nav.discordCard.benefits` d'une locale. */
-function benefitCount(locale: "fr" | "en"): number {
+/** Nombre de phrases d'une liste d'i18n (`block` = clé du bloc, `key` = clé de la liste). */
+function listCount(locale: "fr" | "en", block: string, key: string): number {
     const code = read(`src/lib/i18n/locales/${locale}.ts`);
-    const cardStart = code.indexOf("discordCard: {");
-    expect(cardStart, `nav.discordCard manque en ${locale}`).toBeGreaterThan(-1);
-    const listStart = code.indexOf("[", code.indexOf("benefits: [", cardStart));
+    const blockStart = code.indexOf(`${block}: {`);
+    expect(blockStart, `${block} manque en ${locale}`).toBeGreaterThan(-1);
+    const listStart = code.indexOf("[", code.indexOf(`${key}: [`, blockStart));
     const listEnd = code.indexOf("],", listStart);
-    // On compte les guillemets, pas les virgules : les phrases en contiennent (« … Dofus, dès … »).
     return (code.slice(listStart + 1, listEnd).match(/"/g) ?? []).length / 2;
 }
 
@@ -54,8 +53,30 @@ describe("encart Discord du header public", () => {
 
     it("autant de phrases que d'icônes, dans les deux langues", () => {
         const icons = iconCount();
-        expect(icons).toBeGreaterThanOrEqual(3);
-        expect(benefitCount("fr")).toBe(icons);
-        expect(benefitCount("en")).toBe(icons);
+        // Deux lignes assumées : les mises à jour du site, et les demandes. Pas une plaquette.
+        expect(icons).toBe(2);
+        expect(listCount("fr", "discordCard", "benefits")).toBe(icons);
+        expect(listCount("en", "discordCard", "benefits")).toBe(icons);
+    });
+
+    it("le « Tableau de bord » ouvre un encart au visiteur, pas un saut muet vers la connexion", () => {
+        const code = read(HEADER);
+        expect(code).toContain("const DASHBOARD_POINTS = [Users, Compass] as const;");
+        expect(code).toContain("t.nav.dashboardCard.title");
+        expect(code).toContain("t.nav.dashboardCard.points[index]");
+        // Le CTA lance la même connexion Discord, et le second lien mène à l'annuaire.
+        expect(code).toContain("<form action={loginWithDiscord}>");
+        expect(code).toContain('href="/guilds"');
+        for (const locale of ["fr", "en"] as const) {
+            expect(listCount(locale, "dashboardCard", "points"), locale).toBe(2);
+        }
+    });
+
+    it("dit exactement les deux choses demandées, sans plaquette marketing", () => {
+        const fr = read("src/lib/i18n/locales/fr.ts");
+        expect(fr).toContain("Les mises à jour du site y sont annoncées");
+        expect(fr).toContain("Toutes les demandes passent par là");
+        // Plus d'intro séparée : elle redisait la première ligne.
+        expect(fr).not.toMatch(/discordCard: \{[^}]*intro:/);
     });
 });

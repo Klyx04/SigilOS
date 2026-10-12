@@ -14,15 +14,21 @@ export const en: Translations = {
         tools: "Tools",
         toolsHint: "Open tools without an account",
         connectDiscord: "Connect with Discord",
-        /** Discord server card (public header): what joining actually gets you. */
+        /** Dashboard card (public header, visitor): what it is, and how to get in. */
+        dashboardCard: {
+            title: "The dashboard",
+            intro: "Your guild's workspace: members, outings, quests and progress.",
+            points: [
+                "You must be a member of a partner guild — access goes through Discord",
+                "No guild yet? The directory lists the ones that are open",
+            ],
+        },
+        /** Discord server card (public header): two lines, not four. */
         discordCard: {
             title: "The Discord server",
-            intro: "Join the server to hear when something moves in Dofus.",
             benefits: [
-                "Dofus patch notes, as they land",
-                "The Almanax of the day, without thinking about it",
-                "New cosmetics as soon as they hit the game",
-                "Help between guilds, and a way to request access",
+                "Site updates are announced there",
+                "Every request goes through it: question, bug, access, idea",
             ],
             cta: "Join the server",
         },

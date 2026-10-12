@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
-import { MARKET_STATUS_CLASSES, MARKET_STATUS_LABELS } from "@/server/actions/market-constants";
+import { MARKET_STATUS_CLASSES, marketStatusLabelFor } from "@/server/actions/market-constants";
 import { formatGroupedInteger, formatKamas } from "@/lib/market/kamas";
 import { formatMarketDate } from "@/lib/market/format-date";
 import { MarketItemIcon } from "@/components/market/market-item-icon";
@@ -60,6 +60,11 @@ type MyListing = {
      * requête supplémentaire). Optionnel : une annonce sans jet n'affiche rien.
      */
     stats?: MarketStatLine[];
+    /**
+     * Lot M1 — **critères d'une recherche d'achat** : sérialisés par
+     * `getMyMarketData` (inclus `wantedCriteria`). Optionnel.
+     */
+    wantedCriteria?: { id: string; effectId: number; label: string; minValue: number; tag: string }[];
 };
 
 /** Lignes de jet montrées sur une carte de « Mon espace » (le reste : la fiche). */
@@ -95,6 +100,14 @@ export function MarketMySpaceClient({ guildId, viewer, active, archived, receive
     }
 
     const rows = tab === "active" ? active : archived;
+    // Lot M1 — « Mes ventes » / « Mes recherches » : sections affichées
+    // uniquement quand les deux existent (sinon liste unique, inchangée).
+    const saleRows = rows.filter((listing) => listing.type !== "WANTED");
+    const wantedRows = rows.filter((listing) => listing.type === "WANTED");
+    const sections = [
+        { key: "sales", title: "Mes ventes", list: saleRows },
+        { key: "wanted", title: "Mes recherches", list: wantedRows },
+    ].filter((section) => section.list.length > 0);
 
     return (
         <div className="space-y-6">
@@ -141,7 +154,14 @@ export function MarketMySpaceClient({ guildId, viewer, active, archived, receive
                 />
             ) : (
                 <div className="space-y-3">
-                    {rows.map((listing) => (
+                    {sections.map((section) => (
+                        <div key={section.key} className="space-y-3">
+                            {sections.length > 1 && (
+                                <h3 className="pt-2 text-xs font-black uppercase tracking-wider text-muted-foreground">
+                                    {section.title} ({section.list.length})
+                                </h3>
+                            )}
+                            {section.list.map((listing) => (
                         <Card key={listing.id} className="bg-surface/60 border-border">
                             <CardContent className="p-4 flex flex-col gap-3 sm:flex-row sm:items-start">
                                 {/* Constat beta — **vignette d'objet** : cet écran n'affichait
@@ -164,8 +184,13 @@ export function MarketMySpaceClient({ guildId, viewer, active, archived, receive
                                             variant="outline"
                                             className={cn("text-[10px] font-black uppercase tracking-wider", MARKET_STATUS_CLASSES[listing.status])}
                                         >
-                                            {MARKET_STATUS_LABELS[listing.status]}
+                                            {marketStatusLabelFor(listing.status, listing.type)}
                                         </Badge>
+                                        {listing.type === "WANTED" && (
+                                            <Badge variant="outline" className="text-[10px] uppercase tracking-wider border-info/40 text-info">
+                                                Recherche
+                                            </Badge>
+                                        )}
                                         {(listing.type === "RESOURCE" || listing.type === "BUNDLE") && (
                                             <Badge variant="outline" className="text-[10px] uppercase tracking-wider">
                                                 {listing.type === "BUNDLE" ? "Lot multiple" : "Lot"}
@@ -206,6 +231,26 @@ export function MarketMySpaceClient({ guildId, viewer, active, archived, receive
                                                 </Link>
                                             )}
                                         </>
+                                    ) : null}
+                                    {/* Lot M1 — critères d'une recherche (pastilles). */}
+                                    {listing.type === "WANTED" && listing.wantedCriteria && listing.wantedCriteria.length > 0 ? (
+                                        <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                                            {listing.wantedCriteria.slice(0, 4).map((criterion) => (
+                                                <span
+                                                    key={criterion.effectId}
+                                                    className="rounded-md border border-info/30 bg-info/10 px-1.5 py-0.5 text-[10px] font-bold text-info"
+                                                    title={criterion.tag === "EXO" ? "Exo accepté" : criterion.tag === "OVER" ? "Over demandé" : "Natif"}
+                                                >
+                                                    {criterion.tag === "EXO" ? "✦ " : criterion.tag === "OVER" ? "⤴ " : "+"}
+                                                    {criterion.minValue} {criterion.label}
+                                                </span>
+                                            ))}
+                                            {listing.wantedCriteria.length > 4 && (
+                                                <span className="text-[10px] text-muted-foreground">
+                                                    +{listing.wantedCriteria.length - 4} critère(s)
+                                                </span>
+                                            )}
+                                        </div>
                                     ) : null}
                                 </div>
 
@@ -272,9 +317,11 @@ export function MarketMySpaceClient({ guildId, viewer, active, archived, receive
                                     >
                                         <Trash2 className="w-4 h-4" />
                                     </Button>
-                                </div>
-                            </CardContent>
-                        </Card>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                            ))}
+                        </div>
                     ))}
                 </div>
             )}

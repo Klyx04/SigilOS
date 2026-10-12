@@ -188,6 +188,8 @@ export type MyMarketData = {
 import {
     firstFrenchError,
     marketListingBaseSchema,
+    salePriceError,
+    wantedBasicsError,
 } from "@/lib/market/listing-schemas";
 
 export type MarketListingInput = z.input<typeof marketListingBaseSchema>;
@@ -210,6 +212,8 @@ async function resolveMarketContext(guildId: string) {
         select: {
             id: true,
             marketMaxActivePerMember: true,
+            // Lot M1 — quota WANTED séparé (compteur indépendant des ventes).
+            marketMaxWantedPerMember: true,
             marketMaxLifetimeDays: true,
             marketReservationHours: true,
             marketOfferHours: true,
@@ -226,6 +230,8 @@ async function resolveMarketContext(guildId: string) {
 
 const MARKET_INCLUDE = {
     stats: true,
+    // Lot M1 — critères d'une recherche d'achat (fiche, catalogue, embed).
+    wantedCriteria: true,
     // Correctif 10/10/2026 — jets **par objet** (lot multiple) : la fiche, le
     // catalogue et l'édition lisent les stats de chaque équipement du lot.
     components: { orderBy: { position: "asc" }, include: { componentStats: true } },
@@ -1455,6 +1461,36 @@ function validateListingCoherence(input: z.infer<typeof marketListingBaseSchema>
     if (input.type === "RESOURCE" && input.components.length === 0 && !input.quantity) {
         return "Renseigne au moins une ressource (lot) ou une quantité.";
     }
+    // Lot M1-finalisation — vente sans prix ni troc = cul-de-sac (BUNDLE :
+    // prix par objet, déjà validé par `bundleItemsSchema`).
+    if (input.type === "EQUIPMENT" || input.type === "RESOURCE") {
+        const priceError = salePriceError({ priceKamas: input.priceKamas, acceptsTrade: input.acceptsTrade });
+        if (priceError) return priceError;
+    }
+    // Lot M1-finalisation — vente sans prix ni troc = cul-de-sac (BUNDLE :
+    // prix par objet, déjà validé par `bundleItemsSchema`).
+    if ((input.type === "EQUIPMENT" || input.type === "RESOURCE") && !input.dofusDbItemId) {
+        // (gardé pour la lisibilité : la règle item est ci-dessus)
+    }
+    // Lot M1 — une recherche exige objet + quantité + budget (prix max).
+    // Règle pure partagée (`listing-schemas.ts`, testée) : un seul endroit.
+    if (input.type === "WANTED") {
+        return wantedBasicsError({
+            dofusDbItemId: input.dofusDbItemId,
+            quantity: input.quantity,
+            priceKamas: input.priceKamas,
+            negotiable: input.negotiable,
+            statsCount: input.stats.length,
+            componentsCount: input.components.length,
+            itemsCount: input.items.length,
+            hasForge:
+                input.transcendenceRuneId != null ||
+                input.strikeElement != null ||
+                input.elementPotionId != null ||
+                input.elementPotionTier != null ||
+                Boolean(input.huntingWeapon),
+        });
+    }
     if (input.minQuantity && input.quantity && input.minQuantity > input.quantity) {
         return "La quantité minimale ne peut pas dépasser la quantité du lot.";
     }
@@ -1483,19 +1519,91 @@ export async function createMarketListing(
         if (coherenceError) return { success: false, error: coherenceError };
 
         // Plafond d'annonces actives par membre (anti-abus, §8.4).
+        // Lot M1 — les recherches d'achat (WANTED) ont leur PROPRE compteur
+        // (`marketMaxWantedPerMember`, défaut 5) : publier des recherches ne
+        // bloque jamais les ventes, et inversement.
+        const isWanted = data.type === "WANTED";
         const activeCount = await db.marketListing.count({
             where: {
                 guildId: guildConfig.id,
                 profileId: user.profileId,
                 deletedAt: null,
+                ...(isWanted ? { type: "WANTED" } : {}),
                 status: { in: ["ACTIVE", "RESERVED"] },
             },
         });
-        if (activeCount >= guildConfig.marketMaxActivePerMember) {
+        const wantedQuota = (guildConfig as { marketMaxWantedPerMember?: number | null }).marketMaxWantedPerMember ?? 5;
+        const quota = isWanted ? wantedQuota : guildConfig.marketMaxActivePerMember;
+        if (activeCount >= quota) {
             return {
                 success: false,
-                error: `Tu as atteint ton plafond de ${guildConfig.marketMaxActivePerMember} annonces actives.`,
+                error: isWanted
+                    ? `Tu as atteint ton plafond de ${quota} recherches actives.`
+                    : `Tu as atteint ton plafond de ${quota} annonces actives.`,
             };
+        }
+
+        // ── Lot M1 — recherche d'achat ──────────────────────────────────────
+        // Ni jet déclaré, ni forge, ni composants : objet + quantité + budget
+        // max + critères validés serveur (pastilles EXO/OVER calculées).
+        if (isWanted) {
+            const { resolveWantedCriteria } = await import("@/server/market/wanted");
+            const session = await auth();
+            const criteria = await resolveWantedCriteria(data.dofusDbItemId, data.criteria ?? []);
+            if (!criteria.ok) return { success: false, error: criteria.error };
+            const item = await db.gameItem.findUnique({
+                where: { ankamaId: data.dofusDbItemId as number },
+                select: { name: true, level: true, typeName: true },
+            });
+            const listing = await db.marketListing.create({
+                data: {
+                    guildId: guildConfig.id,
+                    profileId: user.profileId,
+                    userId: session?.user?.id ?? "",
+                    type: "WANTED",
+                    status: "DRAFT",
+                    title: data.title,
+                    description: sanitizeMarketText(data.description),
+                    priceKamas: data.priceKamas ?? null,
+                    negotiable: data.negotiable,
+                    acceptsTrade: false,
+                    dofusDbItemId: data.dofusDbItemId ?? null,
+                    itemName: data.itemName ?? item?.name ?? null,
+                    itemIconUrl: normalizeItemIconUrl(data.itemIconUrl ?? null, data.dofusDbItemId ?? null),
+                    itemLevel: data.itemLevel ?? item?.level ?? null,
+                    itemTypeName: data.itemTypeName ?? item?.typeName ?? null,
+                    quantity: data.quantity ?? null,
+                    unitLabel: data.unitLabel ?? null,
+                    wantedTranscendence: data.wantedTranscendence ?? "ANY",
+                    lastActivityAt: new Date(),
+                    wantedCriteria:
+                        criteria.rows.length > 0
+                            ? {
+                                create: criteria.rows.map((row) => ({
+                                    effectId: row.effectId,
+                                    characteristic: row.characteristic,
+                                    label: row.label,
+                                    minValue: row.minValue,
+                                    naturalMax: row.naturalMax,
+                                    exo: row.exo,
+                                    tag: row.tag,
+                                })),
+                            }
+                            : undefined,
+                },
+                select: { id: true },
+            });
+
+            await writeMarketAuditLog({
+                guildId: guildConfig.id,
+                listingId: listing.id,
+                actorUserId: session?.user?.id ?? null,
+                action: MARKET_AUDIT_ACTIONS.LISTING_CREATED,
+                nextData: { title: data.title, type: "WANTED", priceKamas: data.priceKamas ?? null },
+            });
+
+            revalidatePath(`/dashboard/${guildId}/marche`);
+            return { success: true, data: { id: listing.id } };
         }
 
         // ── 🧺 Lot multiple (décision user du 14/09/2026) ────────────────────
@@ -1633,6 +1741,55 @@ export async function updateMarketListing(
 
         const coherenceError = validateListingCoherence(data);
         if (coherenceError) return { success: false, error: coherenceError };
+
+        // Lot M1 — édition d'une recherche d'achat : pas de changement de
+        // nature (une recherche reste une recherche), critères remplacés.
+        if (existing.type === "WANTED" || data.type === "WANTED") {
+            if (existing.type !== "WANTED" || data.type !== "WANTED") {
+                return { success: false, error: "Une recherche d'achat ne peut pas changer de nature." };
+            }
+            const { resolveWantedCriteria } = await import("@/server/market/wanted");
+            const criteria = await resolveWantedCriteria(data.dofusDbItemId, data.criteria ?? []);
+            if (!criteria.ok) return { success: false, error: criteria.error };
+            const session = await auth();
+            await db.$transaction(async (tx) => {
+                await tx.marketListing.update({
+                    where: { id: existing.id },
+                    data: {
+                        title: data.title,
+                        description: sanitizeMarketText(data.description),
+                        priceKamas: data.priceKamas ?? null,
+                        negotiable: data.negotiable,
+                        dofusDbItemId: data.dofusDbItemId ?? null,
+                        itemName: data.itemName ?? null,
+                        itemIconUrl: normalizeItemIconUrl(data.itemIconUrl ?? null, data.dofusDbItemId ?? null),
+                        itemLevel: data.itemLevel ?? null,
+                        itemTypeName: data.itemTypeName ?? null,
+                        quantity: data.quantity ?? null,
+                        unitLabel: data.unitLabel ?? null,
+                        wantedTranscendence: data.wantedTranscendence ?? "ANY",
+                        lastActivityAt: new Date(),
+                    },
+                });
+                await tx.marketWantedCriterion.deleteMany({ where: { listingId: existing.id } });
+                if (criteria.rows.length > 0) {
+                    await tx.marketWantedCriterion.createMany({
+                        data: criteria.rows.map((row) => ({ ...row, listingId: existing.id })),
+                    });
+                }
+            });
+
+            await writeMarketAuditLog({
+                guildId: guildConfig.id,
+                listingId: existing.id,
+                actorUserId: session?.user?.id ?? null,
+                action: MARKET_AUDIT_ACTIONS.LISTING_UPDATED,
+                nextData: { title: data.title, type: "WANTED", priceKamas: data.priceKamas ?? null },
+            });
+
+            revalidatePath(`/dashboard/${guildId}/marche`);
+            return { success: true };
+        }
 
         const resolvedStats = await resolveServerStats(data.dofusDbItemId, data.stats);
         // S8.11 — mêmes gardes de forge qu'en création (le serveur reste seul juge).
@@ -1887,7 +2044,7 @@ export async function publishMarketListing(
 
         const existing = await db.marketListing.findFirst({
             where: { id: listingId, guildId: guildConfig.id, deletedAt: null },
-            select: { id: true, profileId: true, status: true },
+            select: { id: true, profileId: true, status: true, type: true },
         });
         if (!existing) return { success: false, error: "Annonce introuvable" };
         if (existing.profileId !== user.profileId) {
@@ -1897,18 +2054,25 @@ export async function publishMarketListing(
             return { success: false, error: "Seul un brouillon peut être publié." };
         }
 
+        // Lot M1 — quota WANTED séparé (même règle qu'à la création).
+        const isWantedPublish = existing.type === "WANTED";
         const activeCount = await db.marketListing.count({
             where: {
                 guildId: guildConfig.id,
                 profileId: user.profileId,
                 deletedAt: null,
+                ...(isWantedPublish ? { type: "WANTED" } : {}),
                 status: { in: ["ACTIVE", "RESERVED"] },
             },
         });
-        if (activeCount >= guildConfig.marketMaxActivePerMember) {
+        const wantedPublishQuota = (guildConfig as { marketMaxWantedPerMember?: number | null }).marketMaxWantedPerMember ?? 5;
+        const publishQuota = isWantedPublish ? wantedPublishQuota : guildConfig.marketMaxActivePerMember;
+        if (activeCount >= publishQuota) {
             return {
                 success: false,
-                error: `Tu as atteint ton plafond de ${guildConfig.marketMaxActivePerMember} annonces actives.`,
+                error: isWantedPublish
+                    ? `Tu as atteint ton plafond de ${publishQuota} recherches actives.`
+                    : `Tu as atteint ton plafond de ${publishQuota} annonces actives.`,
             };
         }
 

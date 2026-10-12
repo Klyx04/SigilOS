@@ -68,6 +68,7 @@ import {
     marketComponentSchema,
     marketListingBaseSchema,
     marketStatSchema,
+    salePriceError,
 } from "@/lib/market/listing-schemas";
 import { KamasAmount } from "@/components/market/kamas-amount";
 import { MarketPublishStep, type MarketPublishContext } from "./market-publish-step";
@@ -609,6 +610,12 @@ export function MarketCreateClient({ guildId, initial = null, natureIcons }: Mar
             if (previous.length > 0) return previous;
             if (title.trim().length < 3) return ["Renseigne un titre (3 caractères minimum) pour continuer."];
             if (priceInvalid) return ["Prix invalide (entier de kamas attendu)."];
+            // Lot M1-finalisation — vente sans prix ni troc interdite (BUNDLE :
+            // prix par objet, déjà validé à l'étape 2).
+            if (kind !== "BUNDLE") {
+                const priceError = salePriceError({ priceKamas: parsedPrice, acceptsTrade });
+                if (priceError) return [priceError];
+            }
             return [];
         }
         // Étapes 4 (publication) et 5 (notification) : tout doit déjà être valide.
@@ -1134,6 +1141,9 @@ export function MarketCreateClient({ guildId, initial = null, natureIcons }: Mar
                     priceInput={priceInput}
                     setPriceInput={setPriceInput}
                     priceInvalid={priceInvalid}
+                    // Lot M1-finalisation — miroir du bloqueur étape 3 (prix
+                    // requis sauf troc) pour l'affichage inline.
+                    priceMissing={salePriceError({ priceKamas: parsedPrice, acceptsTrade }) !== null}
                     negotiable={negotiable}
                     setNegotiable={setNegotiable}
                     acceptsTrade={acceptsTrade}
@@ -1758,6 +1768,8 @@ function StepPricing(props: {
     priceInput: string;
     setPriceInput: (value: string) => void;
     priceInvalid: boolean;
+    /** Lot M1-finalisation — prix manquant SANS troc (bloquant étape 3). */
+    priceMissing: boolean;
     negotiable: boolean;
     setNegotiable: (value: boolean) => void;
     acceptsTrade: boolean;
@@ -1815,12 +1827,14 @@ function StepPricing(props: {
                         onChange={(event) => props.setPriceInput(event.target.value)}
                         inputMode="numeric"
                         placeholder="Ex. 12 500"
-                        className={props.priceInvalid ? "border-danger" : undefined}
+                        className={props.priceInvalid || props.priceMissing ? "border-danger" : undefined}
                     />
                     <p className="text-[11px] text-muted-foreground">
                         {props.priceInvalid
                             ? "Prix invalide : saisis un entier de kamas."
-                            : `Aperçu : ${formatKamas(preview)}`}
+                            : props.priceMissing
+                              ? "Prix requis : renseigne une somme ou accepte le troc ci-dessous."
+                              : `Aperçu : ${formatKamas(preview)}`}
                     </p>
                 </div>
 

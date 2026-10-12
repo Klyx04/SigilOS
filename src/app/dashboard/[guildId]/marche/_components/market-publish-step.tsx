@@ -77,6 +77,14 @@ export interface MarketPublishStepProps {
     forgeRecap?: { label: string; value: string }[];
     components: { name: string; quantity: number }[];
     /**
+     * Lot M1 — aperçu d'une recherche d'achat : transmet la variante
+     * « Recherche » au payload (acheteur, budget, critères). Absent ⇒ vente.
+     */
+    listingType?: string;
+    wantedCriteria?: string[];
+    wantedTranscendenceLabel?: string | null;
+    wantedQuantity?: number | null;
+    /**
      * 🧺 Lot multiple — **un message Discord par objet** (option A, décision user
      * du 14/09/2026) : l'aperçu en montre donc **N**, chacun avec son objet, son
      * prix et ses propres boutons. Vide pour les annonces simples.
@@ -113,6 +121,10 @@ export function MarketPublishStep({
     itemIconUrl,
     forumMode = false,
     components,
+    listingType,
+    wantedCriteria,
+    wantedTranscendenceLabel,
+    wantedQuantity,
     bundleItems = [],
     context,
     selectedPingIds = [],
@@ -123,6 +135,10 @@ export function MarketPublishStep({
         listingId: "preview",
         title,
         status: "ACTIVE",
+        listingType,
+        wantedCriteria,
+        wantedTranscendenceLabel,
+        wantedQuantity,
         sellerName: "Toi",
         itemName,
         itemLevel,

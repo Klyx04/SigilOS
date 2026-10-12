@@ -33,6 +33,7 @@ import {
     type MarketDiscordStatus,
 } from "@/lib/market/discord-payload";
 import { iconVersionOf, normalizeItemIconUrl, withItemImageVersion } from "@/lib/market/item-image";
+import { describeWantedCriterion, describeWantedTranscendence } from "@/server/market/wanted";
 // Constat beta — une ligne de jet `0 → 0` (« Échangeable : ») n'est pas un jet :
 // elle ne fait pas basculer l'embed en « carte ». Même règle que le serveur.
 import { isStatBearingStatRow } from "@/lib/market/effects";
@@ -156,6 +157,8 @@ async function loadListingForDiscord(listingId: string) {
             },
             stats: true,
             components: { orderBy: { position: "asc" } },
+            // Lot M1 — critères d'une recherche d'achat (rendu embed).
+            wantedCriteria: { orderBy: { minValue: "desc" } },
             discordMessage: true,
         },
     });
@@ -293,6 +296,16 @@ function buildPayload(
 ): { payload: MarketDiscordPayloadInput; forumMode: boolean; channelId: string | null; roleId: string | null } {
     const { listing, offersCount, reservationBuyer } = loaded;
     const forumMode = listing.guild.marketChannelKind === MARKET_CHANNEL_KIND_FORUM;
+    // Lot M1 — libellés de critères + souhait de forge d'une recherche.
+    const isWantedPayload = (listing as { type?: string }).type === "WANTED";
+    const wantedCriteria = isWantedPayload
+        ? ((listing as { wantedCriteria?: { label: string; minValue: number; tag: string }[] }).wantedCriteria ?? []).map(
+              (c) => describeWantedCriterion({
+                  ...c,
+                  tag: c.tag === "EXO" ? "EXO" : c.tag === "OVER" ? "OVER" : "NATIVE",
+              })
+          )
+        : [];
 
     // Vignette du serveur de la guilde pour le footer Discord (URL absolue
     // exigée par Discord ; `null` si serveur inconnu → logo par défaut).
@@ -307,6 +320,12 @@ function buildPayload(
         listingId: listing.id,
         title: listing.title,
         status: listing.status as MarketDiscordStatus,
+        listingType: (listing as { type?: string }).type ?? undefined,
+        wantedCriteria,
+        wantedTranscendenceLabel: isWantedPayload
+            ? describeWantedTranscendence((listing as { wantedTranscendence?: string | null }).wantedTranscendence)
+            : null,
+        wantedQuantity: isWantedPayload ? listing.quantity : null,
         sellerName: listing.profile?.pseudoDofus || listing.profile?.user?.name || "Membre",
         serverName: listing.guild.dofusServerName ?? null,
         serverImageUrl,

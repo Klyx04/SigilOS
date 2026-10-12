@@ -90,7 +90,11 @@ export default async function MarketListingPage({
         <div className="space-y-6 pb-12">
             <UnifiedModuleHeader
                 title={listing.title}
-                description={`Annonce ${listing.type === "RESOURCE" ? "de ressources" : "d'équipement"} · publiée sur le marché de la guilde`}
+                description={
+                    listing.type === "WANTED"
+                        ? "Recherche d'achat · publiée sur le marché de la guilde"
+                        : `Annonce ${listing.type === "RESOURCE" ? "de ressources" : "d'équipement"} · publiée sur le marché de la guilde`
+                }
                 icon={Store}
                 iconColor="#eab308"
                 backHref={`/dashboard/${guildId}/marche`}

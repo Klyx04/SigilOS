@@ -49,6 +49,18 @@ function deferredNote(report: { deferred: boolean; retryAfterMs: number }): stri
         + `${Math.max(1, Math.ceil(report.retryAfterMs / 1000))} s. Rien n'a été compté « introuvable ».`;
 }
 
+/**
+ * Les lignes **à traiter** (« aucune écriture ») sortent **toutes**, avant les succès : noyées dans
+ * un `slice(0, 20)`, elles rendaient la liste des donjons restants invisible (constat du 10/12/2026).
+ */
+function printDetails(details: string[]): void {
+    const remaining = details.filter((line) => line.includes("aucune écriture"));
+    const done = details.filter((line) => !line.includes("aucune écriture"));
+    for (const line of remaining) console.log(`  · ${line}`);
+    for (const line of done.slice(0, 20)) console.log(`  · ${line}`);
+    if (done.length > 20) console.log(`  · … et ${done.length - 20} succès écrit(s).`);
+}
+
 async function runSiphon(db: PrismaClient, apply: boolean) {
     const report = await siphonChallengeDetails({
         db: db as unknown as Parameters<typeof siphonChallengeDetails>[0]["db"],
@@ -61,7 +73,7 @@ async function runSiphon(db: PrismaClient, apply: boolean) {
             + (apply ? ` · ${report.written} écrit(s)` : report.updated > 0 ? "\n👉 relancer avec --apply pour écrire" : "")
             + deferredNote(report)
     );
-    for (const line of report.details.slice(0, 20)) console.log(`  · ${line}`);
+    printDetails(report.details);
 
     // ② La passe « succès **spéciaux** par donjon » — celle qui écrit, **sur la ligne du succès**,
     //    la mécanique réelle du boss + l'icône du succès. Le challenge visé reste le **partagé**
@@ -80,7 +92,7 @@ async function runSiphon(db: PrismaClient, apply: boolean) {
                     : "")
             + deferredNote(special)
     );
-    for (const line of special.details.slice(0, 20)) console.log(`  · ${line}`);
+    printDetails(special.details);
 }
 
 async function runRemoval(db: PrismaClient, apply: boolean) {

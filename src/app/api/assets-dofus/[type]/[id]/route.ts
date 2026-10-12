@@ -27,6 +27,28 @@ const REMOTE_BASE_URLS = {
 const ALLOWED_IMAGE_HOSTS = new Set(['api.dofusdb.fr']);
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
+/**
+ * Fallback PNG neutre (1×1 transparent) — **jamais** de 404 rouge, ni de SVG (Discord ne sait
+ * pas le rendre dans un embed ; symptôme mesuré le 10/10/2026 : l'image d'embed « tente de se
+ * générer puis rien »). `no-store` OBLIGATOIRE : un échec TRANSITOIRE de siphonnage ne doit pas
+ * être figé dans le cache du navigateur, sinon l'icône reste cassée alors que la source est
+ * revenue.
+ */
+function placeholderResponse(): NextResponse {
+    const placeholderPng = Buffer.from(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
+        "base64"
+    );
+    return new NextResponse(placeholderPng, {
+        status: 200,
+        headers: {
+            'Content-Type': 'image/png',
+            'Cache-Control': 'no-store',
+            'X-SigilOS-Placeholder': '1',
+        },
+    });
+}
+
 function getAllowedRemoteUrl(raw: string | null): string | null {
     if (!raw) return null;
     let u: URL;
@@ -72,6 +94,16 @@ export async function GET(
         // cf. Dofusbook `item.picture`) : la valeur est un iconId DofusDB, PAS un id d objet.
         const iconNamespace = assetType === 'items' && req.nextUrl.searchParams.get('icon') === '1';
 
+        // ESPACE D APPARENCE (`sprite=1`) — mesure du 12/10/2026, constat user « certains archi leur
+        // image ne correspond pas » : pour un MONSTRE, le nombre de `img/monsters/{n}.png` est un
+        // **gfxId** (l'apparence), jamais l'id de l'entité (gfx 90 = dragon violet, alors que le
+        // monstre 90 est une « Gelée royale » ⇒ `/monsters/90` servait une AUTRE créature, figée
+        // 1 an de cache). Ici on sert le fichier amont (`?url=`) TEL QUEL, sous une clé de cache
+        // DISTINCTE (`{n}.sprite.webp`) : les deux espaces ne se marchent jamais dessus.
+        // Fail-closed : sans `?url=` exploitable, placeholder — on ne devine JAMAIS un monstre
+        // à partir de ce nombre.
+        const spriteNamespace = req.nextUrl.searchParams.get('sprite') === '1';
+
         // ESPACE D ICONE D UN SORT (`sort_<iconId>`) : ce NOM est l'identite de l'icone — c est lui
         // qui nomme le fichier sur disque (`spells/sort_<iconId>.webp`, ecrit hors ligne par
         // `scripts/siphon-unity-bestiary.py`) comme l asset DofusDB (`img/spells/sort_<iconId>.png`).
@@ -85,7 +117,7 @@ export async function GET(
         const spellIconId = spellIconMatch ? Number(spellIconMatch[1]) : 0;
 
         ensureAssetDirsExist();
-        const localFileName = iconNamespace ? `${safeId}.icon.webp` : `${safeId}.webp`;
+        const localFileName = iconNamespace ? `${safeId}.icon.webp` : spriteNamespace ? `${safeId}.sprite.webp` : `${safeId}.webp`;
         const localFilePath = path.join(ASSET_DIRS[assetType], localFileName);
 
         // 1. Si le fichier WebP existe déjà en local sur disque, on le sert directement
@@ -103,6 +135,38 @@ export async function GET(
             } catch {
                 // Re-téléchargement si corrompu
             }
+        }
+
+        // 1bis. Espace d'APPARENCE (`sprite=1`) : on sert le fichier amont **tel quel**, jamais un
+        //       monstre résolu par ce nombre (les deux espaces sont disjoints, cf. plus haut).
+        if (spriteNamespace) {
+            const spriteUrl = getAllowedRemoteUrl(req.nextUrl.searchParams.get('url'));
+            if (!spriteUrl) return placeholderResponse();
+            try {
+                await assertSafeUrl(spriteUrl);
+                const spriteRes = await fetch(spriteUrl, {
+                    headers: { 'User-Agent': 'SigilOS/1.0 (+https://sigilos.fr)' },
+                    signal: AbortSignal.timeout(6_000),
+                });
+                if (spriteRes.ok) {
+                    const raw = Buffer.from(await spriteRes.arrayBuffer());
+                    if (raw.length > 0 && raw.length <= MAX_IMAGE_BYTES) {
+                        const webpBuffer = await sharp(raw)
+                            .webp({ quality: 80, effort: 2 })
+                            .toBuffer();
+                        fs.writeFile(localFilePath, webpBuffer, () => {});
+                        return new NextResponse(webpBuffer, {
+                            headers: {
+                                'Content-Type': 'image/webp',
+                                'Cache-Control': 'public, max-age=31536000, immutable',
+                            },
+                        });
+                    }
+                }
+            } catch {
+                // Source injoignable → placeholder : jamais l'image d'un AUTRE monstre.
+            }
+            return placeholderResponse();
         }
 
         // 1.5 Sources locales « game data » (assets officiels, ZÉRO réseau)
@@ -593,19 +657,7 @@ export async function GET(
         // ⚠️ `no-store` OBLIGATOIRE : sinon un échec TRANSITOIRE de siphonnage est figé
         // 24 h dans le cache du navigateur → l'utilisateur voit des icônes manquantes
         // (placeholder « lien cassé ») alors que la source est de nouveau disponible.
-        const placeholderPng = Buffer.from(
-            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
-            "base64"
-        );
-
-        return new NextResponse(placeholderPng, {
-            status: 200,
-            headers: {
-                'Content-Type': 'image/png',
-                'Cache-Control': 'no-store',
-                'X-SigilOS-Placeholder': '1',
-            },
-        });
+        return placeholderResponse();
     } catch {
         return new NextResponse('Erreur serveur', { status: 500 });
     }

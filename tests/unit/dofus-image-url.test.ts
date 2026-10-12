@@ -89,6 +89,14 @@ describe("resolveDofusAssetImageUrl / internalDofusDbImageUrl — zéro hotlink 
         // cet id comme un id de sort servait l'icône d'un AUTRE sort (`/spells/15561` → 200 étranger).
         expect(internalDofusDbImageUrl(SPELL_DB_URL)).toBe("/api/assets-dofus/spells/sort_12160");
         expect(internalDofusDbImageUrl("https://api.dofusdb.fr/img/monsters/1234.png")).toContain("/api/assets-dofus/monsters/1234?url=");
+        // 🐛 Mesure du 12/10/2026 (panneau « Archimonstres », carte du monde) : le nombre de
+        // `img/monsters/{n}.png` est un **gfxId**, pas un id de monstre — « Kiroyal le Sirupeux »
+        // = monstre **2508**, `img/monsters/90.png`, tandis que `/api/assets-dofus/monsters/90`
+        // sert le monstre 90 (une « Gelée royale »). La réécriture doit donc réclamer l'espace
+        // **apparence** (`sprite=1`) : c'est lui qui garantit la bonne image.
+        expect(internalDofusDbImageUrl("https://api.dofusdb.fr/img/monsters/90.png")).toBe(
+            `/api/assets-dofus/monsters/90?url=${encodeURIComponent("https://api.dofusdb.fr/img/monsters/90.png")}&sprite=1`
+        );
         expect(internalDofusDbImageUrl("https://api.dofusdb.fr/img/items/9143.png")).toContain("/api/assets-dofus/items/9143?url=");
         // Hôte `static.dofusdb.fr` : réécrit aussi, mais SANS `?url=` (non allowlisté par le proxy).
         expect(internalDofusDbImageUrl("https://static.dofusdb.fr/img/spells/sort_7.png")).toBe("/api/assets-dofus/spells/sort_7");

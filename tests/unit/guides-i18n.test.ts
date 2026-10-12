@@ -113,8 +113,7 @@ describe("journal — traductions EN côté base", () => {
         expect(actions).toContain("entry.titleEn?.trim() || entry.title");
     });
 
-    it("branche la locale sur la page publique et la modale", () => {
-        expect(readSource("src/app/changelog/page.tsx")).toContain("getChangelogEntries(undefined, !session, locale)");
+    it("branche la locale sur la modale et l'admin (la page publique du journal est retirée)", () => {
         expect(readSource("src/server/actions/changelog-actions.ts")).toContain("getLatestChangelogEntry(await getServerLocale())");
         expect(readSource("src/app/god/changelog/page.tsx")).toContain("titleEn");
         expect(readSource("scripts/backfill-changelog-en.mjs")).toContain('COALESCE("titleEn"');

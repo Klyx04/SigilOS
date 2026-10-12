@@ -352,23 +352,10 @@ export async function GET(req: NextRequest) {
     // « Dofus Patch Notes & Correctifs » répond toujours rapidement.
     if (feedKey === "changelog") {
         try {
-            const { getChangelogEntries } = await import("@/server/actions/changelog-actions");
-
-            // 2. SigilOS Internal Changelogs (rapide, sert de base à toute réponse)
-            const { getAppBaseUrl } = await import("@/lib/utils");
-            const baseUrl = getAppBaseUrl();
-            const sigilEntries = await getChangelogEntries(undefined, true);
-            const sigilItems = sigilEntries.slice(0, 5).map(entry => ({
-                title: `[SigilOS] ${entry.title}`,
-                link: `${baseUrl}/changelog`,
-                imageUrl: `/module-dofus/Dofus_Emeraude.png`, // User requested Emerald Dofus
-                pubDate: entry.publishedAt,
-                description: entry.summary || `Version ${entry.version} de votre plateforme.`,
-                category: "App Update"
-            }));
-
+            // 🚫 Le **journal interne** de SigilOS n'est plus exposé aux visiteurs (demande user du
+            // 10/12/2026) : ce flux ne sert plus que les patch notes Dofus (Ankama).
             const respond = (dofusItems: DofusChangelogItem[]) => {
-                const items = [...sigilItems, ...dofusItems].sort((a, b) =>
+                const items = [...dofusItems].sort((a, b) =>
                     new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime()
                 );
                 return NextResponse.json(

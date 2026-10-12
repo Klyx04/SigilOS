@@ -53,7 +53,7 @@ describe("overlay raid — positions cliquables", () => {
     });
 
     it("tracker jardin : zéro vert premium en dur (jetons success, hex Vert jeu conservé)", () => {
-        const code = readFileSync("src/app/raids/_components/JardinsEnigmaTracker.tsx", "utf8");
+        const code = readFileSync("src/components/raid-overlay/JardinsEnigmaTracker.tsx", "utf8");
         expect(code, "emerald-* restant").not.toMatch(/emerald-\d/);
         // La couleur Vert du jeu (ouvrage monochrome) est une donnée, pas du slop.
         expect(code).toContain("#10b981");

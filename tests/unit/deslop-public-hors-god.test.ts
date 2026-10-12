@@ -16,49 +16,18 @@
  *      et `DiscordEmbedPreview` (le rendu DOIT ressembler à Discord) : les repeindre casserait leur
  *      raison d'être ⇒ **documentées** dans l'allowlist, jamais devinées.
  *
- * 🛡️ Ce que ce test verrouille : ① le planificateur de raids consomme les jetons sémantiques et
- * n'a plus AUCUNE palette en dur ; ② les exemptions « volontaires » sont **écrites et justifiées**
+ * 🛡️ Ce que ce test verrouille : les exemptions « volontaires » sont **écrites et justifiées**
  * dans `eslint.config.mjs` (une exemption sans raison redevient une dette invisible). Lecture seule.
+ *
+ * ℹ️ Le cas ① (planificateur de raids aux jetons sémantiques) a été **retiré le 13/10/2026** : la
+ * page publique de raids et ses composants n'existent plus, et les jetons de rôles ne vivaient que
+ * là — la garde n'avait plus de sujet. Les exemptions, elles, restent en vigueur.
  */
 
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 
-const RAID = "src/app/raids/_components/RaidPlannerClient.tsx";
 const ESLINT = readFileSync("eslint.config.mjs", "utf8");
-
-const BANNED = [
-  /(?<![\w-])(?:bg|text|border|from|to|via|ring|fill|stroke)-\[#[0-9a-fA-F]{3,8}\]/g,
-  /(?<![\w-])text-white(?:\/[^\s"'`]*)?/g,
-  /(?<![\w-])bg-black(?!\/)/g,
-  /(?<![\w-])(?:text|bg|border|divide|ring|from|to|via)-(?:zinc|slate|gray|neutral|stone)-\d+(?:\/[^\s"'`]*)?/g,
-  /(?<![\w-])(?:text|bg|border|from|to|via)-(?:emerald|amber|red|rose|blue|cyan|purple|indigo)-\d+(?:\/[^\s"'`]*)?/g,
-];
-
-const codeOf = (p: string) =>
-  readFileSync(p, "utf8")
-    .replace(/\/\*[\s\S]*?\*\//g, "")
-    .replace(/(^|[^:])\/\/[^\n]*/g, "$1");
-
-describe("planificateur de raids — jetons sémantiques, zéro palette en dur", () => {
-  const code = codeOf(RAID);
-
-  it("n'a plus aucune couleur en dur", () => {
-    const hits = BANNED.reduce((n, re) => n + (code.match(re) || []).length, 0);
-    expect(hits, "couleurs en dur restantes").toBe(0);
-  });
-
-  it("les rôles sont peints avec les jetons de statut du thème", () => {
-    // Un rôle = une couleur SÉMANTIQUE (Tank=info, Soin=success, DPS=danger, Placement=warning, Contrôle=accent).
-    expect(code).toMatch(/tank:[^}]*bg-info\/15[^}]*text-info/);
-    expect(code).toMatch(/healer:[^}]*bg-success\/15[^}]*text-success/);
-    expect(code).toMatch(/"dps-range":[^}]*bg-danger\/15[^}]*text-danger/);
-    expect(code).toMatch(/placement:[^}]*bg-warning\/15[^}]*text-warning/);
-    expect(code).toMatch(/control:[^}]*bg-accent\/15[^}]*text-accent/);
-    // La mule reste NEUTRE (c'est un rôle sans couleur métier).
-    expect(code).toMatch(/utility:[^}]*bg-elevated[^}]*text-muted-foreground/);
-  });
-});
 
 describe("exemptions VOULUES — écrites, jamais implicites", () => {
   it("le HUD au-dessus du jeu et les maquettes « pixel près » sont documentés dans l'allowlist", () => {

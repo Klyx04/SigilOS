@@ -45,7 +45,6 @@ export const PUBLIC_SCREEN_RULES: readonly PublicScreenRule[] = [
     { key: "carte", label: "Carte du monde", prefixes: ["/carte-du-monde"] },
     { key: "almanax", label: "Almanax", prefixes: ["/almanax"] },
     { key: "boss", label: "Fiches de boss", prefixes: ["/boss"] },
-    { key: "raids", label: "Raids", prefixes: ["/raids"] },
     { key: "annuaire", label: "Annuaire des guildes", prefixes: ["/guilds"] },
     { key: "modules", label: "Vitrine des modules", prefixes: ["/modules"] },
     { key: "docs", label: "Documentation", prefixes: ["/docs"] },

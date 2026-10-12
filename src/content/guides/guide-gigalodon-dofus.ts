@@ -16,14 +16,11 @@ export const guide = {
         </div>
 
         <div class="callout callout-info">
-            <strong>🛠️ Outils Publics Raid Studio 3.6 & Overlay Détachable</strong>
-            <p>Pour préparer et exécuter votre raid dans les meilleures conditions, SigilOS met à disposition plusieurs outils gratuits et interactifs :</p>
+            <strong>🛠️ Overlay In-Game Détachable (PiP)</strong>
+            <p>Pour exécuter votre raid dans les meilleures conditions, SigilOS met à disposition un overlay gratuit :</p>
             <ul>
-                <li><strong>Planificateur d'Escouades 12 Joueurs :</strong> répartissez les 3 escouades de 4, assignez les rôles clés (Tank, Burst T3, Placement CaC, Multiplicateur), vérifiez la jauge d'équilibre et exportez l'annonce en 1 clic pour Discord.</li>
-                <li><strong>Solveur Interactif de Luminarium (Étage -3) :</strong> outil Lights Out 4x4 en cascade pour ouvrir le mur sans gaspiller une seule seconde de chrono.</li>
                 <li><strong>Overlay In-Game Toujours au Premier Plan (PiP) :</strong> activez l'overlay via le bouton en haut de page pour copier les positions <code>/travel</code> d'un clic et noter l'ordre des 4 formes d'Exécrabe sans alt-tab.</li>
             </ul>
-            <p><a href="/raids?raid=gigalodon"><strong>→ Ouvrir le Planificateur Gigalodon & Solveurs dans Raid Studio 3.6</strong></a></p>
         </div>
 
         <h2>I. Préparation & Configuration (Checklist Pré-Raid)</h2>
@@ -316,11 +313,6 @@ export const guide = {
             <li>Répétez sur la rangée 3 vers la rangée 4.</li>
             <li>Traitez les deux coins inférieurs pour finaliser l'allumage complet et ouvrir le passage vers l'étage -4.</li>
         </ol>
-
-        <div class="callout callout-tip">
-            <strong>Solveur Interactif en Ligne</strong>
-            <p>Un doute sur votre configuration de grille ? Utilisez notre <a href="/raids?raid=gigalodon"><strong>Solveur Luminarium dans Raid Studio 3.6</strong></a> pour reproduire vos lanternes et obtenir la séquence d'allumage exacte en un clin d'œil.</p>
-        </div>
 
         <hr />
 

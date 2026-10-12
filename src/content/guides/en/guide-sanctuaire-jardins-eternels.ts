@@ -13,21 +13,11 @@ export const guide = {
         </div>
 
         <div class="callout callout-info">
-            <strong>🛠️ Public Tools: Raid Studio 3.6 & Detachable Overlay</strong>
-            <p>To organize your 16 players and solve the puzzles without losing raid health points, SigilOS provides free interactive tools:</p>
+            <strong>🛠️ Detachable In-Game Overlay (PiP)</strong>
+            <p>To organize your 16 players and track the puzzles without losing raid health points, SigilOS provides a free interactive overlay:</p>
             <ul>
-                <li><strong>16-Player Squad Planner:</strong> balance critical roles (Melee Tank, Range DPS, Healer, Placement), assign pairs across the 4 wings and export to Discord in 1 click.</li>
-                <li><strong>Solvers for the 4 Sanctuary Puzzles:</strong>
-                    <ul>
-                        <li>⛵ <em>Naval Battle Solver:</em> twin 4x3 paper boat grids in [19,15] and [21,17].</li>
-                        <li>♟️ <em>Belladonna Chess Solver:</em> 11x11 A1..K11 board coordinates for the 4 pieces (Rooks and Bishops).</li>
-                        <li>🌸 <em>Items & Flowers Tracker:</em> catalog the 8 items on pedestals I to IV and detect the key colour.</li>
-                        <li>🗿 <em>Statues & Guardians Calculator:</em> compare Clos vs Ephedra views, identify the central monster, compute the target protector and heading arrow.</li>
-                    </ul>
-                </li>
                 <li><strong>Always-on-Top In-Game Overlay (PiP):</strong> copy <code>/travel</code> positions in 1 click and run interactive solvers directly in-game without alt-tabbing.</li>
             </ul>
-            <p><a href="/raids?raid=sanctuaire"><strong>→ Open Sanctuary Planner & 4 Solvers in Raid Studio 3.6</strong></a></p>
         </div>
 
         <h2>I. Overview & Core Rules</h2>
@@ -123,7 +113,7 @@ export const guide = {
 
         <div class="callout callout-tip">
             <strong>Interactive Boat Solver</strong>
-            <p>Use the <strong>Puzzles &gt; Boats</strong> tab in Raid Studio 3.6 or the PiP overlay to click the 4x3 grid and track all 6 ships on the fly.</p>
+            <p>Use the <strong>Puzzles &gt; Boats</strong> tab of the PiP overlay to click the 4x3 grid and track all 6 ships on the fly.</p>
         </div>
 
         <hr />
@@ -547,7 +537,7 @@ export const guide = {
 
         <div class="callout callout-info">
             <strong>Plan your next guild raid</strong>
-            <p>Find your roster templates, role assignments and member registrations directly in <a href="/raids?raid=sanctuaire"><strong>Raid Studio 3.6</strong></a> and your SigilOS guild workspace.</p>
+            <p>Find your roster templates, role assignments and member registrations directly in your SigilOS guild workspace.</p>
         </div>
     `,
 };

@@ -11,7 +11,7 @@ import path from 'path';
 import { logger } from "@/lib/logger";
 import { buildBountyBestiaireEntry } from "@/lib/bounty-fiche";
 import { resolveSubAreaCenter } from "@/lib/zone-minimap";
-import { normalizeDofusAssetStoredUrl } from "@/lib/dofus-image-url";
+import { internalDofusDbImageUrl, normalizeDofusAssetStoredUrl } from "@/lib/dofus-image-url";
 import { NO_ACHIEVEMENT_CHALLENGE_SLUG } from "@/lib/dungeon-no-achievement";
 import { sanitizeHtml } from "@/lib/security";
 import { dofusDbFetch } from "@/lib/dofusdb-limiter";
@@ -2317,7 +2317,10 @@ export async function searchArchimonstresForMap(
                 name: a.name,
                 type: a.type,
                 isOcre: a.isOcre,
-                imageUrl: a.imageUrl,
+                // 🛡️ Souveraineté (constat user du 12/10/2026, onglet Réseau : le navigateur
+                // appelait `https://api.dofusdb.fr/img/monsters/<id>.png` EN DIRECT) : un visuel
+                // DofusDB est toujours publié via le proxy interne. Autres sources inchangées.
+                imageUrl: internalDofusDbImageUrl(a.imageUrl) ?? a.imageUrl,
                 level: a.level,
                 zoneName: a.zone,
                 source: 'local' as const,
@@ -2349,7 +2352,7 @@ export async function searchArchimonstresForMap(
                     name: b.name,
                     type: 'boss',
                     isOcre: false,
-                    imageUrl: b.imageUrl,
+                    imageUrl: internalDofusDbImageUrl(b.imageUrl) ?? b.imageUrl,
                     level: b.level,
                     zoneName: b.zoneName,
                     source: 'local' as const,
@@ -2553,7 +2556,7 @@ export async function getArchimonstresByFilter(
                 name: a.name,
                 type: a.type,
                 isOcre: a.isOcre,
-                imageUrl: a.imageUrl,
+                imageUrl: internalDofusDbImageUrl(a.imageUrl) ?? a.imageUrl,
                 level: a.level,
                 zoneName: a.zone,
                 source: 'local' as const,

@@ -50,6 +50,7 @@ import {
     type QuestSettings,
 } from "@/lib/metamob-client";
 import { decrypt } from "@/lib/encryption";
+import { internalDofusDbImageUrl } from "@/lib/dofus-image-url";
 import { metamobQueue } from "@/lib/queue/metamob-queue";
 import { redis } from "@/lib/redis";
 
@@ -2505,7 +2506,9 @@ export async function getZoneArchmonsters(guildId?: string | null, zoneName?: st
                 name: a.name,
                 nameFr: a.name,
                 nameEn: a.name,
-                image: a.imageUrl || (metamobData ? metamobData.image : ""),
+                // 🛡️ Souveraineté : le visuel DofusDB passe par le proxy interne (le navigateur
+                // n'appelle jamais `api.dofusdb.fr`), sinon repli Metamob/`""` comme avant.
+                image: internalDofusDbImageUrl(a.imageUrl) ?? (a.imageUrl || (metamobData ? metamobData.image : "")),
                 levelMin: a.level || (metamobData ? metamobData.levelMin : 0),
                 levelMax: a.level || (metamobData ? metamobData.levelMax : 0),
                 type: "archimonstre",

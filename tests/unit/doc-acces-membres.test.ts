@@ -33,13 +33,31 @@ describe("documentation — accès réservé aux membres de guildes", () => {
         expect(layout).toContain("userGuilds.length === 0");
     });
 
-    it("les trois niveaux du schéma sont réellement sélectionnables dans le God", () => {
+    it("deux niveaux seulement dans le God — et le niveau staff vient du RBAC, pas d'un choix libre", () => {
         const editor = read(EDITOR);
-        for (const niveau of ["PUBLIC", "MEMBER", "ADMIN"]) {
-            expect(editor, `niveau ${niveau} absent du sélecteur`).toContain(`value="${niveau}"`);
-        }
+        expect(editor).toContain('value="MEMBER"');
+        expect(editor).toContain('value="ADMIN"');
+        // `PUBLIC` n'est plus offert : il ne s'affiche que sur une fiche qui le porte déjà.
+        expect(editor).toContain('{formData.accessLevel === "PUBLIC" && (');
+        expect(editor).toContain('value="PUBLIC"');
         // Le catalogue s'appuie sur MEMBER : le sélecteur doit le proposer, sinon valeur blanche.
-        expect(countOf(read(CATALOG), /accessLevel: 'MEMBER'/g)).toBeGreaterThan(0);
+        expect(countOf(read(CATALOG), /accessLevel: 'MEMBER' as any/g)).toBeGreaterThan(0);
+        // Le niveau « staff » suit le rôle RBAC de la guilde (fail-closed : faux par défaut).
+        expect(read("src/server/actions/user-actions.ts"))
+            .toContain("permissionSet.has(PERMISSIONS.STAFF_CONTENT)");
+    });
+
+    it("seul le super-admin écrit la doc — ou une délégation explicite de la brick `docs`", () => {
+        const actions = read(ACTIONS);
+        for (const fn of ["saveDoc", "deleteDoc"]) {
+            const start = actions.indexOf(`export async function ${fn}`);
+            expect(start, `${fn} introuvable`).toBeGreaterThan(-1);
+            const body = actions.slice(start, start + 900);
+            expect(body, fn).toContain("isSuperAdmin()");
+            expect(body, fn).toContain('canAccessBrick("docs")');
+        }
+        // La console d'édition elle-même est fermée : /god/docs exige le super-admin.
+        expect(read("src/app/god/docs/page.tsx")).toContain("isAdmin");
     });
 
     it("une fiche créée sans niveau explicite tombe sur MEMBER, jamais sur le plus large", () => {

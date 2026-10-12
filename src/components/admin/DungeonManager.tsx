@@ -22,7 +22,9 @@ import {
     getChallenges,
     getIgnoredDungeonsAction,
     restoreDungeonAction,
+    updateDungeonAchievementDescription,
 } from "@/server/actions/game-data-admin-actions";
+import { Textarea } from "@/components/ui/textarea";
 import { ImageDownloader } from "./ImageDownloader";
 import { DungeonMapPicker } from "./DungeonMapPicker";
 import { ZoneLocationCard } from "@/components/worldmap/ZoneLocationCard";
@@ -34,7 +36,7 @@ import {
     SelectTrigger,
     SelectValue
 } from "@/components/ui/select";
-import { Search, Plus, MapPin, Trophy, ShieldAlert, Swords, Skull, MoreHorizontal, Edit2, Trash2, ImageIcon, Loader2, Ban, RotateCcw } from "lucide-react";
+import { Search, Plus, MapPin, Trophy, ShieldAlert, Swords, Skull, MoreHorizontal, Edit2, Trash2, ImageIcon, Loader2, Ban, RotateCcw, Pencil } from "lucide-react";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -69,7 +71,7 @@ interface Dungeon {
     /* Chantier « boss de raid » */
     isRaidBoss?: boolean | null;
     raidId?: string | null;
-    achievements: { challengeId: string; challenge: { name: string; slug: string; iconUrl?: string | null } }[];
+    achievements: { id: string; challengeId: string; description?: string | null; challenge: { name: string; slug: string; iconUrl?: string | null } }[];
 }
 
 interface Challenge {
@@ -87,6 +89,11 @@ const EXPEDITION_MODES = [
 
 export default function DungeonManager() {
     const [dungeons, setDungeons] = useState<Dungeon[]>([]);
+    /**
+     * Description **siphonnée** d'un succès, en cours d'édition (`DungeonAchievement.description`).
+     * `null` = aucune fenêtre ouverte.
+     */
+    const [descriptionEdit, setDescriptionEdit] = useState<{ id: string; name: string; value: string } | null>(null);
     // 🔍 Debug images ambiguës (11/10/2026) : isole les donjons homonymes qui portent la
     // MÊME image alors que leurs boss diffèrent — là où une image de boss en masque une autre.
     const [showAmbiguousOnly, setShowAmbiguousOnly] = useState(false);
@@ -278,6 +285,31 @@ export default function DungeonManager() {
             raidId: dungeon.raidId || "",
         });
         setIsDialogOpen(true);
+    }
+
+    /**
+     * Enregistre la **description** d'un succès (`DungeonAchievement.description`).
+     * Mise à jour optimiste ciblée : on remplace la seule ligne concernée plutôt que de
+     * recharger les 141 donjons (et leurs succès) pour un seul champ.
+     */
+    async function saveAchievementDescription() {
+        if (!descriptionEdit) return;
+        const { id, value } = descriptionEdit;
+        const res = await updateDungeonAchievementDescription(id, value);
+        if (!res.success) {
+            toast.error(res.error || "Échec de l'enregistrement");
+            return;
+        }
+        setDungeons((prev) =>
+            prev.map((d) => ({
+                ...d,
+                achievements: d.achievements.map((a) =>
+                    a.id === id ? { ...a, description: value.trim() || null } : a
+                ),
+            }))
+        );
+        setDescriptionEdit(null);
+        toast.success("Description enregistrée");
     }
 
 
@@ -524,21 +556,38 @@ export default function DungeonManager() {
                                     </div>
                                 )}
 
-                                {/* Challenges Preview (Compact) */}
+                                {/* Succès du donjon : nom + description SIPHONNÉE (corrigeable au survol) */}
                                 {dungeon.achievements.length > 0 && (
-                                    <div className="flex gap-1 overflow-hidden pt-2 mt-auto border-t border-border/50">
-                                        {dungeon.achievements.slice(0, 5).map(({ challenge }) => (
-                                            <div key={challenge.slug} className="w-6 h-6 rounded bg-elevated/80 p-0.5 border border-border" title={challenge.name}>
-                                                {challenge.iconUrl && (
-                                                    <img src={challenge.iconUrl} alt={challenge.name} className="w-full h-full object-contain" />
-                                                )}
+                                    <div className="space-y-1 pt-2 mt-auto border-t border-border/50">
+                                        {dungeon.achievements.map((a) => (
+                                            <div key={a.id} className="flex items-start gap-1.5 group">
+                                                <div className="w-4 h-4 rounded bg-elevated/80 border border-border shrink-0 mt-0.5" title={a.challenge.name}>
+                                                    {a.challenge.iconUrl && (
+                                                        <img src={a.challenge.iconUrl} alt={a.challenge.name} className="w-full h-full object-contain" />
+                                                    )}
+                                                </div>
+                                                <p className="flex-1 min-w-0 text-caption leading-snug">
+                                                    <span className="font-semibold text-foreground">{a.challenge.name}</span>
+                                                    <span className="text-muted-foreground">
+                                                        {" — "}
+                                                        {a.description?.trim() || "aucune description siphonnée"}
+                                                    </span>
+                                                </p>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setDescriptionEdit({
+                                                        id: a.id,
+                                                        name: `${dungeon.name} · ${a.challenge.name}`,
+                                                        value: a.description ?? "",
+                                                    })}
+                                                    className="shrink-0 text-muted-foreground opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity hover:text-foreground"
+                                                    title="Corriger / poser la description de ce succès"
+                                                    aria-label={`Éditer la description de ${a.challenge.name}`}
+                                                >
+                                                    <Pencil className="w-3 h-3" />
+                                                </button>
                                             </div>
                                         ))}
-                                        {dungeon.achievements.length > 5 && (
-                                            <div className="w-6 h-6 rounded bg-elevated text-caption flex items-center justify-center text-muted-foreground border border-border">
-                                                +{dungeon.achievements.length - 5}
-                                            </div>
-                                        )}
                                     </div>
                                 )}
                             </div>
@@ -876,6 +925,36 @@ export default function DungeonManager() {
                                 </Button>
                             </div>
                         </form>
+                    </div>
+                </DialogContent>
+            </Dialog>
+
+            {/* Description d'un succès — colonne `DungeonAchievement.description`, écrite par le siphon
+                (`achievement-details-siphon.ts`) ; ici on la corrige ou on la pose à la main. */}
+            <Dialog open={!!descriptionEdit} onOpenChange={(open) => { if (!open) setDescriptionEdit(null); }}>
+                <DialogContent className="sm:max-w-lg">
+                    <DialogHeader>
+                        <DialogTitle className="text-base">Description du succès</DialogTitle>
+                        <DialogDescription className="text-xs">
+                            {descriptionEdit?.name} — c&apos;est le texte montré au visiteur. Le siphon l&apos;écrit
+                            quand il retrouve le succès « (Spécial) » chez DofusDB ; sinon, c&apos;est vous.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <Textarea
+                        value={descriptionEdit?.value ?? ""}
+                        onChange={(e) => setDescriptionEdit((prev) => (prev ? { ...prev, value: e.target.value } : prev))}
+                        rows={4}
+                        maxLength={600}
+                        placeholder="Ex. Ne pas tuer les Tynrils avant d'avoir détruit les quatre totems."
+                        className="text-sm"
+                    />
+                    <div className="flex flex-col-reverse sm:flex-row gap-3">
+                        <Button type="button" variant="outline" className="sm:flex-1" onClick={() => setDescriptionEdit(null)}>
+                            Annuler
+                        </Button>
+                        <Button type="button" className="sm:flex-[2]" onClick={saveAchievementDescription}>
+                            Enregistrer
+                        </Button>
                     </div>
                 </DialogContent>
             </Dialog>

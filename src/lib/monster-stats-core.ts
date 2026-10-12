@@ -29,6 +29,8 @@ import { getLocalMonsterStatAny, getLocalMonsterStatByIdAny, persistMonsterStat 
 import { encycloGrade, encycloIdentity, resolveEncycloNames } from "@/lib/dofus-encyclo";
 import { getDofensiveDungeonForBoss } from "@/lib/dofensive-api";
 import { getUnityMonster, findUnityMonsterBySlug, type UnityMonsterData } from "@/lib/unity-bestiary";
+import { extractDamageFromLabel, formatInvocationLabel, type SpellElementKey } from "@/lib/dofus-spells";
+import { NO_DAMAGE_BONUS, type MonsterDamageStats } from "@/lib/dofus-monster-damage";
 
 type ActionResponse<T = void> = {
     success: boolean;
@@ -45,12 +47,86 @@ function normSpellName(s: string): string {
         .trim();
 }
 
+/**
+ * Rend un libellé d'effet de sort Unity **lisible** (Lot C, 12/10/2026) :
+ *  · « Invoque : 4018 » → « Invoque : Champa Sombre » quand l'id est résolu dans le
+ *    bestiaire local (un id non résolu reste **tel quel** — jamais de phrase inventée) ;
+ *  · nettoie les scories Unity (`{{~ps}}`, `<br>`, « Dommagess ») via `cleanDofusText`
+ *    (source unique partagée avec la fiche boss — aucune règle dupliquée).
+ *
+ * Résolu **côté serveur** : la fiche publique (`/bestiaire/<slug>`) et l'onglet interne
+ * reçoivent déjà le texte humain, et le client n'embarque pas les 5 129 noms de monstres.
+ */
+function resolveUnityEffectLabel(effect: unknown): string {
+    return formatInvocationLabel(String(effect ?? ""), (id) => getUnityMonster(id)?.name ?? null);
+}
+
+function mapUnityEffects(effects: unknown): string[] {
+    return Array.isArray(effects) ? effects.map((e) => resolveUnityEffectLabel(e)) : [];
+}
+
+/**
+ * Carac élémentaires du **grade le plus haut** du monstre (« dégâts réels du grade », même règle
+ * que Dofensive/`pickMonsterDamageStats`). Neutre ne reçoit aucun bonus.
+ */
+function unityDamageStats(unity: UnityMonsterData): MonsterDamageStats {
+    const grades: any[] = Array.isArray(unity?.grades) ? unity.grades : [];
+    if (grades.length === 0) return NO_DAMAGE_BONUS;
+    const g = grades[grades.length - 1];
+    return {
+        earth: Math.max(0, Math.floor(Number(g?.strength) || 0)),
+        fire: Math.max(0, Math.floor(Number(g?.intelligence) || 0)),
+        water: Math.max(0, Math.floor(Number(g?.chance) || 0)),
+        air: Math.max(0, Math.floor(Number(g?.agility) || 0)),
+        neutral: 0,
+    };
+}
+
+const SPELL_ELEMENT_TO_DAMAGE_KEY: Record<SpellElementKey, keyof MonsterDamageStats> = {
+    terre: "earth",
+    feu: "fire",
+    eau: "water",
+    air: "air",
+    neutre: "neutral",
+};
+
+/**
+ * `effectDetails` d'un sort du **bestiaire local** (Lot F, 12/10/2026).
+ *
+ * 🔴 Mesure : la fiche d'un monstre servi par le bestiaire local (sans ligne siphonée) affichait
+ * les **jets bruts** (« Prison de Haine » 40-46 pour Maléphisto) alors que DofusDB/Dofensive
+ * affichent `floor(jet × (1 + carac/100))` = **296-340** (INT 640 ⇒ ×7,4). On applique donc la
+ * carac du grade le plus haut, comme `src/lib/dofus-monster-damage.ts`, et on **réécrit le
+ * libellé** pour que l'onglet Sorts et la simulation disent la même chose.
+ */
+function unityEffectDetails(
+    effects: unknown,
+    stats: MonsterDamageStats
+): { label: string; damage?: { element: SpellElementKey; min: number; max: number } }[] {
+    return mapUnityEffects(effects).map((label) => {
+        const dmg = extractDamageFromLabel(label);
+        if (!dmg) return { label };
+        const key = SPELL_ELEMENT_TO_DAMAGE_KEY[dmg.element];
+        const stat = key === "neutral" ? 0 : Number((stats as any)[key]) || 0;
+        const multiplier = 1 + Math.max(0, stat) / 100;
+        const min = Math.floor(dmg.min * multiplier);
+        const max = Math.floor(dmg.max * multiplier);
+        const scaledLabel =
+            min === dmg.min && max === dmg.max
+                ? label
+                : label.replace(String(dmg.min), String(min)).replace(String(dmg.max), String(max));
+        return { label: scaledLabel, damage: { element: dmg.element, min, max } };
+    });
+}
+
 function enrichWithUnityData(data: any, monsterName: string, monsterId?: number): any {
     if (!data) return data;
     try {
         const unity = getUnityMonster(monsterId || data.id || monsterName);
         if (unity) {
             data.unity = unity;
+            // Carac du grade (dégâts réels) — sert aux sorts Unity ajoutés/ajustés ci-dessous.
+            const unityStats = unityDamageStats(unity);
 
             // ── Passif de début de combat ─────────────────────────────────────
             if (unity.passive && unity.passive.description) {
@@ -109,11 +185,11 @@ function enrichWithUnityData(data: any, monsterName: string, monsterId?: number)
                             ...s,
                             unityIconId: us.iconId,
                             unityDescription: us.description || s.description,
-                            unityEffects: us.effects,
-                            unityCriticalEffects: us.criticalEffects,
-                            // Prioriser les effets officiels Unity si présents
-                            ...(Array.isArray(us.effects) && us.effects.length > 0 ? { effects: us.effects } : {}),
-                            ...(Array.isArray(us.criticalEffects) && us.criticalEffects.length > 0 ? { criticalEffects: us.criticalEffects } : {}),
+                            unityEffects: mapUnityEffects(us.effects),
+                            unityCriticalEffects: mapUnityEffects(us.criticalEffects),
+                            // Prioriser les effets officiels Unity si présents (libellés résolus)
+                            ...(Array.isArray(us.effects) && us.effects.length > 0 ? { effects: mapUnityEffects(us.effects) } : {}),
+                            ...(Array.isArray(us.criticalEffects) && us.criticalEffects.length > 0 ? { criticalEffects: mapUnityEffects(us.criticalEffects) } : {}),
                             // Priorité Unity pour les stats de sort
                             apCost: s.apCost ?? us.apCost,
                             minRange: s.minRange ?? us.minRange,
@@ -137,10 +213,12 @@ function enrichWithUnityData(data: any, monsterName: string, monsterId?: number)
                         imageUrl: `/uploads/assets-dofus/spells/sort_${us.iconId}.webp`,
                         description: us.description || "",
                         unityDescription: us.description,
-                        effects: us.effects || [],
-                        criticalEffects: us.criticalEffects || [],
-                        unityEffects: us.effects,
-                        unityCriticalEffects: us.criticalEffects,
+                        effects: mapUnityEffects(us.effects),
+                        criticalEffects: mapUnityEffects(us.criticalEffects),
+                        unityEffects: mapUnityEffects(us.effects),
+                        unityCriticalEffects: mapUnityEffects(us.criticalEffects),
+                        // Dégâts réels du grade (Lot F) : sinon la simu affiche les jets bruts.
+                        effectDetails: unityEffectDetails(us.effects, unityStats),
                         apCost: us.apCost ?? 0,
                         minRange: us.minRange ?? 0,
                         range: us.range ?? 0,
@@ -165,6 +243,7 @@ function enrichWithUnityData(data: any, monsterName: string, monsterId?: number)
  * ou en cas de coupure/quota réseau.
  */
 function buildMonsterDataFromUnity(unity: UnityMonsterData): any {
+    const damageStats = unityDamageStats(unity);
     return {
         id: unity.id,
         name: unity.name,
@@ -223,10 +302,12 @@ function buildMonsterDataFromUnity(unity: UnityMonsterData): any {
                 imageUrl: `/uploads/assets-dofus/spells/sort_${us.iconId}.webp`,
                 description: us.description || "",
                 unityDescription: us.description,
-                effects: us.effects || [],
-                criticalEffects: us.criticalEffects || [],
-                unityEffects: us.effects,
-                unityCriticalEffects: us.criticalEffects,
+                effects: mapUnityEffects(us.effects),
+                criticalEffects: mapUnityEffects(us.criticalEffects),
+                unityEffects: mapUnityEffects(us.effects),
+                unityCriticalEffects: mapUnityEffects(us.criticalEffects),
+                // Dégâts réels du grade (Lot F) — même règle que DofusDB/Dofensive.
+                effectDetails: unityEffectDetails(us.effects, damageStats),
                 apCost: us.apCost ?? 0,
                 minRange: us.minRange ?? 0,
                 range: us.range ?? 0,

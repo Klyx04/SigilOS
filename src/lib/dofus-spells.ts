@@ -231,6 +231,26 @@ export function cleanDofusText(text: string | null | undefined): string {
 }
 
 /**
+ * Rend un libellé d'effet de sort **lisible** (Lot C du 12/10/2026) :
+ *  · nettoie d'abord les scories Unity via `cleanDofusText` (`{{~ps}}`, `<br>`, « Dommagess ») ;
+ *  · résout « Invoque : <idMonstre> » → « Invoque : <Nom> » quand `resolveMonsterName`
+ *    connaît l'id (bestiaire local). Un id **non résolu** reste tel quel : on n'invente rien.
+ *
+ * Règle **pure** : le résolveur (qui lit le bestiaire local) est injecté par l'appelant,
+ * donc testable sans base ni réseau.
+ */
+export function formatInvocationLabel(
+    effect: string | null | undefined,
+    resolveMonsterName?: (monsterId: number) => string | null
+): string {
+    const cleaned = cleanDofusText(effect);
+    const match = /^invoque\s*:\s*(\d+)\s*$/i.exec(cleaned.trim());
+    if (!match || !resolveMonsterName) return cleaned;
+    const name = resolveMonsterName(Number(match[1]));
+    return name ? `Invoque : ${name}` : cleaned;
+}
+
+/**
  * Extrait un jet de dégâts ou de vol de vie élémentaire depuis une chaîne brute (Unity / DofusDB).
  * Reconnaît :
  * - « 8 à 11 vol Feu », « 11 à 15 dommages Neutre », « 7 à 9 vol de vie Eau »

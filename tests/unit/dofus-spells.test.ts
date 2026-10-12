@@ -14,6 +14,7 @@ import {
     applyCharLevelToSpells,
     statsFromDofusdb,
     applyBuild,
+    formatInvocationLabel,
     type BuildStatsForSpells,
 } from "@/lib/dofus-spells";
 
@@ -307,5 +308,34 @@ describe("spellDamageFromEffect", () => {
     it("retourne null pour un effect vide", () => {
         expect(spellDamageFromEffect(null)).toBeNull();
         expect(spellDamageFromEffect({})).toBeNull();
+    });
+});
+
+describe("formatInvocationLabel — « Invoque : <id> » résolu + nettoyage Unity (Lot C)", () => {
+    const resolver = (id: number) => (id === 4018 ? "Champa Sombre" : null);
+
+    it("résout l'id d'invocation en nom via le résolveur injecté", () => {
+        expect(formatInvocationLabel("Invoque : 4018", resolver)).toBe("Invoque : Champa Sombre");
+    });
+
+    it("un id inconnu reste tel quel (jamais de nom inventé)", () => {
+        expect(formatInvocationLabel("Invoque : 99999999", resolver)).toBe("Invoque : 99999999");
+    });
+
+    it("sans résolveur : le libellé est seulement nettoyé", () => {
+        expect(formatInvocationLabel("Invoque : 4018")).toBe("Invoque : 4018");
+    });
+
+    it("nettoie les scories Unity des autres effets ({{~ps}}, <br>)", () => {
+        expect(formatInvocationLabel("Repousse de 1 case{{~ps}}", resolver)).toBe("Repousse de 1 case");
+        expect(formatInvocationLabel("Ligne 1.<br />Ligne 2.", resolver)).toBe("Ligne 1.\nLigne 2.");
+    });
+
+    it("tolère la casse et les espaces autour des deux-points", () => {
+        expect(formatInvocationLabel("invoque:4018", resolver)).toBe("Invoque : Champa Sombre");
+    });
+
+    it("vide → chaîne vide (aucun crash)", () => {
+        expect(formatInvocationLabel(null)).toBe("");
     });
 });

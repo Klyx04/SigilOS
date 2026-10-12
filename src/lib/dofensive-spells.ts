@@ -187,9 +187,12 @@ export function pickSpellLevelForMonster<T extends { Grade?: number | null }>(
  *   · **v3** = lot 4 « jets critiques & règle de zone 3.6 » (`effectDetails[].damage.critMin`
  *     + `.critMax`, rattachés par ÉLÉMENT depuis `GroupCriticalEffects`) ;
  *   · **v4** = MAJ 3.7 (Puissance, Soins, triggers/durations, Cercles de distance,
- *     maxGlobalCast, needCellWithoutPortal, needVisibleEntity, hasProportionalDiagonal).
+ *     maxGlobalCast, needCellWithoutPortal, needVisibleEntity, hasProportionalDiagonal) ;
+ *   · **v5** = lot 6 « sorts étrangers » (`knownSpellIds` : un sort Dofensive dont
+ *     l'id n'appartient pas au monstre est écarté ; les lignes persistées avant
+ *     cette règle sont traitées comme à rafraîchir — jamais comme une absence).
  */
-export const COMBAT_SPELLS_PAYLOAD_VERSION = 4;
+export const COMBAT_SPELLS_PAYLOAD_VERSION = 5;
 
 /** `true` quand le payload stocké n'a pas (ou plus) la forme attendue par le code courant. */
 export function isCombatSpellsPayloadOutdated(payloadVersion: unknown): boolean {
@@ -202,10 +205,17 @@ export function isCombatSpellsPayloadOutdated(payloadVersion: unknown): boolean 
  * Dofensive (AP/portée/LoS/ligne/diagonale/cooldown/zone). Les champs de combat
  * Dofensive PRIMENT (source de vérité combat) ; les sorts présents uniquement chez
  * l'une des deux sources sont conservés. Jamais d'écrasement destructif.
+ *
+ * Lot 6 « sorts étrangers » — `knownSpellIds` (fail-closed opt-in) : ids de sorts
+ * LÉGITIMES du monstre (DofusDB `monster.spells` + `startingSpellId` + sous-sorts
+ * déclenchés). Quand il est fourni, tout sort Dofensive hors de cet ensemble est
+ * **écarté** (un appariement incertain ne doit jamais injecter les sorts d'un boss
+ * étranger dans la fiche). Absent ⇒ comportement historique (conservé).
  */
 export function mergeDofensiveSpells(
     dbSpells: Array<{ id: number; name?: string; nameEn?: string; imageUrl?: string; description?: string; unityIconId?: number; unityDescription?: string; unityEffects?: string[]; unityCriticalEffects?: string[] }> = [],
-    dofensiveSpells: DofensiveSpellCombat[] = []
+    dofensiveSpells: DofensiveSpellCombat[] = [],
+    knownSpellIds?: Iterable<number>
 ): DofensiveMergedSpell[] {
     const dbMap = new Map<number, { name?: string; nameEn?: string; imageUrl?: string; description?: string; unityIconId?: number; unityDescription?: string; unityEffects?: string[]; unityCriticalEffects?: string[] }>();
     for (const s of dbSpells) {
@@ -215,7 +225,12 @@ export function mergeDofensiveSpells(
 
     const merged: DofensiveMergedSpell[] = [];
     const seen = new Set<number>();
+    // Lot 6 — garde d'appartenance : sans ensemble connu, tout passe (historique).
+    const known = knownSpellIds ? new Set<number>([...knownSpellIds].map((n) => Number(n)).filter((n) => Number.isFinite(n) && n > 0)) : null;
     for (const ds of dofensiveSpells) {
+        if (known && !known.has(Number((ds as { id?: unknown })?.id))) {
+            continue;
+        }
         const db = dbMap.get(ds.id);
         const uIconId = db?.unityIconId;
         const uDesc = db?.unityDescription;

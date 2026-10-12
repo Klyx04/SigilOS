@@ -89,7 +89,7 @@ Une entité = **un seul message** (édition, jamais de repost) · boutons **dés
 `isSuperAdmin()` **fail-closed** (page **et** action) · **audit** de chaque mutation · réglages **bornés** et validés · jamais d'action « par guilde » sans vérification d'appartenance.
 
 ### 5.5 Documentation du module (obligatoire — `docs/RULES.md` § doc)
-Source unique = **`src/lib/docs-catalog.ts`** (fiche du module, permissions, nouvelles fonctions) ⇒ **`npm run seed:docs`** en local (+ `npm run build:seeds` si demandé) · pas de markdown brut, pas de nom de rôle Discord en dur, pas d'exemple propre à une guilde · **tour** (`tour-provider.tsx`) mis à jour si un écran change.
+Source unique = **`src/lib/docs-catalog.ts`** (fiche du module, permissions, nouvelles fonctions) ⇒ **`npm run seed:docs`** en local (+ `npm run build:seeds` si demandé) — ⚠️ **destructif** : il **écrase** les fiches `DocPage` (contenu, titre, catégorie, accès) et **supprime** les slugs hors catalogue ; **jamais au déploiement** (retiré le 12/10/2026) · pas de markdown brut, pas de nom de rôle Discord en dur, pas d'exemple propre à une guilde · **tour** (`tour-provider.tsx`) mis à jour si un écran change.
 
 ---
 

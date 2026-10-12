@@ -542,17 +542,15 @@ run_conditional_seed() {
         dim "   Données de jeu inchangées — seed ignoré (gain de temps)."
     fi
 
-    # Synchronisation de la documentation officielle.
-    # `--silent` + `NO_UPDATE_NOTIFIER` (comme l'étape 4) : sans eux, npm déversait
-    # son bandeau de script et sa pub de mise à jour (« npm notice New major
-    # version… ») au milieu de la sortie — bruit sans rapport avec le déploiement.
-    info "   Synchronisation de la documentation ${TARGET^^}..."
-    if sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" exec "$APP_SERVICE" \
-        sh -c 'NO_UPDATE_NOTIFIER=1 npm_config_update_notifier=false npm run --silent seed:docs:prod'; then
-        ok "Documentation à jour."
-    else
-        warn "Seed docs ignoré ou non-critique."
-    fi
+    # 🛑 La documentation n'est PLUS synchronisée ici (décision user du 12/10/2026) :
+    # `seed:docs` **écrase** chaque fiche `DocPage` par la version du catalogue
+    # (`prisma/seed-docs.ts` : `update` de title/category/content/accessLevel) **et supprime**
+    # toute fiche dont le slug n'est pas dans `OFFICIAL_DOCS`. À chaque déploiement, les
+    # corrections écrites dans l'interface étaient donc perdues (« j'ai beau éditer la doc,
+    # tu écrases tout »). La doc se publie désormais **à la demande**, en connaissance de cause :
+    #   → publication manuelle : voir `docs/agents/deploy-vps.md` § « Après le deploy ».
+    #   (la commande y est écrite avec ses protections npm `--silent` + `NO_UPDATE_NOTIFIER`,
+    #    exigées par le verrou ④ de `tests/unit/deploy-sortie-visible.test.ts`).
 }
 
 # -----------------------------------------------------------------------------

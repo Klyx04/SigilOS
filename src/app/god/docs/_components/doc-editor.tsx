@@ -18,7 +18,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
-import { Shield, Globe, Save, X, Eye, Settings2, FileText, HelpCircle, Upload } from "lucide-react";
+import { Shield, Globe, Save, X, Eye, Settings2, FileText, HelpCircle, Upload, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { docSlugFromTitle } from "@/lib/doc-slug";
 
@@ -34,7 +34,7 @@ export function DocEditor({ initialData }: { initialData?: DocPageData }) {
         category: initialData?.category || "Général",
         order: initialData?.order ?? 0,
         isPublished: initialData?.isPublished ?? true,
-        accessLevel: initialData?.accessLevel || "PUBLIC",
+        accessLevel: initialData?.accessLevel || "MEMBER",
     });
 
     const handleChange = (field: keyof CreateDocInput, value: any) => {
@@ -228,8 +228,17 @@ export function DocEditor({ initialData }: { initialData?: DocPageData }) {
                                                 <div className="flex items-center gap-2">
                                                     <Globe className="w-4 h-4 text-teal-400" />
                                                     <div className="flex flex-col text-left">
-                                                        <span className="font-bold text-xs uppercase tracking-widest text-white">Public</span>
-                                                        <span className="text-caption text-zinc-500 font-medium">Visible par tous les membres</span>
+                                                        <span className="font-bold text-xs uppercase tracking-widest text-white">Membres</span>
+                                                        <span className="text-caption text-zinc-500 font-medium">Tout membre connecté, toutes guildes</span>
+                                                    </div>
+                                                </div>
+                                            </SelectItem>
+                                            <SelectItem value="MEMBER" className="focus:bg-teal-500/20 py-3">
+                                                <div className="flex items-center gap-2">
+                                                    <Users className="w-4 h-4 text-teal-400" />
+                                                    <div className="flex flex-col text-left">
+                                                        <span className="font-bold text-xs uppercase tracking-widest text-white">Membre identifié</span>
+                                                        <span className="text-caption text-zinc-500 font-medium">Exige une session (jamais anonyme)</span>
                                                     </div>
                                                 </div>
                                             </SelectItem>
@@ -237,13 +246,20 @@ export function DocEditor({ initialData }: { initialData?: DocPageData }) {
                                                 <div className="flex items-center gap-2">
                                                     <Shield className="w-4 h-4 text-amber-500" />
                                                     <div className="flex flex-col text-left">
-                                                        <span className="font-bold text-xs uppercase tracking-widest text-white">Administration</span>
+                                                        <span className="font-bold text-xs uppercase tracking-widest text-white">Staff</span>
                                                         <span className="text-caption text-zinc-500 font-medium">Réservé aux Officiers / Staff</span>
                                                     </div>
                                                 </div>
                                             </SelectItem>
                                         </SelectContent>
                                     </Select>
+                                    {/* La doc n'est JAMAIS publique au sens « internet » : `/docs` exige une
+                                        connexion ET une guilde (garde du layout). Ce réglage ne choisit qu'entre
+                                        « membre » et « staff » — cf. tests/unit/doc-acces-membres.test.ts. */}
+                                    <p className="text-caption text-zinc-600 leading-snug">
+                                        Aucun visiteur anonyme ne lit la doc : <span className="font-mono">/docs</span> demande une
+                                        connexion <em>et</em> une guilde. Ce niveau ne choisit qu&apos;entre « membre » et « staff ».
+                                    </p>
                                 </div>
 
 

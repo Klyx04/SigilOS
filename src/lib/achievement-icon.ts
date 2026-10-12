@@ -36,16 +36,31 @@ export function getAchievementIconUrl(slug: string | null | undefined, apiIconUr
  * `challenge.iconUrl` **brut** — sans proxy — d'où des icônes sans la couleur orange dès que la
  * valeur en base était un chemin local, alors que la fiche publique passait par la résolution).
  *
- * Ordre : ① icône du **succès** lui-même (`DungeonAchievement.imageUrl`, spécifique au donjon —
- * la vraie icône quand elle a été siphonnée) → proxy ; ② icône du **challenge** (partagée) via
- * la même résolution que le reste du site. Jamais de chemin disque rendu brut.
+ * ⚠️ La règle accepte les **deux formes** de payload, parce que les deux existent en production :
+ *   • **imbriquée** (`{ imageUrl, challenge: { slug, iconUrl } }`) — requêtes internes (Prisma) ;
+ *   • **plate** (`{ imageUrl, slug, iconUrl }`) — `PublicDungeonAchievement` de
+ *     `src/server/actions/public-boss-tabs-actions.ts`.
+ * 🐛 Régression mesurée le 12/10/2026 : l'onglet public passait la forme **plate**, la règle ne
+ * lisait que `imageUrl` (nul tant que le succès n'est pas siphonné) ⇒ **placeholder Trophy sur
+ * TOUS les succès** (« les icônes ne s'affichent même plus ») alors que l'icône du challenge
+ * était disponible dans le même objet.
+ *
+ * Ordre : ① icône du **succès** lui-même (`imageUrl`, spécifique au donjon — la vraie icône quand
+ * elle a été siphonnée) → proxy ; ② icône du **challenge** (partagée) via la même résolution que
+ * le reste du site. Jamais de chemin disque rendu brut.
  */
 export function getDungeonAchievementIconUrl(achievement: {
     imageUrl?: string | null;
+    /** Forme **plate** (payload des actions publiques). */
+    slug?: string | null;
+    iconUrl?: string | null;
+    /** Forme **imbriquée** (lignes Prisma `DungeonAchievement → challenge`). */
     challenge?: { slug?: string | null; iconUrl?: string | null } | null;
 } | null | undefined): string | null {
     if (!achievement) return null;
     const own = internalDofusDbImageUrl(achievement.imageUrl);
     if (own) return own;
-    return getAchievementIconUrl(achievement.challenge?.slug ?? null, achievement.challenge?.iconUrl ?? null);
+    const challengeIconUrl = achievement.challenge?.iconUrl ?? achievement.iconUrl ?? null;
+    const challengeSlug = achievement.challenge?.slug ?? achievement.slug ?? null;
+    return getAchievementIconUrl(challengeSlug, challengeIconUrl);
 }

@@ -190,6 +190,36 @@ describe("icône de succès — proxy d'abord, plus de case noire", () => {
         );
     });
 
+    it("forme PLATE (payload public) : l'icône du challenge est lue, pas seulement imageUrl", () => {
+        // 🐛 Régression du 12/10/2026 : l'onglet public passe `PublicDungeonAchievement`
+        // ({ imageUrl, slug, iconUrl } — le challenge est DÉPLIÉ, sans objet `challenge`).
+        // La règle ne lisait que `imageUrl` (nul tant que le succès n'est pas siphonné)
+        // ⇒ placeholder Trophy sur TOUS les succès (« les icônes ne s'affichent même plus »).
+        expect(
+            getDungeonAchievementIconUrl({
+                imageUrl: null,
+                slug: "duo",
+                iconUrl: "/game-data/achievements/duo.png",
+            })
+        ).toBe("/game-data/achievements/duo.png");
+        // La forme IMBRIQUÉE (lignes Prisma internes) reste servie à l'identique.
+        expect(
+            getDungeonAchievementIconUrl({
+                imageUrl: null,
+                challenge: { slug: "duo", iconUrl: "/game-data/achievements/duo.png" },
+            })
+        ).toBe("/game-data/achievements/duo.png");
+        // L'icône PROPRE au donjon prime quand elle a été siphonnée (proxy interne).
+        expect(
+            getDungeonAchievementIconUrl({
+                imageUrl: "https://api.dofusdb.fr/img/achievements/10.png",
+                slug: "duo",
+                iconUrl: "/game-data/achievements/duo.png",
+            })
+        ).toBe("/api/assets-dofus/achievements/10");
+        expect(getDungeonAchievementIconUrl(null)).toBeNull();
+    });
+
     it("le proxy connaît les deux nouveaux espaces d'icône", () => {
         expect(PROXY).toMatch(/const validTypes = \['monsters', 'items', 'spells', 'challenges', 'achievements'\] as const;/);
         expect(PROXY).toContain("`https://api.dofusdb.fr/img/${assetType}/${safeId}.png`");

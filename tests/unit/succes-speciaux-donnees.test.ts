@@ -18,6 +18,8 @@ import {
     fetchChallengeDetail,
     siphonChallengeDetails,
     challengeIdFromCriterion,
+    isChallengeDetailComplete,
+    isPlaceholderChallengeDescription,
     specialAchievementName,
     buildSpecialChallengePatch,
     fetchSpecialChallengeForBoss,
@@ -343,6 +345,86 @@ describe("le cron complète aussi les succès spéciaux (borné, coupé sous Vit
         const cron = read("src/app/api/cron/sync-monster-stats/route.ts");
         expect(cron).toContain('const { siphonSpecialAchievements } = await import("@/lib/achievement-details-siphon");');
         expect(cron).toMatch(/siphonSpecialAchievements\(\{ db: db as any, apply: true, limit: 10 \}\)/);
+    });
+});
+
+/**
+ * 🐛 Demande user du 12/10/2026 : « je veux le vrai dialogue de la **mécanique** pour chaque
+ * succès spécial de chaque boss **qui s'affiche aux gens dans la fiche du boss interne/public** ».
+ *
+ * Mesure de départ : la fiche **publique** affichait déjà `challenge.description` (la mécanique
+ * siphonnée), mais l'**interne** non — `getDungeonDirectory` ne transmettait que le nom et
+ * l'icône, et la modale donjon de la carte du monde ne peignait rien de plus.
+ */
+/** Le placeholder du seed n'est pas une « vraie » description : la ligne reste à siphonner. */
+describe("couverture du siphon — le gabarit « Vaincre tel boss » est re-siphonné", () => {
+    it("une ligne encore générique n'est PAS déclarée complète, même avec l'icône au proxy", async () => {
+        const row: ChallengeRow = {
+            id: "c9",
+            name: "Trio",
+            slug: "trio",
+            description: "Vaincre tel boss dans son donjon en validant le challenge Trio.",
+            iconUrl: "/api/assets-dofus/challenges/10024",
+        };
+        expect(isPlaceholderChallengeDescription(row.description)).toBe(true);
+        expect(isChallengeDetailComplete(row)).toBe(false);
+
+        const written: Array<{ data: Record<string, unknown> }> = [];
+        const db = {
+            challenge: {
+                findMany: async () => [row],
+                update: async (args: any) => {
+                    written.push(args);
+                },
+            },
+        };
+        const fetchImpl = async () => jsonResponse({ data: [{ ...DOFUSDB_CHALLENGE, name: { fr: "Trio" } }] });
+        const report = await siphonChallengeDetails({ db, apply: true, fetchImpl: fetchImpl as never });
+
+        expect(report.updated).toBe(1);
+        expect(report.written).toBe(1);
+        expect(written[0].data.description).toBe(DOFUSDB_CHALLENGE.description.fr);
+    });
+
+    it("le challenge placeholder « Spécial » est écarté SANS appel réseau", async () => {
+        const row: ChallengeRow = {
+            id: "c10",
+            name: "Spécial",
+            slug: "sp-cial",
+            description: "Vaincre tel boss dans son donjon en validant le challenge dédié.",
+            iconUrl: null,
+        };
+        const jamais = async () => {
+            throw new Error("aucun appel réseau attendu");
+        };
+        const db = { challenge: { findMany: async () => [row], update: async () => {} } };
+        const report = await siphonChallengeDetails({ db, apply: true, fetchImpl: jamais as never });
+
+        expect(report.alreadyOk).toBe(1);
+        expect(report.updated).toBe(0);
+        expect(report.written).toBe(0);
+    });
+});
+
+describe("la mécanique réelle du succès s'affiche aussi côté INTERNE (guilde)", () => {
+    const finder = read("src/server/actions/dungeon-finder-actions.ts");
+    const modal = read("src/components/worldmap/DungeonDetailModal.tsx");
+    const directory = read("src/components/succes/SuccesDirectory.tsx");
+
+    it("l'annuaire transmet la description du challenge (pas seulement nom + icône)", () => {
+        expect(finder).toContain("challenge: { select: { name: true, iconUrl: true, slug: true, description: true } }");
+        expect(finder).toContain("description: a.challenge?.description ?? null");
+    });
+
+    it("la modale donjon l'affiche (parcours interne ET public)", () => {
+        expect(modal).toContain("description?: string | null;");
+        expect(modal).toContain("description: a.challenge?.description ?? null");
+        expect(modal).toContain("{achv.description && (");
+    });
+
+    it("l'annuaire Succès de guilde l'affiche aussi", () => {
+        expect(directory).toContain("description?: string | null;");
+        expect(directory).toContain("{achv.description && (");
     });
 });
 

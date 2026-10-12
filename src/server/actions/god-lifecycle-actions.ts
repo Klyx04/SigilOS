@@ -597,13 +597,26 @@ export async function unbanEntity(banId: string) {
 }
 /**
  * Get all members for a specific guild (God view)
+ *
+ * 🔒 **Contrat** : `{ ok: true, ownerId, members }` ou `{ ok: false, error }`. Le refus est
+ * renvoyé, **jamais** levé — l'appelant est une **Server Component** (`/god/guilds/[id]`).
  */
 export async function getGuildMembersForGod(guildId: string) {
     const isAdmin = await isSuperAdmin();
     // #108 — un sous-god avec la brique "guilds" (whitelist + roster en lecture seule)
     // accède aussi au roster God.
     const isGuildBrick = isAdmin ? true : await canAccessBrick("guilds");
-    if (!isAdmin && !isGuildBrick) throw new Error("Unauthorized");
+    // 🐛 Constat du 12/10/2026 : `throw new Error("Unauthorized")` ne refusait rien — dans une
+    // Server Component un `throw` **fait tomber tout l'écran** (« Application error ») et ouvre
+    // une Issue Sentry à chaque clic. On refuse donc **proprement**, avec la même garantie :
+    // rien n'est lu avant ce point (fail-closed), et l'appelant reçoit de quoi dire la vérité.
+    if (!isAdmin && !isGuildBrick) {
+        logger.warn("[getGuildMembersForGod] Roster refusé (ni super-admin ni brique « guilds »)");
+        return {
+            ok: false as const,
+            error: "Accès refusé : le roster d'une guilde demande le rôle God ou la brique « Guildes ».",
+        };
+    }
 
     const [members, guild] = await Promise.all([
         db.userProfile.findMany({
@@ -639,7 +652,8 @@ export async function getGuildMembersForGod(guildId: string) {
     ]);
 
     return {
-        ownerId: guild?.ownerId,
+        ok: true as const,
+        ownerId: guild?.ownerId ?? null,
         members: members.map(m => ({
             id: m.id,
             userId: m.userId,

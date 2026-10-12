@@ -32,13 +32,23 @@ import { zoneNameKey } from "@/lib/zone-label";
 import { syncZonesFromDofusDbCore } from "@/lib/zones-siphon";
 import { syncMonsterFamiliesCore } from "@/lib/monster-families-siphon";
 import { dofusdbFicheInit, getMonsterStats as getMonsterStatsCore, getLocalMonsterFiche, type MonsterFicheSource } from "@/lib/monster-stats-core";
-import { listUnityMonsters } from "@/lib/unity-bestiary";
+import {
+    listUnityMonsters,
+    getUnityBestiary,
+} from "@/lib/unity-bestiary";
 import {
     searchNormalMonsters as searchNormalMonstersRule,
     listNormalMonsters,
     groupMonsterFamilies,
+    monsterSpriteUrl,
     type MonsterFamilyFacet,
 } from "@/lib/monster-fiche";
+import {
+    buildSubareaFamilies,
+    subareaMonsterIds,
+    subareaIdsForMonster,
+} from "@/lib/subarea-monsters";
+import { BOUNTY_RACE_IDS } from "@/lib/bounty";
 import { slugifyBossName } from "@/lib/boss-slug";
 import { excludedNormalMonsterKeys, listSiphonedNormalMonsterSlugs } from "@/server/game/normal-monster-scope";
 import { monsterRaces, monsterSuperRaces } from "@/lib/monster-races";
@@ -178,7 +188,11 @@ export async function getMonsterFamilies(filters: { zoneId?: string; search?: st
                 monsters: true,
                 zones: { select: { id: true, name: true } }
             },
-            take: filters.search ? 20 : 100,
+            // 🐛 Mesure du 12/10/2026 : `take: 100` sur **249** familles ⇒ l'éditeur de zone
+            // (God) affichait le **cuid brut** de toute famille dont le nom triait après le
+            // 100ᵉ (constat user : « ces chaînes illisibles »). Une recherche reste bornée ;
+            // une liste complète ne l'est plus (249 lignes, volume déjà maîtrisé ailleurs).
+            take: filters.search ? 20 : undefined,
             orderBy: { name: 'asc' }
         });
         return { success: true, data: families };
@@ -629,8 +643,10 @@ export interface BestiaryHubFamily {
 }
 
 export interface BestiaryHubResponse {
-    /** Nombre de fiches **documentées** (celles du sitemap) réellement listées ici. */
+    /** Nombre de fiches **documentées** (contenu siphonné, indexables/sitemap). */
     documented: number;
+    /** Nombre d'espèces réellement **listées** dans le sommaire (toutes les espèces normales). */
+    listed: number;
     /** Taille du bestiaire local du client (5 129) — pour dire « N sur M » sans mentir. */
     bestiarySize: number;
     families: BestiaryHubFamily[];
@@ -638,21 +654,29 @@ export interface BestiaryHubResponse {
     truncated: boolean;
 }
 
-/** Garde-fou du sommaire : au-delà, la page ne serait plus un sommaire mais le bestiaire entier. */
-const BESTIARY_HUB_MAX_LINKS = 300;
+/**
+ * Garde-fou du sommaire. Relevé le 12/10/2026 (Lot D) : le sommaire liste désormais **toutes**
+ * les espèces normales, pas seulement les fiches siphonnées. La borne reste au-dessus de la
+ * taille du bestiaire local (5 129) pour ne rien cacher en pratique, tout en protégeant d'un
+ * bestiaire anormalement gonflé.
+ */
+const BESTIARY_HUB_MAX_LINKS = 6000;
 
 /**
- * Sommaire du **bestiaire** (page publique `/bestiaire`) : les fiches de monstres dont le
- * contenu est réellement siphonné, groupées par famille officielle.
+ * Sommaire du **bestiaire** (page publique `/bestiaire`) : **toutes** les espèces de monstres
+ * normales, groupées par famille officielle.
  *
- * 🎯 Demande user (11/10/2026) : « un hub `/bestiaire` (serveur) : familles + fiches siphonnées
- * listées en HTML → 1 page qui pousse 59 fiches ». Mesure du même jour : les fiches de monstres
- * n'avaient **aucun lien entrant** (la liste de `/boss` est chargée côté client ⇒ 0 lien
- * `/bestiaire/` dans le HTML servi) — Google ne les découvrait que par le sitemap.
+ * 🎯 Demande user (11/10/2026 puis 12/10/2026) : « un hub `/bestiaire` : familles + fiches
+ * siphonnées listées en HTML » puis **« il manque un paquet de monstres, les types de créatures
+ * sont jamais complets »**. Le sommaire ne listait que les **58** fiches siphonnées ⇒ chaque
+ * famille affichait « 1 fiche » et le sommaire paraissait vide. Il liste maintenant **toutes**
+ * les espèces normales (source : bestiaire local du client, 5 129), sous leur libellé de famille
+ * complet (`monster-races.json`, 264 races + 35 super-races).
  *
- * Source du périmètre : `listSiphonedNormalMonsterSlugs` **la même** que le sitemap, donc le
- * sommaire ne lie que des pages réellement indexables (contenu réel, jamais les ~5 000 fiches
- * en `noindex`) ; les bosses / avis / titans en sont écartés (ils ont leur URL `/boss/<slug>`).
+ * L'indexation reste **bornée** : les fiches auto-générées (sans contenu siphonné) sont servies
+ * en `noindex, follow` (voir `/bestiaire/[slug]`) ; seules les fiches **documentées** vont au
+ * sitemap (`listSiphonedNormalMonsterSlugs`, même source). Boss / avis / titans sont écartés
+ * (ils ont leur URL `/boss/<slug>`).
  */
 export async function getBestiaryHub(): Promise<ActionResponse<BestiaryHubResponse>> {
     try {
@@ -664,9 +688,12 @@ export async function getBestiaryHub(): Promise<ActionResponse<BestiaryHubRespon
         const all = listNormalMonsters(rows);
         const byFamily = new Map<number, BestiaryHubFamily>();
         let listed = 0;
+        let documentedCount = 0;
         for (const monster of all) {
             const slug = slugifyBossName(monster.name);
-            if (!documented.has(slug)) continue;
+            if (!slug) continue;
+            // Toutes les espèces sont listées ; `documented` ne sert qu'au compteur « documentées ».
+            if (documented.has(slug)) documentedCount += 1;
             const raceId = Math.floor(Number(monster.raceId) || 0);
             let family = byFamily.get(raceId);
             if (!family) {
@@ -687,7 +714,8 @@ export async function getBestiaryHub(): Promise<ActionResponse<BestiaryHubRespon
             listed += 1;
         }
 
-        // Familles les plus fournies d'abord (une famille sans fiche documentée ne s'affiche pas).
+        // Familles les plus fournies d'abord (jamais de famille vide : `byFamily` ne se remplit
+        // qu'avec des monstres réels).
         const families = [...byFamily.values()].sort(
             (a, b) =>
                 b.monsters.length - a.monsters.length ||
@@ -706,7 +734,7 @@ export async function getBestiaryHub(): Promise<ActionResponse<BestiaryHubRespon
 
         return {
             success: true,
-            data: { documented: listed, bestiarySize: all.length, families, truncated },
+            data: { documented: documentedCount, listed, bestiarySize: all.length, families, truncated },
         };
     } catch (error) {
         logger.error('[getBestiaryHub] Error:', { error });
@@ -1136,6 +1164,44 @@ export async function getZoneMonsters(zoneName: string, subAreaId?: number): Pro
         const zNorm = norm(zoneName);
         const zClean = cleanArticle(zoneName);
 
+        // ⓪ SOURCE SOUVERAINE (12/10/2026) : la sous-zone RÉELLE de la carte du monde.
+        // `subarea-monsters.json` (siphon DofusDB `monsters[].subareas`, 445 sous-zones,
+        // versionné) dit exactement quels monstres peuplent la sous-zone ⇒ plus aucune
+        // résolution par nom (donc plus aucun faux positif « nom ressemblant ») et aucune
+        // dépendance à la base : les familles viennent des référentiels locaux.
+        if (subAreaId) {
+            const { families: subFamilies, monsters: subMonsters } = buildSubareaFamilies(subAreaId);
+            if (subMonsters.length > 0) {
+                return {
+                    success: true,
+                    data: {
+                        zoneName: zoneName || `Sous-zone ${subAreaId}`,
+                        normalMonsters: subMonsters.map((m) => ({
+                            id: m.id,
+                            name: m.name,
+                            imageUrl: m.imageUrl,
+                            level: m.level,
+                            familyName: m.raceName,
+                            raceId: m.raceId,
+                            // Aucune fiche lue en base : `monsterFicheHref` retombe alors sur
+                            // `/bestiaire/<slug>` (LA fiche du monstre) — jamais d'URL inventée.
+                            ficheSlug: null,
+                            ficheKind: null,
+                        })),
+                        avisDeRecherche: [],
+                        families: subFamilies.map((f) => ({
+                            id: `subarea:${subAreaId}:${f.raceId}`,
+                            name: f.name,
+                            imageUrl: f.imageUrl,
+                            level: f.level,
+                            monstersCount: f.monsters.length,
+                            superRaceName: f.superRaceName,
+                        })),
+                    },
+                };
+            }
+        }
+
         // 1. Recherche par match EXACT de la zone (insensible casse et accents)
         // Évite le piège du 'contains' aveugle (ex: "Cimetière" qui résolvait "Cimetière des Torturés" !)
         let zone = await db.zone.findFirst({
@@ -1312,24 +1378,84 @@ export async function getZoneMonsters(zoneName: string, subAreaId?: number): Pro
  * canonique du proxy d'assets (le chemin du cache disque `/uploads/assets-dofus/monsters/N.webp`
  * rend 404 ⇒ il n'est jamais publié, même règle que `buildBountyBestiaireEntry`).
  */
-export async function getBountiesForZone(zoneName: string): Promise<ActionResponse<any[]>> {
+export async function getBountiesForZone(zoneName: string, subAreaId?: number): Promise<ActionResponse<any[]>> {
     try {
         const norm = (s: string | null | undefined) =>
             (s ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
-        const zNorm = norm(zoneName);
 
-        const allLocalBounties = await db.bounty.findMany();
-        const localBounties = allLocalBounties.filter(b => {
-            if (!b.zoneName) return false;
-            const bNorm = norm(b.zoneName);
-            // Matching strict ou inclusion si longueur suffisante (>5 chars) pour éviter les faux positifs
-            return bNorm === zNorm || (bNorm.length >= 6 && zNorm.length >= 6 && (bNorm === zNorm || bNorm.startsWith(zNorm) || zNorm.startsWith(bNorm)));
-        });
+        // ① SOURCE SOUVERAINE (12/10/2026) : l'appartenance d'un avis à une sous-zone est lue
+        // dans le dataset `subarea-monsters.json` (races d'avis 32/90/127/147/156).
+        //
+        // 🐛 Cause racine du « Qil Bil dans Cimetière » : l'ancien filtre comparait des NOMS
+        // avec un préfixe (`bNorm.startsWith(zNorm)`) ⇒ « cimetière » ⊂ « cimetière des
+        // torturés » = faux positif. Comparer la sous-zone **réelle** supprime le problème par
+        // construction (mesuré en base : Qil Bil → `subareaIds [61]`, Roub' Ignolles → `[6]`).
+        if (subAreaId) {
+            const avisRaceIds = new Set<number>(BOUNTY_RACE_IDS);
+            const bestiary = getUnityBestiary();
+            const candidates = subareaMonsterIds(subAreaId)
+                .map((id) => bestiary[String(id)])
+                .filter((m) => Boolean(m?.name) && avisRaceIds.has(Math.floor(Number(m?.raceId) || 0)));
+
+            if (candidates.length === 0) return { success: true, data: [] };
+
+            // La fiche (butin, mécanique, récompenses) vit en base : on y joint par
+            // `dofusdbId` (clé de rattachement du siphon), jamais par le nom.
+            const rows = await db.bounty.findMany({ where: { dofusdbId: { in: candidates.map((m) => m.id) } } });
+            const byDofusDbId = new Map(rows.map((row) => [Math.floor(Number(row.dofusdbId) || 0), row]));
+
+            return {
+                success: true,
+                data: candidates.map((monster) => {
+                    const row = byDofusDbId.get(monster.id);
+                    if (!row) {
+                        // Avis réel de la zone sans fiche siphonnée : nom + sprite réels, pas de
+                        // lien de fiche (`bountyId: null`) ⇒ l'UI n'ouvre rien, aucun 404.
+                        return {
+                            id: `subarea:${subAreaId}:${monster.id}`,
+                            bountyId: null,
+                            name: monster.name,
+                            imageUrl: monsterSpriteUrl(monster.id),
+                            level: 0,
+                            subarea: null,
+                            guideUrl: null,
+                            doplons: 0,
+                            rewardType: "Doplon",
+                            rewards: [],
+                            milice: null,
+                            mechanics: null,
+                        };
+                    }
+                    return {
+                        id: row.id,
+                        bountyId: row.id,
+                        name: row.name,
+                        imageUrl: normalizeDofusAssetStoredUrl("monsters", row.imageUrl, row.dofusdbId),
+                        level: row.level,
+                        subarea: row.zoneName,
+                        guideUrl: row.dpnlUrl,
+                        doplons: row.doplons,
+                        rewardType: row.rewardType,
+                        rewards: row.rewards,
+                        milice: row.milice,
+                        mechanics: row.mechanics,
+                    };
+                }),
+            };
+        }
+
+        // ② Repli (aucune sous-zone fournie) : nom de zone **EXACT** sur les seuls avis
+        // siphonnés (`isBountyMonster`) — jamais de préfixe, et les 83 lignes historiques
+        // (archimonstres/boss) ne sont plus jamais servies comme avis.
+        const zNorm = norm(zoneName);
+        const localBounties = (await db.bounty.findMany({ where: { isBountyMonster: true } }))
+            .filter((b) => Boolean(b.zoneName) && norm(b.zoneName) === zNorm);
 
         logger.debug(`[Bounties] Requested zone: "${zoneName}". Found local: ${localBounties.length}`);
 
         const merged = localBounties.map(b => ({
             id: b.id,
+            bountyId: b.id,
             name: b.name,
             imageUrl: normalizeDofusAssetStoredUrl("monsters", b.imageUrl, b.dofusdbId),
             level: b.level,
@@ -1346,6 +1472,97 @@ export async function getBountiesForZone(zoneName: string): Promise<ActionRespon
     } catch (error) {
         logger.error('[getBountiesForZone] Error:', { error });
         return { success: false, error: 'Erreur lors du chargement des avis de recherche' };
+    }
+}
+
+/** Index `sous-zone → donjons` construit depuis `worldmap.json` (lu une fois par process). */
+let dungeonLocationCache: { bySubAreaId: Map<number, { id: number; name: string; level: number }[]> } | null = null;
+
+function loadDungeonLocationIndex() {
+    if (dungeonLocationCache) return dungeonLocationCache;
+    const bySubAreaId = new Map<number, { id: number; name: string; level: number }[]>();
+    try {
+        const filePath = path.join(process.cwd(), 'public', 'game-data', 'worldmap.json');
+        if (fs.existsSync(filePath)) {
+            const raw = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+            // La carte d'entrée d'un donjon porte sa sous-zone : c'est le seul lien RÉEL
+            // entre un donjon et une zone (aucune recherche par nom, donc aucun faux positif).
+            const subAreaByMapId = new Map<number, number>();
+            for (const m of (raw.maps || [])) {
+                const mapId = Math.floor(Number(m?.id) || 0);
+                const subAreaId = Math.floor(Number(m?.subAreaId) || 0);
+                if (mapId > 0 && subAreaId > 0) subAreaByMapId.set(mapId, subAreaId);
+            }
+            for (const dungeon of (raw.dungeons || [])) {
+                const subAreaId = subAreaByMapId.get(Math.floor(Number(dungeon?.entranceMapId) || 0));
+                if (!subAreaId) continue;
+                const list = bySubAreaId.get(subAreaId) ?? [];
+                list.push({
+                    id: Math.floor(Number(dungeon?.id) || 0),
+                    name: String(dungeon?.name ?? ''),
+                    level: Math.floor(Number(dungeon?.optimalPlayerLevel) || 0),
+                });
+                bySubAreaId.set(subAreaId, list);
+            }
+        }
+    } catch (error) {
+        logger.error('[loadDungeonLocationIndex] worldmap.json error:', { error });
+    }
+    dungeonLocationCache = { bySubAreaId };
+    return dungeonLocationCache;
+}
+
+/**
+ * Donjons **réellement situés** dans une sous-zone de la carte du monde.
+ *
+ * 🎯 Demande user (12/10/2026) : « une map analysée, si elle est dans la zone d'un donjon,
+ * on affiche bien “1 donjon” ou plusieurs si y en a plusieurs avec le nom et l'icône du dj ».
+ *
+ * 🐛 Mesure : l'ancien code appelait `searchDungeonsAdvanced({ query: zoneName })` — une
+ * recherche **floue par nom**, pas les donjons de la zone. La vérité est dans `worldmap.json`
+ * (`dungeons[].entranceMapId` → `maps[].subAreaId`, mesuré : 190 donjons sur 191 résolvent,
+ * 128 sous-zones portent au moins un donjon). Le nom et le boss viennent de
+ * `dungeon-monsters.json` (souverain, aucun appel réseau).
+ */
+export async function getDungeonsForSubArea(subAreaId?: number): Promise<ActionResponse<Array<{
+    id: number;
+    name: string;
+    level: number;
+    bossName: string | null;
+    imageUrl: string | null;
+}>>> {
+    try {
+        const id = Math.floor(Number(subAreaId) || 0);
+        if (id <= 0) return { success: true, data: [] };
+
+        const entries = loadDungeonLocationIndex().bySubAreaId.get(id) ?? [];
+        if (entries.length === 0) return { success: true, data: [] };
+
+        const localData = getLocalDungeonMonstersData();
+        const byCleanName = new Map<string, any>();
+        for (const dungeon of (localData?.dungeons ?? [])) {
+            const key = String(dungeon?.cleanName ?? '');
+            if (key) byCleanName.set(key, dungeon);
+        }
+        const clean = (s: string) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '');
+
+        return {
+            success: true,
+            data: entries.map((entry) => {
+                const local = byCleanName.get(clean(entry.name));
+                const boss = Array.isArray(local?.bosses) ? local.bosses[0] : null;
+                return {
+                    id: entry.id,
+                    name: entry.name,
+                    level: entry.level,
+                    bossName: boss?.name ?? null,
+                    imageUrl: boss?.imageUrl ?? null,
+                };
+            }),
+        };
+    } catch (error) {
+        logger.error('[getDungeonsForSubArea] Error:', { error });
+        return { success: false, error: 'Erreur lors du chargement des donjons de la zone' };
     }
 }
 
@@ -1956,6 +2173,37 @@ function readStoredCenter(
     return centerFromSubAreaIds(subAreaIds, subareas, mapsBySubAreaId);
 }
 
+/**
+ * Zones **réelles** d'un monstre (donnée souveraine `subarea-monsters.json`) : chaque
+ * sous-zone est nommée par `worldmap.json` et porte son centre calculé.
+ *
+ * 🎯 Demande user (12/10/2026) : « un archi a parfois plusieurs zones disponibles, il faut
+ * afficher chaque zone dispo en dropdown ». La liste vient du **jeu** (les `subareas`
+ * DofusDB d'un monstre), pas d'une supposition : un archimonstre EST un monstre (race 78).
+ */
+function monsterZoneEntries(
+    monsterId: number | null | undefined,
+    fallbackSubAreaIds?: number[] | null
+): Array<{ subAreaId: number; name: string; centerX: number | null; centerY: number | null; worldMapId: number }> {
+    const ids = subareaIdsForMonster(monsterId);
+    const list = ids.length > 0 ? ids : (Array.isArray(fallbackSubAreaIds) ? fallbackSubAreaIds : []);
+    if (list.length === 0) return [];
+
+    const { subareas, mapsBySubAreaId } = loadWorldmapIndex();
+    const byId = new Map<number, any>();
+    for (const sub of subareas) byId.set(Math.floor(Number(sub?.id) || 0), sub);
+
+    return list.map((subAreaId) => {
+        const sub = byId.get(subAreaId);
+        const rawName = sub?.name?.fr ?? (typeof sub?.name === 'string' ? sub.name : null);
+        return {
+            subAreaId,
+            name: String(rawName ?? `Sous-zone ${subAreaId}`),
+            ...centerFromSubAreaIds([subAreaId], subareas, mapsBySubAreaId),
+        };
+    });
+}
+
 /** Shared: resolve subAreaIds + center coords + worldMapId from a zone name against worldmap.json */
 function resolveZoneInWorldmap(
     zoneName: string | null,
@@ -2074,6 +2322,10 @@ export async function searchArchimonstresForMap(
                 zoneName: a.zone,
                 source: 'local' as const,
                 subAreaIds,
+                dofusdbId: a.dofusdbId ?? null,
+                // Toutes les zones RÉELLES de la cible (dataset souverain) : le menu
+                // déroulant du volet Archimonstres s'en sert pour proposer chaque zone.
+                zones: monsterZoneEntries(a.dofusdbId, subAreaIds),
                 ...readStoredCenter(a.centerX, a.centerY, a.worldMapId, subAreaIds, subareas, mapsBySubAreaId),
             };
         });
@@ -2306,6 +2558,10 @@ export async function getArchimonstresByFilter(
                 zoneName: a.zone,
                 source: 'local' as const,
                 subAreaIds,
+                dofusdbId: a.dofusdbId ?? null,
+                // Toutes les zones RÉELLES de la cible : un archimonstre apparaît souvent dans
+                // plusieurs sous-zones, et le volet doit pouvoir proposer chacune d'elles.
+                zones: monsterZoneEntries(a.dofusdbId, subAreaIds),
                 ...readStoredCenter(a.centerX, a.centerY, a.worldMapId, subAreaIds, subareas, mapsBySubAreaId),
             };
         });

@@ -22,6 +22,16 @@ import { MonsterImage } from "@/components/succes/BountyFicheView";
 import { SpellRangeGrid } from "@/components/succes/SpellRangeGrid";
 import { resolveSpellIconUrl } from "@/lib/dofus-image-url";
 import { buildBossFicheTabs, type BossFicheTabId } from "@/lib/boss-fiche-tabs";
+import {
+    parseInvocationId,
+    resolveInvocationLabel,
+    scaleUnityDamageLine,
+} from "@/lib/monster-spell-levels";
+import {
+    getMonsterSpellLevels,
+    resolveMonsterNames,
+    type MonsterSpellLevelsData,
+} from "@/server/actions/monster-spell-actions";
 
 export interface MonsterFichePayload {
     monsterId: number;
@@ -74,6 +84,40 @@ export function MonsterFicheView({
     const passive = data?.passive?.description ? data.passive : null;
     const zoneName = data?.encyclo?.names?.zoneName ?? null;
     const ficheKey = fiche?.monsterId ?? null;
+
+    // Lot 6 — enrichissement sorts (niveaux DofusDB : conditions + noms
+    // d'invocations). Lazy + fail-soft : en échec, le rendu local reste tel quel.
+    const [spellLevels, setSpellLevels] = useState<MonsterSpellLevelsData | null>(null);
+    const [summonNames, setSummonNames] = useState<Record<number, string>>({});
+    useEffect(() => {
+        setSpellLevels(null);
+        setSummonNames({});
+        const mid = Number(fiche?.monsterId);
+        if (!Number.isFinite(mid) || mid <= 0) return;
+        let cancelled = false;
+        getMonsterSpellLevels(mid)
+            .then((res) => {
+                if (!cancelled && res.success && res.data) setSpellLevels(res.data);
+            })
+            .catch(() => {});
+        const invocationIds = ((Array.isArray(fiche?.data?.spells) ? fiche.data.spells : []) as any[])
+            .flatMap((s: any) => [
+                ...(Array.isArray(s?.effects) ? s.effects : []),
+                ...(Array.isArray(s?.unityEffects) ? s.unityEffects : []),
+            ])
+            .map((label: unknown) => parseInvocationId(String(label ?? "")))
+            .filter((n): n is number => n !== null);
+        if (invocationIds.length > 0) {
+            resolveMonsterNames(invocationIds)
+                .then((res) => {
+                    if (!cancelled && res.success && res.data) setSummonNames(res.data);
+                })
+                .catch(() => {});
+        }
+        return () => {
+            cancelled = true;
+        };
+    }, [ficheKey]);
 
     // Une fiche = un contexte neuf : onglet, palier et sort reviennent au départ.
     useEffect(() => {
@@ -169,8 +213,23 @@ export function MonsterFicheView({
                         </p>
                     ) : (
                         spells.map((spell: any, index: number) => {
-                            const effects: string[] = spell.effects?.length ? spell.effects : (spell.unityEffects ?? []);
+                            const rawEffects: string[] = spell.effects?.length ? spell.effects : (spell.unityEffects ?? []);
                             const description = spell.description || spell.unityDescription || "";
+                            // Lot 6 — dégâts calculés (dés × stats du palier actif) + noms
+                            // d'invocations résolus. À défaut : libellé brut d'origine.
+                            const gradeStats = grades[activeGradeIndex] ?? grades[0] ?? {};
+                            const carac = (gradeStats as any)?.carac ?? gradeStats;
+                            const dmgStats = {
+                                earth: carac?.strength,
+                                fire: carac?.intelligence,
+                                water: carac?.chance,
+                                air: carac?.agility,
+                            };
+                            const lookup = (id: number): string | null => summonNames[id] ?? null;
+                            const renderedEffects = rawEffects.map((effect) =>
+                                scaleUnityDamageLine(resolveInvocationLabel(String(effect), lookup), dmgStats)
+                            );
+                            const enriched = (spellLevels?.spells ?? []).find((s) => s.spellId === Number(spell.id));
                             return (
                                 <div key={`${spell.id}-${index}`} className="flex items-start gap-2.5 rounded-xl border border-border bg-background/40 p-3">
                                     <SpellIcon iconId={spell.unityIconId ?? spell.iconId} />
@@ -180,9 +239,12 @@ export function MonsterFicheView({
                                             {spell.apCost !== undefined ? <span className="font-mono text-[10px] text-muted-foreground">{spell.apCost} PA</span> : null}
                                             {spell.range !== undefined ? <span className="font-mono text-[10px] text-muted-foreground">{spell.range} PO</span> : null}
                                         </div>
-                                        {effects.length > 0 ? (
+                                        {enriched && enriched.conditions.length > 0 ? (
+                                            <p className="mt-1 text-[10px] text-muted-foreground">{enriched.conditions.join(" · ")}</p>
+                                        ) : null}
+                                        {renderedEffects.length > 0 ? (
                                             <ul className="mt-1 space-y-0.5">
-                                                {effects.map((effect, i) => (
+                                                {renderedEffects.map((effect, i) => (
                                                     <li key={i} className="text-[11px] text-muted-foreground">{effect}</li>
                                                 ))}
                                             </ul>

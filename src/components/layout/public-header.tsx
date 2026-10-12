@@ -65,6 +65,13 @@ const TOOLS = [
         icon: "/assets/worldmap/dungeon-boss.png",
     },
     {
+        id: "bestiaire",
+        label: "Bestiaire",
+        hint: "Toutes les créatures du jeu, par famille",
+        href: "/bestiaire",
+        icon: "/assets/dofus/icons/archimonster.png",
+    },
+    {
         id: "almanax",
         label: "Almanax",
         hint: "Offrande et bonus du jour",

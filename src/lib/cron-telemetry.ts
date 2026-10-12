@@ -157,6 +157,11 @@ export const KNOWN_CRON_TASKS: Record<string, { name: string; schedule: string; 
         schedule: "Quotidien 07h00",
         logFile: "discord-channel-watch.log",
     },
+    sync_raid_spells: {
+        name: "Sync Sorts Raid (spell-levels DofusDB)",
+        schedule: "Quotidien 04h10 (UTC)",
+        logFile: "sync-raid-spells.log",
+    },
 };
 
 const REDIS_PREFIX = "cron:telemetry:";

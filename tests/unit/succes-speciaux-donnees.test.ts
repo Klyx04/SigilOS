@@ -17,9 +17,14 @@ import {
     challengeNameKey,
     fetchChallengeDetail,
     siphonChallengeDetails,
+    challengeIdFromCriterion,
+    specialAchievementName,
+    buildSpecialChallengePatch,
+    fetchSpecialChallengeForBoss,
+    siphonSpecialAchievements,
     type ChallengeRow,
 } from "@/lib/achievement-details-siphon";
-import { getAchievementIconUrl } from "@/lib/achievement-icon";
+import { getAchievementIconUrl, getDungeonAchievementIconUrl } from "@/lib/achievement-icon";
 
 const read = (path: string) => readFileSync(path, "utf8");
 const PROXY = read("src/app/api/assets-dofus/[type]/[id]/route.ts");
@@ -172,6 +177,126 @@ describe("icône de succès — proxy d'abord, plus de case noire", () => {
     it("le proxy connaît les deux nouveaux espaces d'icône", () => {
         expect(PROXY).toMatch(/const validTypes = \['monsters', 'items', 'spells', 'challenges', 'achievements'\] as const;/);
         expect(PROXY).toContain("`https://api.dofusdb.fr/img/${assetType}/${safeId}.png`");
+    });
+});
+
+describe("icône d'un succès de donjon — interne et public résolvent PAREIL (plus d'orange perdu)", () => {
+    it("préfère l'icône propre au succès (DungeonAchievement.imageUrl) via le proxy", () => {
+        expect(
+            getDungeonAchievementIconUrl({
+                imageUrl: "https://api.dofusdb.fr/img/achievements/10.png",
+                challenge: { slug: "special", iconUrl: "/game-data/achievements/special.png" },
+            }),
+        ).toBe("/api/assets-dofus/achievements/10");
+    });
+
+    it("repli sur l'icône du challenge (proxy d'abord) quand le succès n'a pas la sienne", () => {
+        expect(
+            getDungeonAchievementIconUrl({
+                imageUrl: null,
+                challenge: { slug: "passer-eponge", iconUrl: "https://api.dofusdb.fr/img/challenges/977.png" },
+            }),
+        ).toBe("/api/assets-dofus/challenges/977");
+    });
+
+    it("repli final : asset local du slug, sinon null (jamais un chemin brut)", () => {
+        expect(getDungeonAchievementIconUrl({ imageUrl: null, challenge: { slug: "duo", iconUrl: null } })).toBe(
+            "/game-data/achievements/duo.png",
+        );
+        expect(getDungeonAchievementIconUrl(null)).toBeNull();
+    });
+});
+
+describe("succès « spéciaux » par donjon — le vrai intitulé remplace le placeholder « Spécial »", () => {
+    /** Payloads DofusDB réels (mesurés le 12/10/2026). */
+    const ACHIEVEMENT = { id: 6150, name: { fr: "Mob l'Éponge (Spécial)" }, iconId: 10, objectives: [{ criterion: "(EH>979,0)" }] };
+    const CHALLENGE = {
+        id: 979,
+        name: { fr: "Passer l'éponge" },
+        description: { fr: "À partir du tour 2, Mob l'éponge doit être poussé ou attiré au moins une fois à chaque tour global." },
+        iconId: 977,
+        activationCriterion: "GM>0,928,1&Gm=d",
+        completionCriterion: "Ma=1",
+    };
+
+    it("extrait l'id du challenge réel depuis le critère d'objectif", () => {
+        expect(challengeIdFromCriterion("(EH>979,0)")).toBe(979);
+        expect(challengeIdFromCriterion("PL>19")).toBeNull();
+        expect(specialAchievementName("Mob l'Eponge")).toBe("Mob l'Eponge (Spécial)");
+    });
+
+    it("construit le patch : nom + description + icônes RÉELS (proxy)", () => {
+        const patch = buildSpecialChallengePatch(ACHIEVEMENT, CHALLENGE);
+        expect(patch?.challengeName).toBe("Passer l'éponge");
+        expect(patch?.iconUrl).toBe("/api/assets-dofus/challenges/977");
+        expect(patch?.achievementImageUrl).toBe("/api/assets-dofus/achievements/10");
+        expect(patch?.description).toBe(CHALLENGE.description.fr);
+    });
+
+    it("ne fabrique rien sans identité complète", () => {
+        expect(buildSpecialChallengePatch(ACHIEVEMENT, { ...CHALLENGE, iconId: 0 })).toBeNull();
+        expect(buildSpecialChallengePatch(ACHIEVEMENT, { ...CHALLENGE, description: { fr: "" } })).toBeNull();
+    });
+
+    it("résout le succès par NOM (garde d'identité) puis le challenge", async () => {
+        const fetchImpl = (async (url: string) =>
+            jsonResponse(
+                url.includes("/achievements?") ? { data: [ACHIEVEMENT] } : CHALLENGE,
+            )) as never;
+        const patch = await fetchSpecialChallengeForBoss("Mob l'Eponge", fetchImpl);
+        expect(patch?.challengeName).toBe("Passer l'éponge");
+    });
+
+    it("un succès introuvable ⇒ null (jamais le premier résultat)", async () => {
+        const fetchImpl = (async () =>
+            jsonResponse({ data: [{ ...ACHIEVEMENT, name: { fr: "Autre (Spécial)" } }] })) as never;
+        expect(await fetchSpecialChallengeForBoss("Mob l'Eponge", fetchImpl)).toBeNull();
+    });
+
+    it("dry-run : compte les updates mais n'écrit rien ; apply : re-pointe vers le challenge réel", async () => {
+        const row = {
+            id: "da1",
+            imageUrl: null,
+            dungeon: { bossName: "Mob l'Eponge", name: "Donjon" },
+            challenge: { id: "c-generic", name: "Spécial", slug: "sp-cial" },
+        };
+        const written: Array<{ op: string; args: any }> = [];
+        const makeDb = () => ({
+            dungeonAchievement: {
+                findMany: async () => [row],
+                update: async (args: any) => written.push({ op: "update", args }),
+            },
+            challenge: {
+                findFirst: async () => null,
+                create: async (args: any) => {
+                    written.push({ op: "create", args });
+                    return { id: "c-real" };
+                },
+                update: async (args: any) => written.push({ op: "challengeUpdate", args }),
+            },
+        });
+        const fetchImpl = (async (url: string) =>
+            jsonResponse(url.includes("/achievements?") ? { data: [ACHIEVEMENT] } : CHALLENGE)) as never;
+
+        const dryRun = await siphonSpecialAchievements({ db: makeDb() as any, apply: false, fetchImpl });
+        expect(dryRun.updated).toBe(1);
+        expect(dryRun.written).toBe(0);
+        expect(written).toHaveLength(0);
+
+        const applied = await siphonSpecialAchievements({ db: makeDb() as any, apply: true, fetchImpl });
+        expect(applied.written).toBe(1);
+        expect(written.some((w) => w.op === "create" && w.args.data.name === "Passer l'éponge")).toBe(true);
+        const rePoint = written.find((w) => w.op === "update");
+        expect(rePoint?.args.data.challengeId).toBe("c-real");
+        expect(rePoint?.args.data.imageUrl).toBe("/api/assets-dofus/achievements/10");
+    });
+});
+
+describe("le cron complète aussi les succès spéciaux (borné, coupé sous Vitest)", () => {
+    it("passe branchée dans `sync-monster-stats`", () => {
+        const cron = read("src/app/api/cron/sync-monster-stats/route.ts");
+        expect(cron).toContain('const { siphonSpecialAchievements } = await import("@/lib/achievement-details-siphon");');
+        expect(cron).toMatch(/siphonSpecialAchievements\(\{ db: db as any, apply: true, limit: 10 \}\)/);
     });
 });
 

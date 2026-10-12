@@ -236,29 +236,27 @@ export async function getExternalKralamoureDetails(kralaId: number, guildId: str
         keySource = anyMemberWithKey ? "fallback-member" : "none";
     }
 
-    logger.error("[getExternalKralamoureDetails] Key resolution:", {
+    // Diagnostic de résolution de la clé : `debug` (dev uniquement). Le chemin
+    // d'ÉCHEC, lui, reste journalisé ci-dessous — c'est le seul exploitable.
+    // ⚠️ Ni l'empreinte de la clé (fragment de secret) ni l'id Discord de guilde
+    // (snowflake) ne partent dans les logs : Sentry est un sink partagé
+    // (`docs/RULES.md` § Security — « rien de sensible dans les logs »).
+    logger.debug("[getExternalKralamoureDetails] résolution de la clé", {
         kralaId,
-        guildId,
         keySource,
         hasKey: !!apiKey,
-        keyPreview: apiKey ? `${apiKey.substring(0, 8)}...` : "null",
     });
 
     if (!apiKey) return null; // No key anywhere — can't fetch
 
     try {
-        const details = await getKralamoureEventDetails(kralaId, { 
+        const details = await getKralamoureEventDetails(kralaId, {
             guildApiKey: apiKey,
             revalidate: revalidate ?? 3600 // Default to 1h if not specified
         });
-        logger.error("[getExternalKralamoureDetails] SUCCESS:", {
-            kralaId,
-            participantsCount: details.participants_count,
-            participantsList: details.participants?.length,
-        });
         return details;
     } catch (error) {
-        logger.error("[getExternalKralamoureDetails] Failed:", { error, kralaId, guildId, keySource });
+        logger.error("[getExternalKralamoureDetails] Failed:", { error, kralaId, keySource });
         return null;
     }
 }

@@ -76,3 +76,67 @@ export function buildLadderSyncFields(summary: LadderSyncSummary): { name: strin
         { name: "Échecs", value: String(summary.failCount), inline: true },
     ];
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Run du WORKER BullMQ (« Ladder Background Sync ») — compteurs **et** QUI a
+// échoué. Mesure du 12/10/2026 : l'embed montrait `jobId`, `synced`, `notFound`,
+// `errored` (clés techniques anglaises) sans jamais dire **quels** pseudos
+// étaient introuvables ⇒ alerte illisible et inactionnable.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Résumé **au niveau run** renvoyé par `processLadderSync` (compteurs + listes). */
+export type LadderWorkerSummary = {
+    synced?: number;
+    notFound?: number;
+    errored?: number;
+    total?: number;
+    cooldowns?: number;
+    aborted?: boolean;
+    /** Pseudos réellement introuvables sur le ladder (bornés à l'affichage). */
+    notFoundPseudos?: string[];
+    /** Pseudos en erreur technique (réseau/WAF) (bornés à l'affichage). */
+    erroredPseudos?: string[];
+};
+
+/** Liste bornée « a, b, c … (+N) » — jamais une liste infinie dans un embed. */
+function boundedJoin(values: string[] | undefined): string {
+    const list = (values ?? []).filter((v) => v && v.trim() !== "");
+    if (list.length === 0) return "";
+    const shown = list.slice(0, LADDER_SYNC_MAX_LISTED_FAILURES);
+    const suffix = list.length > shown.length ? ` … (+${list.length - shown.length})` : "";
+    return `${shown.join(", ")}${suffix}`;
+}
+
+/** Message humain du run worker : l'état, puis **qui** est concerné (borné). */
+export function buildLadderWorkerMessage(summary: LadderWorkerSummary): string {
+    const total = summary.total ?? 0;
+    const synced = summary.synced ?? 0;
+    const notFound = summary.notFound ?? 0;
+    const errored = summary.errored ?? 0;
+    const head = summary.aborted
+        ? `Sync ladder interrompue : ${synced}/${total} profils à jour, ${notFound} introuvable(s), ${errored} erreur(s) — reprise au prochain run.`
+        : `Sync ladder : ${synced}/${total} profils à jour, ${notFound} introuvable(s), ${errored} erreur(s).`;
+
+    const lines: string[] = [];
+    const missing = boundedJoin(summary.notFoundPseudos);
+    if (missing) lines.push(`Introuvables : ${missing}`);
+    const failed = boundedJoin(summary.erroredPseudos);
+    if (failed) lines.push(`En erreur : ${failed}`);
+    return lines.length > 0 ? `${head}\n${lines.join("\n")}` : head;
+}
+
+/** Champs d'embed FR du run worker (fin du jargon `synced` / `notFound` / `errored`). */
+export function buildLadderWorkerFields(
+    summary: LadderWorkerSummary
+): { name: string; value: string; inline?: boolean }[] {
+    const fields = [
+        { name: "Profils traités", value: String(summary.total ?? 0), inline: true },
+        { name: "À jour", value: String(summary.synced ?? 0), inline: true },
+        { name: "Introuvables", value: String(summary.notFound ?? 0), inline: true },
+        { name: "Erreurs", value: String(summary.errored ?? 0), inline: true },
+    ];
+    if (summary.cooldowns) {
+        fields.push({ name: "Pauses anti-blocage", value: String(summary.cooldowns), inline: true });
+    }
+    return fields;
+}

@@ -64,7 +64,7 @@ export default async function BestiaryHubPage() {
     const fr = locale !== "en";
     const hub = hubRes.success && hubRes.data
         ? hubRes.data
-        : { documented: 0, bestiarySize: 0, families: [], truncated: false };
+        : { documented: 0, listed: 0, bestiarySize: 0, families: [], truncated: false };
 
     const headersList = await headers();
     const nonce = headersList.get("x-nonce") ?? "";
@@ -94,7 +94,7 @@ export default async function BestiaryHubPage() {
             isPartOf: { "@type": "WebSite", name: "SigilOS", url: baseUrl },
             mainEntity: {
                 "@type": "ItemList",
-                numberOfItems: hub.documented,
+                numberOfItems: hub.listed,
                 itemListElement: listedMonsters.map((monster, index) => ({
                     "@type": "ListItem",
                     position: index + 1,
@@ -140,11 +140,16 @@ export default async function BestiaryHubPage() {
                         <p className="text-sm text-muted-foreground leading-relaxed">
                             {t.bossPage.bestiaryHub.subtitle}
                         </p>
-                        {hub.documented > 0 ? (
+                        {hub.listed > 0 ? (
                             <p className="text-xs font-bold text-foreground/90">
-                                {t.bossPage.bestiaryHub.documented
-                                    .replace("{count}", String(hub.documented))
+                                {t.bossPage.bestiaryHub.listed
+                                    .replace("{listed}", String(hub.listed))
                                     .replace("{total}", String(hub.bestiarySize))}
+                                {hub.documented > 0 ? (
+                                    <span className="ml-2 font-normal text-muted-foreground">
+                                        {t.bossPage.bestiaryHub.documented.replace("{count}", String(hub.documented))}
+                                    </span>
+                                ) : null}
                             </p>
                         ) : null}
                     </div>

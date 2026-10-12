@@ -34,7 +34,7 @@ import type {
 import { dofensiveFetch, norm, toSafeId } from "@/lib/dofensive-fetch";
 import { damageRangeOfEffect, pickMonsterDamageStats, pushDistanceOfEffect, scaleDamageInEffectGroups } from "@/lib/dofus-monster-damage";
 import { pickMonsterGrade, pickSpellLevelForMonster } from "@/lib/dofensive-spells";
-import { deriveDofensiveMonsterName, pickDofensiveMonsterId } from "@/lib/dofensive-boss";
+import { deriveDofensiveMonsterName, pickDofensiveMonsterId, pickDofensiveMonsterIdStrict } from "@/lib/dofensive-boss";
 import {
     getLocalDofensiveDungeonAny,
     getLocalDofensiveMapAny,
@@ -778,11 +778,29 @@ export async function getBossDofensiveSpells(
     // « Servitude » (onglets du dashboard, overlay et simulation).
     // Le repli sur le boss reste garanti quand le nom demandé n'est pas dans la famille
     // (nommage DofusDB ≠ Dofensive) ⇒ aucune régression sur l'entité principale.
-    const monsterId = pickDofensiveMonsterId(
-        dungeon.data.monsters,
-        opts?.dofensiveMonsterName ?? monsterName,
-        dungeon.data.bossMonsterId
-    );
+    // 🐞 FIX « les fiches affichaient les sorts d'un boss étranger » (lot 6) : quand le
+    // donjon apparié N'EST PAS le donjon demandé au mot près (heuristique floue /
+    // tokens), on interdit le repli sur `bossMonsterId` — servir les sorts d'un boss
+    // étranger est pire que servir les seuls sorts locaux (fail-closed, l'appelant
+    // garde ses sorts DofusDB/Unity). Cas de référence : « Mureine » / « Plateau
+    // de la Mureine » injectait « Rouge et Noir », « Négativisme », « Éclair Rouge »,
+    // « Pulsation Malsaine ». Un donjon apparié au mot près garde le repli
+    // historique (nommage DofusDB ≠ Dofensive).
+    const requestedDungeon = opts?.dofensiveDungeonName ?? dungeonName ?? "";
+    const dungeonExact =
+        norm(requestedDungeon) !== "" && norm(requestedDungeon) === norm(dungeon.data.dungeonName ?? "");
+    const wantedMonster = opts?.dofensiveMonsterName ?? monsterName;
+    let monsterId: number | null;
+    if (dungeonExact) {
+        monsterId = pickDofensiveMonsterId(
+            dungeon.data.monsters,
+            wantedMonster,
+            dungeon.data.bossMonsterId
+        );
+    } else {
+        monsterId = pickDofensiveMonsterIdStrict(dungeon.data.monsters, wantedMonster);
+        if (!monsterId) return { success: false, error: "Monstre Dofensive introuvable (appariement incertain)" };
+    }
     if (!monsterId) return { success: false, error: "Monstre Dofensive introuvable" };
     return getDofensiveSpells(monsterId, gradeLevel, forceRefresh, locale);
 }

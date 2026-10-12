@@ -41,6 +41,11 @@ import { Worker, Queue, Job } from "bullmq";
 import { defaultQueueOptions } from "../lib/queue/metamob-queue";
 import { db } from "../lib/prisma";
 import { logger } from "../lib/logger";
+import {
+    buildLadderWorkerMessage,
+    buildLadderWorkerFields,
+    type LadderWorkerSummary,
+} from "../lib/ladder-sync-alert";
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 
@@ -246,6 +251,9 @@ async function processLadderSync(job: Job) {
     let consecutiveRateLimits = 0;
     let cooldowns = 0;
     let aborted = false;
+    // « Qui » a échoué (jamais affiché brut dans un embed : borné par la règle pure).
+    const notFoundPseudos: string[] = [];
+    const erroredPseudos: string[] = [];
 
     // ── 3. STRICTLY SEQUENTIAL — one profile at a time ───────────────────────
     for (let i = 0; i < shuffled.length; i++) {
@@ -311,6 +319,7 @@ async function processLadderSync(job: Job) {
             // so we don't re-try them within 22h
             if (!succesData?.found && !generalData?.found) {
                 notFound++;
+                notFoundPseudos.push(pseudo);
                 await db.userProfile.update({
                     where: { id: profile.id },
                     data: { lastLadderUpdate: new Date() },
@@ -325,6 +334,7 @@ async function processLadderSync(job: Job) {
 
         } catch (err: any) {
             errored++;
+            erroredPseudos.push(pseudo);
             if (err.message?.startsWith("RATE_LIMIT:")) {
                 consecutiveRateLimits++;
                 logger.warn(`[LadderSync] Rate-limit consécutif ${consecutiveRateLimits}/${MAX_CONSECUTIVE_ERRORS} pour ${pseudo}`);
@@ -349,7 +359,7 @@ async function processLadderSync(job: Job) {
     logger.info(
         `[LadderSync] ✅ Terminé. Synced: ${synced} | NotFound: ${notFound} | Errors: ${errored} | Cooldowns: ${cooldowns} | Total: ${shuffled.length}`
     );
-    return { synced, notFound, errored, total: shuffled.length, cooldowns, aborted };
+    return { synced, notFound, errored, total: shuffled.length, cooldowns, aborted, notFoundPseudos, erroredPseudos };
 }
 
 // ─── Worker Instance ──────────────────────────────────────────────────────────
@@ -365,11 +375,11 @@ const ladderSyncWorker = new Worker(
 
 ladderSyncWorker.on("completed", async (job) => {
     logger.info(`[LadderSync] ✅ Job ${job.id} terminé.`);
-    const summary = (job.returnvalue ?? {}) as {
-        synced?: number; notFound?: number; errored?: number;
-        total?: number; cooldowns?: number; aborted?: boolean;
-    };
-    const message = `Sync ladder terminée (worker) : ${summary.synced ?? "?"} OK, ${summary.notFound ?? "?"} introuvables, ${summary.errored ?? "?"} erreurs${summary.cooldowns ? `, ${summary.cooldowns} cooldown(s)` : ""}${summary.aborted ? " — INTERROMPUE (reprise au prochain run)" : ""}.`;
+    const summary = (job.returnvalue ?? {}) as LadderWorkerSummary;
+    // Message humain + champs d'embed FR : l'embed Discord ne montre plus les clés
+    // techniques (`synced`/`notFound`/`errored`) mais la répartition lisible, et
+    // nomme les pseudos concernés (bornés par la règle pure).
+    const message = buildLadderWorkerMessage(summary);
 
     // Cache ladder périmé par le run : sans ça, le module affiche encore les
     // 0 pendant 5-10 min après un force (faux « ça n'a rien fait »).
@@ -399,6 +409,8 @@ ladderSyncWorker.on("completed", async (job) => {
         message,
         type: "WORKER_SYNC",
         success: !summary.aborted,
+        // Champs FR explicites ⇒ plus de dump brut des clés de `metadata`.
+        fields: buildLadderWorkerFields(summary),
         metadata: { jobId: job.id, timestamp: new Date().toISOString(), ...summary }
     });
 });

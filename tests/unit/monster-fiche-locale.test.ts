@@ -316,10 +316,15 @@ describe("fiche publique et onglet interne — même source, même rendu", () =>
         expect(hub).toContain('"@type": "ItemList"');
         expect(hub).not.toMatch(/^"use client"/m);
 
-        // La source du périmètre est CELLE DU SITEMAP : on ne lie aucune page `noindex`.
+        // 🔴 Lot D (12/10/2026) : le sommaire liste **toutes** les espèces normales, plus
+        // seulement les fiches siphonnées (« il manque un paquet de monstres »). L'indexation
+        // reste bornée par le `noindex` des fiches auto-générées ; `listSiphonedNormalMonsterSlugs`
+        // ne sert plus qu'au compteur « documentées » (même source que le sitemap).
         const action = readSource("src/server/actions/game-data-actions.ts");
         expect(action).toContain("export async function getBestiaryHub");
         expect(action).toMatch(/getBestiaryHub[\s\S]{0,900}?listSiphonedNormalMonsterSlugs\(\)/);
+        // Plus de filtre « documentée seulement » : chaque monstre normal a un slug ⇒ listé.
+        expect(action).not.toMatch(/if \(!documented\.has\(slug\)\) continue;/);
 
         // Entrées du sommaire : `/boss` (déjà indexée) et chaque fiche (breadcrumb + bouton).
         expect(readSource("src/app/boss/page.tsx")).toContain('href="/bestiaire"');

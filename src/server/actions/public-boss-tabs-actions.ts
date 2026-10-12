@@ -32,6 +32,8 @@ export interface PublicDungeonAchievement {
     name: string;
     slug: string | null;
     iconUrl: string | null;
+    /** Icône **propre au donjon** (`DungeonAchievement.imageUrl`) — la vraie quand siphonnée. */
+    imageUrl: string | null;
     points: number;
     description: string | null;
 }
@@ -146,6 +148,7 @@ export async function getPublicDungeonAchievements(
             name: r.challenge?.name ?? "Succès",
             slug: r.challenge?.slug ?? null,
             iconUrl: r.challenge?.iconUrl ?? null,
+            imageUrl: r.imageUrl ?? null,
             points: r.points ?? 0,
             description: r.challenge?.description ?? null,
         }));

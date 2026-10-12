@@ -24,6 +24,7 @@ import {
     findMissingAchievements,
 } from "@/server/actions/dungeon-finder-actions";
 import { getDungeonsWithAchievements } from "@/server/actions/game-data-actions";
+import { getDungeonAchievementIconUrl } from "@/lib/achievement-icon";
 import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
@@ -682,6 +683,9 @@ export function SuccesTracker({ guildId, canEdit }: SuccesTrackerProps) {
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                                     {selectedDungeon.achievements.map((a) => {
                                         const isDone = completedIds.has(a.id);
+                                        // Icône résolue en source unique (proxy d'abord) — plus le
+                                        // chemin brut : l'interne affiche la même icône que le public.
+                                        const iconSrc = getDungeonAchievementIconUrl(a);
                                         return (
                                             <button
                                                 key={a.id}
@@ -705,9 +709,9 @@ export function SuccesTracker({ guildId, canEdit }: SuccesTrackerProps) {
                                                 </div>
 
                                                 <div className="w-8 h-8 rounded-lg bg-background border border-border/80 flex items-center justify-center p-1 shrink-0 overflow-hidden">
-                                                    {a.challenge.iconUrl ? (
+                                                    {iconSrc ? (
                                                         <img
-                                                            src={a.challenge.iconUrl}
+                                                            src={iconSrc}
                                                             alt=""
                                                             className="w-full h-full object-contain"
                                                             loading="lazy"

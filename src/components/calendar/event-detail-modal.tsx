@@ -18,6 +18,10 @@ import {
     Edit,
     Check,
     X,
+    Play,
+    Square,
+    ChevronLeft,
+    ChevronRight,
     Loader2,
     Target,
     Bell,
@@ -61,6 +65,17 @@ import { CalendarDiscordDialog } from "./calendar-discord-dialog";
 import { getMissionsByIds } from "@/server/actions/mission-actions";
 import { kickParticipant, transferRaidCaptaincy } from "@/server/actions/calendar-actions";
 import { useRaidOverlay } from "@/hooks/use-raid-overlay";
+import { useRaidLive } from "@/hooks/use-raid-live";
+import {
+    getRaidLiveSession,
+    startRaidLiveSession,
+    endRaidLiveSession,
+    setRaidLiveStep,
+    setRaidLiveObjective,
+    type RaidLiveSessionView,
+} from "@/server/actions/raid-live-actions";
+import { liveAlertLevel, formatLiveRemaining } from "@/lib/raid-live";
+import { getLocalizedRaidData } from "@/lib/raid-overlay-data";
 
 
 // ============================================
@@ -306,6 +321,70 @@ export function EventDetailModal({
             });
         }
     }, [event?.type, missionIds]);
+
+    // Lot 2 — session live : visible par tous, pilotée par le lead seul
+    // (créateur OU capitaine actuel). Hooks avant le return précoce ci-dessous.
+    const liveEventId = isRaid && event?.id && !isMirror ? event.id : null;
+    const isLead = !!event && (event.creator.id === currentUserId || raidMeta?.raidCaptainId === currentUserId);
+    const [liveSession, setLiveSession] = useState<RaidLiveSessionView | null>(null);
+    const [liveLoading, setLiveLoading] = useState(false);
+    const [liveNow, setLiveNow] = useState(() => Date.now());
+
+    const fetchLiveSession = async () => {
+        if (!liveEventId) return;
+        try {
+            const res = await getRaidLiveSession(guildId, liveEventId);
+            if (res.success) setLiveSession(res.data ?? null);
+        } catch {
+            // Fail-soft : la modale reste utilisable sans live.
+        }
+    };
+
+    useEffect(() => {
+        setLiveSession(null);
+        if (!open || !liveEventId) return;
+        void fetchLiveSession();
+        const id = window.setInterval(fetchLiveSession, 15_000);
+        return () => window.clearInterval(id);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [open, liveEventId]);
+
+    useEffect(() => {
+        if (!liveSession || liveSession.status !== "LIVE") return;
+        const id = window.setInterval(() => setLiveNow(Date.now()), 1000);
+        return () => window.clearInterval(id);
+    }, [liveSession?.id, liveSession?.status]);
+
+    const { presence: livePresence } = useRaidLive({
+        guildId,
+        eventId: liveEventId,
+        enabled: open && !!liveEventId,
+        onUpdate: () => {
+            void fetchLiveSession();
+        },
+    });
+
+    const handleLiveAction = async (
+        action: () => Promise<{ success: boolean; data?: RaidLiveSessionView | null; error?: string }>
+    ) => {
+        setLiveLoading(true);
+        try {
+            const res = await action();
+            if (res.success) {
+                setLiveSession(res.data ?? null);
+            } else {
+                toast.error(res.error || "Action impossible");
+            }
+        } catch {
+            toast.error("Action impossible");
+        } finally {
+            setLiveLoading(false);
+        }
+    };
+
+    const liveAlert = liveSession ? liveAlertLevel(new Date(liveSession.startedAt).getTime(), liveNow) : "ok";
+    const liveRemaining = liveSession ? formatLiveRemaining(new Date(liveSession.endsAt).getTime(), liveNow) : "";
+    const liveStepsCount = liveSession ? getLocalizedRaidData(liveSession.raidType, "fr").steps.length : 0;
 
     if (!event) return null;
 
@@ -796,7 +875,7 @@ export function EventDetailModal({
                                             </Link>
                                             <button
                                                 type="button"
-                                                onClick={() => openRaidOverlay({ raidSlug: RAID_GUIDE_LINKS[raidMeta.raidType].overlaySlug })}
+                                                onClick={() => openRaidOverlay({ raidSlug: RAID_GUIDE_LINKS[raidMeta.raidType].overlaySlug, eventId: event.id, guildId })}
                                                 className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-2.5 py-1.5 text-xs font-bold text-muted-foreground transition-colors hover:text-foreground"
                                             >
                                                 <Tv2 className="h-3.5 w-3.5" aria-hidden="true" />
@@ -844,6 +923,141 @@ export function EventDetailModal({
                                                 <span className="text-lg font-black text-foreground">{registeredCount}</span>
                                                 <span className="text-muted-foreground text-xs font-bold"> / {raidMeta.raidMax} joueurs</span>
                                             </div>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            {/* ========== LOT 2 : SESSION LIVE (chrono + objectifs) ========== */}
+                            {isRaid && !isMirror && (liveSession?.status === "LIVE" || isLead) && (
+                                <div className="space-y-3 rounded-lg border border-border bg-elevated/30 p-4">
+                                    <div className="flex items-center justify-between gap-2">
+                                        <div className="flex items-center gap-2">
+                                            <DofusUiIcon name="hourglass" size={16} />
+                                            <span className="text-xs font-black text-muted-foreground uppercase tracking-wider">
+                                                Session live
+                                            </span>
+                                        </div>
+                                        {liveSession?.status === "LIVE" && (
+                                            <span className={cn(
+                                                "font-mono font-black tabular-nums",
+                                                liveAlert === "alert45" || liveAlert === "ended" ? "text-danger" : liveAlert === "ok" ? "text-success" : "text-warning"
+                                            )}>
+                                                {liveRemaining}
+                                            </span>
+                                        )}
+                                    </div>
+
+                                    {(!liveSession || liveSession.status !== "LIVE") ? (
+                                        <div className="space-y-2">
+                                            <p className="text-xs text-muted-foreground leading-relaxed">
+                                                Lance le chrono de 60 min, l'étape suivie et les objectifs cochés — visibles en temps réel dans l'overlay des inscrits.
+                                            </p>
+                                            <Button
+                                                size="sm"
+                                                onClick={() => handleLiveAction(() => startRaidLiveSession(guildId, event.id))}
+                                                disabled={liveLoading || isLoading}
+                                                className="bg-success text-success-foreground hover:bg-success/90"
+                                            >
+                                                {liveLoading ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Play className="h-4 w-4 mr-1.5" />}
+                                                Lancer le raid
+                                            </Button>
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-3">
+                                            <div className="flex items-center justify-between gap-2 text-xs">
+                                                <span className="font-black text-foreground tabular-nums">
+                                                    {(liveSession.score ?? 0).toLocaleString("fr-FR")} pts
+                                                </span>
+                                                {livePresence.length > 0 && (
+                                                    <span className="text-muted-foreground font-bold">
+                                                        {livePresence.length} overlay(s) ouvert(s)
+                                                    </span>
+                                                )}
+                                            </div>
+
+                                            {liveStepsCount > 0 && (
+                                                <div className="flex items-center justify-between gap-2 rounded-lg border border-border bg-background px-2 py-1.5">
+                                                    {isLead ? (
+                                                        <Button
+                                                            size="sm"
+                                                            variant="ghost"
+                                                            onClick={() => handleLiveAction(() => setRaidLiveStep(guildId, { eventId: event.id, stepIndex: Math.max(0, liveSession.currentStepIndex - 1) }))}
+                                                            disabled={liveLoading || liveSession.currentStepIndex <= 0}
+                                                            className="h-7 w-7 p-0"
+                                                            title="Étape précédente"
+                                                        >
+                                                            <ChevronLeft className="h-4 w-4" />
+                                                        </Button>
+                                                    ) : <span />}
+                                                    <span className="text-xs font-bold text-foreground truncate">
+                                                        Étape {liveSession.currentStepIndex + 1}/{liveStepsCount}
+                                                        {" · "}
+                                                        {getLocalizedRaidData(liveSession.raidType, "fr").steps[liveSession.currentStepIndex]?.floor ?? ""}
+                                                    </span>
+                                                    {isLead ? (
+                                                        <Button
+                                                            size="sm"
+                                                            variant="ghost"
+                                                            onClick={() => handleLiveAction(() => setRaidLiveStep(guildId, { eventId: event.id, stepIndex: Math.min(liveStepsCount - 1, liveSession.currentStepIndex + 1) }))}
+                                                            disabled={liveLoading || liveSession.currentStepIndex >= liveStepsCount - 1}
+                                                            className="h-7 w-7 p-0"
+                                                            title="Étape suivante"
+                                                        >
+                                                            <ChevronRight className="h-4 w-4" />
+                                                        </Button>
+                                                    ) : <span />}
+                                                </div>
+                                            )}
+
+                                            <div className="space-y-1">
+                                                {(liveSession.objectives ?? []).map((objective: { id: string; label: string; points: number; done: boolean }) => (
+                                                    <div key={objective.id} className="flex items-center gap-2 text-xs">
+                                                        {isLead ? (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => handleLiveAction(() => setRaidLiveObjective(guildId, { eventId: event.id, objectiveId: objective.id, done: !objective.done }))}
+                                                                disabled={liveLoading}
+                                                                className={cn(
+                                                                    "flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors",
+                                                                    objective.done ? "bg-success border-success text-success-foreground" : "border-border text-transparent hover:border-success"
+                                                                )}
+                                                                title={objective.done ? "Décocher" : "Cocher"}
+                                                            >
+                                                                <Check className="h-3 w-3" />
+                                                            </button>
+                                                        ) : (
+                                                            <span className={cn(
+                                                                "flex h-4 w-4 shrink-0 items-center justify-center rounded border",
+                                                                objective.done ? "bg-success/20 border-success/40 text-success" : "border-border text-transparent"
+                                                            )}>
+                                                                <Check className="h-3 w-3" />
+                                                            </span>
+                                                        )}
+                                                        <span className={cn("flex-1 leading-snug", objective.done ? "text-foreground font-bold" : "text-muted-foreground")}>
+                                                            {objective.label}
+                                                        </span>
+                                                        {objective.points > 0 && (
+                                                            <span className="shrink-0 font-mono font-bold text-warning">
+                                                                +{objective.points.toLocaleString("fr-FR")}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                ))}
+                                            </div>
+
+                                            {isLead && (
+                                                <Button
+                                                    size="sm"
+                                                    variant="ghost"
+                                                    onClick={() => handleLiveAction(() => endRaidLiveSession(guildId, event.id))}
+                                                    disabled={liveLoading}
+                                                    className="text-muted-foreground hover:text-danger hover:bg-danger/10"
+                                                >
+                                                    <Square className="h-4 w-4 mr-1.5" />
+                                                    Clôturer la session
+                                                </Button>
+                                            )}
                                         </div>
                                     )}
                                 </div>

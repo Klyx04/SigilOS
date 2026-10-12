@@ -1,7 +1,7 @@
 "use client";
 
 import { Trophy } from "lucide-react";
-import { getAchievementIconUrl } from "@/lib/achievement-icon";
+import { getDungeonAchievementIconUrl } from "@/lib/achievement-icon";
 import { NO_ACHIEVEMENT_CHALLENGE_SLUG } from "@/lib/dungeon-no-achievement";
 import type { PublicDungeonAchievement } from "@/server/actions/public-boss-tabs-actions";
 
@@ -11,7 +11,7 @@ interface PublicBossAchievementsTabProps {
 }
 
 function AchievementCard({ achievement }: { achievement: PublicDungeonAchievement }) {
-    const iconUrl = getAchievementIconUrl(achievement.slug, achievement.iconUrl);
+    const iconUrl = getDungeonAchievementIconUrl(achievement);
 
     return (
         <div className="flex items-start gap-3 p-4 rounded-xl bg-surface/50 border border-border/70 hover:border-border transition-colors">

@@ -13,6 +13,8 @@ import { getDungeonDirectory } from "@/server/actions/dungeon-finder-actions";
 import { searchDungeons } from "@/server/actions/game-data-actions";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { getClass } from "@/lib/dofus-assets";
+import { dungeonFicheHref } from "@/lib/dungeon-fiche";
+import { getDungeonAchievementIconUrl } from "@/lib/achievement-icon";
 
 interface Dungeon {
     id: string | number;
@@ -220,7 +222,9 @@ export function DungeonDetailModal({ isOpen, onClose, dungeons, guildId, isPubli
                         setDirectoryData(first.achievements.map((a: any) => ({
                             achievementId: a.id,
                             achievementName: a.challenge?.name || a.name || "Succès",
-                            iconUrl: a.challenge?.iconUrl || null,
+                            // Même résolution d'icône que la fiche publique (source unique
+                            // `@/lib/achievement-icon`) — sans quoi la case restait noire ici.
+                            iconUrl: getDungeonAchievementIconUrl(a),
                             points: a.points || 10,
                             hasCompleted: [],
                             missing: []
@@ -253,6 +257,13 @@ export function DungeonDetailModal({ isOpen, onClose, dungeons, guildId, isPubli
         dName.toLowerCase().includes(rb.title.toLowerCase())
     )) : undefined;
 
+    // Accès à la fiche du donjon : `/boss/<slug>` en surface publique, fiche boss du module
+    // Succès en surface de guilde (`@/lib/dungeon-fiche`). Le segment est le **slug publié**
+    // (`resolvedDj.slug`) : sans lui, aucun lien — jamais une URL fabriquée.
+    const ficheHref = resolvedDj?.slug
+        ? dungeonFicheHref(canShowGuildMembers ? guildId : null, { slug: resolvedDj.slug })
+        : null;
+
     return (
         <>
         <Dialog open={isOpen} onOpenChange={onClose}>
@@ -261,27 +272,18 @@ export function DungeonDetailModal({ isOpen, onClose, dungeons, guildId, isPubli
                 className="w-[95vw] max-w-2xl bg-[#0a0f18] border border-border shadow-[0_50px_100px_rgba(0,0,0,0.8)] rounded-[2rem] md:rounded-[2.5rem] text-foreground overflow-hidden p-0 gap-0 flex flex-col h-[min(750px,85vh)]"
             >
                 
-                {/* Header with Background Image */}
-                <div className="relative h-48 bg-background border-b border-border overflow-hidden shrink-0">
-                    {(raidBossInfo?.imageUrl || resolvedDj?.imageUrl || dungeon.imageUrl) && (
-                        <motion.img 
-                            initial={{ scale: 1.1, opacity: 0 }}
-                            animate={{ scale: 1, opacity: 0.35 }}
-                            src={raidBossInfo?.imageUrl || resolvedDj?.imageUrl || dungeon.imageUrl} 
-                            alt="" 
-                            className="absolute inset-0 w-full h-full object-cover" 
-                        />
-                    )}
-                    <div className="absolute inset-0 bg-gradient-to-t from-[#0a0f18] via-[#0a0f18]/50 to-transparent" />
+                {/* En-tête — SANS image de fond (constat user du 12/10/2026 : « l'image de fond doit
+                    dégager ») : l'identité vient du cartouche, des pastilles et du boss. */}
+                <div className="relative shrink-0 border-b border-border bg-surface/40 px-5 py-5 md:px-8 md:py-6">
                     
                     <button 
                         onClick={onClose}
-                        className="absolute top-6 right-6 p-2 rounded-xl bg-surface hover:bg-surface border border-border text-foreground/50 hover:text-foreground transition-all z-20"
+                        className="absolute top-5 right-5 p-2 rounded-xl border border-border text-foreground/50 hover:text-foreground transition-all z-20"
                     >
                         <X size={20} />
                     </button>
 
-                    <div className="absolute bottom-6 left-6 right-6 md:left-8 md:right-8 flex items-end justify-between gap-4 z-10">
+                    <div className="flex items-end justify-between gap-4 pr-12">
                         <div className="flex items-center gap-4 md:gap-6">
                             <div className="w-16 h-16 md:w-20 md:h-20 rounded-2xl bg-surface/80 border border-border shadow-2xl overflow-hidden flex items-center justify-center shrink-0">
                                 {(raidBossInfo?.imageUrl || resolvedDj?.imageUrl || dungeon.imageUrl) ? (
@@ -322,6 +324,19 @@ export function DungeonDetailModal({ isOpen, onClose, dungeons, guildId, isPubli
                         </div>
                     </div>
                 </div>
+
+                {/* Accès direct à la fiche du donjon — publique en surface publique, fiche boss
+                    interne en surface de guilde (source unique `@/lib/dungeon-fiche`). */}
+                {ficheHref && (
+                    <div className="flex shrink-0 items-center justify-end border-b border-border bg-surface/20 px-5 py-2 md:px-8">
+                        <Link
+                            href={ficheHref}
+                            className="inline-flex items-center gap-1.5 rounded-xl border border-border px-3 py-1.5 text-caption font-black uppercase italic text-foreground/70 transition-colors hover:border-emerald-500/40 hover:text-foreground"
+                        >
+                            {isPublic ? "Fiche publique" : "Fiche du boss"} <ArrowUpRight size={13} />
+                        </Link>
+                    </div>
+                )}
 
                 {/* Navigation if multiple dungeons */}
                 {dungeons.length > 1 && (

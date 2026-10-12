@@ -217,7 +217,13 @@ export default async function PublicBossDetailPage({ params }: PageProps) {
   let monsterStats = statsRes.success ? statsRes.data : null;
   const spellsData = spellsRes.success ? spellsRes.data : null;
   if (monsterStats && spellsData) {
-    monsterStats = { ...monsterStats, spells: mergeDofensiveSpells(monsterStats.spells ?? [], spellsData) };
+    // Lot 6 — garde d'appartenance : seuls les sorts du monstre (DofusDB +
+    // passif) survivent à la fusion (fini les sorts d'un boss étranger).
+    const legitIds = [
+      ...(monsterStats.spells ?? []).map((s: any) => Number(s?.id)),
+      ...(Number((monsterStats as any)?.passive?.spellId) > 0 ? [Number((monsterStats as any).passive.spellId)] : []),
+    ];
+    monsterStats = { ...monsterStats, spells: mergeDofensiveSpells(monsterStats.spells ?? [], spellsData, legitIds) };
   } else if (!monsterStats && spellsData) {
     monsterStats = { name: bossName, spells: spellsData, grades: [], drops: [] };
   }

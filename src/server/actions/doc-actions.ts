@@ -4,6 +4,7 @@ import { db } from "@/lib/prisma";
 import { getUserContext, ActionResponse } from "@/server/actions/user-actions";
 import { revalidatePath } from "next/cache";
 import { logger } from "@/lib/logger";
+import { docSlugOrFallback } from "@/lib/doc-slug";
 
 // --- TYPES ---
 
@@ -236,13 +237,20 @@ export async function saveDoc(data: CreateDocInput & { id?: string }): Promise<A
             });
         } else {
             // Create
-            // Check slug uniqueness
-            const existing = await db.docPage.findUnique({ where: { slug: data.slug } });
-            if (existing) return { success: false, error: "Slug already exists" };
+            // 🔑 Le slug n'est plus un champ à gérer (demande user du 10/12/2026) : il se déduit
+            // du titre. Une collision n'est pas une erreur pour l'auteur — c'est un doublon de
+            // titre — donc on suffixe (`-2`, `-3`…) au lieu de renvoyer « Slug already exists ».
+            const desired = docSlugOrFallback((data.slug ?? "").trim() || data.title);
+            let slug = desired;
+            let suffix = 1;
+            while (await db.docPage.findUnique({ where: { slug }, select: { id: true } })) {
+                suffix += 1;
+                slug = `${desired}-${suffix}`;
+            }
 
             doc = await (db.docPage as any).create({
                 data: {
-                    slug: data.slug,
+                    slug,
                     title: data.title,
                     content: sanitizedContent,
                     category: data.category,

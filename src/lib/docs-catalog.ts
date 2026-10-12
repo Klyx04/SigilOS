@@ -311,26 +311,123 @@ La revente d'archimonstres capturés en guilde à l'hôtel des ventes est viveme
         category: 'Progression & Objectifs',
         accessLevel: 'MEMBER' as any,
         content: `
-<h2>L'Exploration des Songes Infinis</h2>
-<p>Les Songes Infinis représentent l'un des contenus endgame les plus exigeants de Dofus. SigilOS propose un tableau de bord dédié pour piloter les runs de guilde, suivre la montée des étages (200 à 400+) et partager les gains.</p>
+<h2>Monter une équipe de 4 et suivre la run étage par étage</h2>
+<p>Le module <strong>Songes Infinis</strong> organise les runs de la guilde : le meneur crée la run, les membres postulent avec leur classe, et la progression est suivie étage par étage jusqu'au Combat Final. Chaque run publiée est synchronisée avec Discord.</p>
+
+<div class="callout callout-info">
+<strong>Ce que le module ne fait pas</strong>
+<p>SigilOS ne distribue pas de butin : les gains se partagent en jeu, comme d'habitude.</p>
+</div>
 
 <figure class="my-6">
     <img src="/assets/landing/songes-preview.png" alt="Module Songes Infinis" class="rounded-2xl border border-white/10 shadow-2xl w-full" />
-    <figcaption class="text-xs text-muted-foreground mt-2 text-center">Vue détaillée d'une expédition de Songes : composition d'équipe, modificateurs et palier.</figcaption>
+    <figcaption class="text-xs text-muted-foreground mt-2 text-center">La fiche d'une run : composition d'équipe, étage courant et objectifs.</figcaption>
 </figure>
 
-<h2>1. Déclarer une Expédition</h2>
+<h2>1. Créer une run</h2>
+<p>Le bouton <strong>Créer une Run</strong> demande la permission du module : sans elle, il n'apparaît pas. Deux modes au choix :</p>
 <ul>
-    <li><strong>Étage Actuel :</strong> Renseignez le niveau de profondeur atteint (ex : Étage 285).</li>
-    <li><strong>Composition du Groupe :</strong> Associez les 4 membres participant au run.</li>
-    <li><strong>Rêves & Cauchemars :</strong> Notez les modificateurs de combat actifs et les boss de salle.</li>
+    <li><strong>Run Standard :</strong> tu choisis la difficulté et un ou plusieurs objectifs.</li>
+    <li><strong>Épreuve de Songe :</strong> parcours imposé lié à un succès en jeu — FONSOCAC, REVERSED, NILEZAFF ou SINJSONJ. La difficulté est fixée par l'épreuve choisie.</li>
 </ul>
 
-<h2>2. Partage des Gains & Reflets Oniriques</h2>
-<p>Le module permet d'enregistrer les coffres obtenus à la fin des paliers pour garantir une répartition équitable des reflets oniriques, légendes et runes astrales entre tous les participants.</p>
+<div class="callout callout-tip">
+<strong>Pas de butin ni d'expérience en Épreuve</strong>
+<p>Les Épreuves ne rapportent que le succès : choisis le mode Standard pour farmer.</p>
+</div>
 
-<h2>3. Composer l'équipe sans quiproquo</h2>
-<p>Chaque emplacement de la run affiche le pseudo du joueur avec l'icône de sa classe Dofus, et l'icône de copie placée juste après copie <code>/w Pseudo</code> pour ce joueur uniquement. Le menu <em>« Choisir ma classe »</em> de l'embed Discord permet de candidater directement avec une classe, ou de changer la sienne sans annuler sa candidature.</p>
+<h3>Les 10 difficultés</h3>
+<ul>
+    <li>🟢 <strong>Rêve I, II, III</strong> — bonus de +50, +75 et +100 %, 2 vagues par salle.</li>
+    <li>🟡 <strong>Paradoxe I, II, III, IV</strong> — bonus de +120 à +190 %, 3 vagues par salle.</li>
+    <li>🔴 <strong>Cauchemar I, II, III</strong> — bonus de +220 à +300 %, 4 vagues par salle.</li>
+</ul>
+
+<h3>Les objectifs</h3>
+<ul>
+    <li><strong>Mission de Guilde</strong> et <strong>Quête</strong> : dès le Rêve I.</li>
+    <li><strong>Farm Légendes</strong> et <strong>Succès No Achat</strong> : Paradoxe ou Cauchemar uniquement.</li>
+</ul>
+
+<h3>Date, classe, stuff et publication</h3>
+<ul>
+    <li><strong>Ta classe</strong> pour cette run : ton personnage principal ou un mule.</li>
+    <li><strong>Ton stuff</strong> (optionnel) : joins un build de ta galerie pour montrer ta préparation.</li>
+    <li><strong>Date et heure</strong> (optionnel) : laisse vide si c'est « quand on est prêts ». Une run datée apparaît aussi dans le calendrier et reçoit un rappel 1 h avant.</li>
+    <li><strong>Publication Discord</strong> : poste l'annonce dans le salon de la guilde, avec ping d'un rôle si besoin. Aucun rôle n'est pingé par défaut.</li>
+</ul>
+
+<div class="callout callout-warning">
+<strong>Les limites anti-spam</strong>
+<p>Une seule run active par meneur : termine ou abandonne ta run avant d'en relancer une. Et 3 créations maximum toutes les 10 minutes.</p>
+</div>
+
+<h2>2. Rejoindre une run</h2>
+<ul>
+    <li><strong>Postuler</strong>, depuis le dashboard ou directement avec le bouton Postuler du message Discord.</li>
+    <li>Choisir sa classe avec le menu <strong>Choisir ma classe</strong> — tu peux en changer après coup sans annuler ta candidature.</li>
+    <li>Le <strong>meneur accepte ou refuse</strong> depuis le dashboard, et tu es notifié dans les deux cas.</li>
+    <li>Équipe complète (4 sur 4) ? Tu passes en <strong>file d'attente</strong> et tu es promu automatiquement dès qu'une place se libère.</li>
+    <li><strong>Quitter</strong> est possible à tout moment. Si c'est le meneur qui part, la run est <strong>abandonnée</strong>.</li>
+</ul>
+
+<div class="callout callout-info">
+<strong>Candidature sans réponse</strong>
+<p>Sans réponse du meneur sous 24 h, la candidature expire automatiquement.</p>
+</div>
+
+<h2>3. Suivre la progression, étages 1 à 26</h2>
+<p>Seul le meneur fait avancer l'étage courant depuis la fiche de la run. La montée traverse 5 paliers, du plus doux au plus brutal :</p>
+
+<figure class="my-6">
+    <img src="/assets/docs/songes-paliers.svg" alt="Les cinq paliers des Songes, étages 1 à 26" class="rounded-2xl border border-white/10 shadow-2xl w-full" />
+    <figcaption class="text-xs text-muted-foreground mt-2 text-center">Les 5 paliers et leurs étages. Les jalons garantissent une fontaine à chaque entrée de palier.</figcaption>
+</figure>
+
+<ul>
+    <li><strong>Les Pensées oniriques</strong> (étages 1 à 3), <strong>les Balades fantastiques</strong> (4 à 9), <strong>les Espaces imaginaires</strong> (10 à 15), <strong>les Concepts brumeux</strong> (16 à 21), <strong>les Abstractions chimériques</strong> (22 à 26, puis Combat Final).</li>
+    <li><strong>Jalons 4, 10, 16 et 22 :</strong> fontaine garantie, c'est la porte d'entrée de chaque palier.</li>
+    <li><strong>Types de salle :</strong> Combat, Fontaine, Faveur ou Boss.</li>
+    <li><strong>Points de Rêve :</strong> chaque étage en rapporte, et les bonus ramassés sont notés par rareté — Communs, Rares, Épiques, Légendaires.</li>
+</ul>
+
+<h2>4. Clôturer et points de contribution</h2>
+<p>À la fin, le meneur choisit <strong>Terminer</strong> puis <strong>Confirmer et Distribuer</strong> :</p>
+<ul>
+    <li>Barème : <strong>Rêve = 1 point</strong>, <strong>Paradoxe = 2 points</strong>, <strong>Cauchemar = 3 points</strong> de contribution guilde.</li>
+    <li>Le meneur coche les membres ayant <strong>réellement participé</strong> — un remplaçant peut être ajouté à la main — et ne se donne aucun point à lui-même.</li>
+    <li>La run passe en <strong>Terminée</strong> et le message Discord est supprimé.</li>
+</ul>
+
+<h2>5. Le message Discord</h2>
+<p>La run publiée affiche sa difficulté, son meneur, ses <strong>places (x sur 4)</strong>, sa date, ses objectifs, son équipe avec les icônes de classes et sa file d'attente :</p>
+
+<figure class="my-6">
+    <img src="/assets/docs/songes-discord-embed.svg" alt="Exemple de message Discord d'une run Songes" class="rounded-2xl border border-white/10 shadow-2xl w-full" />
+    <figcaption class="text-xs text-muted-foreground mt-2 text-center">Exemple de run Rêve III : 3 places prises, 1 joueur en file d'attente, boutons Postuler et Quitter.</figcaption>
+</figure>
+
+<ul>
+    <li>Boutons <strong>Postuler</strong> et <strong>Quitter</strong> plus menu de classe : tout se fait sans passer par le site.</li>
+    <li>En salon forum, le sujet reçoit automatiquement le <strong>tag du palier</strong>.</li>
+    <li><strong>Rappel 1 h avant</strong> pour les runs datées. Le meneur peut aussi envoyer un <strong>rappel manuel</strong> qui ne pinge que les absents du vocal.</li>
+</ul>
+
+<h2>6. Guide des boss intégré</h2>
+<p>Le bouton <strong>Guide des Boss</strong> ouvre les fiches des <strong>144 boss</strong> (données Songes pour les Noobs, par Volcasaurus) : recherche par nom, note de difficulté, barres Focus, Esquive et Tank, onglets Informations, Mécaniques et Conseils. La <strong>version courte</strong> se lit entre deux salles, le <strong>boss aléatoire</strong> donne des idées, et le lien Dofensive apporte le détail complet.</p>
+
+<h2>7. Réglages pour les officiers</h2>
+<p>Dans Admin puis Songes :</p>
+<ol>
+    <li>Coller l'<strong>identifiant du salon Discord</strong> (mode développeur Discord, puis Copier l'identifiant sur le salon voulu).</li>
+    <li>En salon forum, créer les 10 tags de paliers (Rêve I à Cauchemar III) pour un classement automatique — SigilOS ne crée jamais de tags lui-même.</li>
+    <li>Choisir les <strong>rôles autorisés au ping</strong> : liste vide, personne ne peut être mentionné.</li>
+</ol>
+
+<div class="callout callout-tip">
+<strong>Permissions du bot</strong>
+<p>Le bot a besoin de Voir le salon et d'Envoyer des messages, sinon la publication échoue avec un avertissement (la run, elle, est bien créée).</p>
+</div>
         `
     },
 

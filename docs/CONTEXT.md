@@ -66,7 +66,7 @@
 ## 🎨 Assets disponibles (réutilisables dans tout chantier)
 
 - **Design / directions UI (maquettes HTML à plat)** : **archivées hors dépôt le 19/09/2026** → `A:\SigilOS--temp-archive-2026-09-19\lot4-src-temp-avant-vidage\` (`sigilos-home-direction-2026.html`, `test.html`, `refonte-rush-sylvestre-2026.html`, `refonte-marche/maquette-lot-multiple.html` — recherche par nom de fichier). Cf. `docs/arbo/ARCHIVES-TEMP-2026-09.md`.
-- **Landing / vitrine** : `public/assets/landing/` → `bg-guild.jpg` (hero), `icone-dofus.png`, `mission-preview.png`, `songes-preview.png` · `public/assets/icons/dofus_landing.png` · `public/hall-guilde.jpg` · `public/noise.svg`. **Figures de la landing** : **mockups vectoriels** (`src/components/landing/registre/*-mockup.tsx` — dashboard, calendrier, guide, missions) — **plus aucune capture PNG depuis le 20/09/2026** : `src/lib/landing-figures.ts`, son test et les 4 visuels `public/assets/screenshots/{dashboard-guilde,calendrier-sorties,missions-guilde,guide-sylvestre}.png` ont été supprimés. Image de partage social : `public/assets/landing/bg-guild.jpg` (1250×639, référencée par `public/maintenance.html`). Les captures restantes de `public/assets/screenshots/` servent les **guides** (`src/lib/docs-catalog.ts`). L'interface God `/god/landing` (feature #140, table `LandingScreen`) a été **retirée le 17/09/2026**.
+- **Landing / vitrine** : `public/assets/landing/` → `bg-guild.jpg` (hero), `icone-dofus.png`, `mission-preview.png`, `songes-preview.png` · `public/assets/icons/dofus_landing.png` · `public/hall-guilde.jpg` · `public/noise.svg`. **Figures de la landing** : **mockups vectoriels** (`src/components/landing/registre/*-mockup.tsx` — dashboard, calendrier, guide, missions) — **plus aucune capture PNG depuis le 20/09/2026** : `src/lib/landing-figures.ts`, son test et les 4 visuels `public/assets/screenshots/{dashboard-guilde,calendrier-sorties,missions-guilde,guide-sylvestre}.png` ont été supprimés. Image de partage social : `public/assets/landing/bg-guild.jpg` (1250×639, référencée par `public/maintenance.html`). **Captures de `public/assets/screenshots/`** : les 14 captures des **docs des modules** ont été **retirées le 12/10/2026** (obsolètes — elles ne sont plus référencées par `src/lib/docs-catalog.ts`, et les 13 fichiers ont été supprimés). Restent `map-monde.png` (**embed du bot** `GeoguesserManager`) et `tableau-de-bord.png` (cité par des notes). Le harnais `scripts/capture-screenshots.mjs` peut les régénérer. L'interface God `/god/landing` (feature #140, table `LandingScreen`) a été **retirée le 17/09/2026**.
 - **Icônes Dofus** : `public/module-dofus/Dofus_*.png` (28 fichiers, dont `Dofus_Dofoozbz.png`). **Classes** : `public/assets/dofus/classes/<n>.png` (19 fichiers) — passer par `DOFUS_CLASSES`/`getClass()` (`src/lib/dofus-assets.ts`), jamais par une URL écrite à la main. **Serveurs Unity** : `DOFUS_UNITY_SERVERS` (`src/lib/presentation-constants.ts`, groupés Monocompte/Classique/Pionnier mono/Pionnier/Épique) — il n'existe **pas** d'icône de serveur dans le dépôt (nom seul).
 - **Ambiance audio Dofus (archivé, **hors dépôt** depuis le ménage du 17/09/2026)** : les 8 mp3 (`Dofus_{Ebene,Emeraude,Ivoire,Nébuleux,Ocre,Pourpre,Turquoise,Vulbis}.mp3`) sont dans `A:\SigilOS--temp-archive-2026-09-17\lot5\ambiance-dofus\` ; la spec reste à `archive/media/ajout-ambiance-Dofus/spec-audio-dofus-dashboard.md` (+ `LISEZ-MOI.md`).
 - **Divers (archivé)** : `archive/media/` → `fuji-dofensive.png`, `fuji-sigilos.png`, `map-servitude.png`.
@@ -114,7 +114,11 @@
 
 ## 📚 Système de Documentation Intégré (DocDrawer)
 
-> Référence : `prisma/seed-docs.ts` · Contenu en base `DocPage` · `npm run seed:docs` pour synchroniser.
+> Référence : `prisma/seed-docs.ts` · Contenu en base `DocPage` ·
+> **publication à la demande** `npm run seed:docs` — ⚠️ **destructif** : elle **écrase** les fiches
+> existantes (titre, catégorie, contenu, accès) et **supprime** celles dont le slug n'est pas dans
+> `OFFICIAL_DOCS`. **Plus jamais au déploiement** depuis le 12/10/2026 : les corrections faites
+> dans l'interface sont conservées.
 
 ### Architecture du système
 

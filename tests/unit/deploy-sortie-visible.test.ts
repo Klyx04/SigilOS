@@ -160,4 +160,27 @@ describe("Sortie du déploiement — compréhensible sans explication", () => {
         // doit pas être réaffichée à chaque tour.
         expect(source).toMatch(/while kill -0 "\$PID"[\s\S]{0,600}wc -l <"\$LOG"/);
     });
+
+    it("⑧ le déploiement ne rejoue JAMAIS le seed de la documentation", () => {
+        // 🛑 Constat user du 12/10/2026 : « j'ai beau éditer la doc, tu écrases tout ». Mesure :
+        // `prisma/seed-docs.ts` **écrase** chaque `DocPage` par la version du catalogue
+        // (title/category/content/accessLevel) **et** `deleteMany` les slugs absents
+        // d'`OFFICIAL_DOCS` ; les deux scripts l'appelaient à **chaque** déploiement (étape 5).
+        // La publication de la doc redevient donc une **action à la demande**, jamais un effet
+        // de bord d'un déploiement — c'est ce que ce verrou protège.
+        // On ne teste pas la simple **mention** : les deux scripts expliquent la décision en
+        // commentaire (et citent la commande manuelle). Ce qui est interdit, c'est une ligne
+        // **exécutée** — d'où le filtrage des commentaires avant l'assertion.
+        const codeOnly = (source: string) =>
+            source
+                .split(/\r?\n/)
+                .filter((line) => !/^\s*#/.test(line))
+                .join("\n");
+        for (const [name, source] of [
+            ["deploy-cd.sh", deployCd()],
+            ["deploy.sh", deploySh()],
+        ] as const) {
+            expect(codeOnly(source), name).not.toContain("seed:docs");
+        }
+    });
 });

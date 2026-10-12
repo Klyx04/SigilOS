@@ -98,7 +98,7 @@ npx tsc --noEmit                   # TypeScript (déjà joué par le hook pre-co
 npm run lint                       # ESLint
 npm run security:audit             # porte de sécurité (hook pre-push + CI) — voir docs/agents/git-push.md §0
 npm run build                      # build de prod (délégué à la CI si `next dev` tourne — dis-le)
-npm run seed:docs                  # si docs-catalog.ts a changé
+npm run seed:docs                  # ⚠️ écrase les fiches DocPage (et purge les slugs hors catalogue)
 ```
 
 Déploiement : `./scripts/deploy-cd.sh <env> [sha]` (voie normale) · repli `./scripts/deploy.sh <env>` ·

@@ -765,7 +765,7 @@ salon de notification est un **forum** (un post de forum est un thread).
 - **Vérifications passées** :
   ```
   GET /                                    → 200 text/html   (vitrine maintenance)
-  GET /assets/screenshots/screenshot1.png  → 200 image/png
+  GET /assets/screenshots/map-monde.png    → 200 image/png
   GET /assets/ui/logo-v2.png               → 200 image/png   (favicon + og:image)
   ```
 - **Faux positif `/assets/icons/favicon.svg`** : `maintenance.html` ne le référence pas (favicon réel =
@@ -785,7 +785,9 @@ salon de notification est un **forum** (un post de forum est un thread).
   social est désormais `public/assets/landing/bg-guild.jpg` (1250×639), référencée par
   `public/maintenance.html`. Le profil Playwright (`.playwright-profile/`) se recrée avec
   `node scripts/capture-screenshots.mjs --login`. **Les avertissements ci-dessous restent valables pour
-  les autres visuels** servis par `next/image` (`public/assets/screenshots/*` via `src/lib/docs-catalog.ts`).
+  les visuels servis par `next/image`** — et depuis le **12/10/2026** les docs des modules n'en
+  portent plus aucun (les 14 captures de `public/assets/screenshots/` ont été retirées et les 13
+  fichiers supprimés) : seul `map-monde.png` reste servi (embed du bot `GeoguesserManager`).
 - ⚠️ **Remplacer un visuel se fait sous un NOUVEAU nom de fichier** (piège mesuré le 17/09) :
   `next/image` sert `/_next/image?url=…&w=…&q=…`, une URL **indépendante du contenu du fichier** → écraser
   une image au même nom laisse le **navigateur** afficher l'ancienne, **même après `Ctrl+Shift+R` et alors

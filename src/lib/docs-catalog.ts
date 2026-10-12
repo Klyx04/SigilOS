@@ -20,7 +20,6 @@ export const OFFICIAL_DOCS: OfficialDoc[] = [
 <p>L'obtention des Dofus est le cœur de la progression sur Dofus. Le module <strong>Les Quêtes Dofus</strong> permet à chaque membre de suivre sa progression quête par quête, étape par étape, tout en partageant son avancée avec l'ensemble de la guilde pour débloquer les combats de groupe et l'entraide mutuelle.</p>
 
 <figure class="my-6">
-    <img src="/assets/screenshots/screenshot7.png" alt="Suivi des quêtes Dofus sur SigilOS" class="rounded-2xl border border-white/10 shadow-2xl w-full" />
     <figcaption class="text-xs text-muted-foreground mt-2 text-center">Interface interactive : suivi chronologique, prérequis et étapes des Dofus primaires et secondaires.</figcaption>
 </figure>
 
@@ -196,7 +195,6 @@ Le moteur de SigilOS analyse l'image déposée pour extraire le nom du monstre v
 <p>La quête de l'Éternelle Moisson nécessite la capture de <strong>286 âmes de monstres</strong>, dont des dizaines de boss de donjons et les redoutables <strong>Archimonstres</strong>. SigilOS intègre une passerelle bidirectionnelle avec <strong>Metamob</strong> pour transformer ce calvaire individuel en une réussite collective de guilde.</p>
 
 <figure class="my-6">
-    <img src="/assets/screenshots/screenshot8.png" alt="Matching Metamob et Quête Ocre" class="rounded-2xl border border-white/10 shadow-2xl w-full" />
     <figcaption class="text-xs text-muted-foreground mt-2 text-center">Tableau de matching : détection automatique des échanges optimaux entre membres.</figcaption>
 </figure>
 
@@ -505,7 +503,6 @@ C'est la valeur du marché FM. SigilOS ne peut pas lire ton inventaire : il éti
 <p>Besoin de bras pour passer un donjon difficile, débloquer un combat de quête complexe ou valider une quête d'alignement ? Le module <strong>Donjons & Quêtes</strong> remplace les pings anarchiques sur Discord par un babillard d'annonces propre et interactif.</p>
 
 <figure class="my-6">
-    <img src="/assets/screenshots/recherche-donjons.png" alt="Recherche de donjons et entraide" class="rounded-2xl border border-white/10 shadow-2xl w-full" />
     <figcaption class="text-xs text-muted-foreground mt-2 text-center">Module LFG : publication d'annonces d'aide, choix du donjon et inscription en 1 clic.</figcaption>
 </figure>
 
@@ -558,7 +555,6 @@ La copie est <em>unitaire</em> : plus de bouton qui copiait toute la liste d'un 
 <p>Partagez vos meilleures panoplies, vos optimisations exotiques et vos équipements spécialisés pour guider les recrues et échanger sur les théories d'optimisation Dofus.</p>
 
 <figure class="my-6">
-    <img src="/assets/screenshots/galerie.png" alt="Galerie d'équipements de guilde" class="rounded-2xl border border-white/10 shadow-2xl w-full" />
     <figcaption class="text-xs text-muted-foreground mt-2 text-center">Fiches de builds : prévisualisation automatique des caractéristiques et orientation de jeu.</figcaption>
 </figure>
 
@@ -642,7 +638,6 @@ La copie est <em>unitaire</em> : plus de bouton qui copiait toute la liste d'un 
 <p>Une carte vectorielle fluide en haute définition couvrant l'intégralité des territoires d'Amakna, Frigost, Pandala, Otomaï, Saharach et des Dimensions Divines.</p>
 
 <figure class="my-6">
-    <img src="/assets/screenshots/map-monde.png" alt="Carte interactive du monde Dofus" class="rounded-2xl border border-white/10 shadow-2xl w-full" />
     <figcaption class="text-xs text-muted-foreground mt-2 text-center">Navigation cartographique : repères de zaaps, bateaux, entrées de donjons et zaapis.</figcaption>
 </figure>
 
@@ -732,7 +727,6 @@ La copie est <em>unitaire</em> : plus de bouton qui copiait toute la liste d'un 
 <p>SigilOS est le système d'exploitation conçu pour décharger le staff des tâches répétitives et offrir aux membres une interface moderne, vivante et interactive pour piloter leur aventure Dofus.</p>
 
 <figure class="my-6">
-    <img src="/assets/screenshots/guide-complet.png" alt="Aperçu du Cockpit SigilOS" class="rounded-2xl border border-white/10 shadow-2xl w-full" />
     <figcaption class="text-xs text-muted-foreground mt-2 text-center">Le Cockpit SigilOS : tableau de bord centralisé pour votre guilde Dofus.</figcaption>
 </figure>
 
@@ -765,7 +759,6 @@ La copie est <em>unitaire</em> : plus de bouton qui copiait toute la liste d'un 
 <p>Ce guide vous accompagne pas à pas pour déployer SigilOS sur votre serveur Discord communautaire en moins de 10 minutes.</p>
 
 <figure class="my-6">
-    <img src="/assets/screenshots/screenshot1.png" alt="Configuration initiale de guilde" class="rounded-2xl border border-white/10 shadow-2xl w-full" />
     <figcaption class="text-xs text-muted-foreground mt-2 text-center">Centre d'administration : configuration globale des modules et liaisons Discord.</figcaption>
 </figure>
 
@@ -789,7 +782,6 @@ La copie est <em>unitaire</em> : plus de bouton qui copiait toute la liste d'un 
 <p>Ce panneau régit toutes les intégrations tierces, les canaux de communication et les paramètres de sécurité de votre guilde.</p>
 
 <figure class="my-6">
-    <img src="/assets/screenshots/screenshot2.png" alt="Paramètres généraux de guilde" class="rounded-2xl border border-white/10 shadow-2xl w-full" />
     <figcaption class="text-xs text-muted-foreground mt-2 text-center">Paramètres généraux : salons Discord, webhooks et liaisons Metamob.</figcaption>
 </figure>
 
@@ -836,7 +828,6 @@ La copie est <em>unitaire</em> : plus de bouton qui copiait toute la liste d'un 
 <p>SigilOS utilise une matrice granulaire de <strong>20 permissions réelles</strong> réparties sur 6 domaines indépendants pour s'adapter à n'importe quelle hiérarchie de guilde.</p>
 
 <figure class="my-6">
-    <img src="/assets/screenshots/screenshot3.png" alt="Matrice des permissions RBAC" class="rounded-2xl border border-white/10 shadow-2xl w-full" />
     <figcaption class="text-xs text-muted-foreground mt-2 text-center">Matrice RBAC : attribution des droits par rôle Discord et par membre individuel.</figcaption>
 </figure>
 
@@ -991,7 +982,6 @@ Seuls les rôles listés dans « Rôles pinguables » peuvent être mentionnés 
 <p>Chaque guilde possède son propre ADN : axée PvM THL, élevage, entraide de quêtes ou Songes. Vous pouvez activer ou désactiver chaque brique fonctionnelle d'un simple interrupteur.</p>
 
 <figure class="my-6">
-    <img src="/assets/screenshots/screenshot4.png" alt="Activation modulaire des fonctionnalités" class="rounded-2xl border border-white/10 shadow-2xl w-full" />
     <figcaption class="text-xs text-muted-foreground mt-2 text-center">Panneau d'activation : masquez les modules superflus pour garder une interface épurée.</figcaption>
 </figure>
 
@@ -1019,7 +1009,6 @@ Seuls les rôles listés dans « Rôles pinguables » peuvent être mentionnés 
 <p>Ce module technique réconcilie en direct les utilisateurs présents sur votre serveur Discord avec les profils inscrits sur votre instance SigilOS pour éliminer les comptes fantômes.</p>
 
 <figure class="my-6">
-    <img src="/assets/screenshots/screenshot5.png" alt="Audit technique des membres" class="rounded-2xl border border-white/10 shadow-2xl w-full" />
     <figcaption class="text-xs text-muted-foreground mt-2 text-center">Vue d'audit Roster : couverture d'inscription, relances groupées et synchronisation.</figcaption>
 </figure>
 
@@ -1053,7 +1042,6 @@ Seuls les rôles listés dans « Rôles pinguables » peuvent être mentionnés 
 <p>Ce module vit désormais dans <strong>Membres &amp; Recrutement</strong>, onglet <strong>Registre</strong> : l'ancienne URL redirige automatiquement vers le registre, qui remplace définitivement les Google Sheets manuels par un flux temps réel connecté au Ladder Ankama et à Discord.</p>
 
 <figure class="my-6">
-    <img src="/assets/screenshots/screenshot6.png" alt="Gestion du cycle de vie des membres" class="rounded-2xl border border-white/10 shadow-2xl w-full" />
     <figcaption class="text-xs text-muted-foreground mt-2 text-center">Cycle de vie des membres : compte à rebours d'essai J-X, jauge de mules et leaderboard des recruteurs.</figcaption>
 </figure>
 
@@ -1100,7 +1088,6 @@ Seuls les rôles listés dans « Rôles pinguables » peuvent être mentionnés 
 <p>Lorsqu'un membre réalise une mission, il soumet sa capture d'écran de fin de combat. Le moteur d'analyse extrait les informations pour assister le staff dans sa validation.</p>
 
 <figure class="my-6">
-    <img src="/assets/screenshots/screenshot9.png" alt="File de validation OCR des captures" class="rounded-2xl border border-white/10 shadow-2xl w-full" />
     <figcaption class="text-xs text-muted-foreground mt-2 text-center">Centre de tri : vérification des données extraites par l'OCR et validation en 1 clic.</figcaption>
 </figure>
 
@@ -1154,7 +1141,6 @@ Seuls les rôles listés dans « Rôles pinguables » peuvent être mentionnés 
 <p>Permettez à vos membres de s'auto-attribuer les rôles de votre serveur Discord (notifications de sorties, disponibilités, classe jouée, métiers) via des boutons ou des menus déroulants modernes.</p>
 
 <figure class="my-6">
-    <img src="/assets/screenshots/screenshot10.png" alt="Panneaux de rôles par réaction" class="rounded-2xl border border-white/10 shadow-2xl w-full" />
     <figcaption class="text-xs text-muted-foreground mt-2 text-center">Déploiement de panneaux interactifs : sélecteurs de classes, métiers et notifications de sorties.</figcaption>
 </figure>
 

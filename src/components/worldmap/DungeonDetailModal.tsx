@@ -27,6 +27,8 @@ interface Dungeon {
 interface AchievementDirectory {
     achievementId: string;
     achievementName: string;
+    /** 🐛 Mécanique réelle du succès (DofusDB) — même contenu que la fiche publique. */
+    description?: string | null;
     iconUrl: string | null;
     points: number;
     hasCompleted: { id: string; name: string; imageUrl: string | null; classe: string | null }[];
@@ -222,6 +224,7 @@ export function DungeonDetailModal({ isOpen, onClose, dungeons, guildId, isPubli
                         setDirectoryData(first.achievements.map((a: any) => ({
                             achievementId: a.id,
                             achievementName: a.challenge?.name || a.name || "Succès",
+                            description: a.challenge?.description ?? null,
                             // Même résolution d'icône que la fiche publique (source unique
                             // `@/lib/achievement-icon`) — sans quoi la case restait noire ici.
                             iconUrl: getDungeonAchievementIconUrl(a),
@@ -508,6 +511,13 @@ export function DungeonDetailModal({ isOpen, onClose, dungeons, guildId, isPubli
                                                 </div>
                                                 <div className="min-w-0">
                                                     <h4 className="text-xs md:text-sm font-black text-foreground uppercase italic tracking-tight truncate">{achv.achievementName}</h4>
+                                                    {/* 🐛 Demande user du 12/10/2026 : « le vrai dialogue de la
+                                                        mécanique pour chaque succès […] interne/public ». */}
+                                                    {achv.description && (
+                                                        <p className="mt-1 text-caption text-foreground/55 leading-relaxed line-clamp-2">
+                                                            {achv.description}
+                                                        </p>
+                                                    )}
                                                     <div className="flex flex-wrap items-center gap-2 md:gap-3 mt-1">
                                                         <span className="text-caption md:text-caption font-black text-amber-500 bg-amber-500/10 px-1.5 md:px-2 py-0.5 rounded-lg border border-amber-500/20">
                                                             {achv.points} PTS

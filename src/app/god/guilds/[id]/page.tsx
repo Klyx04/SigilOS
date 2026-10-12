@@ -44,6 +44,31 @@ export default async function GodGuildDetailsPage({ params }: GodGuildDetailsPag
 
     const members = await getGuildMembersForGod(guildId);
 
+    // Refus **propre** de l'action (aucune donnée lue, fail-closed) : on affiche un écran de
+    // refus honnête au lieu de laisser une exception faire tomber toute la fiche
+    // (constat du 12/10/2026 : `throw` ⇒ « Application error » + Issue Sentry).
+    if (!members.ok) {
+        return (
+            <div className="space-y-6 py-20">
+                <div
+                    role="alert"
+                    className="mx-auto max-w-xl rounded-2xl border border-amber-500/30 bg-amber-500/5 p-6 text-center"
+                >
+                    <p className="text-sm font-black uppercase tracking-widest text-amber-400">
+                        Roster masqué
+                    </p>
+                    <p className="mt-2 text-xs leading-relaxed text-amber-200/80">{members.error}</p>
+                </div>
+                <Link
+                    href="/god"
+                    className="mx-auto block w-fit text-xs font-black uppercase tracking-widest text-zinc-500 hover:text-white transition-colors"
+                >
+                    Retour au Panthéon
+                </Link>
+            </div>
+        );
+    }
+
     // Données des onglets Logs / Accès & RBAC (audit du 24/09 : aucune des deux
     // n'existait). Best-effort : une API Discord indisponible ne doit pas casser
     // la fiche — on affiche alors des listes vides explicites.

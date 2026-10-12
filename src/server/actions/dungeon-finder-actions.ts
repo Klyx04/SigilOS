@@ -3172,6 +3172,8 @@ export async function getDungeonDirectory(
 ): Promise<ActionResponse<{
     achievementId: string;
     achievementName: string;
+    /** 🐛 Mécanique réelle du succès (DofusDB) — la même que sur la fiche publique. */
+    description: string | null;
     iconUrl: string | null;
     points: number;
     hasCompleted: { id: string; name: string; imageUrl: string | null; classe: string | null }[];
@@ -3209,7 +3211,7 @@ export async function getDungeonDirectory(
 
         const dungeonAchievements = await (db as any).dungeonAchievement.findMany({
             where: { dungeonId: targetDjId },
-            include: { challenge: { select: { name: true, iconUrl: true, slug: true } } },
+            include: { challenge: { select: { name: true, iconUrl: true, slug: true, description: true } } },
         });
 
         if (dungeonAchievements.length === 0) {
@@ -3269,6 +3271,9 @@ export async function getDungeonDirectory(
             return {
                 achievementId: a.id,
                 achievementName: a.challenge.name,
+                // 🐛 Demande user du 12/10/2026 : « je veux le vrai dialogue de la mécanique
+                // pour chaque succès […] interne/public » — l'interne n'affichait que le nom.
+                description: a.challenge?.description ?? null,
                 // Icône résolue par la **source unique** (`@/lib/achievement-icon`) : proxy
                 // interne d'abord, asset local en repli — sinon la modale de la carte du monde
                 // affichait un chemin brut (case noire), là où la fiche publique affichait l'icône.

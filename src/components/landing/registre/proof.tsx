@@ -104,9 +104,6 @@ export function LandingProof({ guilds = [] }: { guilds?: PublicGuildShowcase[] }
                                     >
                                         {t.landing.proofBrowseDirectory}
                                     </Link>
-                                    <Link href="/changelog" className="reg-link-quiet text-xs">
-                                        {t.footer.changelog}
-                                    </Link>
                                 </div>
                             </div>
                         </div>

@@ -11,7 +11,6 @@ export const en: Translations = {
         modules: "Modules",
         guides: "Guides",
         guilds: "Guilds",
-        changelog: "Changelog",
         tools: "Tools",
         toolsHint: "Open tools without an account",
         connectDiscord: "Connect with Discord",
@@ -52,7 +51,6 @@ export const en: Translations = {
         modules: "Guild Modules",
         guildsDir: "Guild Directory",
         guides: "Guides",
-        changelog: "Changelog",
         tools: "Game Tools",
         legal: "Legal",
         cgu: "Terms of Service",
@@ -471,27 +469,6 @@ export const en: Translations = {
         countZero: "No public guilds",
         countOne: "1 public guild",
         countMany: "public guilds",
-    },
-
-    // Changelog
-    changelogPage: {
-        metaTitle: "Changelog | SigilOS",
-        metaDesc: "Follow SigilOS development: updates, bug fixes, and new features in real time.",
-        breadcrumbHome: "Home",
-        breadcrumbChangelog: "Changelog",
-        backHome: "Back to Home",
-        eyebrow: "Release Log",
-        title: "Updates",
-        subtitle: "Every deployment, fix, and improvement documented with full transparency.",
-        latestBadge: "Latest Release",
-        empty: "No updates published yet.",
-        categories: {
-            FEATURE: "New Feature",
-            BUGFIX: "Bug Fix",
-            SECURITY: "Security",
-            PERFORMANCE: "Performance",
-            DOCUMENTATION: "Documentation",
-        },
     },
 
     // FAQ

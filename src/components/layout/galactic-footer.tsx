@@ -63,7 +63,6 @@ export function GalacticFooter({ variant = "standard", isMember: _isMember = fal
         { label: t.footer.modules, href: "/modules" },
         { label: t.footer.guildsDir, href: "/guilds" },
         { label: t.footer.guides, href: "/guides" },
-        { label: t.footer.changelog, href: "/changelog" },
     ];
 
     const toolLinks = [
@@ -136,9 +135,6 @@ export function GalacticFooter({ variant = "standard", isMember: _isMember = fal
                     </span>
 
                     <nav aria-label="Informations légales" className="flex flex-wrap items-center gap-x-4 gap-y-1">
-                        <Link href="/changelog" className="text-muted-foreground hover:text-foreground transition-colors">
-                            {t.footer.changelog}
-                        </Link>
                         <Link href="/legal/cgu" className="text-muted-foreground hover:text-foreground transition-colors">
                             {t.footer.cgu}
                         </Link>

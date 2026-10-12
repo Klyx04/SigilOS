@@ -34,9 +34,6 @@ const TITRES_ABSOLUS: Record<string, number> = {
     "src/app/guilds/[guildId]/page.tsx": 3,
     "src/app/carte-du-monde/page.tsx": 1,
     "src/app/status/page.tsx": 1,
-    // Ajouté le 29/09/2026 : `metaTitle` porte déjà « | SigilOS » et la page le passait sans
-    // `absolute` ⇒ « Journal des mises à jour | SigilOS | SigilOS » mesuré en ligne.
-    "src/app/changelog/page.tsx": 1,
     "src/app/legal/cgu/page.tsx": 1,
     "src/app/legal/faq/page.tsx": 1,
     "src/app/legal/mentions/page.tsx": 1,

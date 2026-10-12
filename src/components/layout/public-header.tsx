@@ -106,7 +106,6 @@ const NAV_ITEMS = [
     { id: "modules", label: "Modules", href: "/modules" },
     { id: "guides", label: "Guides", href: "/guides" },
     { id: "guildes", label: "Guildes", href: "/guilds" },
-    { id: "changelog", label: "Journal", href: "/changelog" },
 ] as const;
 
 /** Un `activePage` désigne soit un lien de nav, soit un outil, soit l'annuaire. */
@@ -198,7 +197,6 @@ export function PublicHeader({
         { id: "modules", label: t.nav.modules, href: "/modules" },
         { id: "guides", label: t.nav.guides, href: "/guides" },
         { id: "guildes", label: t.nav.guilds, href: "/guilds" },
-        { id: "changelog", label: t.nav.changelog, href: "/changelog" },
     ];
 
     // Échap ferme le menu Outils et repose le focus sur son déclencheur ;

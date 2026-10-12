@@ -8,7 +8,6 @@ export const fr = {
         modules: "Modules",
         guides: "Guides",
         guilds: "Guildes",
-        changelog: "Journal",
         tools: "Outils",
         toolsHint: "Outils ouverts sans compte",
         connectDiscord: "Connexion Discord",
@@ -49,7 +48,6 @@ export const fr = {
         modules: "Modules de guilde",
         guildsDir: "Annuaire des guildes",
         guides: "Guides",
-        changelog: "Journal des mises à jour",
         tools: "Outils de jeu",
         legal: "Légal",
         cgu: "CGU",
@@ -468,27 +466,6 @@ export const fr = {
         countZero: "Aucune guilde publique",
         countOne: "1 guilde publique",
         countMany: "guildes publiques",
-    },
-
-    // Changelog
-    changelogPage: {
-        metaTitle: "Journal des mises à jour | SigilOS",
-        metaDesc: "Suivez l'évolution de SigilOS : mises à jour, correctifs et nouvelles fonctionnalités en temps réel.",
-        breadcrumbHome: "Accueil",
-        breadcrumbChangelog: "Changelog",
-        backHome: "Retour à l'accueil",
-        eyebrow: "Journal des versions",
-        title: "Mises à jour",
-        subtitle: "Chaque déploiement, correctif et amélioration documenté en toute transparence.",
-        latestBadge: "Dernière version",
-        empty: "Aucune mise à jour publiée pour le moment.",
-        categories: {
-            FEATURE: "Nouvelle fonctionnalité",
-            BUGFIX: "Correction",
-            SECURITY: "Sécurité",
-            PERFORMANCE: "Performance",
-            DOCUMENTATION: "Documentation",
-        },
     },
 
     // FAQ
